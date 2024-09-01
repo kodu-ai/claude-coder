@@ -20,7 +20,7 @@ Building on [Claude 3.5 Sonnet's advanced coding capabilities](https://www-cdn.a
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=kodu-ai.claude-dev-experimental" target="_blank"><strong>Download VSCode Extension</strong></a> | <a href="https://discord.gg/hXVKFQ9jB9" target="_blank"><strong>Join the Discord</strong></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=kodu-ai.claude-dev-experimental" target="_blank"><strong>Download VSCode Extension</strong></a> | <a href="https://discord.gg/Fn97SD34qk" target="_blank"><strong>Join the Discord</strong></a>
 </p>
 
 Thanks to [Claude 3.5 Sonnet's agentic coding capabilities](https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf) Claude Dev can handle complex software development tasks step-by-step. With tools that let him create & edit files, explore complex projects, and execute terminal commands (after you grant permission), he can assist you in ways that go beyond simple code completion or tech support. While autonomous AI scripts traditionally run in sandboxed environments, Claude Dev provides a human-in-the-loop GUI to supervise every file changed and command executed, providing a safe and accessible way to explore the potential of agentic AI.
