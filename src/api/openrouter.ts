@@ -25,7 +25,7 @@ export class OpenRouterHandler implements ApiHandler {
 			},
 		})
 	}
-
+	async abortRequest(): Promise<void> {}
 	async createMessage(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
@@ -206,6 +206,7 @@ export class OpenRouterHandler implements ApiHandler {
 			id: `openrouter-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`, // this ID won't be traceable back to OpenRouter's systems if you need to debug issues
 			choices: [
 				{
+					//@ts-expect-error - OpenAI SDK typings are incorrect
 					message: {
 						role: "assistant",
 						content: textContent,

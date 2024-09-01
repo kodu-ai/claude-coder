@@ -771,6 +771,7 @@ export class ClaudeDev {
 		return totalCost
 	}
 
+	// original
 	async writeToFile(relPath?: string, newContent?: string): Promise<ToolResponse> {
 		if (relPath === undefined) {
 			await this.say(
@@ -934,7 +935,10 @@ export class ClaudeDev {
 				if (tab.input instanceof vscode.TabInputTextDiff) {
 					const originalPath = (tab.input.original as vscode.Uri).toString()
 					const modifiedPath = (tab.input.modified as vscode.Uri).toString()
-					return originalPath.includes("claude-dev-") || modifiedPath.includes("claude-dev-")
+					return (
+						originalPath.includes("claude-dev-experimental") ||
+						modifiedPath.includes("claude-dev-experimental")
+					)
 				}
 				return false
 			})

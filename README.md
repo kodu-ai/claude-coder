@@ -1,11 +1,26 @@
-# Claude Dev
+# Welcome to our experimental fork!
+
+This project is an experimental fork of Claude Dev, tailored for use with Kodu Cloud. We're excited to share our work with the community and invite you to explore the new features and capabilities we've added.
+
+### Important Note
+
+While we've built upon the excellent foundation of Claude Dev, please be aware that this version is still in an experimental stage. We recommend using it primarily for testing and exploration with Kodu Cloud.
+
+### Acknowledgments
+
+We want to express our sincere gratitude to Saoud for his incredible work. Their efforts have made this experimental fork possible. If you're looking for a more stable version, we highly recommend checking out the original Claude Dev project.
+We hope in the future some of the features will be merged back to the main branch.
+
+## About Claude Dev
+
+Building on [Claude 3.5 Sonnet's advanced coding capabilities](https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf), Claude Dev Experimental takes software development assistance to the next level. It's designed to handle complex tasks step-by-step, offering a unique blend of AI-powered coding support and human oversight.
 
 <p align="center">
   <img src="https://media.githubusercontent.com/media/saoudrizwan/claude-dev/main/demo.gif" width="100%" />
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev" target="_blank"><strong>Download VSCode Extension</strong></a> | <a href="https://discord.gg/claudedev" target="_blank"><strong>Join the Discord</strong></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=kodu-ai.claude-dev-experimental" target="_blank"><strong>Download VSCode Extension</strong></a> | <a href="https://discord.gg/hXVKFQ9jB9" target="_blank"><strong>Join the Discord</strong></a>
 </p>
 
 Thanks to [Claude 3.5 Sonnet's agentic coding capabilities](https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf) Claude Dev can handle complex software development tasks step-by-step. With tools that let him create & edit files, explore complex projects, and execute terminal commands (after you grant permission), he can assist you in ways that go beyond simple code completion or tech support. While autonomous AI scripts traditionally run in sandboxed environments, Claude Dev provides a human-in-the-loop GUI to supervise every file changed and command executed, providing a safe and accessible way to explore the potential of agentic AI.
@@ -29,25 +44,23 @@ Claude Dev uses an autonomous task execution loop with chain-of-thought promptin
 Claude Dev has access to the following capabilities:
 
 1. **`execute_command`**: Execute terminal commands on the system (only with your permission, output is streamed into the chat and you can respond to stdin or exit long-running processes when you're ready)
-2. **`read_file`**: Read the contents of a file at the specified path
-3. **`write_to_file`**: Write content to a file at the specified path, automatically creating any necessary directories
-4. **`list_files`**: List all paths for files in the specified directory. When `recursive = true`, it recursively lists all files in the directory and its nested folders (excludes files in .gitignore). When `recursive = false`, it lists only top-level files (useful for generic file operations like retrieving a file from your Desktop).
-5. **`list_code_definition_names`**: Parses all source code files at the top level of the specified directory to extract names of key elements like classes and functions (see more below)
-6. **`search_files`**: Search files in a specified directory for text that matches a given regex pattern (useful for refactoring code, addressing TODOs and FIXMEs, removing dead code, etc.)
+2. **`list_files_top_level`**: List all paths for files at the top level of the specified directory (useful for generic file operations like retrieving a file from your Desktop)
+3. **`list_files_recursive`**: List all paths for files in the specified directory and nested subdirectories (excludes files in .gitignore)
+4. **`view_source_code_definitions_top_level`**: Parses all source code files at the top level of the specified directory to extract names of key elements like classes and functions (see more below)
+5. **`read_file`**: Read the contents of a file at the specified path
+6. **`write_to_file`**: Write content to a file at the specified path, automatically creating any necessary directories
 7. **`ask_followup_question`**: Ask the user a question to gather additional information needed to complete a task (due to the autonomous nature of the program, this isn't a typical chatbot–Claude Dev must explicitly interrupt his task loop to ask for more information)
 8. **`attempt_completion`**: Present the result to the user after completing a task, potentially with a terminal command to kickoff a demonstration
 
 ### Working in Existing Projects
 
-When given a task in an existing project, Claude will look for the most relevant files to read and edit the same way you or I would–by first looking at the names of directories, files, classes, and functions since these names tend to reflect their purpose and role within the broader system, and often encapsulate high-level concepts and relationships that help understand a project's overall architecture. With tools like `list_code_definition_names` and `search_files`, Claude is able to extract names of various elements in a project to determine what files are most relevant to a given task without you having to mention `@file`s or `@folder`s yourself.
+When given a task in an existing project, Claude will look for the most relevant files to read and edit the same way you or I would–by first looking at the names of directories, files, classes, and functions since these names tend to reflect their purpose and role within the broader system, and often encapsulate high-level concepts and relationships that help understand a project's overall architecture. With tools like `list_files_recursive` and `view_source_code_definitions_top_level`, Claude is able to extract names of various elements in a project to determine what files are most relevant to a given task without you having to mention `@file`s or `@folder`s yourself.
 
-1. **File Structure**: When a task is started, Claude is given an overview of your project's file structure. It turns out Claude 3.5 Sonnet is _really_ good at inferring what it needs to process further just from these file names alone.
+1. **File Structure**: Claude first uses the `list_files_recursive` tool to get a complete picture of the project's file structure. It turns out Claude 3.5 Sonnet is _really_ good at inferring what it needs to process further just from these file names alone.
 
-2. **Source Code Definitions**: Claude may then use the `list_code_definition_names` tool on specific directories of interest. This tool uses [tree-sitter](https://github.com/tree-sitter/tree-sitter) to parse source code with custom tag queries that extract names of classes, functions, methods, and other definitions. It works by first identifying source code files that tree-sitter can parse (currently supports `python`, `javascript`, `typescript`, `ruby`, `go`, `java`, `php`, `rust`, `c`, `c++`, `c#`, `swift`), then parsing each file into an abstract syntax tree, and finally applying a language-specific query to extract definition names (you can see the exact query used for each language in `src/parse-source-code/queries`). The results are formatted into a concise & readable output that Claude can easily interpret to quickly understand the code's structure and purpose.
+2. **Source Code Definitions**: Claude may then use the `view_source_code_definitions_top_level` tool on specific directories of interest. This tool uses [tree-sitter](https://github.com/tree-sitter/tree-sitter) to parse source code with custom tag queries that extract names of classes, functions, methods, and other definitions. It works by first identifying source code files that tree-sitter can parse (currently supports `python`, `javascript`, `typescript`, `ruby`, `go`, `java`, `php`, `rust`, `c`, `c++`, `c#`, `swift`), then parsing each file into an abstract syntax tree, and finally applying a language-specific query to extract definition names (you can see the exact query used for each language in `src/parse-source-code/queries`). The results are formatted into a concise & readable output that Claude can easily interpret to quickly understand the code's structure and purpose.
 
-3. **Search Files**: Claude can also use the `search_files` tool to search for specific patterns or content across multiple files. This tool uses [ripgrep](https://github.com/BurntSushi/ripgrep) to perform regex searches on files in a specified directory. The results are formatted into a concise & readable output that Claude can easily interpret to quickly understand the code's structure and purpose. This can be useful for tasks like refactoring function names, updating imports, addressing TODOs and FIXMEs, etc.
-
-4. **Read Relevant Files**: With insights gained from the names of various files and source code definitions, Claude can then use the `read_file` tool to examine specific files that are most relevant to the task at hand.
+3. **Read Relevant Files**: With insights gained from the names of various files and source code definitions, Claude can then use the `read_file` tool to examine specific files that are most relevant to the task at hand.
 
 By carefully managing what information is added to context, Claude can provide valuable assistance even for complex, large-scale projects without overwhelming its context window.
 
@@ -65,11 +78,11 @@ To build Claude Dev locally, follow these steps:
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/saoudrizwan/claude-dev.git
+    git clone https://github.com/kodu-ai/claude-dev-experimental.git
     ```
 2. Open the project in VSCode:
     ```bash
-    code claude-dev
+    code claude-dev-experimental
     ```
 3. Install the necessary dependencies for the extension and webview-gui:
     ```bash
@@ -99,8 +112,4 @@ This project is licensed under the MIT License. See the [LICENSE](./LICENSE) fil
 
 ## Questions?
 
-Contact me on X <a href="https://x.com/sdrzn" target="_blank">@sdrzn</a>. Please create an <a href="https://github.com/saoudrizwan/claude-dev/issues">issue</a> if you come across a bug or would like a feature to be added.
-
-## Acknowledgments
-
-Special thanks to Anthropic for providing the model that powers this extension.
+Contact us on <a href="mailto:support@kodu.ai">Email</a>. Please create an <a href="https://github.com/kodu-ai/claude-dev-experimental/issues">issue</a> if you come across a bug or would like a feature to be added.

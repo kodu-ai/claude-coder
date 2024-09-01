@@ -10,7 +10,7 @@ export class AnthropicHandler implements ApiHandler {
 		this.options = options
 		this.client = new Anthropic({ apiKey: this.options.apiKey })
 	}
-
+	async abortRequest(): Promise<void> {}
 	async createMessage(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],

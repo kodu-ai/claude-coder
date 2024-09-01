@@ -1,6 +1,8 @@
 export type ApiProvider = "anthropic" | "openrouter" | "bedrock" | "vertex"
 
 export interface ApiHandlerOptions {
+	koduApiKey?: string
+	koduEmail?: string
 	apiModelId?: ApiModelId
 	apiKey?: string // anthropic
 	openRouterApiKey?: string
@@ -290,4 +292,10 @@ export const vertexModels = {
 		inputPrice: 0.25,
 		outputPrice: 1.25,
 	},
+} as const satisfies Record<string, ModelInfo>
+
+export type KoduModelId = keyof typeof koduModels
+export const koduDefaultModelId: KoduModelId = "claude-3-5-sonnet-20240620"
+export const koduModels = {
+	...anthropicModels,
 } as const satisfies Record<string, ModelInfo>

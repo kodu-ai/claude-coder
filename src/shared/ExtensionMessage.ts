@@ -7,22 +7,38 @@ import { HistoryItem } from "./HistoryItem"
 export interface ExtensionMessage {
 	type: "action" | "state" | "selectedImages"
 	text?: string
-	action?: "chatButtonTapped" | "settingsButtonTapped" | "historyButtonTapped" | "didBecomeVisible"
+	user?: ExtensionState["user"]
+	action?:
+		| "chatButtonTapped"
+		| "settingsButtonTapped"
+		| "historyButtonTapped"
+		| "didBecomeVisible"
+		| "koduAuthenticated"
+		| "koduCreditsFetched"
 	state?: ExtensionState
 	images?: string[]
 }
 
 export interface ExtensionState {
 	version: string
-	apiConfiguration?: ApiConfiguration
 	maxRequestsPerTask?: number
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
+	alwaysAllowWriteOnly?: boolean
+	creativeMode?: "creative" | "normal" | "deterministic"
+
+	user?: {
+		credits: number
+		email: string
+		refCode?: string
+	}
+	apiConfiguration?: ApiConfiguration
 	themeName?: string
 	uriScheme?: string
 	claudeMessages: ClaudeMessage[]
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean
+	shouldShowKoduPromo: boolean
 }
 
 export interface ClaudeMessage {
@@ -57,6 +73,7 @@ export type ClaudeSay =
 	| "api_req_retried"
 	| "command_output"
 	| "tool"
+	| "abort_automode"
 
 export interface ClaudeSayTool {
 	tool:

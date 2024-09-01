@@ -57,6 +57,14 @@ const ChatRow: React.FC<ChatRowProps> = ({
 		)
 
 		switch (type) {
+			case "abort_automode":
+				return [
+					<span
+						className="codicon codicon-error"
+						style={{ color: errorColor, marginBottom: "-1.5px" }}></span>,
+					<span style={{ color: errorColor, fontWeight: "bold" }}>Last Command was Aborted</span>,
+				]
+
 			case "request_limit_reached":
 				return [
 					<span

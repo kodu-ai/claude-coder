@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useEvent } from "react-use"
 import { ExtensionMessage } from "../../src/shared/ExtensionMessage"
 import { normalizeApiConfiguration } from "./components/ApiOptions"
@@ -6,18 +6,28 @@ import ChatView from "./components/ChatView"
 import HistoryView from "./components/HistoryView"
 import SettingsView from "./components/SettingsView"
 import WelcomeView from "./components/WelcomeView"
-import { ExtensionStateContextProvider, useExtensionState } from "./context/ExtensionStateContext"
+import { ExtensionStateProvider, useExtensionState } from "./context/ExtensionStateContext"
 import { vscode } from "./utils/vscode"
 
 const AppContent = () => {
-	const { didHydrateState, showWelcome, apiConfiguration, shouldShowAnnouncement } = useExtensionState()
+	const { apiConfiguration } = useExtensionState()
 	const [showSettings, setShowSettings] = useState(false)
 	const [showHistory, setShowHistory] = useState(false)
+	const [showWelcome, setShowWelcome] = useState<boolean>(false)
 	const [showAnnouncement, setShowAnnouncement] = useState(false)
 
 	const handleMessage = useCallback((e: MessageEvent) => {
 		const message: ExtensionMessage = e.data
 		switch (message.type) {
+			case "state":
+				const hasKey = !!message.state?.user
+				console.log(`hasKey: ${hasKey}`)
+				setShowWelcome(!hasKey)
+				// don't update showAnnouncement to false if shouldShowAnnouncement is false
+				if (message.state!.shouldShowAnnouncement) {
+					setShowAnnouncement(true)
+				}
+				break
 			case "action":
 				switch (message.action!) {
 					case "settingsButtonTapped":
@@ -32,9 +42,14 @@ const AppContent = () => {
 						setShowSettings(false)
 						setShowHistory(false)
 						break
+					case "koduAuthenticated":
+						console.log(`koduAuthenticated`)
+						setShowWelcome(false)
+						break
 				}
 				break
 		}
+		// (react-use takes care of not registering the same listener multiple times even if this callback is updated.)
 	}, [])
 
 	useEvent("message", handleMessage)
@@ -42,17 +57,6 @@ const AppContent = () => {
 	const { selectedModelInfo } = useMemo(() => {
 		return normalizeApiConfiguration(apiConfiguration)
 	}, [apiConfiguration])
-
-	useEffect(() => {
-		if (shouldShowAnnouncement) {
-			setShowAnnouncement(true)
-			vscode.postMessage({ type: "didShowAnnouncement" })
-		}
-	}, [shouldShowAnnouncement])
-
-	if (!didHydrateState) {
-		return null
-	}
 
 	return (
 		<>
@@ -73,6 +77,7 @@ const AppContent = () => {
 						selectedModelSupportsImages={selectedModelInfo.supportsImages}
 						selectedModelSupportsPromptCache={selectedModelInfo.supportsPromptCache}
 						hideAnnouncement={() => {
+							vscode.postMessage({ type: "didCloseAnnouncement" })
 							setShowAnnouncement(false)
 						}}
 					/>
@@ -84,9 +89,9 @@ const AppContent = () => {
 
 const App = () => {
 	return (
-		<ExtensionStateContextProvider>
+		<ExtensionStateProvider>
 			<AppContent />
-		</ExtensionStateContextProvider>
+		</ExtensionStateProvider>
 	)
 }
 

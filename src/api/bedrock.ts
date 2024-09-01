@@ -21,7 +21,7 @@ export class AwsBedrockHandler implements ApiHandler {
 			awsRegion: this.options.awsRegion,
 		})
 	}
-
+	async abortRequest(): Promise<void> {}
 	async createMessage(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],

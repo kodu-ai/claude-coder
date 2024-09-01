@@ -43,3 +43,7 @@ function getMimeType(filePath: string): string {
 			throw new Error(`Unsupported file type: ${ext}`)
 	}
 }
+
+export async function compressImages(images: string[]) {
+	return images.map((image) => ({ data: image }))
+}

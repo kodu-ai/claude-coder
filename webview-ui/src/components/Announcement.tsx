@@ -1,5 +1,7 @@
 import { VSCodeButton, VSCodeLink } from "@vscode/webview-ui-toolkit/react"
-import { ApiConfiguration } from "../../../src/shared/api"
+import { getKoduSignInUrl } from "../../../src/shared/kodu"
+import VSCodeButtonLink from "./VSCodeButtonLink"
+import { ApiConfiguration } from "../../../src/api"
 
 interface AnnouncementProps {
 	version: string
@@ -29,31 +31,28 @@ const Announcement = ({ version, hideAnnouncement, apiConfiguration, vscodeUriSc
 			<h3 style={{ margin: "0 0 8px" }}>
 				🎉{"  "}New in v{version}
 			</h3>
+
 			<ul style={{ margin: "0 0 8px", paddingLeft: "12px" }}>
 				<li>
-					<b>You can now edit Claude's changes before accepting!</b> When he edits or creates a file, you can
-					modify his changes directly in the right side of the diff view (+ hover over the 'Revert Block'
-					arrow button in the center to undo "<code>{"// rest of code here"}</code>" shenanigans)
+					Excited to announce that we've partnered with Anthropic and are offering <b>$10 free credits</b> to
+					help users get the most out of Kodu Dev with increased rate limits and prompt caching! Stay tuned
+					for some exciting updates like easier billing, voice mode and one click deployment!
 				</li>
 				<li>
-					Adds support for reading .pdf and .docx files (try "turn my business_plan.docx into a company
-					website")
+					Added "Creativity Mode" you can play between "Normal", "Creative" and "Deterministic" modes to
+					experience different levels of creativity and control over generated code.
 				</li>
 				<li>
-					Adds new <code>search_files</code> tool that lets Claude perform regex searches in your project,
-					making it easy for him to refactor code, address TODOs and FIXMEs, remove dead code, and more!
-				</li>
-				<li>
-					Adds "Always allow read-only operations" setting to let Claude read files and view directories
-					without needing to approve (<b>off</b> by default).
+					Added "Experimental Automatic" mode to let Claude automatically read, write and execute files
+					without needing to approve (off by default).
 				</li>
 			</ul>
-			<p style={{ margin: "0" }}>
+			{/* <p style={{ margin: "0" }}>
 				Follow me for more updates!{" "}
-				<VSCodeLink href="https://x.com/sdrzn" style={{ display: "inline" }}>
-					@sdrzn
+				<VSCodeLink href="https://x.com/wekodu" style={{ display: "inline" }}>
+					@kodu-ai
 				</VSCodeLink>
-			</p>
+			</p> */}
 		</div>
 	)
 }

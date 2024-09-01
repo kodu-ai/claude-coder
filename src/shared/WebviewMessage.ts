@@ -1,4 +1,4 @@
-import { ApiConfiguration, ApiProvider } from "./api"
+import { ApiConfiguration } from "../api"
 
 export interface WebviewMessage {
 	type:
@@ -9,14 +9,20 @@ export interface WebviewMessage {
 		| "webviewDidLaunch"
 		| "newTask"
 		| "askResponse"
+		| "alwaysAllowWriteOnly"
 		| "clearTask"
-		| "didShowAnnouncement"
+		| "didCloseAnnouncement"
 		| "selectImages"
 		| "exportCurrentTask"
 		| "showTaskWithId"
 		| "deleteTaskWithId"
 		| "exportTaskWithId"
+		| "abortAutomode"
+		| "didClickKoduSignOut"
+		| "fetchKoduCredits"
+		| "didDismissKoduPromo"
 		| "resetState"
+		| "setCreativeMode"
 	text?: string
 	askResponse?: ClaudeAskResponse
 	apiConfiguration?: ApiConfiguration

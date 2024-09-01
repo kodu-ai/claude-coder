@@ -16,7 +16,7 @@ export class VertexHandler implements ApiHandler {
 			region: this.options.vertexRegion,
 		})
 	}
-
+	async abortRequest(): Promise<void> {}
 	async createMessage(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],

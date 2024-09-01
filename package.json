@@ -1,159 +1,182 @@
 {
-  "name": "claude-dev",
-  "displayName": "Claude Dev",
-  "description": "Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, and more with your permission every step of the way.",
-  "version": "1.5.12",
-  "icon": "icon.png",
-  "engines": {
-    "vscode": "^1.84.0"
-  },
-  "author": {
-    "name": "Saoud Rizwan"
-  },
-  "license": "MIT",
-  "publisher": "saoudrizwan",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/saoudrizwan/claude-dev"
-  },
-  "categories": [
-    "AI"
-  ],
-  "keywords": [
-    "AI",
-    "Claude",
-    "agentic",
-    "productivity",
-    "automation"
-  ],
-  "activationEvents": [],
-  "main": "./dist/extension.js",
-  "contributes": {
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "claude-dev-ActivityBar",
-          "title": "Claude Dev",
-          "icon": "$(robot)"
-        }
-      ]
-    },
-    "views": {
-      "claude-dev-ActivityBar": [
-        {
-          "type": "webview",
-          "id": "claude-dev.SidebarProvider",
-          "name": ""
-        }
-      ]
-    },
-    "commands": [
-      {
-        "command": "claude-dev.plusButtonTapped",
-        "title": "New Task",
-        "icon": "$(add)"
-      },
-      {
-        "command": "claude-dev.historyButtonTapped",
-        "title": "History",
-        "icon": "$(history)"
-      },
-      {
-        "command": "claude-dev.popoutButtonTapped",
-        "title": "Open in Editor",
-        "icon": "$(link-external)"
-      },
-      {
-        "command": "claude-dev.settingsButtonTapped",
-        "title": "Settings",
-        "icon": "$(settings-gear)"
-      },
-      {
-        "command": "claude-dev.openInNewTab",
-        "title": "Open In New Tab",
-        "category": "Claude Dev"
-      }
-    ],
-    "menus": {
-      "view/title": [
-        {
-          "command": "claude-dev.plusButtonTapped",
-          "group": "navigation@1",
-          "when": "view == claude-dev.SidebarProvider"
-        },
-        {
-          "command": "claude-dev.historyButtonTapped",
-          "group": "navigation@2",
-          "when": "view == claude-dev.SidebarProvider"
-        },
-        {
-          "command": "claude-dev.popoutButtonTapped",
-          "group": "navigation@3",
-          "when": "view == claude-dev.SidebarProvider"
-        },
-        {
-          "command": "claude-dev.settingsButtonTapped",
-          "group": "navigation@4",
-          "when": "view == claude-dev.SidebarProvider"
-        }
-      ]
-    }
-  },
-  "scripts": {
-    "vscode:prepublish": "npm run package",
-    "compile": "npm run check-types && npm run lint && node esbuild.js",
-    "watch": "npm-run-all -p watch:*",
-    "watch:esbuild": "node esbuild.js --watch",
-    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "npm run build:webview && npm run check-types && npm run lint && node esbuild.js --production",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "check-types": "tsc --noEmit",
-    "lint": "eslint src --ext ts",
-    "test": "vscode-test",
-    "install:all": "npm install && cd webview-ui && npm install",
-    "start:webview": "cd webview-ui && npm run start",
-    "build:webview": "cd webview-ui && npm run build",
-    "test:webview": "cd webview-ui && npm run test"
-  },
-  "devDependencies": {
-    "@types/diff": "^5.2.1",
-    "@types/mocha": "^10.0.7",
-    "@types/node": "20.x",
-    "@types/vscode": "^1.82.0",
-    "@typescript-eslint/eslint-plugin": "^7.14.1",
-    "@typescript-eslint/parser": "^7.11.0",
-    "@vscode/test-cli": "^0.0.9",
-    "@vscode/test-electron": "^2.4.0",
-    "esbuild": "^0.21.5",
-    "eslint": "^8.57.0",
-    "npm-run-all": "^4.1.5",
-    "typescript": "^5.4.5"
-  },
-  "dependencies": {
-    "@anthropic-ai/bedrock-sdk": "^0.10.2",
-    "@anthropic-ai/sdk": "^0.26.0",
-    "@anthropic-ai/vertex-sdk": "^0.4.1",
-    "@types/clone-deep": "^4.0.4",
-    "@types/pdf-parse": "^1.1.4",
-    "@vscode/codicons": "^0.0.36",
-    "axios": "^1.7.4",
-    "clone-deep": "^4.0.1",
-    "default-shell": "^2.2.0",
-    "delay": "^6.0.0",
-    "diff": "^5.2.0",
-    "execa": "^9.3.0",
-    "globby": "^14.0.2",
-    "isbinaryfile": "^5.0.2",
-    "mammoth": "^1.8.0",
-    "openai": "^4.54.0",
-    "os-name": "^6.0.0",
-    "p-wait-for": "^5.0.2",
-    "pdf-parse": "^1.1.1",
-    "serialize-error": "^11.0.3",
-    "tree-kill": "^1.2.2",
-    "tree-sitter-wasms": "^0.1.11",
-    "web-tree-sitter": "^0.22.6"
-  }
+	"name": "claude-dev-experimental",
+	"displayName": "Claude Dev Experimental",
+	"description": "Experimental version of Claude Dev: Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, and more with your permission every step of the way. (Forked from claude-dev)",
+	"version": "1.3.0",
+	"icon": "icon.png",
+	"engines": {
+		"vscode": "^1.84.0"
+	},
+	"author": {
+		"name": "Kodu AI"
+	},
+	"license": "AGPL-3.0-or-later",
+	"publisher": "kodu-ai",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/kodu-ai/claude-dev-experimental"
+	},
+	"categories": [
+		"AI",
+		"Programming Languages",
+		"Snippets",
+		"Machine Learning",
+		"Education",
+		"Chat"
+	],
+	"keywords": [
+		"AI",
+		"Claude",
+		"agentic",
+		"no-code",
+		"productivity",
+		"automation",
+		"chatgpt",
+		"ai",
+		"chatgpt",
+		"claude",
+		"codegpt",
+		"codestrall",
+		"copilot",
+		"github",
+		"json",
+		"jsonc",
+		"keybindings",
+		"llama",
+		"mistral",
+		"sonnet"
+	],
+	"activationEvents": [],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "claude-dev-experimental-ActivityBar",
+					"title": "Claude Dev Experimental",
+					"icon": "kodu-logo.svg"
+				}
+			]
+		},
+		"views": {
+			"claude-dev-experimental-ActivityBar": [
+				{
+					"type": "webview",
+					"id": "claude-dev-experimental.SidebarProvider",
+					"name": ""
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "claude-dev-experimental.plusButtonTapped",
+				"title": "New Task",
+				"icon": "$(add)"
+			},
+			{
+				"command": "claude-dev-experimental.historyButtonTapped",
+				"title": "History",
+				"icon": "$(history)"
+			},
+			{
+				"command": "claude-dev-experimental.popoutButtonTapped",
+				"title": "Open in Editor",
+				"icon": "$(link-external)"
+			},
+			{
+				"command": "claude-dev-experimental.settingsButtonTapped",
+				"title": "Settings",
+				"icon": "$(settings-gear)"
+			},
+			{
+				"command": "claude-dev-experimental.openInNewTab",
+				"title": "Open In New Tab",
+				"category": "Claude Dev Experimental"
+			}
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "claude-dev-experimental.plusButtonTapped",
+					"group": "navigation@1",
+					"when": "view == claude-dev-experimental.SidebarProvider"
+				},
+				{
+					"command": "claude-dev-experimental.historyButtonTapped",
+					"group": "navigation@2",
+					"when": "view == claude-dev-experimental.SidebarProvider"
+				},
+				{
+					"command": "claude-dev-experimental.popoutButtonTapped",
+					"group": "navigation@3",
+					"when": "view == claude-dev-experimental.SidebarProvider"
+				},
+				{
+					"command": "claude-dev-experimental.settingsButtonTapped",
+					"group": "navigation@4",
+					"when": "view == claude-dev-experimental.SidebarProvider"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run package",
+		"compile": "npm run check-types && npm run lint && node esbuild.js",
+		"watch": "npm-run-all -p watch:*",
+		"watch:esbuild": "node esbuild.js --watch",
+		"watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+		"package": "npm run build:webview && npm run check-types && npm run lint && node esbuild.js --production",
+		"compile-tests": "tsc -p . --outDir out",
+		"watch-tests": "tsc -p . -w --outDir out",
+		"pretest": "npm run compile-tests && npm run compile && npm run lint",
+		"check-types": "tsc --noEmit",
+		"lint": "eslint src --ext ts",
+		"test": "vscode-test",
+		"install:all": "npm install && cd webview-ui && npm install",
+		"start:webview": "cd webview-ui && npm run start",
+		"build:webview": "cd webview-ui && npm run build",
+		"test:webview": "cd webview-ui && npm run test"
+	},
+	"devDependencies": {
+		"@types/diff": "^5.2.1",
+		"@types/mocha": "^10.0.7",
+		"@types/node": "20.x",
+		"@types/vscode": "^1.82.0",
+		"@typescript-eslint/eslint-plugin": "^7.14.1",
+		"@typescript-eslint/parser": "^7.11.0",
+		"@vscode/test-cli": "^0.0.9",
+		"@vscode/test-electron": "^2.4.0",
+		"esbuild": "^0.21.5",
+		"eslint": "^8.57.0",
+		"npm-run-all": "^4.1.5",
+		"typescript": "^5.4.5"
+	},
+	"dependencies": {
+		"@anthropic-ai/bedrock-sdk": "^0.10.2",
+		"@anthropic-ai/sdk": "^0.26.0",
+		"@anthropic-ai/tokenizer": "^0.0.4",
+		"@anthropic-ai/vertex-sdk": "^0.4.1",
+		"@types/clone-deep": "^4.0.4",
+		"@types/pdf-parse": "^1.1.4",
+		"@vscode/codicons": "^0.0.36",
+		"axios": "^1.7.4",
+		"clone-deep": "^4.0.1",
+		"default-shell": "^2.2.0",
+		"delay": "^6.0.0",
+		"diff": "^5.2.0",
+		"execa": "^9.3.0",
+		"globby": "^14.0.2",
+		"image-size": "^1.1.1",
+		"isbinaryfile": "^5.0.2",
+		"jotai": "^2.9.3",
+		"mammoth": "^1.8.0",
+		"openai": "^4.54.0",
+		"os-name": "^6.0.0",
+		"p-wait-for": "^5.0.2",
+		"pdf-parse": "^1.1.1",
+		"serialize-error": "^11.0.3",
+		"tree-kill": "^1.2.2",
+		"tree-sitter-wasms": "^0.1.11",
+		"web-tree-sitter": "^0.22.6"
+	}
 }

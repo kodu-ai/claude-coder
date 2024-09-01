@@ -13,30 +13,86 @@ https://github.com/microsoft/vscode-webview-ui-toolkit-samples/tree/main/framewo
 */
 
 let outputChannel: vscode.OutputChannel
+var creditFetchInterval: NodeJS.Timeout | null | number = null
+var lastFetchedAt = 0
 
+async function updateUserCredit(provider?: ClaudeDevProvider) {
+	const now = Date.now()
+	if (now - lastFetchedAt < 5000) {
+		return
+	}
+	lastFetchedAt = now
+	const user = await provider?.fetchKoduUser()
+	if (user) {
+		provider?.updateKoduCredits(user.credits)
+		provider?.postMessageToWebview({
+			type: "action",
+			action: "koduCreditsFetched",
+			user,
+		})
+	}
+}
+
+async function startCreditFetch(provider: ClaudeDevProvider) {
+	const now = Date.now()
+	if (now - lastFetchedAt > 500) {
+		await updateUserCredit(provider)
+	}
+	lastFetchedAt = now
+	if (!creditFetchInterval) {
+		creditFetchInterval = setInterval(() => {
+			updateUserCredit(provider)
+		}, 5050)
+	}
+}
+
+function stopCreditFetch() {
+	if (creditFetchInterval) {
+		clearInterval(creditFetchInterval)
+		creditFetchInterval = null
+	}
+}
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	//console.log('Congratulations, your extension "claude-dev" is now active!')
-
 	outputChannel = vscode.window.createOutputChannel("Claude Dev")
+	outputChannel.appendLine("Claude Dev extension activated")
+	const sidebarProvider = new ClaudeDevProvider(context, outputChannel)
 	context.subscriptions.push(outputChannel)
 
-	outputChannel.appendLine("Claude Dev extension activated")
+	// Set up the window state change listener
+	context.subscriptions.push(
+		vscode.window.onDidChangeWindowState((windowState) => {
+			if (windowState.focused) {
+				console.log("Window is now focused")
+				startCreditFetch(sidebarProvider)
+			} else {
+				console.log("Window lost focus")
+				stopCreditFetch()
+			}
+		})
+	)
+
+	// Start fetching if the window is already focused when the extension activates
+	if (vscode.window.state.focused) {
+		startCreditFetch(sidebarProvider)
+	}
+
+	// Make sure to stop fetching when the extension is deactivated
+	context.subscriptions.push({ dispose: stopCreditFetch })
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	// const disposable = vscode.commands.registerCommand("claude-dev.helloWorld", () => {
+	// const disposable = vscode.commands.registerCommand("claude-dev-experimental.helloWorld", () => {
 	// 	// The code you place here will be executed every time your command is executed
 	// 	// Display a message box to the user
 	// 	vscode.window.showInformationMessage("Hello World from claude-dev!")
 	// })
 	// context.subscriptions.push(disposable)
-
-	const sidebarProvider = new ClaudeDevProvider(context, outputChannel)
 
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(ClaudeDevProvider.sideBarId, sidebarProvider, {
@@ -45,7 +101,7 @@ export function activate(context: vscode.ExtensionContext) {
 	)
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("claude-dev.plusButtonTapped", async () => {
+		vscode.commands.registerCommand("claude-dev-experimental.plusButtonTapped", async () => {
 			outputChannel.appendLine("Plus button tapped")
 			await sidebarProvider.clearTask()
 			await sidebarProvider.postStateToWebview()
@@ -76,19 +132,23 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	}
 
-	context.subscriptions.push(vscode.commands.registerCommand("claude-dev.popoutButtonTapped", openClaudeDevInNewTab))
-	context.subscriptions.push(vscode.commands.registerCommand("claude-dev.openInNewTab", openClaudeDevInNewTab))
+	context.subscriptions.push(
+		vscode.commands.registerCommand("claude-dev-experimental.popoutButtonTapped", openClaudeDevInNewTab)
+	)
+	context.subscriptions.push(
+		vscode.commands.registerCommand("claude-dev-experimental.openInNewTab", openClaudeDevInNewTab)
+	)
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("claude-dev.settingsButtonTapped", () => {
-			//const message = "claude-dev.settingsButtonTapped!"
+		vscode.commands.registerCommand("claude-dev-experimental.settingsButtonTapped", () => {
+			//const message = "claude-dev-experimental.settingsButtonTapped!"
 			//vscode.window.showInformationMessage(message)
 			sidebarProvider.postMessageToWebview({ type: "action", action: "settingsButtonTapped" })
 		})
 	)
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("claude-dev.historyButtonTapped", () => {
+		vscode.commands.registerCommand("claude-dev-experimental.historyButtonTapped", () => {
 			sidebarProvider.postMessageToWebview({ type: "action", action: "historyButtonTapped" })
 		})
 	)
@@ -106,7 +166,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	})()
 	context.subscriptions.push(
-		vscode.workspace.registerTextDocumentContentProvider("claude-dev-diff", diffContentProvider)
+		vscode.workspace.registerTextDocumentContentProvider("claude-dev-experimental", diffContentProvider)
 	)
 
 	// // URI Handler

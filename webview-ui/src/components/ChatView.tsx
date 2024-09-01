@@ -16,6 +16,8 @@ import ChatRow from "./ChatRow"
 import HistoryPreview from "./HistoryPreview"
 import TaskHeader from "./TaskHeader"
 import Thumbnails from "./Thumbnails"
+import KoduPromo from "./KoduPromo"
+import AbortAutomode from "./AbortAutomode"
 
 interface ChatViewProps {
 	isHidden: boolean
@@ -41,8 +43,10 @@ const ChatView = ({
 		claudeMessages: messages,
 		taskHistory,
 		themeName: vscodeThemeName,
-		apiConfiguration,
+		alwaysAllowWriteOnly,
 		uriScheme,
+		shouldShowKoduPromo,
+		user,
 	} = useExtensionState()
 
 	//const task = messages.length > 0 ? (messages[0].say === "task" ? messages[0] : undefined) : undefined) : undefined
@@ -177,6 +181,13 @@ const ChatView = ({
 				case "say":
 					// don't want to reset since there could be a "say" after an "ask" while ask is waiting for response
 					switch (lastMessage.say) {
+						case "abort_automode":
+							setTextAreaDisabled(false)
+							setClaudeAsk(undefined)
+							setEnableButtons(false)
+							setPrimaryButtonText(undefined)
+							setSecondaryButtonText(undefined)
+							break
 						case "api_req_started":
 							if (messages.at(-2)?.ask === "command_output") {
 								// if the last ask is a command_output, and we receive an api_req_started, then that means the command has finished and we don't need input from the user anymore (in every other case, the user has to interact with input field or buttons to continue, which does the following automatically)
@@ -460,6 +471,25 @@ const ChatView = ({
 		return [text, false]
 	}, [task, messages])
 
+	const isCompletionResult = useMemo(() => {
+		return messages.at(-1)?.ask === "completion_result" || messages.at(-1)?.say === "completion_result"
+	}, [messages])
+
+	const showAbortAutomode = useMemo(() => {
+		if (!alwaysAllowWriteOnly) return false
+		const lastMessage = messages.at(-1)
+		const isAbortCompleted = lastMessage?.say === "abort_automode"
+		const isCompleted =
+			lastMessage?.say === "completion_result" ||
+			lastMessage?.ask === "resume_completed_task" ||
+			lastMessage?.ask === "resume_task"
+		const isLastMessageApiRequest = lastMessage?.say === "api_req_started" || lastMessage?.say === "api_req_retried"
+		const isLastMessageCommand = lastMessage?.ask === "command_output" || lastMessage?.ask === "command"
+		const isLastMessageTool = lastMessage?.ask === "tool"
+		if (isCompleted || isAbortCompleted) return false
+		return isLastMessageApiRequest || isLastMessageCommand || isLastMessageTool
+	}, [alwaysAllowWriteOnly, messages])
+
 	const shouldDisableImages =
 		!selectedModelSupportsImages ||
 		textAreaDisabled ||
@@ -489,8 +519,8 @@ const ChatView = ({
 					totalCost={apiMetrics.totalCost}
 					onClose={handleTaskCloseButtonClick}
 					isHidden={isHidden}
+					koduCredits={user?.credits ?? 0}
 					vscodeUriScheme={uriScheme}
-					apiProvider={apiConfiguration?.apiProvider}
 				/>
 			) : (
 				<>
@@ -498,9 +528,11 @@ const ChatView = ({
 						<Announcement
 							version={version}
 							hideAnnouncement={hideAnnouncement}
-							apiConfiguration={apiConfiguration}
 							vscodeUriScheme={uriScheme}
 						/>
+					)}
+					{!showAnnouncement && shouldShowKoduPromo && (
+						<KoduPromo style={{ margin: "10px 15px -10px 15px" }} />
 					)}
 					<div style={{ padding: "0 20px", flexGrow: taskHistory.length > 0 ? undefined : 1 }}>
 						<h2>What can I do for you?</h2>
@@ -526,17 +558,10 @@ const ChatView = ({
 						className="scrollable"
 						style={{
 							flexGrow: 1,
-							overflowY: "scroll", // always show scrollbar
+							overflowY: "scroll",
 						}}
-						// followOutput={(isAtBottom) => {
-						// 	const lastMessage = modifiedMessages.at(-1)
-						// 	if (lastMessage && shouldShowChatRow(lastMessage)) {
-						// 		return "smooth"
-						// 	}
-						// 	return false
-						// }}
-						increaseViewportBy={{ top: 0, bottom: Number.MAX_SAFE_INTEGER }} // hack to make sure the last message is always rendered to get truly perfect scroll to bottom animation when new messages are added (Number.MAX_SAFE_INTEGER is safe for arithmetic operations, which is all virtuoso uses this value for in src/sizeRangeSystem.ts)
-						data={visibleMessages} // messages is the raw format returned by extension, modifiedMessages is the manipulated structure that combines certain messages of related type, and visibleMessages is the filtered structure that removes messages that should not be rendered
+						increaseViewportBy={{ top: 0, bottom: Number.MAX_SAFE_INTEGER }}
+						data={visibleMessages}
 						itemContent={(index, message) => (
 							<ChatRow
 								key={message.ts}
@@ -546,43 +571,49 @@ const ChatView = ({
 								onToggleExpand={() => toggleRowExpansion(message.ts)}
 								lastModifiedMessage={modifiedMessages.at(-1)}
 								isLast={index === visibleMessages.length - 1}
-								apiProvider={apiConfiguration?.apiProvider}
 							/>
 						)}
 					/>
-					<div
-						style={{
-							opacity: primaryButtonText || secondaryButtonText ? (enableButtons ? 1 : 0.5) : 0,
-							display: "flex",
-							padding: "10px 15px 0px 15px",
-						}}>
-						{primaryButtonText && (
-							<VSCodeButton
-								appearance="primary"
-								disabled={!enableButtons}
-								style={{
-									flex: secondaryButtonText ? 1 : 2,
-									marginRight: secondaryButtonText ? "6px" : "0",
-								}}
-								onClick={handlePrimaryButtonClick}>
-								{primaryButtonText}
-							</VSCodeButton>
-						)}
-						{secondaryButtonText && (
-							<VSCodeButton
-								appearance="secondary"
-								disabled={!enableButtons}
-								style={{ flex: 1, marginLeft: "6px" }}
-								onClick={handleSecondaryButtonClick}>
-								{secondaryButtonText}
-							</VSCodeButton>
-						)}
-					</div>
+					{alwaysAllowWriteOnly && <AbortAutomode isVisible={!!showAbortAutomode} />}
+					{!alwaysAllowWriteOnly && (
+						<div
+							style={{
+								opacity:
+									!alwaysAllowWriteOnly && (primaryButtonText || secondaryButtonText)
+										? enableButtons
+											? 1
+											: 0.5
+										: 0,
+								display: "flex",
+								padding: "10px 15px 0px 15px",
+							}}>
+							{primaryButtonText && (
+								<VSCodeButton
+									appearance="primary"
+									disabled={!enableButtons}
+									style={{
+										flex: secondaryButtonText ? 1 : 2,
+										marginRight: secondaryButtonText ? "6px" : "0",
+									}}
+									onClick={handlePrimaryButtonClick}>
+									{primaryButtonText}
+								</VSCodeButton>
+							)}
+							{secondaryButtonText && (
+								<VSCodeButton
+									appearance="secondary"
+									disabled={!enableButtons}
+									style={{ flex: 1, marginLeft: "6px" }}
+									onClick={handleSecondaryButtonClick}>
+									{secondaryButtonText}
+								</VSCodeButton>
+							)}
+						</div>
+					)}
 				</>
 			)}
 
 			<div
-				ref={textAreaContainerRef}
 				style={{
 					padding: "10px 15px",
 					opacity: textAreaDisabled ? 0.5 : 1,
@@ -610,7 +641,6 @@ const ChatView = ({
 					onBlur={() => setIsTextAreaFocused(false)}
 					onPaste={handlePaste}
 					onHeightChange={() =>
-						//virtuosoRef.current?.scrollToIndex({ index: "LAST", align: "end", behavior: "auto" })
 						virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: "auto" })
 					}
 					placeholder={placeholderText}
@@ -621,20 +651,16 @@ const ChatView = ({
 						boxSizing: "border-box",
 						backgroundColor: "var(--vscode-input-background)",
 						color: "var(--vscode-input-foreground)",
-						//border: "1px solid var(--vscode-input-border)",
 						borderRadius: 2,
 						fontFamily: "var(--vscode-font-family)",
 						fontSize: "var(--vscode-editor-font-size)",
 						lineHeight: "var(--vscode-editor-line-height)",
 						resize: "none",
 						overflow: "hidden",
-						// Since we have maxRows, when text is long enough it starts to overflow the bottom padding, appearing behind the thumbnails. To fix this, we use a transparent border to push the text up instead. (https://stackoverflow.com/questions/42631947/maintaining-a-padding-inside-of-text-area/52538410#52538410)
 						borderTop: "9px solid transparent",
 						borderBottom: `${thumbnailsHeight + 9}px solid transparent`,
 						borderRight: "54px solid transparent",
 						borderLeft: "9px solid transparent",
-						// Instead of using boxShadow, we use a div with a border to better replicate the behavior when the textarea is focused
-						// boxShadow: "0px 0px 0px 1px var(--vscode-input-border)",
 						padding: 0,
 						cursor: textAreaDisabled ? "not-allowed" : undefined,
 						flex: 1,
@@ -650,7 +676,7 @@ const ChatView = ({
 							paddingTop: 4,
 							bottom: 14,
 							left: 22,
-							right: 67, // (54 + 9) + 4 extra padding
+							right: 67,
 						}}
 					/>
 				)}
@@ -658,30 +684,28 @@ const ChatView = ({
 					style={{
 						position: "absolute",
 						right: 20,
+						bottom: 14.5,
 						display: "flex",
-						alignItems: "flex-center",
-						height: textAreaContainerHeight || 31,
-						bottom: 10,
+						alignItems: "flex-end",
+						height: "calc(100% - 20px)",
 					}}>
-					<div style={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
-						<VSCodeButton
-							disabled={shouldDisableImages}
-							appearance="icon"
-							aria-label="Attach Images"
-							onClick={selectImages}
-							style={{ marginRight: "2px" }}>
-							<span
-								className="codicon codicon-device-camera"
-								style={{ fontSize: 18, marginLeft: -2 }}></span>
-						</VSCodeButton>
-						<VSCodeButton
-							disabled={textAreaDisabled}
-							appearance="icon"
-							aria-label="Send Message"
-							onClick={handleSendMessage}>
-							<span className="codicon codicon-send" style={{ fontSize: 16, marginBottom: -1 }}></span>
-						</VSCodeButton>
-					</div>
+					<VSCodeButton
+						disabled={shouldDisableImages}
+						appearance="icon"
+						aria-label="Attach Images"
+						onClick={selectImages}
+						style={{ marginRight: "2px" }}>
+						<span
+							className="codicon codicon-device-camera"
+							style={{ fontSize: 18.5, marginLeft: -2, marginBottom: 0.5 }}></span>
+					</VSCodeButton>
+					<VSCodeButton
+						disabled={textAreaDisabled}
+						appearance="icon"
+						aria-label="Send Message"
+						onClick={handleSendMessage}>
+						<span className="codicon codicon-send" style={{ fontSize: 16.5, marginTop: 2 }}></span>
+					</VSCodeButton>
 				</div>
 			</div>
 		</div>

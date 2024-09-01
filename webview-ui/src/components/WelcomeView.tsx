@@ -1,29 +1,41 @@
-import { VSCodeButton, VSCodeLink } from "@vscode/webview-ui-toolkit/react"
-import React, { useEffect, useState } from "react"
+import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
+import React from "react"
+import { getKoduSignInUrl } from "../../../src/shared/kodu"
 import { useExtensionState } from "../context/ExtensionStateContext"
-import { validateApiConfiguration } from "../utils/validate"
-import { vscode } from "../utils/vscode"
 import ApiOptions from "./ApiOptions"
 
 interface WelcomeViewProps {}
 
-const WelcomeView: React.FC<WelcomeViewProps> = () => {
-	const { apiConfiguration } = useExtensionState()
-
-	const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>(undefined)
-
-	const disableLetsGoButton = apiErrorMessage != null
-
-	const handleSubmit = () => {
-		vscode.postMessage({ type: "apiConfiguration", apiConfiguration })
-	}
-
-	useEffect(() => {
-		setApiErrorMessage(validateApiConfiguration(apiConfiguration))
-	}, [apiConfiguration])
+const WelcomeView: React.FC<WelcomeViewProps> = ({}) => {
+	const { uriScheme } = useExtensionState()
 
 	return (
 		<div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, padding: "0 20px" }}>
+			<div
+				style={{
+					display: "flex",
+					alignItems: "center",
+					backgroundColor: "var(--vscode-editor-inactiveSelectionBackground)",
+					color: "var(--vscode-editor-foreground)",
+					padding: "6px 8px",
+					borderRadius: "3px",
+					margin: "8px 0px",
+					fontSize: "12px",
+				}}>
+				<i
+					className="codicon codicon-info"
+					style={{
+						marginRight: "6px",
+						fontSize: "16px",
+						color: "var(--vscode-infoIcon-foreground)",
+					}}></i>
+				<span>
+					Explore Claude's capabilities with $10 free credits from{" "}
+					<VSCodeLink href={getKoduSignInUrl(uriScheme)} style={{ display: "inline" }}>
+						Kodu
+					</VSCodeLink>
+				</span>
+			</div>
 			<h2>Hi, I'm Claude Dev</h2>
 			<p>
 				I can do all kinds of tasks thanks to the latest breakthroughs in{" "}
@@ -36,13 +48,10 @@ const WelcomeView: React.FC<WelcomeViewProps> = () => {
 				commands (with your permission, of course).
 			</p>
 
-			<b>To get started, this extension needs an API provider for Claude 3.5 Sonnet.</b>
+			<b>To get started, please login to your Kodu.ai Account.</b>
 
 			<div style={{ marginTop: "10px" }}>
 				<ApiOptions showModelOptions={false} />
-				<VSCodeButton onClick={handleSubmit} disabled={disableLetsGoButton} style={{ marginTop: "3px" }}>
-					Let's go!
-				</VSCodeButton>
 			</div>
 		</div>
 	)

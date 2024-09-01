@@ -1,20 +1,25 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ApiConfiguration, ApiModelId, ModelInfo } from "../shared/api"
-import { AnthropicHandler } from "./anthropic"
-import { AwsBedrockHandler } from "./bedrock"
-import { OpenRouterHandler } from "./openrouter"
-import { VertexHandler } from "./vertex"
+import { ApiModelId, ModelInfo } from "../shared/api"
+import { KoduHandler } from "./kodu"
 
 export interface ApiHandlerMessageResponse {
 	message: Anthropic.Messages.Message
 	userCredits?: number
+	errorString?: string
+	errorCode?: number
+}
+
+export type ApiConfiguration = {
+	koduApiKey?: string
+	apiModelId?: ApiModelId
 }
 
 export interface ApiHandler {
 	createMessage(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
-		tools: Anthropic.Messages.Tool[]
+		tools: Anthropic.Messages.Tool[],
+		creativeMode?: "normal" | "creative" | "deterministic"
 	): Promise<ApiHandlerMessageResponse>
 
 	createUserReadableRequest(
@@ -27,22 +32,12 @@ export interface ApiHandler {
 	): any
 
 	getModel(): { id: ApiModelId; info: ModelInfo }
+
+	abortRequest(): void
 }
 
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
-	const { apiProvider, ...options } = configuration
-	switch (apiProvider) {
-		case "anthropic":
-			return new AnthropicHandler(options)
-		case "openrouter":
-			return new OpenRouterHandler(options)
-		case "bedrock":
-			return new AwsBedrockHandler(options)
-		case "vertex":
-			return new VertexHandler(options)
-		default:
-			return new AnthropicHandler(options)
-	}
+	return new KoduHandler({ koduApiKey: configuration.koduApiKey, apiModelId: configuration.apiModelId })
 }
 
 export function withoutImageData(
