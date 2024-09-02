@@ -2,7 +2,7 @@
 	"name": "claude-dev-experimental",
 	"displayName": "Claude Dev Experimental",
 	"description": "Experimental version of Claude Dev: Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, and more with your permission every step of the way. (Forked from claude-dev)",
-	"version": "1.4.0",
+	"version": "1.5.0",
 	"icon": "icon.png",
 	"engines": {
 		"vscode": "^1.84.0"
