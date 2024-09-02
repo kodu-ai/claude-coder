@@ -1,6 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import * as vscode from "vscode"
-import { KoduDev } from "../agent/index"
+import { KoduDev } from "../agent/v1"
 import { ExtensionMessage } from "../shared/ExtensionMessage"
 import { WebviewMessage } from "../shared/WebviewMessage"
 import { compressImages, downloadTask, getNonce, getUri, selectImages } from "../utils"
@@ -285,6 +285,10 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "cancelCurrentRequest":
+						await this.claudeDev?.taskExecutor.cancelCurrentRequest()
+						await this.postStateToWebview()
+						break
 					case "abortAutomode":
 						await this.clearTask()
 						await this.postStateToWebview()
@@ -318,7 +322,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 							await this.updateGlobalState("apiModelId", apiModelId)
 							await this.storeSecret("koduApiKey", koduApiKey)
 							console.log(`apiConfiguration: ${JSON.stringify(message.apiConfiguration)}`)
-							this.claudeDev?.updateApi({
+							this.claudeDev?.getStateManager().apiManager.updateApi({
 								koduApiKey,
 								apiModelId,
 							})
@@ -335,23 +339,23 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 							}
 						}
 						await this.updateGlobalState("maxRequestsPerTask", result)
-						this.claudeDev?.updateMaxRequestsPerTask(result)
+						this.claudeDev?.getStateManager().setMaxRequestsPerTask(result)
 						await this.postStateToWebview()
 						break
 					case "customInstructions":
 						// User may be clearing the field
 						await this.updateGlobalState("customInstructions", message.text || undefined)
-						this.claudeDev?.updateCustomInstructions(message.text || undefined)
+						this.claudeDev?.getStateManager().setCustomInstructions(message.text || undefined)
 						await this.postStateToWebview()
 						break
 					case "alwaysAllowReadOnly":
 						await this.updateGlobalState("alwaysAllowReadOnly", message.bool ?? undefined)
-						this.claudeDev?.updateAlwaysAllowReadOnly(message.bool ?? undefined)
+						this.claudeDev?.getStateManager().setAlwaysAllowReadOnly(message.bool ?? false)
 						await this.postStateToWebview()
 						break
 					case "alwaysAllowWriteOnly":
 						await this.updateGlobalState("alwaysAllowWriteOnly", message.bool ?? undefined)
-						this.claudeDev?.updateAlwaysAllowApproveOnly(message.bool ?? undefined)
+						this.claudeDev?.getStateManager().setAlwaysAllowWriteOnly(message.bool ?? false)
 						await this.postStateToWebview()
 						break
 					case "askResponse":
@@ -384,7 +388,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 						})
 						break
 					case "exportCurrentTask":
-						const currentTaskId = this.claudeDev?.getState().taskId
+						const currentTaskId = this.claudeDev?.getStateManager()?.state.taskId
 						if (currentTaskId) {
 							this.exportTaskWithId(currentTaskId)
 						}
@@ -398,7 +402,9 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 					case "setCreativeMode":
 						console.log(`setCreativeMode: ${message.text}`)
 						this.updateGlobalState("creativeMode", message.text as "creative" | "normal" | "deterministic")
-						this.claudeDev?.setCreativeMode(message.text as "creative" | "normal" | "deterministic")
+						this.claudeDev
+							?.getStateManager()
+							?.setCreativeMode(message.text as "creative" | "normal" | "deterministic")
 						await this.postStateToWebview()
 						break
 					case "exportTaskWithId":
@@ -453,13 +459,13 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 		console.log("Posted state to webview after saving Kodu API key")
 		await this.postMessageToWebview({ type: "action", action: "koduAuthenticated" })
 		console.log("Posted message to action: koduAuthenticated")
-		this.claudeDev?.updateApi({ koduApiKey: apiKey })
+		this.claudeDev?.getStateManager().apiManager.updateApi({ koduApiKey: apiKey })
 	}
 
 	async signOutKodu() {
 		await this.storeSecret("koduApiKey", undefined)
 		await this.updateGlobalState("user", undefined)
-		this.claudeDev?.updateApi({ koduApiKey: undefined })
+		this.claudeDev?.getStateManager().apiManager.updateApi({ koduApiKey: undefined })
 		await this.postStateToWebview()
 	}
 
@@ -499,7 +505,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	}
 
 	async showTaskWithId(id: string) {
-		if (id !== this.claudeDev?.getState().taskId) {
+		if (id !== this.claudeDev?.getStateManager().state.taskId) {
 			// non-current task
 			const { historyItem } = await this.getTaskWithId(id)
 			await this.initClaudeDevWithHistoryItem(historyItem) // clears existing task
@@ -513,7 +519,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	}
 
 	async deleteTaskWithId(id: string) {
-		if (id === this.claudeDev?.getState().taskId) {
+		if (id === this.claudeDev?.getStateManager().state.taskId) {
 			await this.clearTask()
 		}
 
@@ -567,7 +573,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 			shouldShowKoduPromo,
 			creativeMode,
 		} = await this.getState()
-		const koduDevState = this.claudeDev?.getState()
+		const koduDevState = this.claudeDev?.getStateManager().state
 		return {
 			version: this.context.extension?.packageJSON?.version ?? "",
 			apiConfiguration,

@@ -19,6 +19,8 @@ import { KoduDevOptions, KoduDevState, ToolResponse, UserContent } from "./types
 import { cwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "./utils"
 import { ApiConfiguration } from "../api"
 import { KoduError } from "../shared/kodu"
+
+// old working class
 export class KoduDev {
 	private state: KoduDevState
 	private apiManager: ApiManager

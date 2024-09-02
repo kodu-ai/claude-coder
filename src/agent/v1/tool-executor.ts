@@ -63,7 +63,7 @@ export class ToolExecutor {
 			type: ClaudeAsk,
 			question?: string
 		) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
 		switch (toolName) {
 			case "write_to_file":
@@ -96,7 +96,7 @@ export class ToolExecutor {
 			type: ClaudeAsk,
 			question?: string
 		) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
 		if (relDirPath === undefined) {
 			await say(
@@ -164,7 +164,7 @@ export class ToolExecutor {
 			type: ClaudeAsk,
 			question?: string
 		) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
 		if (relPath === undefined) {
 			await say(
@@ -226,7 +226,7 @@ export class ToolExecutor {
 		newContent: string,
 		fileExists: boolean,
 		relPath: string,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
 		if (!fileExists) {
 			await fs.mkdir(path.dirname(absolutePath), { recursive: true })
@@ -258,7 +258,7 @@ export class ToolExecutor {
 			type: ClaudeAsk,
 			question?: string
 		) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "claude-dev-"))
 		const tempFilePath = path.join(tempDir, path.basename(absolutePath))
@@ -358,7 +358,7 @@ export class ToolExecutor {
 	async readFile(
 		relPath: string | undefined,
 		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
 		if (relPath === undefined) {
 			await say("error", "Claude tried to use read_file without value for required parameter 'path'. Retrying...")
@@ -442,7 +442,7 @@ export class ToolExecutor {
 			type: ClaudeAsk,
 			question?: string
 		) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
 		if (relDirPath === undefined) {
 			await say(
@@ -492,7 +492,7 @@ export class ToolExecutor {
 	async listFilesTopLevel(
 		relDirPath: string | undefined,
 		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
 		if (relDirPath === undefined) {
 			await say(
@@ -540,7 +540,7 @@ export class ToolExecutor {
 	async listFilesRecursive(
 		relDirPath: string | undefined,
 		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
 		if (relDirPath === undefined) {
 			await say(
@@ -588,7 +588,7 @@ export class ToolExecutor {
 	async listCodeDefinitionNames(
 		relDirPath: string | undefined,
 		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
 		if (relDirPath === undefined) {
 			await say(
@@ -635,7 +635,7 @@ export class ToolExecutor {
 	async executeCommand(
 		command: string | undefined,
 		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>,
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void,
 		returnEmptyStringOnSuccess: boolean = false
 	): Promise<ToolResponse> {
 		if (command === undefined) {
@@ -770,7 +770,7 @@ export class ToolExecutor {
 	async askFollowupQuestion(
 		question: string | undefined,
 		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
 		if (question === undefined) {
 			await say(
@@ -788,7 +788,7 @@ export class ToolExecutor {
 		result: string | undefined,
 		command: string | undefined,
 		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
+		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
 		if (result === undefined) {
 			await say(

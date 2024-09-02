@@ -65,6 +65,7 @@ const ChatView = ({
 
 	// we need to hold on to the ask because useEffect > lastMessage will always let us know when an ask comes in and handle it, but by the time handleMessage is called, the last message might not be the ask anymore (it could be a say that followed)
 	const [claudeAsk, setClaudeAsk] = useState<ClaudeAsk | undefined>(undefined)
+	const [isAbortingRequest, setIsAbortingRequest] = useState(false)
 
 	const [enableButtons, setEnableButtons] = useState<boolean>(false)
 	const [primaryButtonText, setPrimaryButtonText] = useState<string | undefined>(undefined)
@@ -210,8 +211,15 @@ const ChatView = ({
 								setEnableButtons(false)
 							}
 							break
-						case "task":
 						case "error":
+							setIsAbortingRequest(false)
+							setTextAreaDisabled(false)
+							setClaudeAsk(undefined)
+							setEnableButtons(false)
+							setPrimaryButtonText(undefined)
+							setSecondaryButtonText(undefined)
+							break
+						case "task":
 						case "api_req_finished":
 						case "text":
 						case "command_output":
@@ -499,6 +507,10 @@ const ChatView = ({
 		return messages.at(-1)?.ask === "completion_result" || messages.at(-1)?.say === "completion_result"
 	}, [messages])
 
+	const isRequestRunning = useMemo(() => {
+		return messages.at(-1)?.say === "api_req_started" || messages.at(-1)?.say === "api_req_retried"
+	}, [messages])
+
 	const showAbortAutomode = useMemo(() => {
 		if (!alwaysAllowWriteOnly) return false
 		const lastMessage = messages.at(-1)
@@ -596,6 +608,16 @@ const ChatView = ({
 							/>
 						)}
 					/>
+					{isRequestRunning && (
+						<VSCodeButton
+							disabled={isAbortingRequest}
+							onClick={() => {
+								setIsAbortingRequest(true)
+								vscode.postMessage({ type: "cancelCurrentRequest" })
+							}}>
+							{isAbortingRequest ? "Aborting..." : "Abort Request"}
+						</VSCodeButton>
+					)}
 					{alwaysAllowWriteOnly && <AbortAutomode isVisible={!!showAbortAutomode} />}
 					{!alwaysAllowWriteOnly && (
 						<div

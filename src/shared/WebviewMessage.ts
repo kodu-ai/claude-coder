@@ -2,6 +2,7 @@ import { ApiConfiguration } from "../api"
 
 export interface WebviewMessage {
 	type:
+		| "cancelCurrentRequest"
 		| "apiConfiguration"
 		| "maxRequestsPerTask"
 		| "customInstructions"

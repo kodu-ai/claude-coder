@@ -9,15 +9,17 @@ import { KoduDevOptions, ToolResponse, UserContent } from "../types"
 import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "../utils"
 import { KoduError } from "../../shared/kodu"
 import { StateManager } from "./state-manager"
-import { TaskExecutor } from "./task-executor"
+import { AskResponse, TaskExecutor } from "./task-executor"
 import { findLastIndex } from "../../utils"
 
+// new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
 	private apiManager: ApiManager
 	private toolExecutor: ToolExecutor
-	private taskExecutor: TaskExecutor
+	public taskExecutor: TaskExecutor
 	private providerRef: WeakRef<ClaudeDevProvider>
+	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
@@ -56,28 +58,47 @@ export class KoduDev {
 	}
 
 	private setupTaskExecutor() {
-		this.taskExecutor.setMessageHandler(async (message) => {
-			if (message.type === "ask") {
-				await this.stateManager.addToClaudeMessages({
-					ts: Date.now(),
-					type: "ask",
-					ask: message.content.type as ClaudeAsk,
-					text: message.content.text,
-				})
-				await this.providerRef.deref()?.postStateToWebview()
-			} else if (message.type === "say") {
-				await this.stateManager.addToClaudeMessages({
-					ts: Date.now(),
-					type: "say",
-					say: message.content.type as ClaudeSay,
-					text: message.content.text,
-					images: message.content.images,
-				})
-				await this.providerRef.deref()?.postStateToWebview()
-			}
-		})
+		// Pass necessary methods to the TaskExecutor
+		this.taskExecutor = new TaskExecutor(this.stateManager, this.apiManager, this.toolExecutor)
+
+		// Override the ask and say methods of the TaskExecutor
+		this.taskExecutor.ask = async (type: ClaudeAsk, question?: string): Promise<AskResponse> => {
+			const askTs = Date.now()
+			await this.stateManager.addToClaudeMessages({
+				ts: askTs,
+				type: "ask",
+				ask: type,
+				text: question,
+			})
+			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion:: ${question}`)
+			await this.providerRef.deref()?.postStateToWebview()
+
+			// Return a promise that will be resolved when handleWebviewAskResponse is called
+			return new Promise((resolve) => {
+				this.pendingAskResponse = resolve
+			})
+		}
+
+		this.taskExecutor.say = async (type: ClaudeSay, text?: string, images?: string[]): Promise<void> => {
+			const sayTs = Date.now()
+			await this.stateManager.addToClaudeMessages({
+				ts: sayTs,
+				type: "say",
+				say: type,
+				text: text,
+				images: images,
+			})
+			await this.providerRef.deref()?.postStateToWebview()
+		}
 	}
 
+	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
+		if (this.pendingAskResponse) {
+			this.pendingAskResponse({ response: askResponse, text, images })
+			this.pendingAskResponse = null
+		}
+		this.taskExecutor.handleAskResponse(askResponse, text, images)
+	}
 	private async startTask(task?: string, images?: string[]): Promise<void> {
 		this.stateManager.state.claudeMessages = []
 		this.stateManager.state.apiConversationHistory = []
@@ -260,10 +281,6 @@ export class KoduDev {
 	async abortTask() {
 		this.taskExecutor.abortTask()
 		this.toolExecutor.abortTask()
-	}
-
-	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
-		this.taskExecutor.handleAskResponse({ response: askResponse, text, images })
 	}
 
 	async executeTool(toolName: ToolName, toolInput: any, isLastWriteToFile: boolean = false): Promise<ToolResponse> {

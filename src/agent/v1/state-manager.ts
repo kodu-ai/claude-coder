@@ -11,6 +11,8 @@ import { getApiMetrics } from "../../shared/getApiMetrics"
 import { combineApiRequests } from "../../shared/combineApiRequests"
 import { combineCommandSequences } from "../../shared/combineCommandSequences"
 import { findLastIndex } from "../../utils"
+
+// new State Manager class
 export class StateManager {
 	private _state: KoduDevState
 	private _apiManager: ApiManager
@@ -18,6 +20,7 @@ export class StateManager {
 	private _providerRef: WeakRef<ClaudeDevProvider>
 	private _alwaysAllowReadOnly: boolean
 	private _creativeMode: "creative" | "normal" | "deterministic"
+	private _customInstructions?: string
 	private _alwaysAllowWriteOnly: boolean
 
 	constructor(options: KoduDevOptions) {
@@ -36,6 +39,7 @@ export class StateManager {
 		this._apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
 		this._alwaysAllowReadOnly = alwaysAllowReadOnly ?? false
 		this._alwaysAllowWriteOnly = alwaysAllowWriteOnly ?? false
+		this._customInstructions = customInstructions
 		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
 
 		this._state = {
@@ -47,9 +51,17 @@ export class StateManager {
 		}
 	}
 
+	public popLastClaudeMessage(): ClaudeMessage | undefined {
+		return this.state.claudeMessages.pop()
+	}
+
 	// Getter methods for read-only access
 	get state(): KoduDevState {
 		return this._state
+	}
+
+	get customInstructions(): string | undefined {
+		return this._customInstructions
 	}
 
 	get apiManager(): ApiManager {
@@ -91,6 +103,10 @@ export class StateManager {
 
 	public setProviderRef(newProviderRef: WeakRef<ClaudeDevProvider>): void {
 		this._providerRef = newProviderRef
+	}
+
+	public setCustomInstructions(newInstructions?: string): void {
+		this._customInstructions = newInstructions
 	}
 
 	public setAlwaysAllowReadOnly(newValue: boolean): void {

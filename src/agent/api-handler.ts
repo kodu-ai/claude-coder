@@ -33,7 +33,8 @@ export class ApiManager {
 	}
 
 	async createApiRequest(
-		apiConversationHistory: Anthropic.MessageParam[]
+		apiConversationHistory: Anthropic.MessageParam[],
+		abortSignal?: AbortSignal | null
 	): Promise<Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage> {
 		const creativeMode = (await this.providerRef.deref()?.getState())?.creativeMode ?? "normal"
 		let systemPrompt = await SYSTEM_PROMPT()
@@ -54,7 +55,8 @@ ${this.customInstructions.trim()}
 				systemPrompt,
 				apiConversationHistory,
 				tools,
-				creativeMode
+				creativeMode,
+				abortSignal
 			)
 
 			if (userCredits !== undefined) {

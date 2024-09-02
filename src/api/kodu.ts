@@ -60,7 +60,8 @@ export class KoduHandler implements ApiHandler {
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
 		tools: Anthropic.Messages.Tool[],
-		creativeMode: "normal" | "creative" | "deterministic"
+		creativeMode: "normal" | "creative" | "deterministic",
+		abortSignal?: AbortSignal
 	): Promise<ApiHandlerMessageResponse> {
 		const modelId = this.getModel().id
 		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming
@@ -136,7 +137,7 @@ export class KoduHandler implements ApiHandler {
 				"x-api-key": this.options.koduApiKey || "",
 			},
 			responseType: "stream",
-			cancelToken: this.cancelTokenSource.token,
+			signal: abortSignal ?? undefined,
 		})
 
 		if (response.status !== 200) {

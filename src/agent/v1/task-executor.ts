@@ -1,37 +1,36 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeAsk, ClaudeSay } from "../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
-import { ToolName } from "../../shared/Tool"
 import { ApiManager } from "../api-handler"
 import { ToolExecutor } from "./tool-executor"
-import { UserContent, ToolResponse } from "../types"
+import { UserContent, ToolResponse, ToolName } from "../types"
 import { StateManager } from "./state-manager"
 
-type TaskState = "IDLE" | "RUNNING" | "PAUSED" | "COMPLETED" | "ABORTED"
-type Message = {
-	type: "ask" | "say"
-	content: {
-		type: ClaudeAsk | ClaudeSay
-		text?: string
-		images?: string[]
-	}
+enum TaskState {
+	IDLE = "IDLE",
+	WAITING_FOR_API = "WAITING_FOR_API",
+	PROCESSING_RESPONSE = "PROCESSING_RESPONSE",
+	EXECUTING_TOOL = "EXECUTING_TOOL",
+	WAITING_FOR_USER = "WAITING_FOR_USER",
+	COMPLETED = "COMPLETED",
+	ABORTED = "ABORTED",
 }
 
-type AskResponse = {
-	response: ClaudeAskResponse
-	text?: string
-	images?: string[]
+interface TaskError extends Error {
+	type: "API_ERROR" | "TOOL_ERROR" | "USER_ABORT" | "UNKNOWN_ERROR"
 }
 
 export class TaskExecutor {
-	private state: TaskState = "IDLE"
+	private state: TaskState = TaskState.IDLE
 	private stateManager: StateManager
 	private apiManager: ApiManager
 	private toolExecutor: ToolExecutor
-	private messageQueue: Message[] = []
-	private askResponseQueue: AskResponse[] = []
-	private messageHandler: ((message: Message) => void) | null = null
-	private askResponseHandler: ((response: AskResponse) => void) | null = null
+	private currentUserContent: UserContent | null = null
+	private currentApiResponse: Anthropic.Messages.Message | null = null
+	private currentToolResults: Anthropic.ToolResultBlockParam[] = []
+	private pendingAskResponse: ((value: AskResponse) => void) | null = null
+	private isRequestCancelled: boolean = false
+	private abortController: AbortController | null = null
 
 	constructor(stateManager: StateManager, apiManager: ApiManager, toolExecutor: ToolExecutor) {
 		this.stateManager = stateManager
@@ -39,38 +38,207 @@ export class TaskExecutor {
 		this.toolExecutor = toolExecutor
 	}
 
-	async startTask(userContent: UserContent): Promise<void> {
-		this.state = "RUNNING"
-		await this.executeTask(userContent)
+	public async startTask(userContent: UserContent): Promise<void> {
+		this.logState("Starting task")
+		this.state = TaskState.WAITING_FOR_API
+		this.currentUserContent = userContent
+		this.isRequestCancelled = false
+		this.abortController = new AbortController()
+		await this.makeClaudeRequest()
 	}
 
-	async resumeTask(userContent: UserContent): Promise<void> {
-		if (this.state === "PAUSED") {
-			this.state = "RUNNING"
-			await this.executeTask(userContent)
+	public async resumeTask(userContent: UserContent): Promise<void> {
+		if (this.state === TaskState.WAITING_FOR_USER) {
+			this.logState("Resuming task")
+			this.state = TaskState.WAITING_FOR_API
+			this.currentUserContent = userContent
+			this.isRequestCancelled = false
+			this.abortController = new AbortController()
+			await this.makeClaudeRequest()
+		} else {
+			this.logError(new Error("Cannot resume task: not in WAITING_FOR_USER state") as TaskError)
 		}
 	}
 
-	pauseTask(): void {
-		if (this.state === "RUNNING") {
-			this.state = "PAUSED"
+	public abortTask(): void {
+		this.logState("Aborting task")
+		this.cancelCurrentRequest()
+	}
+
+	public async cancelCurrentRequest(): Promise<void> {
+		if (this.isRequestCancelled) {
+			return // Prevent multiple cancellations
 		}
+
+		this.logState("Cancelling current request")
+		this.isRequestCancelled = true
+		this.abortController?.abort()
+		this.stateManager.popLastClaudeMessage()
+
+		// Immediately update UI
+		await this.say("error", "Request cancelled by user")
+
+		// Reset state
+		this.resetState()
+
+		// Update the provider state
+		await this.stateManager.providerRef.deref()?.postStateToWebview()
 	}
 
-	abortTask(): void {
-		this.state = "ABORTED"
-	}
+	private async makeClaudeRequest(): Promise<void> {
+		if (this.state !== TaskState.WAITING_FOR_API || !this.currentUserContent || this.isRequestCancelled) {
+			return
+		}
 
-	private async executeTask(userContent: UserContent): Promise<void> {
-		while (this.state === "RUNNING") {
-			const result = await this.makeClaudeRequest(userContent)
+		if (this.stateManager.state.requestCount >= this.stateManager.maxRequestsPerTask) {
+			await this.handleRequestLimitReached()
+			return
+		}
 
-			if (result.didEndLoop) {
-				this.state = "COMPLETED"
-				break
+		try {
+			this.logState("Making Claude API request")
+			const tempHistoryLength = this.stateManager.state.apiConversationHistory.length
+			await this.stateManager.addToApiConversationHistory({ role: "user", content: this.currentUserContent })
+			await this.say(
+				"api_req_started",
+				JSON.stringify({ request: this.apiManager.createUserReadableRequest(this.currentUserContent) })
+			)
+
+			const response = await this.apiManager.createApiRequest(
+				this.stateManager.state.apiConversationHistory,
+				this.abortController?.signal
+			)
+
+			if (this.isRequestCancelled) {
+				this.logState("Request cancelled, ignoring response")
+				this.stateManager.state.apiConversationHistory.splice(tempHistoryLength)
+				return
 			}
 
-			userContent = [
+			this.currentApiResponse = response
+			this.stateManager.state.requestCount++
+			this.state = TaskState.PROCESSING_RESPONSE
+			await this.processApiResponse()
+		} catch (error) {
+			if (!this.isRequestCancelled) {
+				await this.handleApiError(error as TaskError)
+			}
+		}
+	}
+
+	private async processApiResponse(): Promise<void> {
+		if (this.state !== TaskState.PROCESSING_RESPONSE || !this.currentApiResponse || this.isRequestCancelled) {
+			return
+		}
+
+		this.logState("Processing API response")
+		const { inputTokens, outputTokens } = this.logApiResponse(this.currentApiResponse)
+		const assistantResponses: Anthropic.Messages.ContentBlock[] = []
+		this.currentToolResults = []
+
+		for (const contentBlock of this.currentApiResponse.content) {
+			if (this.isRequestCancelled) {
+				return
+			}
+
+			if (contentBlock.type === "text") {
+				assistantResponses.push(contentBlock)
+				await this.say("text", contentBlock.text)
+			} else if (contentBlock.type === "tool_use") {
+				assistantResponses.push(contentBlock)
+				await this.executeTool(contentBlock)
+			}
+
+			if (this.isRequestCancelled) {
+				return
+			}
+		}
+
+		if (!this.isRequestCancelled) {
+			await this.finishProcessingResponse(assistantResponses, inputTokens, outputTokens)
+		}
+	}
+
+	private resetState(): void {
+		this.state = TaskState.IDLE
+		this.currentUserContent = null
+		this.currentApiResponse = null
+		this.currentToolResults = []
+		this.isRequestCancelled = false
+		this.abortController = null
+		this.logState("State reset due to request cancellation")
+	}
+
+	private async executeTool(toolUseBlock: Anthropic.Messages.ToolUseBlock): Promise<void> {
+		const toolName = toolUseBlock.name
+		const toolInput = toolUseBlock.input
+		const toolUseId = toolUseBlock.id
+
+		this.logState(`Executing tool: ${toolName}`)
+		try {
+			this.state = TaskState.EXECUTING_TOOL
+			const result = await this.toolExecutor.executeTool(
+				toolName as ToolName,
+				toolInput,
+				false,
+				this.ask.bind(this),
+				this.say.bind(this)
+			)
+			this.currentToolResults.push({ type: "tool_result", tool_use_id: toolUseId, content: result })
+			this.state = TaskState.PROCESSING_RESPONSE
+		} catch (error) {
+			await this.handleToolError(error as TaskError)
+		}
+	}
+
+	private async finishProcessingResponse(
+		assistantResponses: Anthropic.Messages.ContentBlock[],
+		inputTokens: number,
+		outputTokens: number
+	): Promise<void> {
+		this.logState("Finishing response processing")
+		if (this.isRequestCancelled) {
+			return
+		}
+
+		if (assistantResponses.length > 0) {
+			await this.stateManager.addToApiConversationHistory({ role: "assistant", content: assistantResponses })
+		} else {
+			await this.say("error", "Unexpected Error: No assistant messages were found in the API response")
+			await this.stateManager.addToApiConversationHistory({
+				role: "assistant",
+				content: [{ type: "text", text: "Failure: I did not have a response to provide." }],
+			})
+		}
+		if (this.currentToolResults.length > 0) {
+			const completionAttempted = this.currentToolResults.some(
+				(result) =>
+					result.content === "" &&
+					assistantResponses.some(
+						(response) => response.type === "tool_use" && response.name === "attempt_completion"
+					)
+			)
+
+			if (completionAttempted) {
+				this.state = TaskState.COMPLETED
+				await this.stateManager.addToApiConversationHistory({ role: "user", content: this.currentToolResults })
+				await this.stateManager.addToApiConversationHistory({
+					role: "assistant",
+					content: [
+						{
+							type: "text",
+							text: "I am pleased you are satisfied with the result. Do you have a new task for me?",
+						},
+					],
+				})
+			} else {
+				this.state = TaskState.WAITING_FOR_API
+				this.currentUserContent = this.currentToolResults
+				await this.makeClaudeRequest()
+			}
+		} else {
+			this.state = TaskState.WAITING_FOR_USER
+			this.currentUserContent = [
 				{
 					type: "text",
 					text: "If you have completed the user's task, use the attempt_completion tool. If you require additional information from the user, use the ask_followup_question tool. Otherwise, if you have not completed the task and do not need additional information, then proceed with the next step of the task. (This is an automated message, so do not respond to it conversationally.)",
@@ -79,56 +247,16 @@ export class TaskExecutor {
 		}
 	}
 
-	private async makeClaudeRequest(
-		userContent: UserContent
-	): Promise<{ didEndLoop: boolean; inputTokens: number; outputTokens: number }> {
-		if (this.state !== "RUNNING") {
-			return { didEndLoop: true, inputTokens: 0, outputTokens: 0 }
-		}
-
-		if (this.stateManager.state.requestCount >= this.stateManager.maxRequestsPerTask) {
-			const shouldContinue = await this.handleRequestLimitReached()
-			if (!shouldContinue) {
-				return { didEndLoop: true, inputTokens: 0, outputTokens: 0 }
-			}
-		}
-
-		await this.stateManager.addToApiConversationHistory({ role: "user", content: userContent })
-		await this.say(
-			"api_req_started",
-			JSON.stringify({ request: this.apiManager.createUserReadableRequest(userContent) })
-		)
-
-		try {
-			const response = await this.apiManager.createApiRequest(this.stateManager.state.apiConversationHistory)
-			this.stateManager.state.requestCount++
-
-			const { inputTokens, outputTokens } = this.processApiResponse(response)
-			const toolResults = await this.executeTools(response.content)
-
-			if (toolResults.some((result) => result.type === "tool_result" && result.content === "")) {
-				return { didEndLoop: true, inputTokens, outputTokens }
-			}
-
-			if (toolResults.length > 0) {
-				return await this.makeClaudeRequest(toolResults)
-			}
-
-			return { didEndLoop: false, inputTokens, outputTokens }
-		} catch (error) {
-			return this.handleApiError(error)
-		}
-	}
-
-	private async handleRequestLimitReached(): Promise<boolean> {
+	private async handleRequestLimitReached(): Promise<void> {
+		this.logState("Request limit reached")
 		const { response } = await this.ask(
 			"request_limit_reached",
 			`Claude Dev has reached the maximum number of requests for this task. Would you like to reset the count and allow him to proceed?`
 		)
-
 		if (response === "yesButtonTapped") {
 			this.stateManager.state.requestCount = 0
-			return true
+			this.state = TaskState.WAITING_FOR_API
+			await this.makeClaudeRequest()
 		} else {
 			await this.stateManager.addToApiConversationHistory({
 				role: "assistant",
@@ -139,11 +267,35 @@ export class TaskExecutor {
 					},
 				],
 			})
-			return false
+			this.state = TaskState.COMPLETED
 		}
 	}
 
-	private processApiResponse(response: Anthropic.Messages.Message): { inputTokens: number; outputTokens: number } {
+	private async handleApiError(error: TaskError): Promise<void> {
+		this.logError(error)
+		const { response } = await this.ask("api_req_failed", error.message)
+		if (response === "yesButtonTapped" || response === "messageResponse") {
+			await this.say("api_req_retried")
+			this.state = TaskState.WAITING_FOR_API
+			await this.makeClaudeRequest()
+		} else {
+			this.state = TaskState.COMPLETED
+		}
+	}
+
+	private async handleToolError(error: TaskError): Promise<void> {
+		this.logError(error)
+		await this.say("error", `Tool execution failed: ${error.message}`)
+		this.state = TaskState.WAITING_FOR_USER
+		this.currentUserContent = [
+			{
+				type: "text",
+				text: `A tool execution error occurred: ${error.message}. Please review the error and decide how to proceed.`,
+			},
+		]
+	}
+
+	private logApiResponse(response: Anthropic.Messages.Message): { inputTokens: number; outputTokens: number } {
 		const inputTokens = response.usage.input_tokens
 		const outputTokens = response.usage.output_tokens
 		const cacheCreationInputTokens = (response as any).usage?.cache_creation_input_tokens
@@ -168,110 +320,40 @@ export class TaskExecutor {
 		return { inputTokens, outputTokens }
 	}
 
-	private async executeTools(content: Anthropic.Messages.ContentBlock[]): Promise<Anthropic.ToolResultBlockParam[]> {
-		const toolResults: Anthropic.ToolResultBlockParam[] = []
-		const writeToFileCount = content.filter(
-			(block) => block.type === "tool_use" && (block.name as ToolName) === "write_to_file"
-		).length
-		let currentWriteToFile = 0
-
-		for (const block of content) {
-			if (block.type === "text") {
-				await this.say("text", block.text)
-			} else if (block.type === "tool_use") {
-				const toolName = block.name as ToolName
-				const toolInput = block.input
-				const toolUseId = block.id
-
-				if (toolName === "write_to_file") {
-					currentWriteToFile++
-				}
-
-				const result = await this.toolExecutor.executeTool(
-					toolName,
-					toolInput,
-					currentWriteToFile === writeToFileCount,
-					this.ask.bind(this),
-					this.say.bind(this)
-				)
-
-				toolResults.push({ type: "tool_result", tool_use_id: toolUseId, content: result })
-			}
-		}
-
-		return toolResults
-	}
-
-	private async handleApiError(
-		error: any
-	): Promise<{ didEndLoop: boolean; inputTokens: number; outputTokens: number }> {
-		console.error("API request failed", error)
-		if (error instanceof Error) {
-			const { response } = await this.ask("api_req_failed", error.message)
-			if (response === "yesButtonTapped" || response === "messageResponse") {
-				await this.say("api_req_retried")
-				return { didEndLoop: false, inputTokens: 0, outputTokens: 0 }
-			}
-		}
-		return { didEndLoop: true, inputTokens: 0, outputTokens: 0 }
-	}
-
-	public ask(
-		type: ClaudeAsk,
-		question?: string
-	): Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }> {
+	public async ask(type: ClaudeAsk, question?: string): Promise<AskResponse> {
 		return new Promise((resolve) => {
-			const message: Message = {
-				type: "ask",
-				content: { type, text: question },
-			}
-			this.messageQueue.push(message)
-
-			if (this.messageHandler) {
-				this.messageHandler(message)
-			}
-
-			this.askResponseHandler = (response) => {
-				resolve(response)
-				this.askResponseHandler = null
-			}
+			const askTs = Date.now()
+			this.stateManager.addToClaudeMessages({ ts: askTs, type: "ask", ask: type, text: question })
+			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion:: ${question}`)
+			this.stateManager.providerRef.deref()?.postStateToWebview()
+			this.pendingAskResponse = resolve
 		})
 	}
 
-	public say(type: ClaudeSay, text?: string, images?: string[]): Promise<void> {
-		return new Promise((resolve) => {
-			const message: Message = {
-				type: "say",
-				content: { type, text, images },
-			}
-			this.messageQueue.push(message)
-
-			if (this.messageHandler) {
-				this.messageHandler(message)
-			}
-
-			resolve()
-		})
+	public async say(type: ClaudeSay, text?: string, images?: string[]): Promise<void> {
+		const sayTs = Date.now()
+		await this.stateManager.addToClaudeMessages({ ts: sayTs, type: "say", say: type, text: text, images })
+		await this.stateManager.providerRef.deref()?.postStateToWebview()
 	}
 
-	public setMessageHandler(handler: (message: Message) => void): void {
-		this.messageHandler = handler
-	}
-
-	public handleAskResponse(response: AskResponse): void {
-		this.askResponseQueue.push(response)
-
-		if (this.askResponseHandler) {
-			this.askResponseHandler(response)
+	public handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void {
+		if (this.pendingAskResponse) {
+			this.pendingAskResponse({ response, text, images })
+			this.pendingAskResponse = null
 		}
 	}
 
-	public getNextMessage(): Message | null {
-		return this.messageQueue.shift() || null
+	private logState(message: string): void {
+		console.log(`[TaskExecutor] ${message} (State: ${this.state})`)
 	}
 
-	public clearQueues(): void {
-		this.messageQueue = []
-		this.askResponseQueue = []
+	private logError(error: TaskError): void {
+		console.error(`[TaskExecutor] Error (State: ${this.state}):`, error)
 	}
+}
+
+export type AskResponse = {
+	response: ClaudeAskResponse
+	text?: string
+	images?: string[]
 }

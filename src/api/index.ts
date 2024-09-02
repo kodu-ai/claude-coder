@@ -19,7 +19,8 @@ export interface ApiHandler {
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
 		tools: Anthropic.Messages.Tool[],
-		creativeMode?: "normal" | "creative" | "deterministic"
+		creativeMode?: "normal" | "creative" | "deterministic",
+		abortSignal?: AbortSignal | null
 	): Promise<ApiHandlerMessageResponse>
 
 	createUserReadableRequest(
