@@ -14,7 +14,7 @@ interface ChatRowProps {
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
 	isExpanded: boolean
 	onToggleExpand: () => void
-	lastModifiedMessage?: ClaudeMessage
+	nextModifiedMessage?: ClaudeMessage
 	isLast: boolean
 	handleSendStdin: (text: string) => void
 }
@@ -24,17 +24,17 @@ const ChatRow: React.FC<ChatRowProps> = ({
 	syntaxHighlighterStyle,
 	isExpanded,
 	onToggleExpand,
-	lastModifiedMessage,
+	nextModifiedMessage,
 	isLast,
 	handleSendStdin,
 }) => {
 	const cost = message.text != null && message.say === "api_req_started" ? JSON.parse(message.text).cost : undefined
 	const apiRequestFailedMessage =
-		isLast && lastModifiedMessage?.ask === "api_req_failed" // if request is retried then the latest message is a api_req_retried
-			? lastModifiedMessage?.text
+		isLast && nextModifiedMessage?.ask === "api_req_failed" // if request is retried then the latest message is a api_req_retried
+			? nextModifiedMessage?.text
 			: undefined
 	const isCommandExecuting =
-		isLast && lastModifiedMessage?.ask === "command" && lastModifiedMessage?.text?.includes(COMMAND_OUTPUT_STRING)
+		isLast && nextModifiedMessage?.ask === "command" && nextModifiedMessage?.text?.includes(COMMAND_OUTPUT_STRING)
 
 	const getIconAndTitle = (type: ClaudeAsk | ClaudeSay | undefined): [JSX.Element | null, JSX.Element | null] => {
 		const normalColor = "var(--vscode-foreground)"

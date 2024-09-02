@@ -5,6 +5,7 @@ import { ApiManager } from "../api-handler"
 import { ToolExecutor } from "./tool-executor"
 import { UserContent, ToolResponse, ToolName } from "../types"
 import { StateManager } from "./state-manager"
+import { KoduError } from "../../shared/kodu"
 
 enum TaskState {
 	IDLE = "IDLE",
@@ -16,8 +17,18 @@ enum TaskState {
 	ABORTED = "ABORTED",
 }
 
-interface TaskError extends Error {
+class TaskError extends Error {
 	type: "API_ERROR" | "TOOL_ERROR" | "USER_ABORT" | "UNKNOWN_ERROR"
+	constructor({
+		type,
+		message,
+	}: {
+		type: "API_ERROR" | "TOOL_ERROR" | "USER_ABORT" | "UNKNOWN_ERROR"
+		message: string
+	}) {
+		super(message)
+		this.type = type
+	}
 }
 
 export class TaskExecutor {
@@ -28,6 +39,9 @@ export class TaskExecutor {
 	private currentUserContent: UserContent | null = null
 	private currentApiResponse: Anthropic.Messages.Message | null = null
 	private currentToolResults: Anthropic.ToolResultBlockParam[] = []
+	/**
+	 * this is a callback function that will be called when the user responds to an ask question
+	 */
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	private isRequestCancelled: boolean = false
 	private abortController: AbortController | null = null
@@ -62,17 +76,23 @@ export class TaskExecutor {
 
 	public abortTask(): void {
 		this.logState("Aborting task")
-		this.cancelCurrentRequest()
+		this.resetState()
 	}
 
 	public async cancelCurrentRequest(): Promise<void> {
-		if (this.isRequestCancelled) {
+		if (
+			this.isRequestCancelled ||
+			this.state === TaskState.IDLE ||
+			this.state === TaskState.COMPLETED ||
+			this.state === TaskState.ABORTED
+		) {
 			return // Prevent multiple cancellations
 		}
 
 		this.logState("Cancelling current request")
 		this.isRequestCancelled = true
 		this.abortController?.abort()
+		// remove the api request from the ui history
 		this.stateManager.popLastClaudeMessage()
 
 		// Immediately update UI
@@ -111,6 +131,7 @@ export class TaskExecutor {
 
 			if (this.isRequestCancelled) {
 				this.logState("Request cancelled, ignoring response")
+				// remove it from the internal history of anthropic
 				this.stateManager.state.apiConversationHistory.splice(tempHistoryLength)
 				return
 			}
@@ -121,7 +142,12 @@ export class TaskExecutor {
 			await this.processApiResponse()
 		} catch (error) {
 			if (!this.isRequestCancelled) {
-				await this.handleApiError(error as TaskError)
+				// if it's a KoduError, it's an error from the API (can get anthropic error or network error)
+				if (error instanceof KoduError) {
+					await this.handleApiError(new TaskError({ type: "API_ERROR", message: error.message }))
+					return
+				}
+				await this.handleApiError(new TaskError({ type: "UNKNOWN_ERROR", message: error.message }))
 			}
 		}
 	}
@@ -137,6 +163,7 @@ export class TaskExecutor {
 		this.currentToolResults = []
 
 		for (const contentBlock of this.currentApiResponse.content) {
+			// if request was cancelled, stop processing and don't add to history or show in UI
 			if (this.isRequestCancelled) {
 				return
 			}
@@ -149,6 +176,7 @@ export class TaskExecutor {
 				await this.executeTool(contentBlock)
 			}
 
+			// if the request was cancelled after processing a block, return to prevent further processing (ui state + anthropic state)
 			if (this.isRequestCancelled) {
 				return
 			}
@@ -191,6 +219,13 @@ export class TaskExecutor {
 		}
 	}
 
+	/**
+	 *
+	 * @param assistantResponses The assistant responses that need to be added to the history
+	 * @param inputTokens Number of input tokens used in the API request (NOT NEEDED - api manager manually handles this)
+	 * @param outputTokens Number of output tokens used in the API request (NOT NEEDED - api manager manually handles this)
+	 * @returns
+	 */
 	private async finishProcessingResponse(
 		assistantResponses: Anthropic.Messages.ContentBlock[],
 		inputTokens: number,
@@ -247,6 +282,10 @@ export class TaskExecutor {
 		}
 	}
 
+	/**
+	 * @todo test this function
+	 * @deprecated
+	 */
 	private async handleRequestLimitReached(): Promise<void> {
 		this.logState("Request limit reached")
 		const { response } = await this.ask(
@@ -271,10 +310,18 @@ export class TaskExecutor {
 		}
 	}
 
+	/**
+	 * @description currently the ui dosen't know how to handle multiple retries of the same request (original implementation was missing)
+	 * @todo make sure this is handled correctly with the ui (original implementation was missing)
+	 * @param error The error that occurred during API request
+	 */
 	private async handleApiError(error: TaskError): Promise<void> {
 		this.logError(error)
-		const { response } = await this.ask("api_req_failed", error.message)
+		const { response, text } = await this.ask("api_req_failed", error.message)
 		if (response === "yesButtonTapped" || response === "messageResponse") {
+			// pop last message from the history
+			console.log(JSON.stringify(this.stateManager.state.claudeMessages, null, 2))
+
 			await this.say("api_req_retried")
 			this.state = TaskState.WAITING_FOR_API
 			await this.makeClaudeRequest()
@@ -283,6 +330,10 @@ export class TaskExecutor {
 		}
 	}
 
+	/**
+	 * @todo make sure this is handled correctly with the ui (original implementation was missing)
+	 * @param error The error that occurred during tool execution
+	 */
 	private async handleToolError(error: TaskError): Promise<void> {
 		this.logError(error)
 		await this.say("error", `Tool execution failed: ${error.message}`)
@@ -320,6 +371,12 @@ export class TaskExecutor {
 		return { inputTokens, outputTokens }
 	}
 
+	/**
+	 *
+	 * @param type The type of message to ask
+	 * @param question The question to ask the user
+	 * @returns The response from the user
+	 */
 	public async ask(type: ClaudeAsk, question?: string): Promise<AskResponse> {
 		return new Promise((resolve) => {
 			const askTs = Date.now()
@@ -330,13 +387,28 @@ export class TaskExecutor {
 		})
 	}
 
+	/**
+	 *
+	 * @param type - The type of message to say
+	 * @param text - The text to say
+	 * @param images - The images to show
+	 */
 	public async say(type: ClaudeSay, text?: string, images?: string[]): Promise<void> {
 		const sayTs = Date.now()
 		await this.stateManager.addToClaudeMessages({ ts: sayTs, type: "say", say: type, text: text, images })
 		await this.stateManager.providerRef.deref()?.postStateToWebview()
 	}
 
+	/**
+	 *
+	 * @param response - The response from the user to the ask question (yes, no, or messageResponse)
+	 * @param text - The text in case the response is messageResponse
+	 * @param images - The images in case the response is messageResponse
+	 */
 	public handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void {
+		/**
+		 * If there is a pending ask response, call the resolve function with the response
+		 */
 		if (this.pendingAskResponse) {
 			this.pendingAskResponse({ response, text, images })
 			this.pendingAskResponse = null

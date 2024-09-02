@@ -603,7 +603,7 @@ const ChatView = ({
 								syntaxHighlighterStyle={syntaxHighlighterStyle}
 								isExpanded={expandedRows[message.ts] || false}
 								onToggleExpand={() => toggleRowExpansion(message.ts)}
-								lastModifiedMessage={modifiedMessages.at(-1)}
+								nextModifiedMessage={modifiedMessages.at(-1)}
 								isLast={index === visibleMessages.length - 1}
 							/>
 						)}

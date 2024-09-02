@@ -60,36 +60,6 @@ export class KoduDev {
 	private setupTaskExecutor() {
 		// Pass necessary methods to the TaskExecutor
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.apiManager, this.toolExecutor)
-
-		// Override the ask and say methods of the TaskExecutor
-		this.taskExecutor.ask = async (type: ClaudeAsk, question?: string): Promise<AskResponse> => {
-			const askTs = Date.now()
-			await this.stateManager.addToClaudeMessages({
-				ts: askTs,
-				type: "ask",
-				ask: type,
-				text: question,
-			})
-			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion:: ${question}`)
-			await this.providerRef.deref()?.postStateToWebview()
-
-			// Return a promise that will be resolved when handleWebviewAskResponse is called
-			return new Promise((resolve) => {
-				this.pendingAskResponse = resolve
-			})
-		}
-
-		this.taskExecutor.say = async (type: ClaudeSay, text?: string, images?: string[]): Promise<void> => {
-			const sayTs = Date.now()
-			await this.stateManager.addToClaudeMessages({
-				ts: sayTs,
-				type: "say",
-				say: type,
-				text: text,
-				images: images,
-			})
-			await this.providerRef.deref()?.postStateToWebview()
-		}
 	}
 
 	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
@@ -113,6 +83,9 @@ export class KoduDev {
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
 	}
 
+	/**
+	 * @todo bug fix - sometlogic is not working properly with cancelled tasks or errored tasks
+	 */
 	async resumeTaskFromHistory() {
 		const modifiedClaudeMessages = await this.stateManager.getSavedClaudeMessages()
 
