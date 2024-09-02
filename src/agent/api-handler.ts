@@ -3,10 +3,11 @@ import { ApiConfiguration, ApiHandler, buildApiHandler } from "../api"
 import { UserContent } from "./types"
 import { API_RETRY_DELAY } from "./constants"
 import { serializeError } from "serialize-error"
-import { isWithinContextWindow, truncateHalfConversation } from "../utils/context-management"
+import { truncateHalfConversation } from "../utils/context-management"
 import { SYSTEM_PROMPT } from "./system-prompt"
 import { tools } from "./tools"
 import { ClaudeDevProvider } from "../providers/ClaudeDevProvider"
+import { KoduError } from "../shared/kodu"
 
 export class ApiManager {
 	private api: ApiHandler
@@ -46,18 +47,6 @@ ${this.customInstructions.trim()}
 `
 		}
 
-		const isPromptWithinContextWindow = isWithinContextWindow(
-			this.api.getModel().info.contextWindow,
-			systemPrompt,
-			tools,
-			apiConversationHistory
-		)
-
-		if (!isPromptWithinContextWindow) {
-			const truncatedMessages = truncateHalfConversation(apiConversationHistory)
-			apiConversationHistory = truncatedMessages
-		}
-
 		try {
 			const { message, userCredits } = await this.api.createMessage(
 				systemPrompt,
@@ -73,8 +62,10 @@ ${this.customInstructions.trim()}
 
 			return message
 		} catch (error) {
-			console.error("API request failed", error)
-			throw new Error(`API request failed: ${JSON.stringify(serializeError(error), null, 2)}`)
+			if (error instanceof KoduError) {
+				console.error("KODU API request failed", error)
+			}
+			throw error
 		}
 	}
 

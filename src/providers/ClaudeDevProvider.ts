@@ -286,7 +286,8 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 			async (message: WebviewMessage) => {
 				switch (message.type) {
 					case "abortAutomode":
-						this.claudeDev?.abortContinueTask()
+						await this.clearTask()
+						await this.postStateToWebview()
 						break
 					case "webviewDidLaunch":
 						this.getState()

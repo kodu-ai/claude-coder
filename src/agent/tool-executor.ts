@@ -254,19 +254,18 @@ export class ToolExecutor {
 		) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>,
 		say: (type: ClaudeSay, text?: string, images?: string[]) => Promise<void>
 	): Promise<ToolResponse> {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "claude-dev-experimental"))
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "claude-dev-"))
 		const tempFilePath = path.join(tempDir, path.basename(absolutePath))
 		await fs.writeFile(tempFilePath, newContent)
 
 		vscode.commands.executeCommand(
 			"vscode.diff",
-			vscode.Uri.parse(`claude-dev-experimental:${path.basename(absolutePath)}`).with({
+			vscode.Uri.parse(`claude-dev-diff:${path.basename(absolutePath)}`).with({
 				query: Buffer.from(originalContent).toString("base64"),
 			}),
 			vscode.Uri.file(tempFilePath),
 			`${path.basename(absolutePath)}: ${fileExists ? "Original ↔ Claude's Changes" : "New File"} (Editable)`
 		)
-
 		const userResponse = await ask(
 			"tool",
 			JSON.stringify({

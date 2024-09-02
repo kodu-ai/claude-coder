@@ -83,7 +83,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Make sure to stop fetching when the extension is deactivated
 	context.subscriptions.push({ dispose: stopCreditFetch })
-
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
@@ -154,7 +153,7 @@ export function activate(context: vscode.ExtensionContext) {
 	)
 
 	/*
-	We use the text document content provider API to show the left side for diff view by creating a virtual document for the original content. This makes it readonly so users know to edit the right side if they want to keep their changes.
+	We use the text document content provider API to show a diff view for new files/edits by creating a virtual document for the new content.
 
 	- This API allows you to create readonly documents in VSCode from arbitrary sources, and works by claiming an uri-scheme for which your provider then returns text contents. The scheme must be provided when registering a provider and cannot change afterwards.
 	- Note how the provider doesn't create uris for virtual documents - its role is to provide contents given such an uri. In return, content providers are wired into the open document logic so that providers are always considered.
@@ -166,19 +165,19 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	})()
 	context.subscriptions.push(
-		vscode.workspace.registerTextDocumentContentProvider("claude-dev-experimental", diffContentProvider)
+		vscode.workspace.registerTextDocumentContentProvider("claude-dev-diff", diffContentProvider)
 	)
 
-	// // URI Handler
-	// const handleUri = async (uri: vscode.Uri) => {
-	// 	const query = new URLSearchParams(uri.query.replace(/\+/g, "%2B"))
-	// 	const token = query.get("token")
-	// 	const email = query.get("email")
-	// 	if (token) {
-	// 		await sidebarProvider.saveKoduApiKey(token, email || undefined)
-	// 	}
-	// }
-	// context.subscriptions.push(vscode.window.registerUriHandler({ handleUri }))
+	// URI Handler
+	const handleUri = async (uri: vscode.Uri) => {
+		const query = new URLSearchParams(uri.query.replace(/\+/g, "%2B"))
+		const token = query.get("token")
+		const email = query.get("email")
+		if (token) {
+			await sidebarProvider.saveKoduApiKey(token, email || undefined)
+		}
+	}
+	context.subscriptions.push(vscode.window.registerUriHandler({ handleUri }))
 }
 
 // This method is called when your extension is deactivated

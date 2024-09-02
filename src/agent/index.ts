@@ -18,6 +18,7 @@ import { ToolExecutor } from "./tool-executor"
 import { KoduDevOptions, KoduDevState, ToolResponse, UserContent } from "./types"
 import { cwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "./utils"
 import { ApiConfiguration } from "../api"
+import { KoduError } from "../shared/kodu"
 
 export class KoduDev {
 	private state: KoduDevState
@@ -29,6 +30,7 @@ export class KoduDev {
 	private creativeMode: "creative" | "normal" | "deterministic"
 	private alwaysAllowWriteOnly: boolean
 	private abortingContinueTask: boolean = false
+	private waitingForErrorRecovery: boolean = false
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -99,6 +101,7 @@ export class KoduDev {
 	}
 
 	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
+		// if it's aborted, restart the task
 		this.state.askResponse = askResponse
 		this.state.askResponseText = text
 		this.state.askResponseImages = images
@@ -256,7 +259,7 @@ export class KoduDev {
 		await this.initiateTaskLoop([textBlock, ...imageBlocks])
 	}
 
-	private async resumeTaskFromHistory() {
+	async resumeTaskFromHistory() {
 		const modifiedClaudeMessages = await this.getSavedClaudeMessages()
 
 		const lastApiReqStartedIndex = modifiedClaudeMessages.reduce(
@@ -423,7 +426,7 @@ export class KoduDev {
 
 	private async initiateTaskLoop(userContent: UserContent): Promise<void> {
 		let nextUserContent = userContent
-
+		console.log("Initiating task loop")
 		while (!this.state.abort) {
 			const { didEndLoop } = await this.recursivelyMakeClaudeRequests(nextUserContent)
 
@@ -446,10 +449,6 @@ export class KoduDev {
 		this.toolExecutor.abortTask()
 	}
 
-	async abortContinueTask() {
-		this.abortingContinueTask = true
-	}
-
 	async executeTool(toolName: ToolName, toolInput: any, isLastWriteToFile: boolean = false): Promise<ToolResponse> {
 		return this.toolExecutor.executeTool(
 			toolName,
@@ -464,7 +463,7 @@ export class KoduDev {
 		if (this.state.abort) {
 			throw new Error("ClaudeDev instance aborted")
 		}
-
+		console.log(`Making Claude request with user content: ${JSON.stringify(userContent)}`)
 		await this.addToApiConversationHistory({ role: "user", content: userContent })
 		if (this.state.requestCount >= this.maxRequestsPerTask) {
 			const { response } = await this.ask(
@@ -496,6 +495,7 @@ export class KoduDev {
 		)
 
 		try {
+			console.log(`conversation history: ${JSON.stringify(this.state.apiConversationHistory)}`)
 			const response = await this.apiManager.createApiRequest(this.state.apiConversationHistory)
 			this.state.requestCount++
 
@@ -561,14 +561,6 @@ export class KoduDev {
 						toolResults.push({ type: "tool_result", tool_use_id: toolUseId, content: result })
 					}
 				}
-
-				if (this.abortingContinueTask) {
-					this.abortingContinueTask = false
-					console.log(`Aborting task after current message finished`)
-					await this.say("abort_automode", "The task has been aborted after the current message finished.")
-					this.state.abort = true
-					return { didEndLoop: true, inputTokens, outputTokens }
-				}
 			}
 
 			if (assistantResponses.length > 0) {
@@ -621,6 +613,11 @@ export class KoduDev {
 
 			return { didEndLoop, inputTokens, outputTokens }
 		} catch (error) {
+			console.error("API request failed", error)
+			if (error instanceof KoduError) {
+				await this.ask("api_req_failed", error.message)
+				return { didEndLoop: true, inputTokens: 0, outputTokens: 0 }
+			}
 			return { didEndLoop: true, inputTokens: 0, outputTokens: 0 }
 		}
 	}

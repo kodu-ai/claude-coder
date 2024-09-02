@@ -107,7 +107,7 @@ const ChatView = ({
 							setSecondaryButtonText("Start New Task")
 							break
 						case "api_req_failed":
-							setTextAreaDisabled(true)
+							setTextAreaDisabled(false)
 							setClaudeAsk("api_req_failed")
 							setEnableButtons(true)
 							setPrimaryButtonText("Retry")
@@ -230,7 +230,12 @@ const ChatView = ({
 	}, [messages.length])
 
 	const handleSendMessage = () => {
+		console.log(`Sending message: ${inputValue}`)
 		const text = inputValue.trim()
+		console.log(`Sending message: ${text}`)
+		console.log(`Selected images: ${selectedImages}`)
+		console.log(`Claude ask: ${JSON.stringify(claudeAsk)}`)
+
 		if (text || selectedImages.length > 0) {
 			if (messages.length === 0) {
 				vscode.postMessage({ type: "newTask", text, images: selectedImages })
@@ -242,7 +247,9 @@ const ChatView = ({
 					case "command_output": // user can send input to command stdin
 					case "completion_result": // if this happens then the user has feedback for the completion result
 					case "resume_task":
+					case "api_req_failed":
 					case "resume_completed_task":
+						console.log(`Sending askResponse: messageResponse`)
 						vscode.postMessage({
 							type: "askResponse",
 							askResponse: "messageResponse",
@@ -252,6 +259,14 @@ const ChatView = ({
 						break
 					// there is no other case that a textfield should be enabled
 				}
+			} else if (!claudeAsk) {
+				// if there is no ask, then the user is sending a message to Claude
+				vscode.postMessage({
+					type: "askResponse",
+					askResponse: "messageResponse",
+					text,
+					images: selectedImages,
+				})
 			}
 			setInputValue("")
 			setTextAreaDisabled(true)
@@ -268,8 +283,8 @@ const ChatView = ({
 	*/
 	const handlePrimaryButtonClick = () => {
 		switch (claudeAsk) {
-			case "request_limit_reached":
 			case "api_req_failed":
+			case "request_limit_reached":
 			case "command":
 			case "command_output":
 			case "tool":

@@ -9,6 +9,7 @@ export interface WebviewMessage {
 		| "webviewDidLaunch"
 		| "newTask"
 		| "askResponse"
+		| "retryTask"
 		| "alwaysAllowWriteOnly"
 		| "clearTask"
 		| "didCloseAnnouncement"
