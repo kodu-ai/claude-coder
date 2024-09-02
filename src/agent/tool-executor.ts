@@ -16,6 +16,7 @@ import {
 	formatGenericToolFeedback,
 	formatImagesIntoBlocks,
 	formatToolResponse,
+	getPotentiallyRelevantDetails,
 	getReadablePath,
 } from "./utils"
 import delay from "delay"
@@ -23,11 +24,15 @@ import os from "os"
 import { ClaudeAskResponse } from "../shared/WebviewMessage"
 import { extractTextFromFile } from "../utils/extract-text"
 import { regexSearchFiles } from "../utils/ripgrep"
+import { COMMAND_STDIN_STRING } from "../shared/combineCommandSequences"
+import { findLastIndex } from "../utils"
+import { KoduDev } from "."
 
 type ToolExecutorOptions = {
 	cwd: string
 	alwaysAllowReadOnly: boolean
 	alwaysAllowWriteOnly: boolean
+	koduDev: KoduDev
 }
 
 export class ToolExecutor {
@@ -35,11 +40,13 @@ export class ToolExecutor {
 	private alwaysAllowReadOnly: boolean
 	private alwaysAllowWriteOnly: boolean
 	private executeCommandRunningProcess?: ResultPromise
+	private koduDev: KoduDev
 
 	constructor(options: ToolExecutorOptions) {
 		this.cwd = options.cwd
 		this.alwaysAllowReadOnly = options.alwaysAllowReadOnly
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
+		this.koduDev = options.koduDev
 	}
 
 	setAlwaysAllowReadOnly(value: boolean) {
@@ -655,20 +662,43 @@ export class ToolExecutor {
 		if (response !== "yesButtonTapped") {
 			return "The user denied this operation."
 		}
-
+		let userFeedback: { text?: string; images?: string[] } | undefined
 		const sendCommandOutput = async (subprocess: ResultPromise, line: string): Promise<void> => {
 			try {
 				if (this.alwaysAllowWriteOnly) {
 					await say("command_output", line)
 				} else {
-					const { response, text } = await ask("command_output", line)
+					const { response, text, images } = await ask("command_output", line)
+					const isStdin = (text ?? "").startsWith(COMMAND_STDIN_STRING)
 					if (response === "yesButtonTapped") {
 						if (subprocess.pid) {
 							treeKill(subprocess.pid, "SIGINT")
 						}
 					} else {
-						subprocess.stdin?.write(text + "\n")
-						sendCommandOutput(subprocess, "")
+						if (isStdin) {
+							const stdin = text?.slice(COMMAND_STDIN_STRING.length) ?? ""
+
+							// replace last commandoutput with + stdin
+							const lastCommandOutput = findLastIndex(
+								this.koduDev.getState().claudeMessages,
+								(m) => m.ask === "command_output"
+							)
+							if (lastCommandOutput !== -1) {
+								this.koduDev.getState().claudeMessages[lastCommandOutput].text += stdin
+							}
+
+							// if the user sent some input, we send it to the command stdin
+							// add newline as cli programs expect a newline after each input
+							// (stdin needs to be set to `pipe` to send input to the command, execa does this by default when using template literals - other options are inherit (from parent process stdin) or null (no stdin))
+							subprocess.stdin?.write(stdin + "\n")
+							// Recurse with an empty string to continue listening for more input
+							sendCommandOutput(subprocess, "") // empty strings are effectively ignored by the webview, this is done solely to relinquish control over the exit command button
+						} else {
+							userFeedback = { text, images }
+							if (subprocess.pid) {
+								treeKill(subprocess.pid, "SIGINT")
+							}
+						}
 					}
 				}
 			} catch {
@@ -714,6 +744,15 @@ export class ToolExecutor {
 
 			await delay(COMMAND_OUTPUT_DELAY)
 			this.executeCommandRunningProcess = undefined
+			if (userFeedback) {
+				await say("user_feedback", userFeedback.text, userFeedback.images)
+				return formatToolResponse(
+					`Command Output:\n${result}\n\nThe user interrupted the command and provided the following feedback:\n<feedback>\n${
+						userFeedback.text
+					}\n</feedback>\n\n${await getPotentiallyRelevantDetails()}`,
+					userFeedback.images
+				)
+			}
 
 			if (returnEmptyStringOnSuccess) {
 				return ""

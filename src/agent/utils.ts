@@ -4,6 +4,9 @@ import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeSayTool } from "../shared/ExtensionMessage"
 
+export const getCwd = (): string =>
+	vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), "Desktop")
+
 export const cwd =
 	vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), "Desktop")
 /**

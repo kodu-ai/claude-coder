@@ -6,7 +6,7 @@ import { useEvent, useMeasure, useMount } from "react-use"
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso"
 import { ClaudeAsk, ClaudeSayTool, ExtensionMessage } from "../../../src/shared/ExtensionMessage"
 import { combineApiRequests } from "../../../src/shared/combineApiRequests"
-import { combineCommandSequences } from "../../../src/shared/combineCommandSequences"
+import { combineCommandSequences, COMMAND_STDIN_STRING } from "../../../src/shared/combineCommandSequences"
 import { getApiMetrics } from "../../../src/shared/getApiMetrics"
 import { useExtensionState } from "../context/ExtensionStateContext"
 import { getSyntaxHighlighterStyleFromTheme } from "../utils/getSyntaxHighlighterStyleFromTheme"
@@ -79,7 +79,19 @@ const ChatView = ({
 			[ts]: !prev[ts],
 		}))
 	}
-
+	const handleSendStdin = (text: string) => {
+		if (claudeAsk === "command_output") {
+			vscode.postMessage({
+				type: "askResponse",
+				askResponse: "messageResponse",
+				text: COMMAND_STDIN_STRING + text,
+			})
+			setClaudeAsk(undefined)
+			// don't need to disable since extension relinquishes control back immediately
+			// setTextAreaDisabled(true)
+			// setEnableButtons(false)
+		}
+	}
 	useEffect(() => {
 		if (!vscodeThemeName) return
 		const theme = getSyntaxHighlighterStyleFromTheme(vscodeThemeName)
@@ -107,7 +119,7 @@ const ChatView = ({
 							setSecondaryButtonText("Start New Task")
 							break
 						case "api_req_failed":
-							setTextAreaDisabled(false)
+							setTextAreaDisabled(true)
 							setClaudeAsk("api_req_failed")
 							setEnableButtons(true)
 							setPrimaryButtonText("Retry")
@@ -478,13 +490,10 @@ const ChatView = ({
 		return () => clearTimeout(timer)
 	}, [visibleMessages])
 
-	const [placeholderText, isInputPipingToStdin] = useMemo(() => {
-		if (messages.at(-1)?.ask === "command_output") {
-			return ["Type input to command stdin...", true]
-		}
+	const placeholderText = useMemo(() => {
 		const text = task ? "Type a message..." : "Type your task here..."
-		return [text, false]
-	}, [task, messages])
+		return text
+	}, [task])
 
 	const isCompletionResult = useMemo(() => {
 		return messages.at(-1)?.ask === "completion_result" || messages.at(-1)?.say === "completion_result"
@@ -506,10 +515,7 @@ const ChatView = ({
 	}, [alwaysAllowWriteOnly, messages])
 
 	const shouldDisableImages =
-		!selectedModelSupportsImages ||
-		textAreaDisabled ||
-		selectedImages.length >= MAX_IMAGES_PER_MESSAGE ||
-		isInputPipingToStdin
+		!selectedModelSupportsImages || textAreaDisabled || selectedImages.length >= MAX_IMAGES_PER_MESSAGE
 
 	return (
 		<div
@@ -580,6 +586,7 @@ const ChatView = ({
 						itemContent={(index, message) => (
 							<ChatRow
 								key={message.ts}
+								handleSendStdin={handleSendStdin}
 								message={message}
 								syntaxHighlighterStyle={syntaxHighlighterStyle}
 								isExpanded={expandedRows[message.ts] || false}

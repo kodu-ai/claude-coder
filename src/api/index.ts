@@ -3,7 +3,7 @@ import { ApiModelId, ModelInfo } from "../shared/api"
 import { KoduHandler } from "./kodu"
 
 export interface ApiHandlerMessageResponse {
-	message: Anthropic.Messages.Message
+	message: Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage
 	userCredits?: number
 	errorString?: string
 	errorCode?: number

@@ -11,7 +11,7 @@ import { ClaudeAskResponse } from "../shared/WebviewMessage"
 import { getApiMetrics } from "../shared/getApiMetrics"
 import { HistoryItem } from "../shared/HistoryItem"
 import { combineApiRequests } from "../shared/combineApiRequests"
-import { combineCommandSequences } from "../shared/combineCommandSequences"
+import { combineCommandSequences, COMMAND_STDIN_STRING } from "../shared/combineCommandSequences"
 import { findLastIndex } from "../utils"
 import { ApiManager } from "./api-handler"
 import { ToolExecutor } from "./tool-executor"
@@ -19,7 +19,6 @@ import { KoduDevOptions, KoduDevState, ToolResponse, UserContent } from "./types
 import { cwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "./utils"
 import { ApiConfiguration } from "../api"
 import { KoduError } from "../shared/kodu"
-
 export class KoduDev {
 	private state: KoduDevState
 	private apiManager: ApiManager
@@ -29,8 +28,7 @@ export class KoduDev {
 	private alwaysAllowReadOnly: boolean
 	private creativeMode: "creative" | "normal" | "deterministic"
 	private alwaysAllowWriteOnly: boolean
-	private abortingContinueTask: boolean = false
-	private waitingForErrorRecovery: boolean = false
+	private isRetryRequest: boolean = false
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -54,6 +52,7 @@ export class KoduDev {
 			cwd,
 			alwaysAllowReadOnly: this.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: this.alwaysAllowWriteOnly,
+			koduDev: this,
 		})
 		this.maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
 
@@ -98,13 +97,6 @@ export class KoduDev {
 	updateAlwaysAllowReadOnly(alwaysAllowReadOnly: boolean | undefined) {
 		this.alwaysAllowReadOnly = alwaysAllowReadOnly ?? false
 		this.toolExecutor.setAlwaysAllowReadOnly(this.alwaysAllowReadOnly)
-	}
-
-	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
-		// if it's aborted, restart the task
-		this.state.askResponse = askResponse
-		this.state.askResponseText = text
-		this.state.askResponseImages = images
 	}
 
 	public getState(): KoduDevState {
@@ -202,47 +194,6 @@ export class KoduDev {
 		} catch (error) {
 			console.error("Failed to save claude messages:", error)
 		}
-	}
-
-	async ask(
-		type: ClaudeAsk,
-		question?: string
-	): Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }> {
-		if (this.state.abort) {
-			throw new Error("ClaudeDev instance aborted")
-		}
-		this.state.askResponse = undefined
-		this.state.askResponseText = undefined
-		this.state.askResponseImages = undefined
-		const askTs = Date.now()
-		this.state.lastMessageTs = askTs
-		await this.addToClaudeMessages({ ts: askTs, type: "ask", ask: type, text: question })
-		await this.providerRef.deref()?.postStateToWebview()
-		await pWaitFor(() => this.state.askResponse !== undefined || this.state.lastMessageTs !== askTs, {
-			interval: 100,
-		})
-		if (this.state.lastMessageTs !== askTs) {
-			throw new Error("Current ask promise was ignored")
-		}
-		const result = {
-			response: this.state.askResponse!,
-			text: this.state.askResponseText,
-			images: this.state.askResponseImages,
-		}
-		this.state.askResponse = undefined
-		this.state.askResponseText = undefined
-		this.state.askResponseImages = undefined
-		return result
-	}
-
-	async say(type: ClaudeSay, text?: string, images?: string[]): Promise<void> {
-		if (this.state.abort) {
-			throw new Error("ClaudeDev instance aborted")
-		}
-		const sayTs = Date.now()
-		this.state.lastMessageTs = sayTs
-		await this.addToClaudeMessages({ ts: sayTs, type: "say", say: type, text: text, images })
-		await this.providerRef.deref()?.postStateToWebview()
 	}
 
 	private async startTask(task?: string, images?: string[]): Promise<void> {
@@ -424,6 +375,60 @@ export class KoduDev {
 		await this.initiateTaskLoop(combinedModifiedOldUserContentWithNewUserContent)
 	}
 
+	async abortTask() {
+		this.state.abort = true
+		// this.abortingContinueTask = false
+		this.toolExecutor.abortTask()
+	}
+
+	async ask(
+		type: ClaudeAsk,
+		question?: string
+	): Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }> {
+		if (this.state.abort) {
+			throw new Error("ClaudeDev instance aborted")
+		}
+		this.state.askResponse = undefined
+		this.state.askResponseText = undefined
+		this.state.askResponseImages = undefined
+		const askTs = Date.now()
+		this.state.lastMessageTs = askTs
+		await this.addToClaudeMessages({ ts: askTs, type: "ask", ask: type, text: question })
+		console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion:: ${question}`)
+		await this.providerRef.deref()?.postStateToWebview()
+		await pWaitFor(() => this.state.askResponse !== undefined || this.state.lastMessageTs !== askTs, {
+			interval: 100,
+		})
+		if (this.state.lastMessageTs !== askTs) {
+			throw new Error("Current ask promise was ignored")
+		}
+		const result = {
+			response: this.state.askResponse!,
+			text: this.state.askResponseText,
+			images: this.state.askResponseImages,
+		}
+		this.state.askResponse = undefined
+		this.state.askResponseText = undefined
+		this.state.askResponseImages = undefined
+		return result
+	}
+
+	async say(type: ClaudeSay, text?: string, images?: string[]): Promise<void> {
+		if (this.state.abort) {
+			throw new Error("ClaudeDev instance aborted")
+		}
+		const sayTs = Date.now()
+		this.state.lastMessageTs = sayTs
+		await this.addToClaudeMessages({ ts: sayTs, type: "say", say: type, text: text, images })
+		await this.providerRef.deref()?.postStateToWebview()
+	}
+
+	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
+		// if it's aborted, restart the task
+		this.state.askResponse = askResponse
+		this.state.askResponseText = text
+		this.state.askResponseImages = images
+	}
 	private async initiateTaskLoop(userContent: UserContent): Promise<void> {
 		let nextUserContent = userContent
 		console.log("Initiating task loop")
@@ -431,6 +436,7 @@ export class KoduDev {
 			const { didEndLoop } = await this.recursivelyMakeClaudeRequests(nextUserContent)
 
 			if (didEndLoop) {
+				console.log("Task loop ended")
 				break
 			} else {
 				nextUserContent = [
@@ -441,12 +447,6 @@ export class KoduDev {
 				]
 			}
 		}
-	}
-
-	async abortTask() {
-		this.state.abort = true
-		this.abortingContinueTask = false
-		this.toolExecutor.abortTask()
 	}
 
 	async executeTool(toolName: ToolName, toolInput: any, isLastWriteToFile: boolean = false): Promise<ToolResponse> {
@@ -464,7 +464,7 @@ export class KoduDev {
 			throw new Error("ClaudeDev instance aborted")
 		}
 		console.log(`Making Claude request with user content: ${JSON.stringify(userContent)}`)
-		await this.addToApiConversationHistory({ role: "user", content: userContent })
+
 		if (this.state.requestCount >= this.maxRequestsPerTask) {
 			const { response } = await this.ask(
 				"request_limit_reached",
@@ -486,13 +486,15 @@ export class KoduDev {
 				return { didEndLoop: true, inputTokens: 0, outputTokens: 0 }
 			}
 		}
-
-		await this.say(
-			"api_req_started",
-			JSON.stringify({
-				request: this.apiManager.createUserReadableRequest(userContent),
-			})
-		)
+		if (!this.isRetryRequest) {
+			await this.addToApiConversationHistory({ role: "user", content: userContent })
+			await this.say(
+				"api_req_started",
+				JSON.stringify({
+					request: this.apiManager.createUserReadableRequest(userContent),
+				})
+			)
+		}
 
 		try {
 			console.log(`conversation history: ${JSON.stringify(this.state.apiConversationHistory)}`)
@@ -613,9 +615,16 @@ export class KoduDev {
 
 			return { didEndLoop, inputTokens, outputTokens }
 		} catch (error) {
+			this.isRetryRequest = false
 			console.error("API request failed", error)
 			if (error instanceof KoduError) {
-				await this.ask("api_req_failed", error.message)
+				const { response, text } = await this.ask("api_req_failed", error.message)
+				if (response === "yesButtonTapped" || response === "messageResponse") {
+					await this.say("api_req_retried")
+					this.isRetryRequest = true
+					return { didEndLoop: false, inputTokens: 0, outputTokens: 0 }
+				}
+
 				return { didEndLoop: true, inputTokens: 0, outputTokens: 0 }
 			}
 			return { didEndLoop: true, inputTokens: 0, outputTokens: 0 }

@@ -35,7 +35,7 @@ const AbortAutomode: React.FC<AbortAutomodeProps> = ({ isVisible }) => {
 				appearance="secondary"
 				onClick={handleAbort}
 				style={{ marginRight: "10px" }}>
-				{isAborting ? "Aborting..." : "Abort Automode"}
+				{isAborting ? "Aborting..." : "Quit Automode"}
 			</VSCodeButton>
 		</div>
 	)

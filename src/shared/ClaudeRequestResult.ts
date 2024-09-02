@@ -3,3 +3,7 @@ export interface ClaudeRequestResult {
 	inputTokens: number
 	outputTokens: number
 }
+
+export interface ClaudeRequestResultV1 {
+	didEndLoop: boolean
+}

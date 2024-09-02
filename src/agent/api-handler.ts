@@ -32,9 +32,11 @@ export class ApiManager {
 		this.customInstructions = customInstructions
 	}
 
-	async createApiRequest(apiConversationHistory: Anthropic.MessageParam[]): Promise<Anthropic.Messages.Message> {
+	async createApiRequest(
+		apiConversationHistory: Anthropic.MessageParam[]
+	): Promise<Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage> {
 		const creativeMode = (await this.providerRef.deref()?.getState())?.creativeMode ?? "normal"
-		let systemPrompt = SYSTEM_PROMPT()
+		let systemPrompt = await SYSTEM_PROMPT()
 		if (this.customInstructions && this.customInstructions.trim()) {
 			systemPrompt += `
 ====

@@ -2,9 +2,10 @@ import osName from "os-name"
 import { cwd } from "./utils"
 import defaultShell from "default-shell"
 import os from "os"
+import { getPythonEnvPath } from "../utils/get-python-env"
 
 export const SYSTEM_PROMPT =
-	() => `You are Claude Dev, a highly skilled software developer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
+	async () => `You are Claude Dev, a highly skilled software developer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
 
 ====
  
@@ -59,7 +60,17 @@ You accomplish a given task iteratively, breaking it down into clear steps and w
 SYSTEM INFORMATION
 
 Operating System: ${osName()}
-Default Shell: ${defaultShell}
+Default Shell: ${defaultShell}${await (async () => {
+		try {
+			const pythonEnvPath = await getPythonEnvPath()
+			if (pythonEnvPath) {
+				return `\nPython Environment: ${pythonEnvPath}`
+			}
+		} catch (error) {
+			console.log("Failed to get python env path", error)
+		}
+		return ""
+	})()}
 Home Directory: ${os.homedir()}
 Current Working Directory: ${cwd}
 `
