@@ -1,7 +1,7 @@
 import React from "react"
 import { VSCodeLink, VSCodeButton } from "@vscode/webview-ui-toolkit/react"
 import { vscode } from "../../utils/vscode"
-import VSCodeButtonLink from "../VSCodeButtonLink"
+import VSCodeButtonLink from "../VSCodeButtonLink/VSCodeButtonLink"
 import { formatPrice } from "./utils"
 import { getKoduAddCreditsUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
 

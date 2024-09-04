@@ -7,6 +7,7 @@ import { normalizeApiConfiguration } from "./components/ApiOptions/utils"
 import ChatView from "./components/ChatView/ChatView"
 import HistoryView from "./components/HistoryView/HistoryView"
 import SettingsView from "./components/SettingsView/SettingsView"
+import WelcomeView from "./WelcomeView"
 
 const AppContent = () => {
 	const { apiConfiguration } = useExtensionState()
