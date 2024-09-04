@@ -1,13 +1,12 @@
 import { useCallback, useMemo, useState } from "react"
 import { useEvent } from "react-use"
 import { ExtensionMessage } from "../../src/shared/ExtensionMessage"
-import { normalizeApiConfiguration } from "./components/ApiOptions"
-import ChatView from "./components/ChatView"
-import HistoryView from "./components/HistoryView"
-import SettingsView from "./components/SettingsView"
-import WelcomeView from "./components/WelcomeView"
 import { ExtensionStateProvider, useExtensionState } from "./context/ExtensionStateContext"
 import { vscode } from "./utils/vscode"
+import { normalizeApiConfiguration } from "./components/ApiOptions/utils"
+import ChatView from "./components/ChatView/ChatView"
+import HistoryView from "./components/HistoryView/HistoryView"
+import SettingsView from "./components/SettingsView/SettingsView"
 
 const AppContent = () => {
 	const { apiConfiguration } = useExtensionState()

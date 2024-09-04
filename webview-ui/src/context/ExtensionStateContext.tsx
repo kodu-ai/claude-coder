@@ -20,7 +20,7 @@ const alwaysAllowApproveOnlyAtom = atom(false)
 const userAtom = atom<{ credits: number; email: string; refCode?: string } | undefined>(undefined)
 const uriSchemeAtom = atom<string | undefined>(undefined)
 const themeNameAtom = atom<string | undefined>(undefined)
-const creativeModeAtom = atom<"creative" | "normal" | "deterministic">("normal")
+export const creativeModeAtom = atom<"creative" | "normal" | "deterministic">("normal")
 
 // Derived atom for the entire state
 const extensionStateAtom = atom((get) => ({

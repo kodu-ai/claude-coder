@@ -135,6 +135,7 @@ export class KoduHandler implements ApiHandler {
 			getKoduInferenceUrl(),
 			{
 				...requestBody,
+				model: "claude-3-5-sonnet-20240620-fast-edit",
 			},
 			{
 				headers: {
