@@ -57,6 +57,160 @@ You accomplish a given task iteratively, breaking it down into clear steps and w
 
 ====
 
+====
+
+TOOL EXAMPLES
+
+1. execute_command
+
+USER: How can I check the version of Node.js installed on my system?
+OUTPUT: {
+  "command": "node --version"
+}
+
+USER: I need to create a new directory called "my_project" and initialize it as a Git repository. Can you help?
+OUTPUT: {
+  "command": "mkdir my_project"
+}
+
+USER: How can I list all running processes on my system, sorted by CPU usage?
+OUTPUT: {
+  "command": "ps aux --sort=-%cpu | head -n 10"
+}
+
+2. list_files
+
+USER: Can you show me the contents of my current working directory?
+OUTPUT: {
+  "path": "."
+}
+
+USER: I need to see all the JavaScript files in my "src" folder, including those in subdirectories.
+OUTPUT: {
+  "path": "src",
+  "recursive": "true"
+}
+
+USER: What files are in my "documents" folder?
+OUTPUT: {
+  "path": "../documents"
+}
+
+3. list_code_definition_names
+
+USER: Can you list the top-level definitions in my "utils" folder?
+OUTPUT: {
+  "path": "utils"
+}
+
+USER: What are the main classes and functions defined in my "src" directory?
+OUTPUT: {
+  "path": "src"
+}
+
+USER: I need to see the top-level definitions in the root of my project.
+OUTPUT: {
+  "path": "."
+}
+
+4. search_files
+
+USER: Can you find all TODO comments in my JavaScript files?
+OUTPUT: {
+  "path": ".",
+  "regex": "pattern",
+  "filePattern": "*.js"
+}
+
+USER: I need to find all instances where we're using the 'useState' hook in our React components.
+OUTPUT: {
+  "path": "src",
+  "regex": "pattern",
+}
+
+USER: Can you search for all function declarations in our Python files?
+OUTPUT: {
+  "path": ".",
+  "regex": "pattern",
+  "filePattern": "*.py"
+}
+
+5. read_file
+
+USER: Can you show me the contents of my "package.json" file?
+OUTPUT: {
+  "path": "package.json"
+}
+
+USER: I need to see what's in my ".gitignore" file.
+OUTPUT: {
+  "path": ".gitignore"
+}
+
+USER: Can you read the "README.md" file from my project root?
+OUTPUT: {
+  "path": "README.md"
+}
+
+6. write_to_file
+
+USER: Can you create a new file called "hello.js" with a simple "Hello, World!" program?
+OUTPUT: {
+  "path": "hello.js",
+  "content": "console.log('Hello, World!');"
+}
+
+USER: I need to update my ".gitignore" file to include "node_modules" and ".env".
+OUTPUT: {
+  "path": ".gitignore",
+  "content": "node_modules.env"
+}
+
+USER: Can you create a basic "index.html" file for a new web project?
+OUTPUT: {
+  "path": "index.html",
+  "content": "file content"
+}
+
+7. ask_followup_question
+
+USER: I want to set up a new React project.
+OUTPUT: {
+  "question": "Would you like to use Create React App or set up the project manually with Webpack and Babel?"
+}
+
+USER: I need to optimize the performance of my application.
+OUTPUT: {
+  "question": "Can you provide more details about the specific areas of your application that are experiencing performance issues?"
+}
+
+USER: I want to implement authentication in my web app.
+OUTPUT: {
+  "question": "Are you looking to implement authentication from scratch or would you prefer to use a third-party service like Auth0 or Firebase Authentication?"
+}
+
+8. attempt_completion
+
+USER: Create a simple "Hello, World!" web page.
+OUTPUT: {
+  "command": "open index.html",
+  "result": "I've created a simple 'Hello, World!' web page for you. Here's what I did:\n\n1. Created an 'index.html' file with basic HTML structure.\n2. Added a heading that says 'Hello, World!'.\n3. Included some basic CSS for centered text and a colored background.\n\nYou can view the page by opening the 'index.html' file in your web browser. The 'open' command I've provided should do this automatically on most systems.\n\nIf you want to make any changes or expand on this basic page, just let me know!"
+}
+
+USER: Set up a basic Express.js server.
+OUTPUT: {
+  "command": "node server.js",
+  "result": "I've set up a basic Express.js server for you. Here's what I did:\n\n1. Created a 'package.json' file with the necessary dependencies.\n2. Created a 'server.js' file with a basic Express.js server setup.\n3. Added a simple route that responds with 'Hello, World!' to GET requests on the root path.\n\nTo run the server, make sure you have Node.js installed, then:\n1. Run 'npm install' to install the dependencies.\n2. Use the command 'node server.js' to start the server.\n\nThe server will start on port 3000. You can test it by opening a web browser and navigating to 'http://localhost:3000'.\n\nIf you need any modifications or want to add more routes, just let me know!"
+}
+
+USER: Implement a basic todo list in React.
+OUTPUT: {
+  "command": "npm start",
+  "result": "I've implemented a basic todo list application using React. Here's what I did:\n\n1. Set up a new React project using Create React App.\n2. Created a TodoList component that manages the list of todos.\n3. Implemented functionality to add new todos, mark todos as complete, and delete todos.\n4. Added some basic styling to make the app look presentable.\n\nTo run the application:\n1. Make sure you have Node.js installed.\n2. Navigate to the project directory in your terminal.\n3. Run 'npm install' to install the dependencies.\n4. Use the command 'npm start' to start the development server.\n\nThe app should open automatically in your default web browser. If it doesn't, you can access it at 'http://localhost:3000'.\n\nIf you want to add more features or make any changes to the existing functionality, feel free to ask!"
+}
+
+====
+
 SYSTEM INFORMATION
 
 Operating System: ${osName()}

@@ -489,7 +489,7 @@ export class ClaudeDev {
 				request: this.api.createUserReadableRequest([
 					{
 						type: "text",
-						text: `${taskText}\n\n<potentially_relevant_details>(see getPotentiallyRelevantDetails in src/ClaudeDev.ts)</potentially_relevant_details>`,
+						text: `${taskText}\n\n<potentially_relevant_details>(see getPotentiallyRelevantDetails in src/agent/system-prompt.ts.ts)</potentially_relevant_details>`,
 					},
 					...imageBlocks,
 				]),
