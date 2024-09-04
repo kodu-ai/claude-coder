@@ -30,6 +30,7 @@ interface ChatViewProps {
 
 const MAX_IMAGES_PER_MESSAGE = 20 // Anthropic limits to 20 images
 
+// latest file but old design
 const ChatView = ({
 	isHidden,
 	showAnnouncement,
@@ -541,125 +542,133 @@ const ChatView = ({
 				flexDirection: "column",
 				overflow: "hidden",
 			}}>
-			{task ? (
-				<TaskHeader
-					task={task}
-					tokensIn={apiMetrics.totalTokensIn}
-					tokensOut={apiMetrics.totalTokensOut}
-					doesModelSupportPromptCache={selectedModelSupportsPromptCache}
-					cacheWrites={apiMetrics.totalCacheWrites}
-					cacheReads={apiMetrics.totalCacheReads}
-					totalCost={apiMetrics.totalCost}
-					onClose={handleTaskCloseButtonClick}
-					isHidden={isHidden}
-					koduCredits={user?.credits ?? 0}
-					vscodeUriScheme={uriScheme}
-				/>
-			) : (
-				<>
-					{showAnnouncement && (
-						<Announcement
-							version={version}
-							hideAnnouncement={hideAnnouncement}
-							vscodeUriScheme={uriScheme}
-						/>
-					)}
-					{!showAnnouncement && shouldShowKoduPromo && (
-						<KoduPromo style={{ margin: "10px 15px -10px 15px" }} />
-					)}
-					<div style={{ padding: "0 20px", flexGrow: taskHistory.length > 0 ? undefined : 1 }}>
-						<h2>What can I do for you?</h2>
-						<p>
-							Thanks to{" "}
-							<VSCodeLink
-								href="https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf"
-								style={{ display: "inline" }}>
-								Claude 3.5 Sonnet's agentic coding capabilities,
-							</VSCodeLink>{" "}
-							I can handle complex software development tasks step-by-step. With tools that let me create
-							& edit files, explore complex projects, and execute terminal commands (after you grant
-							permission), I can assist you in ways that go beyond simple code completion or tech support.
-						</p>
-					</div>
-					{taskHistory.length > 0 && <HistoryPreview showHistoryView={showHistoryView} />}
-				</>
-			)}
-			{task && (
-				<>
-					<Virtuoso
-						ref={virtuosoRef}
-						className="scrollable"
-						style={{
-							flexGrow: 1,
-							overflowY: "scroll",
-						}}
-						increaseViewportBy={{ top: 0, bottom: Number.MAX_SAFE_INTEGER }}
-						data={visibleMessages}
-						itemContent={(index, message) => (
-							<ChatRow
-								key={message.ts}
-								handleSendStdin={handleSendStdin}
-								message={message}
-								syntaxHighlighterStyle={syntaxHighlighterStyle}
-								isExpanded={expandedRows[message.ts] || false}
-								onToggleExpand={() => toggleRowExpansion(message.ts)}
-								nextModifiedMessage={modifiedMessages.at(-1)}
-								isLast={index === visibleMessages.length - 1}
+			<div
+				style={{
+					borderTop: "1px solid var(--section-border)",
+					flex: "1 1 0%",
+					display: "flex",
+					flexDirection: "column",
+					overflowY: "auto",
+				}}>
+				{task ? (
+					<TaskHeader
+						task={task}
+						tokensIn={apiMetrics.totalTokensIn}
+						tokensOut={apiMetrics.totalTokensOut}
+						doesModelSupportPromptCache={selectedModelSupportsPromptCache}
+						cacheWrites={apiMetrics.totalCacheWrites}
+						cacheReads={apiMetrics.totalCacheReads}
+						totalCost={apiMetrics.totalCost}
+						onClose={handleTaskCloseButtonClick}
+						isHidden={isHidden}
+						koduCredits={user?.credits ?? 0}
+						vscodeUriScheme={uriScheme}
+					/>
+				) : (
+					<>
+						{showAnnouncement && (
+							<Announcement
+								version={version}
+								hideAnnouncement={hideAnnouncement}
+								vscodeUriScheme={uriScheme}
 							/>
 						)}
-					/>
-					{isRequestRunning && (
-						<VSCodeButton
-							disabled={isAbortingRequest}
-							onClick={() => {
-								setIsAbortingRequest(true)
-								vscode.postMessage({ type: "cancelCurrentRequest" })
-							}}>
-							{isAbortingRequest ? "Aborting..." : "Abort Request"}
-						</VSCodeButton>
-					)}
-					{alwaysAllowWriteOnly && <AbortAutomode isVisible={!!showAbortAutomode} />}
-					{!alwaysAllowWriteOnly && (
-						<div
+						{!showAnnouncement && shouldShowKoduPromo && (
+							<KoduPromo style={{ margin: "10px 15px -10px 15px" }} />
+						)}
+						<section>
+							<h3 className="flex-line uppercase text-alt">
+								{/* <span className="codicon text-alt codicon-robot"></span> */}
+								What can I do for you?
+							</h3>
+							<div>
+								Thanks to{" "}
+								<VSCodeLink
+									href="https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf"
+									style={{ display: "inline" }}>
+									Claude 3.5 Sonnet's agentic coding capabilities,
+								</VSCodeLink>{" "}
+								I can handle complex software development tasks step-by-step. With tools that let me
+								create & edit files, explore complex projects, and execute terminal commands (after you
+								grant permission), I can assist you in ways that go beyond simple code completion or
+								tech support.
+							</div>
+						</section>
+						{taskHistory.length > 0 && <HistoryPreview showHistoryView={showHistoryView} />}
+					</>
+				)}
+				{task && (
+					<>
+						<Virtuoso
+							ref={virtuosoRef}
+							className="scrollable"
 							style={{
-								opacity:
-									!alwaysAllowWriteOnly && (primaryButtonText || secondaryButtonText)
-										? enableButtons
-											? 1
-											: 0.5
-										: 0,
-								display: "flex",
-								padding: "10px 15px 0px 15px",
-							}}>
-							{primaryButtonText && (
-								<VSCodeButton
-									appearance="primary"
-									disabled={!enableButtons}
-									style={{
-										flex: secondaryButtonText ? 1 : 2,
-										marginRight: secondaryButtonText ? "6px" : "0",
-									}}
-									onClick={handlePrimaryButtonClick}>
-									{primaryButtonText}
-								</VSCodeButton>
+								flexGrow: 1,
+								overflowY: "scroll", // always show scrollbar
+							}}
+							increaseViewportBy={{ top: 0, bottom: Number.MAX_SAFE_INTEGER }}
+							data={visibleMessages}
+							itemContent={(index, message) => (
+								<ChatRow
+									key={message.ts}
+									message={message}
+									syntaxHighlighterStyle={syntaxHighlighterStyle}
+									isExpanded={expandedRows[message.ts] || false}
+									onToggleExpand={() => toggleRowExpansion(message.ts)}
+									// nextModifiedMessage={modifiedMessages.at(-1)}
+									isLast={index === visibleMessages.length - 1}
+									handleSendStdin={handleSendStdin}
+								/>
 							)}
-							{secondaryButtonText && (
-								<VSCodeButton
-									appearance="secondary"
-									disabled={!enableButtons}
-									style={{ flex: 1, marginLeft: "6px" }}
-									onClick={handleSecondaryButtonClick}>
-									{secondaryButtonText}
-								</VSCodeButton>
-							)}
-						</div>
-					)}
-				</>
-			)}
+						/>
+						{isRequestRunning && (
+							<VSCodeButton
+								disabled={isAbortingRequest}
+								onClick={() => {
+									setIsAbortingRequest(true)
+									vscode.postMessage({ type: "cancelCurrentRequest" })
+								}}>
+								{isAbortingRequest ? "Aborting..." : "Abort Request"}
+							</VSCodeButton>
+						)}
+						{alwaysAllowWriteOnly && <AbortAutomode isVisible={!!showAbortAutomode} />}
+						{!alwaysAllowWriteOnly && (
+							<div
+								style={{
+									opacity: primaryButtonText || secondaryButtonText ? (enableButtons ? 1 : 0.5) : 0,
+									display: "flex",
+									padding: "8px 16px 0px 15px",
+								}}>
+								{primaryButtonText && (
+									<VSCodeButton
+										appearance="primary"
+										disabled={!enableButtons}
+										style={{
+											flex: secondaryButtonText ? 1 : 2,
+											marginRight: secondaryButtonText ? "6px" : "0",
+										}}
+										onClick={handlePrimaryButtonClick}>
+										{primaryButtonText}
+									</VSCodeButton>
+								)}
+								{secondaryButtonText && (
+									<VSCodeButton
+										appearance="secondary"
+										disabled={!enableButtons}
+										style={{ flex: 1, marginLeft: "6px" }}
+										onClick={handleSecondaryButtonClick}>
+										{secondaryButtonText}
+									</VSCodeButton>
+								)}
+							</div>
+						)}
+					</>
+				)}
+			</div>
 
 			<div
 				style={{
-					padding: "10px 15px",
+					padding: "8px 16px",
 					opacity: textAreaDisabled ? 0.5 : 1,
 					position: "relative",
 					display: "flex",
@@ -668,7 +677,7 @@ const ChatView = ({
 					<div
 						style={{
 							position: "absolute",
-							inset: "10px 15px",
+							inset: "8px 16px",
 							border: "1px solid var(--vscode-input-border)",
 							borderRadius: 2,
 							pointerEvents: "none",
@@ -720,7 +729,7 @@ const ChatView = ({
 							paddingTop: 4,
 							bottom: 14,
 							left: 22,
-							right: 67,
+							right: 67, // (54 + 9) + 4 extra padding
 						}}
 					/>
 				)}
@@ -728,28 +737,30 @@ const ChatView = ({
 					style={{
 						position: "absolute",
 						right: 20,
-						bottom: 14.5,
 						display: "flex",
-						alignItems: "flex-end",
+						alignItems: "flex-center",
 						height: "calc(100% - 20px)",
+						bottom: 10,
 					}}>
-					<VSCodeButton
-						disabled={shouldDisableImages}
-						appearance="icon"
-						aria-label="Attach Images"
-						onClick={selectImages}
-						style={{ marginRight: "2px" }}>
-						<span
-							className="codicon codicon-device-camera"
-							style={{ fontSize: 18.5, marginLeft: -2, marginBottom: 0.5 }}></span>
-					</VSCodeButton>
-					<VSCodeButton
-						disabled={textAreaDisabled}
-						appearance="icon"
-						aria-label="Send Message"
-						onClick={handleSendMessage}>
-						<span className="codicon codicon-send" style={{ fontSize: 16.5, marginTop: 2 }}></span>
-					</VSCodeButton>
+					<div style={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
+						<VSCodeButton
+							disabled={shouldDisableImages}
+							appearance="icon"
+							aria-label="Attach Images"
+							onClick={selectImages}
+							style={{ marginRight: "2px" }}>
+							<span
+								className="codicon codicon-device-camera"
+								style={{ fontSize: 18, marginLeft: -2, marginBottom: 1 }}></span>
+						</VSCodeButton>
+						<VSCodeButton
+							disabled={textAreaDisabled}
+							appearance="icon"
+							aria-label="Send Message"
+							onClick={handleSendMessage}>
+							<span className="codicon codicon-send" style={{ fontSize: 16, marginBottom: -1 }}></span>
+						</VSCodeButton>
+					</div>
 				</div>
 			</div>
 		</div>

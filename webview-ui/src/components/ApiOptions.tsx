@@ -132,7 +132,7 @@ const ApiOptions: React.FC<ApiOptionsProps> = ({ showModelOptions, setDidAuthKod
 						</VSCodeButtonLink>
 					</div>
 				)}
-				<p
+				<div
 					style={{
 						fontSize: 12,
 						marginTop: 6,
@@ -142,7 +142,7 @@ const ApiOptions: React.FC<ApiOptionsProps> = ({ showModelOptions, setDidAuthKod
 					<VSCodeLink href={getKoduHomepageUrl()} style={{ display: "inline", fontSize: "12px" }}>
 						Learn more about Kodu here.
 					</VSCodeLink>
-				</p>
+				</div>
 			</div>
 
 			{showModelOptions && (
@@ -172,7 +172,7 @@ export const formatPrice = (price: number) => {
 
 const ModelInfoView = ({ modelInfo }: { modelInfo: ModelInfo }) => {
 	return (
-		<p style={{ fontSize: "12px", marginTop: "2px", color: "var(--vscode-descriptionForeground)" }}>
+		<div style={{ fontSize: "12px", marginTop: "2px", color: "var(--vscode-descriptionForeground)" }}>
 			<ModelInfoSupportsItem
 				isSupported={modelInfo.supportsImages}
 				supportsLabel="Supports images"
@@ -183,12 +183,6 @@ const ModelInfoView = ({ modelInfo }: { modelInfo: ModelInfo }) => {
 				isSupported={modelInfo.supportsPromptCache}
 				supportsLabel="Supports prompt caching"
 				doesNotSupportLabel="Does not support prompt caching"
-			/>
-			<br />
-			<ModelInfoSupportsItem
-				isSupported={true}
-				supportsLabel="Experimental Rewrite Mode"
-				doesNotSupportLabel="Does not support Rewrite Mode"
 			/>
 			<br />
 			<span style={{ fontWeight: 500 }}>Max output:</span> {modelInfo?.maxTokens?.toLocaleString()} tokens
@@ -206,7 +200,7 @@ const ModelInfoView = ({ modelInfo }: { modelInfo: ModelInfo }) => {
 			)}
 			<br />
 			<span style={{ fontWeight: 500 }}>Output price:</span> {formatPrice(modelInfo.outputPrice)}/million tokens
-		</p>
+		</div>
 	)
 }
 
@@ -222,7 +216,7 @@ const ModelInfoSupportsItem = ({
 	<span
 		style={{
 			fontWeight: 500,
-			color: isSupported ? "var(--vscode-testing-iconPassed)" : "var(--vscode-errorForeground)",
+			color: isSupported ? "var(--vscode-terminal-ansiGreen)" : "var(--vscode-errorForeground)",
 		}}>
 		<i
 			className={`codicon codicon-${isSupported ? "check" : "x"}`}

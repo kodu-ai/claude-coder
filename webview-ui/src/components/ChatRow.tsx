@@ -1,4 +1,4 @@
-import { VSCodeBadge, VSCodeButton, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react"
+import { VSCodeButton, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react"
 import React from "react"
 import Markdown from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
@@ -14,7 +14,7 @@ interface ChatRowProps {
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
 	isExpanded: boolean
 	onToggleExpand: () => void
-	nextModifiedMessage?: ClaudeMessage
+	lastModifiedMessage?: ClaudeMessage
 	isLast: boolean
 	handleSendStdin: (text: string) => void
 }
@@ -24,23 +24,19 @@ const ChatRow: React.FC<ChatRowProps> = ({
 	syntaxHighlighterStyle,
 	isExpanded,
 	onToggleExpand,
-	nextModifiedMessage,
+	lastModifiedMessage,
 	isLast,
 	handleSendStdin,
 }) => {
 	const cost = message.text != null && message.say === "api_req_started" ? JSON.parse(message.text).cost : undefined
 	const apiRequestFailedMessage =
-		isLast && nextModifiedMessage?.ask === "api_req_failed" // if request is retried then the latest message is a api_req_retried
-			? nextModifiedMessage?.text
+		isLast && lastModifiedMessage?.ask === "api_req_failed" // if request is retried then the latest message is a api_req_retried
+			? lastModifiedMessage?.text
 			: undefined
 	const isCommandExecuting =
-		isLast && nextModifiedMessage?.ask === "command" && nextModifiedMessage?.text?.includes(COMMAND_OUTPUT_STRING)
+		isLast && lastModifiedMessage?.ask === "command" && lastModifiedMessage?.text?.includes(COMMAND_OUTPUT_STRING)
 
 	const getIconAndTitle = (type: ClaudeAsk | ClaudeSay | undefined): [JSX.Element | null, JSX.Element | null] => {
-		const normalColor = "var(--vscode-foreground)"
-		const errorColor = "var(--vscode-errorForeground)"
-		const successColor = "var(--vscode-charts-green)"
-
 		const ProgressIndicator = (
 			<div
 				style={{
@@ -58,59 +54,38 @@ const ChatRow: React.FC<ChatRowProps> = ({
 
 		switch (type) {
 			case "error":
-				return [
-					<span
-						className="codicon codicon-error"
-						style={{ color: errorColor, marginBottom: "-1.5px" }}></span>,
-					<span style={{ color: errorColor, fontWeight: "bold" }}>Error</span>,
-				]
+				return [<span className="codicon codicon-error text-error" />, <h3 className="text-error">Error</h3>]
 			case "command":
 				return [
-					isCommandExecuting ? (
-						ProgressIndicator
-					) : (
-						<span
-							className="codicon codicon-terminal"
-							style={{ color: normalColor, marginBottom: "-1.5px" }}></span>
-					),
-					<span style={{ color: normalColor, fontWeight: "bold" }}>
-						Claude wants to execute this command:
-					</span>,
+					isCommandExecuting ? ProgressIndicator : <span className="codicon codicon-terminal text-alt" />,
+					<h3 className="text-alt">Claude wants to execute this command:</h3>,
 				]
 			case "completion_result":
 				return [
-					<span
-						className="codicon codicon-check"
-						style={{ color: successColor, marginBottom: "-1.5px" }}></span>,
-					<span style={{ color: successColor, fontWeight: "bold" }}>Task Completed</span>,
+					<span className="codicon codicon-check text-success" />,
+					<h3 className="text-success">Task Completed</h3>,
 				]
 			case "api_req_started":
 				return [
 					cost ? (
-						<span
-							className="codicon codicon-check"
-							style={{ color: successColor, marginBottom: "-1.5px" }}></span>
+						<span className="codicon codicon-check text-success" />
 					) : apiRequestFailedMessage ? (
-						<span
-							className="codicon codicon-error"
-							style={{ color: errorColor, marginBottom: "-1.5px" }}></span>
+						<span className="codicon codicon-error text-error" />
 					) : (
 						ProgressIndicator
 					),
 					cost ? (
-						<span style={{ color: normalColor, fontWeight: "bold" }}>API Request Complete</span>
+						<h3 className="text-success">API Request Complete</h3>
 					) : apiRequestFailedMessage ? (
-						<span style={{ color: errorColor, fontWeight: "bold" }}>API Request Failed</span>
+						<h3 className="text-error">API Request Failed</h3>
 					) : (
-						<span style={{ color: normalColor, fontWeight: "bold" }}>Making API Request...</span>
+						<h3 className="text-alt">Making API Request...</h3>
 					),
 				]
 			case "followup":
 				return [
-					<span
-						className="codicon codicon-question"
-						style={{ color: normalColor, marginBottom: "-1.5px" }}></span>,
-					<span style={{ color: normalColor, fontWeight: "bold" }}>Claude has a question:</span>,
+					<span className="codicon codicon-question text-alt" />,
+					<h3 className="text-alt">Claude has a question:</h3>,
 				]
 			default:
 				return [null, null]
@@ -230,50 +205,27 @@ const ChatRow: React.FC<ChatRowProps> = ({
 	const renderContent = () => {
 		const [icon, title] = getIconAndTitle(message.type === "ask" ? message.ask : message.say)
 
-		const headerStyle: React.CSSProperties = {
-			display: "flex",
-			alignItems: "center",
-			gap: "10px",
-			marginBottom: "10px",
-		}
-
-		const pStyle: React.CSSProperties = {
-			margin: 0,
-			whiteSpace: "pre-wrap",
-			wordBreak: "break-word",
-			overflowWrap: "anywhere",
-		}
-
 		switch (message.type) {
 			case "say":
 				switch (message.say) {
 					case "api_req_started":
 						return (
 							<>
-								<div
-									style={{
-										...headerStyle,
-										marginBottom: cost == null && apiRequestFailedMessage ? 10 : 0,
-										justifyContent: "space-between",
-									}}>
-									<div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-										{icon}
-										{title}
-										{cost && <VSCodeBadge>${Number(cost)?.toFixed(4)}</VSCodeBadge>}
-									</div>
+								<div className="flex-line">
+									{icon}
+									{title}
+									{cost && <code className="text-light">${Number(cost)?.toFixed(4)}</code>}
+									<div className="flex-1" />
 									<VSCodeButton
 										appearance="icon"
 										aria-label="Toggle Details"
 										onClick={onToggleExpand}>
-										<span
-											className={`codicon codicon-chevron-${isExpanded ? "up" : "down"}`}></span>
+										<span className={`codicon codicon-chevron-${isExpanded ? "up" : "down"}`} />
 									</VSCodeButton>
 								</div>
 								{cost == null && apiRequestFailedMessage && (
 									<>
-										<p style={{ ...pStyle, color: "var(--vscode-errorForeground)" }}>
-											{apiRequestFailedMessage}
-										</p>
+										<div className="text-error">{apiRequestFailedMessage}</div>
 										{/* {apiProvider === "kodu" && (
 											<div
 												style={{
@@ -316,19 +268,14 @@ const ChatRow: React.FC<ChatRowProps> = ({
 						return <div>{renderMarkdown(message.text)}</div>
 					case "user_feedback":
 						return (
-							<div
-								style={{
-									backgroundColor: "var(--vscode-badge-background)",
-									color: "var(--vscode-badge-foreground)",
-									borderRadius: "3px",
-									padding: "8px",
-									whiteSpace: "pre-line",
-									wordWrap: "break-word",
-								}}>
-								<span style={{ display: "block" }}>{message.text}</span>
-								{message.images && message.images.length > 0 && (
-									<Thumbnails images={message.images} style={{ marginTop: "8px" }} />
-								)}
+							<div style={{ display: "flex", alignItems: "start", gap: "8px" }}>
+								<span className="codicon codicon-account" style={{ marginTop: "2px" }} />
+								<div style={{ display: "grid", gap: "8px" }}>
+									<div>{message.text}</div>
+									{message.images && message.images.length > 0 && (
+										<Thumbnails images={message.images} />
+									)}
+								</div>
 							</div>
 						)
 					case "user_feedback_diff":
@@ -364,36 +311,34 @@ const ChatRow: React.FC<ChatRowProps> = ({
 						return (
 							<>
 								{title && (
-									<div style={headerStyle}>
+									<h3 className="flex-line text-error">
 										{icon}
 										{title}
-									</div>
+									</h3>
 								)}
-								<p style={{ ...pStyle, color: "var(--vscode-errorForeground)" }}>{message.text}</p>
+								<p>{message.text}</p>
 							</>
 						)
 					case "completion_result":
 						return (
 							<>
-								<div style={headerStyle}>
+								<h3 className="flex-line text-success">
 									{icon}
 									{title}
-								</div>
-								<div style={{ color: "var(--vscode-charts-green)" }}>
-									{renderMarkdown(message.text)}
-								</div>
+								</h3>
+								<div className="text-success">{renderMarkdown(message.text)}</div>
 							</>
 						)
 					case "tool":
-						return renderTool(message, headerStyle)
+						return renderTool(message)
 					default:
 						return (
 							<>
 								{title && (
-									<div style={headerStyle}>
+									<h3 className="flex-line">
 										{icon}
 										{title}
-									</div>
+									</h3>
 								)}
 								<div>{renderMarkdown(message.text)}</div>
 							</>
@@ -402,7 +347,7 @@ const ChatRow: React.FC<ChatRowProps> = ({
 			case "ask":
 				switch (message.ask) {
 					case "tool":
-						return renderTool(message, headerStyle)
+						return renderTool(message)
 					case "command":
 						const splitMessage = (text: string) => {
 							const outputIndex = text.indexOf(COMMAND_OUTPUT_STRING)
@@ -418,10 +363,10 @@ const ChatRow: React.FC<ChatRowProps> = ({
 						const { command, output } = splitMessage(message.text || "")
 						return (
 							<>
-								<div style={headerStyle}>
+								<h3 className="flex-line">
 									{icon}
 									{title}
-								</div>
+								</h3>
 								<Terminal
 									rawOutput={command + (output ? "\n" + output : "")}
 									handleSendStdin={handleSendStdin}
@@ -432,15 +377,13 @@ const ChatRow: React.FC<ChatRowProps> = ({
 					case "completion_result":
 						if (message.text) {
 							return (
-								<div>
-									<div style={headerStyle}>
+								<>
+									<h3 className="flex-line">
 										{icon}
 										{title}
-									</div>
-									<div style={{ color: "var(--vscode-charts-green)" }}>
-										{renderMarkdown(message.text)}
-									</div>
-								</div>
+									</h3>
+									<div className="text-success">{renderMarkdown(message.text)}</div>
+								</>
 							)
 						} else {
 							return null // Don't render anything when we get a completion_result ask without text
@@ -449,10 +392,10 @@ const ChatRow: React.FC<ChatRowProps> = ({
 						return (
 							<>
 								{title && (
-									<div style={headerStyle}>
+									<h3 className="flex-line">
 										{icon}
 										{title}
-									</div>
+									</h3>
 								)}
 								<div>{renderMarkdown(message.text)}</div>
 							</>
@@ -461,21 +404,17 @@ const ChatRow: React.FC<ChatRowProps> = ({
 		}
 	}
 
-	const renderTool = (message: ClaudeMessage, headerStyle: React.CSSProperties) => {
+	const renderTool = (message: ClaudeMessage) => {
 		const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
-		const toolIcon = (name: string) => (
-			<span
-				className={`codicon codicon-${name}`}
-				style={{ color: "var(--vscode-foreground)", marginBottom: "-1.5px" }}></span>
-		)
+		const toolIcon = (name: string) => <span className={`codicon codicon-${name} text-alt`} />
 
 		switch (tool.tool) {
 			case "editedExistingFile":
 				return (
 					<>
-						<div style={headerStyle}>
+						<div className="flex-line">
 							{toolIcon("edit")}
-							<span style={{ fontWeight: "bold" }}>Claude wants to edit this file:</span>
+							<h3 className="text-alt">Claude wants to edit this file:</h3>
 						</div>
 						<CodeBlock
 							diff={tool.diff!}
@@ -489,10 +428,7 @@ const ChatRow: React.FC<ChatRowProps> = ({
 			case "newFileCreated":
 				return (
 					<>
-						<div style={headerStyle}>
-							{toolIcon("new-file")}
-							<span style={{ fontWeight: "bold" }}>Claude wants to create a new file:</span>
-						</div>
+						<h3 className="flex-line text-alt">{toolIcon("new-file")}Claude wants to create a new file:</h3>
 						<CodeBlock
 							code={tool.content!}
 							path={tool.path!}
@@ -505,12 +441,10 @@ const ChatRow: React.FC<ChatRowProps> = ({
 			case "readFile":
 				return (
 					<>
-						<div style={headerStyle}>
+						<h3 className="flex-line text-alt">
 							{toolIcon("file-code")}
-							<span style={{ fontWeight: "bold" }}>
-								{message.type === "ask" ? "Claude wants to read this file:" : "Claude read this file:"}
-							</span>
-						</div>
+							{message.type === "ask" ? "Claude wants to read this file:" : "Claude read this file:"}
+						</h3>
 						<CodeBlock
 							code={tool.content!}
 							path={tool.path!}
@@ -523,14 +457,12 @@ const ChatRow: React.FC<ChatRowProps> = ({
 			case "listFilesTopLevel":
 				return (
 					<>
-						<div style={headerStyle}>
+						<h3 className="flex-line text-alt">
 							{toolIcon("folder-opened")}
-							<span style={{ fontWeight: "bold" }}>
-								{message.type === "ask"
-									? "Claude wants to view the top level files in this directory:"
-									: "Claude viewed the top level files in this directory:"}
-							</span>
-						</div>
+							{message.type === "ask"
+								? "Claude wants to view the top level files in this directory:"
+								: "Claude viewed the top level files in this directory:"}
+						</h3>
 						<CodeBlock
 							code={tool.content!}
 							path={tool.path!}
@@ -544,14 +476,12 @@ const ChatRow: React.FC<ChatRowProps> = ({
 			case "listFilesRecursive":
 				return (
 					<>
-						<div style={headerStyle}>
+						<h3 className="flex-line text-alt">
 							{toolIcon("folder-opened")}
-							<span style={{ fontWeight: "bold" }}>
-								{message.type === "ask"
-									? "Claude wants to recursively view all files in this directory:"
-									: "Claude recursively viewed all files in this directory:"}
-							</span>
-						</div>
+							{message.type === "ask"
+								? "Claude wants to recursively view all files in this directory:"
+								: "Claude recursively viewed all files in this directory:"}
+						</h3>
 						<CodeBlock
 							code={tool.content!}
 							path={tool.path!}
@@ -565,14 +495,12 @@ const ChatRow: React.FC<ChatRowProps> = ({
 			case "listCodeDefinitionNames":
 				return (
 					<>
-						<div style={headerStyle}>
+						<h3 className="flex-line text-alt">
 							{toolIcon("file-code")}
-							<span style={{ fontWeight: "bold" }}>
-								{message.type === "ask"
-									? "Claude wants to view source code definition names used in this directory:"
-									: "Claude viewed source code definition names used in this directory:"}
-							</span>
-						</div>
+							{message.type === "ask"
+								? "Claude wants to view source code definition names used in this directory:"
+								: "Claude viewed source code definition names used in this directory:"}
+						</h3>
 						<CodeBlock
 							code={tool.content!}
 							path={tool.path!}
@@ -585,20 +513,18 @@ const ChatRow: React.FC<ChatRowProps> = ({
 			case "searchFiles":
 				return (
 					<>
-						<div style={headerStyle}>
+						<h3 className="text-alt">
 							{toolIcon("search")}
-							<span style={{ fontWeight: "bold" }}>
-								{message.type === "ask" ? (
-									<>
-										Claude wants to search this directory for <code>{tool.regex}</code>:
-									</>
-								) : (
-									<>
-										Claude searched this directory for <code>{tool.regex}</code>:
-									</>
-								)}
-							</span>
-						</div>
+							{message.type === "ask" ? (
+								<>
+									Claude wants to search this directory for <code>{tool.regex}</code>:
+								</>
+							) : (
+								<>
+									Claude searched this directory for <code>{tool.regex}</code>:
+								</>
+							)}
+						</h3>
 						<CodeBlock
 							code={tool.content!}
 							path={tool.path! + (tool.filePattern ? `/(${tool.filePattern})` : "")}
@@ -617,10 +543,7 @@ const ChatRow: React.FC<ChatRowProps> = ({
 	// NOTE: we cannot return null as virtuoso does not support it, so we must use a separate visibleMessages array to filter out messages that should not be rendered
 
 	return (
-		<div
-			style={{
-				padding: "10px 6px 10px 15px",
-			}}>
+		<section>
 			{renderContent()}
 			{isExpanded && message.say === "api_req_started" && (
 				<div style={{ marginTop: "10px" }}>
@@ -633,7 +556,7 @@ const ChatRow: React.FC<ChatRowProps> = ({
 					/>
 				</div>
 			)}
-		</div>
+		</section>
 	)
 }
 

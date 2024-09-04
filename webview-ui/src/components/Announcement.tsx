@@ -14,46 +14,42 @@ You must update the latestAnnouncementId in ClaudeDevProvider for new announceme
 */
 const Announcement = ({ version, hideAnnouncement, apiConfiguration, vscodeUriScheme }: AnnouncementProps) => {
 	return (
-		<div
-			style={{
-				backgroundColor: "var(--vscode-editor-inactiveSelectionBackground)",
-				borderRadius: "3px",
-				padding: "12px 16px",
-				margin: "5px 15px 5px 15px",
-				position: "relative",
-			}}>
-			<VSCodeButton
-				appearance="icon"
-				onClick={hideAnnouncement}
-				style={{ position: "absolute", top: "8px", right: "8px" }}>
-				<span className="codicon codicon-close"></span>
-			</VSCodeButton>
-			<h3 style={{ margin: "0 0 8px" }}>
-				🎉{"  "}New in v{version}
-			</h3>
-
+		<section>
+			<div className="flex-line">
+				<h3 className="flex-line uppercase text-alt">
+					<span className="codicon text-alt codicon-bell-dot"></span>New in v{version}
+				</h3>
+				<div className="flex-1" />
+				<VSCodeButton appearance="icon" onClick={hideAnnouncement}>
+					<span className="codicon codicon-close"></span>
+				</VSCodeButton>
+			</div>
 			<ul style={{ margin: "0 0 8px", paddingLeft: "12px" }}>
 				<li>
-					Excited to announce that we've partnered with Anthropic and are offering <b>$10 free credits</b> to
-					help users get the most out of Kodu Dev with increased rate limits and prompt caching! Stay tuned
-					for some exciting updates like easier billing, voice mode and one click deployment!
+					New terminal emulator! When Claude runs commands, you can now type directly in the terminal (+
+					support for Python environments)
 				</li>
 				<li>
-					Added "Creativity Mode" you can play between "Normal", "Creative" and "Deterministic" modes to
-					experience different levels of creativity and control over generated code.
+					<b>You can now edit Claude's changes before accepting!</b> When he edits or creates a file, you can
+					modify his changes directly in the right side of the diff view (+ hover over the 'Revert Block'
+					arrow button in the center to undo "<code>{"// rest of code here"}</code>" shenanigans)
 				</li>
 				<li>
-					Added "Experimental Automatic" mode to let Claude automatically read, write and execute files
-					without needing to approve (off by default).
+					Adds support for reading .pdf and .docx files (try "turn my business_plan.docx into a company
+					website")
+				</li>
+				<li>
+					Adds new <code>search_files</code> tool that lets Claude perform regex searches in your project,
+					making it easy for him to refactor code, address TODOs and FIXMEs, remove dead code, and more!
 				</li>
 			</ul>
-			{/* <p style={{ margin: "0" }}>
+			<div>
 				Follow me for more updates!{" "}
-				<VSCodeLink href="https://x.com/wekodu" style={{ display: "inline" }}>
-					@kodu-ai
+				<VSCodeLink href="https://x.com/sdrzn" style={{ display: "inline" }}>
+					@sdrzn
 				</VSCodeLink>
-			</p> */}
-		</div>
+			</div>
+		</section>
 	)
 }
 

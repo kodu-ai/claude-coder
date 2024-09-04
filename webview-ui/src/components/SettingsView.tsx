@@ -18,6 +18,7 @@ const IS_DEV = false // FIXME: use flags when packaging
 type SettingsViewProps = {
 	onDone: () => void
 }
+
 const modeDescriptions = {
 	normal: "Balanced creativity and consistency in code generation.",
 	deterministic: "Produces consistent code generation and similar coding style.",
@@ -39,6 +40,7 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 		creativeMode,
 		alwaysAllowWriteOnly,
 	} = useExtensionState()
+	const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>(undefined)
 	const [maxRequestsErrorMessage, setMaxRequestsErrorMessage] = useState<string | undefined>(undefined)
 	const [maxRequestsPerTaskString, setMaxRequestsPerTaskString] = useState<string>(
 		maxRequestsPerTask?.toString() || ""
@@ -57,13 +59,10 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 		const apiValidationResult = validateApiConfiguration(apiConfiguration)
 		const maxRequestsValidationResult = validateMaxRequestsPerTask(maxRequestsPerTaskString)
 
+		setApiErrorMessage(apiValidationResult)
 		setMaxRequestsErrorMessage(maxRequestsValidationResult)
-		console.log("apiValidationResult", apiValidationResult)
-		console.log("maxRequestsValidationResult", maxRequestsValidationResult)
 
-		if (!maxRequestsValidationResult) {
-			console.log("sending message")
-			console.log(JSON.stringify(apiConfiguration))
+		if (!apiValidationResult && !maxRequestsValidationResult) {
 			vscode.postMessage({ type: "apiConfiguration", apiConfiguration })
 			vscode.postMessage({ type: "maxRequestsPerTask", text: maxRequestsPerTaskString })
 			vscode.postMessage({ type: "alwaysAllowWriteOnly", bool: alwaysAllowWriteOnly })
@@ -75,20 +74,12 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 	}
 
 	useEffect(() => {
+		setApiErrorMessage(undefined)
+	}, [apiConfiguration])
+
+	useEffect(() => {
 		setMaxRequestsErrorMessage(undefined)
 	}, [maxRequestsPerTask])
-
-	// validate as soon as the component is mounted
-	/*
-	useEffect will use stale values of variables if they are not included in the dependency array. so trying to use useEffect with a dependency array of only one value for example will use any other variables' old values. In most cases you don't want this, and should opt to use react-use hooks.
-	
-	useEffect(() => {
-		// uses someVar and anotherVar
-	// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [someVar])
-
-	If we only want to run code once on mount we can use react-use's useEffectOnce or useMount
-	*/
 
 	const handleResetState = () => {
 		vscode.postMessage({ type: "resetState" })
@@ -124,16 +115,21 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 					<ApiOptions showModelOptions={true} />
 				</div>
 
-				<div className="creativity-mode-selector">
-					<span style={{ color: "var(--vscode-foreground)" }}>Select Creativity Mode:</span>
+				<div className="creativity-mode-selector" style={{ marginBottom: 5 }}>
+					<span style={{ fontWeight: "500" }}>Select Creativity Mode:</span>
 					<VSCodeRadioGroup value={creativeMode} onChange={(e: any) => setCreativeMode(e.target.value)}>
 						<VSCodeRadio value="normal">Normal</VSCodeRadio>
 						<VSCodeRadio value="deterministic">Deterministic</VSCodeRadio>
 						<VSCodeRadio value="creative">Creative</VSCodeRadio>
 					</VSCodeRadioGroup>
-					<span style={{ marginTop: 5, color: "var(--vscode-descriptionForeground)" }}>
+					<p
+						style={{
+							fontSize: "12px",
+							marginTop: "5px",
+							color: "var(--vscode-descriptionForeground)",
+						}}>
 						{modeDescriptions[creativeMode]}
-					</span>
+					</p>
 				</div>
 
 				<div style={{ marginBottom: 5 }}>
@@ -179,6 +175,7 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 						*This feature is highly experimental and may not work as expected.*
 					</p>
 				</div>
+
 				<div style={{ marginBottom: 5 }}>
 					<VSCodeTextArea
 						value={customInstructions ?? ""}
@@ -200,7 +197,7 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 					</p>
 				</div>
 
-				<div>
+				<div style={{ marginBottom: 5 }}>
 					<VSCodeTextField
 						value={maxRequestsPerTaskString}
 						style={{ width: "100%" }}
@@ -229,7 +226,7 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 					)}
 				</div>
 
-				{true && (
+				{IS_DEV && (
 					<>
 						<div style={{ marginTop: "10px", marginBottom: "4px" }}>Debug</div>
 						<VSCodeButton onClick={handleResetState} style={{ marginTop: "5px", width: "auto" }}>
@@ -255,15 +252,15 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 						marginTop: "auto",
 						padding: "10px 8px 15px 0px",
 					}}>
-					<p style={{ wordWrap: "break-word", margin: 0, padding: 0 }}>
+					<div style={{ wordWrap: "break-word", margin: 0, padding: 0 }}>
 						If you have any questions or feedback, feel free to open an issue at{" "}
 						<VSCodeLink
 							href="https://github.com/kodu-ai/claude-dev-experimental"
 							style={{ display: "inline" }}>
 							https://github.com/kodu-ai/claude-dev-experimental
 						</VSCodeLink>
-					</p>
-					<p style={{ fontStyle: "italic", margin: "10px 0 0 0", padding: 0 }}>v{version}</p>
+					</div>
+					<div style={{ fontStyle: "italic", margin: "10px 0 0 0", padding: 0 }}>v{version}</div>
 				</div>
 			</div>
 		</div>

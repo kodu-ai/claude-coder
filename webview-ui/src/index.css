@@ -19,6 +19,11 @@ html {
 
 body {
 	margin: 0;
+	font-size: var(--vscode-font-size);
+}
+body,
+body * {
+	line-height: 1.6;
 }
 
 body.scrollable,
@@ -114,6 +119,7 @@ https://github.com/microsoft/vscode-webview-ui-toolkit/tree/main/src/dropdown#wi
 	color: var(--vscode-foreground);
 	cursor: pointer;
 	font-size: var(--vscode-font-size);
+	line-height: 2.02rem;
 	line-height: normal;
 	margin-bottom: 2px;
 }
@@ -124,4 +130,92 @@ vscode-dropdown::part(listbox) {
 	border-color: var(--vscode-scrollbarSlider-background);
 	transition: none;
 	scrollbar-color: var(--vscode-scrollbarSlider-background) transparent;
+}
+
+/* common styles */
+:root {
+	--section-border: var(
+		--vscode-panel-border,
+		var(
+			--vscode-editorGroup-border,
+			var(--vscode-menu-separatorBackground, var(--vscode-menu-border, var(--vscode-activityBar-background)))
+		)
+	);
+}
+section {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 16px;
+	border-bottom: 1px solid var(--section-border);
+}
+.flex-1 {
+	flex: 1 1 0%;
+}
+.text-light {
+	color: var(--vscode-breadcrumb-foreground) !important;
+}
+.text-alt {
+	color: var(--vscode-terminal-ansiBlue) !important;
+}
+.text-success {
+	color: var(--vscode-terminal-ansiGreen) !important;
+}
+.text-error {
+	color: var(--vscode-terminal-ansiRed) !important;
+}
+h3 {
+	color: var(--vscode-sideBarSectionHeader-foreground);
+	font-size: var(--vscode-editor-font-size);
+	font-weight: 600;
+	margin: 0;
+}
+.uppercase {
+	text-transform: uppercase;
+}
+.task-card {
+	border: 1px solid var(--section-border);
+	padding: 16px;
+	display: grid;
+	grid-auto-rows: min-content;
+	gap: 4px;
+}
+.task-card.is-clickable:hover {
+	cursor: pointer;
+	background-color: var(--vscode-tab-activeBackground) !important;
+}
+.flex-line {
+	display: flex;
+	gap: 4px;
+	align-items: center;
+	justify-content: baseline;
+}
+.flex-line.wrap {
+	flex-wrap: wrap;
+}
+.flex-line.nowrap {
+	flex-wrap: nowrap;
+}
+code:not([class*="language-"]) {
+	color: var(--vscode-foreground);
+	font-family: var(--vscode-editor-font-family, "monospace");
+	font-size: var(--vscode-editor-font-size);
+	line-height: 1.5em;
+	border: 1px solid var(--section-border);
+	background-color: var(--vscode-editor-background);
+	display: inline-flex;
+	gap: 2px;
+	align-items: center;
+	padding: 1px 4px;
+	border-radius: 2px;
+	white-space: pre-wrap;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+p {
+	margin: 0;
+	white-space: pre-wrap;
+	word-break: break-word;
+	overflow-wrap: anywhere;
 }
