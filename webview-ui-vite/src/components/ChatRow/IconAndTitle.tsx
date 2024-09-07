@@ -25,6 +25,11 @@ const IconAndTitle = ({ type, isCommandExecuting, cost, apiRequestFailedMessage 
 	)
 
 	switch (type) {
+		case "api_req_failed":
+			return [
+				<span className="codicon codicon-error text-error" />,
+				<h3 className="text-error">API Request Failed</h3>,
+			]
 		case "error":
 			return [<span className="codicon codicon-error text-error" />, <h3 className="text-error">Error</h3>]
 		case "command":

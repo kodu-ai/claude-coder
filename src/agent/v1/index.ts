@@ -45,6 +45,7 @@ export class KoduDev {
 		})
 
 		if (historyItem) {
+			this.stateManager.state.isHistoryItem = true
 			this.resumeTaskFromHistory()
 		} else if (task || images) {
 			this.startTask(task, images)
@@ -63,9 +64,12 @@ export class KoduDev {
 	}
 
 	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
+		console.log(`Is there a pending ask response? ${!!this.pendingAskResponse}`)
 		if (this.pendingAskResponse) {
 			this.pendingAskResponse({ response: askResponse, text, images })
 			this.pendingAskResponse = null
+		} else if (this.stateManager.state.isHistoryItemResumed) {
+			// this is a bug
 		}
 		this.taskExecutor.handleAskResponse(askResponse, text, images)
 	}
@@ -88,18 +92,6 @@ export class KoduDev {
 	 */
 	async resumeTaskFromHistory() {
 		const modifiedClaudeMessages = await this.stateManager.getSavedClaudeMessages()
-
-		const lastApiReqStartedIndex = modifiedClaudeMessages.reduce(
-			(lastIndex, m, index) => (m.type === "say" && m.say === "api_req_started" ? index : lastIndex),
-			-1
-		)
-		const lastApiReqFinishedIndex = modifiedClaudeMessages.reduce(
-			(lastIndex, m, index) => (m.type === "say" && m.say === "api_req_finished" ? index : lastIndex),
-			-1
-		)
-		if (lastApiReqStartedIndex > lastApiReqFinishedIndex && lastApiReqStartedIndex !== -1) {
-			modifiedClaudeMessages.splice(lastApiReqStartedIndex, 1)
-		}
 
 		const lastRelevantMessageIndex = findLastIndex(
 			modifiedClaudeMessages,
@@ -247,6 +239,7 @@ export class KoduDev {
 			modifiedOldUserContent.filter((block) => block.type !== "text") as UserContent
 		).concat([{ type: "text", text: combinedText }, ...newUserContentImages])
 
+		this.stateManager.state.isHistoryItemResumed = true
 		await this.stateManager.overwriteApiConversationHistory(modifiedApiConversationHistory)
 		await this.taskExecutor.startTask(combinedModifiedOldUserContentWithNewUserContent)
 	}

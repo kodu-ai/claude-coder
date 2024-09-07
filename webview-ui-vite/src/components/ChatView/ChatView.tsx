@@ -510,7 +510,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 						{!showAnnouncement && shouldShowKoduPromo && (
 							<KoduPromo style={{ margin: "10px 15px -10px 15px" }} />
 						)}
-						<section>
+						<section className="text-start">
 							<h3 className="flex-line uppercase text-alt">What can I do for you?</h3>
 							<div>
 								Thanks to{" "}
@@ -559,6 +559,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 				selectImages={selectImages}
 				thumbnailsHeight={thumbnailsHeight}
 				handleThumbnailsHeightChange={handleThumbnailsHeightChange}
+				isRequestRunning={
+					// if last message is api_req_started, then request is running
+					messages.length > 0 && messages.at(-1)?.say === "api_req_started"
+				}
 				handleKeyDown={handleKeyDown}
 				handlePaste={handlePaste}
 			/>

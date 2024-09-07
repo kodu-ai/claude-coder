@@ -12,7 +12,7 @@ interface AnnouncementProps {
 
 const Announcement: React.FC<AnnouncementProps> = ({ version, hideAnnouncement }) => {
 	return (
-		<section>
+		<section className="text-start">
 			<AnnouncementHeader version={version} onClose={hideAnnouncement} />
 			<AnnouncementContent />
 		</section>

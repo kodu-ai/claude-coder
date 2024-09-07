@@ -249,17 +249,6 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	    */
 		const nonce = getNonce()
 
-		const reactRefresh = /*html*/ `
-		<script type="module">
-		  import RefreshRuntime from "http://localhost:5173/@react-refresh"
-		  RefreshRuntime.injectIntoGlobalHook(window)
-		  window.$RefreshReg$ = () => {}
-		  window.$RefreshSig$ = () => (type) => type
-		  window.__vite_plugin_react_preamble_installed__ = true
-		</script>`
-
-		const reactRefreshHash = "sha256-YmMpkm5ow6h+lfI3ZRp0uys+EUCt6FOyLkJERkfVnTY="
-
 		const csp = [
 			`default-src 'none';`,
 			`script-src 'unsafe-eval' https://* ${
@@ -274,8 +263,6 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 					: `ws://${localServerUrl} ws://0.0.0.0:${localPort} http://${localServerUrl} http://0.0.0.0:${localPort}`
 			}`,
 		]
-
-		const oldCSP = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}';">`
 
 		// Tip: Install the es6-string-html VS Code extension to enable code highlighting below
 		return /*html*/ `

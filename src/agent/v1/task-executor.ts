@@ -52,6 +52,15 @@ export class TaskExecutor {
 		this.toolExecutor = toolExecutor
 	}
 
+	public async newMessage(message: UserContent) {
+		this.logState("New message")
+		this.state = TaskState.WAITING_FOR_API
+		this.isRequestCancelled = false
+		this.abortController = new AbortController()
+		this.currentUserContent = message
+		await this.makeClaudeRequest()
+	}
+
 	public async startTask(userContent: UserContent): Promise<void> {
 		this.logState("Starting task")
 		this.state = TaskState.WAITING_FOR_API
@@ -92,20 +101,21 @@ export class TaskExecutor {
 		this.logState("Cancelling current request")
 		this.isRequestCancelled = true
 		this.abortController?.abort()
-		// remove the api request from the ui history
-		this.stateManager.popLastClaudeMessage()
+		this.state = TaskState.ABORTED
 
 		// Immediately update UI
-		await this.say("error", "Request cancelled by user")
-
-		// Reset state
-		this.resetState()
-
+		await this.say(
+			"error",
+			"Request cancelled by user [This is still billed if request is already made to provider]"
+		)
 		// Update the provider state
 		await this.stateManager.providerRef.deref()?.postStateToWebview()
 	}
 
-	private async makeClaudeRequest(): Promise<void> {
+	public async makeClaudeRequest(): Promise<void> {
+		console.log(`[TaskExecutor] makeClaudeRequest (State: ${this.state})`)
+		console.log(`[TaskExecutor] makeClaudeRequest (isRequestCancelled: ${this.isRequestCancelled})`)
+		console.log(`[TaskExecutor] makeClaudeRequest (currentUserContent: ${JSON.stringify(this.currentUserContent)})`)
 		if (this.state !== TaskState.WAITING_FOR_API || !this.currentUserContent || this.isRequestCancelled) {
 			return
 		}
@@ -144,6 +154,7 @@ export class TaskExecutor {
 			if (!this.isRequestCancelled) {
 				// if it's a KoduError, it's an error from the API (can get anthropic error or network error)
 				if (error instanceof KoduError) {
+					console.log(`[TaskExecutor] KoduError:`, error)
 					await this.handleApiError(new TaskError({ type: "API_ERROR", message: error.message }))
 					return
 				}
@@ -189,7 +200,7 @@ export class TaskExecutor {
 
 	private resetState(): void {
 		this.state = TaskState.IDLE
-		this.currentUserContent = null
+		// this.currentUserContent = null
 		this.currentApiResponse = null
 		this.currentToolResults = []
 		this.isRequestCancelled = false
@@ -317,6 +328,15 @@ export class TaskExecutor {
 	 */
 	private async handleApiError(error: TaskError): Promise<void> {
 		this.logError(error)
+		console.log(`[TaskExecutor] Error (State: ${this.state}):`, error)
+		/**
+		 * Pop the last message from the history as it was request that failed
+		 */
+		this.stateManager.popLastApiConversationMessage()
+		// await this.stateManager.addToApiConversationHistory({
+		// 	role: "assistant",
+		// 	content: [{ type: "text", text: `API request failed: ${error.message}` }],
+		// })
 		const { response, text } = await this.ask("api_req_failed", error.message)
 		if (response === "yesButtonTapped" || response === "messageResponse") {
 			// pop last message from the history

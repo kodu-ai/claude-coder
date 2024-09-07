@@ -77,6 +77,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 
 	return (
 		<div
+			className="text-start"
 			style={{
 				position: "fixed",
 				top: 0,

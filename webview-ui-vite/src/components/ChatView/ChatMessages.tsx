@@ -48,7 +48,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 					isExpanded={expandedRows[message.ts] || false}
 					onToggleExpand={() => toggleRowExpansion(message.ts)}
 					isLast={index === visibleMessages.length - 1}
-					lastModifiedMessage={visibleMessages?.at(index + 1)}
+					nextMessage={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
 					handleSendStdin={handleSendStdin}
 				/>
 			)}
@@ -56,4 +56,4 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 	)
 }
 
-export default ChatMessages
+export default React.memo(ChatMessages)

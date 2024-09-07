@@ -8,20 +8,33 @@ import { HistoryItem } from "../../../src/shared/HistoryItem"
 
 // Define atoms for each piece of state
 const versionAtom = atom("")
+versionAtom.debugLabel = "version"
 const claudeMessagesAtom = atom<ClaudeMessage[]>([])
+claudeMessagesAtom.debugLabel = "claudeMessages"
 const taskHistoryAtom = atom<HistoryItem[]>([])
+taskHistoryAtom.debugLabel = "taskHistory"
 const shouldShowAnnouncementAtom = atom(false)
+shouldShowAnnouncementAtom.debugLabel = "shouldShowAnnouncement"
 const shouldShowKoduPromoAtom = atom(false)
+shouldShowKoduPromoAtom.debugLabel = "shouldShowKoduPromo"
 const apiConfigurationAtom = atom<ApiConfiguration | undefined>(undefined)
+apiConfigurationAtom.debugLabel = "apiConfiguration"
 const maxRequestsPerTaskAtom = atom<number | undefined>(undefined)
+maxRequestsPerTaskAtom.debugLabel = "maxRequestsPerTask"
 const customInstructionsAtom = atom<string | undefined>(undefined)
+customInstructionsAtom.debugLabel = "customInstructions"
 const alwaysAllowReadOnlyAtom = atom(false)
+alwaysAllowReadOnlyAtom.debugLabel = "alwaysAllowReadOnly"
 const alwaysAllowApproveOnlyAtom = atom(false)
+alwaysAllowApproveOnlyAtom.debugLabel = "alwaysAllowApproveOnly"
 const userAtom = atom<{ credits: number; email: string; refCode?: string } | undefined>(undefined)
+userAtom.debugLabel = "user"
 const uriSchemeAtom = atom<string | undefined>(undefined)
+uriSchemeAtom.debugLabel = "uriScheme"
 const themeNameAtom = atom<string | undefined>(undefined)
+themeNameAtom.debugLabel = "themeName"
 export const creativeModeAtom = atom<"creative" | "normal" | "deterministic">("normal")
-
+creativeModeAtom.debugLabel = "creativeMode"
 // Derived atom for the entire state
 const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
@@ -39,9 +52,11 @@ const extensionStateAtom = atom((get) => ({
 	alwaysAllowWriteOnly: get(alwaysAllowApproveOnlyAtom),
 	creativeMode: get(creativeModeAtom),
 }))
+extensionStateAtom.debugLabel = "extensionState"
 
 // Atom to track if state has been hydrated
 const didHydrateStateAtom = atom(false)
+didHydrateStateAtom.debugLabel = "didHydrateState"
 
 export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 	const setVersion = useSetAtom(versionAtom)

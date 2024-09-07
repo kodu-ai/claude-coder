@@ -26,15 +26,54 @@
 				"reveal": "always",
 				"panel": "dedicated"
 			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
+			"group": "build",
 			"options": {
 				"statusbar": {
 					"label": "$(browser) Webview",
 					"hide": false
 				}
+			}
+		},
+		{
+			"type": "npm",
+			"script": "watch:esbuild",
+			"problemMatcher": [
+				{
+					"pattern": [
+						{
+							"regexp": ".",
+							"file": 1,
+							"location": 2,
+							"message": 3
+						}
+					],
+					"background": {
+						"activeOnStart": true,
+						"beginsPattern": ".",
+						"endsPattern": "."
+					}
+				}
+			],
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"group": "build",
+			"options": {
+				"statusbar": {
+					"label": "$(eye) Watch esbuild",
+					"hide": false
+				}
+			}
+		},
+		{
+			"label": "Run All",
+			"dependsOn": ["npm: start:webview", "npm: watch:esbuild"],
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": true
 			}
 		}
 	]

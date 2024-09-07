@@ -8,7 +8,10 @@ import ChatView from "./components/ChatView/ChatView"
 import HistoryView from "./components/HistoryView/HistoryView"
 import SettingsView from "./components/SettingsView/SettingsView"
 import WelcomeView from "./WelcomeView"
-
+import { DevTools } from "jotai-devtools"
+import "jotai-devtools/styles.css"
+import "./App.css"
+import { Button } from "@/components/ui/button"
 const AppContent = () => {
 	const { apiConfiguration } = useExtensionState()
 	const [showSettings, setShowSettings] = useState(false)
@@ -89,9 +92,13 @@ const AppContent = () => {
 
 const App = () => {
 	return (
-		<ExtensionStateProvider>
-			<AppContent />
-		</ExtensionStateProvider>
+		<>
+			{/* <DevTools /> */}
+
+			<ExtensionStateProvider>
+				<AppContent />
+			</ExtensionStateProvider>
+		</>
 	)
 }
 
