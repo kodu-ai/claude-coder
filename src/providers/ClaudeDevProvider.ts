@@ -11,7 +11,7 @@ import { fetchKoduUser as fetchKoduUserAPI } from "../api/kodu"
 import { ApiModelId } from "../shared/api"
 
 /*
-https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
+https://github.com/microsoft/vscode-webview-ui-vite-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
 
 https://github.com/KumarVariable/vscode-extension-sidebar-html/blob/master/src/customSidebarViewProvider.ts
 */
@@ -28,6 +28,7 @@ type GlobalStateKey =
 	| "taskHistory"
 	| "shouldShowKoduPromo"
 	| "creativeMode"
+	| "amplitude"
 
 export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	public static readonly sideBarId = "claude-dev-experimental.SidebarProvider" // used in package.json as the view's id. This value cannot be changed due to how vscode caches views based on their id, and updating the id would break existing instances of the extension.
@@ -136,10 +137,6 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 
 		// if the extension is starting a new session, clear previous task state
 		this.clearTask()
-
-		// Clear previous version's (0.0.6) claudeMessage cache from workspace state. We now store in global state with a unique identifier for each provider instance. We need to store globally rather than per workspace to eventually implement task history
-		this.updateWorkspaceState("claudeMessages", undefined)
-
 		this.outputChannel.appendLine("Webview view resolved")
 	}
 
@@ -208,17 +205,24 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	private getHtmlContent(webview: vscode.Webview): string {
 		// Get the local path to main script run in the webview,
 		// then convert it to a uri we can use in the webview.
+		const localPort = "5173"
+		const localServerUrl = `localhost:${localPort}`
+		let scriptUri
+		const isProd = this.context.extensionMode === vscode.ExtensionMode.Production
+		if (isProd) {
+			// The JS file from the React build output
+			scriptUri = getUri(webview, this.context.extensionUri, ["webview-ui-vite", "build", "assets", "index.js"])
+		} else {
+			scriptUri = `http://${localServerUrl}/src/index.tsx`
+		}
 
 		// The CSS file from the React build output
 		const stylesUri = getUri(webview, this.context.extensionUri, [
-			"webview-ui",
+			"webview-ui-vite",
 			"build",
-			"static",
-			"css",
-			"main.css",
+			"assets",
+			"index.css",
 		])
-		// The JS file from the React build output
-		const scriptUri = getUri(webview, this.context.extensionUri, ["webview-ui", "build", "static", "js", "main.js"])
 
 		// The codicon font from the React build output
 		// https://github.com/microsoft/vscode-extension-samples/blob/main/webview-codicons-sample/src/extension.ts
@@ -231,14 +235,6 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 			"dist",
 			"codicon.css",
 		])
-
-		// const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "assets", "main.js"))
-
-		// const styleResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "assets", "reset.css"))
-		// const styleVSCodeUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "assets", "vscode.css"))
-
-		// // Same for stylesheet
-		// const stylesheetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "assets", "main.css"))
 
 		// Use a nonce to only allow a specific script to be run.
 		/*
@@ -253,6 +249,34 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	    */
 		const nonce = getNonce()
 
+		const reactRefresh = /*html*/ `
+		<script type="module">
+		  import RefreshRuntime from "http://localhost:5173/@react-refresh"
+		  RefreshRuntime.injectIntoGlobalHook(window)
+		  window.$RefreshReg$ = () => {}
+		  window.$RefreshSig$ = () => (type) => type
+		  window.__vite_plugin_react_preamble_installed__ = true
+		</script>`
+
+		const reactRefreshHash = "sha256-YmMpkm5ow6h+lfI3ZRp0uys+EUCt6FOyLkJERkfVnTY="
+
+		const csp = [
+			`default-src 'none';`,
+			`script-src 'unsafe-eval' https://* ${
+				isProd ? `'nonce-${nonce}'` : `http://${localServerUrl} http://0.0.0.0:${localPort} 'unsafe-inline'`
+			}`,
+			`style-src ${webview.cspSource} 'self' 'unsafe-inline' https://*`,
+			`font-src ${webview.cspSource}`,
+			`img-src ${webview.cspSource} data:`,
+			`connect-src https://* ${
+				isProd
+					? ``
+					: `ws://${localServerUrl} ws://0.0.0.0:${localPort} http://${localServerUrl} http://0.0.0.0:${localPort}`
+			}`,
+		]
+
+		const oldCSP = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}';">`
+
 		// Tip: Install the es6-string-html VS Code extension to enable code highlighting below
 		return /*html*/ `
 	    <!DOCTYPE html>
@@ -261,7 +285,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	        <meta charset="utf-8">
 	        <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
 	        <meta name="theme-color" content="#000000">
-	        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}';">
+			<meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
 	        <link rel="stylesheet" type="text/css" href="${stylesUri}">
 			<link href="${codiconsUri}" rel="stylesheet" />
 	        <title>Claude Dev</title>
@@ -269,7 +293,20 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	      <body>
 	        <noscript>You need to enable JavaScript to run this app.</noscript>
 	        <div id="root"></div>
-	        <script nonce="${nonce}" src="${scriptUri}"></script>
+            ${
+				isProd
+					? ""
+					: `
+            <script type="module">
+              import RefreshRuntime from "http://${localServerUrl}/@react-refresh"
+              RefreshRuntime.injectIntoGlobalHook(window)
+              window.$RefreshReg$ = () => {}
+              window.$RefreshSig$ = () => (type) => type
+              window.__vite_plugin_react_preamble_installed__ = true
+            </script>
+            `
+			}
+        <script type="module" src="${scriptUri}"></script>
 	      </body>
 	    </html>
 	  `

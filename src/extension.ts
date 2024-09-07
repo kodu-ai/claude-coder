@@ -2,6 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode"
 import { ClaudeDevProvider } from "./providers/ClaudeDevProvider"
+import { extensionActivateSuccess } from "./utils/amplitude"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -52,6 +53,15 @@ function stopCreditFetch() {
 		creditFetchInterval = null
 	}
 }
+
+function handleFirstInstall(context: vscode.ExtensionContext) {
+	const isFirstInstall = context.globalState.get("isFirstInstall", true)
+	if (!isFirstInstall) {
+		context.globalState.update("isFirstInstall", false)
+	}
+	extensionActivateSuccess(isFirstInstall)
+}
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -62,6 +72,8 @@ export function activate(context: vscode.ExtensionContext) {
 	outputChannel.appendLine("Claude Dev extension activated")
 	const sidebarProvider = new ClaudeDevProvider(context, outputChannel)
 	context.subscriptions.push(outputChannel)
+	console.log(`Claude Dev extension activated`)
+	handleFirstInstall(context)
 
 	// Set up the window state change listener
 	context.subscriptions.push(

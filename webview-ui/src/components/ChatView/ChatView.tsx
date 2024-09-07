@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, KeyboardEvent } from "react"
-import { VSCodeButton, VSCodeLink } from "@vscode/webview-ui-toolkit/react"
+import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 import { VirtuosoHandle } from "react-virtuoso"
 import { useEvent, useMount } from "react-use"
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
@@ -14,7 +14,6 @@ import Announcement from "../Announcement/Announcement"
 import HistoryPreview from "../HistoryPreview/HistoryPreview"
 import TaskHeader from "../TaskHeader/TaskHeader"
 import KoduPromo from "../KoduPromo/KoduPromo"
-import AbortAutomode from "../AbortAutomode/AbortAutomode"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
 import ButtonSection from "./ButtonSection"
@@ -116,16 +115,18 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	// Filter visible messages
 	const visibleMessages = useMemo(() => {
+		console.log(JSON.stringify(modifiedMessages))
 		return modifiedMessages.filter((message) => {
 			if (
 				(message.ask === "completion_result" && message.text === "") ||
-				["api_req_failed", "resume_task", "resume_completed_task"].includes(message.ask!)
+				["resume_task", "resume_completed_task"].includes(message.ask!)
 			) {
 				return false
 			}
 			if (["api_req_finished", "api_req_retried"].includes(message.say!)) {
 				return false
 			}
+			if (message.say === "api_req_started") return true
 			if (message.say === "text" && (message.text ?? "") === "" && (message.images?.length ?? 0) === 0) {
 				return false
 			}

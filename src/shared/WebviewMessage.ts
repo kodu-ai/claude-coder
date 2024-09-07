@@ -25,6 +25,7 @@ export interface WebviewMessage {
 		| "didDismissKoduPromo"
 		| "resetState"
 		| "setCreativeMode"
+		| "amplitude"
 	text?: string
 	askResponse?: ClaudeAskResponse
 	apiConfiguration?: ApiConfiguration

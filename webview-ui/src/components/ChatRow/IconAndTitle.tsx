@@ -42,7 +42,7 @@ const IconAndTitle = ({ type, isCommandExecuting, cost, apiRequestFailedMessage 
 			return [
 				cost ? (
 					<span className="codicon codicon-check text-success" />
-				) : apiRequestFailedMessage ? (
+				) : !!apiRequestFailedMessage ? (
 					<span className="codicon codicon-error text-error" />
 				) : (
 					ProgressIndicator

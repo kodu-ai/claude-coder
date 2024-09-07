@@ -7,11 +7,11 @@ export function getKoduSignInUrl(uriScheme?: string) {
 	return `${KODU_BASE_URL}/auth/login?redirectTo=${uriScheme}://kodu-ai.claude-dev-experimental&ext=1`
 }
 
-export function getKoduReferUrl(uriScheme?: string) {
-	return `${KODU_BASE_URL}/cloud/refer`
+export function getKoduReferUrl(_uriScheme?: string) {
+	return `${KODU_BASE_URL}/dashboard/referrals`
 }
 
-export function getKoduAddCreditsUrl(uriScheme?: string) {
+export function getKoduAddCreditsUrl(_uriScheme?: string) {
 	return `${KODU_BASE_URL}/pricing`
 }
 
@@ -92,14 +92,12 @@ export const koduErrorMessages: Record<KODU_ERROR_CODES, string> = {
 }
 
 export class KoduError extends Error {
-	private code: number
 	constructor({ code }: { code: number }) {
 		if (code in KODU_ERROR_CODES) {
 			super(koduErrorMessages[code as KODU_ERROR_CODES])
 		} else {
 			super("Unknown error")
 		}
-		this.code = code
 		this.name = "KoduError"
 	}
 }

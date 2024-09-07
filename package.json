@@ -1,7 +1,7 @@
 {
 	"name": "claude-dev-experimental",
-	"displayName": "Claude Dev Experimental",
-	"description": "Experimental version of Claude Dev: Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, and more with your permission every step of the way. (Forked from claude-dev)",
+	"displayName": "Kodu Coder",
+	"description": "Kodu Coder: Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, and more with your permission every step of the way. (Forked from claude-dev)",
 	"version": "1.5.1",
 	"icon": "icon.png",
 	"engines": {
@@ -53,7 +53,7 @@
 			"activitybar": [
 				{
 					"id": "claude-dev-experimental-ActivityBar",
-					"title": "Claude Dev Experimental",
+					"title": "Kodu Coder",
 					"icon": "kodu-logo.svg"
 				}
 			]
@@ -91,7 +91,7 @@
 			{
 				"command": "claude-dev-experimental.openInNewTab",
 				"title": "Open In New Tab",
-				"category": "Claude Dev Experimental"
+				"category": "Kodu Coder"
 			}
 		],
 		"menus": {
@@ -132,10 +132,10 @@
 		"check-types": "tsc --noEmit",
 		"lint": "eslint src --ext ts",
 		"test": "vscode-test",
-		"install:all": "npm install && cd webview-ui && npm install",
-		"start:webview": "cd webview-ui && npm run start",
-		"build:webview": "cd webview-ui && npm run build",
-		"test:webview": "cd webview-ui && npm run test"
+		"install:all": "npm install && cd webview-ui-vite && npm install",
+		"start:webview": "cd webview-ui-vite && npm run dev",
+		"build:webview": "cd webview-ui-vite && npm run build",
+		"test:webview": "cd webview-ui-vite && npm run test"
 	},
 	"devDependencies": {
 		"@tomjs/vite-plugin-vscode": "^2.5.5",
@@ -154,6 +154,7 @@
 		"typescript": "^5.4.5"
 	},
 	"dependencies": {
+		"@amplitude/analytics-node": "^1.3.6",
 		"@anthropic-ai/bedrock-sdk": "^0.10.2",
 		"@anthropic-ai/sdk": "^0.26.0",
 		"@anthropic-ai/vertex-sdk": "^0.4.1",

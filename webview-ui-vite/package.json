@@ -1,0 +1,36 @@
+{
+	"name": "webview-ui-vite",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc -b && vite build",
+		"lint": "eslint .",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"@vscode/webview-ui-toolkit": "^1.4.0",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1",
+		"react-markdown": "^9.0.1",
+		"react-syntax-highlighter": "^15.5.0",
+		"react-textarea-autosize": "^8.5.3",
+		"react-use": "^17.5.1",
+		"react-virtuoso": "^4.7.13",
+		"styled-components": "^6.1.13",
+		"web-vitals": "^4.2.3"
+	},
+	"devDependencies": {
+		"@types/react": "^18.3.3",
+		"@types/react-dom": "^18.3.0",
+		"@types/react-syntax-highlighter": "^15.5.13",
+		"@types/vscode-webview": "^1.57.5",
+		"@vitejs/plugin-react": "^4.3.1",
+		"eslint": "^9.9.0",
+		"eslint-plugin-react-hooks": "^5.1.0-rc.0",
+		"eslint-plugin-react-refresh": "^0.4.9",
+		"typescript": "^5.5.3",
+		"vite": "^5.4.1"
+	}
+}

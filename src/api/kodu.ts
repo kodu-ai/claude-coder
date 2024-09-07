@@ -29,6 +29,7 @@ export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 		headers: {
 			"x-api-key": apiKey,
 		},
+		timeout: 5000,
 	})
 	console.log("response", response)
 	if (response.data) {
@@ -80,11 +81,11 @@ export class KoduHandler implements ApiHandler {
 				/**
 				 * tools seems to be cached with the system prompt, so maybe we don't need to add duplicate cache control
 				 */
-				const toolsWithCacheControl = tools.map((tool, index) => ({
-					...tool,
-					// last index requires cache control
-					...(index === tools.length - 1 ? { cache_control: { type: "ephemeral" as const } } : {}),
-				}))
+				// const toolsWithCacheControl = tools.map((tool, index) => ({
+				// 	...tool,
+				// 	// last index requires cache control
+				// 	...(index === tools.length - 1 ? { cache_control: { type: "ephemeral" as const } } : {}),
+				// }))
 				const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
 				const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 				requestBody = {
