@@ -6,6 +6,9 @@ import { ToolExecutor } from "./tool-executor"
 import { UserContent, ToolResponse, ToolName } from "../types"
 import { StateManager } from "./state-manager"
 import { KoduError } from "../../shared/kodu"
+import { amplitudeTracker } from "../../utils/amplitude"
+import { getApiMetrics } from "../../shared/getApiMetrics"
+import { combineApiRequests } from "../../shared/combineApiRequests"
 
 enum TaskState {
 	IDLE = "IDLE",
@@ -34,7 +37,6 @@ class TaskError extends Error {
 export class TaskExecutor {
 	private state: TaskState = TaskState.IDLE
 	private stateManager: StateManager
-	private apiManager: ApiManager
 	private toolExecutor: ToolExecutor
 	private currentUserContent: UserContent | null = null
 	private currentApiResponse: Anthropic.Messages.Message | null = null
@@ -46,9 +48,8 @@ export class TaskExecutor {
 	private isRequestCancelled: boolean = false
 	private abortController: AbortController | null = null
 
-	constructor(stateManager: StateManager, apiManager: ApiManager, toolExecutor: ToolExecutor) {
+	constructor(stateManager: StateManager, toolExecutor: ToolExecutor) {
 		this.stateManager = stateManager
-		this.apiManager = apiManager
 		this.toolExecutor = toolExecutor
 	}
 
@@ -131,13 +132,34 @@ export class TaskExecutor {
 			await this.stateManager.addToApiConversationHistory({ role: "user", content: this.currentUserContent })
 			await this.say(
 				"api_req_started",
-				JSON.stringify({ request: this.apiManager.createUserReadableRequest(this.currentUserContent) })
+				JSON.stringify({
+					request: this.stateManager.apiManager.createUserReadableRequest(this.currentUserContent),
+				})
 			)
 
-			const response = await this.apiManager.createApiRequest(
+			const response = await this.stateManager.apiManager.createApiRequest(
 				this.stateManager.state.apiConversationHistory,
 				this.abortController?.signal
 			)
+			const inputTokens = response.usage.input_tokens
+			const outputTokens = response.usage.output_tokens
+			const cacheCreationInputTokens = (response as any).usage?.cache_creation_input_tokens
+			const cacheReadInputTokens = (response as any).usage?.cache_read_input_tokens
+			const apiCost = this.stateManager.apiManager.calculateApiCost(
+				inputTokens,
+				outputTokens,
+				cacheCreationInputTokens,
+				cacheReadInputTokens
+			)
+			amplitudeTracker.taskRequest({
+				taskId: this.stateManager.state.taskId,
+				model: this.stateManager.apiManager.getModelId(),
+				apiCost: apiCost,
+				inputTokens,
+				cacheReadTokens: cacheReadInputTokens,
+				cacheWriteTokens: cacheCreationInputTokens,
+				outputTokens,
+			})
 
 			if (this.isRequestCancelled) {
 				this.logState("Request cancelled, ignoring response")
@@ -189,11 +211,13 @@ export class TaskExecutor {
 
 			// if the request was cancelled after processing a block, return to prevent further processing (ui state + anthropic state)
 			if (this.isRequestCancelled) {
+				console.log(`Request was cancelled after processing a block`)
 				return
 			}
 		}
-
+		console.log(`[TaskExecutor] assistantResponses:`, assistantResponses)
 		if (!this.isRequestCancelled) {
+			console.log(`About to call finishProcessingResponse`)
 			await this.finishProcessingResponse(assistantResponses, inputTokens, outputTokens)
 		}
 	}
@@ -216,6 +240,20 @@ export class TaskExecutor {
 		this.logState(`Executing tool: ${toolName}`)
 		try {
 			this.state = TaskState.EXECUTING_TOOL
+			if (toolName === "attempt_completion") {
+				const combinedMessages = combineApiRequests(this.stateManager.state.claudeMessages)
+				const metrics = getApiMetrics(combinedMessages)
+
+				console.log(`[TaskExecutor] Task completed. Metrics:`, metrics)
+				amplitudeTracker.taskComplete({
+					taskId: this.stateManager.state.taskId,
+					totalCost: metrics.totalCost,
+					totalCacheReadTokens: metrics.totalCacheReads ?? 0,
+					totalCacheWriteTokens: metrics.totalCacheWrites ?? 0,
+					totalOutputTokens: metrics.totalTokensOut,
+					totalInputTokens: metrics.totalTokensIn,
+				})
+			}
 			const result = await this.toolExecutor.executeTool(
 				toolName as ToolName,
 				toolInput,
@@ -223,6 +261,7 @@ export class TaskExecutor {
 				this.ask.bind(this),
 				this.say.bind(this)
 			)
+			console.log(`Tool result:`, result)
 			this.currentToolResults.push({ type: "tool_result", tool_use_id: toolUseId, content: result })
 			this.state = TaskState.PROCESSING_RESPONSE
 		} catch (error) {
@@ -264,9 +303,10 @@ export class TaskExecutor {
 						(response) => response.type === "tool_use" && response.name === "attempt_completion"
 					)
 			)
+			console.log(`[TaskExecutor] Completion attempted:`, completionAttempted)
+			console.log(JSON.stringify(this.currentToolResults, null, 2))
 
 			if (completionAttempted) {
-				this.state = TaskState.COMPLETED
 				await this.stateManager.addToApiConversationHistory({ role: "user", content: this.currentToolResults })
 				await this.stateManager.addToApiConversationHistory({
 					role: "assistant",
@@ -379,7 +419,7 @@ export class TaskExecutor {
 				tokensOut: outputTokens,
 				cacheWrites: cacheCreationInputTokens,
 				cacheReads: cacheReadInputTokens,
-				cost: this.apiManager.calculateApiCost(
+				cost: this.stateManager.apiManager.calculateApiCost(
 					inputTokens,
 					outputTokens,
 					cacheCreationInputTokens,

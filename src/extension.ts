@@ -1,8 +1,8 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode"
-import { ClaudeDevProvider } from "./providers/ClaudeDevProvider"
-import { extensionActivateSuccess } from "./utils/amplitude"
+import { ClaudeDevProvider, GlobalStateKey } from "./providers/ClaudeDevProvider"
+import { amplitudeTracker } from "./utils/amplitude"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -56,19 +56,26 @@ function stopCreditFetch() {
 
 function handleFirstInstall(context: vscode.ExtensionContext) {
 	const isFirstInstall = context.globalState.get("isFirstInstall", true)
-	if (!isFirstInstall) {
+	console.log(`Extension is first install (isFirstInstall=${isFirstInstall})`)
+	if (isFirstInstall) {
 		context.globalState.update("isFirstInstall", false)
+		amplitudeTracker.extensionActivateSuccess(!!isFirstInstall)
 	}
-	extensionActivateSuccess(isFirstInstall)
 }
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+	const getCurrentUser = () => {
+		return context.globalState.get("user") as { email: string; credits: number; id: string } | undefined
+	}
+
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	//console.log('Congratulations, your extension "claude-dev" is now active!')
 	outputChannel = vscode.window.createOutputChannel("Claude Dev")
+	const user = getCurrentUser()
+	amplitudeTracker.initialize(!!user, user?.id || undefined)
 	outputChannel.appendLine("Claude Dev extension activated")
 	const sidebarProvider = new ClaudeDevProvider(context, outputChannel)
 	context.subscriptions.push(outputChannel)
@@ -186,6 +193,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const token = query.get("token")
 		const email = query.get("email")
 		if (token) {
+			amplitudeTracker.authSuccess()
 			await sidebarProvider.saveKoduApiKey(token, email || undefined)
 		}
 	}

@@ -11,6 +11,7 @@ import { KoduError } from "../../shared/kodu"
 import { StateManager } from "./state-manager"
 import { AskResponse, TaskExecutor } from "./task-executor"
 import { findLastIndex } from "../../utils"
+import { amplitudeTracker } from "../../utils/amplitude"
 
 // new KoduDev
 export class KoduDev {
@@ -32,7 +33,7 @@ export class KoduDev {
 			alwaysAllowWriteOnly: this.stateManager.alwaysAllowWriteOnly,
 			koduDev: this,
 		})
-		this.taskExecutor = new TaskExecutor(this.stateManager, this.apiManager, this.toolExecutor)
+		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
 
 		this.setupTaskExecutor()
 
@@ -60,7 +61,7 @@ export class KoduDev {
 
 	private setupTaskExecutor() {
 		// Pass necessary methods to the TaskExecutor
-		this.taskExecutor = new TaskExecutor(this.stateManager, this.apiManager, this.toolExecutor)
+		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
 	}
 
 	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
@@ -83,6 +84,7 @@ export class KoduDev {
 			text: `<task>\n${task}\n</task>\n\n${getPotentiallyRelevantDetails()}`,
 		}
 		let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
+		amplitudeTracker.taskStart(this.stateManager.state.taskId)
 		await this.taskExecutor.say("text", task, images)
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
 	}

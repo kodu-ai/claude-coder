@@ -919,10 +919,10 @@ export class ToolExecutor {
 			resultToSend = ""
 		}
 
-		if (this.alwaysAllowWriteOnly) {
-			await ask("completion_result", resultToSend) // this prompts webview to show 'new task' button, and enable text input (which would be the 'text' here)
-			return ""
-		}
+		// if (this.alwaysAllowWriteOnly) {
+		// 	await ask("completion_result", resultToSend) // this prompts webview to show 'new task' button, and enable text input (which would be the 'text' here)
+		// 	return ""
+		// }
 
 		const { response, text, images } = await ask("completion_result", resultToSend)
 		if (response === "yesButtonTapped") {

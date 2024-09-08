@@ -20,11 +20,20 @@ export class ApiManager {
 		this.providerRef = new WeakRef(provider)
 	}
 
+	public getApi(): ApiHandler {
+		return this.api
+	}
+
+	public getModelId(): string {
+		return this.api.getModel().id
+	}
+
 	abortRequest(): void {
 		this.api.abortRequest()
 	}
 
 	updateApi(apiConfiguration: ApiConfiguration): void {
+		console.log("Updating API configuration", apiConfiguration)
 		this.api = buildApiHandler(apiConfiguration)
 	}
 

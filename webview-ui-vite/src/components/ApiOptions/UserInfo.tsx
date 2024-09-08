@@ -39,6 +39,9 @@ const UserInfo: React.FC<UserInfoProps> = ({ user, uriScheme, setDidAuthKodu }) 
 						marginBottom: 5,
 					}}>
 					<VSCodeButtonLink
+						onClick={() => {
+							vscode.postMessage({ type: "amplitude", event_type: "Referral Program" })
+						}}
 						href={getKoduReferUrl(uriScheme)}
 						style={{
 							width: "fit-content",
@@ -47,6 +50,9 @@ const UserInfo: React.FC<UserInfoProps> = ({ user, uriScheme, setDidAuthKodu }) 
 						Referral Program
 					</VSCodeButtonLink>
 					<VSCodeButtonLink
+						onClick={() => {
+							vscode.postMessage({ type: "amplitude", event_type: "Add Credits" })
+						}}
 						href={getKoduAddCreditsUrl(uriScheme)}
 						style={{
 							width: "fit-content",
@@ -59,7 +65,12 @@ const UserInfo: React.FC<UserInfoProps> = ({ user, uriScheme, setDidAuthKodu }) 
 	} else {
 		return (
 			<div style={{ margin: "4px 0px" }}>
-				<VSCodeButtonLink href={getKoduSignInUrl(uriScheme)} onClick={() => setDidAuthKodu?.(true)}>
+				<VSCodeButtonLink
+					href={getKoduSignInUrl(uriScheme)}
+					onClick={() => {
+						vscode.postMessage({ type: "amplitude", event_type: "Auth Start" })
+						setDidAuthKodu?.(true)
+					}}>
 					Sign in to Kodu
 				</VSCodeButtonLink>
 			</div>
