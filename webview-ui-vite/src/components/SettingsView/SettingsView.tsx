@@ -163,10 +163,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 					}}>
 					<div style={{ wordWrap: "break-word", margin: 0, padding: 0 }}>
 						If you have any questions or feedback, feel free to open an issue at{" "}
-						<VSCodeLink
-							href="https://github.com/kodu-ai/claude-dev-experimental"
-							style={{ display: "inline" }}>
-							https://github.com/kodu-ai/claude-dev-experimental
+						<VSCodeLink href="https://github.com/kodu-ai/kodu-coder" style={{ display: "inline" }}>
+							https://github.com/kodu-ai/kodu-coder
 						</VSCodeLink>
 					</div>
 					<div style={{ fontStyle: "italic", margin: "10px 0 0 0", padding: 0 }}>v{version}</div>

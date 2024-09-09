@@ -394,11 +394,7 @@ export class ToolExecutor {
 		const tabs = vscode.window.tabGroups.all
 			.map((tg) => tg.tabs)
 			.flat()
-			.filter(
-				(tab) =>
-					tab.input instanceof vscode.TabInputTextDiff &&
-					tab.input?.modified?.scheme === "claude-dev-experimental"
-			)
+			.filter((tab) => tab.input instanceof vscode.TabInputTextDiff && tab.input?.modified?.scheme === "kodu")
 		for (const tab of tabs) {
 			await vscode.window.tabGroups.close(tab)
 		}

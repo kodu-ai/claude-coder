@@ -55,7 +55,9 @@ export class AmplitudeTracker {
 			event_type: eventType,
 			device_id: this.getDeviceId(),
 			event_properties: eventProperties,
-			user_properties: userProperties,
+			user_properties: {
+				...userProperties,
+			},
 			user_id: this.currentUserId,
 		})
 	}

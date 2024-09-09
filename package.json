@@ -1,8 +1,8 @@
 {
 	"name": "claude-dev-experimental",
-	"displayName": "Kodu Coder",
-	"description": "Kodu Coder: Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, and more with your permission every step of the way. (Forked from claude-dev)",
-	"version": "1.5.5",
+	"displayName": "Claude Code - Code with Claude dev, AI Coding",
+	"description": "Meet Kodu Coder, build your dream project from prompt to production, Kodu is an Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, and more with your permission every step of the way. it utilizes the power of Anthropic,Claude, Claude Dev, Aider, GPT-4, Sonnet, LLM and more to provide you with the best coding experience. Kodu is a no-code AI that can help you with your coding tasks, from writing code to debugging, Kodu is here to help you.",
+	"version": "1.5.6",
 	"icon": "icon.png",
 	"engines": {
 		"vscode": "^1.84.0"
@@ -14,7 +14,7 @@
 	"publisher": "kodu-ai",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/kodu-ai/claude-dev-experimental"
+		"url": "https://github.com/kodu-ai/kodu-coder"
 	},
 	"categories": [
 		"AI",
@@ -25,8 +25,14 @@
 		"Chat"
 	],
 	"keywords": [
-		"AI",
-		"Claude",
+		"ai",
+		"code completion",
+		"coding agent",
+		"coding assistant",
+		"no code ai",
+		"anthropic ai",
+		"autonomous coding",
+		"claude",
 		"agentic",
 		"no-code",
 		"productivity",
@@ -44,7 +50,11 @@
 		"keybindings",
 		"llama",
 		"mistral",
-		"sonnet"
+		"sonnet",
+		"claude dev",
+		"aider",
+		"code with claude",
+		"codegpt"
 	],
 	"activationEvents": [],
 	"main": "./dist/extension.js",
@@ -52,69 +62,69 @@
 		"viewsContainers": {
 			"activitybar": [
 				{
-					"id": "claude-dev-experimental-ActivityBar",
-					"title": "Kodu Coder",
+					"id": "kodu-ActivityBar",
+					"title": "Kodu",
 					"icon": "kodu-logo.svg"
 				}
 			]
 		},
 		"views": {
-			"claude-dev-experimental-ActivityBar": [
+			"kodu-ActivityBar": [
 				{
 					"type": "webview",
-					"id": "claude-dev-experimental.SidebarProvider",
+					"id": "kodu.SidebarProvider",
 					"name": ""
 				}
 			]
 		},
 		"commands": [
 			{
-				"command": "claude-dev-experimental.plusButtonTapped",
+				"command": "kodu.plusButtonTapped",
 				"title": "New Task",
 				"icon": "$(add)"
 			},
 			{
-				"command": "claude-dev-experimental.historyButtonTapped",
+				"command": "kodu.historyButtonTapped",
 				"title": "History",
 				"icon": "$(history)"
 			},
 			{
-				"command": "claude-dev-experimental.popoutButtonTapped",
+				"command": "kodu.popoutButtonTapped",
 				"title": "Open in Editor",
 				"icon": "$(link-external)"
 			},
 			{
-				"command": "claude-dev-experimental.settingsButtonTapped",
+				"command": "kodu.settingsButtonTapped",
 				"title": "Settings",
 				"icon": "$(settings-gear)"
 			},
 			{
-				"command": "claude-dev-experimental.openInNewTab",
+				"command": "kodu.openInNewTab",
 				"title": "Open In New Tab",
-				"category": "Kodu Coder"
+				"category": "Kodu"
 			}
 		],
 		"menus": {
 			"view/title": [
 				{
-					"command": "claude-dev-experimental.plusButtonTapped",
+					"command": "kodu.plusButtonTapped",
 					"group": "navigation@1",
-					"when": "view == claude-dev-experimental.SidebarProvider"
+					"when": "view == kodu.SidebarProvider"
 				},
 				{
-					"command": "claude-dev-experimental.historyButtonTapped",
+					"command": "kodu.historyButtonTapped",
 					"group": "navigation@2",
-					"when": "view == claude-dev-experimental.SidebarProvider"
+					"when": "view == kodu.SidebarProvider"
 				},
 				{
-					"command": "claude-dev-experimental.popoutButtonTapped",
+					"command": "kodu.popoutButtonTapped",
 					"group": "navigation@3",
-					"when": "view == claude-dev-experimental.SidebarProvider"
+					"when": "view == kodu.SidebarProvider"
 				},
 				{
-					"command": "claude-dev-experimental.settingsButtonTapped",
+					"command": "kodu.settingsButtonTapped",
 					"group": "navigation@4",
-					"when": "view == claude-dev-experimental.SidebarProvider"
+					"when": "view == kodu.SidebarProvider"
 				}
 			]
 		}

@@ -58,6 +58,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 					Abort Request
 				</VSCodeButton>
 			</div> */}
+
 			<div
 				style={{
 					padding: "8px 16px",
