@@ -103,7 +103,16 @@ export class ToolExecutor {
 				"error",
 				"Claude tried to use search_files without value for required parameter 'path'. Retrying..."
 			)
-			return "Error: Missing value for required parameter 'path'. Please retry with complete response."
+			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
+			An example of a good tool call is:
+			{
+				"tool": "search_files",
+				"path": "path/to/directory",
+				"regex": "pattern",
+			}
+			Please try again with the correct regex and path, you are not allowed to search files without a regex or path.
+			
+			`
 		}
 
 		if (regex === undefined) {
@@ -111,7 +120,15 @@ export class ToolExecutor {
 				"error",
 				"Claude tried to use search_files without value for required parameter 'regex'. Retrying..."
 			)
-			return "Error: Missing value for required parameter 'regex'. Please retry with complete response."
+			return `Error: Missing value for required parameter 'regex'. Please retry with complete response.
+		
+			{
+				"tool": "search_files",
+				"regex": "pattern",
+				"path": "path/to/directory",
+			}
+			Please try again with the correct regex and path, you are not allowed to search files without a regex or path.
+			`
 		}
 
 		try {
@@ -141,7 +158,15 @@ export class ToolExecutor {
 				return results
 			}
 		} catch (error) {
-			const errorString = `Error searching files: ${JSON.stringify(serializeError(error))}`
+			const errorString = `Error searching files: ${JSON.stringify(serializeError(error))}
+			An example of a good searchFiles tool call is:
+			{
+				"tool": "search_files",
+				"path": "path/to/directory",
+				"regex": "pattern",
+			}
+			Please try again with the correct regex and path, you are not allowed to search files without a regex or path.
+			`
 			await say(
 				"error",
 				`Error searching files:\n${(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)}`
@@ -171,7 +196,15 @@ export class ToolExecutor {
 				"error",
 				"Claude tried to use write_to_file without value for required parameter 'path'. Retrying..."
 			)
-			return "Error: Missing value for required parameter 'path'. Please retry with complete response."
+			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
+			A good example of a writeToFile tool call is:
+			{
+				"tool": "write_to_file",
+				"path": "path/to/file.txt",
+				"content": "new content"
+			}
+			Please try again with the correct path and content, you are not allowed to write files without a path.
+			`
 		}
 
 		if (newContent === undefined) {
@@ -179,7 +212,15 @@ export class ToolExecutor {
 				"error",
 				`Claude tried to use write_to_file for '${relPath}' without value for required parameter 'content'. This is likely due to output token limits. Retrying...`
 			)
-			return "Error: Missing value for required parameter 'content'. Please retry with complete response."
+			return `Error: Missing value for required parameter 'content'. Please retry with complete response.
+						A good example of a writeToFile tool call is:
+			{
+				"tool": "write_to_file",
+				"path": "path/to/file.txt",
+				"content": "new content"
+			}
+			Please try again with the correct path and content, you are not allowed to write files without a path.
+			`
 		}
 
 		try {
@@ -212,7 +253,15 @@ export class ToolExecutor {
 				)
 			}
 		} catch (error) {
-			const errorString = `Error writing file: ${JSON.stringify(serializeError(error))}`
+			const errorString = `Error writing file: ${JSON.stringify(serializeError(error))}
+						A good example of a writeToFile tool call is:
+			{
+				"tool": "write_to_file",
+				"path": "path/to/file.txt",
+				"content": "new content"
+			}
+			Please try again with the correct path and content, you are not allowed to write files without a path.
+			`
 			await say(
 				"error",
 				`Error writing file:\n${(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)}`
@@ -345,11 +394,7 @@ export class ToolExecutor {
 		const tabs = vscode.window.tabGroups.all
 			.map((tg) => tg.tabs)
 			.flat()
-			.filter(
-				(tab) =>
-					tab.input instanceof vscode.TabInputTextDiff &&
-					tab.input?.modified?.scheme === "claude-dev-experimental"
-			)
+			.filter((tab) => tab.input instanceof vscode.TabInputTextDiff && tab.input?.modified?.scheme === "kodu")
 		for (const tab of tabs) {
 			await vscode.window.tabGroups.close(tab)
 		}
@@ -362,7 +407,14 @@ export class ToolExecutor {
 	): Promise<ToolResponse> {
 		if (relPath === undefined) {
 			await say("error", "Claude tried to use read_file without value for required parameter 'path'. Retrying...")
-			return "Error: Missing value for required parameter 'path'. Please retry with complete response."
+			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
+			An example of a good readFile tool call is:
+			{
+				"tool": "read_file",
+				"path": "path/to/file.txt"
+			}
+			Please try again with the correct path, you are not allowed to read files without a path.
+			`
 		}
 		try {
 			const absolutePath = path.resolve(this.cwd, relPath)
@@ -388,7 +440,15 @@ export class ToolExecutor {
 
 			return content
 		} catch (error) {
-			const errorString = `Error reading file: ${JSON.stringify(serializeError(error))}`
+			const errorString = `
+			Error reading file: ${JSON.stringify(serializeError(error))}
+			An example of a good readFile tool call is:
+			{
+				"tool": "read_file",
+				"path": "path/to/file.txt"
+			}
+			Please try again with the correct path, you are not allowed to read files without a path.
+			`
 			await say(
 				"error",
 				`Error reading file:\n${(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)}`
@@ -449,7 +509,14 @@ export class ToolExecutor {
 				"error",
 				"Claude tried to use list_files without value for required parameter 'path'. Retrying..."
 			)
-			return "Error: Missing value for required parameter 'path'. Please retry with complete response."
+			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
+						A good example of a listFiles tool call is:
+			{
+				"tool": "list_files",
+				"path": "path/to/directory"
+			}
+			Please try again with the correct path, you are not allowed to list files without a path.
+			`
 		}
 
 		try {
@@ -499,7 +566,14 @@ export class ToolExecutor {
 				"error",
 				"Claude tried to use list_files_top_level without value for required parameter 'path'. Retrying..."
 			)
-			return "Error: Missing value for required parameter 'path'. Please retry with complete response."
+			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
+			An example of a good listFilesTopLevel tool call is:
+			{
+				"tool": "list_files_top_level",
+				"path": "path/to/directory"
+			}
+			Please try again with the correct path, you are not allowed to list files without a path.
+			`
 		}
 		try {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
@@ -547,7 +621,14 @@ export class ToolExecutor {
 				"error",
 				"Claude tried to use list_files_recursive without value for required parameter 'path'. Retrying..."
 			)
-			return "Error: Missing value for required parameter 'path'. Please retry with complete response."
+			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
+			An example of a good listFilesRecursive tool call is:
+			{
+				"tool": "list_files_recursive",
+				"path": "path/to/directory"
+			}
+			Please try again with the correct path, you are not allowed to list files without a path.
+			`
 		}
 		try {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
@@ -595,7 +676,14 @@ export class ToolExecutor {
 				"error",
 				"Claude tried to use list_code_definition_names without value for required parameter 'path'. Retrying..."
 			)
-			return "Error: Missing value for required parameter 'path'. Please retry with complete response."
+			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
+			an example of a good listCodeDefinitionNames tool call is:
+			{
+				"tool": "list_code_definition_names",
+				"path": "path/to/directory"
+			}
+			Please try again with the correct path, you are not allowed to list code definitions without a path.
+			`
 		}
 		try {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
@@ -643,7 +731,14 @@ export class ToolExecutor {
 				"error",
 				"Claude tried to use execute_command without value for required parameter 'command'. Retrying..."
 			)
-			return "Error: Missing value for required parameter 'command'. Please retry with complete response."
+			return `Error: Missing value for required parameter 'command'. Please retry with complete response.
+			an example of a good executeCommand tool call is:
+			{
+				"tool": "execute_command",
+				"command": "command to execute"
+			}
+			Please try again with the correct command, you are not allowed to execute commands without a command.
+			`
 		}
 
 		let response = "yesButtonTapped"
@@ -777,7 +872,14 @@ export class ToolExecutor {
 				"error",
 				"Claude tried to use ask_followup_question without value for required parameter 'question'. Retrying..."
 			)
-			return "Error: Missing value for required parameter 'question'. Please retry with complete response."
+			return `Error: Missing value for required parameter 'question'. Please retry with complete response.
+			An example of a good askFollowupQuestion tool call is:
+			{
+				"tool": "ask_followup_question",
+				"question": "question to ask"
+			}
+			Please try again with the correct question, you are not allowed to ask followup questions without a question.
+			`
 		}
 		const { text, images } = await ask("followup", question)
 		await say("user_feedback", text ?? "", images)
@@ -795,7 +897,13 @@ export class ToolExecutor {
 				"error",
 				"Claude tried to use attempt_completion without value for required parameter 'result'. Retrying..."
 			)
-			return "Error: Missing value for required parameter 'result'. Please retry with complete response."
+			return `Error: Missing value for required parameter 'result'. Please retry with complete response.
+			An example of a good attemptCompletion tool call is:
+			{
+				"tool": "attempt_completion",
+				"result": "result to attempt completion with"
+			}
+			`
 		}
 		let resultToSend = result
 		if (command) {
@@ -807,10 +915,10 @@ export class ToolExecutor {
 			resultToSend = ""
 		}
 
-		if (this.alwaysAllowWriteOnly) {
-			await ask("completion_result", resultToSend) // this prompts webview to show 'new task' button, and enable text input (which would be the 'text' here)
-			return ""
-		}
+		// if (this.alwaysAllowWriteOnly) {
+		// 	await ask("completion_result", resultToSend) // this prompts webview to show 'new task' button, and enable text input (which would be the 'text' here)
+		// 	return ""
+		// }
 
 		const { response, text, images } = await ask("completion_result", resultToSend)
 		if (response === "yesButtonTapped") {

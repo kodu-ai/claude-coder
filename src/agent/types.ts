@@ -31,6 +31,8 @@ export interface KoduDevState {
 	claudeMessages: ClaudeMessage[]
 	askResponse?: ClaudeAskResponse
 	askResponseText?: string
+	isHistoryItem?: boolean
+	isHistoryItemResumed?: boolean
 	askResponseImages?: string[]
 	lastMessageTs?: number
 	executeCommandRunningProcess?: ResultPromise

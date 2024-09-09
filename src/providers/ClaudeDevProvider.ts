@@ -9,15 +9,16 @@ import fs from "fs/promises"
 import { HistoryItem } from "../shared/HistoryItem"
 import { fetchKoduUser as fetchKoduUserAPI } from "../api/kodu"
 import { ApiModelId } from "../shared/api"
+import { amplitudeTracker } from "../utils/amplitude"
 
 /*
-https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
+https://github.com/microsoft/vscode-webview-ui-vite-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
 
 https://github.com/KumarVariable/vscode-extension-sidebar-html/blob/master/src/customSidebarViewProvider.ts
 */
 
 type SecretKey = "koduApiKey"
-type GlobalStateKey =
+export type GlobalStateKey =
 	| "apiModelId"
 	| "user"
 	| "maxRequestsPerTask"
@@ -30,11 +31,11 @@ type GlobalStateKey =
 	| "creativeMode"
 
 export class ClaudeDevProvider implements vscode.WebviewViewProvider {
-	public static readonly sideBarId = "claude-dev-experimental.SidebarProvider" // used in package.json as the view's id. This value cannot be changed due to how vscode caches views based on their id, and updating the id would break existing instances of the extension.
-	public static readonly tabPanelId = "claude-dev-experimental.TabPanelProvider"
+	public static readonly sideBarId = "kodu.SidebarProvider" // used in package.json as the view's id. This value cannot be changed due to how vscode caches views based on their id, and updating the id would break existing instances of the extension.
+	public static readonly tabPanelId = "kodu.TabPanelProvider"
 	private disposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
-	private claudeDev?: KoduDev
+	private koduDev?: KoduDev
 	private latestAnnouncementId = "aug-28-2024" // update to some unique identifier when we add a new announcement
 
 	constructor(readonly context: vscode.ExtensionContext, private readonly outputChannel: vscode.OutputChannel) {
@@ -136,10 +137,6 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 
 		// if the extension is starting a new session, clear previous task state
 		this.clearTask()
-
-		// Clear previous version's (0.0.6) claudeMessage cache from workspace state. We now store in global state with a unique identifier for each provider instance. We need to store globally rather than per workspace to eventually implement task history
-		this.updateWorkspaceState("claudeMessages", undefined)
-
 		this.outputChannel.appendLine("Webview view resolved")
 	}
 
@@ -161,7 +158,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 			alwaysAllowWriteOnly,
 			creativeMode,
 		} = await this.getState()
-		this.claudeDev = new KoduDev({
+		this.koduDev = new KoduDev({
 			provider: this,
 			apiConfiguration: { ...apiConfiguration, koduApiKey: apiConfiguration.koduApiKey },
 			maxRequestsPerTask,
@@ -178,7 +175,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 		await this.clearTask()
 		const { maxRequestsPerTask, apiConfiguration, customInstructions, alwaysAllowReadOnly, alwaysAllowWriteOnly } =
 			await this.getState()
-		this.claudeDev = new KoduDev({
+		this.koduDev = new KoduDev({
 			provider: this,
 			apiConfiguration: { ...apiConfiguration, koduApiKey: apiConfiguration.koduApiKey },
 			maxRequestsPerTask,
@@ -208,17 +205,24 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	private getHtmlContent(webview: vscode.Webview): string {
 		// Get the local path to main script run in the webview,
 		// then convert it to a uri we can use in the webview.
+		const localPort = "5173"
+		const localServerUrl = `localhost:${localPort}`
+		let scriptUri
+		const isProd = this.context.extensionMode === vscode.ExtensionMode.Production
+		if (isProd) {
+			// The JS file from the React build output
+			scriptUri = getUri(webview, this.context.extensionUri, ["webview-ui-vite", "build", "assets", "index.js"])
+		} else {
+			scriptUri = `http://${localServerUrl}/src/index.tsx`
+		}
 
 		// The CSS file from the React build output
 		const stylesUri = getUri(webview, this.context.extensionUri, [
-			"webview-ui",
+			"webview-ui-vite",
 			"build",
-			"static",
-			"css",
-			"main.css",
+			"assets",
+			"index.css",
 		])
-		// The JS file from the React build output
-		const scriptUri = getUri(webview, this.context.extensionUri, ["webview-ui", "build", "static", "js", "main.js"])
 
 		// The codicon font from the React build output
 		// https://github.com/microsoft/vscode-extension-samples/blob/main/webview-codicons-sample/src/extension.ts
@@ -232,47 +236,67 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 			"codicon.css",
 		])
 
-		// const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "assets", "main.js"))
-
-		// const styleResetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "assets", "reset.css"))
-		// const styleVSCodeUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "assets", "vscode.css"))
-
-		// // Same for stylesheet
-		// const stylesheetUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "assets", "main.css"))
-
 		// Use a nonce to only allow a specific script to be run.
 		/*
-        content security policy of your webview to only allow scripts that have a specific nonce
-        create a content security policy meta tag so that only loading scripts with a nonce is allowed
-        As your extension grows you will likely want to add custom styles, fonts, and/or images to your webview. If you do, you will need to update the content security policy meta tag to explicity allow for these resources. E.g.
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; font-src ${webview.cspSource}; img-src ${webview.cspSource} https:; script-src 'nonce-${nonce}';">
+	    content security policy of your webview to only allow scripts that have a specific nonce
+	    create a content security policy meta tag so that only loading scripts with a nonce is allowed
+	    As your extension grows you will likely want to add custom styles, fonts, and/or images to your webview. If you do, you will need to update the content security policy meta tag to explicity allow for these resources. E.g.
+	            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; font-src ${webview.cspSource}; img-src ${webview.cspSource} https:; script-src 'nonce-${nonce}';">
 		- 'unsafe-inline' is required for styles due to vscode-webview-toolkit's dynamic style injection
 		- since we pass base64 images to the webview, we need to specify img-src ${webview.cspSource} data:;
 
-        in meta tag we add nonce attribute: A cryptographic nonce (only used once) to allow scripts. The server must generate a unique nonce value each time it transmits a policy. It is critical to provide a nonce that cannot be guessed as bypassing a resource's policy is otherwise trivial.
-        */
+	    in meta tag we add nonce attribute: A cryptographic nonce (only used once) to allow scripts. The server must generate a unique nonce value each time it transmits a policy. It is critical to provide a nonce that cannot be guessed as bypassing a resource's policy is otherwise trivial.
+	    */
 		const nonce = getNonce()
+
+		const csp = [
+			`default-src 'none';`,
+			`script-src 'unsafe-eval' https://* ${
+				isProd ? `'nonce-${nonce}'` : `http://${localServerUrl} http://0.0.0.0:${localPort} 'unsafe-inline'`
+			}`,
+			`style-src ${webview.cspSource} 'self' 'unsafe-inline' https://*`,
+			`font-src ${webview.cspSource}`,
+			`img-src ${webview.cspSource} data:`,
+			`connect-src https://* ${
+				isProd
+					? ``
+					: `ws://${localServerUrl} ws://0.0.0.0:${localPort} http://${localServerUrl} http://0.0.0.0:${localPort}`
+			}`,
+		]
 
 		// Tip: Install the es6-string-html VS Code extension to enable code highlighting below
 		return /*html*/ `
-        <!DOCTYPE html>
-        <html lang="en">
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
-            <meta name="theme-color" content="#000000">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}';">
-            <link rel="stylesheet" type="text/css" href="${stylesUri}">
+	    <!DOCTYPE html>
+	    <html lang="en">
+	      <head>
+	        <meta charset="utf-8">
+	        <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
+	        <meta name="theme-color" content="#000000">
+			<meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
+	        <link rel="stylesheet" type="text/css" href="${stylesUri}">
 			<link href="${codiconsUri}" rel="stylesheet" />
-            <title>Claude Dev</title>
-          </head>
-          <body>
-            <noscript>You need to enable JavaScript to run this app.</noscript>
-            <div id="root"></div>
-            <script nonce="${nonce}" src="${scriptUri}"></script>
-          </body>
-        </html>
-      `
+	        <title>Claude Dev</title>
+	      </head>
+	      <body>
+	        <noscript>You need to enable JavaScript to run this app.</noscript>
+	        <div id="root"></div>
+            ${
+				isProd
+					? ""
+					: `
+            <script type="module">
+              import RefreshRuntime from "http://${localServerUrl}/@react-refresh"
+              RefreshRuntime.injectIntoGlobalHook(window)
+              window.$RefreshReg$ = () => {}
+              window.$RefreshSig$ = () => (type) => type
+              window.__vite_plugin_react_preamble_installed__ = true
+            </script>
+            `
+			}
+        <script type="module" src="${scriptUri}"></script>
+	      </body>
+	    </html>
+	  `
 	}
 
 	/**
@@ -285,8 +309,21 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "amplitude":
+						if (message.event_type === "Add Credits") {
+							amplitudeTracker.addCreditsClick()
+						}
+						if (message.event_type === "Referral Program") {
+							amplitudeTracker.referralProgramClick()
+						}
+						if (message.event_type === "Auth Start") {
+							amplitudeTracker.authStart()
+						}
+
+						break
+
 					case "cancelCurrentRequest":
-						await this.claudeDev?.taskExecutor.cancelCurrentRequest()
+						await this.koduDev?.taskExecutor.cancelCurrentRequest()
 						await this.postStateToWebview()
 						break
 					case "abortAutomode":
@@ -322,7 +359,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 							await this.updateGlobalState("apiModelId", apiModelId)
 							await this.storeSecret("koduApiKey", koduApiKey)
 							console.log(`apiConfiguration: ${JSON.stringify(message.apiConfiguration)}`)
-							this.claudeDev?.getStateManager().apiManager.updateApi({
+							this.koduDev?.getStateManager().apiManager.updateApi({
 								koduApiKey,
 								apiModelId,
 							})
@@ -339,35 +376,35 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 							}
 						}
 						await this.updateGlobalState("maxRequestsPerTask", result)
-						this.claudeDev?.getStateManager().setMaxRequestsPerTask(result)
+						this.koduDev?.getStateManager().setMaxRequestsPerTask(result)
 						await this.postStateToWebview()
 						break
 					case "customInstructions":
 						// User may be clearing the field
 						await this.updateGlobalState("customInstructions", message.text || undefined)
-						this.claudeDev?.getStateManager().setCustomInstructions(message.text || undefined)
+						this.koduDev?.getStateManager().setCustomInstructions(message.text || undefined)
 						await this.postStateToWebview()
 						break
 					case "alwaysAllowReadOnly":
 						await this.updateGlobalState("alwaysAllowReadOnly", message.bool ?? undefined)
-						this.claudeDev?.getStateManager().setAlwaysAllowReadOnly(message.bool ?? false)
+						this.koduDev?.getStateManager().setAlwaysAllowReadOnly(message.bool ?? false)
 						await this.postStateToWebview()
 						break
 					case "alwaysAllowWriteOnly":
 						await this.updateGlobalState("alwaysAllowWriteOnly", message.bool ?? undefined)
-						this.claudeDev?.getStateManager().setAlwaysAllowWriteOnly(message.bool ?? false)
+						this.koduDev?.getStateManager().setAlwaysAllowWriteOnly(message.bool ?? false)
 						await this.postStateToWebview()
 						break
 					case "askResponse":
 						if (message.images && message.images.length > 0) {
 							const compressedImages = await compressImages(message.images)
-							this.claudeDev?.handleWebviewAskResponse(
+							this.koduDev?.handleWebviewAskResponse(
 								message.askResponse!,
 								message.text,
 								compressedImages.map((img) => img.data)
 							)
 						} else {
-							this.claudeDev?.handleWebviewAskResponse(message.askResponse!, message.text, message.images)
+							this.koduDev?.handleWebviewAskResponse(message.askResponse!, message.text, message.images)
 						}
 						break
 					case "clearTask":
@@ -388,7 +425,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 						})
 						break
 					case "exportCurrentTask":
-						const currentTaskId = this.claudeDev?.getStateManager()?.state.taskId
+						const currentTaskId = this.koduDev?.getStateManager()?.state.taskId
 						if (currentTaskId) {
 							this.exportTaskWithId(currentTaskId)
 						}
@@ -402,7 +439,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 					case "setCreativeMode":
 						console.log(`setCreativeMode: ${message.text}`)
 						this.updateGlobalState("creativeMode", message.text as "creative" | "normal" | "deterministic")
-						this.claudeDev
+						this.koduDev
 							?.getStateManager()
 							?.setCreativeMode(message.text as "creative" | "normal" | "deterministic")
 						await this.postStateToWebview()
@@ -459,13 +496,13 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 		console.log("Posted state to webview after saving Kodu API key")
 		await this.postMessageToWebview({ type: "action", action: "koduAuthenticated" })
 		console.log("Posted message to action: koduAuthenticated")
-		this.claudeDev?.getStateManager().apiManager.updateApi({ koduApiKey: apiKey })
+		this.koduDev?.getStateManager().apiManager.updateApi({ koduApiKey: apiKey })
 	}
 
 	async signOutKodu() {
 		await this.storeSecret("koduApiKey", undefined)
 		await this.updateGlobalState("user", undefined)
-		this.claudeDev?.getStateManager().apiManager.updateApi({ koduApiKey: undefined })
+		this.koduDev?.getStateManager().apiManager.updateApi({ koduApiKey: undefined })
 		await this.postStateToWebview()
 	}
 
@@ -505,7 +542,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	}
 
 	async showTaskWithId(id: string) {
-		if (id !== this.claudeDev?.getStateManager().state.taskId) {
+		if (id !== this.koduDev?.getStateManager().state.taskId) {
 			// non-current task
 			const { historyItem } = await this.getTaskWithId(id)
 			await this.initClaudeDevWithHistoryItem(historyItem) // clears existing task
@@ -519,7 +556,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	}
 
 	async deleteTaskWithId(id: string) {
-		if (id === this.claudeDev?.getStateManager().state.taskId) {
+		if (id === this.koduDev?.getStateManager().state.taskId) {
 			await this.clearTask()
 		}
 
@@ -573,7 +610,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 			shouldShowKoduPromo,
 			creativeMode,
 		} = await this.getState()
-		const koduDevState = this.claudeDev?.getStateManager().state
+		const koduDevState = this.koduDev?.getStateManager().state
 		return {
 			version: this.context.extension?.packageJSON?.version ?? "",
 			apiConfiguration,
@@ -593,8 +630,8 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	}
 
 	async clearTask() {
-		this.claudeDev?.abortTask()
-		this.claudeDev = undefined // removes reference to it, so once promises end it will be garbage collected
+		this.koduDev?.abortTask()
+		this.koduDev = undefined // removes reference to it, so once promises end it will be garbage collected
 	}
 
 	async getState() {
@@ -613,7 +650,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 		] = await Promise.all([
 			this.getGlobalState("apiModelId") as Promise<ApiModelId | undefined>,
 			this.getSecret("koduApiKey") as Promise<string | undefined>,
-			this.getGlobalState("user") as Promise<{ email: string; credits: number } | undefined>,
+			this.getGlobalState("user") as Promise<{ email: string; credits: number; id: string } | undefined>,
 			this.getGlobalState("maxRequestsPerTask") as Promise<number | undefined>,
 			this.getGlobalState("lastShownAnnouncementId") as Promise<string | undefined>,
 			this.getGlobalState("customInstructions") as Promise<string | undefined>,
@@ -702,9 +739,9 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 		for (const key of secretKeys) {
 			await this.storeSecret(key, undefined)
 		}
-		if (this.claudeDev) {
-			this.claudeDev.abortTask()
-			this.claudeDev = undefined
+		if (this.koduDev) {
+			this.koduDev.abortTask()
+			this.koduDev = undefined
 		}
 		vscode.window.showInformationMessage("State reset")
 		await this.postStateToWebview()

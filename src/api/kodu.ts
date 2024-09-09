@@ -29,6 +29,7 @@ export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 		headers: {
 			"x-api-key": apiKey,
 		},
+		timeout: 5000,
 	})
 	console.log("response", response)
 	if (response.data) {
@@ -80,11 +81,11 @@ export class KoduHandler implements ApiHandler {
 				/**
 				 * tools seems to be cached with the system prompt, so maybe we don't need to add duplicate cache control
 				 */
-				const toolsWithCacheControl = tools.map((tool, index) => ({
-					...tool,
-					// last index requires cache control
-					...(index === tools.length - 1 ? { cache_control: { type: "ephemeral" as const } } : {}),
-				}))
+				// const toolsWithCacheControl = tools.map((tool, index) => ({
+				// 	...tool,
+				// 	// last index requires cache control
+				// 	...(index === tools.length - 1 ? { cache_control: { type: "ephemeral" as const } } : {}),
+				// }))
 				const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
 				const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 				requestBody = {
@@ -131,14 +132,20 @@ export class KoduHandler implements ApiHandler {
 		}
 		this.cancelTokenSource = axios.CancelToken.source()
 
-		const response = await axios.post(getKoduInferenceUrl(), requestBody, {
-			headers: {
-				"Content-Type": "application/json",
-				"x-api-key": this.options.koduApiKey || "",
+		const response = await axios.post(
+			getKoduInferenceUrl(),
+			{
+				...requestBody,
 			},
-			responseType: "stream",
-			signal: abortSignal ?? undefined,
-		})
+			{
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
+				},
+				responseType: "stream",
+				signal: abortSignal ?? undefined,
+			}
+		)
 
 		if (response.status !== 200) {
 			if (response.status in koduErrorMessages) {
@@ -219,9 +226,9 @@ export class KoduHandler implements ApiHandler {
 		return {
 			model: this.getModel().id,
 			max_tokens: this.getModel().info.maxTokens,
-			system: "(see SYSTEM_PROMPT in src/ClaudeDev.ts)",
+			system: "(see SYSTEM_PROMPT in src/agent/system-prompt.ts)",
 			messages: [{ conversation_history: "..." }, { role: "user", content: withoutImageData(userContent) }],
-			tools: "(see tools in src/ClaudeDev.ts)",
+			tools: "(see tools in src/agent/tools.ts)",
 			tool_choice: { type: "auto" },
 		}
 	}
