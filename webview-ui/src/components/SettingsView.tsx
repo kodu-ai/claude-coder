@@ -2,9 +2,9 @@ import {
 	VSCodeButton,
 	VSCodeCheckbox,
 	VSCodeLink,
-	VSCodeTextArea,
 	VSCodeRadio,
 	VSCodeRadioGroup,
+	VSCodeTextArea,
 	VSCodeTextField,
 } from "@vscode/webview-ui-toolkit/react"
 import { ChangeEvent, useEffect, useState } from "react"
@@ -196,7 +196,12 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 							marginTop: "5px",
 							color: "var(--vscode-descriptionForeground)",
 						}}>
-						These instructions are added to the end of the system prompt sent with every request.
+						These instructions are added to the end of the system prompt sent with every request. Not sure
+						what to put here or want to share your ideas? Check out Kodu's{" "}
+						<VSCodeLink href="https://www.kodu.ai/community-prompts" style={{ display: "inline" }}>
+							community prompts
+						</VSCodeLink>
+						page!
 					</p>
 				</div>
 
