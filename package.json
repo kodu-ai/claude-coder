@@ -2,7 +2,7 @@
 	"name": "claude-dev-experimental",
 	"displayName": "Claude Coder - Code with Claude dev, AI Coding",
 	"description": "Meet Kodu Coder, build your dream project from prompt to production, Kodu is an Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, and more with your permission every step of the way. it utilizes the power of Anthropic,Claude, Claude Dev, Aider, GPT-4, Sonnet, LLM and more to provide you with the best coding experience. Kodu is a no-code AI that can help you with your coding tasks, from writing code to debugging, Kodu is here to help you.",
-	"version": "1.5.7",
+	"version": "1.5.8",
 	"icon": "icon.png",
 	"engines": {
 		"vscode": "^1.84.0"
