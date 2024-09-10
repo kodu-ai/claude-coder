@@ -12,6 +12,7 @@ import { StateManager } from "./state-manager"
 import { AskResponse, TaskExecutor } from "./task-executor"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
+import { ToolInput } from "./tools/types"
 
 // new KoduDev
 export class KoduDev {
@@ -251,14 +252,14 @@ export class KoduDev {
 		this.toolExecutor.abortTask()
 	}
 
-	async executeTool(toolName: ToolName, toolInput: any, isLastWriteToFile: boolean = false): Promise<ToolResponse> {
-		return this.toolExecutor.executeTool(
-			toolName,
-			toolInput,
+	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false): Promise<ToolResponse> {
+		return this.toolExecutor.executeTool({
+			name,
+			input,
 			isLastWriteToFile,
-			this.taskExecutor.ask.bind(this.taskExecutor),
-			this.taskExecutor.say.bind(this.taskExecutor)
-		)
+			ask: this.taskExecutor.ask.bind(this.taskExecutor),
+			say: this.taskExecutor.say.bind(this.taskExecutor),
+		})
 	}
 }
 
