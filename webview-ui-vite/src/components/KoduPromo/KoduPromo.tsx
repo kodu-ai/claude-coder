@@ -9,7 +9,7 @@ interface KoduPromoProps {
 }
 
 const KoduPromo: React.FC<KoduPromoProps> = ({ style }) => {
-	const { uriScheme } = useExtensionState()
+	const { uriScheme, extensionName } = useExtensionState()
 
 	const handleClose = () => {
 		vscode.postMessage({ type: "didDismissKoduPromo" })
@@ -17,7 +17,7 @@ const KoduPromo: React.FC<KoduPromoProps> = ({ style }) => {
 
 	return (
 		<PromoContainer style={style}>
-			<PromoLink href={getKoduSignInUrl(uriScheme)}>
+			<PromoLink href={getKoduSignInUrl(uriScheme, extensionName)}>
 				<i className="codicon codicon-info" />
 				<span>Claim $10 free credits from Kodu</span>
 			</PromoLink>

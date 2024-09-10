@@ -4,6 +4,7 @@ import { vscode } from "../../utils/vscode"
 import VSCodeButtonLink from "../VSCodeButtonLink/VSCodeButtonLink"
 import { formatPrice } from "./utils"
 import { getKoduAddCreditsUrl, getKoduReferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
+import { useExtensionState } from "@/context/ExtensionStateContext"
 
 interface UserInfoProps {
 	user: any
@@ -12,6 +13,7 @@ interface UserInfoProps {
 }
 
 const UserInfo: React.FC<UserInfoProps> = ({ user, uriScheme, setDidAuthKodu }) => {
+	const { extensionName } = useExtensionState()
 	if (user !== undefined) {
 		return (
 			<>
@@ -66,7 +68,7 @@ const UserInfo: React.FC<UserInfoProps> = ({ user, uriScheme, setDidAuthKodu }) 
 		return (
 			<div style={{ margin: "4px 0px" }}>
 				<VSCodeButtonLink
-					href={getKoduSignInUrl(uriScheme)}
+					href={getKoduSignInUrl(uriScheme, extensionName)}
 					onClick={() => {
 						vscode.postMessage({ type: "amplitude", event_type: "Auth Start" })
 						setDidAuthKodu?.(true)

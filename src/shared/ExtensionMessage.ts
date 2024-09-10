@@ -35,6 +35,7 @@ export interface ExtensionState {
 	apiConfiguration?: ApiConfiguration
 	themeName?: string
 	uriScheme?: string
+	extensionName?: string
 	claudeMessages: ClaudeMessage[]
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean

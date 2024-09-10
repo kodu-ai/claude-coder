@@ -7,7 +7,7 @@ import { Balancer } from "react-wrap-balancer"
 interface WelcomeViewProps {}
 
 const WelcomeView: React.FC<WelcomeViewProps> = ({}) => {
-	const { uriScheme } = useExtensionState()
+	const { uriScheme, extensionName } = useExtensionState()
 
 	return (
 		<div
@@ -34,7 +34,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({}) => {
 				<Balancer>
 					<span>
 						Explore Claude's capabilities with $10 free credits from{" "}
-						<VSCodeLink href={getKoduSignInUrl(uriScheme)} style={{ display: "inline" }}>
+						<VSCodeLink href={getKoduSignInUrl(uriScheme, extensionName)} style={{ display: "inline" }}>
 							Kodu.ai
 						</VSCodeLink>
 					</span>

@@ -35,6 +35,8 @@ const themeNameAtom = atom<string | undefined>(undefined)
 themeNameAtom.debugLabel = "themeName"
 export const creativeModeAtom = atom<"creative" | "normal" | "deterministic">("normal")
 creativeModeAtom.debugLabel = "creativeMode"
+const extensionNameAtom = atom<string | undefined>(undefined)
+extensionNameAtom.debugLabel = "extensionName"
 // Derived atom for the entire state
 const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
@@ -47,6 +49,7 @@ const extensionStateAtom = atom((get) => ({
 	maxRequestsPerTask: get(maxRequestsPerTaskAtom),
 	customInstructions: get(customInstructionsAtom),
 	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
+	extensionName: get(extensionNameAtom),
 	themeName: get(themeNameAtom),
 	user: get(userAtom),
 	alwaysAllowWriteOnly: get(alwaysAllowApproveOnlyAtom),
@@ -74,6 +77,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setDidHydrateState = useSetAtom(didHydrateStateAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
+	const setExtensionName = useSetAtom(extensionNameAtom)
 
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
@@ -89,6 +93,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setCustomInstructions(message.state.customInstructions)
 			setAlwaysAllowReadOnly(!!message.state.alwaysAllowReadOnly)
 			setUser(message.state.user)
+			setExtensionName(message.state.extensionName)
 			setAlwaysAllowWriteOnly(!!message.state.alwaysAllowWriteOnly)
 			setDidHydrateState(true)
 			setThemeName(message.state.themeName)

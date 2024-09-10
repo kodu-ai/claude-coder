@@ -31,8 +31,8 @@ export type GlobalStateKey =
 	| "creativeMode"
 
 export class ClaudeDevProvider implements vscode.WebviewViewProvider {
-	public static readonly sideBarId = "kodu-claude-coder.SidebarProvider" // used in package.json as the view's id. This value cannot be changed due to how vscode caches views based on their id, and updating the id would break existing instances of the extension.
-	public static readonly tabPanelId = "kodu-claude-coder.TabPanelProvider"
+	public static readonly sideBarId = "kodu-claude-coder-upstream.SidebarProvider" // used in package.json as the view's id. This value cannot be changed due to how vscode caches views based on their id, and updating the id would break existing instances of the extension.
+	public static readonly tabPanelId = "kodu-claude-coder-upstream.TabPanelProvider"
 	private disposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
 	private koduDev?: KoduDev
@@ -611,6 +611,8 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 			creativeMode,
 		} = await this.getState()
 		const koduDevState = this.koduDev?.getStateManager().state
+		const extensionName = this.context.extension?.packageJSON?.name
+		console.log(`extensionName: ${extensionName}`)
 		return {
 			version: this.context.extension?.packageJSON?.version ?? "",
 			apiConfiguration,
@@ -622,6 +624,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 			creativeMode,
 			themeName: vscode.workspace.getConfiguration("workbench").get<string>("colorTheme"),
 			uriScheme: vscode.env.uriScheme,
+			extensionName,
 			claudeMessages: koduDevState?.claudeMessages ?? [],
 			taskHistory: (taskHistory || []).filter((item) => item.ts && item.task).sort((a, b) => b.ts - a.ts),
 			shouldShowAnnouncement: lastShownAnnouncementId !== this.latestAnnouncementId,

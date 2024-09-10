@@ -62,44 +62,44 @@
 		"viewsContainers": {
 			"activitybar": [
 				{
-					"id": "kodu-ActivityBar",
-					"title": "Kodu",
+					"id": "kodu-claude-coder-upstream-ActivityBar",
+					"title": "Claude Coder by Kodu",
 					"icon": "kodu-logo.svg"
 				}
 			]
 		},
 		"views": {
-			"kodu-ActivityBar": [
+			"kodu-claude-coder-upstream-ActivityBar": [
 				{
 					"type": "webview",
-					"id": "kodu-claude-coder.SidebarProvider",
+					"id": "kodu-claude-coder-upstream.SidebarProvider",
 					"name": ""
 				}
 			]
 		},
 		"commands": [
 			{
-				"command": "kodu-claude-coder.plusButtonTapped",
+				"command": "kodu-claude-coder-upstream.plusButtonTapped",
 				"title": "New Task",
 				"icon": "$(add)"
 			},
 			{
-				"command": "kodu-claude-coder.historyButtonTapped",
+				"command": "kodu-claude-coder-upstream.historyButtonTapped",
 				"title": "History",
 				"icon": "$(history)"
 			},
 			{
-				"command": "kodu-claude-coder.popoutButtonTapped",
+				"command": "kodu-claude-coder-upstream.popoutButtonTapped",
 				"title": "Open in Editor",
 				"icon": "$(link-external)"
 			},
 			{
-				"command": "kodu-claude-coder.settingsButtonTapped",
+				"command": "kodu-claude-coder-upstream.settingsButtonTapped",
 				"title": "Settings",
 				"icon": "$(settings-gear)"
 			},
 			{
-				"command": "kodu-claude-coder.openInNewTab",
+				"command": "kodu-claude-coder-upstream.openInNewTab",
 				"title": "Open In New Tab",
 				"category": "Kodu"
 			}
@@ -107,24 +107,24 @@
 		"menus": {
 			"view/title": [
 				{
-					"command": "kodu-claude-coder.plusButtonTapped",
+					"command": "kodu-claude-coder-upstream.plusButtonTapped",
 					"group": "navigation@1",
-					"when": "view == kodu-claude-coder.SidebarProvider"
+					"when": "view == kodu-claude-coder-upstream.SidebarProvider"
 				},
 				{
-					"command": "kodu-claude-coder.historyButtonTapped",
+					"command": "kodu-claude-coder-upstream.historyButtonTapped",
 					"group": "navigation@2",
-					"when": "view == kodu-claude-coder.SidebarProvider"
+					"when": "view == kodu-claude-coder-upstream.SidebarProvider"
 				},
 				{
-					"command": "kodu-claude-coder.popoutButtonTapped",
+					"command": "kodu-claude-coder-upstream.popoutButtonTapped",
 					"group": "navigation@3",
-					"when": "view == kodu-claude-coder.SidebarProvider"
+					"when": "view == kodu-claude-coder-upstream.SidebarProvider"
 				},
 				{
-					"command": "kodu-claude-coder.settingsButtonTapped",
+					"command": "kodu-claude-coder-upstream.settingsButtonTapped",
 					"group": "navigation@4",
-					"when": "view == kodu-claude-coder.SidebarProvider"
+					"when": "view == kodu-claude-coder-upstream.SidebarProvider"
 				}
 			]
 		}
