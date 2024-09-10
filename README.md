@@ -3,6 +3,12 @@
 <img src="./assets/kodu.png" width="100" align="right" />
 Kodu Coder is a coding agent extension tailored for use with Kodu Cloud. We're excited to share our work with the community and invite you to explore the new features and capabilities we've added.
 
+
+
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=kodu-ai.kodu" target="_blank"><strong>Download Extension</strong></a> | <a href="https://discord.gg/Fn97SD34qk" target="_blank"><strong>Join the Discord</strong></a>
+</p>
+
 ## About Kodu Coder
 
 Kodu Coder is a powerful tool that helps you code faster and more efficiently. It's like having a coding assistant right in your editor! Kodu Coder can help you with a variety of tasks, from writing code to debugging and testing. It's perfect for developers who want to save time and improve their workflow or for beginners who have never coded before.
@@ -13,9 +19,6 @@ For this demo, let's create a simple hangman game using react, starting with a d
 <video src="./assets/demo.mp4" width="500" />
 </p>
 
-<p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=kodu-ai.kodu" target="_blank"><strong>Download Extension</strong></a> | <a href="https://discord.gg/Fn97SD34qk" target="_blank"><strong>Join the Discord</strong></a>
-</p>
 
 ### Key Features
 | Reliable | Fast | Integrated |
