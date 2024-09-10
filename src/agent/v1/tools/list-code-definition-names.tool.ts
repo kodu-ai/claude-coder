@@ -34,6 +34,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 			Please try again with the correct path, you are not allowed to list code definitions without a path.
 			`
 		}
+
 		try {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
 			const result = await parseSourceCodeForDefinitionsTopLevel(absolutePath)
@@ -43,6 +44,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 				path: getReadablePath(relDirPath),
 				content: result,
 			} as ClaudeSayTool)
+
 			if (this.alwaysAllowReadOnly) {
 				await say("tool", message)
 			} else {

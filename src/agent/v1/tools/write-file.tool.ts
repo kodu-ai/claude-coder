@@ -29,6 +29,7 @@ export class WriteFileTool extends BaseAgentTool {
 				"error",
 				"Claude tried to use write_to_file without value for required parameter 'path'. Retrying..."
 			)
+
 			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
 			A good example of a writeToFile tool call is:
 			{
@@ -45,6 +46,7 @@ export class WriteFileTool extends BaseAgentTool {
 				"error",
 				`Claude tried to use write_to_file for '${relPath}' without value for required parameter 'content'. This is likely due to output token limits. Retrying...`
 			)
+
 			return `Error: Missing value for required parameter 'content'. Please retry with complete response.
 						A good example of a writeToFile tool call is:
 			{
@@ -95,6 +97,7 @@ export class WriteFileTool extends BaseAgentTool {
 			}
 			Please try again with the correct path and content, you are not allowed to write files without a path.
 			`
+
 			await say(
 				"error",
 				`Error writing file:\n${(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)}`
@@ -122,10 +125,12 @@ export class WriteFileTool extends BaseAgentTool {
 				images: [],
 			}
 			await say("user_feedback", text)
+
 			return formatToolResponse(formatGenericToolFeedback(text), images)
 		} else {
 			const { text, images } = { text: `New file written to ${relPath}`, images: [] }
 			await say("user_feedback", text)
+
 			return formatToolResponse(formatGenericToolFeedback(text), images)
 		}
 	}
@@ -154,6 +159,7 @@ export class WriteFileTool extends BaseAgentTool {
 			vscode.Uri.file(tempFilePath),
 			`${path.basename(absolutePath)}: ${fileExists ? "Original ↔ Claude's Changes" : "New File"} (Editable)`
 		)
+
 		const userResponse = await ask(
 			"tool",
 			JSON.stringify({
@@ -179,10 +185,12 @@ export class WriteFileTool extends BaseAgentTool {
 			} catch (error) {
 				console.error(`Error deleting temporary directory: ${error}`)
 			}
+
 			if (response === "messageResponse") {
 				await say("user_feedback", text, images)
 				return formatToolResponse(formatGenericToolFeedback(text), images)
 			}
+
 			return "The user denied this operation."
 		}
 
@@ -212,6 +220,7 @@ export class WriteFileTool extends BaseAgentTool {
 					diff: this.createPrettyPatch(relPath, newContent, editedContent),
 				} as ClaudeSayTool)
 			)
+
 			return `The user accepted but made the following changes to your content:\n\n${userDiff}\n\nFinal result ${
 				fileExists ? "applied to" : "written as new file"
 			} ${relPath}:\n\n${diffResult}`
@@ -228,6 +237,7 @@ export class WriteFileTool extends BaseAgentTool {
 			.map((tg) => tg.tabs)
 			.flat()
 			.filter((tab) => tab.input instanceof vscode.TabInputTextDiff && tab.input?.modified?.scheme === "kodu")
+
 		for (const tab of tabs) {
 			await vscode.window.tabGroups.close(tab)
 		}
@@ -237,6 +247,7 @@ export class WriteFileTool extends BaseAgentTool {
 		const patch = diff.createPatch(filename, oldStr, newStr)
 		const lines = patch.split("\n")
 		const prettyPatchLines = lines.slice(4)
+
 		return prettyPatchLines.join("\n")
 	}
 }

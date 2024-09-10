@@ -29,6 +29,7 @@ export class AttemptCompletionTool extends BaseAgentTool {
 			}
 			`
 		}
+
 		let resultToSend = result
 		if (command) {
 			await say("completion_result", resultToSend)
@@ -49,6 +50,7 @@ export class AttemptCompletionTool extends BaseAgentTool {
 		if (response === "yesButtonTapped") {
 			return ""
 		}
+
 		await say("user_feedback", text ?? "", images)
 		return formatToolResponse(
 			`The user is not pleased with the results. Use the feedback they provided to successfully complete the task, and then attempt completion again.\n<feedback>\n${text}\n</feedback>`,

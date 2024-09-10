@@ -23,6 +23,7 @@ export class ReadFileTool extends BaseAgentTool {
 
 		if (relPath === undefined) {
 			await say("error", "Claude tried to use read_file without value for required parameter 'path'. Retrying...")
+
 			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
 			An example of a good readFile tool call is:
 			{
@@ -45,11 +46,13 @@ export class ReadFileTool extends BaseAgentTool {
 				await say("tool", message)
 			} else {
 				const { response, text, images } = await ask("tool", message)
+
 				if (response !== "yesButtonTapped") {
 					if (response === "messageResponse") {
 						await say("user_feedback", text, images)
 						return formatToolResponse(formatGenericToolFeedback(text), images)
 					}
+
 					return "The user denied this operation."
 				}
 			}
@@ -69,6 +72,7 @@ export class ReadFileTool extends BaseAgentTool {
 				"error",
 				`Error reading file:\n${(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)}`
 			)
+
 			return errorString
 		}
 	}

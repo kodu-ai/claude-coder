@@ -16,7 +16,7 @@ export abstract class BaseAgentTool {
 		this.alwaysAllowReadOnly = options.alwaysAllowReadOnly
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
 		this.koduDev = options.koduDev
-		this.setRunningProcessId = options.setRunningProcessId
+		this.setRunningProcessId = options.setRunningProcessId!
 	}
 
 	abstract execute(params: AgentToolParams): Promise<ToolResponse>

@@ -52,6 +52,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		if (response !== "yesButtonTapped") {
 			return "The user denied this operation."
 		}
+
 		let userFeedback: { text?: string; images?: string[] } | undefined
 		const sendCommandOutput = async (subprocess: ResultPromise, line: string): Promise<void> => {
 			try {

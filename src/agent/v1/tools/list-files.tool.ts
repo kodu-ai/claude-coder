@@ -48,18 +48,20 @@ export class ListFilesTool extends BaseAgentTool {
 
 			if (this.alwaysAllowReadOnly) {
 				await say("tool", message)
-				return result
 			} else {
 				const { response, text, images } = await ask("tool", message)
+
 				if (response !== "yesButtonTapped") {
 					if (response === "messageResponse") {
 						await say("user_feedback", text, images)
 						return formatToolResponse(formatGenericToolFeedback(text), images)
 					}
+
 					return "The user denied this operation."
 				}
-				return result
 			}
+
+			return result
 		} catch (error) {
 			const errorString = `Error listing files and directories: ${JSON.stringify(serializeError(error))}`
 			await say(
@@ -68,6 +70,7 @@ export class ListFilesTool extends BaseAgentTool {
 					(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)
 				}`
 			)
+
 			return errorString
 		}
 	}
@@ -82,6 +85,7 @@ export class ListFilesTool extends BaseAgentTool {
 				"error",
 				"Claude tried to use list_files_top_level without value for required parameter 'path'. Retrying..."
 			)
+
 			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
 			An example of a good listFilesTopLevel tool call is:
 			{
@@ -105,11 +109,13 @@ export class ListFilesTool extends BaseAgentTool {
 				await say("tool", message)
 			} else {
 				const { response, text, images } = await ask("tool", message)
+
 				if (response !== "yesButtonTapped") {
 					if (response === "messageResponse") {
 						await say("user_feedback", text, images)
 						return formatToolResponse(formatGenericToolFeedback(text), images)
 					}
+
 					return "The user denied this operation."
 				}
 			}
@@ -123,6 +129,7 @@ export class ListFilesTool extends BaseAgentTool {
 					(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)
 				}`
 			)
+
 			return errorString
 		}
 	}
@@ -137,6 +144,7 @@ export class ListFilesTool extends BaseAgentTool {
 				"error",
 				"Claude tried to use list_files_recursive without value for required parameter 'path'. Retrying..."
 			)
+
 			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
 			An example of a good listFilesRecursive tool call is:
 			{
@@ -146,6 +154,7 @@ export class ListFilesTool extends BaseAgentTool {
 			Please try again with the correct path, you are not allowed to list files without a path.
 			`
 		}
+
 		try {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
 			const files = await listFiles(absolutePath, true)
@@ -165,6 +174,7 @@ export class ListFilesTool extends BaseAgentTool {
 						await say("user_feedback", text, images)
 						return formatToolResponse(formatGenericToolFeedback(text), images)
 					}
+
 					return "The user denied this operation."
 				}
 			}
@@ -178,6 +188,7 @@ export class ListFilesTool extends BaseAgentTool {
 					(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)
 				}`
 			)
+
 			return errorString
 		}
 	}

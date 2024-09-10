@@ -29,8 +29,10 @@ export class AskFollowupQuestionTool extends BaseAgentTool {
 			Please try again with the correct question, you are not allowed to ask followup questions without a question.
 			`
 		}
+
 		const { text, images } = await ask("followup", question)
 		await say("user_feedback", text ?? "", images)
+
 		return formatToolResponse(`<answer>\n${text}\n</answer>`, images)
 	}
 }

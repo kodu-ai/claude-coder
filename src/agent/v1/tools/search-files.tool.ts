@@ -24,6 +24,7 @@ export class SearchFilesTool extends BaseAgentTool {
 				"error",
 				"Claude tried to use search_files without value for required parameter 'path'. Retrying..."
 			)
+
 			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
 			An example of a good tool call is:
 			{
@@ -40,8 +41,8 @@ export class SearchFilesTool extends BaseAgentTool {
 				"error",
 				"Claude tried to use search_files without value for required parameter 'regex'. Retrying..."
 			)
-			return `Error: Missing value for required parameter 'regex'. Please retry with complete response.
 
+			return `Error: Missing value for required parameter 'regex'. Please retry with complete response.
 			{
 				"tool": "search_files",
 				"regex": "pattern",
@@ -65,18 +66,20 @@ export class SearchFilesTool extends BaseAgentTool {
 
 			if (this.alwaysAllowReadOnly) {
 				await say("tool", message)
-				return results
 			} else {
 				const { response, text, images } = await ask("tool", message)
+
 				if (response !== "yesButtonTapped") {
 					if (response === "messageResponse") {
 						await say("user_feedback", text, images)
 						return formatToolResponse(formatGenericToolFeedback(text), images)
 					}
+
 					return "The user denied this operation."
 				}
-				return results
 			}
+
+			return results
 		} catch (error) {
 			const errorString = `Error searching files: ${JSON.stringify(serializeError(error))}
 			An example of a good searchFiles tool call is:
@@ -91,6 +94,7 @@ export class SearchFilesTool extends BaseAgentTool {
 				"error",
 				`Error searching files:\n${(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)}`
 			)
+
 			return errorString
 		}
 	}
