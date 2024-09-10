@@ -1,13 +1,11 @@
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=kodu-ai.kodu" target="_blank"><strong>Download Extension</strong></a> | <a href="https://discord.gg/Fn97SD34qk" target="_blank"><strong>Join the Discord</strong></a>
+</p>
+
 # Welcome to Kodu Coder
 
 <img src="./assets/kodu.png" width="100" align="right" />
 Kodu Coder is a coding agent extension tailored for use with Kodu Cloud. We're excited to share our work with the community and invite you to explore the new features and capabilities we've added.
-
-
-
-<p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=kodu-ai.kodu" target="_blank"><strong>Download Extension</strong></a> | <a href="https://discord.gg/Fn97SD34qk" target="_blank"><strong>Join the Discord</strong></a>
-</p>
 
 ## About Kodu Coder
 
