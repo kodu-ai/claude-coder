@@ -105,7 +105,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	// const disposable = vscode.commands.registerCommand("kodu.helloWorld", () => {
+	// const disposable = vscode.commands.registerCommand("kodu-claude-coder.helloWorld", () => {
 	// 	// The code you place here will be executed every time your command is executed
 	// 	// Display a message box to the user
 	// 	vscode.window.showInformationMessage("Hello World from claude-dev!")
@@ -119,7 +119,7 @@ export function activate(context: vscode.ExtensionContext) {
 	)
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu.plusButtonTapped", async () => {
+		vscode.commands.registerCommand("kodu-claude-coder.plusButtonTapped", async () => {
 			outputChannel.appendLine("Plus button tapped")
 			await sidebarProvider.clearTask()
 			await sidebarProvider.postStateToWebview()
@@ -150,19 +150,21 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	}
 
-	context.subscriptions.push(vscode.commands.registerCommand("kodu.popoutButtonTapped", openClaudeDevInNewTab))
-	context.subscriptions.push(vscode.commands.registerCommand("kodu.openInNewTab", openClaudeDevInNewTab))
+	context.subscriptions.push(
+		vscode.commands.registerCommand("kodu-claude-coder.popoutButtonTapped", openClaudeDevInNewTab)
+	)
+	context.subscriptions.push(vscode.commands.registerCommand("kodu-claude-coder.openInNewTab", openClaudeDevInNewTab))
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu.settingsButtonTapped", () => {
-			//const message = "kodu.settingsButtonTapped!"
+		vscode.commands.registerCommand("kodu-claude-coder.settingsButtonTapped", () => {
+			//const message = "kodu-claude-coder.settingsButtonTapped!"
 			//vscode.window.showInformationMessage(message)
 			sidebarProvider.postMessageToWebview({ type: "action", action: "settingsButtonTapped" })
 		})
 	)
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu.historyButtonTapped", () => {
+		vscode.commands.registerCommand("kodu-claude-coder.historyButtonTapped", () => {
 			sidebarProvider.postMessageToWebview({ type: "action", action: "historyButtonTapped" })
 		})
 	)
