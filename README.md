@@ -10,7 +10,7 @@ Kodu Coder is a powerful tool that helps you code faster and more efficiently. I
 ## Demo
 For this demo, let's create a simple hangman game using react, starting with a default create-react-app project. We'll use Kodu Coder to help us write the code for the game.
 <p align="center">
-  <video src="./assets/demo.mp4" width="100%" />
+<video src="./assets/demo.mp4" width="500" />
 </p>
 
 <p align="center">
@@ -48,7 +48,7 @@ Kodu Coder has access to the following capabilities:
 ## Working in Existing Projects
 Using the context of the previous demo, let's see how Kodu Coder can help you work in existing projects. In this example, we'll use Kodu Coder to help us implement a confetti animation using the external `react-confetti-explosion` npm package.
 
-<video src="./assets/editing-demo.mp4" width="100%" />
+<video src="./assets/editing-demo.mp4" width="500" />
 
 As you can see, Kodu Coder was able to add the animation, it can efficiently navigate and understand existing projects by:
 
