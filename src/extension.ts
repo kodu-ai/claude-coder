@@ -141,7 +141,7 @@ export function activate(context: vscode.ExtensionContext) {
 			localResourceRoots: [context.extensionUri],
 		})
 		// TODO: use better svg icon with light and dark variants (see https://stackoverflow.com/questions/58365687/vscode-extension-iconpath)
-		panel.iconPath = vscode.Uri.joinPath(context.extensionUri, "icon.png")
+		panel.iconPath = vscode.Uri.joinPath(context.extensionUri, "assets/icon.png")
 		tabProvider.resolveWebviewView(panel)
 
 		// Lock the editor group so clicking on files doesn't open them over the panel
