@@ -1,4 +1,3 @@
-import { Anthropic } from "@anthropic-ai/sdk"
 import * as diff from "diff"
 import { execa, ExecaError, ResultPromise } from "execa"
 import fs from "fs/promises"
@@ -8,7 +7,6 @@ import treeKill from "tree-kill"
 import * as vscode from "vscode"
 import { LIST_FILES_LIMIT, listFiles, parseSourceCodeForDefinitionsTopLevel } from "../../parse-source-code"
 import { ClaudeAsk, ClaudeSay, ClaudeSayTool } from "../../shared/ExtensionMessage"
-import { ToolName } from "../../shared/Tool"
 import { ToolResponse } from "../types"
 import { COMMAND_OUTPUT_DELAY } from "../constants"
 import {
@@ -26,22 +24,16 @@ import { regexSearchFiles } from "../../utils/ripgrep"
 import { COMMAND_STDIN_STRING } from "../../shared/combineCommandSequences"
 import { findLastIndex } from "../../utils"
 import { KoduDev } from "."
-
-type ToolExecutorOptions = {
-	cwd: string
-	alwaysAllowReadOnly: boolean
-	alwaysAllowWriteOnly: boolean
-	koduDev: KoduDev
-}
+import { AgentToolOptions, AgentToolParams } from "./tools/types"
 
 export class ToolExecutor {
+	private executeCommandRunningProcess?: ResultPromise
 	private cwd: string
 	private alwaysAllowReadOnly: boolean
 	private alwaysAllowWriteOnly: boolean
-	private executeCommandRunningProcess?: ResultPromise
 	private koduDev: KoduDev
 
-	constructor(options: ToolExecutorOptions) {
+	constructor(options: AgentToolOptions) {
 		this.cwd = options.cwd
 		this.alwaysAllowReadOnly = options.alwaysAllowReadOnly
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
@@ -55,49 +47,33 @@ export class ToolExecutor {
 		this.alwaysAllowWriteOnly = value
 	}
 
-	async executeTool(
-		toolName: ToolName,
-		toolInput: any,
-		isLastWriteToFile: boolean = false,
-		ask: (
-			type: ClaudeAsk,
-			question?: string
-		) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => void
-	): Promise<ToolResponse> {
-		switch (toolName) {
+	async executeTool(params: AgentToolParams): Promise<ToolResponse> {
+		switch (params.name) {
 			case "write_to_file":
-				return this.writeToFile(toolInput.path, toolInput.content, ask, say)
+				return this.writeToFile(params)
 			case "read_file":
-				return this.readFile(toolInput.path, ask, say)
+				return this.readFile(params)
 			case "list_files":
-				return this.listFiles(toolInput.path, toolInput.recursive, ask, say)
+				return this.listFiles(params)
 			case "search_files":
-				return this.searchFiles(toolInput.path, toolInput.regex, toolInput.filePattern, ask, say)
+				return this.searchFiles(params)
 			case "list_code_definition_names":
-				return this.listCodeDefinitionNames(toolInput.path, ask, say)
-			// return this.viewSourceCodeDefinitionsTopLevel(toolInput.path, ask, say)
+				return this.listCodeDefinitionNames(params)
 			case "execute_command":
-				return this.executeCommand(toolInput.command, ask, say)
+				return this.executeCommand(params)
 			case "ask_followup_question":
-				return this.askFollowupQuestion(toolInput.question, ask, say)
+				return this.askFollowupQuestion(params)
 			case "attempt_completion":
-				return this.attemptCompletion(toolInput.result, toolInput.command, ask, say)
+				return this.attemptCompletion(params)
 			default:
-				return `Unknown tool: ${toolName}`
+				return `Unknown tool: ${params.name}`
 		}
 	}
 
-	async searchFiles(
-		relDirPath: string | undefined,
-		regex: string | undefined,
-		filePattern: string | undefined,
-		ask: (
-			type: ClaudeAsk,
-			question?: string
-		) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => void
-	): Promise<ToolResponse> {
+	async searchFiles(params: AgentToolParams): Promise<ToolResponse> {
+		const { input, ask, say } = params
+		const { path: relDirPath, regex, filePattern } = input
+
 		if (relDirPath === undefined) {
 			await say(
 				"error",
@@ -111,7 +87,6 @@ export class ToolExecutor {
 				"regex": "pattern",
 			}
 			Please try again with the correct regex and path, you are not allowed to search files without a regex or path.
-			
 			`
 		}
 
@@ -121,7 +96,7 @@ export class ToolExecutor {
 				"Claude tried to use search_files without value for required parameter 'regex'. Retrying..."
 			)
 			return `Error: Missing value for required parameter 'regex'. Please retry with complete response.
-		
+
 			{
 				"tool": "search_files",
 				"regex": "pattern",
@@ -182,15 +157,11 @@ export class ToolExecutor {
 		return prettyPatchLines.join("\n")
 	}
 
-	async writeToFile(
-		relPath: string | undefined,
-		newContent: string | undefined,
-		ask: (
-			type: ClaudeAsk,
-			question?: string
-		) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => void
-	): Promise<ToolResponse> {
+	async writeToFile(params: AgentToolParams): Promise<ToolResponse> {
+		const { input, ask, say } = params
+		const { path: relPath, content } = input
+		let newContent = content
+
 		if (relPath === undefined) {
 			await say(
 				"error",
@@ -400,11 +371,10 @@ export class ToolExecutor {
 		}
 	}
 
-	async readFile(
-		relPath: string | undefined,
-		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => void
-	): Promise<ToolResponse> {
+	async readFile(params: AgentToolParams): Promise<ToolResponse> {
+		const { input, ask, say } = params
+		const { path: relPath } = input
+
 		if (relPath === undefined) {
 			await say("error", "Claude tried to use read_file without value for required parameter 'path'. Retrying...")
 			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
@@ -495,15 +465,10 @@ export class ToolExecutor {
 		}
 	}
 
-	async listFiles(
-		relDirPath: string | undefined,
-		recursiveRaw: string | undefined,
-		ask: (
-			type: ClaudeAsk,
-			question?: string
-		) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => void
-	): Promise<ToolResponse> {
+	async listFiles(params: AgentToolParams): Promise<ToolResponse> {
+		const { input, ask, say } = params
+		const { path: relDirPath, recursive: recursiveRaw } = input
+
 		if (relDirPath === undefined) {
 			await say(
 				"error",
@@ -556,6 +521,7 @@ export class ToolExecutor {
 			return errorString
 		}
 	}
+
 	async listFilesTopLevel(
 		relDirPath: string | undefined,
 		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
@@ -666,11 +632,10 @@ export class ToolExecutor {
 		}
 	}
 
-	async listCodeDefinitionNames(
-		relDirPath: string | undefined,
-		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => void
-	): Promise<ToolResponse> {
+	async listCodeDefinitionNames(params: AgentToolParams): Promise<ToolResponse> {
+		const { input, ask, say } = params
+		const { path: relDirPath } = input
+
 		if (relDirPath === undefined) {
 			await say(
 				"error",
@@ -720,12 +685,10 @@ export class ToolExecutor {
 		}
 	}
 
-	async executeCommand(
-		command: string | undefined,
-		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => void,
-		returnEmptyStringOnSuccess: boolean = false
-	): Promise<ToolResponse> {
+	async executeCommand(params: AgentToolParams, returnEmptyStringOnSuccess: boolean = false): Promise<ToolResponse> {
+		const { input, ask, say } = params
+		const { command } = input
+
 		if (command === undefined) {
 			await say(
 				"error",
@@ -862,11 +825,10 @@ export class ToolExecutor {
 		}
 	}
 
-	async askFollowupQuestion(
-		question: string | undefined,
-		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => void
-	): Promise<ToolResponse> {
+	async askFollowupQuestion(params: AgentToolParams): Promise<ToolResponse> {
+		const { input, ask, say } = params
+		const { question } = input
+
 		if (question === undefined) {
 			await say(
 				"error",
@@ -886,12 +848,10 @@ export class ToolExecutor {
 		return formatToolResponse(`<answer>\n${text}\n</answer>`, images)
 	}
 
-	async attemptCompletion(
-		result: string | undefined,
-		command: string | undefined,
-		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => void
-	): Promise<ToolResponse> {
+	async attemptCompletion(params: AgentToolParams): Promise<ToolResponse> {
+		const { input, ask, say } = params
+		const { result, command } = input
+
 		if (result === undefined) {
 			await say(
 				"error",
@@ -908,7 +868,7 @@ export class ToolExecutor {
 		let resultToSend = result
 		if (command) {
 			await say("completion_result", resultToSend)
-			const commandResult = await this.executeCommand(command, ask, say, true)
+			const commandResult = await this.executeCommand(params, true)
 			if (commandResult) {
 				return commandResult
 			}

@@ -9,6 +9,7 @@ import { KoduError } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { getApiMetrics } from "../../shared/getApiMetrics"
 import { combineApiRequests } from "../../shared/combineApiRequests"
+import { ToolInput } from "./tools/types"
 
 enum TaskState {
 	IDLE = "IDLE",
@@ -234,7 +235,7 @@ export class TaskExecutor {
 
 	private async executeTool(toolUseBlock: Anthropic.Messages.ToolUseBlock): Promise<void> {
 		const toolName = toolUseBlock.name
-		const toolInput = toolUseBlock.input
+		const input = toolUseBlock.input as ToolInput
 		const toolUseId = toolUseBlock.id
 
 		this.logState(`Executing tool: ${toolName}`)
@@ -254,13 +255,14 @@ export class TaskExecutor {
 					totalInputTokens: metrics.totalTokensIn,
 				})
 			}
-			const result = await this.toolExecutor.executeTool(
-				toolName as ToolName,
-				toolInput,
-				false,
-				this.ask.bind(this),
-				this.say.bind(this)
-			)
+			const result = await this.toolExecutor.executeTool({
+				name: toolName as ToolName,
+				input,
+				isLastWriteToFile: false,
+				ask: this.ask.bind(this),
+				say: this.say.bind(this),
+			})
+
 			console.log(`Tool result:`, result)
 			this.currentToolResults.push({ type: "tool_result", tool_use_id: toolUseId, content: result })
 			this.state = TaskState.PROCESSING_RESPONSE
