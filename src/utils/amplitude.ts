@@ -1,10 +1,25 @@
 import { init, track as ampTrack } from "@amplitude/analytics-node"
+import axios from "axios"
+import osName from "os-name"
 import * as vscode from "vscode"
+const getUserIP = async () => {
+	try {
+		const response = await axios.get("https://ipinfo.io/json")
+		const data = response.data
+		return data.ip as string // returns the external IP address
+	} catch (error) {
+		console.error("Error fetching user IP:", error)
+		return undefined
+	}
+}
 
 export class AmplitudeTracker {
 	private static instance: AmplitudeTracker
 	private currentUserId: string | undefined
 	private initialized: boolean = false
+	private sessionId: string | undefined
+	private extensionName: string | undefined
+	private ip: string | undefined
 
 	private constructor() {}
 
@@ -15,13 +30,21 @@ export class AmplitudeTracker {
 		return AmplitudeTracker.instance
 	}
 
-	public initialize(isLoggedIn: boolean, userId?: string): void {
+	public async initialize(
+		isLoggedIn: boolean,
+		sessionId: string,
+		extensionName: string,
+		userId?: string
+	): Promise<void> {
 		if (this.initialized) {
 			console.warn("AmplitudeTracker is already initialized. Use updateUserState to change user state.")
 			return
 		}
-
-		init("516881d0b4bcf3cd74786a97056413cc", {
+		this.sessionId = sessionId
+		this.extensionName = extensionName
+		const userIp = await getUserIP()
+		this.ip = userIp
+		init("be2998bd738ea455757b38386f15ff70", {
 			flushIntervalMillis: 0,
 		})
 
@@ -48,9 +71,8 @@ export class AmplitudeTracker {
 		return vscode.env.machineId
 	}
 
-	private track(eventType: string, eventProperties?: object, userProperties?: object): void {
+	private async track(eventType: string, eventProperties?: object, userProperties?: object): Promise<void> {
 		this.ensureInitialized()
-		console.log(`Tracking event: ${eventType}`)
 		ampTrack({
 			event_type: eventType,
 			device_id: this.getDeviceId(),
@@ -58,7 +80,15 @@ export class AmplitudeTracker {
 			user_properties: {
 				...userProperties,
 			},
+			...(this.ip ? { ip_address: this.ip } : {}),
 			user_id: this.currentUserId,
+			platform: this.extensionName,
+			os_name: osName(),
+			extra: {
+				extensionName: this.extensionName,
+				sessionId: this.sessionId,
+				platform: "vscode",
+			},
 		})
 	}
 
