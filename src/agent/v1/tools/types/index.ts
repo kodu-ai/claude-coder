@@ -23,6 +23,7 @@ export type AgentToolParams = {
 		question?: string
 	) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>
 	say: (type: ClaudeSay, text?: string, images?: string[]) => void
+	returnEmptyStringOnSuccess?: boolean
 }
 
 export type AgentToolOptions = {
@@ -30,4 +31,5 @@ export type AgentToolOptions = {
 	alwaysAllowReadOnly: boolean
 	alwaysAllowWriteOnly: boolean
 	koduDev: KoduDev
+	setRunningProcessId?: (pid: number | undefined) => void
 }
