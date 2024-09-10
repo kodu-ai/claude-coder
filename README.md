@@ -8,6 +8,7 @@ Kodu Coder is a coding agent extension tailored for use with Kodu Cloud. We're e
 Kodu Coder is a powerful tool that helps you code faster and more efficiently. It's like having a coding assistant right in your editor! Kodu Coder can help you with a variety of tasks, from writing code to debugging and testing. It's perfect for developers who want to save time and improve their workflow or for beginners who have never coded before.
 
 ## Demo
+For this demo, let's create a simple hangman game using react, starting with a default create-react-app project. We'll use Kodu Coder to help us write the code for the game.
 <p align="center">
   <video src="./assets/demo.mp4" width="100%" />
 </p>
@@ -45,8 +46,11 @@ Kodu Coder has access to the following capabilities:
 10. *More to come...*: Have a suggestion? Let us know by creating an issue or telling us about it in our Discord server!
 
 ## Working in Existing Projects
+Using the context of the previous demo, let's see how Kodu Coder can help you work in existing projects. In this example, we'll use Kodu Coder to help us implement a confetti animation using the external `react-confetti-explosion` npm package.
 
-Kodu Coder can efficiently navigate and understand existing projects by:
+<video src="./assets/editing-demo.mp4" width="100%" />
+
+As you can see, Kodu Coder was able to add the animation, it can efficiently navigate and understand existing projects by:
 
 1. Analyzing the file structure
 2. Examining source code definitions
@@ -54,11 +58,13 @@ Kodu Coder can efficiently navigate and understand existing projects by:
 
 This approach allows Kodu Coder to provide valuable assistance even for complex, large-scale projects without overwhelming its context window.
 
-## Contribution
+### Want to add some confetti to your life too? Try Kodu Coder 😉
 
-We are always listening to the community, adding requested features, and fixing bugs. If you want to contribute your own files, please check our CLA and contribution guide. We gladly accept contributions!
+## Contributing
 
-To build Kodu Coder locally, follow these steps:
+Building a tool that fits the community is our core principle. If you have any suggestions, feedback, or ideas for new features, please let us know by creating an issue or a discussion! We're always looking for ways to improve Kodu Coder and make it more useful for **everyone**
+
+If you are a developer and would like to contribute to the project, we would love to have you on board, here are the steps to set up the project locally:
 
 1. Clone the repository:
     ```bash
@@ -80,4 +86,4 @@ This project is licensed under the AGPL License. See the [LICENSE](./LICENSE) fi
 
 ## Questions?
 
-Contact us via [Email](mailto:support@kodu.ai). Please create an [issue](https://github.com/kodu-ai/kodu-coder) if you come across a bug or would like a feature to be added.
+Come chat with us directly on our [Discord server](https://discord.gg/Fn97SD34qk) or feel free to create a discussion in the repository!
