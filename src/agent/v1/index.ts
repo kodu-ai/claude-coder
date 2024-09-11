@@ -1,13 +1,12 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ClaudeDevProvider } from "../../providers/ClaudeDevProvider"
+import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
 import { ClaudeAsk, ClaudeSay } from "../../shared/ExtensionMessage"
 import { ToolName } from "../../shared/Tool"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
-import { ApiManager } from "../api-handler"
+import { ApiManager } from "./api-handler"
 import { ToolExecutor } from "./tool-executor"
-import { KoduDevOptions, ToolResponse, UserContent } from "../types"
-import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "../utils"
-import { KoduError } from "../../shared/kodu"
+import { KoduDevOptions, ToolResponse, UserContent } from "./types"
+import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "./utils"
 import { StateManager } from "./state-manager"
 import { AskResponse, TaskExecutor } from "./task-executor"
 import { findLastIndex } from "../../utils"
@@ -78,7 +77,7 @@ export class KoduDev {
 	private async startTask(task?: string, images?: string[]): Promise<void> {
 		this.stateManager.state.claudeMessages = []
 		this.stateManager.state.apiConversationHistory = []
-		await this.providerRef.deref()?.postStateToWebview()
+		await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
 
 		let textBlock: Anthropic.TextBlockParam = {
 			type: "text",
@@ -263,4 +262,4 @@ export class KoduDev {
 	}
 }
 
-export * from "../types"
+export * from "./types"

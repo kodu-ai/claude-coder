@@ -1,5 +1,5 @@
 import treeKill from "tree-kill"
-import { ToolResponse } from "../types"
+import { ToolResponse } from "./types"
 import { KoduDev } from "."
 import { AgentToolOptions, AgentToolParams } from "./tools/types"
 import {

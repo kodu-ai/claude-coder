@@ -1,5 +1,5 @@
-import { ToolResponse } from "../../types"
-import { formatToolResponse } from "../../utils"
+import { ToolResponse } from "../types"
+import { formatToolResponse } from "../utils"
 import { AgentToolOptions, AgentToolParams } from "./types"
 import { BaseAgentTool } from "./base-agent.tool"
 

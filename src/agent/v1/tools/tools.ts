@@ -1,5 +1,5 @@
-import { Tool } from "../shared/Tool"
-import { cwd } from "./utils"
+import { Tool } from "../../../shared/Tool"
+import { cwd } from "../utils"
 
 // to be merged
 // Merged result

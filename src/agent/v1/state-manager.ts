@@ -1,10 +1,8 @@
 import path from "path"
-import { ClaudeDevProvider } from "../../providers/ClaudeDevProvider"
-import { ApiConfiguration } from "../../shared/api"
-import { ApiManager } from "../api-handler"
-import { DEFAULT_MAX_REQUESTS_PER_TASK } from "../constants"
-import { ToolExecutor } from "../tool-executor"
-import { ClaudeMessage, KoduDevOptions, KoduDevState } from "../types"
+import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
+import { ApiManager } from "./api-handler"
+import { DEFAULT_MAX_REQUESTS_PER_TASK } from "./constants"
+import { ClaudeMessage, KoduDevOptions, KoduDevState } from "./types"
 import fs from "fs/promises"
 import Anthropic from "@anthropic-ai/sdk"
 import { getApiMetrics } from "../../shared/getApiMetrics"
@@ -203,16 +201,19 @@ export class StateManager {
 						(m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task")
 					)
 				]
-			await this.providerRef.deref()?.updateTaskHistory({
-				id: this.state.taskId,
-				ts: lastRelevantMessage.ts,
-				task: taskMessage.text ?? "",
-				tokensIn: apiMetrics.totalTokensIn,
-				tokensOut: apiMetrics.totalTokensOut,
-				cacheWrites: apiMetrics.totalCacheWrites,
-				cacheReads: apiMetrics.totalCacheReads,
-				totalCost: apiMetrics.totalCost,
-			})
+			await this.providerRef
+				.deref()
+				?.getStateManager()
+				.updateTaskHistory({
+					id: this.state.taskId,
+					ts: lastRelevantMessage.ts,
+					task: taskMessage.text ?? "",
+					tokensIn: apiMetrics.totalTokensIn,
+					tokensOut: apiMetrics.totalTokensOut,
+					cacheWrites: apiMetrics.totalCacheWrites,
+					cacheReads: apiMetrics.totalCacheReads,
+					totalCost: apiMetrics.totalCost,
+				})
 		} catch (error) {
 			console.error("Failed to save claude messages:", error)
 		}

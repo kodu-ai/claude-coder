@@ -5,12 +5,13 @@ import { ApiHandlerOptions, koduDefaultModelId, KoduModelId, koduModels, ModelIn
 import {
 	getKoduCurrentUser,
 	getKoduInferenceUrl,
+	getKoduVisitorUrl,
 	KODU_ERROR_CODES,
 	KoduError,
 	koduErrorMessages,
 	koduSSEResponse,
 } from "../shared/kodu"
-
+import { z } from "zod"
 const temperatures = {
 	creative: {
 		top_p: 0.8,
@@ -37,7 +38,28 @@ export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 			credits: Number(response.data.credits) ?? 0,
 			id: response.data.id as string,
 			email: response.data.email as string,
+			isVisitor: response.data.isVisitor as boolean,
 		}
+	}
+	return null
+}
+
+export async function initVisitor({ visitorId: vistorId }: { visitorId: string }) {
+	const inputSchema = z.object({
+		visitorId: z.string(),
+	})
+	const outputSchema = z.object({
+		apiKey: z.string(),
+		id: z.string(),
+		balance: z.number(),
+		credits: z.number(),
+	})
+	const response = await axios.post(getKoduVisitorUrl(), {
+		vistorId: vistorId,
+	})
+	if (response.data) {
+		const result = outputSchema.parse(response.data)
+		return result
 	}
 	return null
 }

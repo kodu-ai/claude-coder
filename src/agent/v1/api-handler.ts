@@ -1,13 +1,13 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ApiConfiguration, ApiHandler, buildApiHandler } from "../api"
+import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
 import { UserContent } from "./types"
 import { API_RETRY_DELAY } from "./constants"
 import { serializeError } from "serialize-error"
-import { truncateHalfConversation } from "../utils/context-management"
+import { truncateHalfConversation } from "../../utils/context-management"
 import { SYSTEM_PROMPT } from "./system-prompt"
-import { tools } from "./tools"
-import { ClaudeDevProvider } from "../providers/ClaudeDevProvider"
-import { KoduError } from "../shared/kodu"
+import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
+import { KoduError } from "../../shared/kodu"
+import { tools } from "./tools/tools"
 
 export class ApiManager {
 	private api: ApiHandler
@@ -45,7 +45,7 @@ export class ApiManager {
 		apiConversationHistory: Anthropic.MessageParam[],
 		abortSignal?: AbortSignal | null
 	): Promise<Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage> {
-		const creativeMode = (await this.providerRef.deref()?.getState())?.creativeMode ?? "normal"
+		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
 		let systemPrompt = await SYSTEM_PROMPT()
 		if (this.customInstructions && this.customInstructions.trim()) {
 			systemPrompt += `
@@ -70,7 +70,7 @@ ${this.customInstructions.trim()}
 
 			if (userCredits !== undefined) {
 				console.log("Updating kodu credits", userCredits)
-				this.providerRef.deref()?.updateKoduCredits(userCredits)
+				this.providerRef.deref()?.getStateManager()?.updateKoduCredits(userCredits)
 			}
 
 			return message

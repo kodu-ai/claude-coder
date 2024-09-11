@@ -1,5 +1,5 @@
 import { KoduDev } from ".."
-import { ToolResponse } from "../../types"
+import { ToolResponse } from "../types"
 import { AgentToolOptions, AgentToolParams } from "./types"
 
 export abstract class BaseAgentTool {

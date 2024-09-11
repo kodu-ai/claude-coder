@@ -5,12 +5,29 @@ type WebviewMessageAmplitude = {
 	event_type: "Auth Start" | "Referral Program" | "Add Credits"
 }
 
+type OpenExternalLink = {
+	type: "openExternalLink"
+	url: string
+}
+
+type FreeTrial = {
+	type: "freeTrial"
+	fp: string
+}
+
+type ApiConfigurationMessage = {
+	type: "apiConfiguration"
+	apiConfiguration: NonNullable<ApiConfiguration>
+}
+
 export type WebviewMessage =
 	| WebviewMessageAmplitude
+	| OpenExternalLink
+	| FreeTrial
+	| ApiConfigurationMessage
 	| {
 			type:
 				| "cancelCurrentRequest"
-				| "apiConfiguration"
 				| "maxRequestsPerTask"
 				| "customInstructions"
 				| "alwaysAllowReadOnly"
@@ -34,7 +51,6 @@ export type WebviewMessage =
 				| "setCreativeMode"
 			text?: string
 			askResponse?: ClaudeAskResponse
-			apiConfiguration?: ApiConfiguration
 			images?: string[]
 			bool?: boolean
 	  }

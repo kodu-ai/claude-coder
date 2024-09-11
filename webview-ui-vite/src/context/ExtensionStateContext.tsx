@@ -5,6 +5,7 @@ import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/ExtensionMe
 import { vscode } from "../utils/vscode"
 import { ApiConfiguration } from "../../../src/api/index"
 import { HistoryItem } from "../../../src/shared/HistoryItem"
+import type { GlobalState } from "../../../src/providers/claude-dev/state/GlobalStateManager"
 
 // Define atoms for each piece of state
 const versionAtom = atom("")
@@ -27,7 +28,7 @@ const alwaysAllowReadOnlyAtom = atom(false)
 alwaysAllowReadOnlyAtom.debugLabel = "alwaysAllowReadOnly"
 const alwaysAllowApproveOnlyAtom = atom(false)
 alwaysAllowApproveOnlyAtom.debugLabel = "alwaysAllowApproveOnly"
-const userAtom = atom<{ credits: number; email: string; refCode?: string } | undefined>(undefined)
+const userAtom = atom<GlobalState["user"]>(undefined)
 userAtom.debugLabel = "user"
 const uriSchemeAtom = atom<string | undefined>(undefined)
 uriSchemeAtom.debugLabel = "uriScheme"

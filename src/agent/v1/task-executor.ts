@@ -1,9 +1,8 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeAsk, ClaudeSay } from "../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
-import { ApiManager } from "../api-handler"
 import { ToolExecutor } from "./tool-executor"
-import { UserContent, ToolResponse, ToolName } from "../types"
+import { UserContent, ToolResponse, ToolName } from "./types"
 import { StateManager } from "./state-manager"
 import { KoduError } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
@@ -111,7 +110,7 @@ export class TaskExecutor {
 			"Request cancelled by user [This is still billed if request is already made to provider]"
 		)
 		// Update the provider state
-		await this.stateManager.providerRef.deref()?.postStateToWebview()
+		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
@@ -444,7 +443,7 @@ export class TaskExecutor {
 			const askTs = Date.now()
 			this.stateManager.addToClaudeMessages({ ts: askTs, type: "ask", ask: type, text: question })
 			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion:: ${question}`)
-			this.stateManager.providerRef.deref()?.postStateToWebview()
+			this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 			this.pendingAskResponse = resolve
 		})
 	}
@@ -458,7 +457,7 @@ export class TaskExecutor {
 	public async say(type: ClaudeSay, text?: string, images?: string[]): Promise<void> {
 		const sayTs = Date.now()
 		await this.stateManager.addToClaudeMessages({ ts: sayTs, type: "say", say: type, text: text, images })
-		await this.stateManager.providerRef.deref()?.postStateToWebview()
+		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	/**

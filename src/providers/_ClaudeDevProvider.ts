@@ -7,7 +7,7 @@ import { compressImages, downloadTask, getNonce, getUri, selectImages } from "..
 import * as path from "path"
 import fs from "fs/promises"
 import { HistoryItem } from "../shared/HistoryItem"
-import { fetchKoduUser as fetchKoduUserAPI } from "../api/kodu"
+import { fetchKoduUser as fetchKoduUserAPI, initVisitor } from "../api/kodu"
 import { ApiModelId } from "../shared/api"
 import { amplitudeTracker } from "../utils/amplitude"
 
@@ -217,12 +217,12 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 		}
 
 		// The CSS file from the React build output
-		const stylesUri = getUri(webview, this.context.extensionUri, [
-			"webview-ui-vite",
-			"build",
-			"assets",
-			"index.css",
-		])
+		// const stylesUri = getUri(webview, this.context.extensionUri, [
+		// 	"webview-ui-vite",
+		// 	"build",
+		// 	"assets",
+		// 	"index.css",
+		// ])
 
 		// The codicon font from the React build output
 		// https://github.com/microsoft/vscode-extension-samples/blob/main/webview-codicons-sample/src/extension.ts
@@ -262,6 +262,9 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 					? ``
 					: `ws://${localServerUrl} ws://0.0.0.0:${localPort} http://${localServerUrl} http://0.0.0.0:${localPort}`
 			}`,
+			`frame-src https://*`, // Add this line
+			`child-src https://*`, // Add this line
+			`window-open https://*`, // Add this line
 		]
 
 		// Tip: Install the es6-string-html VS Code extension to enable code highlighting below
@@ -273,7 +276,6 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	        <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
 	        <meta name="theme-color" content="#000000">
 			<meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
-	        <link rel="stylesheet" type="text/css" href="${stylesUri}">
 			<link href="${codiconsUri}" rel="stylesheet" />
 	        <title>Claude Dev</title>
 	      </head>
@@ -309,6 +311,15 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "freeTrial":
+						const data = await initVisitor({ visitorId: message.fp })
+						if (data) {
+							this.saveKoduApiKey(data.apiKey)
+						}
+						break
+					case "openExternalLink":
+						vscode.env.openExternal(vscode.Uri.parse(message.url))
+						break
 					case "amplitude":
 						if (message.event_type === "Add Credits") {
 							amplitudeTracker.addCreditsClick()

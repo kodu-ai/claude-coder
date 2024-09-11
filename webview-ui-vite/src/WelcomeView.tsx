@@ -1,61 +1,108 @@
-import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 import React from "react"
-import { getKoduSignInUrl } from "../../src/shared/kodu"
-import { useExtensionState } from "./context/ExtensionStateContext"
-import ApiOptions from "./components/ApiOptions/ApiOptions"
+import { VSCodeButton, VSCodeLink } from "@vscode/webview-ui-toolkit/react"
+import { Info, Zap, LogIn, Loader2 } from "lucide-react"
 import { Balancer } from "react-wrap-balancer"
+import { useExtensionState } from "./context/ExtensionStateContext"
+import { loginKodu } from "./utils/kodu-links"
+import { useVisitorData } from "@fingerprintjs/fingerprintjs-pro-react"
+import { vscode } from "./utils/vscode"
 interface WelcomeViewProps {}
 
 const WelcomeView: React.FC<WelcomeViewProps> = ({}) => {
 	const { uriScheme, extensionName } = useExtensionState()
-
+	const { getData } = useVisitorData()
+	const [isLoading, setIsLoading] = React.useState(false)
 	return (
-		<div
-			className="text-start"
-			style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, padding: "0 20px" }}>
-			<div
-				style={{
-					display: "flex",
-					alignItems: "center",
-					backgroundColor: "var(--vscode-editor-inactiveSelectionBackground)",
-					color: "var(--vscode-editor-foreground)",
-					padding: "6px 8px",
-					borderRadius: "3px",
-					margin: "8px 0px",
-					fontSize: "12px",
-				}}>
-				<i
-					className="codicon codicon-info"
-					style={{
-						marginRight: "6px",
-						fontSize: "16px",
-						color: "var(--vscode-infoIcon-foreground)",
-					}}></i>
-				<Balancer>
-					<span>
-						Explore Claude's capabilities with $10 free credits from{" "}
-						<VSCodeLink href={getKoduSignInUrl(uriScheme, extensionName)} style={{ display: "inline" }}>
+		<div className="text-[var(--vscode-editor-foreground)] p-4 sm:p-6 flex flex-col items-center">
+			<div className="max-w-xl w-full space-y-6">
+				{/* Info Banner */}
+				<div className="bg-[var(--vscode-notifications-background)] p-3 rounded flex items-center space-x-2 text-xs">
+					<Info className="text-[var(--vscode-notificationsInfoIcon-foreground)] flex-shrink-0 w-4 h-4" />
+					<div>
+						Explore Claude's capabilities with <span className="font-semibold">$10 free credits</span> from{" "}
+						<VSCodeLink href="#" className="text-[var(--vscode-textLink-foreground)]">
 							Kodu.ai
 						</VSCodeLink>
-					</span>
-				</Balancer>
-			</div>
-			<h2 className="text-xl font-bold mb-4">Hi, I'm Kodu Coder</h2>
-			<div>
-				I can do all kinds of tasks thanks to the latest breakthroughs in{" "}
-				<VSCodeLink
-					href="https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf"
-					style={{ display: "inline" }}>
-					Claude 3.5 Sonnet's agentic coding capabilities
-				</VSCodeLink>{" "}
-				and access to tools that let me create & edit files, explore complex projects, and execute terminal
-				commands (with your permission, of course).
-			</div>
+					</div>
+				</div>
 
-			<b>To get started, please login to your Kodu.ai Account.</b>
+				{/* Main Content */}
+				<div className="text-start space-y-2">
+					<h1 className="text-2xl sm:text-3xl font-bold">
+						<Balancer>Welcome to Kodu Coder</Balancer>
+					</h1>
+					{/* <Balancer> */}
+					<div className="text-sm sm:text-base">
+						Powered by{" "}
+						<VSCodeLink
+							href="https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf"
+							className="text-[var(--vscode-textLink-foreground)]">
+							Claude 3.5 Sonnet's advanced AI capabilities
+						</VSCodeLink>
+						assisting you with a wide range of coding tasks.
+					</div>
+					{/* </Balancer> */}
+				</div>
 
-			<div style={{ marginTop: "4px" }}>
-				<ApiOptions showModelOptions={false} />
+				{/* CTA Sections */}
+				<div className="grid sm:grid-cols-2 gap-4">
+					{/* Sign Up Section */}
+					<div className="bg-[var(--vscode-editor-background)] flex flex-col p-4 rounded space-y-3 order-2 sm:order-none">
+						<h2 className="text-lg font-semibold flex items-center">
+							<LogIn className="mr-2 w-5 h-5" /> Sign In for Full Access
+						</h2>
+						<p className="text-sm">
+							<Balancer preferNative={false} ratio={0.4}>
+								Unlock the full potential of Kodu Coder with high rate limits and latest features.
+							</Balancer>
+						</p>
+						<VSCodeButton
+							onClick={() => {
+								if (uriScheme && extensionName) loginKodu({ uriScheme, extensionName })
+							}}
+							className="w-36"
+							appearance="primary">
+							{/* Sign up to Kodu */}
+							Continue with Kodu
+						</VSCodeButton>
+						<div className="text-xs text-[var(--vscode-descriptionForeground)]">
+							<VSCodeLink href="https://kodu.ai" className="text-[var(--vscode-textLink-foreground)]">
+								Learn more about Kodu here.
+							</VSCodeLink>
+						</div>
+					</div>
+
+					{/* Free Trial Section */}
+					<div className="bg-[var(--vscode-editor-background)] flex flex-col p-4 rounded space-y-3">
+						<h2 className="text-lg font-semibold flex items-center">
+							<Zap className="mr-2 w-5 h-5 text-[var(--vscode-terminal-ansiYellow)]" /> Try for Free
+						</h2>
+						<p className="text-sm">
+							<Balancer preferNative={false} ratio={0.4}>
+								Get started with 1 USD worth of credits no sign-up required!
+							</Balancer>
+						</p>
+						<VSCodeButton
+							disabled={isLoading}
+							onClick={async () => {
+								setIsLoading(true)
+								const data = await { getData }.getData()
+								if (data?.visitorId) {
+									vscode.postMessage({ type: "freeTrial", fp: data.visitorId })
+								}
+								setTimeout(() => {
+									setIsLoading(false)
+								}, 1000)
+							}}
+							className="w-36 flex items-center"
+							appearance="secondary">
+							<div className="flex items-center">
+								<Loader2 className={`w-4 h-4 animate-spin mr-2 ${isLoading ? "block" : "hidden"}`} />
+								<span>Start Free Trial</span>
+							</div>
+						</VSCodeButton>
+					</div>
+				</div>
 			</div>
 		</div>
 	)

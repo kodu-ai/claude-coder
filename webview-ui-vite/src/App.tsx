@@ -12,6 +12,10 @@ import { DevTools } from "jotai-devtools"
 import "jotai-devtools/styles.css"
 import "./App.css"
 import { Button } from "@/components/ui/button"
+import { FpjsProvider } from "@fingerprintjs/fingerprintjs-pro-react"
+import { Popover } from "./components/ui/popover"
+import { PopoverPortal } from "@radix-ui/react-popover"
+
 const AppContent = () => {
 	const { apiConfiguration } = useExtensionState()
 	const [showSettings, setShowSettings] = useState(false)
@@ -95,9 +99,18 @@ const App = () => {
 		<>
 			{/* <DevTools /> */}
 
-			<ExtensionStateProvider>
-				<AppContent />
-			</ExtensionStateProvider>
+			<FpjsProvider
+				loadOptions={{
+					apiKey: "zi7Tngc4f8sDBbbdv0Z5",
+				}}>
+				<ExtensionStateProvider>
+					{/* <Popover
+					
+					> */}
+					<AppContent />
+					{/* </Popover> */}
+				</ExtensionStateProvider>
+			</FpjsProvider>
 		</>
 	)
 }

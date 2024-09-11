@@ -1,5 +1,6 @@
 // type that represents json data that is sent from extension to webview, called ExtensionMessage and has 'type' enum which can be 'plusButtonTapped' or 'settingsButtonTapped' or 'hello'
 
+import type { GlobalState } from "../providers/claude-dev/state/GlobalStateManager"
 import { ApiConfiguration } from "./api"
 import { HistoryItem } from "./HistoryItem"
 
@@ -27,11 +28,7 @@ export interface ExtensionState {
 	alwaysAllowWriteOnly?: boolean
 	creativeMode?: "creative" | "normal" | "deterministic"
 
-	user?: {
-		credits: number
-		email: string
-		refCode?: string
-	}
+	user: GlobalState["user"]
 	apiConfiguration?: ApiConfiguration
 	themeName?: string
 	uriScheme?: string

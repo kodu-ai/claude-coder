@@ -1,8 +1,8 @@
 import osName from "os-name"
-import { cwd } from "./utils"
 import defaultShell from "default-shell"
 import os from "os"
-import { getPythonEnvPath } from "../utils/get-python-env"
+import { getPythonEnvPath } from "../../utils/get-python-env"
+import { cwd } from "./utils"
 
 export const SYSTEM_PROMPT =
 	async () => `You are Claude Dev, a highly skilled software developer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.

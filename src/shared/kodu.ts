@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 
-// const KODU_BASE_URL = "http://localhost:3000"
-const KODU_BASE_URL = "https://kodu.ai"
+const KODU_BASE_URL = "http://localhost:3000"
+// const KODU_BASE_URL = "https://kodu.ai"
 
 export function getKoduSignInUrl(uriScheme?: string, extensionName?: string) {
 	console.log("uriScheme", uriScheme)
@@ -13,12 +13,20 @@ export function getKoduReferUrl(_uriScheme?: string) {
 	return `${KODU_BASE_URL}/dashboard/referrals`
 }
 
+export function getKoduOfferUrl(_uriScheme?: string) {
+	return `${KODU_BASE_URL}/dashboard/offerwall`
+}
+
 export function getKoduAddCreditsUrl(_uriScheme?: string) {
 	return `${KODU_BASE_URL}/pricing`
 }
 
 export function getKoduCurrentUser() {
 	return `${KODU_BASE_URL}/api/me`
+}
+
+export function getKoduVisitorUrl() {
+	return `${KODU_BASE_URL}/api/extension/visitor`
 }
 
 export function getKoduInferenceUrl() {

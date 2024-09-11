@@ -1,8 +1,8 @@
 {
 	"name": "claude-dev-experimental",
-	"displayName": "Claude Coder - Code with Claude dev, AI Coding",
-	"description": "Meet Kodu Coder, build your dream project from prompt to production, Kodu is an Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, and more with your permission every step of the way. it utilizes the power of Anthropic,Claude, Claude Dev, Aider, GPT-4, Sonnet, LLM and more to provide you with the best coding experience. Kodu is a no-code AI that can help you with your coding tasks, from writing code to debugging, Kodu is here to help you.",
-	"version": "1.5.9",
+	"displayName": "Claude Coder by Kodu",
+	"description": "Meet Kodu Coder, Kodu is an Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, and more with your permission every step of the way. it utilizes the power of Anthropic Claude to provide you with the best coding experience. Kodu is aimed towards no-coders and senior coders, It's an AI that can help you with your coding tasks, from writing code to debugging, Kodu is here to help you.",
+	"version": "1.5.11",
 	"icon": "assets/icon.png",
 	"engines": {
 		"vscode": "^1.84.0"
@@ -78,6 +78,10 @@
 			]
 		},
 		"commands": [
+			{
+				"command": "extension.openExternalLink",
+				"title": "Open External Link"
+			},
 			{
 				"command": "kodu-claude-coder-upstream.plusButtonTapped",
 				"title": "New Task",
@@ -190,6 +194,7 @@
 		"serialize-error": "^11.0.3",
 		"tree-kill": "^1.2.2",
 		"tree-sitter-wasms": "^0.1.11",
-		"web-tree-sitter": "^0.22.6"
+		"web-tree-sitter": "^0.22.6",
+		"zod": "^3.23.8"
 	}
 }

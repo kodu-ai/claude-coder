@@ -4,7 +4,6 @@
 #root {
 	max-width: 1280px;
 	margin: 0 auto;
-	padding: 2rem;
 	text-align: start;
 }
 
@@ -124,11 +123,18 @@ https://github.com/gitkraken/vscode-gitlens/blob/b1d71d4844523e8b2ef16f9e007068e
 
 html {
 	height: 100%;
+	width: 100%;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
-
+#root {
+	height: 100%;
+	width: 100%;
+}
 body {
+	height: 100%;
+	padding: 0;
+	width: 100%;
 	margin: 0;
 	font-size: var(--vscode-font-size);
 }

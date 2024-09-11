@@ -3,8 +3,8 @@ import { serializeError } from "serialize-error"
 
 import { parseSourceCodeForDefinitionsTopLevel } from "../../../parse-source-code"
 import { ClaudeSayTool } from "../../../shared/ExtensionMessage"
-import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
+import { ToolResponse } from "../types"
+import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../utils"
 import { AgentToolOptions, AgentToolParams } from "./types"
 import { BaseAgentTool } from "./base-agent.tool"
 

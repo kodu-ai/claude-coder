@@ -1,8 +1,8 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
 
-import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
+import { ToolResponse } from "../types"
+import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../utils"
 
 import { extractTextFromFile } from "../../../utils/extract-text"
 import { AgentToolOptions, AgentToolParams } from "./types"
