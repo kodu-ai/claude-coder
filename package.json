@@ -171,6 +171,7 @@
 		"@anthropic-ai/vertex-sdk": "^0.4.1",
 		"@types/clone-deep": "^4.0.4",
 		"@types/pdf-parse": "^1.1.4",
+		"@types/react": "^18.3.5",
 		"@vscode/codicons": "^0.0.36",
 		"axios": "^1.7.4",
 		"clone-deep": "^4.0.1",
@@ -190,6 +191,7 @@
 		"serialize-error": "^11.0.3",
 		"tree-kill": "^1.2.2",
 		"tree-sitter-wasms": "^0.1.11",
+		"vscode": "^1.1.37",
 		"web-tree-sitter": "^0.22.6"
 	}
 }

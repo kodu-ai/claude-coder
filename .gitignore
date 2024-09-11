@@ -4,3 +4,4 @@ node_modules
 .vscode-test/
 *.vsix
 .env
+webview-ui-vite/build

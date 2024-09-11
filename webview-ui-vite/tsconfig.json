@@ -1,6 +1,7 @@
 {
 	"files": [],
 	"references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }],
+	"types": ["vscode"],
 	"compilerOptions": {
 		"baseUrl": ".",
 		"paths": {

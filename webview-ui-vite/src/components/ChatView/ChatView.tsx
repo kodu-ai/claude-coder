@@ -1,22 +1,23 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, KeyboardEvent } from "react"
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
-import { VirtuosoHandle } from "react-virtuoso"
-import { useEvent, useMount } from "react-use"
+import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
+import { useEvent, useMount } from "react-use"
+import { VirtuosoHandle } from "react-virtuoso"
 import { ClaudeAsk, ClaudeSayTool, ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
-import { combineCommandSequences, COMMAND_STDIN_STRING } from "../../../../src/shared/combineCommandSequences"
+import { COMMAND_STDIN_STRING, combineCommandSequences } from "../../../../src/shared/combineCommandSequences"
 import { getApiMetrics } from "../../../../src/shared/getApiMetrics"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { getSyntaxHighlighterStyleFromTheme } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import { vscode } from "../../utils/vscode"
 import Announcement from "../Announcement/Announcement"
 import HistoryPreview from "../HistoryPreview/HistoryPreview"
-import TaskHeader from "../TaskHeader/TaskHeader"
 import KoduPromo from "../KoduPromo/KoduPromo"
+import { SelectStarterButton } from "../SelectStarter/SelectStarter"
+import TaskHeader from "../TaskHeader/TaskHeader"
+import ButtonSection from "./ButtonSection"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
-import ButtonSection from "./ButtonSection"
 
 interface ChatViewProps {
 	isHidden: boolean
@@ -513,16 +514,27 @@ const ChatView: React.FC<ChatViewProps> = ({
 						<section className="text-start">
 							<h3 className="flex-line uppercase text-alt">What can I do for you?</h3>
 							<div>
-								Thanks to{" "}
+								Leaveraging{" "}
 								<VSCodeLink
 									href="https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf"
 									style={{ display: "inline" }}>
 									Claude 3.5 Sonnet's agentic coding capabilities,
 								</VSCodeLink>{" "}
-								I can handle complex software development tasks step-by-step. With tools that let me
-								create & edit files, explore complex projects, and execute terminal commands (after you
-								grant permission), I can assist you in ways that go beyond simple code completion or
-								tech support.
+								Kodu-Coder can handle complex software development tasks step-by-step. With tools that
+								let it create & edit files, explore complex projects, and execute terminal commands,
+								Kodu-Coder can assist you in ways that go beyond simple code completion or tech support.
+							</div>
+						</section>
+						<section>
+							<div>
+								<p>Not sure where to get started ? You can start with a template</p>
+								<div
+									style={{
+										display: "flex",
+										justifyContent: "center",
+									}}>
+									<SelectStarterButton />
+								</div>
 							</div>
 						</section>
 						{taskHistory.length > 0 && <HistoryPreview showHistoryView={showHistoryView} />}
