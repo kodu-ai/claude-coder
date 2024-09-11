@@ -108,7 +108,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({}) => {
 								}, 1000)
 							}}
 							className="w-36 flex items-center"
-							appearance="secondary">
+							appearance="primary">
 							<div className="flex items-center">
 								<Loader2 className={`w-4 h-4 animate-spin mr-2 ${isLoading ? "block" : "hidden"}`} />
 								<span>Start Free Trial</span>

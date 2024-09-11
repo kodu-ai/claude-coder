@@ -82,6 +82,12 @@ export class WebviewManager {
 		} else {
 			scriptUri = `http://${localServerUrl}/src/index.tsx`
 		}
+		const stylesUri = getUri(webview, this.provider.getContext().extensionUri, [
+			"webview-ui-vite",
+			"build",
+			"assets",
+			"index.css",
+		])
 
 		const codiconsUri = getUri(webview, this.provider.getContext().extensionUri, [
 			"node_modules",
@@ -93,6 +99,23 @@ export class WebviewManager {
 
 		const nonce = getNonce()
 
+		// const csp = [
+		// 	`default-src 'none';`,
+		// 	`script-src 'unsafe-eval' https://* ${
+		// 		isProd ? `'nonce-${nonce}'` : `http://${localServerUrl} http://0.0.0.0:${localPort} 'unsafe-inline'`
+		// 	}`,
+		// 	`style-src ${webview.cspSource} 'self' 'unsafe-inline' https://*`,
+		// 	`font-src ${webview.cspSource}`,
+		// 	`img-src ${webview.cspSource} data:`,
+		// 	`connect-src https://* ${
+		// 		isProd
+		// 			? ``
+		// 			: `ws://${localServerUrl} ws://0.0.0.0:${localPort} http://${localServerUrl} http://0.0.0.0:${localPort}`
+		// 	}`,
+		// 	`frame-src https://*`,
+		// 	`child-src https://*`,
+		// 	`window-open https://*`,
+		// ]
 		const csp = [
 			`default-src 'none';`,
 			`script-src 'unsafe-eval' https://* ${
@@ -106,9 +129,6 @@ export class WebviewManager {
 					? ``
 					: `ws://${localServerUrl} ws://0.0.0.0:${localPort} http://${localServerUrl} http://0.0.0.0:${localPort}`
 			}`,
-			`frame-src https://*`,
-			`child-src https://*`,
-			`window-open https://*`,
 		]
 
 		return /*html*/ `
@@ -119,7 +139,8 @@ export class WebviewManager {
             <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
             <meta name="theme-color" content="#000000">
             <meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
-            <link href="${codiconsUri}" rel="stylesheet" />
+	        <link rel="stylesheet" type="text/css" href="${stylesUri}">
+			<link href="${codiconsUri}" rel="stylesheet" />
             <title>Claude Dev</title>
           </head>
           <body>

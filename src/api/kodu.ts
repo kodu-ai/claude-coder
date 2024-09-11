@@ -58,6 +58,7 @@ export async function initVisitor({ visitorId: vistorId }: { visitorId: string }
 		vistorId: vistorId,
 	})
 	if (response.data) {
+		console.log("response.data", response.data)
 		const result = outputSchema.parse(response.data)
 		return result
 	}

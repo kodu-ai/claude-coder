@@ -18,7 +18,7 @@ import { PopoverPortal } from "@radix-ui/react-popover"
 import EndOfTrialAlertDialog from "./components/EndOfTrialAlertDialog/end-of-trial-alert-dialog"
 
 const AppContent = () => {
-	const { apiConfiguration } = useExtensionState()
+	const { apiConfiguration, user } = useExtensionState()
 	const [showSettings, setShowSettings] = useState(false)
 	const [showHistory, setShowHistory] = useState(false)
 	const [showWelcome, setShowWelcome] = useState<boolean>(false)
@@ -68,7 +68,7 @@ const AppContent = () => {
 
 	return (
 		<>
-			{showWelcome ? (
+			{!user ? (
 				<WelcomeView />
 			) : (
 				<>

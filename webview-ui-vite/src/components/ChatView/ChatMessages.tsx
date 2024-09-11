@@ -25,7 +25,6 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 		const timer = setTimeout(() => {
 			virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: "smooth" })
 		}, 50)
-		console.log(JSON.stringify(visibleMessages, null, 2))
 
 		return () => clearTimeout(timer)
 	}, [visibleMessages])

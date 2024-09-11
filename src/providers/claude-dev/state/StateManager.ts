@@ -96,7 +96,6 @@ export class StateManager {
 	async updateKoduCredits(credits: number) {
 		const user = await this.globalStateManager.getGlobalState("user")
 		if (user) {
-			console.log(`updateKoduCredits credits: ${credits} - ${user.email}`)
 			user.credits = credits
 			await this.globalStateManager.updateGlobalState("user", user)
 		}

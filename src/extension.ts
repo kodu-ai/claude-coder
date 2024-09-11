@@ -205,6 +205,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const email = query.get("email")
 		if (token) {
 			amplitudeTracker.authSuccess()
+			console.log(`Received token: ${token}`)
 			await sidebarProvider.getApiManager().saveKoduApiKey(token)
 		}
 	}

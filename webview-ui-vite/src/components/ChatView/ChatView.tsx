@@ -94,6 +94,13 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Handle changes in messages
 	useEffect(() => {
 		const lastMessage = messages.at(-1)
+		console.log(JSON.stringify(messages, null, 2))
+		console.log(
+			`messages.length > 0 && messages.at(-1)?.say === "api_req_started" : ${
+				messages.length > 0 && messages.at(-1)?.say === "api_req_started"
+			}`
+		)
+		console.log(`messages.at(-1) : ${JSON.stringify(messages.at(-1), null, 2)}`)
 		if (lastMessage) {
 			switch (lastMessage.type) {
 				case "ask":
@@ -306,6 +313,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 		textAreaRef.current?.focus()
 	})
 
+	const isAbortAllowed = messages.length > 2 && messages.at(-1)?.say === "api_req_started"
+
 	// Handle ask messages
 	const handleAskMessage = (message: any) => {
 		// This function updates the component state based on the type of ask message received
@@ -325,6 +334,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 				setSecondaryButtonText("Start New Task")
 				break
 			case "followup":
+				console.log("followup")
 				setTextAreaDisabled(false)
 				setClaudeAsk("followup")
 				setEnableButtons(false)
@@ -541,6 +551,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 							primaryButtonText={primaryButtonText}
 							secondaryButtonText={secondaryButtonText}
 							enableButtons={enableButtons}
+							isRequestRunning={isAbortAllowed}
 							handlePrimaryButtonClick={handlePrimaryButtonClick}
 							handleSecondaryButtonClick={handleSecondaryButtonClick}
 						/>

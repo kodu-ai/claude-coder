@@ -24,7 +24,7 @@ export class ApiManager {
 		return this.api
 	}
 
-	public getModelId(): string {
+	public getModelId() {
 		return this.api.getModel().id
 	}
 

@@ -1,4 +1,4 @@
-import React, { useRef } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { VSCodeButton, VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 import { formatPrice } from "../ApiOptions/utils"
 import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
@@ -16,6 +16,13 @@ interface CreditsInfoProps {
 
 const CreditsInfo: React.FC<CreditsInfoProps> = ({ koduCredits, vscodeUriScheme }) => {
 	const { user } = useExtensionState()
+	const [isOpen, setIsOpen] = useState(false)
+	useEffect(() => {
+		return () => {
+			console.log("cleanup")
+			setIsOpen(false)
+		}
+	}, [])
 	return (
 		<div
 			style={{
@@ -35,7 +42,7 @@ const CreditsInfo: React.FC<CreditsInfoProps> = ({ koduCredits, vscodeUriScheme 
 				{formatPrice(koduCredits || 0)}
 				<>
 					{" "}
-					<Popover>
+					<Popover open={isOpen} onOpenChange={setIsOpen}>
 						<PopoverTrigger asChild>
 							<VSCodeLink style={{ fontSize: "0.9em" }}>
 								{

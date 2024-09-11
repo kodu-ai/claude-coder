@@ -1,5 +1,5 @@
 import * as vscode from "vscode"
-import { ApiModelId } from "../../../shared/api"
+import { ApiModelId, koduDefaultModelId, koduModels } from "../../../shared/api"
 import { fetchKoduUser as fetchKoduUserAPI, initVisitor } from "../../../api/kodu"
 import { ClaudeDevProvider } from "../ClaudeDevProvider"
 
@@ -19,6 +19,7 @@ export class ApiManager {
 	async initFreeTrialUser(visitorId: string) {
 		this.context.getSecretStateManager().updateSecretState("fp", visitorId)
 		const data = await initVisitor({ visitorId })
+		console.log("initVisitor data", data)
 		if (data) {
 			await this.saveKoduApiKey(data.apiKey)
 		}
@@ -26,6 +27,16 @@ export class ApiManager {
 
 	async saveKoduApiKey(apiKey: string) {
 		await this.context.getSecretStateManager().updateSecretState("koduApiKey", apiKey)
+		console.log("Saved Kodu API key")
+		const modelId = await this.context.getKoduDev()?.getStateManager().apiManager.getModelId()
+		await this.context
+			.getKoduDev()
+			?.getStateManager()
+			.apiManager.updateApi({
+				koduApiKey: apiKey,
+				apiModelId:
+					modelId ?? this.context.getGlobalStateManager().getGlobalState("apiModelId") ?? koduDefaultModelId,
+			})
 		// await this.context.globalState.update("shouldShowKoduPromo", false)
 		const user = await this.fetchKoduUser(apiKey)
 		// await this.context.globalState.update("user", user)

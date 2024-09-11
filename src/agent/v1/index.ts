@@ -8,7 +8,7 @@ import { ToolExecutor } from "./tool-executor"
 import { KoduDevOptions, ToolResponse, UserContent } from "./types"
 import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "./utils"
 import { StateManager } from "./state-manager"
-import { AskResponse, TaskExecutor } from "./task-executor"
+import { AskResponse, TaskExecutor, TaskState } from "./task-executor"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
@@ -66,6 +66,16 @@ export class KoduDev {
 
 	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
 		console.log(`Is there a pending ask response? ${!!this.pendingAskResponse}`)
+		if (this.taskExecutor.state === TaskState.ABORTED && (text || images)) {
+			let textBlock: Anthropic.TextBlockParam = {
+				type: "text",
+				text: text ?? "",
+			}
+			let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
+			console.log(`current api history: ${JSON.stringify(this.stateManager.state.apiConversationHistory)}`)
+			await this.taskExecutor.newMessage([textBlock, ...imageBlocks])
+			return
+		}
 		if (this.pendingAskResponse) {
 			this.pendingAskResponse({ response: askResponse, text, images })
 			this.pendingAskResponse = null

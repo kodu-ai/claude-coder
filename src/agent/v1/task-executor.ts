@@ -9,8 +9,9 @@ import { amplitudeTracker } from "../../utils/amplitude"
 import { getApiMetrics } from "../../shared/getApiMetrics"
 import { combineApiRequests } from "../../shared/combineApiRequests"
 import { ToolInput } from "./tools/types"
+import { ToolResultBlockParam } from "@anthropic-ai/sdk/resources/messages.mjs"
 
-enum TaskState {
+export enum TaskState {
 	IDLE = "IDLE",
 	WAITING_FOR_API = "WAITING_FOR_API",
 	PROCESSING_RESPONSE = "PROCESSING_RESPONSE",
@@ -35,7 +36,7 @@ class TaskError extends Error {
 }
 
 export class TaskExecutor {
-	private state: TaskState = TaskState.IDLE
+	public state: TaskState = TaskState.IDLE
 	private stateManager: StateManager
 	private toolExecutor: ToolExecutor
 	private currentUserContent: UserContent | null = null
@@ -59,6 +60,7 @@ export class TaskExecutor {
 		this.isRequestCancelled = false
 		this.abortController = new AbortController()
 		this.currentUserContent = message
+		this.say("user_feedback", message[0].type === "text" ? message[0].text : "New message")
 		await this.makeClaudeRequest()
 	}
 
@@ -99,20 +101,58 @@ export class TaskExecutor {
 			return // Prevent multiple cancellations
 		}
 
+		// check if this is the first message
+		if (this.stateManager.state.claudeMessages.length === 2) {
+			// cant cancel the first message
+			return
+		}
 		this.logState("Cancelling current request")
+
 		this.isRequestCancelled = true
 		this.abortController?.abort()
 		this.state = TaskState.ABORTED
-
 		// Immediately update UI
-		await this.say(
-			"error",
-			"Request cancelled by user [This is still billed if request is already made to provider]"
-		)
+		this.stateManager.popLastClaudeMessage()
+		await this.ask("followup", "The current request has been cancelled. Would you like to ask a new question ?")
 		// Update the provider state
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
+	// overrideLastToolUseContent(conversation: any): UserContent {
+	// 	if (conversation.length === 0) {
+	// 		return conversation
+	// 	}
+
+	// 	// Create a deep copy of the conversation to avoid mutating the original
+	// 	const updatedConversation = [...conversation]
+
+	// 	const lastMessage = updatedConversation.at(-1)
+	// 	if (!lastMessage || lastMessage.role !== "user" || !Array.isArray(lastMessage.content)) {
+	// 		return conversation
+	// 	}
+
+	// 	// Find the index of the last tool_use content item
+	// 	const lastMessagedPatched = lastMessage.content?.map((item) => {
+	// 		if (item.type === "tool_result") {
+	// 			return { ...item, content: "Aborted mid-execution by user" }
+	// 		}
+	// 		return item
+	// 	})
+	// 	const patchedConver = [...updatedConversation.slice(0, -1), ...lastMessagedPatched]
+
+	// 	return patchedConver
+	// }
+
+	// isLastMessageToolUse(conversation: StateManager["state"]["apiConversationHistory"]): boolean {
+	// 	if (conversation.length === 0) {
+	// 		return false
+	// 	}
+
+	// 	const lastMessage = conversation[conversation.length - 1]
+
+	// 	// Check if any of the content items in the last message is a tool_use or tool_result
+	// 	return lastMessage.content.some((item) => item.type === "tool_use" || item.type === "tool_result")
+	// }
 	public async makeClaudeRequest(): Promise<void> {
 		console.log(`[TaskExecutor] makeClaudeRequest (State: ${this.state})`)
 		console.log(`[TaskExecutor] makeClaudeRequest (isRequestCancelled: ${this.isRequestCancelled})`)
@@ -129,6 +169,11 @@ export class TaskExecutor {
 		try {
 			this.logState("Making Claude API request")
 			const tempHistoryLength = this.stateManager.state.apiConversationHistory.length
+			console.log(`[TaskExecutor] tempHistoryLength:`, tempHistoryLength)
+			console.log(
+				`[TaskExecutor] stateManager.state.apiConversationHistory:`,
+				JSON.stringify(this.stateManager.state.apiConversationHistory)
+			)
 			await this.stateManager.addToApiConversationHistory({ role: "user", content: this.currentUserContent })
 			await this.say(
 				"api_req_started",
@@ -163,8 +208,6 @@ export class TaskExecutor {
 
 			if (this.isRequestCancelled) {
 				this.logState("Request cancelled, ignoring response")
-				// remove it from the internal history of anthropic
-				this.stateManager.state.apiConversationHistory.splice(tempHistoryLength)
 				return
 			}
 
@@ -181,6 +224,21 @@ export class TaskExecutor {
 					return
 				}
 				await this.handleApiError(new TaskError({ type: "UNKNOWN_ERROR", message: error.message }))
+			} else {
+				// console.log(`api history before pop:`, JSON.stringify(this.stateManager.state.apiConversationHistory))
+				// const isLastMessageToolUse = this.isLastMessageToolUse(this.stateManager.state.apiConversationHistory)
+				// console.log(`isLastMessageToolUse:`, isLastMessageToolUse)
+				// if (isLastMessageToolUse) {
+				// 	// update the content to "Aborted mid-execution by user"
+				// 	const res = this.overrideLastToolUseContent(this.stateManager.state.apiConversationHistory)
+				// 	this.stateManager.overwriteApiConversationHistory(res)
+				// 	return
+				// }
+				// this.stateManager.popLastApiConversationMessage()
+				// this.isRequestCancelled = true
+				// this.abortController?.abort()
+				// this.state = TaskState.ABORTED
+				console.log(`[TaskExecutor] Request was cancelled, ignoring error`)
 			}
 		}
 	}
@@ -288,6 +346,7 @@ export class TaskExecutor {
 		}
 
 		if (assistantResponses.length > 0) {
+			console.log(`[TaskExecutor] assistantResponses:`, assistantResponses)
 			await this.stateManager.addToApiConversationHistory({ role: "assistant", content: assistantResponses })
 		} else {
 			await this.say("error", "Unexpected Error: No assistant messages were found in the API response")
@@ -297,6 +356,7 @@ export class TaskExecutor {
 			})
 		}
 		if (this.currentToolResults.length > 0) {
+			console.log(`[TaskExecutor] assistantResponses:`, assistantResponses)
 			const completionAttempted = this.currentToolResults.some(
 				(result) =>
 					result.content === "" &&

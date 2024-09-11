@@ -43,22 +43,6 @@ const InputArea: React.FC<InputAreaProps> = ({
 	const [isTextAreaFocused, setIsTextAreaFocused] = useState(false)
 	return (
 		<>
-			{/* <div
-				className={cn(
-					`fixed bottom-[72px] left-[12px] transition-all duration-300`,
-					// animate fade in out
-					isRequestRunning ? "opacity-100" : "opacity-0",
-					// if not running make it unclickable
-					isRequestRunning ? "pointer-events-auto" : "pointer-events-none"
-				)}>
-				<VSCodeButton
-					onClick={() => {
-						vscode.postMessage({ type: "cancelCurrentRequest" })
-					}}>
-					Abort Request
-				</VSCodeButton>
-			</div> */}
-
 			<div
 				style={{
 					padding: "8px 16px",
@@ -80,7 +64,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 				<DynamicTextArea
 					ref={textAreaRef}
 					value={inputValue}
-					disabled={textAreaDisabled}
+					disabled={textAreaDisabled || isRequestRunning}
 					onChange={(e) => setInputValue(e.target.value)}
 					onKeyDown={handleKeyDown}
 					onFocus={() => setIsTextAreaFocused(true)}

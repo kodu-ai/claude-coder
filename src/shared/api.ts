@@ -30,7 +30,7 @@ export interface ModelInfo {
 	cacheReadsPrice?: number
 }
 
-export type ApiModelId = AnthropicModelId | OpenRouterModelId | BedrockModelId | VertexModelId
+export type ApiModelId = AnthropicModelId | OpenRouterModelId | BedrockModelId | VertexModelId | KoduModelId
 
 // Anthropic
 // https://docs.anthropic.com/en/docs/about-claude/models
