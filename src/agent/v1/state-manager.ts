@@ -55,6 +55,10 @@ export class StateManager {
 		return this.state.claudeMessages.pop()
 	}
 
+	public popLastApiConversationMessage(): Anthropic.MessageParam | undefined {
+		return this.state.apiConversationHistory.pop()
+	}
+
 	// Getter methods for read-only access
 	get state(): KoduDevState {
 		return this._state
