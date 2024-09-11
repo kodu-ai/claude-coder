@@ -23,11 +23,12 @@ export interface ExtensionMessage {
 export interface ExtensionState {
 	version: string
 	maxRequestsPerTask?: number
+	lastShownAnnouncementId?: string
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
 	alwaysAllowWriteOnly?: boolean
 	creativeMode?: "creative" | "normal" | "deterministic"
-
+	fpjsKey?: string
 	user: GlobalState["user"]
 	apiConfiguration?: ApiConfiguration
 	themeName?: string
@@ -37,6 +38,7 @@ export interface ExtensionState {
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean
 	shouldShowKoduPromo: boolean
+	fingerprint?: string
 }
 
 export interface ClaudeMessage {

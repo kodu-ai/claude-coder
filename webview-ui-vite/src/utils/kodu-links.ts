@@ -8,7 +8,7 @@ export const loginKodu = (props: { uriScheme: string; extensionName: string }) =
 	})
 	vscode.postMessage({
 		type: "openExternalLink",
-		url: "https://kodu.ai/auth/login?redirectTo=vscode://kodu-ai.claude-dev-experimental&ext=1",
+		url: getKoduSignInUrl(props.uriScheme, props.extensionName),
 	})
 }
 

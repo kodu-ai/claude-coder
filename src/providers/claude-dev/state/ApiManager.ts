@@ -17,6 +17,7 @@ export class ApiManager {
 	}
 
 	async initFreeTrialUser(visitorId: string) {
+		this.context.getSecretStateManager().updateSecretState("fp", visitorId)
 		const data = await initVisitor({ visitorId })
 		if (data) {
 			await this.saveKoduApiKey(data.apiKey)

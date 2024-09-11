@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { FpjsProvider } from "@fingerprintjs/fingerprintjs-pro-react"
 import { Popover } from "./components/ui/popover"
 import { PopoverPortal } from "@radix-ui/react-popover"
+import EndOfTrialAlertDialog from "./components/EndOfTrialAlertDialog/end-of-trial-alert-dialog"
 
 const AppContent = () => {
 	const { apiConfiguration } = useExtensionState()
@@ -94,23 +95,31 @@ const AppContent = () => {
 	)
 }
 
+const FPJSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+	const { fpjsKey } = useExtensionState()
+	return (
+		<FpjsProvider
+			loadOptions={{
+				apiKey: fpjsKey ?? "fpjs_key",
+			}}>
+			{children}
+		</FpjsProvider>
+	)
+}
+
 const App = () => {
 	return (
 		<>
 			{/* <DevTools /> */}
 
-			<FpjsProvider
-				loadOptions={{
-					apiKey: "zi7Tngc4f8sDBbbdv0Z5",
-				}}>
-				<ExtensionStateProvider>
-					{/* <Popover
-					
-					> */}
+			<ExtensionStateProvider>
+				<FPJSProvider>
 					<AppContent />
-					{/* </Popover> */}
-				</ExtensionStateProvider>
-			</FpjsProvider>
+				</FPJSProvider>
+
+				<EndOfTrialAlertDialog />
+				{/* </Popover> */}
+			</ExtensionStateProvider>
 		</>
 	)
 }

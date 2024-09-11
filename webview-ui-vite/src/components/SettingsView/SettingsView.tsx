@@ -53,7 +53,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 		setMaxRequestsErrorMessage(maxRequestsValidationResult)
 
 		if (!apiValidationResult && !maxRequestsValidationResult) {
-			vscode.postMessage({ type: "apiConfiguration", apiConfiguration })
+			vscode.postMessage({ type: "apiConfiguration", apiConfiguration: apiConfiguration! })
 			vscode.postMessage({ type: "maxRequestsPerTask", text: maxRequestsPerTaskString })
 			vscode.postMessage({ type: "alwaysAllowWriteOnly", bool: alwaysAllowWriteOnly })
 			vscode.postMessage({ type: "customInstructions", text: customInstructions })

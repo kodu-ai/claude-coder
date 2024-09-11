@@ -181,6 +181,7 @@
 		"default-shell": "^2.2.0",
 		"delay": "^6.0.0",
 		"diff": "^5.2.0",
+		"dotenv": "^16.4.5",
 		"execa": "^9.3.0",
 		"globby": "^14.0.2",
 		"image-size": "^1.1.1",

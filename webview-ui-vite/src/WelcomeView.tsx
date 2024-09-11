@@ -9,7 +9,7 @@ import { vscode } from "./utils/vscode"
 interface WelcomeViewProps {}
 
 const WelcomeView: React.FC<WelcomeViewProps> = ({}) => {
-	const { uriScheme, extensionName } = useExtensionState()
+	const { uriScheme, extensionName, fingerprint } = useExtensionState()
 	const { getData } = useVisitorData()
 	const [isLoading, setIsLoading] = React.useState(false)
 	return (
@@ -20,7 +20,12 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({}) => {
 					<Info className="text-[var(--vscode-notificationsInfoIcon-foreground)] flex-shrink-0 w-4 h-4" />
 					<div>
 						Explore Claude's capabilities with <span className="font-semibold">$10 free credits</span> from{" "}
-						<VSCodeLink href="#" className="text-[var(--vscode-textLink-foreground)]">
+						<VSCodeLink
+							onClick={() => {
+								if (uriScheme && extensionName) loginKodu({ uriScheme, extensionName })
+							}}
+							href="#"
+							className="text-[var(--vscode-textLink-foreground)]">
 							Kodu.ai
 						</VSCodeLink>
 					</div>
@@ -38,7 +43,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({}) => {
 							href="https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf"
 							className="text-[var(--vscode-textLink-foreground)]">
 							Claude 3.5 Sonnet's advanced AI capabilities
-						</VSCodeLink>
+						</VSCodeLink>{" "}
 						assisting you with a wide range of coding tasks.
 					</div>
 					{/* </Balancer> */}
@@ -86,8 +91,16 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({}) => {
 							disabled={isLoading}
 							onClick={async () => {
 								setIsLoading(true)
+								if (fingerprint) {
+									vscode.postMessage({ type: "freeTrial", fp: fingerprint })
+									setTimeout(() => {
+										setIsLoading(false)
+									}, 5000)
+									return
+								}
 								const data = await { getData }.getData()
 								if (data?.visitorId) {
+									console.log(`NO FP: ${data.visitorId}`)
 									vscode.postMessage({ type: "freeTrial", fp: data.visitorId })
 								}
 								setTimeout(() => {

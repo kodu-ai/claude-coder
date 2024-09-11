@@ -38,6 +38,13 @@ export const creativeModeAtom = atom<"creative" | "normal" | "deterministic">("n
 creativeModeAtom.debugLabel = "creativeMode"
 const extensionNameAtom = atom<string | undefined>(undefined)
 extensionNameAtom.debugLabel = "extensionName"
+
+const fingerprintAtom = atom<string | undefined>(undefined)
+fingerprintAtom.debugLabel = "fingerprint"
+
+const fpjsKeyAtom = atom<string | undefined>(undefined)
+fpjsKeyAtom.debugLabel = "fpjsKey"
+
 // Derived atom for the entire state
 const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
@@ -49,7 +56,9 @@ const extensionStateAtom = atom((get) => ({
 	uriScheme: get(uriSchemeAtom),
 	maxRequestsPerTask: get(maxRequestsPerTaskAtom),
 	customInstructions: get(customInstructionsAtom),
+	fingerprint: get(fingerprintAtom),
 	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
+	fpjsKey: get(fpjsKeyAtom),
 	extensionName: get(extensionNameAtom),
 	themeName: get(themeNameAtom),
 	user: get(userAtom),
@@ -74,11 +83,13 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setUser = useSetAtom(userAtom)
 	const setThemeName = useSetAtom(themeNameAtom)
+	const setFingerprint = useSetAtom(fingerprintAtom)
 	const setUriScheme = useSetAtom(uriSchemeAtom)
 	const setDidHydrateState = useSetAtom(didHydrateStateAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 	const setExtensionName = useSetAtom(extensionNameAtom)
+	const setFpjsKey = useSetAtom(fpjsKeyAtom)
 
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
@@ -98,6 +109,8 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setAlwaysAllowWriteOnly(!!message.state.alwaysAllowWriteOnly)
 			setDidHydrateState(true)
 			setThemeName(message.state.themeName)
+			setFpjsKey(message.state.fpjsKey)
+			setFingerprint(message.state.fingerprint)
 			setUriScheme(message.state.uriScheme)
 			setCreativeMode(message.state.creativeMode ?? "normal")
 		}

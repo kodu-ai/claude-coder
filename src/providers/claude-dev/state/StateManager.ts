@@ -6,6 +6,7 @@ import { HistoryItem } from "../../../shared/HistoryItem"
 import { SecretStateManager } from "./SecretStateManager"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
 import { ClaudeDevProvider } from "../ClaudeDevProvider"
+import { ExtensionState } from "../../../shared/ExtensionMessage"
 export class StateManager {
 	private globalStateManager: GlobalStateManager
 	private secretStateManager: SecretStateManager
@@ -30,6 +31,7 @@ export class StateManager {
 			taskHistory,
 			shouldShowKoduPromo,
 			creativeMode,
+			fp,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.secretStateManager.getSecretState("koduApiKey"),
@@ -42,7 +44,10 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("taskHistory"),
 			this.globalStateManager.getGlobalState("shouldShowKoduPromo"),
 			this.globalStateManager.getGlobalState("creativeMode"),
+			this.secretStateManager.getSecretState("fp"),
 		])
+
+		console.log(`fpjsKey: ${process.env.FPJS_API_KEY}`)
 
 		return {
 			apiConfiguration: {
@@ -54,11 +59,16 @@ export class StateManager {
 			lastShownAnnouncementId,
 			customInstructions,
 			alwaysAllowReadOnly: alwaysAllowReadOnly ?? false,
+			shouldShowAnnouncement: lastShownAnnouncementId === undefined,
+			claudeMessages: [],
+			version: this.context.context.extension.packageJSON.version,
+			fpjsKey: process.env.FPJS_API_KEY,
 			alwaysAllowWriteOnly: alwaysAllowWriteOnly ?? false,
-			taskHistory,
+			taskHistory: taskHistory ?? [],
 			shouldShowKoduPromo: shouldShowKoduPromo ?? true,
 			creativeMode: creativeMode ?? "normal",
-		}
+			fingerprint: fp,
+		} satisfies ExtensionState
 	}
 
 	async updateTaskHistory(item: HistoryItem): Promise<HistoryItem[]> {

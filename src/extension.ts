@@ -3,7 +3,8 @@
 import * as vscode from "vscode"
 import { ClaudeDevProvider } from "./providers/claude-dev/ClaudeDevProvider"
 import { amplitudeTracker } from "./utils/amplitude"
-
+import * as dotenv from "dotenv"
+import * as path from "path"
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
 
@@ -66,6 +67,8 @@ function handleFirstInstall(context: vscode.ExtensionContext) {
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+	dotenv.config({ path: path.join(context.extensionPath, ".env") })
+
 	const getCurrentUser = () => {
 		return context.globalState.get("user") as { email: string; credits: number; id: string } | undefined
 	}

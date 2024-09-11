@@ -44,7 +44,7 @@ export class AmplitudeTracker {
 		this.extensionName = extensionName
 		const userIp = await getUserIP()
 		this.ip = userIp
-		init("be2998bd738ea455757b38386f15ff70", {
+		init(process.env.AMPLITUDE_API_KEY as string, {
 			flushIntervalMillis: 0,
 		})
 

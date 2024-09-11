@@ -5,6 +5,7 @@ const secretKeys = ["koduApiKey"] as const
 
 type SecretState = {
 	koduApiKey: string
+	fp: string
 }
 
 export class SecretStateManager {

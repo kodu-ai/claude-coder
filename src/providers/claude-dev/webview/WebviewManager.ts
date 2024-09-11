@@ -56,8 +56,8 @@ export class WebviewManager {
 		const koduDevState = this.provider.getKoduDev()?.getStateManager().state
 		const extensionName = this.provider.getContext().extension?.packageJSON?.name
 		return {
-			version: this.provider.getContext().extension?.packageJSON?.version ?? "",
 			...state,
+			version: this.provider.getContext().extension?.packageJSON?.version ?? "",
 			themeName: vscode.workspace.getConfiguration("workbench").get<string>("colorTheme"),
 			uriScheme: vscode.env.uriScheme,
 			extensionName,
