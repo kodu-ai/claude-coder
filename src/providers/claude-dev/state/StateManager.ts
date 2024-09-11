@@ -47,8 +47,6 @@ export class StateManager {
 			this.secretStateManager.getSecretState("fp"),
 		])
 
-		console.log(`fpjsKey: ${process.env.FPJS_API_KEY}`)
-
 		return {
 			apiConfiguration: {
 				apiModelId,

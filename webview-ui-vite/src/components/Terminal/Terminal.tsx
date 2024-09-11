@@ -139,6 +139,7 @@ const Terminal: React.FC<TerminalProps> = ({ rawOutput, handleSendStdin, shouldA
 					width: "100%",
 					overflow: "hidden",
 					opacity: 0,
+					zIndex: -1,
 				}}
 			/>
 		</div>
