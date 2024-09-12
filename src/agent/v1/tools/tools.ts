@@ -150,4 +150,25 @@ export const tools: Tool[] = [
 			required: ["result"],
 		},
 	},
+	{
+		name: "web_search",
+		description: `Let's you ask a question about links and generate a short summary of information regarding a question,
+			you can provide a link to access directly or a search query,
+			at both stages you are required to provide a general question about this web search.`,
+		input_schema: {
+			type: "object",
+			properties: {
+				searchQuery: {
+					type: "string",
+					description: "The question you want to search for on the web. ",
+				},
+				baseLink: {
+					type: "string",
+					description:
+						"The base link provided by the user. If it is provided, you can start your search from here.",
+				},
+			},
+			required: ["searchQuery"],
+		},
+	},
 ]

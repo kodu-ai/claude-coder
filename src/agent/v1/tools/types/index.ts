@@ -12,6 +12,8 @@ export type ToolInput = {
 	command?: string
 	question?: string
 	result?: string
+	searchQuery?: string
+	baseLink?: string
 }
 
 export type AgentToolParams = {

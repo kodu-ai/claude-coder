@@ -59,6 +59,10 @@ export class KoduDev {
 		return this.stateManager
 	}
 
+	public getApiManager() {
+		return this.apiManager
+	}
+
 	private setupTaskExecutor() {
 		// Pass necessary methods to the TaskExecutor
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)

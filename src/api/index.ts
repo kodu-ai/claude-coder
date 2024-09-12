@@ -1,6 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiModelId, ModelInfo } from "../shared/api"
 import { KoduHandler } from "./kodu"
+import { WebSearchResponseDto } from "./interfaces"
 
 export interface ApiHandlerMessageResponse {
 	message: Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage
@@ -35,6 +36,8 @@ export interface ApiHandler {
 	getModel(): { id: ApiModelId; info: ModelInfo }
 
 	abortRequest(): void
+
+	sendWebSearchRequest(searchQuery: string, baseLink?: string): Promise<WebSearchResponseDto>
 }
 
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
