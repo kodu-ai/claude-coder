@@ -1,4 +1,3 @@
-import * as path from "path"
 import { serializeError } from "serialize-error"
 import { ClaudeSayTool } from "../../../shared/ExtensionMessage"
 import { ToolResponse } from "../types"
@@ -53,7 +52,7 @@ export class SearchFilesTool extends BaseAgentTool {
 		}
 
 		try {
-			const absolutePath = path.resolve(this.cwd, relDirPath)
+			const absolutePath = this.adapter.pathUtil().resolve(this.cwd, relDirPath)
 			const results = await regexSearchFiles(this.cwd, absolutePath, regex, filePattern)
 
 			const message = JSON.stringify({

@@ -1,4 +1,3 @@
-import * as path from "path"
 import { serializeError } from "serialize-error"
 import { LIST_FILES_LIMIT, listFiles } from "../../../parse-source-code"
 import { ClaudeAsk, ClaudeSay, ClaudeSayTool } from "../../../shared/ExtensionMessage"
@@ -36,7 +35,7 @@ export class ListFilesTool extends BaseAgentTool {
 
 		try {
 			const recursive = recursiveRaw?.toLowerCase() === "true"
-			const absolutePath = path.resolve(this.cwd, relDirPath)
+			const absolutePath = this.adapter.pathUtil().resolve(this.cwd, relDirPath)
 			const files = await listFiles(absolutePath, recursive)
 			const result = this.formatFilesList(absolutePath, files)
 
@@ -96,7 +95,7 @@ export class ListFilesTool extends BaseAgentTool {
 			`
 		}
 		try {
-			const absolutePath = path.resolve(this.cwd, relDirPath)
+			const absolutePath = this.adapter.pathUtil().resolve(this.cwd, relDirPath)
 			const files = await listFiles(absolutePath, false)
 			const result = this.formatFilesList(absolutePath, files)
 
@@ -156,7 +155,7 @@ export class ListFilesTool extends BaseAgentTool {
 		}
 
 		try {
-			const absolutePath = path.resolve(this.cwd, relDirPath)
+			const absolutePath = this.adapter.pathUtil().resolve(this.cwd, relDirPath)
 			const files = await listFiles(absolutePath, true)
 			const result = this.formatFilesList(absolutePath, files)
 
@@ -197,7 +196,7 @@ export class ListFilesTool extends BaseAgentTool {
 		const sorted = files
 			.map((file) => {
 				// convert absolute path to relative path
-				const relativePath = path.relative(absolutePath, file)
+				const relativePath = this.adapter.pathUtil().relative(absolutePath, file)
 				return file.endsWith("/") ? relativePath + "/" : relativePath
 			})
 			// Sort so files are listed under their respective directories to make it clear what files are children of what directories. Since we build file list top down, even if file list is truncated it will show directories that claude can then explore further.

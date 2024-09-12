@@ -1,4 +1,5 @@
 import { KoduDev } from ".."
+import { BaseAdapter } from "../../../adapters/base-tool-adapter"
 import { ToolResponse } from "../types"
 import { AgentToolOptions, AgentToolParams } from "./types"
 
@@ -8,10 +9,12 @@ export abstract class BaseAgentTool {
 	protected alwaysAllowWriteOnly: boolean
 	protected koduDev: KoduDev
 	protected setRunningProcessId: (pid: number | undefined) => void
+	protected adapter: BaseAdapter
 
 	protected abstract params: AgentToolParams
 
 	constructor(options: AgentToolOptions) {
+		this.adapter = options.adapter
 		this.cwd = options.cwd
 		this.alwaysAllowReadOnly = options.alwaysAllowReadOnly
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
@@ -23,6 +26,7 @@ export abstract class BaseAgentTool {
 
 	protected get options(): AgentToolOptions {
 		return {
+			adapter: this.adapter,
 			cwd: this.cwd,
 			alwaysAllowReadOnly: this.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: this.alwaysAllowWriteOnly,

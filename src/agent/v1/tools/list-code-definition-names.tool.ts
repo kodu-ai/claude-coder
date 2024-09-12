@@ -1,4 +1,3 @@
-import * as path from "path"
 import { serializeError } from "serialize-error"
 
 import { parseSourceCodeForDefinitionsTopLevel } from "../../../parse-source-code"
@@ -36,7 +35,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 		}
 
 		try {
-			const absolutePath = path.resolve(this.cwd, relDirPath)
+			const absolutePath = this.adapter.pathUtil().resolve(this.cwd, relDirPath)
 			const result = await parseSourceCodeForDefinitionsTopLevel(absolutePath)
 
 			const message = JSON.stringify({

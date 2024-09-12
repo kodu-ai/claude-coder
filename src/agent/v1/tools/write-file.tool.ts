@@ -1,12 +1,8 @@
 import * as diff from "diff"
-import fs from "fs/promises"
-import * as path from "path"
 import { serializeError } from "serialize-error"
-import * as vscode from "vscode"
 import { ClaudeAsk, ClaudeSay, ClaudeSayTool } from "../../../shared/ExtensionMessage"
 import { ToolResponse } from "../types"
 import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../utils"
-import os from "os"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
 import { AgentToolOptions, AgentToolParams } from "./types"
 import { BaseAgentTool } from "./base-agent.tool"
@@ -59,13 +55,10 @@ export class WriteFileTool extends BaseAgentTool {
 		}
 
 		try {
-			const absolutePath = path.resolve(this.cwd, relPath)
-			const fileExists = await fs
-				.access(absolutePath)
-				.then(() => true)
-				.catch(() => false)
+			const absolutePath = this.adapter.pathUtil().resolve(this.cwd, relPath)
+			const fileExists = await this.adapter.access(absolutePath)
 
-			let originalContent: string = fileExists ? await fs.readFile(absolutePath, "utf-8") : ""
+			let originalContent: string = fileExists ? await this.adapter.readFile(absolutePath, "utf-8") : ""
 
 			if (fileExists) {
 				const eol = originalContent.includes("\r\n") ? "\r\n" : "\n"
@@ -113,11 +106,12 @@ export class WriteFileTool extends BaseAgentTool {
 		relPath: string,
 		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
+		const path = this.adapter.pathUtil()
 		if (!fileExists) {
-			await fs.mkdir(path.dirname(absolutePath), { recursive: true })
+			await this.adapter.mkdir(path.dirname(absolutePath), { recursive: true })
 		}
-		await fs.writeFile(absolutePath, newContent)
-		await vscode.window.showTextDocument(vscode.Uri.file(absolutePath), { preview: false })
+		await this.adapter.writeFile(absolutePath, newContent)
+		await this.adapter.showTextDocument(absolutePath, { preview: false })
 
 		if (fileExists) {
 			const { text, images } = {
@@ -147,16 +141,16 @@ export class WriteFileTool extends BaseAgentTool {
 		) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>,
 		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "claude-dev-"))
-		const tempFilePath = path.join(tempDir, path.basename(absolutePath))
-		await fs.writeFile(tempFilePath, newContent)
+		const path = this.adapter.pathUtil()
+		const tempDir = await this.adapter.createTempDir("claude-dev-")
 
-		vscode.commands.executeCommand(
+		const tempFilePath = path.join(tempDir, path.basename(absolutePath))
+		await this.adapter.writeFile(tempFilePath, newContent)
+
+		await this.adapter.executeCommand(
 			"vscode.diff",
-			vscode.Uri.parse(`claude-dev-diff:${path.basename(absolutePath)}`).with({
-				query: Buffer.from(originalContent).toString("base64"),
-			}),
-			vscode.Uri.file(tempFilePath),
+			`claude-dev-diff:${path.basename(absolutePath)}`,
+			tempFilePath,
 			`${path.basename(absolutePath)}: ${fileExists ? "Original ↔ Claude's Changes" : "New File"} (Editable)`
 		)
 
@@ -173,15 +167,15 @@ export class WriteFileTool extends BaseAgentTool {
 
 		const { response, text, images } = userResponse
 
-		const diffDocument = vscode.workspace.textDocuments.find((doc) => doc.uri.fsPath === tempFilePath)
+		const diffDocument = this.adapter.getWorkspaceTextDocuments().find((doc) => doc.uri.fsPath === tempFilePath)
 		if (diffDocument && diffDocument.isDirty) {
 			await diffDocument.save()
 		}
 
 		if (response !== "yesButtonTapped") {
-			await this.closeDiffViews()
+			await this.adapter.closeDiffViews()
 			try {
-				await fs.rm(tempDir, { recursive: true, force: true })
+				await this.adapter.rmdir(tempDir, { recursive: true, force: true })
 			} catch (error) {
 				console.error(`Error deleting temporary directory: ${error}`)
 			}
@@ -194,20 +188,20 @@ export class WriteFileTool extends BaseAgentTool {
 			return "The user denied this operation."
 		}
 
-		const editedContent = await fs.readFile(tempFilePath, "utf-8")
+		const editedContent = await this.adapter.readFile(tempFilePath, "utf-8")
 		if (!fileExists) {
-			await fs.mkdir(path.dirname(absolutePath), { recursive: true })
+			await this.adapter.mkdir(path.dirname(absolutePath), { recursive: true })
 		}
-		await fs.writeFile(absolutePath, editedContent)
+		await this.adapter.writeFile(absolutePath, editedContent)
 
 		try {
-			await fs.rm(tempDir, { recursive: true, force: true })
+			await this.adapter.rmdir(tempDir, { recursive: true, force: true })
 		} catch (error) {
 			console.error(`Error deleting temporary directory: ${error}`)
 		}
 
-		await vscode.window.showTextDocument(vscode.Uri.file(absolutePath), { preview: false })
-		await this.closeDiffViews()
+		await this.adapter.showTextDocument(absolutePath, { preview: false })
+		await this.adapter.closeDiffViews()
 
 		if (editedContent !== newContent) {
 			const diffResult = diff.createPatch(relPath, originalContent, editedContent)
@@ -229,17 +223,6 @@ export class WriteFileTool extends BaseAgentTool {
 			return `${
 				fileExists ? `Changes applied to ${relPath}:\n\n${diffResult}` : `New file written to ${relPath}`
 			}`
-		}
-	}
-
-	private async closeDiffViews() {
-		const tabs = vscode.window.tabGroups.all
-			.map((tg) => tg.tabs)
-			.flat()
-			.filter((tab) => tab.input instanceof vscode.TabInputTextDiff && tab.input?.modified?.scheme === "kodu")
-
-		for (const tab of tabs) {
-			await vscode.window.tabGroups.close(tab)
 		}
 	}
 

@@ -12,6 +12,7 @@ import { AskResponse, TaskExecutor } from "./task-executor"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
+import { VSCodeAdapter } from "../../adapters/"
 
 // new KoduDev
 export class KoduDev {
@@ -21,13 +22,17 @@ export class KoduDev {
 	public taskExecutor: TaskExecutor
 	private providerRef: WeakRef<ClaudeDevProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
+	private adapter: VSCodeAdapter
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
 		this.stateManager = new StateManager(options)
 		this.providerRef = new WeakRef(provider)
 		this.apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
+		this.adapter = new VSCodeAdapter()
+
 		this.toolExecutor = new ToolExecutor({
+			adapter: this.adapter,
 			cwd: getCwd(),
 			alwaysAllowReadOnly: this.stateManager.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: this.stateManager.alwaysAllowWriteOnly,

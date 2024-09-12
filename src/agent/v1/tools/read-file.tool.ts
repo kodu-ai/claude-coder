@@ -1,4 +1,3 @@
-import * as path from "path"
 import { serializeError } from "serialize-error"
 
 import { ToolResponse } from "../types"
@@ -34,7 +33,7 @@ export class ReadFileTool extends BaseAgentTool {
 			`
 		}
 		try {
-			const absolutePath = path.resolve(this.cwd, relPath)
+			const absolutePath = this.adapter.pathUtil().resolve(this.cwd, relPath)
 			const content = await extractTextFromFile(absolutePath)
 
 			const message = JSON.stringify({

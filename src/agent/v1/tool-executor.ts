@@ -12,6 +12,7 @@ import {
 	ReadFileTool,
 	WriteFileTool,
 } from "./tools"
+import { BaseAdapter } from "../../adapters/base-tool-adapter"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined
@@ -19,8 +20,10 @@ export class ToolExecutor {
 	private alwaysAllowReadOnly: boolean
 	private alwaysAllowWriteOnly: boolean
 	private koduDev: KoduDev
+	private adapter: BaseAdapter
 
 	constructor(options: AgentToolOptions) {
+		this.adapter = options.adapter
 		this.cwd = options.cwd
 		this.alwaysAllowReadOnly = options.alwaysAllowReadOnly
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
@@ -29,6 +32,7 @@ export class ToolExecutor {
 
 	private get options(): AgentToolOptions {
 		return {
+			adapter: this.adapter,
 			cwd: this.cwd,
 			alwaysAllowReadOnly: this.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: this.alwaysAllowWriteOnly,
