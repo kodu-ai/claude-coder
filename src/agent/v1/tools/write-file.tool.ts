@@ -147,9 +147,9 @@ export class WriteFileTool extends BaseAgentTool {
 		const tempFilePath = path.join(tempDir, path.basename(absolutePath))
 		await this.adapter.writeFile(tempFilePath, newContent)
 
-		await this.adapter.executeCommand(
-			"vscode.diff",
+		await this.adapter.showDiffView(
 			`claude-dev-diff:${path.basename(absolutePath)}`,
+			originalContent,
 			tempFilePath,
 			`${path.basename(absolutePath)}: ${fileExists ? "Original ↔ Claude's Changes" : "New File"} (Editable)`
 		)

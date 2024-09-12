@@ -15,16 +15,17 @@ export class VSCodeAdapter implements BaseAdapter {
 
 	async showDiffView(
 		originalUri: string,
-		modifiedUri: string,
-		title: string,
-		options?: { preview: boolean }
+		originalContent: string,
+		tempFilePath: string,
+		title: string
 	): Promise<void> {
 		await vscode.commands.executeCommand(
 			"vscode.diff",
-			vscode.Uri.parse(originalUri),
-			vscode.Uri.file(modifiedUri),
-			title,
-			options
+			vscode.Uri.parse(originalUri).with({
+				query: Buffer.from(originalContent).toString("base64"),
+			}),
+			vscode.Uri.file(tempFilePath),
+			title
 		)
 	}
 

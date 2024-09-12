@@ -4,7 +4,7 @@ import { AdapterTextDocument } from "./interfaces"
 export interface BaseAdapter {
 	showTextDocument(filePath: string, options?: { preview: boolean }): Promise<void>
 	executeCommand(command: string, ...args: any[]): Promise<void>
-	showDiffView(originalUri: string, modifiedUri: string, title: string, options?: { preview: boolean }): Promise<void>
+	showDiffView(originalUri: string, originalContent: string, tempFilePath: string, title: string): Promise<void>
 	closeDiffViews(): Promise<void>
 	getWorkspaceTextDocuments(): AdapterTextDocument[]
 
