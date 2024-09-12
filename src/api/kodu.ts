@@ -268,6 +268,8 @@ export class KoduHandler implements ApiHandler {
 	}
 
 	async sendWebSearchRequest(searchQuery: string, baseLink: string): Promise<WebSearchResponseDto> {
+		this.cancelTokenSource = axios.CancelToken.source()
+
 		const response = await axios.post(
 			getKoduWebSearchUrl(),
 			{
@@ -279,6 +281,8 @@ export class KoduHandler implements ApiHandler {
 					"Content-Type": "application/json",
 					"x-api-key": this.options.koduApiKey || "",
 				},
+				timeout: 60_000,
+				cancelToken: this.cancelTokenSource?.token,
 			}
 		)
 

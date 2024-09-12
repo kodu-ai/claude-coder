@@ -1,12 +1,12 @@
 import * as vscode from "vscode"
-import { ExtensionMessage } from "../../../shared/ExtensionMessage"
+import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
 import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { ClaudeDevProvider } from "../ClaudeDevProvider"
 import { amplitudeTracker } from "../../../utils/amplitude"
 
 export class WebviewManager {
-	private static readonly latestAnnouncementId = "aug-28-2024"
+	private static readonly latestAnnouncementId = "sep-13-2024"
 
 	constructor(private provider: ClaudeDevProvider) {}
 
@@ -63,8 +63,9 @@ export class WebviewManager {
 			extensionName,
 			claudeMessages: koduDevState?.claudeMessages ?? [],
 			taskHistory: (state.taskHistory || []).filter((item) => item.ts && item.task).sort((a, b) => b.ts - a.ts),
-			shouldShowAnnouncement: state.lastShownAnnouncementId !== WebviewManager.latestAnnouncementId,
-		}
+			// shouldShowAnnouncement: state.lastShownAnnouncementId !== WebviewManager.latestAnnouncementId,
+			shouldShowAnnouncement: false,
+		} satisfies ExtensionState
 	}
 
 	private getHtmlContent(webview: vscode.Webview): string {

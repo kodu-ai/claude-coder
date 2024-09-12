@@ -37,7 +37,7 @@ export interface ApiHandler {
 
 	abortRequest(): void
 
-	sendWebSearchRequest(searchQuery: string, baseLink?: string): Promise<WebSearchResponseDto>
+	sendWebSearchRequest?(searchQuery: string, baseLink?: string): Promise<WebSearchResponseDto>
 }
 
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {

@@ -1,5 +1,7 @@
 import { WebSearchResponseDto } from "../../../api/interfaces"
+import { ClaudeSayTool } from "../../../shared/ExtensionMessage"
 import { ToolResponse } from "../types"
+import { formatGenericToolFeedback, formatToolResponse } from "../utils"
 import { BaseAgentTool } from "./base-agent.tool"
 import type { AgentToolOptions, AgentToolParams } from "./types"
 
@@ -12,7 +14,7 @@ export class WebSearchTool extends BaseAgentTool {
 	}
 
 	async execute(): Promise<ToolResponse> {
-		const { say, input } = this.params
+		const { say, ask, input } = this.params
 		const { searchQuery, baseLink } = input
 
 		if (!searchQuery) {
@@ -27,8 +29,29 @@ export class WebSearchTool extends BaseAgentTool {
 				}
 				Please try again with the correct searchQuery, you are not allowed to search without a searchQuery.`
 		}
+		const message = JSON.stringify({
+			tool: "web_search",
+			query: searchQuery,
+			baseLink: baseLink,
+		} as ClaudeSayTool)
+		const { response, text, images } = await ask("tool", message)
+		if (response !== "yesButtonTapped") {
+			if (response === "messageResponse") {
+				await say("user_feedback", text, images)
+				return formatToolResponse(formatGenericToolFeedback(text), images)
+			}
 
-		const result = await this.koduDev.getApiManager().getApi().sendWebSearchRequest(searchQuery, baseLink)
-		return `This is the result of the web search: ${result.content}`
+			return "The user denied this operation."
+		}
+		try {
+			const result = await this.koduDev.getApiManager().getApi()?.sendWebSearchRequest?.(searchQuery, baseLink)
+			if (!result) {
+				return "Web search failed with error: No result found."
+			}
+			console.log("Web search result: ", result)
+			return `This is the result of the web search: ${result.content}`
+		} catch (err) {
+			return `Web search failed with error: ${err}`
+		}
 	}
 }

@@ -121,7 +121,9 @@ const UserFeedbackDiffMessage: React.FC<{
 				The user made the following changes:
 			</span>
 			<CodeBlock
+				// @ts-ignore - diff is not always defined
 				diff={tool.diff!}
+				// @ts-ignore - path is not always defined
 				path={tool.path!}
 				syntaxHighlighterStyle={syntaxHighlighterStyle}
 				isExpanded={isExpanded}
@@ -228,6 +230,7 @@ const ChatRow: React.FC<ChatRowProps> = ({
 								message={message}
 								syntaxHighlighterStyle={syntaxHighlighterStyle}
 								isExpanded={isExpanded}
+								nextMessage={nextMessage}
 								onToggleExpand={onToggleExpand}
 							/>
 						)

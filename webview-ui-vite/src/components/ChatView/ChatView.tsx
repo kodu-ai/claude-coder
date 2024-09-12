@@ -121,7 +121,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	// Filter visible messages
 	const visibleMessages = useMemo(() => {
-		console.log(JSON.stringify(modifiedMessages))
 		return modifiedMessages.filter((message) => {
 			if (
 				(message.ask === "completion_result" && message.text === "") ||

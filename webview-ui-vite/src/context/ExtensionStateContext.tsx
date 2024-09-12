@@ -14,7 +14,7 @@ const claudeMessagesAtom = atom<ClaudeMessage[]>([])
 claudeMessagesAtom.debugLabel = "claudeMessages"
 const taskHistoryAtom = atom<HistoryItem[]>([])
 taskHistoryAtom.debugLabel = "taskHistory"
-const shouldShowAnnouncementAtom = atom(false)
+export const shouldShowAnnouncementAtom = atom(false)
 shouldShowAnnouncementAtom.debugLabel = "shouldShowAnnouncement"
 const shouldShowKoduPromoAtom = atom(false)
 shouldShowKoduPromoAtom.debugLabel = "shouldShowKoduPromo"
@@ -46,7 +46,7 @@ const fpjsKeyAtom = atom<string | undefined>(undefined)
 fpjsKeyAtom.debugLabel = "fpjsKey"
 
 // Derived atom for the entire state
-const extensionStateAtom = atom((get) => ({
+export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
 	claudeMessages: get(claudeMessagesAtom),
 	taskHistory: get(taskHistoryAtom),

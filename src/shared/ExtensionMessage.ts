@@ -75,18 +75,25 @@ export type ClaudeSay =
 	| "tool"
 	| "abort_automode"
 
-export interface ClaudeSayTool {
-	tool:
-		| "editedExistingFile"
-		| "newFileCreated"
-		| "readFile"
-		| "listFilesTopLevel"
-		| "listFilesRecursive"
-		| "listCodeDefinitionNames"
-		| "searchFiles"
-	path?: string
-	diff?: string
-	content?: string
-	regex?: string
-	filePattern?: string
+type WebSearchTool = {
+	tool: "web_search"
+	query: string
+	baseLink: string
 }
+export type ClaudeSayTool =
+	| WebSearchTool
+	| {
+			tool:
+				| "editedExistingFile"
+				| "newFileCreated"
+				| "readFile"
+				| "listFilesTopLevel"
+				| "listFilesRecursive"
+				| "listCodeDefinitionNames"
+				| "searchFiles"
+			path?: string
+			diff?: string
+			content?: string
+			regex?: string
+			filePattern?: string
+	  }

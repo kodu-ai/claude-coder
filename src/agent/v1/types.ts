@@ -7,7 +7,7 @@ import { HistoryItem } from "../../shared/HistoryItem"
 import { ClaudeMessage } from "../../shared/ExtensionMessage"
 import { WebSearchResponseDto } from "../../api/interfaces"
 
-export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam> | WebSearchResponseDto
+export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>
 export type UserContent = Array<
 	Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam
 >
