@@ -6,12 +6,14 @@ import {
 	getKoduCurrentUser,
 	getKoduInferenceUrl,
 	getKoduVisitorUrl,
+	getKoduWebSearchUrl,
 	KODU_ERROR_CODES,
 	KoduError,
 	koduErrorMessages,
 	koduSSEResponse,
 } from "../shared/kodu"
 import { z } from "zod"
+import { WebSearchResponseDto } from "./interfaces"
 const temperatures = {
 	creative: {
 		top_p: 0.8,
@@ -263,5 +265,23 @@ export class KoduHandler implements ApiHandler {
 			return { id, info: koduModels[id] }
 		}
 		return { id: koduDefaultModelId, info: koduModels[koduDefaultModelId] }
+	}
+
+	async sendWebSearchRequest(searchQuery: string, baseLink: string): Promise<WebSearchResponseDto> {
+		const response = await axios.post(
+			getKoduWebSearchUrl(),
+			{
+				searchQuery,
+				baseLink,
+			},
+			{
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
+				},
+			}
+		)
+
+		return response.data
 	}
 }
