@@ -2,6 +2,7 @@ import { ClaudeAsk, ClaudeSay } from "../../../../shared/ExtensionMessage"
 import { ToolName } from "../../../../shared/Tool"
 import { ClaudeAskResponse } from "../../../../shared/WebviewMessage"
 import { KoduDev } from "../.."
+import { BaseAdapter } from "../../../../adapters"
 
 export type ToolInput = {
 	path?: string
@@ -27,6 +28,7 @@ export type AgentToolParams = {
 }
 
 export type AgentToolOptions = {
+	adapter: BaseAdapter
 	cwd: string
 	alwaysAllowReadOnly: boolean
 	alwaysAllowWriteOnly: boolean
