@@ -158,7 +158,7 @@ export const tools: Tool[] = [
 		input_schema: {
 			type: "object",
 			properties: {
-				question: {
+				searchQuery: {
 					type: "string",
 					description: "The question you want to search for on the web. ",
 				},
@@ -168,7 +168,7 @@ export const tools: Tool[] = [
 						"The base link provided by the user. If it is provided, you can start your search from here.",
 				},
 			},
-			required: ["question"],
+			required: ["searchQuery"],
 		},
 	},
 ]
