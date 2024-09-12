@@ -1,8 +1,8 @@
 {
 	"name": "claude-dev-experimental",
-	"displayName": "Claude Coder by Kodu",
-	"description": "Meet Kodu Coder, Kodu is an Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, and more with your permission every step of the way. it utilizes the power of Anthropic Claude to provide you with the best coding experience. Kodu is aimed towards no-coders and senior coders, It's an AI that can help you with your coding tasks, from writing code to debugging, Kodu is here to help you.",
-	"version": "1.6.2",
+	"displayName": "Claude Coder",
+	"description": "Claude Coder: Your AI pair programmer in VSCode. Powered by Anthropic's Claude, it assists both beginners and pros in coding, debugging, and more. Create/edit files and execute commands with AI guidance. Perfect for no-coders to senior devs. Enjoy free credits to supercharge your coding experience. Let Claude Coder transform your IDE into a collaborative AI workspace.",
+	"version": "1.6.3",
 	"icon": "assets/icon.png",
 	"engines": {
 		"vscode": "^1.84.0"
@@ -62,17 +62,17 @@
 		"viewsContainers": {
 			"activitybar": [
 				{
-					"id": "kodu-claude-coder-upstream-ActivityBar",
+					"id": "kodu-claude-coder-main-ActivityBar",
 					"title": "Claude Coder by Kodu",
 					"icon": "assets/kodu-logo.svg"
 				}
 			]
 		},
 		"views": {
-			"kodu-claude-coder-upstream-ActivityBar": [
+			"kodu-claude-coder-main-ActivityBar": [
 				{
 					"type": "webview",
-					"id": "kodu-claude-coder-upstream.SidebarProvider",
+					"id": "kodu-claude-coder-main.SidebarProvider",
 					"name": ""
 				}
 			]
@@ -83,27 +83,27 @@
 				"title": "Open External Link"
 			},
 			{
-				"command": "kodu-claude-coder-upstream.plusButtonTapped",
+				"command": "kodu-claude-coder-main.plusButtonTapped",
 				"title": "New Task",
 				"icon": "$(add)"
 			},
 			{
-				"command": "kodu-claude-coder-upstream.historyButtonTapped",
+				"command": "kodu-claude-coder-main.historyButtonTapped",
 				"title": "History",
 				"icon": "$(history)"
 			},
 			{
-				"command": "kodu-claude-coder-upstream.popoutButtonTapped",
+				"command": "kodu-claude-coder-main.popoutButtonTapped",
 				"title": "Open in Editor",
 				"icon": "$(link-external)"
 			},
 			{
-				"command": "kodu-claude-coder-upstream.settingsButtonTapped",
+				"command": "kodu-claude-coder-main.settingsButtonTapped",
 				"title": "Settings",
 				"icon": "$(settings-gear)"
 			},
 			{
-				"command": "kodu-claude-coder-upstream.openInNewTab",
+				"command": "kodu-claude-coder-main.openInNewTab",
 				"title": "Open In New Tab",
 				"category": "Kodu"
 			}
@@ -111,24 +111,24 @@
 		"menus": {
 			"view/title": [
 				{
-					"command": "kodu-claude-coder-upstream.plusButtonTapped",
+					"command": "kodu-claude-coder-main.plusButtonTapped",
 					"group": "navigation@1",
-					"when": "view == kodu-claude-coder-upstream.SidebarProvider"
+					"when": "view == kodu-claude-coder-main.SidebarProvider"
 				},
 				{
-					"command": "kodu-claude-coder-upstream.historyButtonTapped",
+					"command": "kodu-claude-coder-main.historyButtonTapped",
 					"group": "navigation@2",
-					"when": "view == kodu-claude-coder-upstream.SidebarProvider"
+					"when": "view == kodu-claude-coder-main.SidebarProvider"
 				},
 				{
-					"command": "kodu-claude-coder-upstream.popoutButtonTapped",
+					"command": "kodu-claude-coder-main.popoutButtonTapped",
 					"group": "navigation@3",
-					"when": "view == kodu-claude-coder-upstream.SidebarProvider"
+					"when": "view == kodu-claude-coder-main.SidebarProvider"
 				},
 				{
-					"command": "kodu-claude-coder-upstream.settingsButtonTapped",
+					"command": "kodu-claude-coder-main.settingsButtonTapped",
 					"group": "navigation@4",
-					"when": "view == kodu-claude-coder-upstream.SidebarProvider"
+					"when": "view == kodu-claude-coder-main.SidebarProvider"
 				}
 			]
 		}
