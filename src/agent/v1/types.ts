@@ -5,6 +5,7 @@ import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { HistoryItem } from "../../shared/HistoryItem"
 import { ClaudeMessage } from "../../shared/ExtensionMessage"
+import { WebSearchResponseDto } from "../../api/interfaces"
 
 export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>
 export type UserContent = Array<

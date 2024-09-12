@@ -49,7 +49,7 @@ const ButtonSection: React.FC<ButtonSectionProps> = ({
 				{primaryButtonText && (
 					<VSCodeButton
 						appearance="primary"
-						disabled={!enableButtons}
+						disabled={!enableButtons || isRequestRunning}
 						style={{
 							flex: secondaryButtonText ? 1 : 2,
 							marginRight: secondaryButtonText ? "6px" : "0",
@@ -61,7 +61,7 @@ const ButtonSection: React.FC<ButtonSectionProps> = ({
 				{secondaryButtonText && (
 					<VSCodeButton
 						appearance="secondary"
-						disabled={!enableButtons}
+						disabled={!enableButtons || isRequestRunning}
 						style={{ flex: 1, marginLeft: "6px" }}
 						onClick={handleSecondaryButtonClick}>
 						{secondaryButtonText}
