@@ -29,6 +29,6 @@ export class WebSearchTool extends BaseAgentTool {
 		}
 
 		const result = await this.koduDev.getApiManager().getApi().sendWebSearchRequest(searchQuery, baseLink)
-		return `This is the result of the web search: ${result.summary}`
+		return `This is the result of the web search: ${result.content}`
 	}
 }

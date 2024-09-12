@@ -1,3 +1,3 @@
 export type WebSearchResponseDto = {
-	summary: string
+	content: string
 }
