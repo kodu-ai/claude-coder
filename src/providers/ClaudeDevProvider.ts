@@ -10,6 +10,7 @@ import { HistoryItem } from "../shared/HistoryItem"
 import { fetchKoduUser as fetchKoduUserAPI } from "../api/kodu"
 import { ApiModelId } from "../shared/api"
 import { amplitudeTracker } from "../utils/amplitude"
+import { executeAction } from "./actions"
 
 /*
 https://github.com/microsoft/vscode-webview-ui-vite-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -33,12 +34,12 @@ export type GlobalStateKey =
 export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	public static readonly sideBarId = "kodu-claude-coder-upstream.SidebarProvider" // used in package.json as the view's id. This value cannot be changed due to how vscode caches views based on their id, and updating the id would break existing instances of the extension.
 	public static readonly tabPanelId = "kodu-claude-coder-upstream.TabPanelProvider"
-	private disposables: vscode.Disposable[] = []
-	private view?: vscode.WebviewView | vscode.WebviewPanel
-	private koduDev?: KoduDev
-	private latestAnnouncementId = "aug-28-2024" // update to some unique identifier when we add a new announcement
+	public disposables: vscode.Disposable[] = []
+	public view?: vscode.WebviewView | vscode.WebviewPanel
+	public koduDev?: KoduDev
+	public latestAnnouncementId = "aug-28-2024" // update to some unique identifier when we add a new announcement
 
-	constructor(readonly context: vscode.ExtensionContext, private readonly outputChannel: vscode.OutputChannel) {
+	constructor(readonly context: vscode.ExtensionContext, public readonly outputChannel: vscode.OutputChannel) {
 		this.outputChannel.appendLine("ClaudeDevProvider instantiated")
 	}
 
@@ -202,7 +203,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	 * @returns A template string literal containing the HTML that should be
 	 * rendered within the webview panel
 	 */
-	private getHtmlContent(webview: vscode.Webview): string {
+	public getHtmlContent(webview: vscode.Webview): string {
 		// Get the local path to main script run in the webview,
 		// then convert it to a uri we can use in the webview.
 		const localPort = "5173"
@@ -305,176 +306,10 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	 *
 	 * @param webview A reference to the extension webview
 	 */
-	private setWebviewMessageListener(webview: vscode.Webview) {
+	public setWebviewMessageListener(webview: vscode.Webview) {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
-				switch (message.type) {
-					case "amplitude":
-						if (message.event_type === "Add Credits") {
-							amplitudeTracker.addCreditsClick()
-						}
-						if (message.event_type === "Referral Program") {
-							amplitudeTracker.referralProgramClick()
-						}
-						if (message.event_type === "Auth Start") {
-							amplitudeTracker.authStart()
-						}
-
-						break
-
-					case "cancelCurrentRequest":
-						await this.koduDev?.taskExecutor.cancelCurrentRequest()
-						await this.postStateToWebview()
-						break
-					case "abortAutomode":
-						await this.clearTask()
-						await this.postStateToWebview()
-						break
-					case "webviewDidLaunch":
-						this.getState()
-						await this.postStateToWebview()
-						break
-					case "newTask":
-						// Code that should run in response to the hello message command
-						//vscode.window.showInformationMessage(message.text!)
-
-						// Send a message to our webview.
-						// You can send any JSON serializable data.
-						// Could also do this in extension .ts
-						//this.postMessageToWebview({ type: "text", text: `Extension: ${Date.now()}` })
-						// initializing new instance of ClaudeDev will make sure that any agentically running promises in old instance don't affect our new task. this essentially creates a fresh slate for the new task
-						if (message.images && message.images?.length > 0) {
-							const compressedImages = await compressImages(message.images)
-							await this.initClaudeDevWithTask(
-								message.text,
-								compressedImages.map((img) => img.data)
-							)
-							break
-						}
-						await this.initClaudeDevWithTask(message.text, message.images)
-						break
-					case "apiConfiguration":
-						if (message.apiConfiguration) {
-							const { apiModelId, koduApiKey } = message.apiConfiguration!
-							await this.updateGlobalState("apiModelId", apiModelId)
-							await this.storeSecret("koduApiKey", koduApiKey)
-							console.log(`apiConfiguration: ${JSON.stringify(message.apiConfiguration)}`)
-							this.koduDev?.getStateManager().apiManager.updateApi({
-								koduApiKey,
-								apiModelId,
-							})
-
-							await this.postStateToWebview()
-						}
-						break
-					case "maxRequestsPerTask":
-						let result: number | undefined = undefined
-						if (message.text && message.text.trim()) {
-							const num = Number(message.text)
-							if (!isNaN(num)) {
-								result = num
-							}
-						}
-						await this.updateGlobalState("maxRequestsPerTask", result)
-						this.koduDev?.getStateManager().setMaxRequestsPerTask(result)
-						await this.postStateToWebview()
-						break
-					case "customInstructions":
-						// User may be clearing the field
-						await this.updateGlobalState("customInstructions", message.text || undefined)
-						this.koduDev?.getStateManager().setCustomInstructions(message.text || undefined)
-						await this.postStateToWebview()
-						break
-					case "alwaysAllowReadOnly":
-						await this.updateGlobalState("alwaysAllowReadOnly", message.bool ?? undefined)
-						this.koduDev?.getStateManager().setAlwaysAllowReadOnly(message.bool ?? false)
-						await this.postStateToWebview()
-						break
-					case "alwaysAllowWriteOnly":
-						await this.updateGlobalState("alwaysAllowWriteOnly", message.bool ?? undefined)
-						this.koduDev?.getStateManager().setAlwaysAllowWriteOnly(message.bool ?? false)
-						await this.postStateToWebview()
-						break
-					case "askResponse":
-						if (message.images && message.images.length > 0) {
-							const compressedImages = await compressImages(message.images)
-							this.koduDev?.handleWebviewAskResponse(
-								message.askResponse!,
-								message.text,
-								compressedImages.map((img) => img.data)
-							)
-						} else {
-							this.koduDev?.handleWebviewAskResponse(message.askResponse!, message.text, message.images)
-						}
-						break
-					case "clearTask":
-						// newTask will start a new task with a given task text, while clear task resets the current session and allows for a new task to be started
-						await this.clearTask()
-						await this.postStateToWebview()
-						break
-					case "didCloseAnnouncement":
-						await this.updateGlobalState("lastShownAnnouncementId", this.latestAnnouncementId)
-						await this.postStateToWebview()
-						break
-					case "selectImages":
-						const images = await selectImages()
-						const compressedImages = await compressImages(images)
-						await this.postMessageToWebview({
-							type: "selectedImages",
-							images: compressedImages.map((img) => img.data),
-						})
-						break
-					case "exportCurrentTask":
-						const currentTaskId = this.koduDev?.getStateManager()?.state.taskId
-						if (currentTaskId) {
-							this.exportTaskWithId(currentTaskId)
-						}
-						break
-					case "showTaskWithId":
-						this.showTaskWithId(message.text!)
-						break
-					case "deleteTaskWithId":
-						this.deleteTaskWithId(message.text!)
-						break
-					case "setCreativeMode":
-						console.log(`setCreativeMode: ${message.text}`)
-						this.updateGlobalState("creativeMode", message.text as "creative" | "normal" | "deterministic")
-						this.koduDev
-							?.getStateManager()
-							?.setCreativeMode(message.text as "creative" | "normal" | "deterministic")
-						await this.postStateToWebview()
-						break
-					case "exportTaskWithId":
-						this.exportTaskWithId(message.text!)
-						break
-					case "didClickKoduSignOut":
-						await this.signOutKodu()
-						break
-					case "fetchKoduCredits":
-						const koduApiKey = await this.getSecret("koduApiKey")
-						if (koduApiKey) {
-							const user = await fetchKoduUserAPI({ apiKey: koduApiKey })
-							console.log(`fetchKoduCredits credits: ${JSON.stringify(user)}`)
-							if (user) {
-								await this.updateGlobalState("user", user)
-							}
-							await this.postMessageToWebview({
-								type: "action",
-								action: "koduCreditsFetched",
-								state: await this.getStateToPostToWebview(),
-							})
-						}
-						break
-					case "didDismissKoduPromo":
-						await this.updateGlobalState("shouldShowKoduPromo", false)
-						await this.postStateToWebview()
-						break
-					case "resetState":
-						await this.resetState()
-						break
-					// Add more switch case statements here as more webview message commands
-					// are created within the webview context (i.e. inside media/main.js)
-				}
+				await executeAction(this, message)
 			},
 			null,
 			this.disposables
@@ -705,21 +540,21 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 
 	// global
 
-	private async updateGlobalState(key: GlobalStateKey, value: any) {
+	public async updateGlobalState(key: GlobalStateKey, value: any) {
 		await this.context.globalState.update(key, value)
 	}
 
-	private async getGlobalState(key: GlobalStateKey) {
+	public async getGlobalState(key: GlobalStateKey) {
 		return await this.context.globalState.get(key)
 	}
 
 	// workspace
 
-	private async updateWorkspaceState(key: string, value: any) {
+	public async updateWorkspaceState(key: string, value: any) {
 		await this.context.workspaceState.update(key, value)
 	}
 
-	private async storeSecret(key: SecretKey, value?: string) {
+	public async storeSecret(key: SecretKey, value?: string) {
 		if (value) {
 			await this.context.secrets.store(key, value)
 		} else {
@@ -727,7 +562,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
-	private async getSecret(key: SecretKey) {
+	public async getSecret(key: SecretKey) {
 		return await this.context.secrets.get(key)
 	}
 

@@ -192,6 +192,7 @@
 		"tree-kill": "^1.2.2",
 		"tree-sitter-wasms": "^0.1.11",
 		"vscode": "^1.1.37",
-		"web-tree-sitter": "^0.22.6"
+		"web-tree-sitter": "^0.22.6",
+		"zod": "^3.23.8"
 	}
 }
