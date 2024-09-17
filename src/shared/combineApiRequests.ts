@@ -56,8 +56,32 @@ export function combineApiRequests(messages: ClaudeMessage[]): ClaudeMessage[] {
 		}
 	}
 
+	console.log("currentApiRequest", currentApiRequest)
 	if (currentApiRequest) {
 		result.push(currentApiRequest)
+	}
+	if (currentApiRequest === null) {
+		// check if last message is either resume_task or resume_completed_task and the message before that is api_req_started
+		// then add to api_req_started error message that it was aborted
+		const lastMessage = result[result.length - 1]
+		const secondLastMessage = result[result.length - 2]
+		if (
+			lastMessage &&
+			secondLastMessage &&
+			(lastMessage.ask === "resume_task" || lastMessage.ask === "resume_completed_task") &&
+			secondLastMessage.say === "api_req_started"
+		) {
+			console.log(`REPLACE ABORTED MESSAGE`)
+			// add a message that the request was aborted (error)
+			const abortedMessage: ClaudeMessage = {
+				ts: lastMessage.ts,
+				type: "say",
+				say: "error",
+				text: `API request aborted by user`,
+			}
+			// add it before the last message
+			result.splice(result.length - 1, 0, abortedMessage)
+		}
 	}
 
 	return result

@@ -15,6 +15,7 @@ import {
 import { z } from "zod"
 import { WebSearchResponseDto } from "./interfaces"
 import * as vscode from "vscode"
+import { healMessages } from "./auto-heal"
 const temperatures = {
 	creative: {
 		top_p: 0.8,
@@ -144,7 +145,7 @@ export class KoduHandler implements ApiHandler {
 					model: modelId,
 					max_tokens: this.getModel().info.maxTokens,
 					system,
-					messages: messages.map((message, index) => {
+					messages: healMessages(messages).map((message, index) => {
 						if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
 							return {
 								...message,

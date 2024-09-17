@@ -294,6 +294,7 @@ export class TaskExecutor {
 
 	private resetState(): void {
 		this.state = TaskState.IDLE
+		this.abortController?.abort()
 		// this.currentUserContent = null
 		this.currentApiResponse = null
 		this.currentToolResults = []
