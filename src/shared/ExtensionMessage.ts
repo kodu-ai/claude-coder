@@ -48,6 +48,10 @@ export interface ClaudeMessage {
 	say?: ClaudeSay
 	text?: string
 	images?: string[]
+	/**
+	 * If true, the ask will be automatically approved but the message will still be shown to the user as if it was a normal message
+	 */
+	autoApproved?: boolean
 }
 
 export type ClaudeAsk =
@@ -74,6 +78,7 @@ export type ClaudeSay =
 	| "command_output"
 	| "tool"
 	| "abort_automode"
+	| "shell_integration_warning"
 
 type WebSearchTool = {
 	tool: "web_search"

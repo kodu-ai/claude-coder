@@ -501,9 +501,26 @@ export class TaskExecutor {
 	public async ask(type: ClaudeAsk, question?: string): Promise<AskResponse> {
 		return new Promise((resolve) => {
 			const askTs = Date.now()
-			this.stateManager.addToClaudeMessages({ ts: askTs, type: "ask", ask: type, text: question })
+			this.stateManager.addToClaudeMessages({
+				ts: askTs,
+				type: "ask",
+				ask: type,
+				text: question,
+				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
+			})
 			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion:: ${question}`)
 			this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+			const mustRequestApproval = [
+				"completion_result",
+				"resume_completed_task",
+				"resume_task",
+				"request_limit_reached",
+			]
+			if (this.stateManager.alwaysAllowWriteOnly && !mustRequestApproval.includes(type)) {
+				resolve({ response: "yesButtonTapped", text: "", images: [] })
+				this.pendingAskResponse = null
+				return
+			}
 			this.pendingAskResponse = resolve
 		})
 	}
