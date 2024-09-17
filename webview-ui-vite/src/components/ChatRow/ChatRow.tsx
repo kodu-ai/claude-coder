@@ -234,6 +234,44 @@ const ChatRow: React.FC<ChatRowProps> = ({
 								onToggleExpand={onToggleExpand}
 							/>
 						)
+					case "shell_integration_warning":
+						return (
+							<>
+								<div
+									style={{
+										display: "flex",
+										flexDirection: "column",
+										backgroundColor: "rgba(255, 191, 0, 0.1)",
+										padding: 8,
+										borderRadius: 3,
+										fontSize: 12,
+									}}>
+									<div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+										<i
+											className="codicon codicon-warning"
+											style={{
+												marginRight: 8,
+												fontSize: 18,
+												color: "#FFA500",
+											}}></i>
+										<span style={{ fontWeight: 500, color: "#FFA500" }}>
+											Shell Integration Unavailable
+										</span>
+									</div>
+									<div>
+										Claude won't be able to view the command's output. Please update VSCode (
+										<code>CMD/CTRL + Shift + P</code> → "Update") and make sure you're using a
+										supported shell: zsh, bash, fish, or PowerShell (
+										<code>CMD/CTRL + Shift + P</code> → "Terminal: Select Default Profile").{" "}
+										<a
+											href="https://github.com/saoudrizwan/claude-dev/wiki/Troubleshooting-%E2%80%90-Shell-Integration-Unavailable"
+											style={{ color: "inherit", textDecoration: "underline" }}>
+											Still having trouble?
+										</a>
+									</div>
+								</div>
+							</>
+						)
 					default:
 						const [defaultIcon, defaultTitle] = IconAndTitle({
 							type: message.say,

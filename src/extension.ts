@@ -133,7 +133,7 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	)
 
-	const openClaudeDevInNewTab = () => {
+	const openClaudeDevInNewTab = async () => {
 		outputChannel.appendLine("Opening Claude Coder in new tab")
 		// (this example uses webviewProvider activation event which is necessary to deserialize cached webview, but since we use retainContextWhenHidden, we don't need to use that event)
 		// https://github.com/microsoft/vscode-extension-samples/blob/main/webview-sample/src/extension.ts
@@ -146,7 +146,11 @@ export function activate(context: vscode.ExtensionContext) {
 			retainContextWhenHidden: true,
 			localResourceRoots: [context.extensionUri],
 		})
-
+		// Check if there are any visible text editors, otherwise open a new group to the right
+		const hasVisibleEditors = vscode.window.visibleTextEditors.length > 0
+		if (!hasVisibleEditors) {
+			await vscode.commands.executeCommand("workbench.action.newGroupRight")
+		}
 		// TODO: use better svg icon with light and dark variants (see https://stackoverflow.com/questions/58365687/vscode-extension-iconpath)
 		panel.iconPath = vscode.Uri.joinPath(context.extensionUri, "assets/icon.png")
 		tabProvider.resolveWebviewView(panel)

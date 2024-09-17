@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 
-// const KODU_BASE_URL = "http://localhost:3000"
-const KODU_BASE_URL = "https://kodu.ai"
+const KODU_BASE_URL = "http://localhost:3000"
+// const KODU_BASE_URL = "https://kodu.ai"
 
 export function getKoduSignInUrl(uriScheme?: string, extensionName?: string) {
 	console.log("uriScheme", uriScheme)
@@ -116,21 +116,24 @@ export class KoduError extends Error {
 	}
 }
 
+/** Kodu streaming ui example
+ messageStream.on("error", (error) => {
+    console.error(`Error in message stream`, error);
+  });
+  messageStream.on("text", (text) => {
+    enqueue(`data: ${JSON.stringify({ code: 2, text })}\n\n`);
+  });
+  messageStream.on("contentBlock", (contentBlock) => {
+    enqueue(`data: ${JSON.stringify({ code: 3, contentBlock })}\n\n`);
+  });
+ */
+
 export type koduSSEResponse =
 	| {
-			/**
-			 * Error response received
-			 */
-			code: -1
-			body: {
-				status: number | undefined
-				msg: string
-			}
+			code: 0
+			body: undefined
 	  }
 	| {
-			/**
-			 * Inference response received
-			 */
 			code: 1
 			body: {
 				anthropic: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage
@@ -145,9 +148,30 @@ export type koduSSEResponse =
 			}
 	  }
 	| {
+			code: 2
+			body: {
+				/**
+				 * Text message received
+				 */
+				text: string
+			}
+	  }
+	| {
+			code: 3
+			body: {
+				/**
+				 * Content block received
+				 */
+				contentBlock: Anthropic.Messages.ContentBlock
+			}
+	  }
+	| {
 			/**
-			 * Health check received
+			 * Error response received
 			 */
-			code: 0
-			body: undefined
+			code: -1
+			body: {
+				status: number | undefined
+				msg: string
+			}
 	  }

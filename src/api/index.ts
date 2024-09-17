@@ -24,6 +24,14 @@ export interface ApiHandler {
 		abortSignal?: AbortSignal | null
 	): Promise<ApiHandlerMessageResponse>
 
+	createMessageStream?(
+		systemPrompt: string,
+		messages: Anthropic.Messages.MessageParam[],
+		tools: Anthropic.Messages.Tool[],
+		creativeMode?: "normal" | "creative" | "deterministic",
+		abortSignal?: AbortSignal | null
+	): Promise<ApiHandlerMessageResponse>
+
 	createUserReadableRequest(
 		userContent: Array<
 			| Anthropic.TextBlockParam

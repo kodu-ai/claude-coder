@@ -103,14 +103,6 @@ export class KoduHandler implements ApiHandler {
 					(acc, msg, index) => (msg.role === "user" ? [...acc, index] : acc),
 					[] as number[]
 				)
-				/**
-				 * tools seems to be cached with the system prompt, so maybe we don't need to add duplicate cache control
-				 */
-				// const toolsWithCacheControl = tools.map((tool, index) => ({
-				// 	...tool,
-				// 	// last index requires cache control
-				// 	...(index === tools.length - 1 ? { cache_control: { type: "ephemeral" as const } } : {}),
-				// }))
 				const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
 				const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 				requestBody = {
@@ -186,7 +178,7 @@ export class KoduHandler implements ApiHandler {
 		if (response.data) {
 			const reader = response.data
 			const decoder = new TextDecoder("utf-8")
-			let finalResponse: any = null
+			let finalResponse: Extract<koduSSEResponse, { code: 1 }> | null = null
 			let buffer = ""
 
 			for await (const chunk of reader) {
@@ -203,7 +195,7 @@ export class KoduHandler implements ApiHandler {
 						if (eventData.code === 0) {
 							console.log("Health check received")
 						} else if (eventData.code === 1) {
-							finalResponse = eventData.body
+							finalResponse = eventData
 							console.log("finalResponse", finalResponse)
 							break
 						} else if (eventData.code === -1) {
@@ -225,19 +217,23 @@ export class KoduHandler implements ApiHandler {
 				})
 			}
 
-			const message: {
-				anthropic: Anthropic.Messages.Message
-				internal: {
-					userCredits: number
-				}
-			} = finalResponse
 			return {
-				message: message.anthropic,
-				userCredits: message.internal?.userCredits,
+				message: finalResponse.body.anthropic,
+				userCredits: finalResponse.body.internal.userCredits,
 			}
 		} else {
 			throw new Error("No response data received")
 		}
+	}
+
+	async createMessageStream(
+		systemPrompt: string,
+		messages: Anthropic.Messages.MessageParam[],
+		tools: Anthropic.Messages.Tool[],
+		creativeMode?: "normal" | "creative" | "deterministic",
+		abortSignal?: AbortSignal
+	): Promise<ApiHandlerMessageResponse> {
+		return this.createMessage(systemPrompt, messages, tools, creativeMode ?? "normal", abortSignal)
 	}
 
 	createUserReadableRequest(
