@@ -13,12 +13,14 @@ import {
 	WriteFileTool,
 } from "./tools"
 import { WebSearchTool } from "./tools/web-search-tool"
+import { TerminalManager } from "../../integrations/terminal-manager"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined
 	private cwd: string
 	private alwaysAllowReadOnly: boolean
 	private alwaysAllowWriteOnly: boolean
+	private terminalManager: TerminalManager
 	private koduDev: KoduDev
 
 	constructor(options: AgentToolOptions) {
@@ -26,6 +28,7 @@ export class ToolExecutor {
 		this.alwaysAllowReadOnly = options.alwaysAllowReadOnly
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
 		this.koduDev = options.koduDev
+		this.terminalManager = new TerminalManager()
 	}
 
 	private get options(): AgentToolOptions {
@@ -51,7 +54,10 @@ export class ToolExecutor {
 			case "list_code_definition_names":
 				return new ListCodeDefinitionNamesTool(params, this.options).execute()
 			case "execute_command":
-				return new ExecuteCommandTool(params, this.options).execute()
+				return new ExecuteCommandTool(params, {
+					...this.options,
+					terminalManager: this.terminalManager,
+				}).execute()
 			case "ask_followup_question":
 				return new AskFollowupQuestionTool(params, this.options).execute()
 			case "attempt_completion":

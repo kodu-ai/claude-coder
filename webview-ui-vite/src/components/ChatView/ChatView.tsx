@@ -3,7 +3,7 @@ import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 import { VirtuosoHandle } from "react-virtuoso"
 import { useEvent, useMount } from "react-use"
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
-import { ClaudeAsk, ClaudeSayTool, ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
+import { ClaudeAsk, ClaudeMessage, ClaudeSayTool, ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
 import { combineCommandSequences, COMMAND_STDIN_STRING } from "../../../../src/shared/combineCommandSequences"
 import { getApiMetrics } from "../../../../src/shared/getApiMetrics"
@@ -315,12 +315,13 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const isAbortAllowed = messages.length > 2 && messages.at(-1)?.say === "api_req_started"
 
 	// Handle ask messages
-	const handleAskMessage = (message: any) => {
+	const handleAskMessage = (message: ClaudeMessage) => {
 		// This function updates the component state based on the type of ask message received
 		switch (message.ask) {
 			case "request_limit_reached":
 				setTextAreaDisabled(true)
 				setClaudeAsk("request_limit_reached")
+
 				setEnableButtons(true)
 				setPrimaryButtonText("Proceed")
 				setSecondaryButtonText("Start New Task")
@@ -328,9 +329,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 			case "api_req_failed":
 				setTextAreaDisabled(true)
 				setClaudeAsk("api_req_failed")
-				setEnableButtons(true)
-				setPrimaryButtonText("Retry")
-				setSecondaryButtonText("Start New Task")
+				if (!message.autoApproved) {
+					setEnableButtons(true)
+					setPrimaryButtonText("Retry")
+					setSecondaryButtonText("Start New Task")
+				}
 				break
 			case "followup":
 				console.log("followup")
@@ -341,23 +344,30 @@ const ChatView: React.FC<ChatViewProps> = ({
 			case "tool":
 				setTextAreaDisabled(false)
 				setClaudeAsk("tool")
-				setEnableButtons(true)
-				const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
-				handleToolButtons(tool)
+				if (!message.autoApproved) {
+					setEnableButtons(true)
+					const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
+					handleToolButtons(tool)
+				}
 				break
 			case "command":
 				setTextAreaDisabled(false)
 				setClaudeAsk("command")
-				setEnableButtons(true)
-				setPrimaryButtonText("Run Command")
-				setSecondaryButtonText("Reject")
+				if (!message.autoApproved) {
+					setEnableButtons(true)
+					setPrimaryButtonText("Run Command")
+					setSecondaryButtonText("Reject")
+				}
 				break
 			case "command_output":
 				setTextAreaDisabled(false)
 				setClaudeAsk("command_output")
-				setEnableButtons(true)
-				setPrimaryButtonText("Exit Command")
-				setSecondaryButtonText(undefined)
+				if (!message.autoApproved) {
+					setEnableButtons(true)
+					setPrimaryButtonText("Exit Command")
+					setSecondaryButtonText(undefined)
+				}
+
 				break
 			case "completion_result":
 			case "resume_completed_task":
