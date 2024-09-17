@@ -17,6 +17,8 @@ import { Popover } from "./components/ui/popover"
 import { PopoverPortal } from "@radix-ui/react-popover"
 import EndOfTrialAlertDialog from "./components/EndOfTrialAlertDialog/end-of-trial-alert-dialog"
 import { TooltipProvider } from "./components/ui/tooltip"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+const queryClient = new QueryClient()
 
 const AppContent = () => {
 	const { apiConfiguration, user } = useExtensionState()
@@ -114,11 +116,13 @@ const App = () => {
 			{/* <DevTools /> */}
 
 			<ExtensionStateProvider>
-				<FPJSProvider>
-					<TooltipProvider>
-						<AppContent />
-					</TooltipProvider>
-				</FPJSProvider>
+				<QueryClientProvider client={queryClient}>
+					<FPJSProvider>
+						<TooltipProvider>
+							<AppContent />
+						</TooltipProvider>
+					</FPJSProvider>
+				</QueryClientProvider>
 
 				<EndOfTrialAlertDialog />
 				{/* </Popover> */}

@@ -17,6 +17,7 @@ import KoduPromo from "../KoduPromo/KoduPromo"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
 import ButtonSection from "./ButtonSection"
+import ProjectStarterChooser from "../project-starters"
 
 interface ChatViewProps {
 	isHidden: boolean
@@ -567,25 +568,28 @@ const ChatView: React.FC<ChatViewProps> = ({
 					</>
 				)}
 			</div>
-			<InputArea
-				inputValue={inputValue}
-				setInputValue={setInputValue}
-				textAreaDisabled={textAreaDisabled}
-				handleSendMessage={handleSendMessage}
-				placeholderText={placeholderText}
-				selectedImages={selectedImages}
-				setSelectedImages={setSelectedImages}
-				shouldDisableImages={shouldDisableImages}
-				selectImages={selectImages}
-				thumbnailsHeight={thumbnailsHeight}
-				handleThumbnailsHeightChange={handleThumbnailsHeightChange}
-				isRequestRunning={
-					// if last message is api_req_started, then request is running
-					messages.length > 0 && messages.at(-1)?.say === "api_req_started"
-				}
-				handleKeyDown={handleKeyDown}
-				handlePaste={handlePaste}
-			/>
+			<div className="mt-1 border-t">
+				{!task && <ProjectStarterChooser />}
+				<InputArea
+					inputValue={inputValue}
+					setInputValue={setInputValue}
+					textAreaDisabled={textAreaDisabled}
+					handleSendMessage={handleSendMessage}
+					placeholderText={placeholderText}
+					selectedImages={selectedImages}
+					setSelectedImages={setSelectedImages}
+					shouldDisableImages={shouldDisableImages}
+					selectImages={selectImages}
+					thumbnailsHeight={thumbnailsHeight}
+					handleThumbnailsHeightChange={handleThumbnailsHeightChange}
+					isRequestRunning={
+						// if last message is api_req_started, then request is running
+						messages.length > 0 && messages.at(-1)?.say === "api_req_started"
+					}
+					handleKeyDown={handleKeyDown}
+					handlePaste={handlePaste}
+				/>
+			</div>
 		</div>
 	)
 }
