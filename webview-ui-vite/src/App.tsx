@@ -16,6 +16,7 @@ import { FpjsProvider } from "@fingerprintjs/fingerprintjs-pro-react"
 import { Popover } from "./components/ui/popover"
 import { PopoverPortal } from "@radix-ui/react-popover"
 import EndOfTrialAlertDialog from "./components/EndOfTrialAlertDialog/end-of-trial-alert-dialog"
+import { TooltipProvider } from "./components/ui/tooltip"
 
 const AppContent = () => {
 	const { apiConfiguration, user } = useExtensionState()
@@ -114,7 +115,9 @@ const App = () => {
 
 			<ExtensionStateProvider>
 				<FPJSProvider>
-					<AppContent />
+					<TooltipProvider>
+						<AppContent />
+					</TooltipProvider>
 				</FPJSProvider>
 
 				<EndOfTrialAlertDialog />

@@ -45,11 +45,21 @@ fingerprintAtom.debugLabel = "fingerprint"
 const fpjsKeyAtom = atom<string | undefined>(undefined)
 fpjsKeyAtom.debugLabel = "fpjsKey"
 
+const currentTaskIdAtom = atom<string | undefined>(undefined)
+currentTaskIdAtom.debugLabel = "currentTask"
+
+const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
+	const currentTaskId = get(currentTaskIdAtom)
+	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
+})
+
 // Derived atom for the entire state
 export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
 	claudeMessages: get(claudeMessagesAtom),
 	taskHistory: get(taskHistoryAtom),
+	currentTask: get(currentTaskAtom),
+	currentTaskId: get(currentTaskIdAtom),
 	shouldShowAnnouncement: get(shouldShowAnnouncementAtom),
 	shouldShowKoduPromo: get(shouldShowKoduPromoAtom),
 	apiConfiguration: get(apiConfigurationAtom),
@@ -83,6 +93,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setUser = useSetAtom(userAtom)
 	const setThemeName = useSetAtom(themeNameAtom)
+	const setCurrentIdTask = useSetAtom(currentTaskIdAtom)
 	const setFingerprint = useSetAtom(fingerprintAtom)
 	const setUriScheme = useSetAtom(uriSchemeAtom)
 	const setDidHydrateState = useSetAtom(didHydrateStateAtom)
@@ -96,6 +107,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 		console.log("message at extension state context", event)
 		if (message.type === "state" && message.state) {
 			setVersion(message.state.version)
+			setCurrentIdTask(message.state.currentTaskId)
 			setClaudeMessages(message.state.claudeMessages)
 			setTaskHistory(message.state.taskHistory)
 			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)

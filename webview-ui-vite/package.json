@@ -47,6 +47,7 @@
 		"cmdk": "^1.0.0",
 		"date-fns": "^3.6.0",
 		"embla-carousel-react": "^8.2.1",
+		"fuse.js": "^7.0.0",
 		"input-otp": "^1.2.4",
 		"jotai-devtools": "^0.10.1",
 		"lucide-react": "^0.439.0",

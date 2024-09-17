@@ -27,7 +27,7 @@ interface ChatViewProps {
 	showHistoryView: () => void
 }
 
-const MAX_IMAGES_PER_MESSAGE = 20
+const MAX_IMAGES_PER_MESSAGE = 5
 
 const ChatView: React.FC<ChatViewProps> = ({
 	isHidden,

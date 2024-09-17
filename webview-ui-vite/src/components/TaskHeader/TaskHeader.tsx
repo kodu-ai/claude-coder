@@ -7,6 +7,7 @@ import { ApiProvider } from "../../../../src/shared/api"
 import TaskText from "./TaskText"
 import TokenInfo from "./TokenInfo"
 import CreditsInfo from "./CreditsInfo"
+import { useExtensionState } from "@/context/ExtensionStateContext"
 
 interface TaskHeaderProps {
 	task: ClaudeMessage
@@ -35,9 +36,15 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 	koduCredits,
 	vscodeUriScheme,
 }) => {
+	const { currentTaskId, currentTask } = useExtensionState()
+
 	const handleDownload = () => {
 		vscode.postMessage({ type: "exportCurrentTask" })
 	}
+	const handleRename = () => {
+		vscode.postMessage({ type: "renameTask", isCurentTask: true })
+	}
+	console.log(`TaskHeader: ${currentTaskId} name ${currentTask?.name}`)
 
 	return (
 		<>
@@ -45,6 +52,9 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 				<div className="flex-line">
 					<h3 className="uppercase">Task</h3>
 					<div style={{ flex: "1 1 0%" }}></div>
+					<VSCodeButton appearance="icon" onClick={handleRename}>
+						Rename
+					</VSCodeButton>
 					<VSCodeButton appearance="icon" onClick={handleDownload}>
 						Export
 					</VSCodeButton>
@@ -52,7 +62,7 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 						<span className="codicon codicon-close"></span>
 					</VSCodeButton>
 				</div>
-				<TaskText text={task.text} />
+				<TaskText text={currentTask?.name ?? currentTask?.task ?? task.text} />
 				{task.images && task.images.length > 0 && <Thumbnails images={task.images} />}
 				<TokenInfo
 					tokensIn={tokensIn}

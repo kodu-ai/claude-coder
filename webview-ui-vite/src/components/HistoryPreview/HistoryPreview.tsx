@@ -1,49 +1,49 @@
-import React from 'react';
-import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
-import { useExtensionState } from "../../context/ExtensionStateContext";
-import { vscode } from "../../utils/vscode";
-import TaskCard from './TaskCard';
+import React from "react"
+import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
+import { useExtensionState } from "../../context/ExtensionStateContext"
+import { vscode } from "../../utils/vscode"
+import TaskCard from "./TaskCard"
 
 interface HistoryPreviewProps {
-  showHistoryView: () => void;
+	showHistoryView: () => void
 }
 
 const HistoryPreview: React.FC<HistoryPreviewProps> = ({ showHistoryView }) => {
-  const { taskHistory } = useExtensionState();
-  
-  const handleHistorySelect = (id: string) => {
-    vscode.postMessage({ type: "showTaskWithId", text: id });
-  };
+	const { taskHistory } = useExtensionState()
 
-  return (
-    <section>
-      <h3 className="flex-line uppercase text-alt">
-        <span className="codicon codicon-history text-alt" />
-        Recent Tasks
-      </h3>
+	const handleHistorySelect = (id: string) => {
+		vscode.postMessage({ type: "showTaskWithId", text: id })
+	}
 
-      {taskHistory
-        .filter((item) => item.ts && item.task)
-        .slice(0, 3)
-        .map((item) => (
-          <TaskCard
-            key={item.id}
-            id={item.id}
-            task={item.task}
-            ts={item.ts}
-            tokensIn={item.tokensIn}
-            tokensOut={item.tokensOut}
-            cacheWrites={item.cacheWrites}
-            cacheReads={item.cacheReads}
-            totalCost={item.totalCost}
-            onSelect={handleHistorySelect}
-          />
-        ))}
-      <VSCodeButton appearance="icon" onClick={showHistoryView}>
-        <div className="text-light">View all history</div>
-      </VSCodeButton>
-    </section>
-  );
-};
+	return (
+		<section>
+			<h3 className="flex-line uppercase text-alt">
+				<span className="codicon codicon-history text-alt" />
+				Recent Tasks
+			</h3>
 
-export default HistoryPreview;
+			{taskHistory
+				.filter((item) => item.ts && item.task)
+				.slice(0, 3)
+				.map((item) => (
+					<TaskCard
+						key={item.id}
+						id={item.id}
+						task={item.name ?? item.task}
+						ts={item.ts}
+						tokensIn={item.tokensIn}
+						tokensOut={item.tokensOut}
+						cacheWrites={item.cacheWrites}
+						cacheReads={item.cacheReads}
+						totalCost={item.totalCost}
+						onSelect={handleHistorySelect}
+					/>
+				))}
+			<VSCodeButton appearance="icon" onClick={showHistoryView}>
+				<div className="text-light">View all history</div>
+			</VSCodeButton>
+		</section>
+	)
+}
+
+export default HistoryPreview

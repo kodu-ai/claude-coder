@@ -52,10 +52,12 @@ const CreditsInfo: React.FC<CreditsInfoProps> = ({ koduCredits, vscodeUriScheme 
 							</VSCodeLink>
 						</PopoverTrigger>
 						<PopoverContent
+							avoidCollisions
+							collisionPadding={8}
 							// sideOffset={10}
 							// alignOffset={!user?.isVisitor ? -100 : -10}
 							alignOffset={-8}
-							align="end"
+							align="center"
 							// side=""
 							className="p-0 !bg-transparent !border-none">
 							{user?.isVisitor ? <SignupContent /> : <AddCreditsContent />}
@@ -71,7 +73,7 @@ const SignupContent = () => {
 	const { uriScheme, extensionName } = useExtensionState()
 
 	return (
-		<Card className="border-0 rounded-md overflow-hidden max-w-xs mx-auto">
+		<Card className="border-0 rounded-md overflow-hidden max-w-[90vw] mx-auto">
 			<CardHeader className="pb-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white">
 				<CardTitle className="text-lg sm:text-2xl font-bold break-words">Get $10 Free Credit!</CardTitle>
 				<CardDescription className="text-white/90 text-xs sm:text-sm">
@@ -117,7 +119,7 @@ const SignupContent = () => {
 
 const AddCreditsContent = () => {
 	return (
-		<Card className=" rounded-md overflow-hidden max-w-xs mx-auto">
+		<Card className=" rounded-md overflow-hidden max-w-[90vw] mx-auto">
 			<CardHeader className="pb-3">
 				<CardTitle>Get More Credit</CardTitle>
 				<CardDescription>Choose an option to increase your credit.</CardDescription>
