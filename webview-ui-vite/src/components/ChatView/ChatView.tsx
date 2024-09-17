@@ -326,6 +326,13 @@ const ChatView: React.FC<ChatViewProps> = ({
 				setPrimaryButtonText("Proceed")
 				setSecondaryButtonText("Start New Task")
 				break
+			case "mistake_limit_reached":
+				setTextAreaDisabled(false)
+				setClaudeAsk("mistake_limit_reached")
+				setEnableButtons(true)
+				setPrimaryButtonText("Proceed Anyways")
+				setSecondaryButtonText("Start New Task")
+				break
 			case "api_req_failed":
 				setTextAreaDisabled(true)
 				setClaudeAsk("api_req_failed")

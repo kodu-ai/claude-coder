@@ -6,34 +6,48 @@ import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { ApiManager } from "./api-handler"
 import { ToolExecutor } from "./tool-executor"
 import { KoduDevOptions, ToolResponse, UserContent } from "./types"
-import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "./utils"
+import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails, cwd, formatFilesList } from "./utils"
 import { StateManager } from "./state-manager"
 import { AskResponse, TaskExecutor, TaskState } from "./task-executor"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
+import DiagnosticsMonitor from "../../integrations/diagnostics-monitor"
+import * as vscode from "vscode"
+import path from "path"
+import pWaitFor from "p-wait-for"
+import delay from "delay"
+import { homedir } from "os"
+import { listFiles } from "../../parse-source-code"
+import { TerminalManager } from "../../integrations/terminal-manager"
 
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
 	private apiManager: ApiManager
 	private toolExecutor: ToolExecutor
+	private diagnosticsMonitor: DiagnosticsMonitor
 	public taskExecutor: TaskExecutor
 	private providerRef: WeakRef<ClaudeDevProvider>
+	public terminalManager: TerminalManager
+	public didEditFile: boolean = false
+
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
 		this.stateManager = new StateManager(options)
 		this.providerRef = new WeakRef(provider)
+		this.terminalManager = new TerminalManager()
 		this.apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
+		this.diagnosticsMonitor = new DiagnosticsMonitor()
 		this.toolExecutor = new ToolExecutor({
 			cwd: getCwd(),
 			alwaysAllowReadOnly: this.stateManager.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: this.stateManager.alwaysAllowWriteOnly,
 			koduDev: this,
 		})
-		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
+		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this)
 
 		this.setupTaskExecutor()
 
@@ -65,7 +79,7 @@ export class KoduDev {
 
 	private setupTaskExecutor() {
 		// Pass necessary methods to the TaskExecutor
-		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
+		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this)
 	}
 
 	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
@@ -263,6 +277,133 @@ export class KoduDev {
 	async abortTask() {
 		this.taskExecutor.abortTask()
 		this.toolExecutor.abortTask()
+		this.diagnosticsMonitor.dispose()
+	}
+
+	async getEnvironmentDetails(includeFileDetails: boolean = false) {
+		let details = ""
+
+		// It could be useful for claude to know if the user went from one or no file to another between messages, so we always include this context
+		details += "\n\n# VSCode Visible Files"
+		const visibleFiles = vscode.window.visibleTextEditors
+			?.map((editor) => editor.document?.uri?.fsPath)
+			.filter(Boolean)
+			.map((absolutePath) => path.relative(cwd, absolutePath))
+			.join("\n")
+		if (visibleFiles) {
+			details += `\n${visibleFiles}`
+		} else {
+			details += "\n(No visible files)"
+		}
+
+		details += "\n\n# VSCode Open Tabs"
+		const openTabs = vscode.window.tabGroups.all
+			.flatMap((group) => group.tabs)
+			.map((tab) => (tab.input as vscode.TabInputText)?.uri?.fsPath)
+			.filter(Boolean)
+			.map((absolutePath) => path.relative(cwd, absolutePath))
+			.join("\n")
+		if (openTabs) {
+			details += `\n${openTabs}`
+		} else {
+			details += "\n(No open tabs)"
+		}
+
+		const busyTerminals = this.terminalManager.getTerminals(true)
+		const inactiveTerminals = this.terminalManager.getTerminals(false)
+		const allTerminals = [...busyTerminals, ...inactiveTerminals]
+
+		if (busyTerminals.length > 0 || this.didEditFile) {
+			await delay(300) // delay after saving file to let terminals/diagnostics catch up
+		}
+
+		let terminalWasBusy = false
+		if (allTerminals.length > 0) {
+			// wait for terminals to cool down
+			// note this does not mean they're actively running just that they recently output something
+			terminalWasBusy = allTerminals.some((t) => this.terminalManager.isProcessHot(t.id))
+			await pWaitFor(() => allTerminals.every((t) => !this.terminalManager.isProcessHot(t.id)), {
+				interval: 100,
+				timeout: 15_000,
+			}).catch(() => {})
+		}
+
+		// we want to get diagnostics AFTER terminal cools down for a few reasons: terminal could be scaffolding a project, dev servers (compilers like webpack) will first re-compile and then send diagnostics, etc
+		let diagnosticsDetails = ""
+		const diagnostics = await this.diagnosticsMonitor.getCurrentDiagnostics(this.didEditFile || terminalWasBusy) // if claude ran a command (ie npm install) or edited the workspace then wait a bit for updated diagnostics
+		for (const [uri, fileDiagnostics] of diagnostics) {
+			const problems = fileDiagnostics.filter((d) => d.severity === vscode.DiagnosticSeverity.Error)
+			if (problems.length > 0) {
+				diagnosticsDetails += `\n## ${path.relative(cwd, uri.fsPath)}`
+				for (const diagnostic of problems) {
+					// let severity = diagnostic.severity === vscode.DiagnosticSeverity.Error ? "Error" : "Warning"
+					const line = diagnostic.range.start.line + 1 // VSCode lines are 0-indexed
+					const source = diagnostic.source ? `[${diagnostic.source}] ` : ""
+					diagnosticsDetails += `\n- ${source}Line ${line}: ${diagnostic.message}`
+				}
+			}
+		}
+		this.didEditFile = false // reset, this lets us know when to wait for saved files to update diagnostics
+
+		// waiting for updated diagnostics lets terminal output be the most up-to-date possible
+		let terminalDetails = ""
+		if (busyTerminals.length > 0) {
+			// terminals are cool, let's retrieve their output
+			terminalDetails += "\n\n# Active Terminals"
+			for (const busyTerminal of busyTerminals) {
+				terminalDetails += `\n## ${busyTerminal.lastCommand}`
+				const newOutput = this.terminalManager.getUnretrievedOutput(busyTerminal.id)
+				if (newOutput) {
+					terminalDetails += `\n### New Output\n${newOutput}`
+				} else {
+					// details += `\n(Still running, no new output)` // don't want to show this right after running the command
+				}
+			}
+		}
+		// only show inactive terminals if there's output to show
+		if (inactiveTerminals.length > 0) {
+			const inactiveTerminalOutputs = new Map<number, string>()
+			for (const inactiveTerminal of inactiveTerminals) {
+				const newOutput = this.terminalManager.getUnretrievedOutput(inactiveTerminal.id)
+				if (newOutput) {
+					inactiveTerminalOutputs.set(inactiveTerminal.id, newOutput)
+				}
+			}
+			if (inactiveTerminalOutputs.size > 0) {
+				terminalDetails += "\n\n# Inactive Terminals"
+				for (const [terminalId, newOutput] of inactiveTerminalOutputs) {
+					const inactiveTerminal = inactiveTerminals.find((t) => t.id === terminalId)
+					if (inactiveTerminal) {
+						terminalDetails += `\n## ${inactiveTerminal.lastCommand}`
+						terminalDetails += `\n### New Output\n${newOutput}`
+					}
+				}
+			}
+		}
+
+		details += "\n\n# VSCode Workspace Errors"
+		if (diagnosticsDetails) {
+			details += diagnosticsDetails
+		} else {
+			details += "\n(No errors detected)"
+		}
+
+		if (terminalDetails) {
+			details += terminalDetails
+		}
+
+		if (includeFileDetails) {
+			const isDesktop = cwd === path.join(homedir(), "Desktop")
+			const files = await listFiles(cwd, !isDesktop)
+			const result = formatFilesList(cwd, files)
+			details += `\n\n# Current Working Directory (${cwd}) Files\n${result}${
+				isDesktop
+					? "\n(Note: Only top-level contents shown for Desktop by default. Use list_files to explore further if necessary.)"
+					: ""
+			}`
+		}
+
+		return `<environment_details>\n${details.trim()}\n</environment_details>`
 	}
 
 	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false): Promise<ToolResponse> {

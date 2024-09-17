@@ -19,17 +19,10 @@ import Anthropic from "@anthropic-ai/sdk"
 
 export class ExecuteCommandTool extends BaseAgentTool {
 	protected params: AgentToolParams
-	protected terminalManager: TerminalManager
 
-	constructor(
-		params: AgentToolParams,
-		options: AgentToolOptions & {
-			terminalManager: TerminalManager
-		}
-	) {
+	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
-		this.terminalManager = options.terminalManager
 	}
 
 	// async execute(): Promise<ToolResponse> {
@@ -202,9 +195,11 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		}
 
 		try {
-			const terminalInfo = await this.terminalManager.getOrCreateTerminal(this.cwd)
+			console.log(`Creating terminal: ${typeof this.koduDev.terminalManager} `)
+			const terminalInfo = await this.koduDev.terminalManager.getOrCreateTerminal(this.cwd)
+			console.log("Terminal created")
 			terminalInfo.terminal.show() // weird visual bug when creating new terminals (even manually) where there's an empty space at the top.
-			const process = this.terminalManager.runCommand(terminalInfo, command)
+			const process = this.koduDev.terminalManager.runCommand(terminalInfo, command)
 
 			let userFeedback: { text?: string; images?: string[] } | undefined
 			let didContinue = false
@@ -285,32 +280,6 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			const errorString = `Error executing command:\n${errorMessage}`
 			await say("error", `Error executing command:\n${errorMessage}`)
 			return await this.formatToolError(errorString)
-		}
-	}
-
-	async formatToolDeniedFeedback(feedback?: string) {
-		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>`
-	}
-
-	async formatToolDenied() {
-		return `The user denied this operation.`
-	}
-
-	async formatToolResult(result: string) {
-		return result // the successful result of the tool should never be manipulated, if we need to add details it should be as a separate user text block
-	}
-
-	async formatToolError(error?: string) {
-		return `The tool execution failed with the following error:\n<error>\n${error}\n</error>`
-	}
-	private formatToolResponseWithImages(text: string, images?: string[]): ToolResponse {
-		if (images && images.length > 0) {
-			const textBlock: Anthropic.TextBlockParam = { type: "text", text }
-			const imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
-			// Placing images after text leads to better results
-			return [textBlock, ...imageBlocks]
-		} else {
-			return text
 		}
 	}
 }

@@ -10,6 +10,10 @@ import { getApiMetrics } from "../../shared/getApiMetrics"
 import { combineApiRequests } from "../../shared/combineApiRequests"
 import { ToolInput } from "./tools/types"
 import { ToolResultBlockParam } from "@anthropic-ai/sdk/resources/messages.mjs"
+import { formatContentBlockToMarkdown } from "../../utils/extract-markdown"
+import { KoduDev } from "."
+import { findLastIndex } from "../../utils"
+import { formatImagesIntoBlocks } from "./utils"
 
 export enum TaskState {
 	IDLE = "IDLE",
@@ -39,19 +43,27 @@ export class TaskExecutor {
 	public state: TaskState = TaskState.IDLE
 	private stateManager: StateManager
 	private toolExecutor: ToolExecutor
+	private koduDev: KoduDev
 	private currentUserContent: UserContent | null = null
 	private currentApiResponse: Anthropic.Messages.Message | null = null
 	private currentToolResults: Anthropic.ToolResultBlockParam[] = []
-	/**
-	 * this is a callback function that will be called when the user responds to an ask question
-	 */
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	private isRequestCancelled: boolean = false
 	private abortController: AbortController | null = null
+	private consecutiveMistakeCount: number = 0
 
-	constructor(stateManager: StateManager, toolExecutor: ToolExecutor) {
+	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, koduDev: KoduDev) {
 		this.stateManager = stateManager
 		this.toolExecutor = toolExecutor
+		this.koduDev = koduDev
+	}
+
+	private incrementConsecutiveMistakeCount(): void {
+		this.consecutiveMistakeCount++
+	}
+
+	private resetConsecutiveMistakeCount(): void {
+		this.consecutiveMistakeCount = 0
 	}
 
 	public async newMessage(message: UserContent) {
@@ -61,6 +73,7 @@ export class TaskExecutor {
 		this.abortController = new AbortController()
 		this.currentUserContent = message
 		this.say("user_feedback", message[0].type === "text" ? message[0].text : "New message")
+		this.resetConsecutiveMistakeCount()
 		await this.makeClaudeRequest()
 	}
 
@@ -70,6 +83,7 @@ export class TaskExecutor {
 		this.currentUserContent = userContent
 		this.isRequestCancelled = false
 		this.abortController = new AbortController()
+		this.resetConsecutiveMistakeCount()
 		await this.makeClaudeRequest()
 	}
 
@@ -80,9 +94,11 @@ export class TaskExecutor {
 			this.currentUserContent = userContent
 			this.isRequestCancelled = false
 			this.abortController = new AbortController()
+			this.resetConsecutiveMistakeCount()
 			await this.makeClaudeRequest()
 		} else {
 			this.logError(new Error("Cannot resume task: not in WAITING_FOR_USER state") as TaskError)
+			this.incrementConsecutiveMistakeCount()
 		}
 	}
 
@@ -118,41 +134,6 @@ export class TaskExecutor {
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
-	// overrideLastToolUseContent(conversation: any): UserContent {
-	// 	if (conversation.length === 0) {
-	// 		return conversation
-	// 	}
-
-	// 	// Create a deep copy of the conversation to avoid mutating the original
-	// 	const updatedConversation = [...conversation]
-
-	// 	const lastMessage = updatedConversation.at(-1)
-	// 	if (!lastMessage || lastMessage.role !== "user" || !Array.isArray(lastMessage.content)) {
-	// 		return conversation
-	// 	}
-
-	// 	// Find the index of the last tool_use content item
-	// 	const lastMessagedPatched = lastMessage.content?.map((item) => {
-	// 		if (item.type === "tool_result") {
-	// 			return { ...item, content: "Aborted mid-execution by user" }
-	// 		}
-	// 		return item
-	// 	})
-	// 	const patchedConver = [...updatedConversation.slice(0, -1), ...lastMessagedPatched]
-
-	// 	return patchedConver
-	// }
-
-	// isLastMessageToolUse(conversation: StateManager["state"]["apiConversationHistory"]): boolean {
-	// 	if (conversation.length === 0) {
-	// 		return false
-	// 	}
-
-	// 	const lastMessage = conversation[conversation.length - 1]
-
-	// 	// Check if any of the content items in the last message is a tool_use or tool_result
-	// 	return lastMessage.content.some((item) => item.type === "tool_use" || item.type === "tool_result")
-	// }
 	public async makeClaudeRequest(): Promise<void> {
 		console.log(`[TaskExecutor] makeClaudeRequest (State: ${this.state})`)
 		console.log(`[TaskExecutor] makeClaudeRequest (isRequestCancelled: ${this.isRequestCancelled})`)
@@ -166,6 +147,61 @@ export class TaskExecutor {
 			return
 		}
 
+		if (this.consecutiveMistakeCount >= 3) {
+			const { response, text, images } = await this.ask(
+				"mistake_limit_reached",
+				`This may indicate a failure in his thought process or inability to use a tool properly, which can be mitigated with some user guidance (e.g. "Try breaking down the task into smaller steps").`
+			)
+			if (response === "messageResponse") {
+				this.currentUserContent.push(
+					...[
+						{
+							type: "text",
+							text: `You seem to be having trouble proceeding. The user has provided the following feedback to help guide you:\n<feedback>\n${text}\n</feedback>`,
+						} as Anthropic.Messages.TextBlockParam,
+						...formatImagesIntoBlocks(images),
+					]
+				)
+			}
+			this.resetConsecutiveMistakeCount()
+		}
+
+		// getting verbose details is an expensive operation, it uses globby to top-down build file structure of project which for large projects can take a few seconds
+		// for the best UX we show a placeholder api_req_started message with a loading spinner as this happens
+		await this.say(
+			"api_req_started",
+			JSON.stringify({
+				request:
+					this.currentUserContent
+						.map((block) =>
+							formatContentBlockToMarkdown(block, this.stateManager.state.apiConversationHistory)
+						)
+						.join("\n\n") + "\n\n<environment_details>\nLoading...\n</environment_details>",
+			})
+		)
+
+		// potentially expensive operation
+		// if this is the first request, we want to get the environment details + file details
+		const environmentDetails = await this.koduDev.getEnvironmentDetails(this.stateManager.state.requestCount === 0)
+
+		// add environment details as its own text block, separate from tool results
+		this.currentUserContent.push({ type: "text", text: environmentDetails })
+
+		await this.stateManager.addToApiConversationHistory({ role: "user", content: this.currentUserContent })
+
+		// since we sent off a placeholder api_req_started message to update the webview while waiting to actually start the API request (to load potential details for example), we need to update the text of that message
+		const lastApiReqIndex = findLastIndex(
+			this.stateManager.state.claudeMessages,
+			(m) => m.say === "api_req_started"
+		)
+		this.stateManager.state.claudeMessages[lastApiReqIndex].text = JSON.stringify({
+			request: this.currentUserContent
+				.map((block) => formatContentBlockToMarkdown(block, this.stateManager.state.apiConversationHistory))
+				.join("\n\n"),
+		})
+		await this.stateManager.saveClaudeMessages()
+		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+
 		try {
 			this.logState("Making Claude API request")
 			const tempHistoryLength = this.stateManager.state.apiConversationHistory.length
@@ -173,13 +209,6 @@ export class TaskExecutor {
 			console.log(
 				`[TaskExecutor] stateManager.state.apiConversationHistory:`,
 				JSON.stringify(this.stateManager.state.apiConversationHistory)
-			)
-			await this.stateManager.addToApiConversationHistory({ role: "user", content: this.currentUserContent })
-			await this.say(
-				"api_req_started",
-				JSON.stringify({
-					request: this.stateManager.apiManager.createUserReadableRequest(this.currentUserContent),
-				})
 			)
 
 			const response = await this.stateManager.apiManager.createApiRequest(
@@ -225,19 +254,6 @@ export class TaskExecutor {
 				}
 				await this.handleApiError(new TaskError({ type: "UNKNOWN_ERROR", message: error.message }))
 			} else {
-				// console.log(`api history before pop:`, JSON.stringify(this.stateManager.state.apiConversationHistory))
-				// const isLastMessageToolUse = this.isLastMessageToolUse(this.stateManager.state.apiConversationHistory)
-				// console.log(`isLastMessageToolUse:`, isLastMessageToolUse)
-				// if (isLastMessageToolUse) {
-				// 	// update the content to "Aborted mid-execution by user"
-				// 	const res = this.overrideLastToolUseContent(this.stateManager.state.apiConversationHistory)
-				// 	this.stateManager.overwriteApiConversationHistory(res)
-				// 	return
-				// }
-				// this.stateManager.popLastApiConversationMessage()
-				// this.isRequestCancelled = true
-				// this.abortController?.abort()
-				// this.state = TaskState.ABORTED
 				console.log(`[TaskExecutor] Request was cancelled, ignoring error`)
 			}
 		}
@@ -282,11 +298,11 @@ export class TaskExecutor {
 
 	private resetState(): void {
 		this.state = TaskState.IDLE
-		// this.currentUserContent = null
 		this.currentApiResponse = null
 		this.currentToolResults = []
 		this.isRequestCancelled = false
 		this.abortController = null
+		this.resetConsecutiveMistakeCount()
 		this.logState("State reset due to request cancellation")
 	}
 
@@ -323,18 +339,12 @@ export class TaskExecutor {
 			console.log(`Tool result:`, result)
 			this.currentToolResults.push({ type: "tool_result", tool_use_id: toolUseId, content: result })
 			this.state = TaskState.PROCESSING_RESPONSE
+			this.resetConsecutiveMistakeCount()
 		} catch (error) {
 			await this.handleToolError(error as TaskError)
 		}
 	}
 
-	/**
-	 *
-	 * @param assistantResponses The assistant responses that need to be added to the history
-	 * @param inputTokens Number of input tokens used in the API request (NOT NEEDED - api manager manually handles this)
-	 * @param outputTokens Number of output tokens used in the API request (NOT NEEDED - api manager manually handles this)
-	 * @returns
-	 */
 	private async finishProcessingResponse(
 		assistantResponses: Anthropic.Messages.ContentBlock[],
 		inputTokens: number,
@@ -354,6 +364,7 @@ export class TaskExecutor {
 				role: "assistant",
 				content: [{ type: "text", text: "Failure: I did not have a response to provide." }],
 			})
+			this.incrementConsecutiveMistakeCount()
 		}
 		if (this.currentToolResults.length > 0) {
 			console.log(`[TaskExecutor] assistantResponses:`, assistantResponses)
@@ -378,6 +389,7 @@ export class TaskExecutor {
 						},
 					],
 				})
+				this.resetConsecutiveMistakeCount()
 			} else {
 				this.state = TaskState.WAITING_FOR_API
 				this.currentUserContent = this.currentToolResults
@@ -394,10 +406,6 @@ export class TaskExecutor {
 		}
 	}
 
-	/**
-	 * @todo test this function
-	 * @deprecated
-	 */
 	private async handleRequestLimitReached(): Promise<void> {
 		this.logState("Request limit reached")
 		const { response } = await this.ask(
@@ -422,39 +430,22 @@ export class TaskExecutor {
 		}
 	}
 
-	/**
-	 * @description currently the ui dosen't know how to handle multiple retries of the same request (original implementation was missing)
-	 * @todo make sure this is handled correctly with the ui (original implementation was missing)
-	 * @param error The error that occurred during API request
-	 */
 	private async handleApiError(error: TaskError): Promise<void> {
 		this.logError(error)
 		console.log(`[TaskExecutor] Error (State: ${this.state}):`, error)
-		/**
-		 * Pop the last message from the history as it was request that failed
-		 */
 		this.stateManager.popLastApiConversationMessage()
-		// await this.stateManager.addToApiConversationHistory({
-		// 	role: "assistant",
-		// 	content: [{ type: "text", text: `API request failed: ${error.message}` }],
-		// })
 		const { response, text } = await this.ask("api_req_failed", error.message)
 		if (response === "yesButtonTapped" || response === "messageResponse") {
-			// pop last message from the history
 			console.log(JSON.stringify(this.stateManager.state.claudeMessages, null, 2))
-
 			await this.say("api_req_retried")
 			this.state = TaskState.WAITING_FOR_API
 			await this.makeClaudeRequest()
 		} else {
 			this.state = TaskState.COMPLETED
 		}
+		this.incrementConsecutiveMistakeCount()
 	}
 
-	/**
-	 * @todo make sure this is handled correctly with the ui (original implementation was missing)
-	 * @param error The error that occurred during tool execution
-	 */
 	private async handleToolError(error: TaskError): Promise<void> {
 		this.logError(error)
 		await this.say("error", `Tool execution failed: ${error.message}`)
@@ -465,6 +456,7 @@ export class TaskExecutor {
 				text: `A tool execution error occurred: ${error.message}. Please review the error and decide how to proceed.`,
 			},
 		]
+		this.incrementConsecutiveMistakeCount()
 	}
 
 	private logApiResponse(response: Anthropic.Messages.Message): { inputTokens: number; outputTokens: number } {
@@ -492,12 +484,6 @@ export class TaskExecutor {
 		return { inputTokens, outputTokens }
 	}
 
-	/**
-	 *
-	 * @param type The type of message to ask
-	 * @param question The question to ask the user
-	 * @returns The response from the user
-	 */
 	public async ask(type: ClaudeAsk, question?: string): Promise<AskResponse> {
 		return new Promise((resolve) => {
 			const askTs = Date.now()
@@ -525,28 +511,13 @@ export class TaskExecutor {
 		})
 	}
 
-	/**
-	 *
-	 * @param type - The type of message to say
-	 * @param text - The text to say
-	 * @param images - The images to show
-	 */
 	public async say(type: ClaudeSay, text?: string, images?: string[]): Promise<void> {
 		const sayTs = Date.now()
 		await this.stateManager.addToClaudeMessages({ ts: sayTs, type: "say", say: type, text: text, images })
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
-	/**
-	 *
-	 * @param response - The response from the user to the ask question (yes, no, or messageResponse)
-	 * @param text - The text in case the response is messageResponse
-	 * @param images - The images in case the response is messageResponse
-	 */
 	public handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void {
-		/**
-		 * If there is a pending ask response, call the resolve function with the response
-		 */
 		if (this.pendingAskResponse) {
 			this.pendingAskResponse({ response, text, images })
 			this.pendingAskResponse = null

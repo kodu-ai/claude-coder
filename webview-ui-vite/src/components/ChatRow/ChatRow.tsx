@@ -300,6 +300,19 @@ const ChatRow: React.FC<ChatRowProps> = ({
 								onToggleExpand={onToggleExpand}
 							/>
 						)
+					case "mistake_limit_reached":
+						message.text = `Claude is having trouble understanding your request. Please try rephrasing it or providing more context.`
+						return (
+							<>
+								<h3 className={`flex-line text-error`}>
+									<span className="codicon codicon-error text-error" />,
+									<h3 className="text-error">Claude is having trouble...</h3>
+								</h3>
+								<div className="text-error">
+									<TextMessage message={message} syntaxHighlighterStyle={syntaxHighlighterStyle} />
+								</div>
+							</>
+						)
 					case "command":
 						return (
 							<CommandMessage
