@@ -38,7 +38,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 				overflowY: "scroll",
 			}}
 			increaseViewportBy={{ top: 0, bottom: Number.MAX_SAFE_INTEGER }}
-			data={visibleMessages}
+			data={visibleMessages ?? []}
 			itemContent={(index, message) => (
 				<ChatRow
 					key={message.ts}

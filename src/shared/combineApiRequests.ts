@@ -19,44 +19,46 @@ import { ClaudeMessage } from "./ExtensionMessage"
  * // Result: [{ type: "say", say: "api_req_started", text: '{"request":"GET /api/data","cost":0.005}', ts: 1000 }]
  */
 export function combineApiRequests(messages: ClaudeMessage[]): ClaudeMessage[] {
-	const combinedApiRequests: ClaudeMessage[] = []
+	const result: ClaudeMessage[] = []
+	let currentApiRequest: ClaudeMessage | null = null
 
-	for (let i = 0; i < messages.length; i++) {
-		if (messages[i].type === "say" && messages[i].say === "api_req_started") {
-			let startedRequest = JSON.parse(messages[i].text || "{}")
-			let j = i + 1
-
-			while (j < messages.length) {
-				if (messages[j].type === "say" && messages[j].say === "api_req_finished") {
-					let finishedRequest = JSON.parse(messages[j].text || "{}")
-					let combinedRequest = { ...startedRequest, ...finishedRequest }
-
-					combinedApiRequests.push({
-						...messages[i],
-						text: JSON.stringify(combinedRequest),
-					})
-
-					i = j // Skip to the api_req_finished message
-					break
+	for (const message of messages) {
+		if (message.type === "say") {
+			if (message.say === "api_req_started") {
+				currentApiRequest = { ...message }
+			} else if (message.say === "api_req_finished" && currentApiRequest) {
+				try {
+					const startData = JSON.parse(currentApiRequest.text || "{}")
+					const finishData = JSON.parse(message.text || "{}")
+					currentApiRequest.text = JSON.stringify({ ...startData, ...finishData })
+					result.push(currentApiRequest)
+					currentApiRequest = null
+				} catch (error) {
+					console.error("Error parsing JSON:", error)
+					if (currentApiRequest) {
+						result.push(currentApiRequest)
+					}
+					currentApiRequest = null
 				}
-				j++
+			} else if (currentApiRequest) {
+				result.push(currentApiRequest)
+				currentApiRequest = null
+				result.push(message)
+			} else {
+				result.push(message)
 			}
-
-			if (j === messages.length) {
-				// If no matching api_req_finished found, keep the original api_req_started
-				combinedApiRequests.push(messages[i])
+		} else {
+			if (currentApiRequest) {
+				result.push(currentApiRequest)
+				currentApiRequest = null
 			}
+			result.push(message)
 		}
 	}
 
-	// Replace original api_req_started and remove api_req_finished
-	return messages
-		.filter((msg) => !(msg.type === "say" && msg.say === "api_req_finished"))
-		.map((msg) => {
-			if (msg.type === "say" && msg.say === "api_req_started") {
-				const combinedRequest = combinedApiRequests.find((req) => req.ts === msg.ts)
-				return combinedRequest || msg
-			}
-			return msg
-		})
+	if (currentApiRequest) {
+		result.push(currentApiRequest)
+	}
+
+	return result
 }

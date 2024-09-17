@@ -41,6 +41,7 @@ const APIRequestMessage: React.FC<{
 		} else if (nextMessage?.say === "error") {
 			return { status: "Error", className: "text-error" }
 		} else if (nextMessage?.say === "api_req_started") {
+			console.log(nextMessage.text)
 			const retryCount = parseInt(nextMessage.text?.match(/Retry attempt: (\d+)/)?.[1] || "0")
 			return { status: `Retried (${retryCount})`, className: "text-warning" }
 		} else if (nextMessage?.say !== "api_req_finished") {

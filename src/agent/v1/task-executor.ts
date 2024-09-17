@@ -35,6 +35,9 @@ class TaskError extends Error {
 	}
 }
 
+/**
+ * @deprecated requires a major refactor this is not suitable for the future.
+ */
 export class TaskExecutor {
 	public state: TaskState = TaskState.IDLE
 	private stateManager: StateManager
@@ -48,6 +51,7 @@ export class TaskExecutor {
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	private isRequestCancelled: boolean = false
 	private abortController: AbortController | null = null
+	private consecutiveErrorCount: number = 0
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor) {
 		this.stateManager = stateManager
@@ -70,6 +74,7 @@ export class TaskExecutor {
 		this.currentUserContent = userContent
 		this.isRequestCancelled = false
 		this.abortController = new AbortController()
+		this.consecutiveErrorCount = 0
 		await this.makeClaudeRequest()
 	}
 
@@ -79,6 +84,7 @@ export class TaskExecutor {
 			this.state = TaskState.WAITING_FOR_API
 			this.currentUserContent = userContent
 			this.isRequestCancelled = false
+			this.consecutiveErrorCount = 0
 			this.abortController = new AbortController()
 			await this.makeClaudeRequest()
 		} else {
@@ -159,6 +165,12 @@ export class TaskExecutor {
 		console.log(`[TaskExecutor] makeClaudeRequest (currentUserContent: ${JSON.stringify(this.currentUserContent)})`)
 		if (this.state !== TaskState.WAITING_FOR_API || !this.currentUserContent || this.isRequestCancelled) {
 			return
+		}
+		if (this.consecutiveErrorCount >= 3) {
+			await this.ask(
+				"resume_task",
+				"Claude has encountered an error 3 times in a row. Would you like to resume the task?"
+			)
 		}
 
 		if (this.stateManager.state.requestCount >= this.stateManager.maxRequestsPerTask) {
@@ -287,6 +299,7 @@ export class TaskExecutor {
 		this.currentToolResults = []
 		this.isRequestCancelled = false
 		this.abortController = null
+		this.consecutiveErrorCount = 0
 		this.logState("State reset due to request cancellation")
 	}
 
@@ -381,6 +394,7 @@ export class TaskExecutor {
 			} else {
 				this.state = TaskState.WAITING_FOR_API
 				this.currentUserContent = this.currentToolResults
+				this.consecutiveErrorCount = 0
 				await this.makeClaudeRequest()
 			}
 		} else {
@@ -438,6 +452,7 @@ export class TaskExecutor {
 		// 	role: "assistant",
 		// 	content: [{ type: "text", text: `API request failed: ${error.message}` }],
 		// })
+		this.consecutiveErrorCount++
 		const { response, text } = await this.ask("api_req_failed", error.message)
 		if (response === "yesButtonTapped" || response === "messageResponse") {
 			// pop last message from the history
@@ -457,6 +472,7 @@ export class TaskExecutor {
 	 */
 	private async handleToolError(error: TaskError): Promise<void> {
 		this.logError(error)
+		this.consecutiveErrorCount++
 		await this.say("error", `Tool execution failed: ${error.message}`)
 		this.state = TaskState.WAITING_FOR_USER
 		this.currentUserContent = [
