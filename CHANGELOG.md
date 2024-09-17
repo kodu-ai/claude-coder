@@ -4,6 +4,17 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.7.1-beta]
+
+- Add quick project starter
+- Add @ command in text area to reference files and sites to scrape
+- Improved automatic mode and bug fixing
+- New Terminal shell integration
+- Autofix Message format on corruption
+- Refactor Context Window (improved context window algorithm, caveat currently there is not public tokenizer for Claude 3+)
+- Improved Task search and task saving (allow you to name tasks and search using fuzzy search)
+- .kodu - allow you to create custom config without breaking the system cache and having higher weight.
+
 ## [1.7.0-beta]
 
 - Add web search tool let's claude coder to search the web with a crawling agent!
