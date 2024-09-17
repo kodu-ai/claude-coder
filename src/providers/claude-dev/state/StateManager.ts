@@ -47,6 +47,8 @@ export class StateManager {
 			this.secretStateManager.getSecretState("fp"),
 		])
 
+		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
+		const currentClaudeMessage = this.context.getKoduDev()?.getStateManager()?.state.claudeMessages
 		return {
 			apiConfiguration: {
 				apiModelId,
@@ -56,9 +58,10 @@ export class StateManager {
 			maxRequestsPerTask,
 			lastShownAnnouncementId,
 			customInstructions,
+			currentTaskId,
 			alwaysAllowReadOnly: alwaysAllowReadOnly ?? false,
 			shouldShowAnnouncement: lastShownAnnouncementId === undefined,
-			claudeMessages: [],
+			claudeMessages: currentClaudeMessage ?? [],
 			version: this.context.context.extension.packageJSON.version,
 			fpjsKey: process.env.FPJS_API_KEY,
 			alwaysAllowWriteOnly: alwaysAllowWriteOnly ?? false,
@@ -73,7 +76,11 @@ export class StateManager {
 		const history = (await this.globalStateManager.getGlobalState("taskHistory")) ?? []
 		const existingItemIndex = history.findIndex((h) => h.id === item.id)
 		if (existingItemIndex !== -1) {
-			history[existingItemIndex] = item
+			console.log(`Updating existing task with id ${item.id}`)
+			history[existingItemIndex] = {
+				...history[existingItemIndex],
+				...item,
+			}
 		} else {
 			history.push(item)
 		}

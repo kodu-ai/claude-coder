@@ -4,7 +4,31 @@ import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { ClaudeDevProvider } from "../ClaudeDevProvider"
 import { amplitudeTracker } from "../../../utils/amplitude"
+import { quickStart } from "./quick-start"
+import { readdir } from "fs/promises"
+import path from "path"
 
+interface FileTreeItem {
+	id: string
+	name: string
+	children?: FileTreeItem[]
+	depth: number
+	type: "file" | "folder"
+}
+
+const excludedDirectories = [
+	"node_modules",
+	"venv",
+	".venv",
+	"__pycache__",
+	".git",
+	"dist",
+	"build",
+	"target",
+	"vendor",
+	"modules",
+	"packages",
+]
 export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
 
@@ -40,6 +64,10 @@ export class WebviewManager {
 				this.provider["disposables"]
 			)
 		}
+	}
+
+	async showInputBox(options: vscode.InputBoxOptions): Promise<string | undefined> {
+		return vscode.window.showInputBox(options)
 	}
 
 	async postMessageToWebview(message: ExtensionMessage) {
@@ -166,10 +194,75 @@ export class WebviewManager {
       `
 	}
 
+	async getFileTree(dir: string, parentId: string = ""): Promise<FileTreeItem[]> {
+		const entries = await readdir(dir, { withFileTypes: true })
+		const items: FileTreeItem[] = []
+
+		for (const entry of entries) {
+			if (excludedDirectories.includes(entry.name)) {
+				continue
+			}
+
+			const id = parentId ? `${parentId}-${entry.name}` : entry.name
+			const fullPath = path.join(dir, entry.name)
+
+			if (entry.isDirectory()) {
+				const children = await this.getFileTree(fullPath, id)
+				items.push({
+					id,
+					depth: parentId.split("-").length,
+					name: entry.name,
+					children,
+					type: "folder",
+				})
+			} else {
+				items.push({
+					id,
+					depth: parentId.split("-").length,
+					name: entry.name,
+					type: "file",
+				})
+			}
+		}
+
+		return items
+	}
+
 	private setWebviewMessageListener(webview: vscode.Webview) {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "fileTree":
+						const workspaceFolders = vscode.workspace.workspaceFolders
+						if (workspaceFolders && workspaceFolders.length > 0) {
+							const rootPath = workspaceFolders[0].uri.fsPath
+							const fileTree = await this.getFileTree(rootPath)
+							this.postMessageToWebview({
+								type: "fileTree",
+								tree: fileTree,
+							})
+						}
+						break
+					case "quickstart":
+						console.log("Quickstart message received")
+						this.provider.getTaskManager().handleNewTask
+						const callback = async (description: string) => {
+							// create new KoduDev instance with description as first message
+							await this.provider.initClaudeDevWithTask(description, [])
+						}
+						await quickStart(message.repo, message.name, callback)
+						break
+					case "renameTask":
+						await this.provider.getTaskManager().renameTask(
+							message.isCurentTask
+								? {
+										isCurentTask: true,
+								  }
+								: {
+										taskId: message.taskId!,
+								  }
+						)
+						break
 					case "freeTrial":
 						await this.provider.getApiManager().initFreeTrialUser(message.fp)
 						break

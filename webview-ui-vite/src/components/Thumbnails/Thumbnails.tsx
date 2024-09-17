@@ -32,6 +32,7 @@ const Thumbnails: React.FC<ThumbnailsProps> = ({ images, style, setImages, onHei
 
 	return (
 		<div
+			className=""
 			ref={containerRef}
 			style={{
 				display: "flex",

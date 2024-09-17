@@ -14,6 +14,7 @@ import {
 } from "../shared/kodu"
 import { z } from "zod"
 import { WebSearchResponseDto } from "./interfaces"
+import * as vscode from "vscode"
 const temperatures = {
 	creative: {
 		top_p: 0.8,
@@ -87,12 +88,46 @@ export class KoduHandler implements ApiHandler {
 		messages: Anthropic.Messages.MessageParam[],
 		tools: Anthropic.Messages.Tool[],
 		creativeMode: "normal" | "creative" | "deterministic",
-		abortSignal?: AbortSignal
+		abortSignal?: AbortSignal,
+		customInstructions?: string
 	): Promise<ApiHandlerMessageResponse> {
 		const modelId = this.getModel().id
 		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming
 		console.log(`creativeMode: ${creativeMode}`)
 		const creativitySettings = temperatures[creativeMode]
+		// check if the root of the folder has .kodu file if so read the content and use it as the system prompt
+		let dotKoduFileContent = ""
+		const workspaceFolders = vscode.workspace.workspaceFolders
+		if (workspaceFolders) {
+			for (const folder of workspaceFolders) {
+				const dotKoduFile = vscode.Uri.joinPath(folder.uri, ".kodu")
+				try {
+					const fileContent = await vscode.workspace.fs.readFile(dotKoduFile)
+					dotKoduFileContent = Buffer.from(fileContent).toString("utf8")
+					console.log(".kodu file content:", dotKoduFileContent)
+					break // Exit the loop after finding and reading the first .kodu file
+				} catch (error) {
+					console.log(`No .kodu file found in ${folder.uri.fsPath}`)
+				}
+			}
+		}
+		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = [
+			{ text: systemPrompt, type: "text", cache_control: { type: "ephemeral" } },
+		]
+		if (dotKoduFileContent) {
+			system.push({
+				text: dotKoduFileContent,
+				type: "text",
+				// cache_control: { type: "ephemeral" },
+			})
+		}
+		if (customInstructions && customInstructions.trim()) {
+			system.push({
+				text: customInstructions,
+				type: "text",
+				cache_control: { type: "ephemeral" },
+			})
+		}
 
 		switch (modelId) {
 			case "claude-3-5-sonnet-20240620":
@@ -108,7 +143,7 @@ export class KoduHandler implements ApiHandler {
 				requestBody = {
 					model: modelId,
 					max_tokens: this.getModel().info.maxTokens,
-					system: [{ text: systemPrompt, type: "text", cache_control: { type: "ephemeral" } }],
+					system,
 					messages: messages.map((message, index) => {
 						if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
 							return {
@@ -224,16 +259,6 @@ export class KoduHandler implements ApiHandler {
 		} else {
 			throw new Error("No response data received")
 		}
-	}
-
-	async createMessageStream(
-		systemPrompt: string,
-		messages: Anthropic.Messages.MessageParam[],
-		tools: Anthropic.Messages.Tool[],
-		creativeMode?: "normal" | "creative" | "deterministic",
-		abortSignal?: AbortSignal
-	): Promise<ApiHandlerMessageResponse> {
-		return this.createMessage(systemPrompt, messages, tools, creativeMode ?? "normal", abortSignal)
 	}
 
 	createUserReadableRequest(

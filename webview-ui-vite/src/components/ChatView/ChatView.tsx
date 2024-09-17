@@ -568,7 +568,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 					</>
 				)}
 			</div>
-			<div className="mt-1 border-t">
+			<div className="mt-2 border-t">
 				{!task && <ProjectStarterChooser />}
 				<InputArea
 					inputValue={inputValue}
@@ -586,6 +586,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 						// if last message is api_req_started, then request is running
 						messages.length > 0 && messages.at(-1)?.say === "api_req_started"
 					}
+					// @ts-expect-error - extract is not working here
 					handleKeyDown={handleKeyDown}
 					handlePaste={handlePaste}
 				/>

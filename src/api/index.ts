@@ -21,7 +21,8 @@ export interface ApiHandler {
 		messages: Anthropic.Messages.MessageParam[],
 		tools: Anthropic.Messages.Tool[],
 		creativeMode?: "normal" | "creative" | "deterministic",
-		abortSignal?: AbortSignal | null
+		abortSignal?: AbortSignal | null,
+		customInstructions?: string
 	): Promise<ApiHandlerMessageResponse>
 
 	createMessageStream?(
@@ -30,7 +31,7 @@ export interface ApiHandler {
 		tools: Anthropic.Messages.Tool[],
 		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null
-	): Promise<ApiHandlerMessageResponse>
+	): AsyncGenerator<ApiHandlerMessageResponse, void, unknown>
 
 	createUserReadableRequest(
 		userContent: Array<

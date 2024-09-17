@@ -3,22 +3,35 @@
 import type { GlobalState } from "../providers/claude-dev/state/GlobalStateManager"
 import { ApiConfiguration } from "./api"
 import { HistoryItem } from "./HistoryItem"
+interface FileTreeItem {
+	id: string
+	depth: number
+	name: string
+	children?: FileTreeItem[]
+	type: "file" | "folder"
+}
+type PostFoldersAndItems = {
+	type: "fileTree"
+	tree: FileTreeItem[]
+}
 
 // webview will hold state
-export interface ExtensionMessage {
-	type: "action" | "state" | "selectedImages"
-	text?: string
-	user?: ExtensionState["user"]
-	action?:
-		| "chatButtonTapped"
-		| "settingsButtonTapped"
-		| "historyButtonTapped"
-		| "didBecomeVisible"
-		| "koduAuthenticated"
-		| "koduCreditsFetched"
-	state?: ExtensionState
-	images?: string[]
-}
+export type ExtensionMessage =
+	| {
+			type: "action" | "state" | "selectedImages"
+			text?: string
+			user?: ExtensionState["user"]
+			action?:
+				| "chatButtonTapped"
+				| "settingsButtonTapped"
+				| "historyButtonTapped"
+				| "didBecomeVisible"
+				| "koduAuthenticated"
+				| "koduCreditsFetched"
+			state?: ExtensionState
+			images?: string[]
+	  }
+	| PostFoldersAndItems
 
 export interface ExtensionState {
 	version: string
@@ -34,6 +47,7 @@ export interface ExtensionState {
 	themeName?: string
 	uriScheme?: string
 	extensionName?: string
+	currentTaskId?: string
 	claudeMessages: ClaudeMessage[]
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean

@@ -5,13 +5,14 @@ import Thumbnails from "../Thumbnails/Thumbnails"
 import { Button } from "../ui/button"
 import { cn } from "@/lib/utils"
 import { vscode } from "@/utils/vscode"
+import InputV1 from "./InputV1"
 
 interface InputAreaProps {
 	inputValue: string
 	setInputValue: (value: string) => void
 	textAreaDisabled: boolean
 	handleSendMessage: () => void
-	handleKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
+	handleKeyDown: (event: KeyboardEvent<HTMLDivElement> | KeyboardEvent<HTMLTextAreaElement>) => void
 	handlePaste: (e: React.ClipboardEvent) => void
 	placeholderText: string
 	selectedImages: string[]
@@ -49,8 +50,9 @@ const InputArea: React.FC<InputAreaProps> = ({
 					opacity: textAreaDisabled ? 0.5 : 1,
 					position: "relative",
 					display: "flex",
+					marginTop: 0,
 				}}>
-				{!isTextAreaFocused && (
+				{/* {!isTextAreaFocused && (
 					<div
 						style={{
 							position: "absolute",
@@ -60,8 +62,10 @@ const InputArea: React.FC<InputAreaProps> = ({
 							pointerEvents: "none",
 						}}
 					/>
-				)}
-				<DynamicTextArea
+				)} */}
+				<InputV1
+					isRequestRunning={isRequestRunning}
+					thumbnailsHeight={thumbnailsHeight}
 					ref={textAreaRef}
 					value={inputValue}
 					disabled={textAreaDisabled || isRequestRunning}
@@ -70,28 +74,6 @@ const InputArea: React.FC<InputAreaProps> = ({
 					onFocus={() => setIsTextAreaFocused(true)}
 					onBlur={() => setIsTextAreaFocused(false)}
 					onPaste={handlePaste}
-					placeholder={placeholderText}
-					maxRows={10}
-					autoFocus={true}
-					style={{
-						width: "100%",
-						boxSizing: "border-box",
-						backgroundColor: "var(--vscode-input-background)",
-						color: "var(--vscode-input-foreground)",
-						borderRadius: 2,
-						fontFamily: "var(--vscode-font-family)",
-						fontSize: "var(--vscode-editor-font-size)",
-						lineHeight: "var(--vscode-editor-line-height)",
-						resize: "none",
-						overflow: "hidden",
-						borderTop: "9px solid transparent",
-						borderBottom: `${thumbnailsHeight + 9}px solid transparent`,
-						borderRight: "54px solid transparent",
-						borderLeft: "9px solid transparent",
-						padding: 0,
-						cursor: textAreaDisabled ? "not-allowed" : undefined,
-						flex: 1,
-					}}
 				/>
 				{selectedImages.length > 0 && (
 					<Thumbnails
@@ -116,24 +98,28 @@ const InputArea: React.FC<InputAreaProps> = ({
 						height: "calc(100% - 20px)",
 						bottom: 10,
 					}}>
-					<div style={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
-						<VSCodeButton
+					<div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2 }}>
+						<Button
+							tabIndex={0}
 							disabled={shouldDisableImages}
-							appearance="icon"
+							variant="ghost"
+							className="!p-1 h-6 w-6"
+							size="icon"
 							aria-label="Attach Images"
 							onClick={selectImages}
 							style={{ marginRight: "2px" }}>
-							<span
-								className="codicon codicon-device-camera"
-								style={{ fontSize: 18, marginLeft: -2, marginBottom: 1 }}></span>
-						</VSCodeButton>
-						<VSCodeButton
+							<span className="codicon codicon-device-camera" style={{ fontSize: 16 }}></span>
+						</Button>
+						<Button
+							tabIndex={0}
 							disabled={textAreaDisabled}
-							appearance="icon"
+							variant="ghost"
+							className="!p-1 h-6 w-6"
+							size="icon"
 							aria-label="Send Message"
 							onClick={handleSendMessage}>
-							<span className="codicon codicon-send" style={{ fontSize: 16, marginBottom: -1 }}></span>
-						</VSCodeButton>
+							<span className="codicon codicon-send" style={{ fontSize: 16 }}></span>
+						</Button>
 					</div>
 				</div>
 			</div>

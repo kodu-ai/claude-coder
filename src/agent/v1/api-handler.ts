@@ -47,8 +47,9 @@ export class ApiManager {
 	): Promise<Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage> {
 		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
 		let systemPrompt = await SYSTEM_PROMPT()
+		let customInstructions: string | undefined
 		if (this.customInstructions && this.customInstructions.trim()) {
-			systemPrompt += `
+			customInstructions += `
 ====
 
 USER'S CUSTOM INSTRUCTIONS
@@ -58,17 +59,15 @@ The following additional instructions are provided by the user. They should be f
 ${this.customInstructions.trim()}
 `
 		}
-		// console.log(`Original conversation history:`, apiConversationHistory)
-		const adjustedHistory = await this.adjustContextWindow(apiConversationHistory)
-		// console.log("Adjusted conversation history", adjustedHistory)
 
 		try {
 			const { message, userCredits } = await this.api.createMessage(
 				systemPrompt,
-				adjustedHistory,
+				apiConversationHistory,
 				tools,
 				creativeMode,
-				abortSignal
+				abortSignal,
+				customInstructions
 			)
 
 			if (userCredits !== undefined) {
@@ -92,104 +91,6 @@ ${this.customInstructions.trim()}
 
 	createUserReadableRequest(userContent: UserContent): string {
 		return this.api.createUserReadableRequest(userContent)
-	}
-
-	async adjustContextWindow(apiConversationHistory: Anthropic.MessageParam[]): Promise<Anthropic.MessageParam[]> {
-		const contextWindow = this.api.getModel().info.contextWindow
-		const maxAllowedSize = Math.floor(contextWindow * 0.85) // Leave 15% buffer for safety
-
-		if (apiConversationHistory.length <= 3) {
-			return apiConversationHistory // Return as is if there are 3 or fewer messages
-		}
-
-		let adjustedHistory: Anthropic.MessageParam[] = []
-		let currentSize = 0
-
-		// Always include the first system message and the first user-assistant pair
-		adjustedHistory.push(apiConversationHistory[0]) // System message
-		adjustedHistory.push(apiConversationHistory[1]) // First user message
-		adjustedHistory.push(apiConversationHistory[2]) // First assistant message
-
-		// Calculate the size of the initial messages
-		currentSize = this.calculateMessageSize(adjustedHistory)
-
-		// Process the remaining messages in reverse order (most recent first)
-		for (let i = apiConversationHistory.length - 1; i > 2; i -= 2) {
-			const assistantMessage = apiConversationHistory[i]
-			const userMessage = apiConversationHistory[i - 1]
-
-			const pairSize = this.calculateMessageSize([userMessage, assistantMessage])
-
-			if (currentSize + pairSize <= maxAllowedSize) {
-				adjustedHistory.unshift(assistantMessage)
-				adjustedHistory.unshift(userMessage)
-				currentSize += pairSize
-			} else {
-				break // Stop adding messages if we exceed the max allowed size
-			}
-		}
-
-		return adjustedHistory
-	}
-
-	private calculateMessageSize(messages: Anthropic.MessageParam[]): number {
-		return messages.reduce((total, message) => {
-			if (typeof message.content === "string") {
-				return total + this.estimateTokens(message.content)
-			} else if (Array.isArray(message.content)) {
-				return (
-					total +
-					message.content.reduce((contentTotal, contentItem) => {
-						if (contentItem.type === "text") {
-							return contentTotal + this.estimateTokens(contentItem.text)
-						} else if (contentItem.type === "image") {
-							// Assume a fixed token cost for images, e.g., 1028 tokens (on usual it's around 1000 tokens)
-							contentItem.source.data
-							return contentTotal + 1028
-						} else if (contentItem.type === "tool_use") {
-							return contentTotal + this.calculateToolUseBlockSize(contentItem)
-						} else if (contentItem.type === "tool_result") {
-							return contentTotal + this.calculateToolResultBlockSize(contentItem)
-						}
-						return contentTotal
-					}, 0)
-				)
-			}
-			return total
-		}, 0)
-	}
-
-	private calculateToolUseBlockSize(toolUseBlock: Anthropic.ToolUseBlockParam): number {
-		let size = this.estimateTokens(toolUseBlock.name)
-		size += this.estimateTokens(toolUseBlock.id)
-		size += this.estimateTokens(JSON.stringify(toolUseBlock.input))
-		return size
-	}
-
-	private calculateToolResultBlockSize(toolResultBlock: Anthropic.ToolResultBlockParam): number {
-		let size = this.estimateTokens(toolResultBlock.tool_use_id)
-		if (typeof toolResultBlock.content === "string") {
-			size += this.estimateTokens(toolResultBlock.content)
-		} else if (Array.isArray(toolResultBlock.content)) {
-			size += toolResultBlock.content.reduce((contentTotal, contentItem) => {
-				if (contentItem.type === "text") {
-					return contentTotal + this.estimateTokens(contentItem.text)
-				} else if (contentItem.type === "image") {
-					// Assume a fixed token cost for images, e.g., 100 tokens
-					return contentTotal + 100
-				}
-				return contentTotal
-			}, 0)
-		}
-		return size
-	}
-
-	/**
-	 * @description Estimates the number of tokens required to process the given text.
-	 * Currently there is no publicy available tokenization algorithm, so we use a simple heuristic 3.5 characters per token.
-	 */
-	private estimateTokens(text: string): number {
-		return Math.ceil(text.length / 3.5)
 	}
 
 	calculateApiCost(

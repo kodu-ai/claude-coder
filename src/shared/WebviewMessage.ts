@@ -5,6 +5,18 @@ type WebviewMessageAmplitude = {
 	event_type: "Auth Start" | "Referral Program" | "Add Credits"
 }
 
+type RenameTask =
+	| {
+			type: "renameTask"
+			taskId: string
+			isCurentTask?: undefined
+	  }
+	| {
+			type: "renameTask"
+			taskId?: undefined
+			isCurentTask: boolean
+	  }
+
 type OpenExternalLink = {
 	type: "openExternalLink"
 	url: string
@@ -20,11 +32,19 @@ type ApiConfigurationMessage = {
 	apiConfiguration: NonNullable<ApiConfiguration>
 }
 
+type QuickstartMessage = {
+	type: "quickstart"
+	repo: string
+	name: string
+}
+
 export type WebviewMessage =
 	| WebviewMessageAmplitude
 	| OpenExternalLink
 	| FreeTrial
 	| ApiConfigurationMessage
+	| RenameTask
+	| QuickstartMessage
 	| {
 			type:
 				| "cancelCurrentRequest"
@@ -49,6 +69,7 @@ export type WebviewMessage =
 				| "didDismissKoduPromo"
 				| "resetState"
 				| "setCreativeMode"
+				| "fileTree"
 			text?: string
 			askResponse?: ClaudeAskResponse
 			images?: string[]

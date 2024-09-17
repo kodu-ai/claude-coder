@@ -12,7 +12,7 @@ import { AskResponse, TaskExecutor, TaskState } from "./task-executor"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
-
+import * as vscode from "vscode"
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
