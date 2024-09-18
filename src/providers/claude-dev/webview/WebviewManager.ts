@@ -263,6 +263,11 @@ export class WebviewManager {
 								  }
 						)
 						break
+					case "useUdiff":
+						await this.provider.getStateManager().setUseUdiff(message.bool)
+						console.log(`useUdiff: ${message.bool}`)
+						await this.postStateToWebview()
+						break
 					case "freeTrial":
 						await this.provider.getApiManager().initFreeTrialUser(message.fp)
 						break

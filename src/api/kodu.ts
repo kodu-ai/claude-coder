@@ -270,6 +270,7 @@ export class KoduHandler implements ApiHandler {
 			| Anthropic.ToolResultBlockParam
 		>
 	): any {
+		// if use udf
 		return {
 			model: this.getModel().id,
 			max_tokens: this.getModel().info.maxTokens,

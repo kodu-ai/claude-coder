@@ -4,10 +4,10 @@ import { UserContent } from "./types"
 import { API_RETRY_DELAY } from "./constants"
 import { serializeError } from "serialize-error"
 import { truncateHalfConversation } from "../../utils/context-management"
-import { SYSTEM_PROMPT } from "./system-prompt"
+import { SYSTEM_PROMPT, UDIFF_SYSTEM_PROMPT } from "./system-prompt"
 import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
 import { KoduError } from "../../shared/kodu"
-import { tools } from "./tools/tools"
+import { tools as baseTools, uDifftools } from "./tools/tools"
 import { findLast } from "../../utils"
 
 export class ApiManager {
@@ -47,7 +47,13 @@ export class ApiManager {
 		abortSignal?: AbortSignal | null
 	): Promise<Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage> {
 		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
+		const useUdiff = (await this.providerRef.deref()?.getStateManager()?.getState())?.useUdiff
 		let systemPrompt = await SYSTEM_PROMPT()
+		let tools = baseTools
+		if (useUdiff) {
+			systemPrompt = await UDIFF_SYSTEM_PROMPT()
+			tools = uDifftools
+		}
 		let customInstructions: string | undefined
 		if (this.customInstructions && this.customInstructions.trim()) {
 			customInstructions += `
