@@ -5,6 +5,7 @@ import { ApiHandlerOptions, koduDefaultModelId, KoduModelId, koduModels, ModelIn
 import {
 	getKoduCurrentUser,
 	getKoduInferenceUrl,
+	getKoduScreenshotUrl,
 	getKoduVisitorUrl,
 	getKoduWebSearchUrl,
 	KODU_ERROR_CODES,
@@ -309,5 +310,27 @@ export class KoduHandler implements ApiHandler {
 		)
 
 		return response.data
+	}
+
+	async sendUrlScreenshotRequest(url: string): Promise<Blob> {
+		this.cancelTokenSource = axios.CancelToken.source()
+
+		const response = await axios.post(
+			getKoduScreenshotUrl(),
+			{
+				url,
+			},
+			{
+				responseType: "arraybuffer",
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
+				},
+				timeout: 60_000,
+				cancelToken: this.cancelTokenSource?.token,
+			}
+		)
+
+		return new Blob([response.data], { type: "image/jpeg" })
 	}
 }

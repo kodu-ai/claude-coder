@@ -171,4 +171,19 @@ export const tools: Tool[] = [
 			required: ["searchQuery"],
 		},
 	},
+	{
+		name: "url_screenshot",
+		description: `Returns a screenshot of a URL provided.
+		This can be used when the user wants to make a design similar to the provided url.`,
+		input_schema: {
+			type: "object",
+			properties: {
+				url: {
+					type: "string",
+					description: "The url provided by the user",
+				},
+			},
+			required: ["searchQuery"],
+		},
+	},
 ]

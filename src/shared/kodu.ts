@@ -37,7 +37,7 @@ export function getKoduWebSearchUrl() {
 	return `${KODU_BASE_URL}/api/tools/web-search`
 }
 
-export function getScreenshotToolUrl() {
+export function getKoduScreenshotUrl() {
 	return `${KODU_BASE_URL}/api/tools/screenshot`
 }
 
