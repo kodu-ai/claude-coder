@@ -16,7 +16,6 @@ export const WebSearchTool: React.FC<ToolRendererProps> = ({
   const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
   const toolIcon = (name: string) => <span className={`codicon codicon-${name} text-alt`} />
   const lastMessage = claudeMessages[claudeMessages.length - 1]
-  const lastMessageText = lastMessage?.text
   if (tool.tool !== "web_search") return null
 
   return (

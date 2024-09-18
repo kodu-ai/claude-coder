@@ -2,7 +2,7 @@ import React from "react"
 import { ClaudeMessage, ClaudeSayTool } from "../../../../src/shared/ExtensionMessage"
 import CodeBlock from "../CodeBlock/CodeBlock"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
-import { WebSearchTool } from "./Tools"
+import { UrlScreenshotTool, WebSearchTool } from "./Tools"
 
 export interface ToolRendererProps {
 	message: ClaudeMessage
@@ -136,6 +136,18 @@ const ToolRenderer: React.FC<ToolRendererProps> = ({
 					nextMessage={nextMessage}
 				/>
 			)
+
+		case "url_screenshot":
+			return (
+				<UrlScreenshotTool
+					message={message}
+					syntaxHighlighterStyle={syntaxHighlighterStyle}
+					isExpanded={isExpanded}
+					onToggleExpand={onToggleExpand}
+					nextMessage={nextMessage}
+				/>
+			)
+
 		case "searchFiles":
 			return (
 				<>

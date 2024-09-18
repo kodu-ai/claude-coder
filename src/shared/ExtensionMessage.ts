@@ -99,8 +99,16 @@ type WebSearchTool = {
 	query: string
 	baseLink: string
 }
+
+export type UrlScreenshotTool = {
+	tool: "url_screenshot"
+	url: string
+	base64Image?: string
+}
+
 export type ClaudeSayTool =
 	| WebSearchTool
+	| UrlScreenshotTool
 	| {
 			tool:
 				| "editedExistingFile"
