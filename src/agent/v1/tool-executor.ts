@@ -10,6 +10,7 @@ import {
 	AttemptCompletionTool,
 	AskFollowupQuestionTool,
 	ReadFileTool,
+	FileUpdateTool,
 	WriteFileTool,
 } from "./tools"
 import { WebSearchTool } from "./tools/web-search-tool"
@@ -43,14 +44,16 @@ export class ToolExecutor {
 
 	async executeTool(params: AgentToolParams): Promise<ToolResponse> {
 		switch (params.name) {
-			case "write_to_file":
-				return new WriteFileTool(params, this.options).execute()
+			case "update_file":
+				return new FileUpdateTool(params, this.options).execute()
 			case "read_file":
 				return new ReadFileTool(params, this.options).execute()
 			case "list_files":
 				return new ListFilesTool(params, this.options).execute()
 			case "search_files":
 				return new SearchFilesTool(params, this.options).execute()
+			case "write_to_file":
+				return new WriteFileTool(params, this.options).execute()
 			case "list_code_definition_names":
 				return new ListCodeDefinitionNamesTool(params, this.options).execute()
 			case "execute_command":

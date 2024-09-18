@@ -8,6 +8,7 @@ import { SYSTEM_PROMPT } from "./system-prompt"
 import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
 import { KoduError } from "../../shared/kodu"
 import { tools } from "./tools/tools"
+import { findLast } from "../../utils"
 
 export class ApiManager {
 	private api: ApiHandler
@@ -58,6 +59,31 @@ The following additional instructions are provided by the user. They should be f
 
 ${this.customInstructions.trim()}
 `
+		}
+		const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
+		// If the last API request's total token usage is close to the context window, truncate the conversation history to free up space for the new request
+		const lastApiReqFinished = findLast(claudeMessages!, (m) => m.say === "api_req_finished")
+		if (lastApiReqFinished && lastApiReqFinished.text) {
+			const {
+				tokensIn,
+				tokensOut,
+				cacheWrites,
+				cacheReads,
+			}: { tokensIn?: number; tokensOut?: number; cacheWrites?: number; cacheReads?: number } = JSON.parse(
+				lastApiReqFinished.text
+			)
+			const totalTokens = (tokensIn || 0) + (tokensOut || 0) + (cacheWrites || 0) + (cacheReads || 0)
+			const contextWindow = this.api.getModel().info.contextWindow
+			const maxAllowedSize = Math.max(contextWindow - 40_000, contextWindow * 0.8)
+			if (totalTokens >= maxAllowedSize) {
+				const truncatedMessages = truncateHalfConversation(apiConversationHistory)
+				apiConversationHistory = truncatedMessages
+				this.providerRef
+					.deref()
+					?.getKoduDev()
+					?.getStateManager()
+					.overwriteApiConversationHistory(truncatedMessages)
+			}
 		}
 
 		try {

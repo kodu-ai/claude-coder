@@ -97,7 +97,7 @@ export const tools: Tool[] = [
 	{
 		name: "write_to_file",
 		description:
-			"Write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. Always provide the full intended content of the file, without any truncation. This tool will automatically create any directories needed to write the file.",
+			"Write new file at the specified path. If the file exists, it will throw an error. If the file doesn't exist, it will be created. Always provide the full intended content of the file, without any truncation. This tool will automatically create any directories needed to write the file.",
 		input_schema: {
 			type: "object",
 			properties: {
@@ -111,6 +111,83 @@ export const tools: Tool[] = [
 				},
 			},
 			required: ["path", "content"],
+		},
+	},
+	{
+		name: "update_file",
+		description: `Update an existing file at the specified path by applying a unified diff (udiff). This tool allows you to modify the content of an existing file by specifying the exact changes in udiff format. The udiff should be a valid unified diff that accurately represents the changes to be made to the file line by line. You must carefully construct the udiff to ensure that the changes are applied correctly and accurately. This tool will automatically create any directories needed to update the file.`,
+		input_schema: {
+			type: "object",
+			properties: {
+				path: {
+					type: "string",
+					description: `The path of the file to update (relative to the current working directory '${cwd}').`,
+				},
+				udiff: {
+					type: "string",
+					description: `
+	  The unified diff (udiff) to apply to the file. This should be a valid udiff that specifies the changes line by line. Before calling this tool, you must use <thinking></thinking> tags to plan the changes you want to make to the file, including the specific lines to add, remove, or modify.
+	  
+	  **Important Notes:**
+	  
+	  - **Accurate Context:** Ensure that the udiff includes the correct context lines and line numbers to prevent patch failures.
+	  - **No Placeholders:** Do not use placeholders like \`// ...\` or \`// rest of code unchanged\`; provide all necessary code explicitly.
+	  - **Line Endings:** Be consistent with line endings to avoid unintended changes.
+	  - **Testing the Patch:** If possible, simulate applying the udiff to ensure it works correctly.
+	  
+	  **Example Interaction:**
+	  
+	  - **User:**
+	  
+		Replace the custom \`is_prime\` function with a call to \`sympy.isprime\`.
+	  
+	  - **Assistant:**
+	  
+		<thinking>
+		1. Identify the file containing the \`is_prime\` function, e.g., \`mathweb/flask/app.py\`.
+		2. Plan the changes:
+		   - Add an import statement for \`sympy\`.
+		   - Remove the \`is_prime\` function definition.
+		   - Modify any calls to \`is_prime()\` to use \`sympy.isprime()\`.
+		</thinking>
+	  
+		Here is the udiff for the changes:
+	  
+		\`\`\`udiff
+		--- mathweb/flask/app.py
+		+++ mathweb/flask/app.py
+		@@ -1,5 +1,6 @@
+		+import sympy
+	  
+		 from flask import Flask
+		 app = Flask(__name__)
+	  
+		@@ -10,15 +11,6 @@
+		 # Other code
+	  
+		-def is_prime(x):
+		-    if x < 2:
+		-        return False
+		-    for i in range(2, int(math.sqrt(x)) + 1):
+		-        if x % i == 0:
+		-            return False
+		-    return True
+	  
+		 @app.route('/prime/<int:n>')
+		 def nth_prime(n):
+		@@ -26,7 +18,7 @@
+			 num = 1
+			 while count < n:
+				 num += 1
+		-        if is_prime(num):
+		+        if sympy.isprime(num):
+					 count += 1
+			 return str(num)
+		\`\`\`
+	  `,
+				},
+			},
+			required: ["path", "udiff"],
 		},
 	},
 	{

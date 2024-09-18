@@ -94,6 +94,7 @@ export class TaskExecutor {
 
 	public abortTask(): void {
 		this.logState("Aborting task")
+		this.abortController?.abort()
 		this.resetState()
 	}
 
@@ -124,41 +125,6 @@ export class TaskExecutor {
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
-	// overrideLastToolUseContent(conversation: any): UserContent {
-	// 	if (conversation.length === 0) {
-	// 		return conversation
-	// 	}
-
-	// 	// Create a deep copy of the conversation to avoid mutating the original
-	// 	const updatedConversation = [...conversation]
-
-	// 	const lastMessage = updatedConversation.at(-1)
-	// 	if (!lastMessage || lastMessage.role !== "user" || !Array.isArray(lastMessage.content)) {
-	// 		return conversation
-	// 	}
-
-	// 	// Find the index of the last tool_use content item
-	// 	const lastMessagedPatched = lastMessage.content?.map((item) => {
-	// 		if (item.type === "tool_result") {
-	// 			return { ...item, content: "Aborted mid-execution by user" }
-	// 		}
-	// 		return item
-	// 	})
-	// 	const patchedConver = [...updatedConversation.slice(0, -1), ...lastMessagedPatched]
-
-	// 	return patchedConver
-	// }
-
-	// isLastMessageToolUse(conversation: StateManager["state"]["apiConversationHistory"]): boolean {
-	// 	if (conversation.length === 0) {
-	// 		return false
-	// 	}
-
-	// 	const lastMessage = conversation[conversation.length - 1]
-
-	// 	// Check if any of the content items in the last message is a tool_use or tool_result
-	// 	return lastMessage.content.some((item) => item.type === "tool_use" || item.type === "tool_result")
-	// }
 	public async makeClaudeRequest(): Promise<void> {
 		console.log(`[TaskExecutor] makeClaudeRequest (State: ${this.state})`)
 		console.log(`[TaskExecutor] makeClaudeRequest (isRequestCancelled: ${this.isRequestCancelled})`)
