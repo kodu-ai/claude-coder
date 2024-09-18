@@ -54,10 +54,7 @@ export class ToolExecutor {
 			case "list_code_definition_names":
 				return new ListCodeDefinitionNamesTool(params, this.options).execute()
 			case "execute_command":
-				return new ExecuteCommandTool(params, {
-					...this.options,
-					terminalManager: this.terminalManager,
-				}).execute()
+				return new ExecuteCommandTool(params, this.options).execute()
 			case "ask_followup_question":
 				return new AskFollowupQuestionTool(params, this.options).execute()
 			case "attempt_completion":

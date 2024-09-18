@@ -13,12 +13,14 @@ import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
 import * as vscode from "vscode"
+import { TerminalManager } from "../../integrations/terminal-manager"
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
 	private apiManager: ApiManager
 	private toolExecutor: ToolExecutor
 	public taskExecutor: TaskExecutor
+	public terminalManager: TerminalManager
 	private providerRef: WeakRef<ClaudeDevProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 
@@ -33,6 +35,7 @@ export class KoduDev {
 			alwaysAllowWriteOnly: this.stateManager.alwaysAllowWriteOnly,
 			koduDev: this,
 		})
+		this.terminalManager = new TerminalManager()
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
 
 		this.setupTaskExecutor()
@@ -263,6 +266,7 @@ export class KoduDev {
 	async abortTask() {
 		this.taskExecutor.abortTask()
 		this.toolExecutor.abortTask()
+		this.terminalManager.disposeAll()
 	}
 
 	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false): Promise<ToolResponse> {

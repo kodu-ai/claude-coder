@@ -8,10 +8,14 @@ export async function quickStart(repoUrl: string, name: string, newTask: newTask
 	console.log("Quickstart", repoUrl, name)
 
 	let workspaceFolder = await getWorkspaceFolder()
-	if (!workspaceFolder) return
+	if (!workspaceFolder) {
+		return
+	}
 
 	name = (await ensureUniqueFolderName(workspaceFolder, name!)) as string
-	if (!name) return
+	if (!name) {
+		return
+	}
 
 	const { repoFullName, branch, subdir } = parseGitHubUrl(repoUrl)
 	if (!repoFullName) {
