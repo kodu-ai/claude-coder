@@ -219,7 +219,7 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 								onPaste={props.onPaste}
 								placeholder={`Type your task or use @ to mention files or folders or URLs`}
 								maxRows={10}
-								className="!overflow-y-auto"
+								className="!overflow-y-auto !min-h-[64px]"
 								autoFocus={true}
 								style={{
 									width: "100%",
