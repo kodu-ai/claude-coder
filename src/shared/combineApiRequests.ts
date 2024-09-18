@@ -56,7 +56,6 @@ export function combineApiRequests(messages: ClaudeMessage[]): ClaudeMessage[] {
 		}
 	}
 
-	console.log("currentApiRequest", currentApiRequest)
 	if (currentApiRequest) {
 		result.push(currentApiRequest)
 	}

@@ -118,6 +118,10 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 		return this.stateManager
 	}
 
+	getState() {
+		return this.stateManager.getState()
+	}
+
 	getWebviewManager() {
 		return this.webviewManager
 	}

@@ -2,6 +2,7 @@ import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiModelId, ModelInfo } from "../shared/api"
 import { KoduHandler } from "./kodu"
 import { WebSearchResponseDto } from "./interfaces"
+import { koduSSEResponse } from "../shared/kodu"
 
 export interface ApiHandlerMessageResponse {
 	message: Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage
@@ -25,13 +26,14 @@ export interface ApiHandler {
 		customInstructions?: string
 	): Promise<ApiHandlerMessageResponse>
 
-	createMessageStream?(
+	createMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
 		tools: Anthropic.Messages.Tool[],
 		creativeMode?: "normal" | "creative" | "deterministic",
-		abortSignal?: AbortSignal | null
-	): AsyncGenerator<ApiHandlerMessageResponse, void, unknown>
+		abortSignal?: AbortSignal | null,
+		customInstructions?: string
+	): AsyncIterableIterator<koduSSEResponse>
 
 	createUserReadableRequest(
 		userContent: Array<

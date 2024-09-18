@@ -62,6 +62,7 @@ export interface ClaudeMessage {
 	say?: ClaudeSay
 	text?: string
 	images?: string[]
+	isStreaming?: boolean
 	/**
 	 * If true, the ask will be automatically approved but the message will still be shown to the user as if it was a normal message
 	 */

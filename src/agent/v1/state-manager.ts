@@ -1,14 +1,14 @@
+import Anthropic from "@anthropic-ai/sdk"
+import fs from "fs/promises"
 import path from "path"
 import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
+import { combineApiRequests } from "../../shared/combineApiRequests"
+import { combineCommandSequences } from "../../shared/combineCommandSequences"
+import { getApiMetrics } from "../../shared/getApiMetrics"
+import { findLastIndex } from "../../utils"
 import { ApiManager } from "./api-handler"
 import { DEFAULT_MAX_REQUESTS_PER_TASK } from "./constants"
 import { ClaudeMessage, KoduDevOptions, KoduDevState } from "./types"
-import fs from "fs/promises"
-import Anthropic from "@anthropic-ai/sdk"
-import { getApiMetrics } from "../../shared/getApiMetrics"
-import { combineApiRequests } from "../../shared/combineApiRequests"
-import { combineCommandSequences } from "../../shared/combineCommandSequences"
-import { findLastIndex } from "../../utils"
 
 // new State Manager class
 export class StateManager {
@@ -64,6 +64,10 @@ export class StateManager {
 
 	get customInstructions(): string | undefined {
 		return this._customInstructions
+	}
+
+	get taskId(): string {
+		return this.taskId
 	}
 
 	get apiManager(): ApiManager {
@@ -176,11 +180,22 @@ export class StateManager {
 		return []
 	}
 
-	async appendToLastClaudeMessage(text: string) {
-		const lastMessage = this.state.claudeMessages[this.state.claudeMessages.length - 1]
-		if (lastMessage && lastMessage.type === "say" && lastMessage.text) {
+	async appendToClaudeMessage(messageId: number, text: string) {
+		console.log(`[StateManager] appendToClaudeMessage (messageId: ${messageId}, text: ${text})`)
+		const lastMessage = this.state.claudeMessages.find(msg => msg.ts === messageId)
+		if (lastMessage && lastMessage.type === "say") {
 			lastMessage.text += text
 		}
+		await this.saveClaudeMessages()
+	}
+
+	async addToClaudeAfterMessage(messageId: number, message: ClaudeMessage) {
+		const index = this.state.claudeMessages.findIndex(msg => msg.ts === messageId)
+		if (index === -1) {
+			console.error(`[StateManager] addToClaudeAfterMessage: Message with id ${messageId} not found`)
+			return
+		}
+		this.state.claudeMessages.splice(index + 1, 0, message)
 		await this.saveClaudeMessages()
 	}
 
@@ -194,6 +209,11 @@ export class StateManager {
 		await this.saveClaudeMessages()
 	}
 
+	/**
+	 * rewrite required.
+	 * 
+	 * @deprecated
+	 */
 	async saveClaudeMessages() {
 		try {
 			const filePath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json")

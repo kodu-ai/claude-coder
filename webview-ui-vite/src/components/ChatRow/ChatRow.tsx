@@ -32,7 +32,10 @@ const APIRequestMessage: React.FC<{
 		type: "api_req_started",
 		cost,
 		isCommandExecuting: false,
-		apiRequestFailedMessage: nextMessage?.text,
+		/**
+		 * ideally this would be automatically updated so isStreaming is only on until we reached error or success
+		 */
+		apiRequestFailedMessage: undefined
 	})
 
 	const getStatusInfo = () => {
