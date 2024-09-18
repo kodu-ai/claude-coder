@@ -1,18 +1,18 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import axios, { CancelTokenSource } from "axios"
+import { z } from "zod"
 import { ApiHandler, ApiHandlerMessageResponse, withoutImageData } from "."
-import { ApiHandlerOptions, koduDefaultModelId, KoduModelId, koduModels, ModelInfo } from "../shared/api"
+import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduModels } from "../shared/api"
 import {
+	KODU_ERROR_CODES,
+	KoduError,
 	getKoduCurrentUser,
 	getKoduInferenceUrl,
 	getKoduVisitorUrl,
 	getKoduWebSearchUrl,
-	KODU_ERROR_CODES,
-	KoduError,
 	koduErrorMessages,
 	koduSSEResponse,
 } from "../shared/kodu"
-import { z } from "zod"
 import { WebSearchResponseDto } from "./interfaces"
 import * as vscode from "vscode"
 import { healMessages } from "./auto-heal"
@@ -215,6 +215,7 @@ export class KoduHandler implements ApiHandler {
 			const reader = response.data
 			const decoder = new TextDecoder("utf-8")
 			let finalResponse: Extract<koduSSEResponse, { code: 1 }> | null = null
+			let partialResponse: Extract<koduSSEResponse, { code: 2 }> | null = null
 			let buffer = ""
 
 			for await (const chunk of reader) {
@@ -226,8 +227,10 @@ export class KoduHandler implements ApiHandler {
 					if (line.startsWith("data: ")) {
 						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
 
-						console.log("eventData", eventData)
-
+						if (eventData.code === 2) {
+						// -> Happens to the current message
+							// We have a partial response, so we need to add it to the message shown to the user and refresh the UI
+						}
 						if (eventData.code === 0) {
 							console.log("Health check received")
 						} else if (eventData.code === 1) {

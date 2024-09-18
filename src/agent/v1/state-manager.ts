@@ -176,6 +176,14 @@ export class StateManager {
 		return []
 	}
 
+	async appendToLastClaudeMessage(text: string) {
+		const lastMessage = this.state.claudeMessages[this.state.claudeMessages.length - 1]
+		if (lastMessage && lastMessage.type === "say" && lastMessage.text) {
+			lastMessage.text += text
+		}
+		await this.saveClaudeMessages()
+	}
+
 	async addToClaudeMessages(message: ClaudeMessage) {
 		this.state.claudeMessages.push(message)
 		await this.saveClaudeMessages()

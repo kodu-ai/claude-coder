@@ -1,5 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ClaudeAsk, ClaudeSay } from "../../shared/ExtensionMessage"
+import { ClaudeAsk, ClaudeMessage, ClaudeSay } from "../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { ToolExecutor } from "./tool-executor"
 import { UserContent, ToolResponse, ToolName } from "./types"
@@ -540,6 +540,11 @@ export class TaskExecutor {
 			}
 			this.pendingAskResponse = resolve
 		})
+	}
+
+	public async addToLastClaudeMessage(text: string) {
+		console.log(`[TaskExecutor] addToLastClaudeMessage: ${text}`)
+		await this.stateManager.appendToLastClaudeMessage(text)
 	}
 
 	/**
