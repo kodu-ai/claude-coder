@@ -106,9 +106,15 @@ export type UrlScreenshotTool = {
 	base64Image?: string
 }
 
+export type AskConsultantTool = {
+	tool: "ask_consultant"
+	context: string
+}
+
 export type ClaudeSayTool =
 	| WebSearchTool
 	| UrlScreenshotTool
+	| AskConsultantTool
 	| {
 			tool:
 				| "editedExistingFile"
