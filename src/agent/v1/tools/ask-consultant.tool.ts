@@ -16,12 +16,12 @@ export class AskConsultantTool extends BaseAgentTool {
 		const { query } = this.params.input
 
 		if (!query) {
-			return this.onBadInputReceived()
+			return await this.onBadInputReceived()
 		}
 
 		const confirmation = await this.askToolExecConfirmation()
 		if (confirmation.response !== "yesButtonTapped") {
-			return this.onExecDenied(confirmation)
+			return await this.onExecDenied(confirmation)
 		}
 
 		try {
