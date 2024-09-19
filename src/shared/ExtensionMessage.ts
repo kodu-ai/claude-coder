@@ -39,6 +39,7 @@ export interface ExtensionState {
 	lastShownAnnouncementId?: string
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
+	useUdiff?: boolean
 	alwaysAllowWriteOnly?: boolean
 	creativeMode?: "creative" | "normal" | "deterministic"
 	fpjsKey?: string

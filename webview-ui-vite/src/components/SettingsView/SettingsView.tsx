@@ -28,6 +28,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 		setCreativeMode,
 		creativeMode,
 		alwaysAllowWriteOnly,
+		useUdiff,
+		setUseUdiff,
 	} = useExtensionState()
 
 	const [_, setApiErrorMessage] = useState<string | undefined>(undefined)
@@ -59,6 +61,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 			vscode.postMessage({ type: "customInstructions", text: customInstructions })
 			vscode.postMessage({ type: "alwaysAllowReadOnly", bool: alwaysAllowReadOnly })
 			vscode.postMessage({ type: "setCreativeMode", text: creativeMode })
+			vscode.postMessage({ type: "useUdiff", bool: useUdiff })
 			onDone()
 		}
 	}
@@ -125,6 +128,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 					onChange={(checked) => switchAutomaticMode(checked)}
 					label="Automatic mode"
 					description="When enabled, Claude will automatically try to solve the task without asking for your permission. *Use with caution, as this may lead to unintended consequences.* *This feature is highly experimental and may not work as expected.*"
+				/>
+
+				<CheckboxOption
+					checked={useUdiff}
+					onChange={(checked) => setUseUdiff(checked)}
+					label="Use uDiffs and advance editing"
+					description="When enabled, Claude will automatically try to use uDiffs to update files instead of writing the entire file. *Use with caution, this might lead to reduced accuracy.*"
 				/>
 
 				<CustomInstructions value={customInstructions ?? ""} onChange={setCustomInstructions} />
