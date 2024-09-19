@@ -10,6 +10,15 @@ import Fuse, { FuseResult } from "fuse.js"
 import HistoryItem from "./HistoryItem"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 import { type HistoryItem as HistoryItemT } from "../../../../src/shared/HistoryItem"
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTrigger,
+} from "../ui/dialog"
 
 type SortOption = "newest" | "oldest" | "mostExpensive" | "mostTokens" | "mostRelevant"
 
@@ -133,9 +142,39 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 		<div className="fixed inset-0 flex flex-col overflow-hidden">
 			<div className="flex justify-between items-center p-4 pb-0">
 				<h3 className="text-lg font-semibold">History</h3>
-				<Button size="sm" onClick={onDone}>
-					Done
-				</Button>
+				<div className="flex flex-wrap gap-2">
+					<Dialog>
+						<DialogTrigger asChild>
+							<Button size="sm" variant="destructive">
+								Clear History
+							</Button>
+						</DialogTrigger>
+						<DialogContent>
+							<DialogHeader className="pt-2">Are you sure you want to clear your history?</DialogHeader>
+							<DialogDescription>
+								This action cannot be undone. All history will be permanently deleted
+							</DialogDescription>
+							<DialogFooter className="gap-2">
+								<DialogClose asChild>
+									<Button size="sm" variant="outline">
+										Cancel
+									</Button>
+								</DialogClose>
+								<DialogClose asChild>
+									<Button
+										size="sm"
+										variant="destructive"
+										onClick={() => vscode.postMessage({ type: "clearHistory" })}>
+										Delete All
+									</Button>
+								</DialogClose>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+					<Button size="sm" onClick={onDone}>
+						Done
+					</Button>
+				</div>
 			</div>
 			<div className="p-4">
 				<div className="flex flex-col gap-4">

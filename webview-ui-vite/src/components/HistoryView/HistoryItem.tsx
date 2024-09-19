@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button"
 import { formatDate } from "@/utils/dateFormatter"
 import { type HistoryItem } from "../../../../src/shared/HistoryItem"
+import { Loader2, Trash2 } from "lucide-react"
+import { useState } from "react"
 
 type HistoryItemProps = {
 	item: HistoryItem
@@ -10,37 +12,31 @@ type HistoryItemProps = {
 }
 
 const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) => {
+	const [isLoading, setIsLoading] = useState<{ [key: string]: boolean }>({})
 	return (
 		<div
 			className="cursor-pointer text-foreground border-b border-border hover:bg-secondary hover:text-secondary-foreground transition-colors"
 			onClick={() => onSelect(item.id)}>
-			<div className="flex flex-col gap-2 p-4 relative">
+			<div className="flex flex-col gap-2 p-4 relative group">
 				<div className="flex justify-between items-center">
 					<span className="text-sm font-medium uppercase">{formatDate(item.ts)}</span>
 					<Button
 						variant="ghost"
 						size="sm"
-						className="delete-button opacity-0 group-hover:opacity-100 transition-opacity"
+						id={`delete-${item.id}`}
+						disabled={isLoading[item.id]}
+						className="opacity-80 group-hover:opacity-100 transition-opacity"
 						onClick={(e) => {
 							e.stopPropagation()
+							setIsLoading((prev) => ({ ...prev, [item.id]: true }))
 							onDelete(item.id)
 						}}>
 						<span className="sr-only">Delete</span>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="24"
-							height="24"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							className="w-4 h-4">
-							<path d="M3 6h18"></path>
-							<path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-							<path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-						</svg>
+						{isLoading[item.id] ? (
+							<Loader2 className="animate-spin" size={16} />
+						) : (
+							<Trash2 aria-label="Delete" size={16} className="text-foreground" />
+						)}
 					</Button>
 				</div>
 				<div
@@ -88,7 +84,7 @@ const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) =
 							<Button
 								variant="ghost"
 								size="sm"
-								className="export-button opacity-0 group-hover:opacity-100 transition-opacity"
+								className="opacity-80 group-hover:opacity-100 transition-opacity"
 								onClick={(e) => {
 									e.stopPropagation()
 									onExport(item.id)
@@ -146,7 +142,7 @@ const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) =
 							<Button
 								variant="ghost"
 								size="sm"
-								className="export-button opacity-0 group-hover:opacity-100 transition-opacity"
+								className="opacity-80 group-hover:opacity-100 transition-opacity"
 								onClick={(e) => {
 									e.stopPropagation()
 									onExport(item.id)
