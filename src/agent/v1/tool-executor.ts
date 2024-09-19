@@ -12,6 +12,7 @@ import {
 	ReadFileTool,
 	WriteFileTool,
 	UrlScreenshotTool,
+	AskConsultantTool,
 } from "./tools"
 import { WebSearchTool } from "./tools/web-search-tool"
 import { TerminalManager } from "../../integrations/terminal-manager"
@@ -64,6 +65,8 @@ export class ToolExecutor {
 				return new WebSearchTool(params, this.options).execute()
 			case "url_screenshot":
 				return new UrlScreenshotTool(params, this.options).execute()
+			case "ask_consultant":
+				return new AskConsultantTool(params, this.options).execute()
 			default:
 				return `Unknown tool: ${params.name}`
 		}
