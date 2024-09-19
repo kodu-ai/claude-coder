@@ -13,6 +13,7 @@ export type ToolInput = {
 	question?: string
 	result?: string
 	searchQuery?: string
+	query?: string
 	baseLink?: string
 	url?: string
 }

@@ -41,6 +41,10 @@ export function getKoduScreenshotUrl() {
 	return `${KODU_BASE_URL}/api/tools/screenshot`
 }
 
+export function getKoduConsultantUrl() {
+	return `${KODU_BASE_URL}/api/tools/consultant`
+}
+
 export function getKoduHomepageUrl() {
 	return `${KODU_BASE_URL}`
 }

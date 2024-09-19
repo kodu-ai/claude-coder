@@ -11,6 +11,7 @@ export type ToolName =
 	| "attempt_completion"
 	| "web_search"
 	| "url_screenshot"
+	| "ask_consultant"
 
 export type Tool = Omit<Anthropic.Tool, "name"> & {
 	name: ToolName

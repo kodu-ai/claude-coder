@@ -186,4 +186,18 @@ export const tools: Tool[] = [
 			required: ["searchQuery"],
 		},
 	},
+	{
+		name: "ask_consultant",
+		description: `Allows you talk to an expert software consultant for help or direction when you're unable to solve a bug or need assistance.`,
+		input_schema: {
+			type: "object",
+			properties: {
+				query: {
+					type: "string",
+					description: "The question or issue you want to ask the consultant.",
+				},
+			},
+			required: ["query"],
+		},
+	},
 ]
