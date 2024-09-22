@@ -66,8 +66,8 @@ Whether you're crafting your first "Hello, World!" or architecting complex syste
 
 If you're a developer and want to help make Claude Coder even better, here's how:
 
-1. Clone the repo: `git clone https://github.com/kodu-ai/kodu-coder.git`
-2. Open in VS Code: `code kodu-coder`
+1. Clone the repo: `git clone https://github.com/kodu-ai/claude-coder.git`
+2. Open in VS Code: `code claude-coder`
 3. Install dependencies: `npm run install:all`
 4. Run with `F5`
 
