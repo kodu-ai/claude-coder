@@ -76,4 +76,4 @@ Pro tips:
 - Extension host changes need a full reload (Cmd/Ctrl + R)
 
 Make your changes, create a pull request, and let's make magic together!
-</details>](https://marketplace.visualstudio.com/items?itemName=kodu-ai.claude-dev-experimental)
+</details>
