@@ -23,6 +23,7 @@ export type GlobalState = {
 	taskHistory: HistoryItem[] | undefined
 	shouldShowKoduPromo: boolean | undefined
 	creativeMode: CreativeMode | undefined
+	experimentalTerminal: boolean | undefined
 }
 
 export class GlobalStateManager {

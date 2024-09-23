@@ -90,7 +90,7 @@ export default function ProjectStarterChooser() {
 		<>
 			<Popover open={open} onOpenChange={setOpen}>
 				<PopoverTrigger asChild>
-					<Button variant="outline" size="sm" className="justify-between w-fit mt-2 ml-4">
+					<Button variant="outline" className="justify-between w-fit mt-2 ml-4">
 						<MagicWandIcon className="h-4 w-4 text-primary mr-2" />
 						Quick Start
 					</Button>

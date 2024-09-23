@@ -392,6 +392,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const handleSayMessage = (message: any) => {
 		// This function updates the component state based on the type of say message received
 		switch (message.say) {
+			case "text":
+				setTextAreaDisabled(false)
+				setClaudeAsk(undefined)
+				setEnableButtons(false)
+				break
 			case "abort_automode":
 				setTextAreaDisabled(false)
 				setClaudeAsk(undefined)

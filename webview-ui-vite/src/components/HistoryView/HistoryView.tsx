@@ -156,13 +156,10 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 							</DialogDescription>
 							<DialogFooter className="gap-2">
 								<DialogClose asChild>
-									<Button size="sm" variant="outline">
-										Cancel
-									</Button>
+									<Button variant="outline">Cancel</Button>
 								</DialogClose>
 								<DialogClose asChild>
 									<Button
-										size="sm"
 										variant="destructive"
 										onClick={() => vscode.postMessage({ type: "clearHistory" })}>
 										Delete All

@@ -11,6 +11,9 @@
 	"author": {
 		"name": "Kodu AI"
 	},
+	"enabledApiProposals": [
+		"terminalDataWriteEvent"
+	],
 	"license": "AGPL-3.0-or-later",
 	"publisher": "kodu-ai",
 	"repository": {

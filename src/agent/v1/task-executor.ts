@@ -383,7 +383,7 @@ export class TaskExecutor {
 		this.logState("Request limit reached")
 		const { response } = await this.ask(
 			"request_limit_reached",
-			`Claude Dev has reached the maximum number of requests for this task. Would you like to reset the count and allow him to proceed?`
+			`Claude Coder has reached the maximum number of requests for this task. Would you like to reset the count and allow him to proceed?`
 		)
 		if (response === "yesButtonTapped") {
 			this.stateManager.state.requestCount = 0

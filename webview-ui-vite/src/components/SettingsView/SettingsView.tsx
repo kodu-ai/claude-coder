@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react"
-import { VSCodeButton, VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { validateApiConfiguration, validateMaxRequestsPerTask } from "../../utils/validate"
 import { vscode } from "../../utils/vscode"
 import ApiOptions from "../ApiOptions/ApiOptions"
 import CreativityModeSelector from "./CreativityModeSelector"
-import CheckboxOption from "./CheckboxOption"
 import CustomInstructions from "./CustomInstructions"
 import MaxRequestsInput from "./MaxRequestsInput"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
 
 const IS_DEV = false // FIXME: use flags when packaging
 
@@ -21,6 +23,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 		version,
 		maxRequestsPerTask,
 		customInstructions,
+		experimentalTerminal,
+		setExperimentalTerminal,
 		setCustomInstructions,
 		alwaysAllowReadOnly,
 		setAlwaysAllowReadOnly,
@@ -32,7 +36,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 		setUseUdiff,
 	} = useExtensionState()
 
-	const [_, setApiErrorMessage] = useState<string | undefined>(undefined)
+	const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>(undefined)
 	const [maxRequestsErrorMessage, setMaxRequestsErrorMessage] = useState<string | undefined>(undefined)
 	const [maxRequestsPerTaskString, setMaxRequestsPerTaskString] = useState<string>(
 		maxRequestsPerTask?.toString() || ""
@@ -62,6 +66,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 			vscode.postMessage({ type: "alwaysAllowReadOnly", bool: alwaysAllowReadOnly })
 			vscode.postMessage({ type: "setCreativeMode", text: creativeMode })
 			vscode.postMessage({ type: "useUdiff", bool: useUdiff })
+			vscode.postMessage({ type: "experimentalTerminal", bool: experimentalTerminal })
 			onDone()
 		}
 	}
@@ -79,106 +84,131 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 	}
 
 	return (
-		<div
-			className="text-start"
-			style={{
-				position: "fixed",
-				top: 0,
-				left: 0,
-				right: 0,
-				bottom: 0,
-				padding: "10px 0px 0px 20px",
-				display: "flex",
-				flexDirection: "column",
-				overflow: "hidden",
-			}}>
-			<div
-				style={{
-					display: "flex",
-					justifyContent: "space-between",
-					alignItems: "center",
-					marginBottom: "17px",
-					paddingRight: 17,
-				}}>
-				<h3 style={{ color: "var(--vscode-foreground)", margin: 0 }}>Settings</h3>
-				<VSCodeButton onClick={handleSubmit}>Done</VSCodeButton>
+		<div className="text-start fixed inset-0 p-4 flex flex-col overflow-hidden">
+			<div className="flex justify-between items-center mb-4">
+				<h3 className="text-base font-semibold m-0">Settings</h3>
+				<Button onClick={handleSubmit} size="sm">
+					Done
+				</Button>
 			</div>
-			<div
-				style={{ flexGrow: 1, overflowY: "scroll", paddingRight: 8, display: "flex", flexDirection: "column" }}>
-				<div style={{ marginBottom: 5 }}>
-					<ApiOptions showModelOptions={true} />
-				</div>
-
-				<CreativityModeSelector creativeMode={creativeMode} setCreativeMode={setCreativeMode} />
-
-				<CheckboxOption
-					checked={alwaysAllowReadOnly}
-					onChange={(checked) => {
-						setAlwaysAllowReadOnly(checked)
-						if (!checked) {
-							setAlwaysAllowWriteOnly(false)
-						}
-					}}
-					label="Always allow read-only operations"
-					description="When enabled, Claude will automatically read files and view directories without requiring you to click the Allow button."
-				/>
-
-				<CheckboxOption
-					checked={alwaysAllowWriteOnly}
-					onChange={(checked) => switchAutomaticMode(checked)}
-					label="Automatic mode"
-					description="When enabled, Claude will automatically try to solve the task without asking for your permission. *Use with caution, as this may lead to unintended consequences.* *This feature is highly experimental and may not work as expected.*"
-				/>
-
-				<CheckboxOption
-					checked={useUdiff}
-					onChange={(checked) => setUseUdiff(checked)}
-					label="Use uDiffs and advance editing"
-					description="When enabled, Claude will automatically try to use uDiffs to update files instead of writing the entire file. *Use with caution, this might lead to reduced accuracy.*"
-				/>
-
-				<CustomInstructions value={customInstructions ?? ""} onChange={setCustomInstructions} />
-
-				<MaxRequestsInput
-					value={maxRequestsPerTaskString}
-					onChange={setMaxRequestsPerTaskString}
-					errorMessage={maxRequestsErrorMessage}
-				/>
-
-				{IS_DEV && (
-					<>
-						<div style={{ marginTop: "10px", marginBottom: "4px" }}>Debug</div>
-						<VSCodeButton onClick={handleResetState} style={{ marginTop: "5px", width: "auto" }}>
-							Reset State
-						</VSCodeButton>
-						<p
-							style={{
-								fontSize: "12px",
-								marginTop: "5px",
-								color: "var(--vscode-descriptionForeground)",
-							}}>
-							This will reset all global state and secret storage in the extension.
-						</p>
-					</>
-				)}
-
-				<div
-					style={{
-						textAlign: "center",
-						color: "var(--vscode-descriptionForeground)",
-						fontSize: "12px",
-						lineHeight: "1.2",
-						marginTop: "auto",
-						padding: "10px 8px 15px 0px",
-					}}>
-					<div style={{ wordWrap: "break-word", margin: 0, padding: 0 }}>
-						If you have any questions or feedback, feel free to open an issue at{" "}
-						<VSCodeLink href="https://github.com/kodu-ai/kodu-coder" style={{ display: "inline" }}>
-							https://github.com/kodu-ai/kodu-coder
-						</VSCodeLink>
+			<ScrollArea className="flex-grow pr-2">
+				<div className="space-y-4">
+					<div className="mb-1">
+						<ApiOptions showModelOptions={true} />
 					</div>
-					<div style={{ fontStyle: "italic", margin: "10px 0 0 0", padding: 0 }}>v{version}</div>
+
+					<CreativityModeSelector creativeMode={creativeMode} setCreativeMode={setCreativeMode} />
+
+					<div className="flex items-start space-x-2">
+						<Checkbox
+							id="always-allow-read-only"
+							checked={alwaysAllowReadOnly}
+							onCheckedChange={(checked) => {
+								setAlwaysAllowReadOnly(checked as boolean)
+								if (!checked) {
+									setAlwaysAllowWriteOnly(false)
+								}
+							}}
+						/>
+						<div>
+							<label htmlFor="always-allow-read-only" className="text-sm font-medium cursor-pointer">
+								Always allow read-only operations
+							</label>
+							<p className="text-xs text-muted-foreground">
+								When enabled, Claude will automatically read files and view directories without
+								requiring you to click the Allow button.
+							</p>
+						</div>
+					</div>
+
+					<div className="flex items-start space-x-2">
+						<Checkbox
+							id="automatic-mode"
+							checked={alwaysAllowWriteOnly}
+							onCheckedChange={(checked) => switchAutomaticMode(checked as boolean)}
+						/>
+						<div>
+							<label htmlFor="automatic-mode" className="text-sm font-medium cursor-pointer">
+								Automatic mode
+							</label>
+							<p className="text-xs text-muted-foreground">
+								When enabled, Claude will automatically try to solve the task without asking for your
+								permission. <em>Use with caution, as this may lead to unintended consequences.</em>{" "}
+								<em>This feature is highly experimental and may not work as expected.</em>
+							</p>
+						</div>
+					</div>
+
+					<div className="flex items-start space-x-2">
+						<Checkbox
+							id="use-udiff"
+							checked={useUdiff}
+							onCheckedChange={(checked) => setUseUdiff(checked as boolean)}
+						/>
+						<div>
+							<label htmlFor="use-udiff" className="text-sm font-medium cursor-pointer">
+								Use uDiffs and advance editing
+							</label>
+							<p className="text-xs text-muted-foreground">
+								When enabled, Claude will automatically try to use uDiffs to update files instead of
+								writing the entire file. <em>Use with caution, this might lead to reduced accuracy.</em>
+							</p>
+						</div>
+					</div>
+
+					<div className="flex items-start space-x-2">
+						<Checkbox
+							id="use-termianl-shell"
+							checked={experimentalTerminal}
+							onCheckedChange={(checked) => setExperimentalTerminal(checked as boolean)}
+						/>
+						<div>
+							<label htmlFor="use-termianl-shell" className="text-sm font-medium cursor-pointer">
+								Use Experimental Terminal Shell
+							</label>
+							<p className="text-xs text-muted-foreground">
+								When enabled, Claude will be able to run shell commands in the terminal directly and
+								manage your terminals. <em>Use with caution, this is experimental feature.</em>
+							</p>
+						</div>
+					</div>
+
+					<CustomInstructions value={customInstructions ?? ""} onChange={setCustomInstructions} />
+
+					<MaxRequestsInput
+						value={maxRequestsPerTaskString}
+						onChange={setMaxRequestsPerTaskString}
+						errorMessage={maxRequestsErrorMessage}
+					/>
+
+					{IS_DEV && (
+						<>
+							<Separator />
+							<div className="space-y-2">
+								<div className="text-sm font-medium">Debug</div>
+								<Button onClick={handleResetState} variant="destructive" size="sm">
+									Reset State
+								</Button>
+								<p className="text-xs text-muted-foreground">
+									This will reset all global state and secret storage in the extension.
+								</p>
+							</div>
+						</>
+					)}
 				</div>
+			</ScrollArea>
+			<div className="text-center text-xs text-muted-foreground mt-auto pt-2">
+				<p className="m-0 p-0">
+					If you have any questions or feedback, feel free to open an issue at{" "}
+					<a
+						href="https://github.com/kodu-ai/kodu-coder"
+						className="text-primary hover:underline"
+						target="_blank"
+						rel="noopener noreferrer">
+						https://github.com/kodu-ai/kodu-coder
+					</a>
+				</p>
+				<p className="italic m-0 p-0 mt-2">v{version}</p>
 			</div>
 		</div>
 	)
