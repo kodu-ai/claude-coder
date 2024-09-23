@@ -13,6 +13,7 @@ import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
 import { TerminalManager } from "../../integrations/terminal-manager"
+import { GitHandler } from "./git-handler"
 
 // new KoduDev
 export class KoduDev {
@@ -23,24 +24,26 @@ export class KoduDev {
 	public terminalManager: TerminalManager
 	private providerRef: WeakRef<ClaudeDevProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
+	public gitHandler: GitHandler
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
 		const dateString = Date.now().toString()
 		const folderName = historyItem ? historyItem.folderName ?? "" : dateString
+		const cwd = getCwd(folderName)
 
 		this.stateManager = new StateManager(options)
 		this.providerRef = new WeakRef(provider)
 		this.apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
 		this.toolExecutor = new ToolExecutor({
-			cwd: getCwd(folderName),
+			cwd,
 			alwaysAllowReadOnly: this.stateManager.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: this.stateManager.alwaysAllowWriteOnly,
 			koduDev: this,
 		})
 		this.terminalManager = new TerminalManager()
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
-
+		this.gitHandler = new GitHandler(cwd)
 		this.setupTaskExecutor()
 
 		this.stateManager.setState({
@@ -106,6 +109,8 @@ export class KoduDev {
 		}
 		let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
 		amplitudeTracker.taskStart(this.stateManager.state.taskId)
+
+		await this.gitHandler.setupRepository()
 		await this.taskExecutor.say("text", task, images)
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
 	}
