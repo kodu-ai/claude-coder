@@ -8,4 +8,5 @@ export type HistoryItem = {
 	cacheReads?: number
 	totalCost: number
 	name?: string
+	folderName: string
 }

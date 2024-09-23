@@ -41,7 +41,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 
 			const message = JSON.stringify({
 				tool: "listCodeDefinitionNames",
-				path: getReadablePath(relDirPath),
+				path: getReadablePath(relDirPath, this.cwd),
 				content: result,
 			} as ClaudeSayTool)
 

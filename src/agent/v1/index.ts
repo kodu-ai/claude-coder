@@ -1,6 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
-import { ClaudeAsk, ClaudeSay } from "../../shared/ExtensionMessage"
+import { ClaudeAsk } from "../../shared/ExtensionMessage"
 import { ToolName } from "../../shared/Tool"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { ApiManager } from "./api-handler"
@@ -12,8 +12,8 @@ import { AskResponse, TaskExecutor, TaskState } from "./task-executor"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
-import * as vscode from "vscode"
 import { TerminalManager } from "../../integrations/terminal-manager"
+
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
@@ -26,11 +26,14 @@ export class KoduDev {
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
+		const dateString = Date.now().toString()
+		const folderName = historyItem ? historyItem.folderName ?? "" : dateString
+
 		this.stateManager = new StateManager(options)
 		this.providerRef = new WeakRef(provider)
 		this.apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
 		this.toolExecutor = new ToolExecutor({
-			cwd: getCwd(),
+			cwd: getCwd(folderName),
 			alwaysAllowReadOnly: this.stateManager.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: this.stateManager.alwaysAllowWriteOnly,
 			koduDev: this,
@@ -41,7 +44,8 @@ export class KoduDev {
 		this.setupTaskExecutor()
 
 		this.stateManager.setState({
-			taskId: historyItem ? historyItem.id : Date.now().toString(),
+			taskId: historyItem ? historyItem.id : dateString,
+			folderName,
 			requestCount: 0,
 			apiConversationHistory: [],
 			claudeMessages: [],
@@ -243,8 +247,11 @@ export class KoduDev {
 			return "just now"
 		})()
 
+		const folderName = this.stateManager.state.folderName
 		const combinedText =
-			`Task resumption: This autonomous coding task was interrupted ${agoText}. It may or may not be complete, so please reassess the task context. Be aware that the project state may have changed since then. The current working directory is now ${getCwd()}. If the task has not been completed, retry the last step before interruption and proceed with completing the task.` +
+			`Task resumption: This autonomous coding task was interrupted ${agoText}. It may or may not be complete, so please reassess the task context. Be aware that the project state may have changed since then. The current working directory is now ${getCwd(
+				folderName
+			)}. If the task has not been completed, retry the last step before interruption and proceed with completing the task.` +
 			(modifiedOldUserContentText
 				? `\n\nLast recorded user input before interruption:\n<previous_message>\n${modifiedOldUserContentText}\n</previous_message>\n`
 				: "") +

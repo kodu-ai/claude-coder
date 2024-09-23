@@ -42,6 +42,7 @@ export class StateManager {
 
 		this._state = {
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
+			folderName: historyItem ? historyItem.folderName : "",
 			requestCount: 0,
 			apiConversationHistory: [],
 			claudeMessages: [],
@@ -205,6 +206,7 @@ export class StateManager {
 				.deref()
 				?.getStateManager()
 				.updateTaskHistory({
+					folderName: !this.state.folderName ? "" : this.state.taskId,
 					id: this.state.taskId,
 					ts: lastRelevantMessage.ts,
 					task: taskMessage.text ?? "",

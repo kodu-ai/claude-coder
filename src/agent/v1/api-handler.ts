@@ -46,12 +46,16 @@ export class ApiManager {
 		apiConversationHistory: Anthropic.MessageParam[],
 		abortSignal?: AbortSignal | null
 	): Promise<Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage> {
+		const currentTaskId = (await this.providerRef.deref()?.getStateManager()?.getState())?.currentTaskId!
+		const { historyItem } = await this.providerRef.deref()?.getTaskManager()?.getTaskWithId(currentTaskId)!
+		const folderName = historyItem.folderName ?? ""
+
 		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
 		const useUdiff = (await this.providerRef.deref()?.getStateManager()?.getState())?.useUdiff
-		let systemPrompt = await SYSTEM_PROMPT()
+		let systemPrompt = await SYSTEM_PROMPT(folderName)
 		let tools = baseTools
 		if (useUdiff) {
-			systemPrompt = await UDIFF_SYSTEM_PROMPT()
+			systemPrompt = await UDIFF_SYSTEM_PROMPT(folderName)
 			tools = uDifftools
 		}
 		let customInstructions: string | undefined

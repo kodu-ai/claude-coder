@@ -3,11 +3,12 @@ import defaultShell from "default-shell"
 import os from "os"
 import { getPythonEnvPath } from "../../utils/get-python-env"
 import { cwd } from "./utils"
+import * as path from "path"
 
 /**
  * working well udiff system prompt
  */
-export const UDIFF_SYSTEM_PROMPT = async (): Promise<string> => {
+export const UDIFF_SYSTEM_PROMPT = async (folderName: string): Promise<string> => {
 	const pythonEnvInfo = await (async () => {
 		try {
 			const pythonEnvPath = await getPythonEnvPath()
@@ -306,12 +307,13 @@ SYSTEM INFORMATION
 Operating System: ${osName()}
 Default Shell: ${defaultShell}${pythonEnvInfo}
 Home Directory: ${os.homedir()}
-Current Working Directory: ${cwd}
+Current Working Directory: ${path.join(cwd, folderName)}
 `
 }
 
-export const SYSTEM_PROMPT =
-	async () => `You are Claude Coder, a highly skilled software developer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
+export const SYSTEM_PROMPT = async (
+	folderName: string
+) => `You are Claude Coder, a highly skilled software developer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
 
 ====
 
@@ -331,7 +333,7 @@ CAPABILITIES
 
 RULES
 
-- Your current working directory is: ${cwd}
+- Your current working directory is: ${path.join(cwd, folderName)}
 - You cannot \`cd\` into a different directory to complete a task. You are stuck operating from '${cwd}', so be sure to pass in the correct 'path' parameter when using tools that require a path.
 - Do not use the ~ character or $HOME to refer to the home directory.
 - Before using the execute_command tool, you must first think about the SYSTEM INFORMATION context provided to understand the user's environment and tailor your commands to ensure they are compatible with their system. You must also consider if the command you need to run should be executed in a specific directory outside of the current working directory '${cwd}', and if so prepend with \`cd\`'ing into that directory && then executing the command (as one command since you are stuck operating from '${cwd}'). For example, if you needed to run \`npm install\` in a project outside of '${cwd}', you would need to prepend with a \`cd\` i.e. pseudocode for this would be \`cd (path to project) && (command, in this case npm install)\`.
@@ -368,16 +370,16 @@ SYSTEM INFORMATION
 
 Operating System: ${osName()}
 Default Shell: ${defaultShell}${await (async () => {
-		try {
-			const pythonEnvPath = await getPythonEnvPath()
-			if (pythonEnvPath) {
-				return `\nPython Environment: ${pythonEnvPath}`
-			}
-		} catch (error) {
-			console.log("Failed to get python env path", error)
+	try {
+		const pythonEnvPath = await getPythonEnvPath()
+		if (pythonEnvPath) {
+			return `\nPython Environment: ${pythonEnvPath}`
 		}
-		return ""
-	})()}
+	} catch (error) {
+		console.log("Failed to get python env path", error)
+	}
+	return ""
+})()}
 Home Directory: ${os.homedir()}
-Current Working Directory: ${cwd}
+Current Working Directory: ${path.join(cwd, folderName)}
 `

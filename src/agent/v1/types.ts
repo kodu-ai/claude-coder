@@ -27,6 +27,7 @@ export interface KoduDevOptions {
 
 export interface KoduDevState {
 	taskId: string
+	folderName: string
 	requestCount: number
 	apiConversationHistory: Anthropic.MessageParam[]
 	claudeMessages: ClaudeMessage[]

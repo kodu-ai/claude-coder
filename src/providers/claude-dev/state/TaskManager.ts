@@ -134,7 +134,7 @@ export class TaskManager {
 		await this.deleteTaskFromState(id)
 	}
 
-	private async getTaskWithId(id: string): Promise<{
+	async getTaskWithId(id: string): Promise<{
 		historyItem: HistoryItem
 		taskDirPath: string
 		apiConversationHistoryFilePath: string
