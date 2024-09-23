@@ -228,7 +228,7 @@ export class KoduHandler implements ApiHandler {
 						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
 
 						if (eventData.code === 2) {
-						// -> Happens to the current message
+							// -> Happens to the current message
 							// We have a partial response, so we need to add it to the message shown to the user and refresh the UI
 						}
 						if (eventData.code === 0) {
@@ -265,7 +265,14 @@ export class KoduHandler implements ApiHandler {
 		}
 	}
 
-	 async *createMessageStream(systemPrompt: string, messages: Anthropic.Messages.MessageParam[], tools: Anthropic.Messages.Tool[], creativeMode?: "normal" | "creative" | "deterministic", abortSignal?: AbortSignal | null, customInstructions?: string): AsyncIterableIterator<koduSSEResponse> {
+	async *createMessageStream(
+		systemPrompt: string,
+		messages: Anthropic.Messages.MessageParam[],
+		tools: Anthropic.Messages.Tool[],
+		creativeMode?: "normal" | "creative" | "deterministic",
+		abortSignal?: AbortSignal | null,
+		customInstructions?: string
+	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
 		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming
 		console.log(`creativeMode: ${creativeMode}`)
@@ -400,6 +407,20 @@ export class KoduHandler implements ApiHandler {
 				for (const line of lines) {
 					if (line.startsWith("data: ")) {
 						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
+						if (eventData.code === 2) {
+							// -> Happens to the current message
+							// We have a partial response, so we need to add it to the message shown to the user and refresh the UI
+						}
+						if (eventData.code === 0) {
+							console.log("Health check received")
+						} else if (eventData.code === 1) {
+							finalResponse = eventData
+							console.log("finalResponse", finalResponse)
+						} else if (eventData.code === -1) {
+							throw new KoduError({
+								code: eventData.body.status ?? KODU_ERROR_CODES.API_ERROR,
+							})
+						}
 						yield eventData
 					}
 				}
@@ -413,9 +434,9 @@ export class KoduHandler implements ApiHandler {
 				throw new KoduError({
 					code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT,
 				})
-			}		
+			}
+		}
 	}
-}
 	createUserReadableRequest(
 		userContent: Array<
 			| Anthropic.TextBlockParam

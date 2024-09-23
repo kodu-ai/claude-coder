@@ -73,6 +73,7 @@ export class ApiManager {
 			)
 
 			for await (const chunk of stream) {
+				console.log(`Chunk CODE: ${chunk.code}`)
 				switch (chunk.code) {
 					case 0:
 						console.log("Health check received")
@@ -109,7 +110,7 @@ export class ApiManager {
 							outputTokens,
 						})
 						yield chunk
-						return
+						break
 					case 2:
 					case 3:
 						console.log("stream content", chunk)

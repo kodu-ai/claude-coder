@@ -14,6 +14,10 @@ type PostFoldersAndItems = {
 	type: "fileTree"
 	tree: FileTreeItem[]
 }
+type PostClaudeMessages = {
+	type: "claudeMessages"
+	claudeMessages: ExtensionState["claudeMessages"]
+}
 
 // webview will hold state
 export type ExtensionMessage =
@@ -32,6 +36,7 @@ export type ExtensionMessage =
 			images?: string[]
 	  }
 	| PostFoldersAndItems
+	| PostClaudeMessages
 
 export interface ExtensionState {
 	version: string

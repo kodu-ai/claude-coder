@@ -199,7 +199,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	})()
 	context.subscriptions.push(
-		vscode.workspace.registerTextDocumentContentProvider("claude-dev-diff", diffContentProvider)
+		vscode.workspace.registerTextDocumentContentProvider("claude-coder-diff", diffContentProvider)
 	)
 
 	// URI Handler

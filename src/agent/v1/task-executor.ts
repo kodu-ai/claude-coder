@@ -10,6 +10,7 @@ import { StateManager } from "./state-manager"
 import { ToolExecutor } from "./tool-executor"
 import { ToolInput } from "./tools/types"
 import { ToolName, UserContent } from "./types"
+import delay from "delay"
 
 export enum TaskState {
 	IDLE = "IDLE",
@@ -157,7 +158,6 @@ export class TaskExecutor {
 				"api_req_started",
 				JSON.stringify({
 					request: this.stateManager.apiManager.createUserReadableRequest(this.currentUserContent),
-					isStreaming: true,
 				})
 			)
 
@@ -205,59 +205,11 @@ export class TaskExecutor {
 		/**
 		 * first create a placeholder say
 		 */
-		// const currentApiFinishId = await this.say('api_req_finished', '{}', undefined, false)
-
 		const currentReplyId = await this.say("text", "")
 
 		const debouncer = createStreamDebouncer(async (chunks) => {
 			// do the logic here
 			for await (const chunk of chunks) {
-				if (chunk.code === 1) {
-					const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
-						chunk.body.internal
-					for (const contentBlock of chunk.body.anthropic.content) {
-						// if request was cancelled, stop processing and don't add to history or show in UI
-						if (this.isRequestCancelled) {
-							return
-						}
-
-						if (contentBlock.type === "text") {
-							assistantResponses.push(contentBlock)
-						} else if (contentBlock.type === "tool_use") {
-							assistantResponses.push(contentBlock)
-						}
-
-						// if the request was cancelled after processing a block, return to prevent further processing (ui state + anthropic state)
-						if (this.isRequestCancelled) {
-							console.log(`Request was cancelled after processing a block`)
-							return
-						}
-						console.log(`[TaskExecutor] assistantResponses:`, assistantResponses)
-						if (!this.isRequestCancelled) {
-							console.log(`About to call finishProcessingResponse`)
-
-							await this.sayAfter(
-								"api_req_finished",
-								startedReqId,
-								JSON.stringify({
-									tokensIn: inputTokens,
-									tokensOut: outputTokens,
-									cacheWrites: cacheCreationInputTokens,
-									cacheReads: cacheReadInputTokens,
-									cost: this.stateManager.apiManager.calculateApiCost(
-										inputTokens,
-										outputTokens,
-										cacheCreationInputTokens,
-										cacheReadInputTokens
-									),
-								}),
-								undefined
-							)
-
-							await this.finishProcessingResponse(assistantResponses, inputTokens, outputTokens)
-						}
-					}
-				}
 				if (chunk.code === 2) {
 					console.log(`Chunk text:`, chunk.body.text)
 					await this.stateManager.appendToClaudeMessage(currentReplyId, chunk.body.text)
@@ -268,14 +220,61 @@ export class TaskExecutor {
 					const { contentBlock } = chunk.body
 					if (contentBlock.type === "tool_use") {
 						await this.executeTool(contentBlock)
-						assistantResponses.push(contentBlock)
 					}
 				}
 			}
 		})
-		// const deBouncer =
 		for await (const chunk of stream) {
-			debouncer.add(chunk)
+			// check if code === 1 arrives if so flush the stream and finish processing the response
+			if (chunk.code === 1) {
+				await debouncer.flush()
+				console.log(`Chunk body:`, chunk.body)
+				const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
+					chunk.body.internal
+				for (const contentBlock of chunk.body.anthropic.content) {
+					// if request was cancelled, stop processing and don't add to history or show in UI
+					if (this.isRequestCancelled) {
+						console.log(`Request was cancelled, ignoring response`)
+						return
+					}
+
+					if (contentBlock.type === "text") {
+						assistantResponses.push(contentBlock)
+					} else if (contentBlock.type === "tool_use") {
+						assistantResponses.push(contentBlock)
+					}
+
+					// if the request was cancelled after processing a block, return to prevent further processing (ui state + anthropic state)
+					if (this.isRequestCancelled) {
+						console.log(`Request was cancelled after processing a block`)
+						return
+					}
+					console.log(`[TaskExecutor] assistantResponses:`, assistantResponses)
+				}
+				if (!this.isRequestCancelled) {
+					console.log(`About to call finishProcessingResponse at ${Date.now()}`)
+					await this.sayAfter(
+						"api_req_finished",
+						startedReqId,
+						JSON.stringify({
+							tokensIn: inputTokens,
+							tokensOut: outputTokens,
+							cacheWrites: cacheCreationInputTokens,
+							cacheReads: cacheReadInputTokens,
+							cost: this.stateManager.apiManager.calculateApiCost(
+								inputTokens,
+								outputTokens,
+								cacheCreationInputTokens,
+								cacheReadInputTokens
+							),
+						}),
+						undefined
+					)
+					await this.finishProcessingResponse(assistantResponses, inputTokens, outputTokens)
+				}
+			} else {
+				debouncer.add(chunk)
+			}
 		}
 		debouncer.flush()
 	}
@@ -473,34 +472,6 @@ export class TaskExecutor {
 	}
 
 	/**
-	 * @deprecated
-	 */
-	private logApiResponse(response: Anthropic.Messages.Message): { inputTokens: number; outputTokens: number } {
-		const inputTokens = response.usage.input_tokens
-		const outputTokens = response.usage.output_tokens
-		const cacheCreationInputTokens = (response as any).usage?.cache_creation_input_tokens
-		const cacheReadInputTokens = (response as any).usage?.cache_read_input_tokens
-
-		this.say(
-			"api_req_finished",
-			JSON.stringify({
-				tokensIn: inputTokens,
-				tokensOut: outputTokens,
-				cacheWrites: cacheCreationInputTokens,
-				cacheReads: cacheReadInputTokens,
-				cost: this.stateManager.apiManager.calculateApiCost(
-					inputTokens,
-					outputTokens,
-					cacheCreationInputTokens,
-					cacheReadInputTokens
-				),
-			})
-		)
-
-		return { inputTokens, outputTokens }
-	}
-
-	/**
 	 *
 	 * @param type The type of message to ask
 	 * @param question The question to ask the user
@@ -514,6 +485,7 @@ export class TaskExecutor {
 				type: "ask",
 				ask: type,
 				text: question,
+				isStreaming: true,
 				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
 			})
 			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion:: ${question}`)
@@ -543,7 +515,7 @@ export class TaskExecutor {
 		type: ClaudeSay,
 		text?: string,
 		images?: string[],
-		isStreaming = false,
+		isStreaming = true,
 		sayTs = Date.now()
 	): Promise<number> {
 		await this.stateManager.addToClaudeMessages({
@@ -565,11 +537,13 @@ export class TaskExecutor {
 	 * @param images - The images to show
 	 */
 	public async sayAfter(type: ClaudeSay, target: number, text?: string, images?: string[]): Promise<void> {
+		console.log(`Saying after: ${type} ${text}`)
 		await this.stateManager.addToClaudeAfterMessage(target, {
 			ts: Date.now(),
 			type: "say",
 			say: type,
 			text: text,
+			isStreaming: true,
 			images,
 		})
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()

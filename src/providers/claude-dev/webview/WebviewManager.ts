@@ -74,6 +74,18 @@ export class WebviewManager {
 		await this.provider["view"]?.webview.postMessage(message)
 	}
 
+	/**
+	 * only post claude messages to webview
+	 */
+	async postClaudeMessagesToWebview() {
+		const claudeMessages = this.provider.getKoduDev()?.getStateManager().state.claudeMessages ?? []
+
+		return this.postMessageToWebview({
+			type: "claudeMessages",
+			claudeMessages,
+		})
+	}
+
 	async postStateToWebview() {
 		const state = await this.getStateToPostToWebview()
 		this.postMessageToWebview({ type: "state", state })

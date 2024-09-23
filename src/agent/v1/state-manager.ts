@@ -182,15 +182,16 @@ export class StateManager {
 
 	async appendToClaudeMessage(messageId: number, text: string) {
 		console.log(`[StateManager] appendToClaudeMessage (messageId: ${messageId}, text: ${text})`)
-		const lastMessage = this.state.claudeMessages.find(msg => msg.ts === messageId)
+		const lastMessage = this.state.claudeMessages.find((msg) => msg.ts === messageId)
 		if (lastMessage && lastMessage.type === "say") {
 			lastMessage.text += text
 		}
+		// too heavy to save every chunk we should save the whole message at the end
 		await this.saveClaudeMessages()
 	}
 
 	async addToClaudeAfterMessage(messageId: number, message: ClaudeMessage) {
-		const index = this.state.claudeMessages.findIndex(msg => msg.ts === messageId)
+		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
 		if (index === -1) {
 			console.error(`[StateManager] addToClaudeAfterMessage: Message with id ${messageId} not found`)
 			return
@@ -211,7 +212,7 @@ export class StateManager {
 
 	/**
 	 * rewrite required.
-	 * 
+	 *
 	 * @deprecated
 	 */
 	async saveClaudeMessages() {
