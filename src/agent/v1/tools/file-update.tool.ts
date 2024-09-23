@@ -94,10 +94,11 @@ Please try again with the correct path and udiff. You are not allowed to update 
 				}
 			}
 
+			let response: ToolResponse
 			if (this.alwaysAllowWriteOnly) {
-				return await this.updateFileDirectly(absolutePath, newContent, relPath, say)
+				response = await this.updateFileDirectly(absolutePath, newContent, relPath, say)
 			} else {
-				return await this.updateFileWithUserApproval(
+				response = await this.updateFileWithUserApproval(
 					absolutePath,
 					originalContent,
 					newContent,
@@ -107,6 +108,9 @@ Please try again with the correct path and udiff. You are not allowed to update 
 					say
 				)
 			}
+
+			await this.koduDev.gitHandler.commitChanges(`Updated file ${getReadablePath(relPath, this.cwd)}`)
+			return response
 		} catch (error) {
 			const errorString = `Error updating file: ${JSON.stringify(serializeError(error))}
 A good example of an update_file tool call is:

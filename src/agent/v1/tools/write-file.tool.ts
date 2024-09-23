@@ -74,10 +74,11 @@ export class WriteFileTool extends BaseAgentTool {
 				}
 			}
 
+			let response: ToolResponse
 			if (this.alwaysAllowWriteOnly) {
-				return await this.writeFileDirectly(absolutePath, newContent, fileExists, relPath, say)
+				response = await this.writeFileDirectly(absolutePath, newContent, fileExists, relPath, say)
 			} else {
-				return await this.writeFileWithUserApproval(
+				response = await this.writeFileWithUserApproval(
 					absolutePath,
 					originalContent,
 					newContent,
@@ -87,6 +88,9 @@ export class WriteFileTool extends BaseAgentTool {
 					say
 				)
 			}
+
+			await this.koduDev.gitHandler.commitChanges(`Created file ${getReadablePath(relPath, this.cwd)}`)
+			return response
 		} catch (error) {
 			const errorString = `Error writing file: ${JSON.stringify(serializeError(error))}
 						A good example of a writeToFile tool call is:
