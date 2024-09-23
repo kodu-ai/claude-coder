@@ -3,8 +3,10 @@ import axios, { CancelTokenSource } from "axios"
 import { ApiHandler, ApiHandlerMessageResponse, withoutImageData } from "."
 import { ApiHandlerOptions, koduDefaultModelId, KoduModelId, koduModels, ModelInfo } from "../shared/api"
 import {
+	getKoduConsultantUrl,
 	getKoduCurrentUser,
 	getKoduInferenceUrl,
+	getKoduScreenshotUrl,
 	getKoduVisitorUrl,
 	getKoduWebSearchUrl,
 	KODU_ERROR_CODES,
@@ -13,7 +15,7 @@ import {
 	koduSSEResponse,
 } from "../shared/kodu"
 import { z } from "zod"
-import { WebSearchResponseDto } from "./interfaces"
+import { AskConsultantResponseDto, WebSearchResponseDto } from "./interfaces"
 import * as vscode from "vscode"
 import { healMessages } from "./auto-heal"
 const temperatures = {
@@ -298,6 +300,49 @@ export class KoduHandler implements ApiHandler {
 			{
 				searchQuery,
 				baseLink,
+			},
+			{
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
+				},
+				timeout: 60_000,
+				cancelToken: this.cancelTokenSource?.token,
+			}
+		)
+
+		return response.data
+	}
+
+	async sendUrlScreenshotRequest(url: string): Promise<Blob> {
+		this.cancelTokenSource = axios.CancelToken.source()
+
+		const response = await axios.post(
+			getKoduScreenshotUrl(),
+			{
+				url,
+			},
+			{
+				responseType: "arraybuffer",
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
+				},
+				timeout: 60_000,
+				cancelToken: this.cancelTokenSource?.token,
+			}
+		)
+
+		return new Blob([response.data], { type: "image/jpeg" })
+	}
+
+	async sendAskConsultantRequest(query: string): Promise<AskConsultantResponseDto> {
+		this.cancelTokenSource = axios.CancelToken.source()
+
+		const response = await axios.post(
+			getKoduConsultantUrl(),
+			{
+				query,
 			},
 			{
 				headers: {

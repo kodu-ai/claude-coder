@@ -1,7 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiModelId, ModelInfo } from "../shared/api"
 import { KoduHandler } from "./kodu"
-import { WebSearchResponseDto } from "./interfaces"
+import { AskConsultantResponseDto, WebSearchResponseDto } from "./interfaces"
 
 export interface ApiHandlerMessageResponse {
 	message: Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage
@@ -47,6 +47,10 @@ export interface ApiHandler {
 	abortRequest(): void
 
 	sendWebSearchRequest?(searchQuery: string, baseLink?: string): Promise<WebSearchResponseDto>
+
+	sendUrlScreenshotRequest?(url: string): Promise<Blob>
+
+	sendAskConsultantRequest?(query: string): Promise<AskConsultantResponseDto>
 }
 
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
