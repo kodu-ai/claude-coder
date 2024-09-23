@@ -1,6 +1,6 @@
 // type that represents json data that is sent from extension to webview, called ExtensionMessage and has 'type' enum which can be 'plusButtonTapped' or 'settingsButtonTapped' or 'hello'
 
-import type { GlobalState } from "../providers/claude-dev/state/GlobalStateManager"
+import type { GlobalState } from "../providers/claude-coder/state/GlobalStateManager"
 import { ApiConfiguration } from "./api"
 import { HistoryItem } from "./HistoryItem"
 interface FileTreeItem {
@@ -28,6 +28,7 @@ export type ExtensionMessage =
 				| "didBecomeVisible"
 				| "koduAuthenticated"
 				| "koduCreditsFetched"
+
 			state?: ExtensionState
 			images?: string[]
 	  }
@@ -40,6 +41,7 @@ export interface ExtensionState {
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
 	useUdiff?: boolean
+	experimentalTerminal?: boolean
 	alwaysAllowWriteOnly?: boolean
 	creativeMode?: "creative" | "normal" | "deterministic"
 	fpjsKey?: string

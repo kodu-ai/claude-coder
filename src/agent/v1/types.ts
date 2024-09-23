@@ -1,7 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ResultPromise } from "execa"
 import { ApiConfiguration } from "../../api"
-import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
+import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { HistoryItem } from "../../shared/HistoryItem"
 import { ClaudeMessage } from "../../shared/ExtensionMessage"
@@ -18,6 +18,7 @@ export interface KoduDevOptions {
 	maxRequestsPerTask?: number
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
+	experimentalTerminal?: boolean
 	alwaysAllowWriteOnly?: boolean
 	creativeMode?: "creative" | "normal" | "deterministic"
 	task?: string

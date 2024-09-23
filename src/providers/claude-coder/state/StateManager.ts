@@ -5,7 +5,7 @@ import { ApiManager } from "./ApiManager"
 import { HistoryItem } from "../../../shared/HistoryItem"
 import { SecretStateManager } from "./SecretStateManager"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
-import { ClaudeDevProvider } from "../ClaudeDevProvider"
+import { ClaudeDevProvider } from "../ClaudeCoderProvider"
 import { ExtensionState } from "../../../shared/ExtensionMessage"
 export class StateManager {
 	private globalStateManager: GlobalStateManager
@@ -33,6 +33,7 @@ export class StateManager {
 			creativeMode,
 			fp,
 			useUdiff,
+			experimentalTerminal,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.secretStateManager.getSecretState("koduApiKey"),
@@ -47,6 +48,7 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("creativeMode"),
 			this.secretStateManager.getSecretState("fp"),
 			this.globalStateManager.getGlobalState("useUdiff"),
+			this.globalStateManager.getGlobalState("experimentalTerminal"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -60,6 +62,7 @@ export class StateManager {
 			maxRequestsPerTask,
 			lastShownAnnouncementId,
 			customInstructions,
+			experimentalTerminal,
 			currentTaskId,
 			alwaysAllowReadOnly: alwaysAllowReadOnly ?? false,
 			shouldShowAnnouncement: lastShownAnnouncementId === undefined,
@@ -77,6 +80,15 @@ export class StateManager {
 
 	async setUseUdiff(value: boolean) {
 		return this.globalStateManager.updateGlobalState("useUdiff", value)
+	}
+
+	async clearHistory() {
+		await this.globalStateManager.updateGlobalState("taskHistory", [])
+	}
+
+	async setExperimentalTerminal(value: boolean) {
+		this.context.getKoduDev()?.getStateManager()?.setExperimentalTerminal(value)
+		return this.globalStateManager.updateGlobalState("experimentalTerminal", value)
 	}
 
 	async updateTaskHistory(item: HistoryItem): Promise<HistoryItem[]> {

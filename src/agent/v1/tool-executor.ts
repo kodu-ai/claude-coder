@@ -14,7 +14,7 @@ import {
 	WriteFileTool,
 } from "./tools"
 import { WebSearchTool } from "./tools/web-search-tool"
-import { TerminalManager } from "../../integrations/terminal-manager"
+import { TerminalManager } from "../../integrations/terminal/terminal-manager"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined

@@ -1,4 +1,4 @@
-import { ClaudeDevProvider } from "../ClaudeDevProvider"
+import { ClaudeDevProvider } from "../ClaudeCoderProvider"
 import { compressImages, downloadTask, selectImages } from "../../../utils"
 import { HistoryItem } from "../../../shared/HistoryItem"
 import * as path from "path"
@@ -132,6 +132,19 @@ export class TaskManager {
 		await fs.rmdir(taskDirPath)
 
 		await this.deleteTaskFromState(id)
+	}
+
+	async clearAllTasks() {
+		// delete all tasks from state and delete task folder
+		this.provider.getStateManager().clearHistory()
+		const taskDirPath = path.join(this.provider.getContext().globalStorageUri.fsPath, "tasks")
+		const taskDirExists = await fs
+			.access(taskDirPath)
+			.then(() => true)
+			.catch(() => false)
+		if (taskDirExists) {
+			await fs.rmdir(taskDirPath, { recursive: true })
+		}
 	}
 
 	private async getTaskWithId(id: string): Promise<{

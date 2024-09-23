@@ -1,5 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
+import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { ClaudeAsk, ClaudeSay } from "../../shared/ExtensionMessage"
 import { ToolName } from "../../shared/Tool"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
@@ -13,14 +13,15 @@ import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
 import * as vscode from "vscode"
-import { TerminalManager } from "../../integrations/terminal-manager"
+import { TerminalManager } from "../../integrations/terminal/terminal-manager"
+import { createTerminalManager } from "../../integrations/terminal"
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
 	private apiManager: ApiManager
 	private toolExecutor: ToolExecutor
 	public taskExecutor: TaskExecutor
-	public terminalManager: TerminalManager
+	public terminalManager: ReturnType<typeof createTerminalManager>
 	private providerRef: WeakRef<ClaudeDevProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 
@@ -35,7 +36,10 @@ export class KoduDev {
 			alwaysAllowWriteOnly: this.stateManager.alwaysAllowWriteOnly,
 			koduDev: this,
 		})
-		this.terminalManager = new TerminalManager()
+		this.terminalManager = createTerminalManager(
+			!!this.stateManager.experimentalTerminal,
+			this.providerRef.deref()!.context
+		)
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
 
 		this.setupTaskExecutor()

@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk"
 import { KoduDev } from ".."
 import { ToolResponse } from "../types"
 import { AgentToolOptions, AgentToolParams } from "./types"
-import { formatImagesIntoBlocks } from "../utils"
+import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "../utils"
 
 export abstract class BaseAgentTool {
 	protected cwd: string
@@ -24,6 +24,9 @@ export abstract class BaseAgentTool {
 	abstract execute(params: AgentToolParams): Promise<ToolResponse>
 	public async formatToolDeniedFeedback(feedback?: string) {
 		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>`
+	}
+	async formatGenericToolFeedback(feedback?: string) {
+		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>\n\n${await getPotentiallyRelevantDetails()}`
 	}
 
 	public async formatToolDenied() {

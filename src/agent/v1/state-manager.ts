@@ -1,5 +1,5 @@
 import path from "path"
-import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
+import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { ApiManager } from "./api-handler"
 import { DEFAULT_MAX_REQUESTS_PER_TASK } from "./constants"
 import { ClaudeMessage, KoduDevOptions, KoduDevState } from "./types"
@@ -20,6 +20,7 @@ export class StateManager {
 	private _creativeMode: "creative" | "normal" | "deterministic"
 	private _customInstructions?: string
 	private _alwaysAllowWriteOnly: boolean
+	private _experimentalTerminal?: boolean
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -31,6 +32,7 @@ export class StateManager {
 			alwaysAllowWriteOnly,
 			historyItem,
 			creativeMode,
+			experimentalTerminal,
 		} = options
 		this._creativeMode = creativeMode ?? "normal"
 		this._providerRef = new WeakRef(provider)
@@ -39,6 +41,7 @@ export class StateManager {
 		this._alwaysAllowWriteOnly = alwaysAllowWriteOnly ?? false
 		this._customInstructions = customInstructions
 		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
+		this._experimentalTerminal = experimentalTerminal
 
 		this._state = {
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
@@ -70,6 +73,10 @@ export class StateManager {
 		return this._apiManager
 	}
 
+	get experimentalTerminal(): boolean | undefined {
+		return this._experimentalTerminal
+	}
+
 	get maxRequestsPerTask(): number {
 		return this._maxRequestsPerTask
 	}
@@ -93,6 +100,10 @@ export class StateManager {
 	// Methods to modify the properties (only accessible within the class)
 	public setState(newState: KoduDevState): void {
 		this._state = newState
+	}
+
+	public setExperimentalTerminal(newValue: boolean): void {
+		this._experimentalTerminal = newValue
 	}
 
 	public setApiManager(newApiManager: ApiManager): void {

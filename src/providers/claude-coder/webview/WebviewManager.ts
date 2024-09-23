@@ -2,7 +2,7 @@ import * as vscode from "vscode"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
 import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
-import { ClaudeDevProvider } from "../ClaudeDevProvider"
+import { ClaudeDevProvider } from "../ClaudeCoderProvider"
 import { amplitudeTracker } from "../../../utils/amplitude"
 import { quickStart } from "./quick-start"
 import { readdir } from "fs/promises"
@@ -232,6 +232,15 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "experimentalTerminal":
+						await this.provider.getStateManager().setExperimentalTerminal(message.bool)
+						await this.postStateToWebview()
+						break
+					case "clearHistory":
+						await this.provider.getStateManager().clearHistory()
+						await this.provider.getTaskManager().clearAllTasks()
+						await this.postStateToWebview()
+						break
 					case "fileTree":
 						const workspaceFolders = vscode.workspace.workspaceFolders
 						if (workspaceFolders && workspaceFolders.length > 0) {

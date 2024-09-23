@@ -5,7 +5,7 @@ import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/ExtensionMe
 import { vscode } from "../utils/vscode"
 import { ApiConfiguration } from "../../../src/api/index"
 import { HistoryItem } from "../../../src/shared/HistoryItem"
-import type { GlobalState } from "../../../src/providers/claude-dev/state/GlobalStateManager"
+import type { GlobalState } from "../../../src/providers/claude-coder/state/GlobalStateManager"
 
 // Define atoms for each piece of state
 const versionAtom = atom("")
@@ -48,6 +48,9 @@ fpjsKeyAtom.debugLabel = "fpjsKey"
 const currentTaskIdAtom = atom<string | undefined>(undefined)
 currentTaskIdAtom.debugLabel = "currentTask"
 
+const experimentalTerminalAtom = atom(false)
+experimentalTerminalAtom.debugLabel = "experimentalTerminal"
+
 const useUdiffAtom = atom(false)
 useUdiffAtom.debugLabel = "useUdiff"
 
@@ -72,6 +75,7 @@ export const extensionStateAtom = atom((get) => ({
 	customInstructions: get(customInstructionsAtom),
 	fingerprint: get(fingerprintAtom),
 	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
+	experimentalTerminal: get(experimentalTerminalAtom),
 	fpjsKey: get(fpjsKeyAtom),
 	extensionName: get(extensionNameAtom),
 	themeName: get(themeNameAtom),
@@ -100,6 +104,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setThemeName = useSetAtom(themeNameAtom)
 	const setCurrentIdTask = useSetAtom(currentTaskIdAtom)
 	const setFingerprint = useSetAtom(fingerprintAtom)
+	const setexperimentalTerminal = useSetAtom(experimentalTerminalAtom)
 	const setUriScheme = useSetAtom(uriSchemeAtom)
 	const setDidHydrateState = useSetAtom(didHydrateStateAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
@@ -121,6 +126,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setMaxRequestsPerTask(message.state.maxRequestsPerTask)
 			setCustomInstructions(message.state.customInstructions)
 			setAlwaysAllowReadOnly(!!message.state.alwaysAllowReadOnly)
+			setexperimentalTerminal(!!message.state.experimentalTerminal)
 			setUser(message.state.user)
 			setExtensionName(message.state.extensionName)
 			setAlwaysAllowWriteOnly(!!message.state.alwaysAllowWriteOnly)
@@ -161,6 +167,7 @@ export const useExtensionState = () => {
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
+	const setExperimentalTerminal = useSetAtom(experimentalTerminalAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 
 	return {
@@ -168,6 +175,7 @@ export const useExtensionState = () => {
 		setApiConfiguration,
 		setMaxRequestsPerTask,
 		setUseUdiff,
+		setExperimentalTerminal,
 		setCustomInstructions,
 		setAlwaysAllowWriteOnly,
 		setCreativeMode,
