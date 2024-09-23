@@ -271,6 +271,7 @@ export class TaskExecutor {
 					const { contentBlock } = chunk.body
 					if (contentBlock.type === "tool_use") {
 						await this.executeTool(contentBlock)
+						assistantResponses.push(contentBlock)
 					}
 				}
 			}
