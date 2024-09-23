@@ -170,7 +170,7 @@ export class WebviewManager {
             <meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
 	        <link rel="stylesheet" type="text/css" href="${stylesUri}">
 			<link href="${codiconsUri}" rel="stylesheet" />
-            <title>Claude Dev</title>
+            <title>Claude Coder</title>
           </head>
           <body>
             <noscript>You need to enable JavaScript to run this app.</noscript>
