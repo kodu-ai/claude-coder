@@ -207,10 +207,6 @@ export class TaskExecutor {
 		// const currentApiFinishId = await this.say('api_req_finished', '{}', undefined, false)
 
 		const currentReplyId = await this.say("text", "")
-		assistantResponses.push({
-			type: "text",
-			text: "",
-		})
 
 		const debouncer = createStreamDebouncer(async (chunks) => {
 			// do the logic here
