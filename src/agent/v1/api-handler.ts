@@ -10,6 +10,7 @@ import { truncateHalfConversation } from "../../utils/context-management"
 import { SYSTEM_PROMPT, UDIFF_SYSTEM_PROMPT } from "./system-prompt"
 import { tools as baseTools, uDifftools } from "./tools/tools"
 import { findLast } from "../../utils"
+import delay from "delay"
 
 export class ApiManager {
 	private api: ApiHandler
@@ -73,13 +74,13 @@ export class ApiManager {
 			)
 
 			for await (const chunk of stream) {
-				console.log(`Chunk CODE: ${chunk.code}`)
 				switch (chunk.code) {
 					case 0:
 						console.log("Health check received")
 						break
 					case 1:
 						console.log("finalResponse", chunk)
+						// we always reach here
 						const response = chunk.body.anthropic
 						// update state of credit
 						if (chunk.body.internal.userCredits !== undefined) {
@@ -110,10 +111,10 @@ export class ApiManager {
 							outputTokens,
 						})
 						yield chunk
+						await delay(50)
 						break
 					case 2:
 					case 3:
-						console.log("stream content", chunk)
 						yield chunk
 						break
 					case -1:

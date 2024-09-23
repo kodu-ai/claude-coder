@@ -95,13 +95,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Handle changes in messages
 	useEffect(() => {
 		const lastMessage = messages.at(-1)
-		console.log(JSON.stringify(messages, null, 2))
-		console.log(
-			`messages.length > 0 && messages.at(-1)?.say === "api_req_started" : ${
-				messages.length > 0 && messages.at(-1)?.say === "api_req_started"
-			}`
-		)
-		console.log(`messages.at(-1) : ${JSON.stringify(messages.at(-1), null, 2)}`)
+
 		if (lastMessage) {
 			switch (lastMessage.type) {
 				case "ask":

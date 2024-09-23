@@ -211,12 +211,10 @@ export class TaskExecutor {
 			// do the logic here
 			for await (const chunk of chunks) {
 				if (chunk.code === 2) {
-					console.log(`Chunk text:`, chunk.body.text)
 					await this.stateManager.appendToClaudeMessage(currentReplyId, chunk.body.text)
 					await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 				}
 				if (chunk.code === 3) {
-					console.log(`Chunk Content:`, chunk.body.contentBlock)
 					const { contentBlock } = chunk.body
 					if (contentBlock.type === "tool_use") {
 						await this.executeTool(contentBlock)
@@ -227,6 +225,7 @@ export class TaskExecutor {
 		for await (const chunk of stream) {
 			// check if code === 1 arrives if so flush the stream and finish processing the response
 			if (chunk.code === 1) {
+				console.log(`End of stream reached`)
 				await debouncer.flush()
 				console.log(`Chunk body:`, chunk.body)
 				const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
@@ -276,7 +275,7 @@ export class TaskExecutor {
 				debouncer.add(chunk)
 			}
 		}
-		debouncer.flush()
+		// debouncer.flush()
 	}
 
 	private resetState(): void {

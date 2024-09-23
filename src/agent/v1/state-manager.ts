@@ -181,7 +181,6 @@ export class StateManager {
 	}
 
 	async appendToClaudeMessage(messageId: number, text: string) {
-		console.log(`[StateManager] appendToClaudeMessage (messageId: ${messageId}, text: ${text})`)
 		const lastMessage = this.state.claudeMessages.find((msg) => msg.ts === messageId)
 		if (lastMessage && lastMessage.type === "say") {
 			lastMessage.text += text
