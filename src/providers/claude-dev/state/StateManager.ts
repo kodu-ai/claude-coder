@@ -32,6 +32,7 @@ export class StateManager {
 			shouldShowKoduPromo,
 			creativeMode,
 			fp,
+			useUdiff,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.secretStateManager.getSecretState("koduApiKey"),
@@ -45,6 +46,7 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("shouldShowKoduPromo"),
 			this.globalStateManager.getGlobalState("creativeMode"),
 			this.secretStateManager.getSecretState("fp"),
+			this.globalStateManager.getGlobalState("useUdiff"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -69,7 +71,12 @@ export class StateManager {
 			shouldShowKoduPromo: shouldShowKoduPromo ?? true,
 			creativeMode: creativeMode ?? "normal",
 			fingerprint: fp,
+			useUdiff: useUdiff ?? false,
 		} satisfies ExtensionState
+	}
+
+	async setUseUdiff(value: boolean) {
+		return this.globalStateManager.updateGlobalState("useUdiff", value)
 	}
 
 	async updateTaskHistory(item: HistoryItem): Promise<HistoryItem[]> {

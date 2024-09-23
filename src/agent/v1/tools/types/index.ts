@@ -7,6 +7,7 @@ export type ToolInput = {
 	path?: string
 	content?: string
 	regex?: string
+	udiff?: string
 	filePattern?: string
 	recursive?: string
 	command?: string

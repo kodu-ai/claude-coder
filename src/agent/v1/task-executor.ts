@@ -94,6 +94,7 @@ export class TaskExecutor {
 
 	public abortTask(): void {
 		this.logState("Aborting task")
+		this.abortController?.abort()
 		this.resetState()
 	}
 

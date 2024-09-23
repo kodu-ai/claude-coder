@@ -48,6 +48,9 @@ fpjsKeyAtom.debugLabel = "fpjsKey"
 const currentTaskIdAtom = atom<string | undefined>(undefined)
 currentTaskIdAtom.debugLabel = "currentTask"
 
+const useUdiffAtom = atom(false)
+useUdiffAtom.debugLabel = "useUdiff"
+
 const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	const currentTaskId = get(currentTaskIdAtom)
 	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
@@ -58,6 +61,7 @@ export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
 	claudeMessages: get(claudeMessagesAtom),
 	taskHistory: get(taskHistoryAtom),
+	useUdiff: get(useUdiffAtom),
 	currentTask: get(currentTaskAtom),
 	currentTaskId: get(currentTaskIdAtom),
 	shouldShowAnnouncement: get(shouldShowAnnouncementAtom),
@@ -92,6 +96,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setCustomInstructions = useSetAtom(customInstructionsAtom)
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setUser = useSetAtom(userAtom)
+	const setUseUdiff = useSetAtom(useUdiffAtom)
 	const setThemeName = useSetAtom(themeNameAtom)
 	const setCurrentIdTask = useSetAtom(currentTaskIdAtom)
 	const setFingerprint = useSetAtom(fingerprintAtom)
@@ -120,6 +125,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setExtensionName(message.state.extensionName)
 			setAlwaysAllowWriteOnly(!!message.state.alwaysAllowWriteOnly)
 			setDidHydrateState(true)
+			setUseUdiff(!!message.state.useUdiff)
 			setThemeName(message.state.themeName)
 			setFpjsKey(message.state.fpjsKey)
 			setFingerprint(message.state.fingerprint)
@@ -154,12 +160,14 @@ export const useExtensionState = () => {
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
+	const setUseUdiff = useSetAtom(useUdiffAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 
 	return {
 		...state,
 		setApiConfiguration,
 		setMaxRequestsPerTask,
+		setUseUdiff,
 		setCustomInstructions,
 		setAlwaysAllowWriteOnly,
 		setCreativeMode,

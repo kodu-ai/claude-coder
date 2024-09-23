@@ -31,6 +31,10 @@ type ApiConfigurationMessage = {
 	type: "apiConfiguration"
 	apiConfiguration: NonNullable<ApiConfiguration>
 }
+type setUseUdiff = {
+	type: "useUdiff"
+	bool: boolean
+}
 
 type QuickstartMessage = {
 	type: "quickstart"
@@ -45,6 +49,7 @@ export type WebviewMessage =
 	| ApiConfigurationMessage
 	| RenameTask
 	| QuickstartMessage
+	| setUseUdiff
 	| {
 			type:
 				| "cancelCurrentRequest"

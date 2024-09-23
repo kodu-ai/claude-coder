@@ -26,5 +26,5 @@
 		"noUnusedParameters": false,
 		"noFallthroughCasesInSwitch": true
 	},
-	"include": ["src"]
+	"include": ["src", "tailwind-hex-to-rgba-plugin.ts"]
 }
