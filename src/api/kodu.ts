@@ -228,8 +228,6 @@ export class KoduHandler implements ApiHandler {
 					if (line.startsWith("data: ")) {
 						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
 
-						console.log("eventData", eventData)
-
 						if (eventData.code === 0) {
 							console.log("Health check received")
 						} else if (eventData.code === 1) {
