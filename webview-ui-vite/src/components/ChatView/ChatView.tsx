@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, KeyboardEvent } from "react"
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
-import { VirtuosoHandle } from "react-virtuoso"
-import { useEvent, useMount } from "react-use"
+import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
+import { useEvent, useMount } from "react-use"
+import { VirtuosoHandle } from "react-virtuoso"
 import { ClaudeAsk, ClaudeMessage, ClaudeSayTool, ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
 import { combineCommandSequences, COMMAND_STDIN_STRING } from "../../../../src/shared/combineCommandSequences"
@@ -12,12 +12,12 @@ import { getSyntaxHighlighterStyleFromTheme } from "../../utils/getSyntaxHighlig
 import { vscode } from "../../utils/vscode"
 import Announcement from "../Announcement/Announcement"
 import HistoryPreview from "../HistoryPreview/HistoryPreview"
-import TaskHeader from "../TaskHeader/TaskHeader"
 import KoduPromo from "../KoduPromo/KoduPromo"
+import TaskHeader from "../TaskHeader/TaskHeader"
+import ProjectStarterChooser from "../project-starters"
+import ButtonSection from "./ButtonSection"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
-import ButtonSection from "./ButtonSection"
-import ProjectStarterChooser from "../project-starters"
 
 interface ChatViewProps {
 	isHidden: boolean
@@ -338,9 +338,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 				break
 			case "followup":
 				console.log("followup")
+				setEnableButtons(false)
+				setPrimaryButtonText("")
+				setSecondaryButtonText("")
 				setTextAreaDisabled(false)
 				setClaudeAsk("followup")
-				setEnableButtons(false)
 				break
 			case "tool":
 				setTextAreaDisabled(false)
