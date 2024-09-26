@@ -93,6 +93,20 @@ export class KoduDev {
 		} else if (this.stateManager.state.isHistoryItemResumed) {
 			// this is a bug
 		}
+		if (
+			this.taskExecutor.state === TaskState.WAITING_FOR_USER &&
+			askResponse === "messageResponse" &&
+			!this.pendingAskResponse
+		) {
+			await this.taskExecutor.newMessage([
+				{
+					type: "text",
+					text: text ?? "",
+				},
+				...formatImagesIntoBlocks(images),
+			])
+			return
+		}
 		this.taskExecutor.handleAskResponse(askResponse, text, images)
 	}
 	private async startTask(task?: string, images?: string[]): Promise<void> {
