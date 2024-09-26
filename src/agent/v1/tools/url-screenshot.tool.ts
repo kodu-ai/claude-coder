@@ -7,6 +7,7 @@ import { ToolResponse } from "../types"
 import { formatGenericToolFeedback, formatToolResponse } from "../utils"
 import { BaseAgentTool } from "./base-agent.tool"
 import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "./types"
+import Anthropic from "@anthropic-ai/sdk"
 
 export class UrlScreenshotTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -28,15 +29,14 @@ export class UrlScreenshotTool extends BaseAgentTool {
 		}
 
 		try {
-			const screenshot = await this.koduDev.getApiManager().getApi()?.sendUrlScreenshotRequest?.(url)
-			if (!screenshot) {
-				return "Could not generate screenshot."
-			}
+			const browserManager = this.koduDev.browserManager
+			await browserManager.launchBrowser()
+			const buffer = await browserManager.urlToScreenshot(url)
+			await browserManager.closeBrowser()
 
-			const relPath = `screenshots/${url.replace(/[^a-zA-Z0-9]/g, "_")}-${Date.now()}.jpeg`
+			const relPath = `${url.replace(/[^a-zA-Z0-9]/g, "_")}-${Date.now()}.jpeg`
 			const absolutePath = path.resolve(this.cwd, relPath)
 
-			const buffer = Buffer.from(await screenshot.arrayBuffer())
 			const compressedBuffer = await sharp(Buffer.from(buffer)).webp({ quality: 20 }).toBuffer()
 			const imageToBase64 = compressedBuffer.toString("base64")
 
@@ -48,8 +48,20 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			const uri = vscode.Uri.file(absolutePath)
 			await vscode.commands.executeCommand("vscode.open", uri)
 
-			return `The screenshot was saved to file path: ${absolutePath}.
-			This is the image that user requested in base64 format: ${imageToBase64}`
+			const textBlock: Anthropic.TextBlockParam = {
+				type: "text",
+				text: `The screenshot was saved to file path: ${absolutePath}.`,
+			}
+			const imageBlock: Anthropic.ImageBlockParam = {
+				type: "image",
+				source: {
+					type: "base64",
+					media_type: "image/webp",
+					data: imageToBase64,
+				},
+			}
+
+			return [textBlock, imageBlock]
 		} catch (err) {
 			return `Screenshot failed with error: ${err}`
 		}
