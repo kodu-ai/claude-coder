@@ -3,6 +3,7 @@ import axios, { CancelTokenSource } from "axios"
 import { ApiHandler, ApiHandlerMessageResponse, withoutImageData } from "."
 import { ApiHandlerOptions, koduDefaultModelId, KoduModelId, koduModels, ModelInfo } from "../shared/api"
 import {
+	getKoduBugReportUrl,
 	getKoduConsultantUrl,
 	getKoduCurrentUser,
 	getKoduInferenceUrl,
@@ -70,6 +71,13 @@ export async function initVisitor({ visitorId: vistorId }: { visitorId: string }
 	}
 	return null
 }
+
+const bugReportSchema = z.object({
+	description: z.string(),
+	reproduction: z.string(),
+	apiHistory: z.string(),
+	claudeMessage: z.string(),
+})
 
 export class KoduHandler implements ApiHandler {
 	private options: ApiHandlerOptions
@@ -353,5 +361,14 @@ export class KoduHandler implements ApiHandler {
 		)
 
 		return response.data
+	}
+
+	async sendBugReportRequest(bugReport: z.infer<typeof bugReportSchema>) {
+		await axios.post(getKoduBugReportUrl(), bugReport, {
+			headers: {
+				"Content-Type": "application/json",
+				"x-api-key": this.options.koduApiKey || "",
+			},
+		})
 	}
 }

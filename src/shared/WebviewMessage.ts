@@ -47,7 +47,14 @@ type experimentalTerminalMessage = {
 	bool: boolean
 }
 
+type exportBugMessage = {
+	type: "exportBug"
+	description: string
+	reproduction: string
+}
+
 export type WebviewMessage =
+	| exportBugMessage
 	| experimentalTerminalMessage
 	| WebviewMessageAmplitude
 	| OpenExternalLink
