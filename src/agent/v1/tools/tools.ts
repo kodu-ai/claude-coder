@@ -418,4 +418,33 @@ export const tools: Tool[] = [
 			required: ["searchQuery"],
 		},
 	},
+	{
+		name: "url_screenshot",
+		description: `Returns a screenshot of a URL provided.
+		This can be used when the user wants to make a design similar to the provided url.`,
+		input_schema: {
+			type: "object",
+			properties: {
+				url: {
+					type: "string",
+					description: "The url provided by the user",
+				},
+			},
+			required: ["searchQuery"],
+		},
+	},
+	{
+		name: "ask_consultant",
+		description: `Allows you talk to an expert software consultant for help or direction when you're unable to solve a bug or need assistance.`,
+		input_schema: {
+			type: "object",
+			properties: {
+				query: {
+					type: "string",
+					description: "The question or issue you want to ask the consultant.",
+				},
+			},
+			required: ["query"],
+		},
+	},
 ]

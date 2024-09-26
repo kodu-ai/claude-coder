@@ -12,9 +12,11 @@ import {
 	ReadFileTool,
 	FileUpdateTool,
 	WriteFileTool,
+	UrlScreenshotTool,
+	AskConsultantTool,
 } from "./tools"
 import { WebSearchTool } from "./tools/web-search-tool"
-import { TerminalManager } from "../../integrations/terminal-manager"
+import { TerminalManager } from "../../integrations/terminal/terminal-manager"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined
@@ -64,6 +66,10 @@ export class ToolExecutor {
 				return new AttemptCompletionTool(params, this.options).execute()
 			case "web_search":
 				return new WebSearchTool(params, this.options).execute()
+			case "url_screenshot":
+				return new UrlScreenshotTool(params, this.options).execute()
+			case "ask_consultant":
+				return new AskConsultantTool(params, this.options).execute()
 			default:
 				return `Unknown tool: ${params.name}`
 		}

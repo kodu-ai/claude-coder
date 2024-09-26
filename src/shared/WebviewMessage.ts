@@ -42,7 +42,20 @@ type QuickstartMessage = {
 	name: string
 }
 
+type experimentalTerminalMessage = {
+	type: "experimentalTerminal"
+	bool: boolean
+}
+
+type exportBugMessage = {
+	type: "exportBug"
+	description: string
+	reproduction: string
+}
+
 export type WebviewMessage =
+	| exportBugMessage
+	| experimentalTerminalMessage
 	| WebviewMessageAmplitude
 	| OpenExternalLink
 	| FreeTrial
@@ -75,6 +88,7 @@ export type WebviewMessage =
 				| "resetState"
 				| "setCreativeMode"
 				| "fileTree"
+				| "clearHistory"
 			text?: string
 			askResponse?: ClaudeAskResponse
 			images?: string[]

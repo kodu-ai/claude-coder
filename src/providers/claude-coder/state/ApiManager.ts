@@ -1,7 +1,7 @@
 import * as vscode from "vscode"
 import { ApiModelId, koduDefaultModelId, koduModels } from "../../../shared/api"
 import { fetchKoduUser as fetchKoduUserAPI, initVisitor } from "../../../api/kodu"
-import { ClaudeDevProvider } from "../ClaudeDevProvider"
+import { ClaudeDevProvider } from "../ClaudeCoderProvider"
 
 type SecretKey = "koduApiKey"
 

@@ -5,6 +5,7 @@ import VSCodeButtonLink from "../VSCodeButtonLink/VSCodeButtonLink"
 import { formatPrice } from "./utils"
 import { getKoduAddCreditsUrl, getKoduReferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
 import { useExtensionState } from "@/context/ExtensionStateContext"
+import { Button } from "../ui/button"
 
 interface UserInfoProps {
 	user: any
@@ -21,11 +22,13 @@ const UserInfo: React.FC<UserInfoProps> = ({ user, uriScheme, setDidAuthKodu }) 
 					<span style={{ color: "var(--vscode-descriptionForeground)" }}>
 						Signed in as {user?.email || "Unknown"}
 					</span>{" "}
-					<VSCodeLink
+					<Button
+						variant="link"
+						size="sm"
 						style={{ display: "inline" }}
 						onClick={() => vscode.postMessage({ type: "didClickKoduSignOut" })}>
 						(sign out?)
-					</VSCodeLink>
+					</Button>
 				</div>
 				<div style={{ marginBottom: 7 }}>
 					Credits remaining:{" "}
@@ -40,41 +43,41 @@ const UserInfo: React.FC<UserInfoProps> = ({ user, uriScheme, setDidAuthKodu }) 
 						gap: 10,
 						marginBottom: 5,
 					}}>
-					<VSCodeButtonLink
+					<Button
 						onClick={() => {
 							vscode.postMessage({ type: "amplitude", event_type: "Referral Program" })
 						}}
-						href={getKoduReferUrl(uriScheme)}
 						style={{
 							width: "fit-content",
 							marginRight: 10,
-						}}>
-						Referral Program
-					</VSCodeButtonLink>
-					<VSCodeButtonLink
+						}}
+						asChild>
+						<a href={getKoduReferUrl(uriScheme)}>Referral Program</a>
+					</Button>
+					<Button
 						onClick={() => {
 							vscode.postMessage({ type: "amplitude", event_type: "Add Credits" })
 						}}
-						href={getKoduAddCreditsUrl(uriScheme)}
+						asChild
 						style={{
 							width: "fit-content",
 						}}>
-						Add Credits
-					</VSCodeButtonLink>
+						<a href={getKoduAddCreditsUrl(uriScheme)}>Add Credits</a>
+					</Button>
 				</div>
 			</>
 		)
 	} else {
 		return (
 			<div style={{ margin: "4px 0px" }}>
-				<VSCodeButtonLink
-					href={getKoduSignInUrl(uriScheme, extensionName)}
+				<Button
+					asChild
 					onClick={() => {
 						vscode.postMessage({ type: "amplitude", event_type: "Auth Start" })
 						setDidAuthKodu?.(true)
 					}}>
-					Sign in to Kodu
-				</VSCodeButtonLink>
+					<a href={getKoduSignInUrl(uriScheme, extensionName)}>Sign in to Kodu</a>
+				</Button>
 			</div>
 		)
 	}

@@ -1,8 +1,5 @@
-import React, { useState } from "react"
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
-import { Button } from "../ui/button"
-import { vscode } from "@/utils/vscode"
-import { cn } from "@/lib/utils"
+import React, { useState } from "react"
 
 interface ButtonSectionProps {
 	primaryButtonText: string | undefined
@@ -46,7 +43,7 @@ const ButtonSection: React.FC<ButtonSectionProps> = ({
 					opacity: primaryButtonText || secondaryButtonText ? (enableButtons ? 1 : 0.5) : 0,
 					display: "flex",
 				}}>
-				{primaryButtonText && (
+				{!isRequestRunning && primaryButtonText && (
 					<VSCodeButton
 						appearance="primary"
 						disabled={!enableButtons || isRequestRunning}
@@ -58,7 +55,7 @@ const ButtonSection: React.FC<ButtonSectionProps> = ({
 						{primaryButtonText}
 					</VSCodeButton>
 				)}
-				{secondaryButtonText && (
+				{!isRequestRunning && secondaryButtonText && (
 					<VSCodeButton
 						appearance="secondary"
 						disabled={!enableButtons || isRequestRunning}

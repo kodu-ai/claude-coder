@@ -1,7 +1,8 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiModelId, ModelInfo } from "../shared/api"
 import { KoduHandler } from "./kodu"
-import { WebSearchResponseDto } from "./interfaces"
+import { AskConsultantResponseDto, WebSearchResponseDto } from "./interfaces"
+import { z } from "zod"
 import { koduSSEResponse } from "../shared/kodu"
 
 export interface ApiHandlerMessageResponse {
@@ -15,7 +16,12 @@ export type ApiConfiguration = {
 	koduApiKey?: string
 	apiModelId?: ApiModelId
 }
-
+export const bugReportSchema = z.object({
+	description: z.string(),
+	reproduction: z.string(),
+	apiHistory: z.string(),
+	claudeMessage: z.string(),
+})
 export interface ApiHandler {
 	createMessage(
 		systemPrompt: string,
@@ -49,6 +55,12 @@ export interface ApiHandler {
 	abortRequest(): void
 
 	sendWebSearchRequest?(searchQuery: string, baseLink?: string): Promise<WebSearchResponseDto>
+
+	sendUrlScreenshotRequest?(url: string): Promise<Blob>
+
+	sendAskConsultantRequest?(query: string): Promise<AskConsultantResponseDto>
+
+	sendBugReportRequest?(params: z.infer<typeof bugReportSchema>): Promise<void>
 }
 
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {

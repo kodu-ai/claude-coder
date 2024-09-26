@@ -1,4 +1,4 @@
-import { ClaudeDevProvider } from "../ClaudeDevProvider"
+import { ClaudeDevProvider } from "../ClaudeCoderProvider"
 import { compressImages, downloadTask, selectImages } from "../../../utils"
 import { HistoryItem } from "../../../shared/HistoryItem"
 import * as path from "path"
@@ -24,6 +24,48 @@ export class TaskManager {
 		} else {
 			await this.provider.initClaudeDevWithTask(task, images)
 		}
+	}
+
+	async exportBug(description: string, reproduction: string) {
+		if (!this.provider.getKoduDev()?.getStateManager().state) {
+			vscode.window.showErrorMessage(`Task not found`)
+			return
+		}
+
+		await vscode.window.withProgress(
+			{
+				location: vscode.ProgressLocation.Notification,
+				title: "Sending bug report...",
+				cancellable: false,
+			},
+			async () => {
+				try {
+					const apiConversationHistory = await this.provider
+						.getKoduDev()
+						?.getStateManager()
+						.getCleanedApiConversationHistory()
+
+					const claudeMessages = await this.provider
+						.getKoduDev()
+						?.getStateManager()
+						.getCleanedClaudeMessages()
+
+					const apiHistory = JSON.stringify(apiConversationHistory)
+					const claudeMessage = JSON.stringify(claudeMessages)
+
+					await this.provider?.getKoduDev()?.getApiManager()?.getApi().sendBugReportRequest?.({
+						description,
+						reproduction,
+						apiHistory,
+						claudeMessage,
+					})
+
+					vscode.window.showInformationMessage(`Bug report sent successfully`)
+				} catch (err) {
+					vscode.window.showErrorMessage(`Failed to send bug report`)
+				}
+			}
+		)
 	}
 
 	async handleAskResponse(askResponse: any, text?: string, images?: string[]) {
@@ -132,6 +174,19 @@ export class TaskManager {
 		await fs.rmdir(taskDirPath)
 
 		await this.deleteTaskFromState(id)
+	}
+
+	async clearAllTasks() {
+		// delete all tasks from state and delete task folder
+		this.provider.getStateManager().clearHistory()
+		const taskDirPath = path.join(this.provider.getContext().globalStorageUri.fsPath, "tasks")
+		const taskDirExists = await fs
+			.access(taskDirPath)
+			.then(() => true)
+			.catch(() => false)
+		if (taskDirExists) {
+			await fs.rmdir(taskDirPath, { recursive: true })
+		}
 	}
 
 	private async getTaskWithId(id: string): Promise<{

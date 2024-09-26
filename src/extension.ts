@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode"
-import { ClaudeDevProvider } from "./providers/claude-dev/ClaudeDevProvider"
+import { ClaudeDevProvider } from "./providers/claude-coder/ClaudeCoderProvider"
 import { amplitudeTracker } from "./utils/amplitude"
 import * as dotenv from "dotenv"
 import * as path from "path"

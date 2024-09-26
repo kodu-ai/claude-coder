@@ -92,6 +92,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 			alwaysAllowWriteOnly: state.alwaysAllowWriteOnly,
 			task,
 			images,
+			experimentalTerminal: state.experimentalTerminal,
 			creativeMode: state.creativeMode,
 		})
 	}
@@ -106,6 +107,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 			customInstructions: state.customInstructions,
 			alwaysAllowReadOnly: state.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: state.alwaysAllowWriteOnly,
+			experimentalTerminal: state.experimentalTerminal,
 			historyItem,
 		})
 	}

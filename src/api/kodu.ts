@@ -4,16 +4,19 @@ import { z } from "zod"
 import { ApiHandler, ApiHandlerMessageResponse, withoutImageData } from "."
 import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduModels } from "../shared/api"
 import {
+	getKoduBugReportUrl,
+	getKoduConsultantUrl,
 	KODU_ERROR_CODES,
 	KoduError,
 	getKoduCurrentUser,
 	getKoduInferenceUrl,
+	getKoduScreenshotUrl,
 	getKoduVisitorUrl,
 	getKoduWebSearchUrl,
 	koduErrorMessages,
 	koduSSEResponse,
 } from "../shared/kodu"
-import { WebSearchResponseDto } from "./interfaces"
+import { AskConsultantResponseDto, WebSearchResponseDto } from "./interfaces"
 import * as vscode from "vscode"
 import { healMessages } from "./auto-heal"
 const temperatures = {
@@ -68,6 +71,13 @@ export async function initVisitor({ visitorId: vistorId }: { visitorId: string }
 	}
 	return null
 }
+
+const bugReportSchema = z.object({
+	description: z.string(),
+	reproduction: z.string(),
+	apiHistory: z.string(),
+	claudeMessage: z.string(),
+})
 
 export class KoduHandler implements ApiHandler {
 	private options: ApiHandlerOptions
@@ -485,5 +495,57 @@ export class KoduHandler implements ApiHandler {
 		)
 
 		return response.data
+	}
+
+	async sendUrlScreenshotRequest(url: string): Promise<Blob> {
+		this.cancelTokenSource = axios.CancelToken.source()
+
+		const response = await axios.post(
+			getKoduScreenshotUrl(),
+			{
+				url,
+			},
+			{
+				responseType: "arraybuffer",
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
+				},
+				timeout: 60_000,
+				cancelToken: this.cancelTokenSource?.token,
+			}
+		)
+
+		return new Blob([response.data], { type: "image/jpeg" })
+	}
+
+	async sendAskConsultantRequest(query: string): Promise<AskConsultantResponseDto> {
+		this.cancelTokenSource = axios.CancelToken.source()
+
+		const response = await axios.post(
+			getKoduConsultantUrl(),
+			{
+				query,
+			},
+			{
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
+				},
+				timeout: 60_000,
+				cancelToken: this.cancelTokenSource?.token,
+			}
+		)
+
+		return response.data
+	}
+
+	async sendBugReportRequest(bugReport: z.infer<typeof bugReportSchema>) {
+		await axios.post(getKoduBugReportUrl(), bugReport, {
+			headers: {
+				"Content-Type": "application/json",
+				"x-api-key": this.options.koduApiKey || "",
+			},
+		})
 	}
 }

@@ -2,7 +2,7 @@ import * as vscode from "vscode"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
 import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
-import { ClaudeDevProvider } from "../ClaudeDevProvider"
+import { ClaudeDevProvider } from "../ClaudeCoderProvider"
 import { amplitudeTracker } from "../../../utils/amplitude"
 import { quickStart } from "./quick-start"
 import { readdir } from "fs/promises"
@@ -182,7 +182,7 @@ export class WebviewManager {
             <meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
 	        <link rel="stylesheet" type="text/css" href="${stylesUri}">
 			<link href="${codiconsUri}" rel="stylesheet" />
-            <title>Claude Dev</title>
+            <title>Claude Coder</title>
           </head>
           <body>
             <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -244,6 +244,15 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "experimentalTerminal":
+						await this.provider.getStateManager().setExperimentalTerminal(message.bool)
+						await this.postStateToWebview()
+						break
+					case "clearHistory":
+						await this.provider.getStateManager().clearHistory()
+						await this.provider.getTaskManager().clearAllTasks()
+						await this.postStateToWebview()
+						break
 					case "fileTree":
 						const workspaceFolders = vscode.workspace.workspaceFolders
 						if (workspaceFolders && workspaceFolders.length > 0) {
@@ -263,6 +272,10 @@ export class WebviewManager {
 							await this.provider.initClaudeDevWithTask(description, [])
 						}
 						await quickStart(message.repo, message.name, callback)
+						break
+					case "exportBug":
+						console.log("Export bug message received")
+						await this.provider.getTaskManager().exportBug(message.description, message.reproduction)
 						break
 					case "renameTask":
 						await this.provider.getTaskManager().renameTask(

@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import fs from "fs/promises"
 import path from "path"
-import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
+import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { combineApiRequests } from "../../shared/combineApiRequests"
 import { combineCommandSequences } from "../../shared/combineCommandSequences"
 import { getApiMetrics } from "../../shared/getApiMetrics"
@@ -20,6 +20,7 @@ export class StateManager {
 	private _creativeMode: "creative" | "normal" | "deterministic"
 	private _customInstructions?: string
 	private _alwaysAllowWriteOnly: boolean
+	private _experimentalTerminal?: boolean
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -31,6 +32,7 @@ export class StateManager {
 			alwaysAllowWriteOnly,
 			historyItem,
 			creativeMode,
+			experimentalTerminal,
 		} = options
 		this._creativeMode = creativeMode ?? "normal"
 		this._providerRef = new WeakRef(provider)
@@ -39,6 +41,7 @@ export class StateManager {
 		this._alwaysAllowWriteOnly = alwaysAllowWriteOnly ?? false
 		this._customInstructions = customInstructions
 		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
+		this._experimentalTerminal = experimentalTerminal
 
 		this._state = {
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
@@ -74,6 +77,10 @@ export class StateManager {
 		return this._apiManager
 	}
 
+	get experimentalTerminal(): boolean | undefined {
+		return this._experimentalTerminal
+	}
+
 	get maxRequestsPerTask(): number {
 		return this._maxRequestsPerTask
 	}
@@ -97,6 +104,10 @@ export class StateManager {
 	// Methods to modify the properties (only accessible within the class)
 	public setState(newState: KoduDevState): void {
 		this._state = newState
+	}
+
+	public setExperimentalTerminal(newValue: boolean): void {
+		this._experimentalTerminal = newValue
 	}
 
 	public setApiManager(newApiManager: ApiManager): void {
@@ -147,6 +158,59 @@ export class StateManager {
 			return JSON.parse(await fs.readFile(filePath, "utf8"))
 		}
 		return []
+	}
+
+	async getCleanedClaudeMessages(): Promise<ClaudeMessage[]> {
+		const claudeMessages = await this.getSavedClaudeMessages()
+		// remove any content text from tool_result or user message or assistant message
+
+		const mappedClaudeMessages = claudeMessages.map((message) => {
+			const sanitizedMessage: ClaudeMessage = {
+				...message,
+				text: "[REDACTED]",
+			}
+
+			return sanitizedMessage
+		})
+
+		return mappedClaudeMessages
+	}
+	async getCleanedApiConversationHistory(): Promise<Anthropic.MessageParam[]> {
+		// apiHistory = Anthropic.Messages.MessageParam[]
+		const apiHistory = await this.getSavedApiConversationHistory()
+		// remove any content text from tool_result or user message or assistant message
+		const sanitizeContent = (content: Anthropic.MessageParam["content"]): string | Array<any> => {
+			if (typeof content === "string") {
+				return "[REDACTED]"
+			} else if (Array.isArray(content)) {
+				return content.map((item) => {
+					if (item.type === "tool_use") {
+						return { ...item, content: "[REDACTED]", input: "[REDACTED]" }
+					}
+					if (item.type === "text") {
+						return { ...item, text: "[REDACTED]" }
+					} else if (item.type === "tool_result") {
+						return { ...item, content: "[REDACTED]" }
+					} else if (item.type === "image") {
+						// Preserve image blocks without modification
+						return item
+					}
+					return item
+				})
+			}
+			return content
+		}
+
+		const mappedApiHistory = apiHistory.map((message) => {
+			const sanitizedMessage: Anthropic.MessageParam = {
+				...message,
+				content: sanitizeContent(message.content),
+			}
+
+			return sanitizedMessage
+		})
+
+		return mappedApiHistory
 	}
 
 	async addToApiConversationHistory(message: Anthropic.MessageParam) {

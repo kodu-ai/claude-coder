@@ -14,19 +14,24 @@ export type ToolInput = {
 	question?: string
 	result?: string
 	searchQuery?: string
+	query?: string
 	baseLink?: string
+	url?: string
 }
 
 export type AgentToolParams = {
 	name: ToolName
 	input: ToolInput
 	isLastWriteToFile: boolean
-	ask: (
-		type: ClaudeAsk,
-		question?: string
-	) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>
+	ask: (type: ClaudeAsk, question?: string) => Promise<AskConfirmationResponse>
 	say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	returnEmptyStringOnSuccess?: boolean
+}
+
+export type AskConfirmationResponse = {
+	response: ClaudeAskResponse
+	text?: string
+	images?: string[]
 }
 
 export type AgentToolOptions = {

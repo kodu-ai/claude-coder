@@ -1,6 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
-import { ClaudeDevProvider } from "../../providers/claude-dev/ClaudeDevProvider"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
 import { API_RETRY_DELAY } from "./constants"
 import { tools } from "./tools/tools"
@@ -8,6 +7,7 @@ import { UserContent } from "./types"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { truncateHalfConversation } from "../../utils/context-management"
 import { SYSTEM_PROMPT, UDIFF_SYSTEM_PROMPT } from "./system-prompt"
+import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { tools as baseTools, uDifftools } from "./tools/tools"
 import { findLast } from "../../utils"
 import delay from "delay"
@@ -111,7 +111,7 @@ export class ApiManager {
 							outputTokens,
 						})
 						yield chunk
-						await delay(50)
+						await delay(100)
 						break
 					case 2:
 					case 3:
