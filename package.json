@@ -193,6 +193,7 @@
 		"os-name": "^6.0.0",
 		"p-wait-for": "^5.0.2",
 		"pdf-parse": "^1.1.1",
+		"playwright": "^1.47.2",
 		"serialize-error": "^11.0.3",
 		"sharp": "^0.33.5",
 		"tree-kill": "^1.2.2",
