@@ -52,7 +52,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 				type: "image",
 				source: {
 					type: "base64",
-					media_type: "image/webp",
+					media_type: "image/jpeg",
 					data: imageToBase64,
 				},
 			}
