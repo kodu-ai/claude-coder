@@ -49,7 +49,7 @@ export class BrowserManager {
 
 		const screenshotBuffer = await this.page.screenshot({
 			fullPage: true,
-			type: "png",
+			type: "jpeg",
 		})
 
 		return screenshotBuffer

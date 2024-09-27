@@ -156,6 +156,59 @@ export class StateManager {
 		return []
 	}
 
+	async getCleanedClaudeMessages(): Promise<ClaudeMessage[]> {
+		const claudeMessages = await this.getSavedClaudeMessages()
+		// remove any content text from tool_result or user message or assistant message
+
+		const mappedClaudeMessages = claudeMessages.map((message) => {
+			const sanitizedMessage: ClaudeMessage = {
+				...message,
+				text: "[REDACTED]",
+			}
+
+			return sanitizedMessage
+		})
+
+		return mappedClaudeMessages
+	}
+	async getCleanedApiConversationHistory(): Promise<Anthropic.MessageParam[]> {
+		// apiHistory = Anthropic.Messages.MessageParam[]
+		const apiHistory = await this.getSavedApiConversationHistory()
+		// remove any content text from tool_result or user message or assistant message
+		const sanitizeContent = (content: Anthropic.MessageParam["content"]): string | Array<any> => {
+			if (typeof content === "string") {
+				return "[REDACTED]"
+			} else if (Array.isArray(content)) {
+				return content.map((item) => {
+					if (item.type === "tool_use") {
+						return { ...item, content: "[REDACTED]", input: "[REDACTED]" }
+					}
+					if (item.type === "text") {
+						return { ...item, text: "[REDACTED]" }
+					} else if (item.type === "tool_result") {
+						return { ...item, content: "[REDACTED]" }
+					} else if (item.type === "image") {
+						// Preserve image blocks without modification
+						return item
+					}
+					return item
+				})
+			}
+			return content
+		}
+
+		const mappedApiHistory = apiHistory.map((message) => {
+			const sanitizedMessage: Anthropic.MessageParam = {
+				...message,
+				content: sanitizeContent(message.content),
+			}
+
+			return sanitizedMessage
+		})
+
+		return mappedApiHistory
+	}
+
 	async addToApiConversationHistory(message: Anthropic.MessageParam) {
 		this.state.apiConversationHistory.push(message)
 		await this.saveApiConversationHistory()

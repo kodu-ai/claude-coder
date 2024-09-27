@@ -33,6 +33,10 @@ export function getKoduInferenceUrl() {
 	return `${KODU_BASE_URL}/api/inference-stream`
 }
 
+export function getKoduBugReportUrl() {
+	return `${KODU_BASE_URL}/api/bug-report`
+}
+
 export function getKoduWebSearchUrl() {
 	return `${KODU_BASE_URL}/api/tools/web-search`
 }

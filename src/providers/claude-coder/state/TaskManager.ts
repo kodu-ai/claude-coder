@@ -26,6 +26,48 @@ export class TaskManager {
 		}
 	}
 
+	async exportBug(description: string, reproduction: string) {
+		if (!this.provider.getKoduDev()?.getStateManager().state) {
+			vscode.window.showErrorMessage(`Task not found`)
+			return
+		}
+
+		await vscode.window.withProgress(
+			{
+				location: vscode.ProgressLocation.Notification,
+				title: "Sending bug report...",
+				cancellable: false,
+			},
+			async () => {
+				try {
+					const apiConversationHistory = await this.provider
+						.getKoduDev()
+						?.getStateManager()
+						.getCleanedApiConversationHistory()
+
+					const claudeMessages = await this.provider
+						.getKoduDev()
+						?.getStateManager()
+						.getCleanedClaudeMessages()
+
+					const apiHistory = JSON.stringify(apiConversationHistory)
+					const claudeMessage = JSON.stringify(claudeMessages)
+
+					await this.provider?.getKoduDev()?.getApiManager()?.getApi().sendBugReportRequest?.({
+						description,
+						reproduction,
+						apiHistory,
+						claudeMessage,
+					})
+
+					vscode.window.showInformationMessage(`Bug report sent successfully`)
+				} catch (err) {
+					vscode.window.showErrorMessage(`Failed to send bug report`)
+				}
+			}
+		)
+	}
+
 	async handleAskResponse(askResponse: any, text?: string, images?: string[]) {
 		if (images && images.length > 0) {
 			const compressedImages = await compressImages(images)

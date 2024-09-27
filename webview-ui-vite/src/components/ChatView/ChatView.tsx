@@ -1,9 +1,15 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, KeyboardEvent } from "react"
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
-import { VirtuosoHandle } from "react-virtuoso"
-import { useEvent, useMount } from "react-use"
+import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
-import { ClaudeAsk, ClaudeMessage, ClaudeSayTool, ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
+import { useEvent, useMount } from "react-use"
+import { VirtuosoHandle } from "react-virtuoso"
+import {
+	ClaudeAsk,
+	ClaudeMessage,
+	ClaudeSay,
+	ClaudeSayTool,
+	ExtensionMessage,
+} from "../../../../src/shared/ExtensionMessage"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
 import { combineCommandSequences, COMMAND_STDIN_STRING } from "../../../../src/shared/combineCommandSequences"
 import { getApiMetrics } from "../../../../src/shared/getApiMetrics"
@@ -12,12 +18,12 @@ import { getSyntaxHighlighterStyleFromTheme } from "../../utils/getSyntaxHighlig
 import { vscode } from "../../utils/vscode"
 import Announcement from "../Announcement/Announcement"
 import HistoryPreview from "../HistoryPreview/HistoryPreview"
-import TaskHeader from "../TaskHeader/TaskHeader"
 import KoduPromo from "../KoduPromo/KoduPromo"
+import TaskHeader from "../TaskHeader/TaskHeader"
+import ProjectStarterChooser from "../project-starters"
+import ButtonSection from "./ButtonSection"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
-import ButtonSection from "./ButtonSection"
-import ProjectStarterChooser from "../project-starters"
 
 interface ChatViewProps {
 	isHidden: boolean
@@ -95,19 +101,14 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Handle changes in messages
 	useEffect(() => {
 		const lastMessage = messages.at(-1)
-		console.log(JSON.stringify(messages, null, 2))
-		console.log(
-			`messages.length > 0 && messages.at(-1)?.say === "api_req_started" : ${
-				messages.length > 0 && messages.at(-1)?.say === "api_req_started"
-			}`
-		)
-		console.log(`messages.at(-1) : ${JSON.stringify(messages.at(-1), null, 2)}`)
 		if (lastMessage) {
 			switch (lastMessage.type) {
 				case "ask":
+					console.log(`last message is ask ${lastMessage.ask}`)
 					handleAskMessage(lastMessage)
 					break
 				case "say":
+					console.log(`last message is say ${lastMessage.say}`)
 					handleSayMessage(lastMessage)
 					break
 			}
@@ -338,9 +339,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 				break
 			case "followup":
 				console.log("followup")
+				setEnableButtons(false)
+				setPrimaryButtonText("")
+				setSecondaryButtonText("")
 				setTextAreaDisabled(false)
 				setClaudeAsk("followup")
-				setEnableButtons(false)
 				break
 			case "tool":
 				setTextAreaDisabled(false)
@@ -389,12 +392,15 @@ const ChatView: React.FC<ChatViewProps> = ({
 	}
 
 	// Handle say messages
-	const handleSayMessage = (message: any) => {
+	const handleSayMessage = (message: ClaudeMessage) => {
 		// This function updates the component state based on the type of say message received
 		switch (message.say) {
 			case "text":
 				setTextAreaDisabled(false)
 				setClaudeAsk(undefined)
+				// removes the button text if the message is say
+				setPrimaryButtonText(undefined)
+				setSecondaryButtonText(undefined)
 				setEnableButtons(false)
 				break
 			case "abort_automode":

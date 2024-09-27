@@ -8,6 +8,7 @@ import TaskText from "./TaskText"
 import TokenInfo from "./TokenInfo"
 import CreditsInfo from "./CreditsInfo"
 import { useExtensionState } from "@/context/ExtensionStateContext"
+import BugReportDialog from "./bug-report-dialog"
 
 interface TaskHeaderProps {
 	task: ClaudeMessage
@@ -44,7 +45,6 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 	const handleRename = () => {
 		vscode.postMessage({ type: "renameTask", isCurentTask: true })
 	}
-	console.log(`TaskHeader: ${currentTaskId} name ${currentTask?.name}`)
 
 	return (
 		<>
@@ -52,6 +52,7 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 				<div className="flex-line">
 					<h3 className="uppercase">Task</h3>
 					<div style={{ flex: "1 1 0%" }}></div>
+					<BugReportDialog />
 					<VSCodeButton appearance="icon" onClick={handleRename}>
 						Rename
 					</VSCodeButton>

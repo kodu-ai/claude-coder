@@ -75,6 +75,11 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 		const previousValue = textareaValue
 		setTextareaValue(newValue)
 
+		// check if this was a paste event skipping the "@" check
+		if (newValue.length > previousValue.length + 1) {
+			return
+		}
+
 		const newAtPositions = getAllAtPositions(newValue)
 		const prevAtPositions = getAllAtPositions(previousValue)
 

@@ -27,7 +27,7 @@ export const UrlScreenshotTool: React.FC<ToolRendererProps> = ({
 
       {tool.base64Image ?
         <div style={{ maxHeight: '300px', width: '100%', overflow: 'hidden' }}>
-          <img src={`data:image/webp;base64,${tool.base64Image}`} style={{ width: '100%', objectFit: 'cover' }} />
+          <img src={`data:image/jpeg;base64,${tool.base64Image}`} style={{ width: '100%', objectFit: 'cover' }} />
         </div>
         :
         <CodeBlock

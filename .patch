@@ -1,0 +1,23 @@
+--- a/webview-ui-vite/src/components/ChatView/ChatView.tsx
++++ b/webview-ui-vite/src/components/ChatView/ChatView.tsx
+@@ -213,12 +213,6 @@
+ 	const handleSayMessage = (message: any) => {
+ 		// This function updates the component state based on the type of say message received
+ 		switch (message.say) {
+-			case "text":
+-				setTextAreaDisabled(false)
+-				setClaudeAsk(undefined)
+-				setEnableButtons(false)
+-				break
+-			case "abort_automode":
+ 				setTextAreaDisabled(false)
+ 				setClaudeAsk(undefined)
+ 				setEnableButtons(false)
+@@ -236,6 +230,7 @@
+ 				setPrimaryButtonText(undefined)
+ 				setSecondaryButtonText(undefined)
+ 				break
++			case "abort_automode":
+ 				setTextAreaDisabled(false)
+ 				setClaudeAsk(undefined)
+ 				setEnableButtons(false)

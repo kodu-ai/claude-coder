@@ -1,6 +1,7 @@
 out
 dist
 node_modules
+webview-ui-vite/node_modules
 .vscode-test/
 *.vsix
 .env

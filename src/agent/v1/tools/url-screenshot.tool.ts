@@ -1,7 +1,6 @@
 import * as path from "path"
 import * as vscode from "vscode"
 import fs from "fs/promises"
-import sharp from "sharp"
 import { ClaudeSayTool } from "../../../shared/ExtensionMessage"
 import { ToolResponse } from "../types"
 import { formatGenericToolFeedback, formatToolResponse } from "../utils"
@@ -37,14 +36,11 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			const relPath = `${url.replace(/[^a-zA-Z0-9]/g, "_")}-${Date.now()}.jpeg`
 			const absolutePath = path.resolve(this.cwd, relPath)
 
-			const compressedBuffer = await sharp(Buffer.from(buffer)).webp({ quality: 20 }).toBuffer()
-			const imageToBase64 = compressedBuffer.toString("base64")
-
+			// const compressedBuffer = await sharp(Buffer.from(buffer)).webp({ quality: 20 }).toBuffer()
+			const imageToBase64 = buffer.toString("base64")
 			await fs.writeFile(absolutePath, buffer)
-			await fs.writeFile(absolutePath.replace(".jpeg", "webp"), compressedBuffer)
 
 			await this.relaySuccessfulResponse({ absolutePath, imageToBase64 })
-
 			const uri = vscode.Uri.file(absolutePath)
 			await vscode.commands.executeCommand("vscode.open", uri)
 
