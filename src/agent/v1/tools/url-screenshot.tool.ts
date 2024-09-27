@@ -30,7 +30,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 		try {
 			const browserManager = this.koduDev.browserManager
 			await browserManager.launchBrowser()
-			const buffer = await browserManager.urlToScreenshot(url)
+			const { buffer } = await browserManager.urlToScreenshotAndLogs(url)
 			await browserManager.closeBrowser()
 
 			const relPath = `${url.replace(/[^a-zA-Z0-9]/g, "_")}-${Date.now()}.jpeg`
