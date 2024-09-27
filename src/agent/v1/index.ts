@@ -1,6 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { ClaudeAsk, ClaudeSay } from "../../shared/ExtensionMessage"
+import { ClaudeAsk } from "../../shared/ExtensionMessage"
 import { ToolName } from "../../shared/Tool"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { ApiManager } from "./api-handler"
@@ -12,9 +12,9 @@ import { AskResponse, TaskExecutor, TaskState } from "./task-executor"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
-import * as vscode from "vscode"
-import { TerminalManager } from "../../integrations/terminal/terminal-manager"
 import { createTerminalManager } from "../../integrations/terminal"
+import { BrowserManager } from "./browser-manager"
+
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
@@ -24,6 +24,7 @@ export class KoduDev {
 	public terminalManager: ReturnType<typeof createTerminalManager>
 	private providerRef: WeakRef<ClaudeDevProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
+	public browserManager: BrowserManager
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
@@ -41,6 +42,7 @@ export class KoduDev {
 			this.providerRef.deref()!.context
 		)
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
+		this.browserManager = new BrowserManager()
 
 		this.setupTaskExecutor()
 
