@@ -153,7 +153,7 @@ export class WriteFileTool extends BaseAgentTool {
 
 		vscode.commands.executeCommand(
 			"vscode.diff",
-			vscode.Uri.parse(`claude-dev-diff:${path.basename(absolutePath)}`).with({
+			vscode.Uri.parse(`claude-coder-diff:${path.basename(absolutePath)}`).with({
 				query: Buffer.from(originalContent).toString("base64"),
 			}),
 			vscode.Uri.file(tempFilePath),
