@@ -3,7 +3,13 @@ import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
 import { useEvent, useMount } from "react-use"
 import { VirtuosoHandle } from "react-virtuoso"
-import { ClaudeAsk, ClaudeMessage, ClaudeSayTool, ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
+import {
+	ClaudeAsk,
+	ClaudeMessage,
+	ClaudeSay,
+	ClaudeSayTool,
+	ExtensionMessage,
+} from "../../../../src/shared/ExtensionMessage"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
 import { combineCommandSequences, COMMAND_STDIN_STRING } from "../../../../src/shared/combineCommandSequences"
 import { getApiMetrics } from "../../../../src/shared/getApiMetrics"
@@ -95,13 +101,14 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Handle changes in messages
 	useEffect(() => {
 		const lastMessage = messages.at(-1)
-
 		if (lastMessage) {
 			switch (lastMessage.type) {
 				case "ask":
+					console.log(`last message is ask ${lastMessage.ask}`)
 					handleAskMessage(lastMessage)
 					break
 				case "say":
+					console.log(`last message is say ${lastMessage.say}`)
 					handleSayMessage(lastMessage)
 					break
 			}
@@ -385,12 +392,15 @@ const ChatView: React.FC<ChatViewProps> = ({
 	}
 
 	// Handle say messages
-	const handleSayMessage = (message: any) => {
+	const handleSayMessage = (message: ClaudeMessage) => {
 		// This function updates the component state based on the type of say message received
 		switch (message.say) {
 			case "text":
 				setTextAreaDisabled(false)
 				setClaudeAsk(undefined)
+				// removes the button text if the message is say
+				setPrimaryButtonText(undefined)
+				setSecondaryButtonText(undefined)
 				setEnableButtons(false)
 				break
 			case "abort_automode":

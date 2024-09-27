@@ -4,6 +4,9 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.7.3]
+- mid merge v1.8.0 https://github.com/kodu-ai/claude-coder/pull/11
+
 ## [1.7.1-beta]
 
 - Add quick project starter
