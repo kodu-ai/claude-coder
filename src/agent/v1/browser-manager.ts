@@ -27,7 +27,7 @@ export class BrowserManager {
 		this.page = undefined
 	}
 
-	async urlToScreenshot(url: string): Promise<Buffer> {
+	async urlToScreenshotAndLogs(url: string): Promise<{ buffer: Buffer; logs: string[] }> {
 		if (!this.page) {
 			throw new Error("Browser not initialized")
 		}
@@ -52,6 +52,6 @@ export class BrowserManager {
 			type: "jpeg",
 		})
 
-		return screenshotBuffer
+		return { buffer: screenshotBuffer, logs }
 	}
 }
