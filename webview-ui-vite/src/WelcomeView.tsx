@@ -96,6 +96,8 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ }) => {
 							disabled={isLoading}
 							onClick={async () => {
 								setIsLoading(true)
+								vscode.postMessage({ type: "amplitude", event_type: "TrialOfferStart" })
+
 								if (fingerprint) {
 									vscode.postMessage({ type: "freeTrial", fp: fingerprint })
 									setTimeout(() => {

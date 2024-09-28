@@ -13,6 +13,18 @@ export class AmplitudeWebviewManager {
 			case "AuthStart":
 				amplitudeTracker.authStart()
 				break
+			case "TrialOfferView":
+				amplitudeTracker.trialOfferView()
+				break
+			case "TrialOfferStart":
+				amplitudeTracker.trialOfferStart()
+				break
+			case "TrialUpsellView":
+				amplitudeTracker.trialUpsellView()
+				break
+			case "TrialUpsellStart":
+				amplitudeTracker.trialUpsellStart()
+				break
 		}
 	}
 }

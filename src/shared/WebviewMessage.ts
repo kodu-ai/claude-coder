@@ -2,7 +2,14 @@ import { ApiConfiguration } from "../api"
 
 export type AmplitudeWebviewMessage = {
 	type: "amplitude"
-	event_type: "AuthStart" | "ReferralProgram" | "AddCredits" | "TrialOfferStart" | "TrialOfferView"
+	event_type:
+		| "AuthStart"
+		| "ReferralProgram"
+		| "AddCredits"
+		| "TrialOfferView"
+		| "TrialOfferStart"
+		| "TrialUpsellView"
+		| "TrialUpsellStart"
 }
 
 type RenameTask =

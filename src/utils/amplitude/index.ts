@@ -134,6 +134,22 @@ export class AmplitudeTracker {
 		this.track("AddCreditsClick")
 	}
 
+	public trialOfferView(): void {
+		this.track("TrialOfferView")
+	}
+
+	public trialOfferStart(): void {
+		this.track("TrialOfferStart")
+	}
+
+	public trialUpsellView(): void {
+		this.track("TrialUpsellView")
+	}
+
+	public trialUpsellStart(): void {
+		this.track("TrialUpsellStart")
+	}
+
 	private async track(eventType: string, eventProperties?: object, userProperties?: object): Promise<void> {
 		this.ensureInitialized()
 		ampTrack({
