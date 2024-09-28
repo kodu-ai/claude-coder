@@ -1,4 +1,4 @@
-import { WebviewMessage } from "../../../src/shared/WebviewMessage"
+import { AmplitudeWebviewMessage, WebviewMessage } from "../../../src/shared/WebviewMessage"
 import type { WebviewApi } from "vscode-webview"
 
 /**
@@ -35,6 +35,10 @@ class VSCodeAPIWrapper {
 		} else {
 			console.log(message)
 		}
+	}
+
+	public postTrackingEvent(event: AmplitudeWebviewMessage["event_type"]) {
+		this.vsCodeApi?.postMessage({ type: "amplitude", event_type: event })
 	}
 
 	/**

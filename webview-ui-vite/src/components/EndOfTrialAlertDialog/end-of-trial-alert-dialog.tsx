@@ -19,7 +19,7 @@ export default function EndOfTrialAlertDialog() {
 	const isOpen = user && user.isVisitor && user.credits < 0.1
 
 	React.useEffect(() => {
-		vscode.postMessage({ type: "amplitude", event_type: "TrialUpsellView" })
+		vscode.postTrackingEvent("TrialUpsellView")
 	}, [])
 
 	return (
@@ -66,7 +66,7 @@ export default function EndOfTrialAlertDialog() {
 					<Button
 						onClick={() => {
 							if (uriScheme && extensionName) {
-								vscode.postMessage({ type: "amplitude", event_type: "TrialUpsellStart" })
+								vscode.postTrackingEvent("TrialUpsellStart")
 								loginKodu({ uriScheme, extensionName })
 							}
 						}}

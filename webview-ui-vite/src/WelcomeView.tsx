@@ -14,7 +14,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ }) => {
 	const [isLoading, setIsLoading] = React.useState(false)
 
 	React.useEffect(() => {
-		vscode.postMessage({ type: "amplitude", event_type: "TrialOfferView" })
+		vscode.postTrackingEvent("TrialOfferView")
 	}, [])
 
 	return (
@@ -96,7 +96,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ }) => {
 							disabled={isLoading}
 							onClick={async () => {
 								setIsLoading(true)
-								vscode.postMessage({ type: "amplitude", event_type: "TrialOfferStart" })
+								vscode.postTrackingEvent("TrialOfferStart")
 
 								if (fingerprint) {
 									vscode.postMessage({ type: "freeTrial", fp: fingerprint })
