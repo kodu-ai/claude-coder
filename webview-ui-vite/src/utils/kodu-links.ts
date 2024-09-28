@@ -4,7 +4,7 @@ import { vscode } from "./vscode"
 export const loginKodu = (props: { uriScheme: string; extensionName: string }) => {
 	vscode.postMessage({
 		type: "amplitude",
-		event_type: "Auth Start",
+		event_type: "AuthStart",
 	})
 	vscode.postMessage({
 		type: "openExternalLink",

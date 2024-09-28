@@ -288,13 +288,13 @@ export class WebviewManager {
 						vscode.env.openExternal(vscode.Uri.parse(message.url))
 						break
 					case "amplitude":
-						if (message.event_type === "Add Credits") {
+						if (message.event_type === "AddCredits") {
 							amplitudeTracker.addCreditsClick()
 						}
-						if (message.event_type === "Referral Program") {
+						if (message.event_type === "ReferralProgram") {
 							amplitudeTracker.referralProgramClick()
 						}
-						if (message.event_type === "Auth Start") {
+						if (message.event_type === "AuthStart") {
 							amplitudeTracker.authStart()
 						}
 

@@ -2,7 +2,7 @@ import { ApiConfiguration } from "../api"
 
 type WebviewMessageAmplitude = {
 	type: "amplitude"
-	event_type: "Auth Start" | "Referral Program" | "Add Credits"
+	event_type: "AuthStart" | "ReferralProgram" | "AddCredits" | "TrialOfferStart" | "TrialOfferView"
 }
 
 type RenameTask =
