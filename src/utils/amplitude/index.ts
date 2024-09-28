@@ -2,6 +2,8 @@ import { init, track as ampTrack } from "@amplitude/analytics-node"
 import axios from "axios"
 import osName from "os-name"
 import * as vscode from "vscode"
+import { TaskCompleteEventParams, TaskRequestEventParams } from "./types"
+
 const getUserIP = async () => {
 	try {
 		const response = await axios.get("https://ipinfo.io/json")
@@ -20,7 +22,7 @@ export class AmplitudeTracker {
 	private sessionId: string | undefined
 	private extensionName: string | undefined
 	private ip: string | undefined
-
+	private globalState: vscode.Memento | undefined
 	private constructor() {}
 
 	public static getInstance(): AmplitudeTracker {
@@ -31,6 +33,7 @@ export class AmplitudeTracker {
 	}
 
 	public async initialize(
+		globalState: vscode.Memento,
 		isLoggedIn: boolean,
 		sessionId: string,
 		extensionName: string,
@@ -40,6 +43,8 @@ export class AmplitudeTracker {
 			console.warn("AmplitudeTracker is already initialized. Use updateUserState to change user state.")
 			return
 		}
+
+		this.globalState = globalState
 		this.sessionId = sessionId
 		this.extensionName = extensionName
 		const userIp = await getUserIP()
@@ -61,14 +66,46 @@ export class AmplitudeTracker {
 		}
 	}
 
-	private ensureInitialized(): void {
-		if (!this.initialized) {
-			throw new Error("AmplitudeTracker is not initialized. Call initialize() first.")
-		}
+	public sessionStart(): void {
+		this.track("SessionStart")
 	}
 
-	private getDeviceId(): string {
-		return vscode.env.machineId
+	public taskStart(taskId: string): void {
+		this.track("TaskStart", {
+			taskId,
+		})
+	}
+
+	public taskComplete(params: TaskCompleteEventParams): void {
+		this.track("TaskComplete", params)
+	}
+
+	public taskRequest(params: TaskRequestEventParams): void {
+		this.track("TaskRequest", {
+			...params,
+		})
+	}
+
+	public authStart(): void {
+		this.track("AuthStart")
+	}
+
+	public authSuccess(): void {
+		this.track("AuthSuccess")
+	}
+
+	public extensionActivateSuccess(isFirst: boolean): void {
+		this.track("ExtensionActivateSuccess", {
+			isFirst,
+		})
+	}
+
+	public referralProgramClick(): void {
+		this.track("ReferralProgramClick")
+	}
+
+	public addCreditsClick(): void {
+		this.track("AddCreditsClick")
 	}
 
 	private async track(eventType: string, eventProperties?: object, userProperties?: object): Promise<void> {
@@ -92,90 +129,23 @@ export class AmplitudeTracker {
 		})
 	}
 
-	public sessionStart(): void {
-		this.track("SessionStart")
+	private ensureInitialized(): void {
+		if (!this.initialized) {
+			throw new Error("AmplitudeTracker is not initialized. Call initialize() first.")
+		}
 	}
 
-	public taskStart(taskId: string): void {
-		this.track("TaskStart", {
-			taskId,
-		})
+	private getDeviceId(): string {
+		return vscode.env.machineId
 	}
 
-	public taskComplete({
-		taskId,
-		totalCost,
-		totalCacheReadTokens,
-		totalCacheWriteTokens,
-		totalOutputTokens,
-		totalInputTokens,
-	}: {
-		taskId: string
-		totalCost: number
-		totalCacheReadTokens: number
-		totalCacheWriteTokens: number
-		totalOutputTokens: number
-		totalInputTokens: number
-	}): void {
-		this.track("TaskComplete", {
-			taskId,
-			totalCost,
-			totalCacheReadTokens,
-			totalCacheWriteTokens,
-			totalOutputTokens,
-			totalInputTokens,
-		})
+	private getMetric(key: string): number {
+		return this.globalState?.get(key) || 0
 	}
 
-	public taskRequest({
-		taskId,
-		model,
-		apiCost,
-		inputTokens,
-		cacheReadTokens,
-		cacheWriteTokens,
-		outputTokens,
-	}: {
-		taskId: string
-		model: string
-		apiCost: number
-		inputTokens: number
-		cacheReadTokens: number
-		cacheWriteTokens: number
-		outputTokens: number
-	}): void {
-		this.track("TaskRequest", {
-			taskId,
-			model,
-			apiCost,
-			inputTokens,
-			cacheReadTokens,
-			cacheWriteTokens,
-			outputTokens,
-		})
-	}
-
-	public authStart(): void {
-		this.track("AuthStart")
-	}
-
-	public authSuccess(): void {
-		this.track("AuthSuccess")
-	}
-
-	public extensionActivateSuccess(isFirst: boolean): void {
-		console.log(`My Machine id: ${this.getDeviceId()}`)
-		this.track("ExtensionActivateSuccess", {
-			isFirst,
-		})
-	}
-
-	public referralProgramClick(): void {
-		this.track("ReferralProgramClick")
-	}
-
-	public addCreditsClick(): void {
-		this.track("AddCreditsClick")
+	private incrementMetric(key: string): void {
+		const currentCount = this.getMetric(key)
+		this.globalState?.update(key, currentCount + 1)
 	}
 }
 
