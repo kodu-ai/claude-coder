@@ -76,7 +76,16 @@ export class AmplitudeTracker {
 
 	public taskStart(taskId: string): void {
 		this.currentTaskRequestCount = 0
+
 		this.track("TaskStart", {
+			taskId,
+		})
+	}
+
+	public taskResume(taskId: string, pastRequestsCount: number): void {
+		this.currentTaskRequestCount = pastRequestsCount
+
+		this.track("TaskResume", {
 			taskId,
 		})
 	}
