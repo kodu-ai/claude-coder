@@ -131,7 +131,7 @@ export class AmplitudeTracker {
 	}
 
 	public addCreditsClick(): void {
-		this.track("AddCreditsClick")
+		this.track("ExtensionCreditAddOpen")
 	}
 
 	public trialOfferView(): void {

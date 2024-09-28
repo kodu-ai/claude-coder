@@ -56,7 +56,7 @@ const UserInfo: React.FC<UserInfoProps> = ({ user, uriScheme, setDidAuthKodu }) 
 					</Button>
 					<Button
 						onClick={() => {
-							vscode.postTrackingEvent("AddCredits")
+							vscode.postTrackingEvent("ExtensionCreditAddOpen")
 						}}
 						asChild
 						style={{

@@ -5,7 +5,7 @@ export type AmplitudeWebviewMessage = {
 	event_type:
 		| "AuthStart"
 		| "ReferralProgram"
-		| "AddCredits"
+		| "ExtensionCreditAddOpen"
 		| "TrialOfferView"
 		| "TrialOfferStart"
 		| "TrialUpsellView"

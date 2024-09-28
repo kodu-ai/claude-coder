@@ -4,7 +4,7 @@ import { AmplitudeWebviewMessage } from "../../shared/WebviewMessage"
 export class AmplitudeWebviewManager {
 	static handleMessage(message: AmplitudeWebviewMessage) {
 		switch (message.event_type) {
-			case "AddCredits":
+			case "ExtensionCreditAddOpen":
 				amplitudeTracker.addCreditsClick()
 				break
 			case "ReferralProgram":
