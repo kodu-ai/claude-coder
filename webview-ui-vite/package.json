@@ -10,7 +10,6 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
-		"@amplitude/analytics-browser": "^2.11.7",
 		"@babel/core": "^7.25.2",
 		"@fingerprintjs/fingerprintjs-pro-react": "^2.6.3",
 		"@hookform/resolvers": "^3.9.0",
