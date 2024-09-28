@@ -2,7 +2,7 @@ import { init, track as ampTrack } from "@amplitude/analytics-node"
 import axios from "axios"
 import osName from "os-name"
 import * as vscode from "vscode"
-import { TaskCompleteEventParams, TaskRequestEventParams } from "./types"
+import { AmplitudeMetrics, TaskCompleteEventParams, TaskRequestEventParams } from "./types"
 
 const getUserIP = async () => {
 	try {
@@ -23,6 +23,8 @@ export class AmplitudeTracker {
 	private extensionName: string | undefined
 	private ip: string | undefined
 	private globalState: vscode.Memento | undefined
+	private currentTaskRequestCount = 0
+	private sessionTaskRequestCount = 0
 	private constructor() {}
 
 	public static getInstance(): AmplitudeTracker {
@@ -47,6 +49,8 @@ export class AmplitudeTracker {
 		this.globalState = globalState
 		this.sessionId = sessionId
 		this.extensionName = extensionName
+		this.sessionTaskRequestCount = 0
+
 		const userIp = await getUserIP()
 		this.ip = userIp
 		init(process.env.AMPLITUDE_API_KEY as string, {
@@ -71,19 +75,32 @@ export class AmplitudeTracker {
 	}
 
 	public taskStart(taskId: string): void {
+		this.currentTaskRequestCount = 0
 		this.track("TaskStart", {
 			taskId,
 		})
 	}
 
-	public taskComplete(params: TaskCompleteEventParams): void {
-		this.track("TaskComplete", params)
+	public taskRequest(params: TaskRequestEventParams): void {
+		this.incrementMetric(AmplitudeMetrics.GLOBAL_TASK_REQUEST_COUNT)
+		const globalTaskRequestCount = this.getMetric(AmplitudeMetrics.GLOBAL_TASK_REQUEST_COUNT)
+
+		this.track(
+			"TaskRequest",
+			{
+				...params,
+				thisTaskRequestCount: ++this.currentTaskRequestCount,
+				globalTaskRequestCount,
+			},
+			{
+				sessionTaskRequestCount: ++this.sessionTaskRequestCount,
+				globalTaskRequestCount,
+			}
+		)
 	}
 
-	public taskRequest(params: TaskRequestEventParams): void {
-		this.track("TaskRequest", {
-			...params,
-		})
+	public taskComplete(params: TaskCompleteEventParams): void {
+		this.track("TaskComplete", params)
 	}
 
 	public authStart(): void {

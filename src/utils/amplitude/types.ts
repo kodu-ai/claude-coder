@@ -16,3 +16,7 @@ export type TaskRequestEventParams = {
 	cacheWriteTokens: number
 	outputTokens: number
 }
+
+export enum AmplitudeMetrics {
+	GLOBAL_TASK_REQUEST_COUNT = "metrics.global_task_request_count",
+}
