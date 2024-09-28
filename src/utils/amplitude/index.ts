@@ -150,6 +150,10 @@ export class AmplitudeTracker {
 		this.track("TrialUpsellStart")
 	}
 
+	public trialUpsellSuccess(): void {
+		this.track("TrialUpsellSuccess")
+	}
+
 	private async track(eventType: string, eventProperties?: object, userProperties?: object): Promise<void> {
 		this.ensureInitialized()
 		ampTrack({

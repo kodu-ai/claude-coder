@@ -67,7 +67,7 @@ export default function EndOfTrialAlertDialog() {
 						onClick={() => {
 							if (uriScheme && extensionName) {
 								vscode.postTrackingEvent("TrialUpsellStart")
-								loginKodu({ uriScheme, extensionName })
+								loginKodu({ uriScheme, extensionName, isPostTrial: true })
 							}
 						}}
 						type="submit"
