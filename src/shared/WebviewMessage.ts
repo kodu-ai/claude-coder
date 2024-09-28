@@ -1,6 +1,6 @@
 import { ApiConfiguration } from "../api"
 
-type WebviewMessageAmplitude = {
+export type AmplitudeWebviewMessage = {
 	type: "amplitude"
 	event_type: "AuthStart" | "ReferralProgram" | "AddCredits" | "TrialOfferStart" | "TrialOfferView"
 }
@@ -56,7 +56,7 @@ type exportBugMessage = {
 export type WebviewMessage =
 	| exportBugMessage
 	| experimentalTerminalMessage
-	| WebviewMessageAmplitude
+	| AmplitudeWebviewMessage
 	| OpenExternalLink
 	| FreeTrial
 	| ApiConfigurationMessage
