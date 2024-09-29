@@ -112,8 +112,8 @@ export class AmplitudeTracker {
 		this.track("TaskComplete", params)
 	}
 
-	public authStart(): void {
-		this.track("AuthStart")
+	public authExtension(): void {
+		this.track("AuthExtension")
 	}
 
 	public authSuccess(): void {

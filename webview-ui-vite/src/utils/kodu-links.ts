@@ -2,7 +2,7 @@ import { getKoduSignInUrl } from "../../../src/shared/kodu"
 import { vscode } from "./vscode"
 
 export const loginKodu = (props: { uriScheme: string; extensionName: string; isPostTrial?: boolean }) => {
-	vscode.postTrackingEvent("AuthStart")
+	vscode.postTrackingEvent("AuthExtension")
 
 	let url = getKoduSignInUrl(props.uriScheme, props.extensionName)
 	if (props.isPostTrial) {
