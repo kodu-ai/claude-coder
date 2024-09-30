@@ -37,8 +37,8 @@ class VSCodeAPIWrapper {
 		}
 	}
 
-	public postTrackingEvent(event: AmplitudeWebviewMessage["event_type"]) {
-		this.vsCodeApi?.postMessage({ type: "amplitude", event_type: event })
+	public postTrackingEvent(event: AmplitudeWebviewMessage["event_type"], key?: string) {
+		this.vsCodeApi?.postMessage({ type: "amplitude", event_type: event, key })
 	}
 
 	/**

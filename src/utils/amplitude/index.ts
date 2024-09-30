@@ -154,6 +154,12 @@ export class AmplitudeTracker {
 		this.track("TrialUpsellSuccess")
 	}
 
+	public extensionCreditAddSelect(key: string): void {
+		this.track("ExtensionCreditAddSelect", {
+			key,
+		})
+	}
+
 	private async track(eventType: string, eventProperties?: object, userProperties?: object): Promise<void> {
 		this.ensureInitialized()
 		ampTrack({

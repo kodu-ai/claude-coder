@@ -25,6 +25,9 @@ export class AmplitudeWebviewManager {
 			case "TrialUpsellStart":
 				amplitudeTracker.trialUpsellStart()
 				break
+			case "ExtensionCreditAddSelect":
+				amplitudeTracker.extensionCreditAddSelect(message.key!)
+				break
 		}
 	}
 }

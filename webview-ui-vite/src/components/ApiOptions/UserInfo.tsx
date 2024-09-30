@@ -46,6 +46,7 @@ const UserInfo: React.FC<UserInfoProps> = ({ user, uriScheme, setDidAuthKodu }) 
 					<Button
 						onClick={() => {
 							vscode.postTrackingEvent("ReferralProgram")
+							vscode.postTrackingEvent("ExtensionCreditAddSelect", "referral")
 						}}
 						style={{
 							width: "fit-content",
@@ -57,6 +58,7 @@ const UserInfo: React.FC<UserInfoProps> = ({ user, uriScheme, setDidAuthKodu }) 
 					<Button
 						onClick={() => {
 							vscode.postTrackingEvent("ExtensionCreditAddOpen")
+							vscode.postTrackingEvent("ExtensionCreditAddSelect", "purchase")
 						}}
 						asChild
 						style={{

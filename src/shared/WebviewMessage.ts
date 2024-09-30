@@ -10,6 +10,8 @@ export type AmplitudeWebviewMessage = {
 		| "TrialOfferStart"
 		| "TrialUpsellView"
 		| "TrialUpsellStart"
+		| "ExtensionCreditAddSelect"
+	key?: string
 }
 
 type RenameTask =
