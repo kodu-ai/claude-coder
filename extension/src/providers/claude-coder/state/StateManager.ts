@@ -62,7 +62,8 @@ export class StateManager {
 			maxRequestsPerTask,
 			lastShownAnnouncementId,
 			customInstructions,
-			experimentalTerminal,
+			experimentalTerminal:
+				experimentalTerminal === undefined || experimentalTerminal === null ? true : experimentalTerminal,
 			currentTaskId,
 			alwaysAllowReadOnly: alwaysAllowReadOnly ?? false,
 			shouldShowAnnouncement: lastShownAnnouncementId === undefined,

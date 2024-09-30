@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, KeyboardEvent } from "react"
+import React, { useState, useCallback, useRef, KeyboardEvent, useMemo } from "react"
 import { Folder, File, ChevronRight, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -12,6 +12,7 @@ export type FileNode = {
 	type: "file" | "folder"
 	children?: FileNode[]
 	depth: number
+	matchReason?: "direct" | "childMatch"
 }
 
 type EnhancedFileTreeProps = {
@@ -78,31 +79,48 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 		onItemSelect(newSelectedItems)
 	}
 
-	const filterFiles = (node: FileNode): FileNode | null => {
-		if (node.name.toLowerCase().includes(filter.toLowerCase())) {
-			return node
-		}
-		if (node.type === "folder" && node.children) {
-			const filteredChildren = node.children.map(filterFiles).filter((child): child is FileNode => child !== null)
-			if (filteredChildren.length > 0) {
-				return { ...node, children: filteredChildren }
+	const filterFiles = useCallback(
+		(node: FileNode): FileNode | null => {
+			const matchesFilter = node.name.toLowerCase().includes(filter.toLowerCase())
+			if (matchesFilter) {
+				return { ...node, matchReason: "direct" }
 			}
-		}
-		return null
-	}
-
-	const flattenFileTree = (nodes: FileNode[]): FileNode[] => {
-		return nodes.reduce<FileNode[]>((acc, node) => {
-			acc.push(node)
-			if (node.type === "folder" && node.children && expandedFolders.has(node.id)) {
-				acc.push(...flattenFileTree(node.children))
+			if (node.type === "folder" && node.children) {
+				const filteredChildren = node.children
+					.map(filterFiles)
+					.filter((child): child is FileNode => child !== null)
+				if (filteredChildren.length > 0) {
+					return { ...node, children: filteredChildren, matchReason: "childMatch" }
+				}
 			}
-			return acc
-		}, [])
-	}
+			return null
+		},
+		[filter]
+	)
 
-	const filteredFiles = initialFiles.map(filterFiles).filter((file): file is FileNode => file !== null)
-	const flattenedFiles = flattenFileTree(filteredFiles)
+	const filteredFiles = useMemo(() => {
+		const filtered = initialFiles.map(filterFiles).filter((file): file is FileNode => file !== null)
+		return filtered
+	}, [initialFiles, filterFiles])
+
+	const flattenFileTree = useCallback(
+		(nodes: FileNode[]): FileNode[] => {
+			return nodes.reduce<FileNode[]>((acc, node) => {
+				acc.push(node)
+				if (
+					node.type === "folder" &&
+					node.children &&
+					(expandedFolders.has(node.id) || node.matchReason === "childMatch")
+				) {
+					acc.push(...flattenFileTree(node.children))
+				}
+				return acc
+			}, [])
+		},
+		[expandedFolders]
+	)
+
+	const flattenedFiles = useMemo(() => flattenFileTree(filteredFiles), [filteredFiles, flattenFileTree])
 
 	const parentRef = useRef<HTMLDivElement>(null)
 
@@ -134,7 +152,7 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 						isSelected || (node.type === "folder" && areAllChildrenSelected)
 							? "bg-primary text-primary-foreground"
 							: ""
-					}`}
+					} ${node.matchReason === "childMatch" ? "opacity-70" : ""}`}
 					style={{ paddingLeft: `${node.depth * 1.5 + 0.5}rem` }}
 					onClick={() => node.type === "folder" && toggleFolder(node.id)}
 					onKeyDown={(e) => handleKeyDown(e, node)}

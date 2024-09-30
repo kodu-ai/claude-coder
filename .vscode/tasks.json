@@ -1,80 +1,83 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"type": "npm",
-			"script": "start:webview",
-			"problemMatcher": [
-				{
-					"pattern": [
-						{
-							"regexp": ".",
-							"file": 1,
-							"location": 2,
-							"message": 3
-						}
-					],
-					"background": {
-						"activeOnStart": true,
-						"beginsPattern": ".",
-						"endsPattern": "."
-					}
-				}
-			],
-			"isBackground": true,
-			"presentation": {
-				"reveal": "always",
-				"panel": "dedicated"
-			},
-			"group": "build",
-			"options": {
-				"statusbar": {
-					"label": "$(browser) Webview",
-					"hide": false
-				}
-			}
-		},
-		{
-			"type": "npm",
-			"script": "watch:esbuild",
-			"problemMatcher": [
-				{
-					"pattern": [
-						{
-							"regexp": ".",
-							"file": 1,
-							"location": 2,
-							"message": 3
-						}
-					],
-					"background": {
-						"activeOnStart": true,
-						"beginsPattern": ".",
-						"endsPattern": "."
-					}
-				}
-			],
-			"isBackground": true,
-			"presentation": {
-				"reveal": "always",
-				"panel": "dedicated"
-			},
-			"group": "build",
-			"options": {
-				"statusbar": {
-					"label": "$(eye) Watch esbuild",
-					"hide": false
-				}
-			}
-		},
-		{
-			"label": "Run All",
-			"dependsOn": ["npm: start:webview", "npm: watch:esbuild"],
-			"problemMatcher": [],
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "start:webview",
+      "path": "./extension",
+      "problemMatcher": [
+        {
+          "pattern": [
+            {
+              "regexp": ".",
+              "file": 1,
+              "location": 2,
+              "message": 3
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".",
+            "endsPattern": "."
+          }
+        }
+      ],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "group": "build",
+      "options": {
+        "statusbar": {
+          "label": "$(browser) Webview",
+          "hide": false
+        }
+      }
+    },
+    {
+      "type": "npm",
+      "script": "watch:esbuild",
+      "path": "./extension",
+
+      "problemMatcher": [
+        {
+          "pattern": [
+            {
+              "regexp": ".",
+              "file": 1,
+              "location": 2,
+              "message": 3
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".",
+            "endsPattern": "."
+          }
+        }
+      ],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "group": "build",
+      "options": {
+        "statusbar": {
+          "label": "$(eye) Watch esbuild",
+          "hide": false
+        }
+      }
+    },
+    {
+      "label": "Run All",
+      "dependsOn": ["npm: start:webview", "npm: watch:esbuild"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
 }
