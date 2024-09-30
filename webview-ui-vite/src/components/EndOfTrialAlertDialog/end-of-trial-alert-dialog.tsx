@@ -1,3 +1,4 @@
+import React from "react"
 import { Button } from "@/components/ui/button"
 import {
 	AlertDialog,
@@ -10,14 +11,19 @@ import {
 import { Sparkles, Zap, Rocket, Gift } from "lucide-react"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import { loginKodu } from "@/utils/kodu-links"
+import { vscode } from "@/utils/vscode"
 
 export default function EndOfTrialAlertDialog() {
 	const { user, uriScheme, extensionName } = useExtensionState()
 
 	const isOpen = user && user.isVisitor && user.credits < 0.1
 
+	React.useEffect(() => {
+		vscode.postTrackingEvent("TrialUpsellView")
+	}, [])
+
 	return (
-		<AlertDialog open={!!isOpen} onOpenChange={() => {}}>
+		<AlertDialog open={!!isOpen} onOpenChange={() => { }}>
 			<AlertDialogContent className="w-[90vw] max-w-[425px] p-3 sm:p-6 rounded-md">
 				<AlertDialogHeader className="space-y-2 sm:space-y-3">
 					<AlertDialogTitle className="text-lg sm:text-2xl font-bold flex items-center gap-2">
@@ -59,7 +65,10 @@ export default function EndOfTrialAlertDialog() {
 				<AlertDialogFooter className="sm:justify-start mt-2 sm:mt-0">
 					<Button
 						onClick={() => {
-							if (uriScheme && extensionName) loginKodu({ uriScheme, extensionName })
+							if (uriScheme && extensionName) {
+								vscode.postTrackingEvent("TrialUpsellStart")
+								loginKodu({ uriScheme, extensionName, isPostTrial: true })
+							}
 						}}
 						type="submit"
 						className="w-full border-none bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:from-purple-600 hover:to-blue-600 text-xs sm:text-sm py-2 h-auto">

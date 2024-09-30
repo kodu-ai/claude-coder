@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
 
-// const KODU_BASE_URL = "http://localhost:3000"
+// const KODU_BASE_URL = "http://localhost:3001"
 const KODU_BASE_URL = "https://kodu.ai"
 
 export function getKoduSignInUrl(uriScheme?: string, extensionName?: string) {

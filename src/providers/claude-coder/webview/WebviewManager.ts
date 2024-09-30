@@ -3,10 +3,10 @@ import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessa
 import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { ClaudeDevProvider } from "../ClaudeCoderProvider"
-import { amplitudeTracker } from "../../../utils/amplitude"
 import { quickStart } from "./quick-start"
 import { readdir } from "fs/promises"
 import path from "path"
+import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 
 interface FileTreeItem {
 	id: string
@@ -288,18 +288,8 @@ export class WebviewManager {
 						vscode.env.openExternal(vscode.Uri.parse(message.url))
 						break
 					case "amplitude":
-						if (message.event_type === "Add Credits") {
-							amplitudeTracker.addCreditsClick()
-						}
-						if (message.event_type === "Referral Program") {
-							amplitudeTracker.referralProgramClick()
-						}
-						if (message.event_type === "Auth Start") {
-							amplitudeTracker.authStart()
-						}
-
+						AmplitudeWebviewManager.handleMessage(message)
 						break
-
 					case "cancelCurrentRequest":
 						await this.provider.getKoduDev()?.taskExecutor.cancelCurrentRequest()
 						await this.postStateToWebview()

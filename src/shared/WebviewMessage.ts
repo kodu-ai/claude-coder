@@ -1,8 +1,17 @@
 import { ApiConfiguration } from "../api"
 
-type WebviewMessageAmplitude = {
+export type AmplitudeWebviewMessage = {
 	type: "amplitude"
-	event_type: "Auth Start" | "Referral Program" | "Add Credits"
+	event_type:
+		| "AuthStart"
+		| "ReferralProgram"
+		| "ExtensionCreditAddOpen"
+		| "TrialOfferView"
+		| "TrialOfferStart"
+		| "TrialUpsellView"
+		| "TrialUpsellStart"
+		| "ExtensionCreditAddSelect"
+	key?: string
 }
 
 type RenameTask =
@@ -56,7 +65,7 @@ type exportBugMessage = {
 export type WebviewMessage =
 	| exportBugMessage
 	| experimentalTerminalMessage
-	| WebviewMessageAmplitude
+	| AmplitudeWebviewMessage
 	| OpenExternalLink
 	| FreeTrial
 	| ApiConfigurationMessage

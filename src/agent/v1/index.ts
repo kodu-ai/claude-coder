@@ -278,6 +278,9 @@ export class KoduDev {
 			modifiedOldUserContent.filter((block) => block.type !== "text") as UserContent
 		).concat([{ type: "text", text: combinedText }, ...newUserContentImages])
 
+		const pastRequestsCount = modifiedApiConversationHistory.filter((m) => m.role === "assistant").length
+		amplitudeTracker.taskResume(this.stateManager.state.taskId, pastRequestsCount)
+
 		this.stateManager.state.isHistoryItemResumed = true
 		await this.stateManager.overwriteApiConversationHistory(modifiedApiConversationHistory)
 		await this.taskExecutor.startTask(combinedModifiedOldUserContentWithNewUserContent)
