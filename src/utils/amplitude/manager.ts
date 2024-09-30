@@ -10,8 +10,8 @@ export class AmplitudeWebviewManager {
 			case "ReferralProgram":
 				amplitudeTracker.referralProgramClick()
 				break
-			case "AuthExtension":
-				amplitudeTracker.authExtension()
+			case "AuthStart":
+				amplitudeTracker.authStart()
 				break
 			case "TrialOfferView":
 				amplitudeTracker.trialOfferView()

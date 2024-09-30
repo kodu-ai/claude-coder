@@ -3,7 +3,7 @@ import { ApiConfiguration } from "../api"
 export type AmplitudeWebviewMessage = {
 	type: "amplitude"
 	event_type:
-		| "AuthExtension"
+		| "AuthStart"
 		| "ReferralProgram"
 		| "ExtensionCreditAddOpen"
 		| "TrialOfferView"

@@ -73,7 +73,7 @@ const UserInfo: React.FC<UserInfoProps> = ({ user, uriScheme, setDidAuthKodu }) 
 				<Button
 					asChild
 					onClick={() => {
-						vscode.postTrackingEvent("AuthExtension")
+						vscode.postTrackingEvent("AuthStart")
 						setDidAuthKodu?.(true)
 					}}>
 					<a href={getKoduSignInUrl(uriScheme, extensionName)}>Sign in to Kodu</a>
