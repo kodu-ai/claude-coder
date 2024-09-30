@@ -6,12 +6,17 @@ import { useExtensionState } from "./context/ExtensionStateContext"
 import { loginKodu } from "./utils/kodu-links"
 import { useVisitorData } from "@fingerprintjs/fingerprintjs-pro-react"
 import { vscode } from "./utils/vscode"
-interface WelcomeViewProps {}
+interface WelcomeViewProps { }
 
-const WelcomeView: React.FC<WelcomeViewProps> = ({}) => {
+const WelcomeView: React.FC<WelcomeViewProps> = ({ }) => {
 	const { uriScheme, extensionName, fingerprint } = useExtensionState()
 	const { getData } = useVisitorData()
 	const [isLoading, setIsLoading] = React.useState(false)
+
+	React.useEffect(() => {
+		vscode.postTrackingEvent("TrialOfferView")
+	}, [])
+
 	return (
 		<div className="text-[var(--vscode-editor-foreground)] p-4 sm:p-6 flex flex-col items-center">
 			<div className="max-w-xl w-full space-y-6">
@@ -91,6 +96,8 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({}) => {
 							disabled={isLoading}
 							onClick={async () => {
 								setIsLoading(true)
+								vscode.postTrackingEvent("TrialOfferStart")
+
 								if (fingerprint) {
 									vscode.postMessage({ type: "freeTrial", fp: fingerprint })
 									setTimeout(() => {

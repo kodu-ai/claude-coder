@@ -78,9 +78,11 @@ export function activate(context: vscode.ExtensionContext) {
 	//console.log('Congratulations, your extension "claude-dev" is now active!')
 	outputChannel = vscode.window.createOutputChannel("Claude Coder")
 	const user = getCurrentUser()
-	amplitudeTracker.initialize(!!user, vscode.env.sessionId, context.extension.id, user?.id).then(() => {
-		handleFirstInstall(context)
-	})
+	amplitudeTracker
+		.initialize(context.globalState, !!user, vscode.env.sessionId, context.extension.id, user?.id)
+		.then(() => {
+			handleFirstInstall(context)
+		})
 	outputChannel.appendLine("Claude Coder extension activated")
 	const sidebarProvider = new ClaudeDevProvider(context, outputChannel)
 	context.subscriptions.push(outputChannel)
@@ -206,10 +208,15 @@ export function activate(context: vscode.ExtensionContext) {
 	const handleUri = async (uri: vscode.Uri) => {
 		const query = new URLSearchParams(uri.query.replace(/\+/g, "%2B"))
 		const token = query.get("token")
+		const postTrial = query.get("postTrial")
 		const email = query.get("email")
 		if (token) {
 			amplitudeTracker.authSuccess()
 			console.log(`Received token: ${token}`)
+			if (postTrial) {
+				amplitudeTracker.trialUpsellSuccess()
+			}
+
 			await sidebarProvider.getApiManager().saveKoduApiKey(token)
 		}
 	}
