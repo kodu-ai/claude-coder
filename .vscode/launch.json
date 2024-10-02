@@ -1,20 +1,20 @@
 {
-	"version": "0.2.0",
-	"configurations": [
-		{
-			"name": "Run Extension",
-			"type": "extensionHost",
-			"request": "launch",
-			"args": ["--extensionDevelopmentPath=${workspaceFolder}"],
-			"outFiles": ["${workspaceFolder}/dist/**/*.js"],
-			"preLaunchTask": "Run All"
-		}
-	],
-	"compounds": [
-		{
-			"name": "Build and Debug",
-			"configurations": ["Run Extension"],
-			"preLaunchTask": "Run All"
-		}
-	]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "outFiles": ["${workspaceFolder}/extension/dist/**/*.js"],
+      "preLaunchTask": "Run All"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Build and Debug",
+      "configurations": ["Run Extension"],
+      "preLaunchTask": "Run All"
+    }
+  ]
 }
