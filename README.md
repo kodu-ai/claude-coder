@@ -25,11 +25,14 @@ All you need to is tell Claude what's your task and Claude will take care of it 
 
 ## 🎬 See it in action
 
-Here's a real time demo of Claude Coder helping Joy create her landing page for her business in Tokyo under 5 minutes:
+Here's a demo of Claude Coder helping Joy create her landing page for her business in Tokyo under 5 minutes:
 [Joy Coffee Shop Preview](https://joy-coffee-shop.vercel.app)
 
+
+
+
 <p align="center">
-<video alt="video" src="https://res.cloudinary.com/ddqtnp0ic/video/upload/v1727893783/Untitled_design_1_stvwe2.mp4" width="500" />
+<video alt="video" src="https://github.com/user-attachments/assets/4f00201e-12d1-4a91-aeb0-614726dab8b3" width="500" />
 </p>
 
 <p align="center">
