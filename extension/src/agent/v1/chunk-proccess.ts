@@ -20,7 +20,7 @@ export class ChunkProcessor {
 
 	async processStream(stream: AsyncGenerator<koduSSEResponse, any, unknown>) {
 		for await (const chunk of stream) {
-			if (chunk.code === 1) {
+			if (chunk.code === 1 || chunk.code === -1) {
 				this.endOfStreamReceived = true
 				await this.callbacks.onImmediateEndOfStream(chunk)
 			}
