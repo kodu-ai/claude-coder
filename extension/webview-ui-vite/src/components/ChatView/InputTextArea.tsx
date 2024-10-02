@@ -14,11 +14,14 @@ type InputTextAreaProps = {
 	setShowPopover: (show: boolean) => void
 }
 
+export const CHAT_BOX_INPUT_ID = "chat-box-input" as const
+
 const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>((props, ref) => {
 	return (
 		<DynamicTextArea
 			tabIndex={0}
 			ref={ref}
+			id={CHAT_BOX_INPUT_ID}
 			value={props.value}
 			disabled={props.disabled || props.isRequestRunning}
 			onChange={props.onChange}

@@ -9,6 +9,8 @@ import {
 	ClaudeSay,
 	ClaudeSayTool,
 	ExtensionMessage,
+	isV1ClaudeMessage,
+	V1ClaudeMessage,
 } from "../../../../src/shared/ExtensionMessage"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
 import { combineCommandSequences, COMMAND_STDIN_STRING } from "../../../../src/shared/combineCommandSequences"
@@ -24,6 +26,8 @@ import ProjectStarterChooser from "../project-starters"
 import ButtonSection from "./ButtonSection"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
+import EmptyScreen from "./EmptyScreen"
+import { CHAT_BOX_INPUT_ID } from "./InputTextArea"
 
 interface ChatViewProps {
 	isHidden: boolean
@@ -72,6 +76,28 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Refs
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
+
+	// isMessageRunning
+	const isMessageRunning = useMemo(() => {
+		const lastMessage = messages.at(-1)
+		if (lastMessage && isV1ClaudeMessage(lastMessage)) {
+			// find last say with api_req_started
+			const lastSay = messages
+				.slice()
+				.reverse()
+				.find((message) => message.type === "say" && message.say === "api_req_started") as
+				| V1ClaudeMessage
+				| undefined
+			if (lastSay && lastSay.isFetching) {
+				return true
+			}
+			return false
+		}
+		if (lastMessage && lastMessage.type === "say" && lastMessage.say === "api_req_started") {
+			return true
+		}
+		return false
+	}, [messages])
 
 	// Memoized values
 	const task = useMemo(() => (messages.length > 0 ? messages[0] : undefined), [messages])
@@ -556,7 +582,19 @@ const ChatView: React.FC<ChatViewProps> = ({
 								tech support.
 							</div>
 						</section>
-						{taskHistory.length > 0 && <HistoryPreview showHistoryView={showHistoryView} />}
+						{taskHistory.length > 0 ? (
+							<HistoryPreview showHistoryView={showHistoryView} />
+						) : (
+							<EmptyScreen
+								handleClick={(text) => {
+									setInputValue(text)
+									const el = document.getElementById(CHAT_BOX_INPUT_ID)
+									if (el) {
+										el.focus()
+									}
+								}}
+							/>
+						)}
 					</>
 				)}
 				{task && (
@@ -593,10 +631,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 					selectImages={selectImages}
 					thumbnailsHeight={thumbnailsHeight}
 					handleThumbnailsHeightChange={handleThumbnailsHeightChange}
-					isRequestRunning={
-						// if last message is api_req_started, then request is running
-						messages.length > 0 && messages.at(-1)?.say === "api_req_started"
-					}
+					isRequestRunning={!!isMessageRunning}
+					isInTask={!!task}
 					// @ts-expect-error - extract is not working here
 					handleKeyDown={handleKeyDown}
 					handlePaste={handlePaste}

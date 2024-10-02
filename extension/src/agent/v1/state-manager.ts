@@ -248,6 +248,19 @@ export class StateManager {
 		return []
 	}
 
+	async removeEverythingAfterMessage(messageId: number) {
+		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
+		if (index === -1) {
+			console.error(`[StateManager] removeEverythingAfterMessage: Message with id ${messageId} not found`)
+			return
+		}
+		console.log(
+			`[StateManager] removeEverythingAfterMessage: Removing everything after message with id ${messageId}`
+		)
+		this.state.claudeMessages = this.state.claudeMessages.slice(0, index + 1)
+		await this.saveClaudeMessages()
+	}
+
 	async updateClaudeMessage(messageId: number, message: ClaudeMessage) {
 		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
 		if (index === -1) {

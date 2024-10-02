@@ -1,5 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ClaudeAsk, ClaudeMessage, ClaudeSay } from "../../shared/ExtensionMessage"
+import { ClaudeAsk, ClaudeMessage, ClaudeSay, isV1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { combineApiRequests } from "../../shared/combineApiRequests"
 import { getApiMetrics } from "../../shared/getApiMetrics"
@@ -120,8 +120,21 @@ export class TaskExecutor {
 		this.isRequestCancelled = true
 		this.abortController?.abort()
 		this.state = TaskState.ABORTED
-		// Immediately update UI
-		this.stateManager.popLastClaudeMessage()
+		// find the last api request
+		const lastApiRequest = this.stateManager.state.claudeMessages
+			.slice()
+			.reverse()
+			.find((msg) => msg.type === "say" && msg.say === "api_req_started")
+		if (lastApiRequest && isV1ClaudeMessage(lastApiRequest)) {
+			await this.stateManager.updateClaudeMessage(lastApiRequest.ts, {
+				...lastApiRequest,
+				isDone: true,
+				isFetching: false,
+				errorText: "Request cancelled by user",
+				isError: true,
+			})
+			await this.stateManager.removeEverythingAfterMessage(lastApiRequest.ts)
+		}
 		await this.ask("followup", "The current request has been cancelled. Would you like to ask a new question ?")
 		// Update the provider state
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
