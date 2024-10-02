@@ -110,16 +110,9 @@ export class ApiManager {
 							cacheWriteTokens: cacheCreationInputTokens,
 							outputTokens,
 						})
-						yield chunk
 						break
-					case 2:
-					case 3:
-						yield chunk
-						break
-					case -1:
-						console.error("Network / API ERROR")
-						throw new KoduError({ code: chunk.body.status ?? 500 })
 				}
+				yield chunk
 			}
 		} catch (error) {
 			if (error instanceof KoduError) {

@@ -243,6 +243,7 @@ export class TaskExecutor {
 						...this.stateManager.getMessageById(startedReqId)!,
 						isDone: true,
 						isFetching: false,
+						errorText: chunk.body.msg ?? `Internal Server Error`,
 						isError: true,
 					}
 					await this.stateManager.updateClaudeMessage(startedReqId, updatedMsg)

@@ -65,7 +65,8 @@ export class StateManager {
 			experimentalTerminal:
 				experimentalTerminal === undefined || experimentalTerminal === null ? true : experimentalTerminal,
 			currentTaskId,
-			alwaysAllowReadOnly: alwaysAllowReadOnly ?? false,
+			alwaysAllowReadOnly:
+				alwaysAllowReadOnly === undefined || alwaysAllowReadOnly === null ? true : alwaysAllowReadOnly,
 			shouldShowAnnouncement: lastShownAnnouncementId === undefined,
 			claudeMessages: currentClaudeMessage ?? [],
 			version: this.context.context.extension.packageJSON.version,

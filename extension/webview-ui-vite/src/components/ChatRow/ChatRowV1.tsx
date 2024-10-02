@@ -50,7 +50,7 @@ const APIRequestMessage: React.FC<{
 			return { status: "Error", className: "text-error" }
 		}
 		if (message.isFetching) {
-			return { status: "API Fetching", className: "" }
+			return { status: "", className: "" }
 		}
 		if (message.isAborted) {
 			return { status: "Aborted", className: "text-error" }
@@ -73,7 +73,7 @@ const APIRequestMessage: React.FC<{
 					<span className={`codicon codicon-chevron-${isExpanded ? "up" : "down"}`} />
 				</VSCodeButton>
 			</div>
-			{isError && <div className="text-error">{nextMessage?.text}</div>}
+			{isError && <div className="text-error">{message.errorText || "An error occurred. Please try again."}</div>}
 			{isExpanded && (
 				<div style={{ marginTop: "10px" }}>
 					<CodeBlock

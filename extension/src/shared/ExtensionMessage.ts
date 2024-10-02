@@ -88,6 +88,7 @@ export type V1ClaudeMessage = {
 	isError?: boolean
 	isFetching?: boolean
 	isExecutingCommand?: boolean
+	errorText?: string
 	retryCount?: number
 	isDone?: boolean
 	modelId?: string

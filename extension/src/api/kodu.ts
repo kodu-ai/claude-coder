@@ -413,7 +413,6 @@ export class KoduHandler implements ApiHandler {
 				buffer += decoder.decode(chunk, { stream: true })
 				const lines = buffer.split("\n\n")
 				buffer = lines.pop() || ""
-
 				for (const line of lines) {
 					if (line.startsWith("data: ")) {
 						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
@@ -427,9 +426,8 @@ export class KoduHandler implements ApiHandler {
 							finalResponse = eventData
 							console.log("finalResponse", finalResponse)
 						} else if (eventData.code === -1) {
-							throw new KoduError({
-								code: eventData.body.status ?? KODU_ERROR_CODES.API_ERROR,
-							})
+							console.error("Network / API ERROR")
+							// we should yield the error and not throw it
 						}
 						console.log(eventData)
 						yield eventData
