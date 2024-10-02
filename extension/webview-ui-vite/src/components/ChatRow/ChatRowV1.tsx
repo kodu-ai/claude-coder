@@ -1,6 +1,6 @@
 import React from "react"
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
-import { ClaudeMessage, ClaudeSayTool } from "../../../../src/shared/ExtensionMessage"
+import { V1ClaudeMessage, ClaudeSayTool } from "../../../../src/shared/ExtensionMessage"
 import { COMMAND_OUTPUT_STRING } from "../../../../src/shared/combineCommandSequences"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import CodeBlock from "../CodeBlock/CodeBlock"
@@ -11,46 +11,52 @@ import MarkdownRenderer from "./MarkdownRenderer"
 import ToolRenderer from "./ToolRenderer"
 
 interface ChatRowProps {
-	message: ClaudeMessage
+	message: V1ClaudeMessage
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
 	isExpanded: boolean
 	onToggleExpand: () => void
-	nextMessage?: ClaudeMessage
+	nextMessage?: V1ClaudeMessage
 	isLast: boolean
 	handleSendStdin: (text: string) => void
 }
 
 const APIRequestMessage: React.FC<{
-	message: ClaudeMessage
-	nextMessage?: ClaudeMessage
+	message: V1ClaudeMessage
+	nextMessage?: V1ClaudeMessage
 	isExpanded: boolean
 	onToggleExpand: () => void
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
 }> = React.memo(({ message, nextMessage, isExpanded, onToggleExpand, syntaxHighlighterStyle }) => {
-	const cost = message.text ? JSON.parse(message.text).cost : undefined
+	const { cost } = message.apiMetrics || {}
+	const isError = message.isError || message.isAborted
 	const [icon, title] = IconAndTitle({
 		type: "api_req_started",
-		cost,
-		isCommandExecuting: false,
+		cost: message.apiMetrics?.cost,
+		isCommandExecuting: !!message.isExecutingCommand,
 		/**
 		 * ideally this would be automatically updated so isStreaming is only on until we reached error or success
 		 */
-		apiRequestFailedMessage: undefined,
+		apiRequestFailedMessage: isError,
 	})
 
 	const getStatusInfo = () => {
-		if (nextMessage?.ask === "api_req_failed") {
-			return { status: "", className: "text-error" }
-		} else if (nextMessage?.say === "error") {
-			return { status: "Error", className: "text-error" }
-		} else if (nextMessage?.say === "api_req_started") {
-			console.log(nextMessage.text)
-			const retryCount = parseInt(nextMessage.text?.match(/Retry attempt: (\d+)/)?.[1] || "0")
-			return { status: `Retried (${retryCount})`, className: "text-warning" }
-		} else if (nextMessage?.say !== "api_req_finished") {
-			return {}
+		if (message.isDone) {
+			return { status: "", className: "text-success" }
 		}
-		return { status: "Success", className: "text-success" }
+		if (message.retryCount) {
+			return { status: `Retried (${message.retryCount})`, className: "text-error" }
+		}
+		if (message.isError) {
+			return { status: "Error", className: "text-error" }
+		}
+		if (message.isFetching) {
+			return { status: "", className: "" }
+		}
+		if (message.isAborted) {
+			return { status: "Aborted", className: "text-error" }
+		}
+
+		return { status: "", className: "text-success" }
 	}
 
 	const { status, className } = getStatusInfo()
@@ -67,7 +73,7 @@ const APIRequestMessage: React.FC<{
 					<span className={`codicon codicon-chevron-${isExpanded ? "up" : "down"}`} />
 				</VSCodeButton>
 			</div>
-			{!cost && nextMessage?.ask === "api_req_failed" && <div className="text-error">{nextMessage.text}</div>}
+			{isError && <div className="text-error">{message.errorText || "An error occurred. Please try again."}</div>}
 			{isExpanded && (
 				<div style={{ marginTop: "10px" }}>
 					<CodeBlock
@@ -83,13 +89,13 @@ const APIRequestMessage: React.FC<{
 	)
 })
 
-const TextMessage: React.FC<{ message: ClaudeMessage; syntaxHighlighterStyle: SyntaxHighlighterStyle }> = React.memo(
+const TextMessage: React.FC<{ message: V1ClaudeMessage; syntaxHighlighterStyle: SyntaxHighlighterStyle }> = React.memo(
 	({ message, syntaxHighlighterStyle }) => (
 		<MarkdownRenderer markdown={message.text || ""} syntaxHighlighterStyle={syntaxHighlighterStyle} />
 	)
 )
 
-const UserFeedbackMessage: React.FC<{ message: ClaudeMessage }> = React.memo(({ message }) => (
+const UserFeedbackMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => (
 	<div style={{ display: "flex", alignItems: "start", gap: "8px" }}>
 		<span className="codicon codicon-account" style={{ marginTop: "2px" }} />
 		<div style={{ display: "grid", gap: "8px" }}>
@@ -100,7 +106,7 @@ const UserFeedbackMessage: React.FC<{ message: ClaudeMessage }> = React.memo(({ 
 ))
 
 const UserFeedbackDiffMessage: React.FC<{
-	message: ClaudeMessage
+	message: V1ClaudeMessage
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
 	isExpanded: boolean
 	onToggleExpand: () => void
@@ -138,7 +144,7 @@ const UserFeedbackDiffMessage: React.FC<{
 })
 
 const CommandMessage: React.FC<{
-	message: ClaudeMessage
+	message: V1ClaudeMessage
 	isCommandExecuting: boolean
 	handleSendStdin: (text: string) => void
 }> = React.memo(({ message, isCommandExecuting, handleSendStdin }) => {
@@ -170,7 +176,7 @@ const CommandMessage: React.FC<{
 	)
 })
 
-const ChatRow: React.FC<ChatRowProps> = ({
+const ChatRowV1: React.FC<ChatRowProps> = ({
 	message,
 	syntaxHighlighterStyle,
 	isExpanded,
@@ -361,4 +367,4 @@ const ChatRow: React.FC<ChatRowProps> = ({
 	return <section>{renderContent()}</section>
 }
 
-export default React.memo(ChatRow)
+export default React.memo(ChatRowV1)

@@ -1,14 +1,14 @@
+import Anthropic from "@anthropic-ai/sdk"
+import fs from "fs/promises"
 import path from "path"
 import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
+import { combineApiRequests } from "../../shared/combineApiRequests"
+import { combineCommandSequences } from "../../shared/combineCommandSequences"
+import { getApiMetrics } from "../../shared/getApiMetrics"
+import { findLastIndex } from "../../utils"
 import { ApiManager } from "./api-handler"
 import { DEFAULT_MAX_REQUESTS_PER_TASK } from "./constants"
 import { ClaudeMessage, KoduDevOptions, KoduDevState } from "./types"
-import fs from "fs/promises"
-import Anthropic from "@anthropic-ai/sdk"
-import { getApiMetrics } from "../../shared/getApiMetrics"
-import { combineApiRequests } from "../../shared/combineApiRequests"
-import { combineCommandSequences } from "../../shared/combineCommandSequences"
-import { findLastIndex } from "../../utils"
 
 // new State Manager class
 export class StateManager {
@@ -69,6 +69,10 @@ export class StateManager {
 		return this._customInstructions
 	}
 
+	get taskId(): string {
+		return this.taskId
+	}
+
 	get apiManager(): ApiManager {
 		return this._apiManager
 	}
@@ -100,6 +104,10 @@ export class StateManager {
 	// Methods to modify the properties (only accessible within the class)
 	public setState(newState: KoduDevState): void {
 		this._state = newState
+	}
+
+	public getMessageById(messageId: number): ClaudeMessage | undefined {
+		return this.state.claudeMessages.find((msg) => msg.ts === messageId)
 	}
 
 	public setExperimentalTerminal(newValue: boolean): void {
@@ -240,6 +248,36 @@ export class StateManager {
 		return []
 	}
 
+	async updateClaudeMessage(messageId: number, message: ClaudeMessage) {
+		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
+		if (index === -1) {
+			console.error(`[StateManager] updateClaudeMessage: Message with id ${messageId} not found`)
+			return
+		}
+		console.log(`[StateManager] updateClaudeMessage: Updating message with id ${messageId}`)
+		this.state.claudeMessages[index] = message
+		await this.saveClaudeMessages()
+	}
+
+	async appendToClaudeMessage(messageId: number, text: string) {
+		const lastMessage = this.state.claudeMessages.find((msg) => msg.ts === messageId)
+		if (lastMessage && lastMessage.type === "say") {
+			lastMessage.text += text
+		}
+		// too heavy to save every chunk we should save the whole message at the end
+		await this.saveClaudeMessages()
+	}
+
+	async addToClaudeAfterMessage(messageId: number, message: ClaudeMessage) {
+		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
+		if (index === -1) {
+			console.error(`[StateManager] addToClaudeAfterMessage: Message with id ${messageId} not found`)
+			return
+		}
+		this.state.claudeMessages.splice(index + 1, 0, message)
+		await this.saveClaudeMessages()
+	}
+
 	async addToClaudeMessages(message: ClaudeMessage) {
 		this.state.claudeMessages.push(message)
 		await this.saveClaudeMessages()
@@ -250,6 +288,11 @@ export class StateManager {
 		await this.saveClaudeMessages()
 	}
 
+	/**
+	 * rewrite required.
+	 *
+	 * @deprecated
+	 */
 	async saveClaudeMessages() {
 		try {
 			const filePath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json")

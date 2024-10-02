@@ -155,6 +155,7 @@
 	"devDependencies": {
 		"@tomjs/vite-plugin-vscode": "^2.5.5",
 		"@types/diff": "^5.2.1",
+		"@types/lodash": "^4.17.9",
 		"@types/mocha": "^10.0.7",
 		"@types/node": "20.x",
 		"@types/vscode": "^1.82.0",
@@ -188,6 +189,8 @@
 		"image-size": "^1.1.1",
 		"isbinaryfile": "^5.0.2",
 		"jotai": "^2.9.3",
+		"loadash": "^1.0.0",
+		"lodash": "^4.17.21",
 		"mammoth": "^1.8.0",
 		"openai": "^4.54.0",
 		"os-name": "^6.0.0",

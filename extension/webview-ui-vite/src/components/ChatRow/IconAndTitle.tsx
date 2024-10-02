@@ -5,7 +5,7 @@ interface IconAndTitleProps {
 	type: ClaudeAsk | ClaudeSay | undefined
 	isCommandExecuting: boolean
 	cost?: number
-	apiRequestFailedMessage?: string
+	apiRequestFailedMessage?: string | boolean
 }
 
 const IconAndTitle = ({ type, isCommandExecuting, cost, apiRequestFailedMessage }: IconAndTitleProps) => {

@@ -147,7 +147,7 @@ export class WriteFileTool extends BaseAgentTool {
 		) => Promise<{ response: ClaudeAskResponse; text?: string; images?: string[] }>,
 		say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	): Promise<ToolResponse> {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "claude-dev-"))
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "claude-coder-"))
 		const tempFilePath = path.join(tempDir, path.basename(absolutePath))
 		await fs.writeFile(tempFilePath, newContent)
 

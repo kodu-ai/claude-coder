@@ -1,21 +1,21 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import axios, { CancelTokenSource } from "axios"
+import { z } from "zod"
 import { ApiHandler, ApiHandlerMessageResponse, withoutImageData } from "."
-import { ApiHandlerOptions, koduDefaultModelId, KoduModelId, koduModels, ModelInfo } from "../shared/api"
+import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduModels } from "../shared/api"
 import {
 	getKoduBugReportUrl,
 	getKoduConsultantUrl,
+	KODU_ERROR_CODES,
+	KoduError,
 	getKoduCurrentUser,
 	getKoduInferenceUrl,
 	getKoduScreenshotUrl,
 	getKoduVisitorUrl,
 	getKoduWebSearchUrl,
-	KODU_ERROR_CODES,
-	KoduError,
 	koduErrorMessages,
 	koduSSEResponse,
 } from "../shared/kodu"
-import { z } from "zod"
 import { AskConsultantResponseDto, WebSearchResponseDto } from "./interfaces"
 import * as vscode from "vscode"
 import { healMessages } from "./auto-heal"
@@ -225,6 +225,7 @@ export class KoduHandler implements ApiHandler {
 			const reader = response.data
 			const decoder = new TextDecoder("utf-8")
 			let finalResponse: Extract<koduSSEResponse, { code: 1 }> | null = null
+			let partialResponse: Extract<koduSSEResponse, { code: 2 }> | null = null
 			let buffer = ""
 
 			for await (const chunk of reader) {
@@ -236,6 +237,10 @@ export class KoduHandler implements ApiHandler {
 					if (line.startsWith("data: ")) {
 						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
 
+						if (eventData.code === 2) {
+							// -> Happens to the current message
+							// We have a partial response, so we need to add it to the message shown to the user and refresh the UI
+						}
 						if (eventData.code === 0) {
 							console.log("Health check received")
 						} else if (eventData.code === 1) {
@@ -270,6 +275,177 @@ export class KoduHandler implements ApiHandler {
 		}
 	}
 
+	async *createMessageStream(
+		systemPrompt: string,
+		messages: Anthropic.Messages.MessageParam[],
+		tools: Anthropic.Messages.Tool[],
+		creativeMode?: "normal" | "creative" | "deterministic",
+		abortSignal?: AbortSignal | null,
+		customInstructions?: string
+	): AsyncIterableIterator<koduSSEResponse> {
+		const modelId = this.getModel().id
+		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming
+		console.log(`creativeMode: ${creativeMode}`)
+		const creativitySettings = temperatures[creativeMode ?? "normal"]
+		// check if the root of the folder has .kodu file if so read the content and use it as the system prompt
+		let dotKoduFileContent = ""
+		const workspaceFolders = vscode.workspace.workspaceFolders
+		if (workspaceFolders) {
+			for (const folder of workspaceFolders) {
+				const dotKoduFile = vscode.Uri.joinPath(folder.uri, ".kodu")
+				try {
+					const fileContent = await vscode.workspace.fs.readFile(dotKoduFile)
+					dotKoduFileContent = Buffer.from(fileContent).toString("utf8")
+					console.log(".kodu file content:", dotKoduFileContent)
+					break // Exit the loop after finding and reading the first .kodu file
+				} catch (error) {
+					console.log(`No .kodu file found in ${folder.uri.fsPath}`)
+				}
+			}
+		}
+		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = [
+			{ text: systemPrompt, type: "text", cache_control: { type: "ephemeral" } },
+		]
+		if (dotKoduFileContent) {
+			system.push({
+				text: dotKoduFileContent,
+				type: "text",
+				// cache_control: { type: "ephemeral" },
+			})
+		}
+		if (customInstructions && customInstructions.trim()) {
+			system.push({
+				text: customInstructions,
+				type: "text",
+				cache_control: { type: "ephemeral" },
+			})
+		}
+
+		switch (modelId) {
+			case "claude-3-5-sonnet-20240620":
+			case "claude-3-opus-20240229":
+			case "claude-3-haiku-20240307":
+				console.log("Matched anthropic cache model")
+				const userMsgIndices = messages.reduce(
+					(acc, msg, index) => (msg.role === "user" ? [...acc, index] : acc),
+					[] as number[]
+				)
+				const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
+				const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
+				requestBody = {
+					model: modelId,
+					max_tokens: this.getModel().info.maxTokens,
+					system,
+					messages: healMessages(messages).map((message, index) => {
+						if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
+							return {
+								...message,
+								content:
+									typeof message.content === "string"
+										? [
+												{
+													type: "text",
+													text: message.content,
+													cache_control: { type: "ephemeral" },
+												},
+										  ]
+										: message.content.map((content, contentIndex) =>
+												contentIndex === message.content.length - 1
+													? { ...content, cache_control: { type: "ephemeral" } }
+													: content
+										  ),
+							}
+						}
+						return message
+					}),
+					tools,
+					tool_choice: { type: "auto" },
+				}
+				break
+			default:
+				console.log("Matched default model")
+				requestBody = {
+					model: modelId,
+					max_tokens: this.getModel().info.maxTokens,
+					system: [{ text: systemPrompt, type: "text" }],
+					messages,
+					tools,
+					tool_choice: { type: "auto" },
+					...creativitySettings,
+				}
+		}
+		this.cancelTokenSource = axios.CancelToken.source()
+
+		const response = await axios.post(
+			getKoduInferenceUrl(),
+			{
+				...requestBody,
+			},
+			{
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
+				},
+				responseType: "stream",
+				signal: abortSignal ?? undefined,
+			}
+		)
+
+		if (response.status !== 200) {
+			if (response.status in koduErrorMessages) {
+				throw new KoduError({
+					code: response.status as keyof typeof koduErrorMessages,
+				})
+			}
+			throw new KoduError({
+				code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT,
+			})
+		}
+
+		if (response.data) {
+			const reader = response.data
+			const decoder = new TextDecoder("utf-8")
+			let finalResponse: Extract<koduSSEResponse, { code: 1 }> | null = null
+			let partialResponse: Extract<koduSSEResponse, { code: 2 }> | null = null
+			let buffer = ""
+
+			for await (const chunk of reader) {
+				buffer += decoder.decode(chunk, { stream: true })
+				const lines = buffer.split("\n\n")
+				buffer = lines.pop() || ""
+				for (const line of lines) {
+					if (line.startsWith("data: ")) {
+						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
+						if (eventData.code === 2) {
+							// -> Happens to the current message
+							// We have a partial response, so we need to add it to the message shown to the user and refresh the UI
+						}
+						if (eventData.code === 0) {
+							console.log("Health check received")
+						} else if (eventData.code === 1) {
+							finalResponse = eventData
+							console.log("finalResponse", finalResponse)
+						} else if (eventData.code === -1) {
+							console.error("Network / API ERROR")
+							// we should yield the error and not throw it
+						}
+						console.log(eventData)
+						yield eventData
+					}
+				}
+
+				if (finalResponse) {
+					break
+				}
+			}
+
+			if (!finalResponse) {
+				throw new KoduError({
+					code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT,
+				})
+			}
+		}
+	}
 	createUserReadableRequest(
 		userContent: Array<
 			| Anthropic.TextBlockParam

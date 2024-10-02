@@ -14,6 +14,10 @@ type PostFoldersAndItems = {
 	type: "fileTree"
 	tree: FileTreeItem[]
 }
+type PostClaudeMessages = {
+	type: "claudeMessages"
+	claudeMessages: ExtensionState["claudeMessages"]
+}
 
 // webview will hold state
 export type ExtensionMessage =
@@ -33,6 +37,7 @@ export type ExtensionMessage =
 			images?: string[]
 	  }
 	| PostFoldersAndItems
+	| PostClaudeMessages
 
 export interface ExtensionState {
 	version: string
@@ -58,7 +63,7 @@ export interface ExtensionState {
 	fingerprint?: string
 }
 
-export interface ClaudeMessage {
+type V0ClaudeMessage = {
 	ts: number
 	type: "ask" | "say"
 	ask?: ClaudeAsk
@@ -69,6 +74,38 @@ export interface ClaudeMessage {
 	 * If true, the ask will be automatically approved but the message will still be shown to the user as if it was a normal message
 	 */
 	autoApproved?: boolean
+}
+
+export type V1ClaudeMessage = {
+	/**
+	 * the version of the message format
+	 */
+	v: 1
+	/**
+	 *
+	 */
+	isAborted?: "user" | "timeout"
+	isError?: boolean
+	isFetching?: boolean
+	isExecutingCommand?: boolean
+	errorText?: string
+	retryCount?: number
+	isDone?: boolean
+	modelId?: string
+	apiMetrics?: {
+		cost: number
+		inputTokens: number
+		outputTokens: number
+		inputCacheRead: number
+		inputCacheWrite: number
+	}
+	// other flags
+} & V0ClaudeMessage
+
+export type ClaudeMessage = V1ClaudeMessage | V0ClaudeMessage
+
+export const isV1ClaudeMessage = (message: ClaudeMessage): message is V1ClaudeMessage => {
+	return (message as V1ClaudeMessage).v === 1
 }
 
 export type ClaudeAsk =
