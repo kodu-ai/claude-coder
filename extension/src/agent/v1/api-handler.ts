@@ -111,7 +111,6 @@ export class ApiManager {
 							outputTokens,
 						})
 						yield chunk
-						await delay(100)
 						break
 					case 2:
 					case 3:

@@ -431,6 +431,7 @@ export class KoduHandler implements ApiHandler {
 								code: eventData.body.status ?? KODU_ERROR_CODES.API_ERROR,
 							})
 						}
+						console.log(eventData)
 						yield eventData
 					}
 				}

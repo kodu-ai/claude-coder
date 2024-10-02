@@ -40,9 +40,8 @@ const APIRequestMessage: React.FC<{
 	})
 
 	const getStatusInfo = () => {
-		console.log("isDone", message)
 		if (message.isDone) {
-			return { status: "Success", className: "text-success" }
+			return { status: "", className: "text-success" }
 		}
 		if (message.retryCount) {
 			return { status: `Retried (${message.retryCount})`, className: "text-error" }
@@ -57,7 +56,7 @@ const APIRequestMessage: React.FC<{
 			return { status: "Aborted", className: "text-error" }
 		}
 
-		return { status: "Success", className: "text-success" }
+		return { status: "", className: "text-success" }
 	}
 
 	const { status, className } = getStatusInfo()

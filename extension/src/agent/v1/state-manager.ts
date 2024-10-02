@@ -106,6 +106,10 @@ export class StateManager {
 		this._state = newState
 	}
 
+	public getMessageById(messageId: number): ClaudeMessage | undefined {
+		return this.state.claudeMessages.find((msg) => msg.ts === messageId)
+	}
+
 	public setExperimentalTerminal(newValue: boolean): void {
 		this._experimentalTerminal = newValue
 	}

@@ -179,7 +179,7 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 				<InputTextArea
 					{...props}
 					ref={localTextareaRef}
-					value={textareaValue}
+					value={props.value}
 					onChange={handleTextareaChange}
 					onKeyDown={handleKeyDown}
 					setShowPopover={setShowPopover}

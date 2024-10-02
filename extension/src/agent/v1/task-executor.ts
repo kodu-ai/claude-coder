@@ -1,5 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ClaudeAsk, ClaudeSay } from "../../shared/ExtensionMessage"
+import { ClaudeAsk, ClaudeMessage, ClaudeSay } from "../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { combineApiRequests } from "../../shared/combineApiRequests"
 import { getApiMetrics } from "../../shared/getApiMetrics"
@@ -10,7 +10,8 @@ import { StateManager } from "./state-manager"
 import { ToolExecutor } from "./tool-executor"
 import { ToolInput } from "./tools/types"
 import { ToolName, UserContent } from "./types"
-import delay from "delay"
+import { debounce } from "lodash"
+import { ChunkProcessor } from "./chunk-proccess"
 
 export enum TaskState {
 	IDLE = "IDLE",
@@ -206,13 +207,81 @@ export class TaskExecutor {
 		 * first create a placeholder say
 		 */
 		const currentReplyId = await this.say("text", "")
+		let textBuffer = ""
+		const updateInterval = 5 // milliseconds
 
-		const debouncer = createStreamDebouncer(async (chunks) => {
-			// do the logic here
-			for await (const chunk of chunks) {
-				if (chunk.code === 2) {
-					await this.stateManager.appendToClaudeMessage(currentReplyId, chunk.body.text)
+		const debouncedUpdate = debounce(async (text: string) => {
+			textBuffer = ""
+			await this.stateManager.appendToClaudeMessage(currentReplyId, text)
+			await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+		}, updateInterval)
+		const processor = new ChunkProcessor({
+			onImmediateEndOfStream: async (chunk) => {
+				if (chunk.code === 1) {
+					console.log(`End of stream reached`)
+					console.log(`Chunk body:`, chunk.body)
+					const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
+						chunk.body.internal
+					const updatedMsg: ClaudeMessage = {
+						...this.stateManager.getMessageById(startedReqId)!,
+						apiMetrics: {
+							cost: chunk.body.internal.cost,
+							inputTokens,
+							outputTokens,
+							inputCacheRead: cacheReadInputTokens,
+							inputCacheWrite: cacheCreationInputTokens,
+						},
+						isDone: true,
+						isFetching: false,
+					}
+					await this.stateManager.updateClaudeMessage(startedReqId, updatedMsg)
 					await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+				}
+				if (chunk.code === -1) {
+					// update current request to fail
+					const updatedMsg: ClaudeMessage = {
+						...this.stateManager.getMessageById(startedReqId)!,
+						isDone: true,
+						isFetching: false,
+						isError: true,
+					}
+					await this.stateManager.updateClaudeMessage(startedReqId, updatedMsg)
+					await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+					throw new KoduError({ code: chunk.body.status ?? 500 })
+				}
+			},
+			onChunk: async (chunk) => {
+				if (chunk.code === 1) {
+					const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
+						chunk.body.internal
+					for (const contentBlock of chunk.body.anthropic.content) {
+						// if request was cancelled, stop processing and don't add to history or show in UI
+						if (this.isRequestCancelled) {
+							console.log(`Request was cancelled, ignoring response`)
+							return
+						}
+
+						if (contentBlock.type === "text") {
+							assistantResponses.push(contentBlock)
+						} else if (contentBlock.type === "tool_use") {
+							assistantResponses.push(contentBlock)
+						}
+
+						// if the request was cancelled after processing a block, return to prevent further processing (ui state + anthropic state)
+						if (this.isRequestCancelled) {
+							console.log(`Request was cancelled after processing a block`)
+							return
+						}
+						console.log(`[TaskExecutor] assistantResponses:`, assistantResponses)
+					}
+					if (!this.isRequestCancelled) {
+						console.log(`About to call finishProcessingResponse at ${Date.now()}`)
+						await this.finishProcessingResponse(assistantResponses, inputTokens, outputTokens)
+					}
+				}
+				if (chunk.code === 2) {
+					textBuffer += chunk.body.text
+					debouncedUpdate(textBuffer)
 				}
 				if (chunk.code === 3) {
 					const { contentBlock } = chunk.body
@@ -220,58 +289,14 @@ export class TaskExecutor {
 						await this.executeTool(contentBlock)
 					}
 				}
-			}
+			},
+			onFinalEndOfStream: async (chunk) => {
+				console.log("Final processing of end-of-stream chunk:", chunk)
+				// Perform final end-of-stream processing
+			},
 		})
-		for await (const chunk of stream) {
-			// check if code === 1 arrives if so flush the stream and finish processing the response
-			if (chunk.code === 1) {
-				console.log(`End of stream reached`)
-				await debouncer.flush()
-				console.log(`Chunk body:`, chunk.body)
-				const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
-					chunk.body.internal
-				await this.stateManager.updateClaudeMessage(startedReqId, {
-					...this.stateManager.state.claudeMessages[startedReqId],
-					isDone: true,
-					isFetching: false,
-					apiMetrics: {
-						cost: chunk.body.internal.cost,
-						inputTokens,
-						outputTokens,
-						inputCacheRead: cacheReadInputTokens,
-						inputCacheWrite: cacheCreationInputTokens,
-					},
-				})
-				await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-				for (const contentBlock of chunk.body.anthropic.content) {
-					// if request was cancelled, stop processing and don't add to history or show in UI
-					if (this.isRequestCancelled) {
-						console.log(`Request was cancelled, ignoring response`)
-						return
-					}
 
-					if (contentBlock.type === "text") {
-						assistantResponses.push(contentBlock)
-					} else if (contentBlock.type === "tool_use") {
-						assistantResponses.push(contentBlock)
-					}
-
-					// if the request was cancelled after processing a block, return to prevent further processing (ui state + anthropic state)
-					if (this.isRequestCancelled) {
-						console.log(`Request was cancelled after processing a block`)
-						return
-					}
-					console.log(`[TaskExecutor] assistantResponses:`, assistantResponses)
-				}
-				if (!this.isRequestCancelled) {
-					console.log(`About to call finishProcessingResponse at ${Date.now()}`)
-					await this.finishProcessingResponse(assistantResponses, inputTokens, outputTokens)
-				}
-			} else {
-				debouncer.add(chunk)
-			}
-		}
-		debouncer.flush()
+		await processor.processStream(stream)
 	}
 
 	private resetState(): void {
