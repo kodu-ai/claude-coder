@@ -29,7 +29,7 @@ Here's a real time demo of Claude Coder helping Joy create her landing page for 
 [Joy Coffee Shop Preview](https://joy-coffee-shop.vercel.app)
 
 <p align="center">
-<video src="https://res.cloudinary.com/ddqtnp0ic/video/upload/v1727891486/demo_ptdpeh.mp4" width="500" />
+<video alt="video" src="https://res.cloudinary.com/ddqtnp0ic/video/upload/v1727893783/Untitled_design_1_stvwe2.mp4" width="500" />
 </p>
 
 <p align="center">
