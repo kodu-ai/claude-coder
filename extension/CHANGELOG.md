@@ -4,9 +4,11 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
-## [1.7.6]
+## [1.8.0]
 
 -   minor updates to readme file
+-   fix message format on edge case corruption
+-   fix new ui format on loading messages
 
 ## [1.7.5]
 

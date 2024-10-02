@@ -1,6 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { ClaudeAsk } from "../../shared/ExtensionMessage"
+import { ClaudeAsk, isV1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { ToolName } from "../../shared/Tool"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { ApiManager } from "./api-handler"
@@ -139,7 +139,19 @@ export class KoduDev {
 		if (lastRelevantMessageIndex !== -1) {
 			modifiedClaudeMessages.splice(lastRelevantMessageIndex + 1)
 		}
-
+		let isFetchingInturrupted = false
+		// if there is any message that is fetching, mark it as done and remove the next messages
+		modifiedClaudeMessages.forEach((m) => {
+			if (isV1ClaudeMessage(m)) {
+				if (m.say === "api_req_started" && m.isFetching) {
+					isFetchingInturrupted = true
+					m.isFetching = false
+					m.isDone = true
+					m.isError = true
+					m.errorText = "Task was interrupted before this API request could be completed."
+				}
+			}
+		})
 		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessages)
 		this.stateManager.state.claudeMessages = await this.stateManager.getSavedClaudeMessages()
 
