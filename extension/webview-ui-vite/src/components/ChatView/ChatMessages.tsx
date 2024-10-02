@@ -1,8 +1,9 @@
 import React, { useRef, useEffect } from "react"
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso"
-import { ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
+import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import ChatRow from "../ChatRow/ChatRow"
+import ChatRowV1 from "../ChatRow/ChatRowV1"
 
 interface ChatMessagesProps {
 	visibleMessages: ClaudeMessage[]
@@ -39,18 +40,38 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 			}}
 			increaseViewportBy={{ top: 0, bottom: Number.MAX_SAFE_INTEGER }}
 			data={visibleMessages ?? []}
-			itemContent={(index, message) => (
-				<ChatRow
-					key={message.ts}
-					message={message}
-					syntaxHighlighterStyle={syntaxHighlighterStyle}
-					isExpanded={expandedRows[message.ts] || false}
-					onToggleExpand={() => toggleRowExpansion(message.ts)}
-					isLast={index === visibleMessages.length - 1}
-					nextMessage={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
-					handleSendStdin={handleSendStdin}
-				/>
-			)}
+			itemContent={(index, message) =>
+				// here we will do a version check and render the appropriate component
+
+				// V0
+				isV1ClaudeMessage(message) ? (
+					<ChatRowV1
+						key={message.ts}
+						message={message}
+						syntaxHighlighterStyle={syntaxHighlighterStyle}
+						isExpanded={expandedRows[message.ts] || false}
+						onToggleExpand={() => toggleRowExpansion(message.ts)}
+						isLast={index === visibleMessages.length - 1}
+						handleSendStdin={handleSendStdin}
+						nextMessage={
+							index < visibleMessages.length - 1
+								? (visibleMessages[index + 1] as V1ClaudeMessage)
+								: undefined
+						}
+					/>
+				) : (
+					<ChatRow
+						key={message.ts}
+						message={message}
+						syntaxHighlighterStyle={syntaxHighlighterStyle}
+						isExpanded={expandedRows[message.ts] || false}
+						onToggleExpand={() => toggleRowExpansion(message.ts)}
+						isLast={index === visibleMessages.length - 1}
+						nextMessage={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
+						handleSendStdin={handleSendStdin}
+					/>
+				)
+			}
 		/>
 	)
 }

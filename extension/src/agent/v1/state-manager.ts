@@ -244,6 +244,17 @@ export class StateManager {
 		return []
 	}
 
+	async updateClaudeMessage(messageId: number, message: ClaudeMessage) {
+		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
+		if (index === -1) {
+			console.error(`[StateManager] updateClaudeMessage: Message with id ${messageId} not found`)
+			return
+		}
+		console.log(`[StateManager] updateClaudeMessage: Updating message with id ${messageId}`)
+		this.state.claudeMessages[index] = message
+		await this.saveClaudeMessages()
+	}
+
 	async appendToClaudeMessage(messageId: number, text: string) {
 		const lastMessage = this.state.claudeMessages.find((msg) => msg.ts === messageId)
 		if (lastMessage && lastMessage.type === "say") {

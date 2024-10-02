@@ -1,4 +1,4 @@
-import { ClaudeMessage } from "./ExtensionMessage"
+import { ClaudeMessage, isV1ClaudeMessage } from "./ExtensionMessage"
 
 interface ApiMetrics {
 	totalTokensIn: number
@@ -36,6 +36,14 @@ export function getApiMetrics(messages: ClaudeMessage[]): ApiMetrics {
 
 	messages.forEach((message) => {
 		if (message.type === "say" && message.say === "api_req_started" && message.text) {
+			if (isV1ClaudeMessage(message)) {
+				result.totalTokensIn += message.apiMetrics?.inputTokens ?? 0
+				result.totalTokensOut += message.apiMetrics?.outputTokens ?? 0
+				result.totalCacheWrites = (result.totalCacheWrites ?? 0) + (message.apiMetrics?.inputCacheWrite ?? 0)
+				result.totalCacheReads = (result.totalCacheReads ?? 0) + (message.apiMetrics?.inputCacheRead ?? 0)
+				result.totalCost += message.apiMetrics?.cost ?? 0
+				return
+			}
 			try {
 				const parsedData = JSON.parse(message.text)
 				const { tokensIn, tokensOut, cacheWrites, cacheReads, cost } = parsedData

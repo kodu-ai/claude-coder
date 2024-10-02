@@ -230,6 +230,19 @@ export class TaskExecutor {
 				console.log(`Chunk body:`, chunk.body)
 				const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
 					chunk.body.internal
+				await this.stateManager.updateClaudeMessage(startedReqId, {
+					...this.stateManager.state.claudeMessages[startedReqId],
+					isDone: true,
+					isFetching: false,
+					apiMetrics: {
+						cost: chunk.body.internal.cost,
+						inputTokens,
+						outputTokens,
+						inputCacheRead: cacheReadInputTokens,
+						inputCacheWrite: cacheCreationInputTokens,
+					},
+				})
+				await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 				for (const contentBlock of chunk.body.anthropic.content) {
 					// if request was cancelled, stop processing and don't add to history or show in UI
 					if (this.isRequestCancelled) {
@@ -252,23 +265,6 @@ export class TaskExecutor {
 				}
 				if (!this.isRequestCancelled) {
 					console.log(`About to call finishProcessingResponse at ${Date.now()}`)
-					await this.sayAfter(
-						"api_req_finished",
-						startedReqId,
-						JSON.stringify({
-							tokensIn: inputTokens,
-							tokensOut: outputTokens,
-							cacheWrites: cacheCreationInputTokens,
-							cacheReads: cacheReadInputTokens,
-							cost: this.stateManager.apiManager.calculateApiCost(
-								inputTokens,
-								outputTokens,
-								cacheCreationInputTokens,
-								cacheReadInputTokens
-							),
-						}),
-						undefined
-					)
 					await this.finishProcessingResponse(assistantResponses, inputTokens, outputTokens)
 				}
 			} else {
@@ -484,16 +480,17 @@ export class TaskExecutor {
 				type: "ask",
 				ask: type,
 				text: question,
-				isStreaming: true,
+				v: 1,
 				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
 			})
 			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion:: ${question}`)
 			this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-			const mustRequestApproval = [
+			const mustRequestApproval: ClaudeAsk[] = [
 				"completion_result",
 				"resume_completed_task",
 				"resume_task",
 				"request_limit_reached",
+				"followup",
 			]
 			if (this.stateManager.alwaysAllowWriteOnly && !mustRequestApproval.includes(type)) {
 				resolve({ response: "yesButtonTapped", text: "", images: [] })
@@ -510,20 +507,15 @@ export class TaskExecutor {
 	 * @param text - The text to say
 	 * @param images - The images to show
 	 */
-	public async say(
-		type: ClaudeSay,
-		text?: string,
-		images?: string[],
-		isStreaming = true,
-		sayTs = Date.now()
-	): Promise<number> {
+	public async say(type: ClaudeSay, text?: string, images?: string[], sayTs = Date.now()): Promise<number> {
 		await this.stateManager.addToClaudeMessages({
 			ts: sayTs,
 			type: "say",
 			say: type,
 			text: text,
 			images,
-			isStreaming,
+			isFetching: type === "api_req_started",
+			v: 1,
 		})
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 		return sayTs
@@ -542,8 +534,8 @@ export class TaskExecutor {
 			type: "say",
 			say: type,
 			text: text,
-			isStreaming: true,
 			images,
+			v: 1,
 		})
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
