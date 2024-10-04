@@ -9,6 +9,7 @@ import Terminal from "../Terminal/Terminal"
 import IconAndTitle from "./IconAndTitle"
 import MarkdownRenderer from "./MarkdownRenderer"
 import ToolRenderer from "./ToolRenderer"
+import { ScrollArea } from "../ui/scroll-area"
 
 interface ChatRowProps {
 	message: V1ClaudeMessage
