@@ -22,6 +22,7 @@ interface InputAreaProps {
 	thumbnailsHeight: number
 	handleThumbnailsHeightChange: (height: number) => void
 	isRequestRunning: boolean
+	isInTask: boolean
 }
 
 const InputArea: React.FC<InputAreaProps> = ({
@@ -39,12 +40,14 @@ const InputArea: React.FC<InputAreaProps> = ({
 	thumbnailsHeight,
 	handleThumbnailsHeightChange,
 	isRequestRunning,
+	isInTask,
 }) => {
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
 	const [isTextAreaFocused, setIsTextAreaFocused] = useState(false)
 	return (
 		<>
 			<div
+				className="flex flex-col gap-2"
 				style={{
 					padding: "8px 16px",
 					opacity: textAreaDisabled ? 0.5 : 1,
@@ -52,6 +55,17 @@ const InputArea: React.FC<InputAreaProps> = ({
 					display: "flex",
 					marginTop: 0,
 				}}>
+				{isInTask && (
+					<Button
+						onClick={() => vscode.postMessage({ type: "cancelCurrentRequest" })}
+						disabled={!isRequestRunning}
+						size="sm"
+						variant="destructive"
+						className="w-fit">
+						Abort Request
+					</Button>
+				)}
+
 				{/* {!isTextAreaFocused && (
 					<div
 						style={{
@@ -63,6 +77,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 						}}
 					/>
 				)} */}
+
 				<InputV1
 					isRequestRunning={isRequestRunning}
 					thumbnailsHeight={thumbnailsHeight}

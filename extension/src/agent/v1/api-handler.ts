@@ -49,18 +49,49 @@ export class ApiManager {
 		abortSignal?: AbortSignal | null
 	): AsyncGenerator<koduSSEResponse> {
 		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
+		const useUdiff = (await this.providerRef.deref()?.getStateManager()?.getState())?.useUdiff
 		let systemPrompt = await SYSTEM_PROMPT()
+		let tools = baseTools
+		if (useUdiff) {
+			systemPrompt = await UDIFF_SYSTEM_PROMPT()
+			tools = uDifftools
+		}
 		let customInstructions: string | undefined
 		if (this.customInstructions && this.customInstructions.trim()) {
 			customInstructions += `
-	  ====
-	  
-	  USER'S CUSTOM INSTRUCTIONS
-	  
-	  The following additional instructions are provided by the user. They should be followed and given precedence in case of conflicts with previous instructions.
-	  
-	  ${this.customInstructions.trim()}
-	  `
+====
+
+USER'S CUSTOM INSTRUCTIONS
+
+The following additional instructions are provided by the user. They should be followed and given precedence in case of conflicts with previous instructions.
+
+${this.customInstructions.trim()}
+`
+		}
+		const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
+		// If the last API request's total token usage is close to the context window, truncate the conversation history to free up space for the new request
+		const lastApiReqFinished = findLast(claudeMessages!, (m) => m.say === "api_req_finished")
+		if (lastApiReqFinished && lastApiReqFinished.text) {
+			const {
+				tokensIn,
+				tokensOut,
+				cacheWrites,
+				cacheReads,
+			}: { tokensIn?: number; tokensOut?: number; cacheWrites?: number; cacheReads?: number } = JSON.parse(
+				lastApiReqFinished.text
+			)
+			const totalTokens = (tokensIn || 0) + (tokensOut || 0) + (cacheWrites || 0) + (cacheReads || 0)
+			const contextWindow = this.api.getModel().info.contextWindow
+			const maxAllowedSize = Math.max(contextWindow - 40_000, contextWindow * 0.8)
+			if (totalTokens >= maxAllowedSize) {
+				const truncatedMessages = truncateHalfConversation(apiConversationHistory)
+				apiConversationHistory = truncatedMessages
+				this.providerRef
+					.deref()
+					?.getKoduDev()
+					?.getStateManager()
+					.overwriteApiConversationHistory(truncatedMessages)
+			}
 		}
 
 		try {

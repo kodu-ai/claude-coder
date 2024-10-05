@@ -139,7 +139,27 @@ function healMessages(messages: PromptCachingBetaMessageParam[]): HealedMessageP
 		healedMessages.push(placeholderMessage)
 	}
 
-	return healedMessages
+	// order heal messages that tool_use and tool_result are first
+	return healedMessages.map((msg) => {
+		// array of content blocks must have tool_use or tool_result first
+		const content = msg.content
+		if (Array.isArray(content)) {
+			// sort content blocks
+			content.sort((a, b) => {
+				if (isToolUseBlock(a)) {
+					return -1
+				} else if (isToolResultBlock(a)) {
+					return -1
+				} else if (isToolUseBlock(b)) {
+					return 1
+				} else if (isToolResultBlock(b)) {
+					return 1
+				}
+				return 0
+			})
+		}
+		return msg
+	})
 }
 
 export { healMessages }

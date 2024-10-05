@@ -268,7 +268,7 @@ const ChatRow: React.FC<ChatRowProps> = ({
 										supported shell: zsh, bash, fish, or PowerShell (
 										<code>CMD/CTRL + Shift + P</code> → "Terminal: Select Default Profile").{" "}
 										<a
-											href="https://github.com/saoudrizwan/claude-dev/wiki/Troubleshooting-%E2%80%90-Shell-Integration-Unavailable"
+											href="https://github.com/kodu-ai/claude-coder/wiki/Troubleshooting-terminal-issues"
 											style={{ color: "inherit", textDecoration: "underline" }}>
 											Still having trouble?
 										</a>

@@ -41,7 +41,9 @@ export class ChunkProcessor {
 	}
 
 	private async processNextChunk() {
-		if (this.isProcessing || this.chunkQueue.length === 0) return
+		if (this.isProcessing || this.chunkQueue.length === 0) {
+			return
+		}
 
 		this.isProcessing = true
 		const chunk = this.chunkQueue.shift()!
