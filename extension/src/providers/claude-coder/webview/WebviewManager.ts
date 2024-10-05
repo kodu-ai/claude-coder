@@ -426,7 +426,7 @@ export class WebviewManager {
 
 		const rootPath = openFolders[0].uri.fsPath
 
-		const problemsString = await agent.diagnosticsManager?.getProblemsString(rootPath)
+		const problemsString = await agent.diagnosticsHandler?.getProblemsString(rootPath)
 		if (!problemsString) {
 			await agent.taskExecutor.say("info", "No problems detected!")
 			return

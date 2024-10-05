@@ -2,9 +2,9 @@ import * as path from "path"
 import * as vscode from "vscode"
 
 import deepEqual from "fast-deep-equal"
-import { VsCodeDiagnostics } from "."
+import { VsCodeDiagnostics } from ".."
 
-export class DiagnosticsManager {
+export class DiagnosticsHandler {
 	private seenErrors: VsCodeDiagnostics = []
 
 	constructor() {
@@ -12,7 +12,7 @@ export class DiagnosticsManager {
 	}
 
 	getProblemsString(cwd: string): string {
-		return DiagnosticsManager.diagnosticsToString(
+		return DiagnosticsHandler.diagnosticsToString(
 			this.currentErrors,
 			[vscode.DiagnosticSeverity.Error, vscode.DiagnosticSeverity.Warning],
 			cwd
@@ -48,7 +48,7 @@ export class DiagnosticsManager {
 	}
 
 	static errorsToString(errors: VsCodeDiagnostics, cwd: string): string {
-		return DiagnosticsManager.diagnosticsToString(errors, [vscode.DiagnosticSeverity.Error], cwd)
+		return DiagnosticsHandler.diagnosticsToString(errors, [vscode.DiagnosticSeverity.Error], cwd)
 	}
 
 	/**

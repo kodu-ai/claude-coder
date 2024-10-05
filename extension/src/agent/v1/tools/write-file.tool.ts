@@ -10,7 +10,7 @@ import os from "os"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
 import { AgentToolOptions, AgentToolParams } from "./types"
 import { BaseAgentTool } from "./base-agent.tool"
-import { DiagnosticsManager } from "../diagnostics-manager"
+import { DiagnosticsHandler } from "../handlers"
 
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -60,12 +60,12 @@ export class WriteFileTool extends BaseAgentTool {
 				)
 			}
 
-			const diagnosticsManager = this.options.koduDev.diagnosticsManager
-			const generatedErrors = diagnosticsManager.getErrorsGeneratedByLastStep()
-			diagnosticsManager.updateSeenErrors()
+			const diagnosticsHandler = this.options.koduDev.diagnosticsHandler
+			const generatedErrors = diagnosticsHandler.getErrorsGeneratedByLastStep()
+			diagnosticsHandler.updateSeenErrors()
 
 			if (generatedErrors.length > 0) {
-				return response + DiagnosticsManager.errorsToString(generatedErrors, this.cwd)
+				return response + DiagnosticsHandler.errorsToString(generatedErrors, this.cwd)
 			}
 
 			return response
