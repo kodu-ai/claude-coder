@@ -10,6 +10,7 @@ import os from "os"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
 import { AgentToolOptions, AgentToolParams } from "./types"
 import { BaseAgentTool } from "./base-agent.tool"
+import { DiagnosticsManager } from "../diagnostics-manager"
 
 export class FileUpdateTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -23,38 +24,8 @@ export class FileUpdateTool extends BaseAgentTool {
 		const { input, ask, say } = this.params
 		const { path: relPath, udiff } = input
 
-		if (!relPath) {
-			await say(
-				"error",
-				"Claude tried to use update_file without a value for required parameter 'path'. Retrying..."
-			)
-
-			return `Error: Missing value for required parameter 'path'. Please retry with a complete response.
-A good example of an update_file tool call is:
-\`\`\`
-update_file(
-  path='path/to/file.txt',
-  udiff=\`diff content here\`
-)
-\`\`\`
-Please try again with the correct path and udiff. You are not allowed to update files without a path.`
-		}
-
-		if (!udiff) {
-			await say(
-				"error",
-				`Claude tried to use update_file for '${relPath}' without a value for required parameter 'udiff'. This is likely due to output token limits. Retrying...`
-			)
-
-			return `Error: Missing value for required parameter 'udiff'. Please retry with a complete response.
-A good example of an update_file tool call is:
-\`\`\`
-update_file(
-  path='path/to/file.txt',
-  udiff=\`diff content here\`
-)
-\`\`\`
-Please try again with the correct path and udiff. You are not allowed to update files without a udiff.`
+		if (!relPath || !udiff) {
+			return await this.onBadInputReceived()
 		}
 
 		try {
@@ -94,10 +65,11 @@ Please try again with the correct path and udiff. You are not allowed to update 
 				}
 			}
 
+			let response: ToolResponse
 			if (this.alwaysAllowWriteOnly) {
-				return await this.updateFileDirectly(absolutePath, newContent, relPath, say)
+				response = await this.updateFileDirectly(absolutePath, newContent, relPath, say)
 			} else {
-				return await this.updateFileWithUserApproval(
+				response = await this.updateFileWithUserApproval(
 					absolutePath,
 					originalContent,
 					newContent,
@@ -107,6 +79,16 @@ Please try again with the correct path and udiff. You are not allowed to update 
 					say
 				)
 			}
+
+			const diagnosticsManager = this.options.koduDev.diagnosticsManager
+			const generatedErrors = diagnosticsManager.getErrorsGeneratedByLastStep()
+			diagnosticsManager.updateSeenErrors()
+
+			if (generatedErrors.length > 0) {
+				return response + DiagnosticsManager.errorsToString(generatedErrors, this.cwd)
+			}
+
+			return response
 		} catch (error) {
 			const errorString = `Error updating file: ${JSON.stringify(serializeError(error))}
 A good example of an update_file tool call is:
@@ -124,6 +106,42 @@ Please try again with the correct path and udiff.`
 			)
 			return errorString
 		}
+	}
+
+	private async onBadInputReceived() {
+		const { path: relPath, udiff } = this.params.input
+
+		if (!relPath) {
+			await this.params.say(
+				"error",
+				"Claude tried to use update_file without a value for required parameter 'path'. Retrying..."
+			)
+
+			return `Error: Missing value for required parameter 'path'. Please retry with a complete response.
+A good example of an update_file tool call is:
+\`\`\`
+update_file(
+  path='path/to/file.txt',
+  udiff=\`diff content here\`
+)
+\`\`\`
+Please try again with the correct path and udiff. You are not allowed to update files without a path.`
+		}
+
+		await this.params.say(
+			"error",
+			`Claude tried to use update_file for '${relPath}' without a value for required parameter 'udiff'. This is likely due to output token limits. Retrying...`
+		)
+
+		return `Error: Missing value for required parameter 'udiff'. Please retry with a complete response.
+A good example of an update_file tool call is:
+\`\`\`
+update_file(
+  path='path/to/file.txt',
+  udiff=\`diff content here\`
+)
+\`\`\`
+Please try again with the correct path and udiff. You are not allowed to update files without a udiff.`
 	}
 
 	private applyUdiff(originalContent: string, udiff: string): string {
