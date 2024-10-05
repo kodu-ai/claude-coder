@@ -103,6 +103,7 @@ export type WebviewMessage =
 				| "setCreativeMode"
 				| "fileTree"
 				| "clearHistory"
+				| "gitLog"
 			text?: string
 			askResponse?: ClaudeAskResponse
 			images?: string[]
