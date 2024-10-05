@@ -60,6 +60,8 @@ export class WriteFileTool extends BaseAgentTool {
 				)
 			}
 
+			await this.koduDev.gitHandler.commitChanges(`Created file ${getReadablePath(relPath, this.cwd)}`)
+
 			const diagnosticsHandler = this.options.koduDev.diagnosticsHandler
 			const generatedErrors = diagnosticsHandler.getErrorsGeneratedByLastStep()
 			diagnosticsHandler.updateSeenErrors()
