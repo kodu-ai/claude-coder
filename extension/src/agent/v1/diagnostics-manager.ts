@@ -11,6 +11,14 @@ export class DiagnosticsManager {
 		this.seenErrors = this.currentErrors
 	}
 
+	getProblemsString(cwd: string): string {
+		return DiagnosticsManager.diagnosticsToString(
+			this.currentErrors,
+			[vscode.DiagnosticSeverity.Error, vscode.DiagnosticSeverity.Warning],
+			cwd
+		)
+	}
+
 	get currentErrors(): VsCodeDiagnostics {
 		return vscode.languages
 			.getDiagnostics()
@@ -56,7 +64,7 @@ export class DiagnosticsManager {
 			return ""
 		}
 
-		let result = "\n New problems detected:\n"
+		let result = ""
 		for (const [uri, fileDiagnostics] of diagnostics) {
 			const problems = fileDiagnostics.filter((d) => severities.includes(d.severity))
 
@@ -84,6 +92,10 @@ export class DiagnosticsManager {
 			}
 		}
 
-		return result.trim()
+		if (!result) {
+			return ""
+		}
+
+		return "\n New problems detected:\n" + result.trim()
 	}
 }

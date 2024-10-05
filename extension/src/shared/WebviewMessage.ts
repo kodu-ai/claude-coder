@@ -62,6 +62,10 @@ type exportBugMessage = {
 	reproduction: string
 }
 
+type DebugMessage = {
+	type: "debug"
+}
+
 export type WebviewMessage =
 	| exportBugMessage
 	| experimentalTerminalMessage
@@ -72,6 +76,7 @@ export type WebviewMessage =
 	| RenameTask
 	| QuickstartMessage
 	| setUseUdiff
+	| DebugMessage
 	| {
 			type:
 				| "cancelCurrentRequest"

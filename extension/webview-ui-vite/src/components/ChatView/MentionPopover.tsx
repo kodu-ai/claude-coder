@@ -1,7 +1,9 @@
-import React, { useRef } from "react"
+import React, { useEffect, useRef } from "react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
-import { Link, Folder as FolderIcon } from "lucide-react"
+import { Link, Folder as FolderIcon, ShieldAlert } from "lucide-react"
+import { vscode } from "@/utils/vscode"
+import { useExtensionState } from "@/context/ExtensionStateContext"
 
 type MentionPopoverProps = {
 	showPopover: boolean
@@ -24,6 +26,22 @@ const MentionPopover: React.FC<MentionPopoverProps> = ({
 	handleKeyDown,
 }) => {
 	const popoverButtonsRef = useRef<(HTMLButtonElement | null)[]>([])
+	const { claudeMessages: messages } = useExtensionState()
+
+	useEffect(() => {
+		if (messages.length > 0 && popoverOptions.length < 3) {
+			popoverOptions.push({ name: "debug", icon: ShieldAlert, label: "Debug Errors" })
+		}
+	}, [messages])
+
+	const handleOptionClick = (name: string) => {
+		if (["fileFolder", "scrape"].includes(name)) {
+			handleOpenDialog(name)
+		} else {
+			vscode.postMessage({ type: "debug" })
+			setShowPopover(false)
+		}
+	}
 
 	return (
 		<Popover open={showPopover} onOpenChange={setShowPopover}>
@@ -44,7 +62,7 @@ const MentionPopover: React.FC<MentionPopoverProps> = ({
 							className={`w-full justify-start text-left ${
 								focusedIndex === index ? "bg-secondary text-secondary-foreground" : ""
 							}`}
-							onClick={() => handleOpenDialog(option.name)}
+							onClick={() => handleOptionClick(option.name)}
 							onFocus={() => setFocusedIndex(index)}
 							onMouseEnter={() => setFocusedIndex(index)}
 							role="menuitem">

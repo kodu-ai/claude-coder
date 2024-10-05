@@ -400,10 +400,38 @@ export class WebviewManager {
 						await this.provider.getGlobalStateManager().resetState()
 						await this.postStateToWebview()
 						break
+					case "debug":
+						await this.handleDebugInstruction()
+						break
 				}
 			},
 			null,
 			this.provider["disposables"]
 		)
+	}
+
+	private async handleDebugInstruction(): Promise<void> {
+		const agent = this.provider.getKoduDev()!
+		const openFolders = vscode.workspace.workspaceFolders
+
+		if (!openFolders) {
+			await agent.taskExecutor.say("error", "No open workspaces!")
+			return
+		}
+
+		if (openFolders.length > 1) {
+			await agent.taskExecutor.say("info", "Multiple workspaces detected! Please open only one workspace.")
+			return
+		}
+
+		const rootPath = openFolders[0].uri.fsPath
+
+		const problemsString = await agent.diagnosticsManager?.getProblemsString(rootPath)
+		if (!problemsString) {
+			await agent.taskExecutor.say("info", "No problems detected!")
+			return
+		}
+
+		return await agent.taskExecutor.handleAskResponse("messageResponse", problemsString)
 	}
 }
