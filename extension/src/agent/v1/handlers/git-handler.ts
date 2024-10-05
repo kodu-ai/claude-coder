@@ -11,6 +11,10 @@ export class GitHandler {
 	}
 
 	async setupRepository(): Promise<boolean> {
+		if (!this.repoPath) {
+			return false
+		}
+
 		try {
 			if (!(await this.isGitInstalled())) {
 				console.log("Git is not installed")
@@ -39,6 +43,10 @@ export class GitHandler {
 	}
 
 	async commitChanges(message: string): Promise<void> {
+		if (!this.repoPath) {
+			return
+		}
+
 		try {
 			if (!(await this.isGitInstalled())) {
 				console.log("Git is not installed")
