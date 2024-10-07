@@ -8,6 +8,8 @@ import { HistoryItem } from "../../../src/shared/HistoryItem"
 import type { GlobalState } from "../../../src/providers/claude-coder/state/GlobalStateManager"
 
 // Define atoms for each piece of state
+const technicalBackgroundAtom = atom<GlobalState["technicalBackground"] | undefined>(undefined)
+technicalBackgroundAtom.debugLabel = "technicalBackground"
 const versionAtom = atom("")
 versionAtom.debugLabel = "version"
 const claudeMessagesAtom = atom<ClaudeMessage[]>([])
@@ -74,6 +76,7 @@ export const extensionStateAtom = atom((get) => ({
 	maxRequestsPerTask: get(maxRequestsPerTaskAtom),
 	customInstructions: get(customInstructionsAtom),
 	fingerprint: get(fingerprintAtom),
+	technicalBackground: get(technicalBackgroundAtom),
 	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
 	experimentalTerminal: get(experimentalTerminalAtom),
 	fpjsKey: get(fpjsKeyAtom),
@@ -103,6 +106,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setUseUdiff = useSetAtom(useUdiffAtom)
 	const setThemeName = useSetAtom(themeNameAtom)
 	const setCurrentIdTask = useSetAtom(currentTaskIdAtom)
+	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setFingerprint = useSetAtom(fingerprintAtom)
 	const setexperimentalTerminal = useSetAtom(experimentalTerminalAtom)
 	const setUriScheme = useSetAtom(uriSchemeAtom)
@@ -122,6 +126,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setVersion(message.state.version)
 			setCurrentIdTask(message.state.currentTaskId)
 			setClaudeMessages(message.state.claudeMessages)
+			setTechnicalBackground(message.state.technicalBackground)
 			setTaskHistory(message.state.taskHistory)
 			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)
 			setShouldShowKoduPromo(message.state.shouldShowKoduPromo)
@@ -171,11 +176,13 @@ export const useExtensionState = () => {
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
 	const setExperimentalTerminal = useSetAtom(experimentalTerminalAtom)
+	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 
 	return {
 		...state,
 		setApiConfiguration,
+		setTechnicalBackground,
 		setMaxRequestsPerTask,
 		setUseUdiff,
 		setExperimentalTerminal,

@@ -16,7 +16,7 @@ const HistoryPreview: React.FC<HistoryPreviewProps> = ({ showHistoryView }) => {
 	}
 
 	return (
-		<section>
+		<section className="border-b-0">
 			<h3 className="flex-line uppercase text-alt">
 				<span className="codicon codicon-history text-alt" />
 				Recent Tasks

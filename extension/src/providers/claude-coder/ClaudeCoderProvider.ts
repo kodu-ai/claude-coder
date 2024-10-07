@@ -7,10 +7,11 @@ import { GlobalStateManager } from "./state/GlobalStateManager"
 import { ApiManager } from "./state/ApiManager"
 import { HistoryItem } from "../../shared/HistoryItem"
 import { SecretStateManager } from "./state/SecretStateManager"
+import { extensionName } from "../../shared/Constants"
 
 export class ClaudeDevProvider implements vscode.WebviewViewProvider {
-	public static readonly sideBarId = "kodu-claude-coder-main.SidebarProvider"
-	public static readonly tabPanelId = "kodu-claude-coder-main.TabPanelProvider"
+	public static readonly sideBarId = `${extensionName}.SidebarProvider`
+	public static readonly tabPanelId = `${extensionName}.TabPanelProvider`
 	private disposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
 	private koduDev?: KoduDev

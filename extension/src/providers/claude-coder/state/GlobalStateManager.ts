@@ -24,6 +24,7 @@ export type GlobalState = {
 	shouldShowKoduPromo: boolean | undefined
 	creativeMode: CreativeMode | undefined
 	experimentalTerminal: boolean | undefined
+	technicalBackground: "no-technical" | "technical" | "developer" | undefined
 }
 
 export class GlobalStateManager {

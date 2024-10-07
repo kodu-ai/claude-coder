@@ -244,6 +244,10 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "technicalBackground":
+						await this.provider.getStateManager().setTechnicalBackground(message.value)
+						await this.postStateToWebview()
+						break
 					case "experimentalTerminal":
 						await this.provider.getStateManager().setExperimentalTerminal(message.bool)
 						await this.postStateToWebview()
@@ -398,6 +402,7 @@ export class WebviewManager {
 						break
 					case "resetState":
 						await this.provider.getGlobalStateManager().resetState()
+						await this.provider.getSecretStateManager().resetState()
 						await this.postStateToWebview()
 						break
 				}

@@ -5,6 +5,8 @@ import { ClaudeDevProvider } from "./providers/claude-coder/ClaudeCoderProvider"
 import { amplitudeTracker } from "./utils/amplitude"
 import * as dotenv from "dotenv"
 import * as path from "path"
+import { extensionName } from "./shared/Constants"
+
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
 
@@ -125,7 +127,7 @@ export function activate(context: vscode.ExtensionContext) {
 	)
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu-claude-coder-main.plusButtonTapped", async () => {
+		vscode.commands.registerCommand(`${extensionName}.plusButtonTapped`, async () => {
 			outputChannel.appendLine("Plus button tapped")
 			await sidebarProvider?.getTaskManager().clearTask()
 			await sidebarProvider?.getWebviewManager().postStateToWebview()
@@ -164,14 +166,12 @@ export function activate(context: vscode.ExtensionContext) {
 	}
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu-claude-coder-main.popoutButtonTapped", openClaudeDevInNewTab)
+		vscode.commands.registerCommand(`${extensionName}.popoutButtonTapped`, openClaudeDevInNewTab)
 	)
-	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu-claude-coder-main.openInNewTab", openClaudeDevInNewTab)
-	)
+	context.subscriptions.push(vscode.commands.registerCommand(`${extensionName}.openInNewTab`, openClaudeDevInNewTab))
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu-claude-coder-main.settingsButtonTapped", () => {
+		vscode.commands.registerCommand(`${extensionName}.settingsButtonTapped`, () => {
 			//const message = "kodu-claude-coder-main.settingsButtonTapped!"
 			//vscode.window.showInformationMessage(message)
 			sidebarProvider
@@ -181,7 +181,7 @@ export function activate(context: vscode.ExtensionContext) {
 	)
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu-claude-coder-main.historyButtonTapped", () => {
+		vscode.commands.registerCommand(`${extensionName}.historyButtonTapped`, () => {
 			sidebarProvider
 				?.getWebviewManager()
 				?.postMessageToWebview({ type: "action", action: "historyButtonTapped" })
@@ -210,17 +210,29 @@ export function activate(context: vscode.ExtensionContext) {
 		const token = query.get("token")
 		const postTrial = query.get("postTrial")
 		const email = query.get("email")
+
 		if (token) {
 			amplitudeTracker.authSuccess()
 			console.log(`Received token: ${token}`)
 			if (postTrial) {
 				amplitudeTracker.trialUpsellSuccess()
 			}
-
+			await vscode.commands.executeCommand(`${extensionName}.SidebarProvider.focus`)
 			await sidebarProvider.getApiManager().saveKoduApiKey(token)
 		}
 	}
-	context.subscriptions.push(vscode.window.registerUriHandler({ handleUri }))
+	context.subscriptions.push(
+		vscode.window.registerUriHandler({
+			async handleUri(uri: vscode.Uri) {
+				console.log(`Received URI: ${uri.toString()}`)
+				if (uri.path === `/${extensionName}.plusButtonTapped`) {
+					await vscode.commands.executeCommand(`${extensionName}.SidebarProvider.focus`)
+				} else {
+					handleUri(uri)
+				}
+			},
+		})
+	)
 }
 
 // This method is called when your extension is deactivated

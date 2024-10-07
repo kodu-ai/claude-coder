@@ -4,7 +4,7 @@ import rehypeRaw from "rehype-raw"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import { ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Info, AlertTriangle, ExternalLink } from "lucide-react"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -14,9 +14,17 @@ interface MarkdownRendererProps {
 	markdown: string
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
 }
-
-const ThinkingContent: React.FC<{ node: any }> = ({ node }) => {
+const extractTextContent = (node: any): string => {
+	if (typeof node === "string") return node
+	if (typeof node.value === "string") return node.value
+	if (Array.isArray(node.children)) {
+		return node.children.map(extractTextContent).join("")
+	}
+	return ""
+}
+const ThinkingContent: React.FC<{ node: any; rendererProps: MarkdownRendererProps }> = ({ node, rendererProps }) => {
 	const [isExpanded, setIsExpanded] = React.useState(false)
+	const textContent = extractTextContent(node)
 
 	return (
 		<Collapsible>
@@ -33,23 +41,21 @@ const ThinkingContent: React.FC<{ node: any }> = ({ node }) => {
 			</CollapsibleTrigger>
 			<CollapsibleContent>
 				<ScrollArea
-					viewProps={{ className: "max-h-[200px]" }}
-					className=" w-full rounded-b-md bg-primary/5 p-4">
-					<div className="">
-						{node.children.map((child: any, index: number) => (
-							<React.Fragment key={index}>{child.value}</React.Fragment>
-						))}
-					</div>
+					viewProps={{ className: "max-h-[200px] pt-0" }}
+					className="w-full rounded-b-md bg-primary/5 p-4 pt-0">
+					<div className="whitespace-pre-wrap">{textContent}</div>
+					<ScrollBar forceMount />
 				</ScrollArea>
 			</CollapsibleContent>
 		</Collapsible>
 	)
 }
 
-const CallToAction: React.FC<{ node: any }> = ({ node }) => {
-	console.log(node)
+const CallToAction: React.FC<{ node: any; rendererProps: MarkdownRendererProps }> = ({ node, rendererProps }) => {
 	const { level, title } = node.properties
 	let icon, variant
+	const textContent = extractTextContent(node)
+
 	switch (level) {
 		case "success":
 			icon = <CheckCircle2 className="h-4 w-4" />
@@ -69,13 +75,11 @@ const CallToAction: React.FC<{ node: any }> = ({ node }) => {
 	}
 
 	return (
-		<Alert variant={variant}>
+		<Alert variant={variant as any}>
 			{icon}
 			<AlertTitle>{title}</AlertTitle>
 			<AlertDescription>
-				{node.children.map((child: any, index: number) => (
-					<React.Fragment key={index}>{child.value}</React.Fragment>
-				))}
+				<div className="whitespace-pre-wrap">{textContent}</div>
 			</AlertDescription>
 		</Alert>
 	)
@@ -83,13 +87,13 @@ const CallToAction: React.FC<{ node: any }> = ({ node }) => {
 
 const Preview: React.FC<{ node: any }> = ({ node }) => {
 	const { link } = node.properties
+	const textContent = extractTextContent(node)
+
 	return (
 		<a href={link} className="p-0 my-4 rounded-md overflow-hidden flex items-center w-fit h-fit">
 			<Card className="flex p-2 items-center">
 				<ExternalLink className="h-4 w-4 mr-1 text-blue-500" />
-				{node.children.map((child: any, index: number) => (
-					<React.Fragment key={index}>{child.value}</React.Fragment>
-				))}
+				<div className="whitespace-pre-wrap">{textContent}</div>
 				<div></div>
 			</Card>
 		</a>
@@ -107,54 +111,58 @@ const CustomButton: React.FC<{ node: any }> = ({ node }) => {
 }
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, syntaxHighlighterStyle }) => {
-	console.log(markdown)
 	return (
 		<ReactMarkdown
 			rehypePlugins={[rehypeRaw]}
 			components={{
+				// @ts-expect-error not typed
 				thinking: ThinkingContent,
 				"call-to-action": CallToAction,
 				preview: Preview,
-				p: (props) => <p className="my-2 whitespace-pre-wrap break-words" {...props} />,
-				ol: (props) => <ol className="list-decimal list-inside my-2 pl-4" {...props} />,
-				ul: (props) => <ul className="list-disc list-inside my-2 pl-4" {...props} />,
-				code: (props) => {
-					const { children, className, ...rest } = props
+				p: (props) => <p className="my-4 leading-7" {...props} />,
+				ol: (props) => <ol className="list-decimal list-inside my-4 pl-6 space-y-2" {...props} />,
+				ul: (props) => <ul className="list-disc list-inside my-4 pl-6 space-y-2" {...props} />,
+				li: (props) => <li style={{ listStyle: "auto !important" }} className="mb-1 list" {...props} />,
+				h1: (props) => (
+					<h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl" {...props} />
+				),
+				h2: (props) => (
+					<h2
+						className="scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight transition-colors first:mt-0"
+						{...props}
+					/>
+				),
+				h3: (props) => <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight" {...props} />,
+				a: (props) => <a className="font-medium text-primary underline underline-offset-4" {...props} />,
+				blockquote: (props) => <blockquote className="mt-6 border-l-2 pl-6 italic" {...props} />,
+				// @ts-expect-error not typed
+				code: ({ node, inline, className, children, ...props }) => {
 					const match = /language-(\w+)/.exec(className || "")
-					return match ? (
+					return !inline && match ? (
+						// @ts-expect-error not typed
 						<SyntaxHighlighter
-							{...rest}
-							PreTag="div"
+							{...props}
 							children={String(children).replace(/\n$/, "")}
 							language={match[1]}
-							style={{
-								...syntaxHighlighterStyle,
-								'code[class*="language-"]': {
-									background: "var(--vscode-editor-background)",
-								},
-								'pre[class*="language-"]': {
-									background: "var(--vscode-editor-background)",
-								},
-							}}
+							PreTag="div"
+							style={syntaxHighlighterStyle}
 							customStyle={{
-								overflowX: "auto",
-								overflowY: "hidden",
-								maxWidth: "100%",
-								margin: 0,
-								padding: "10px",
-								borderRadius: 3,
-								border: "1px solid var(--vscode-sideBar-border)",
-								fontSize: "var(--vscode-editor-font-size)",
-								lineHeight: "var(--vscode-editor-line-height)",
-								fontFamily: "var(--vscode-editor-font-family)",
+								margin: "1rem 0",
+								padding: "1rem",
+								borderRadius: "0.375rem",
+								fontSize: "0.875rem",
+								lineHeight: "1.7142857",
 							}}
 						/>
 					) : (
-						<code {...rest} className={className}>
+						<code
+							className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold"
+							{...props}>
 							{children}
 						</code>
 					)
 				},
+				pre: (props) => <pre className="overflow-auto p-4 rounded-lg my-4 bg-muted" {...props} />,
 			}}>
 			{markdown}
 		</ReactMarkdown>

@@ -18,6 +18,7 @@ import { PopoverPortal } from "@radix-ui/react-popover"
 import EndOfTrialAlertDialog from "./components/EndOfTrialAlertDialog/end-of-trial-alert-dialog"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import OnboardingDialog from "./components/onboarding"
 const queryClient = new QueryClient()
 
 const AppContent = () => {
@@ -120,6 +121,7 @@ const App = () => {
 					<FPJSProvider>
 						<TooltipProvider>
 							<AppContent />
+							<OnboardingDialog />
 						</TooltipProvider>
 					</FPJSProvider>
 				</QueryClientProvider>

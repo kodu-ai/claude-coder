@@ -6,7 +6,13 @@ import { tools } from "./tools/tools"
 import { UserContent } from "./types"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { truncateHalfConversation } from "../../utils/context-management"
-import { SYSTEM_PROMPT, UDIFF_SYSTEM_PROMPT } from "./system-prompt"
+import {
+	CodingBeginnerSystemPromptSection,
+	ExperiencedDeveloperSystemPromptSection,
+	NonTechnicalSystemPromptSection,
+	SYSTEM_PROMPT,
+	UDIFF_SYSTEM_PROMPT,
+} from "./system-prompt"
 import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { tools as baseTools, uDifftools } from "./tools/tools"
 import { findLast } from "../../utils"
@@ -50,12 +56,26 @@ export class ApiManager {
 	): AsyncGenerator<koduSSEResponse> {
 		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
 		const useUdiff = (await this.providerRef.deref()?.getStateManager()?.getState())?.useUdiff
+		const technicalBackground =
+			(await this.providerRef.deref()?.getStateManager()?.getState())?.technicalBackground ?? "no-technical"
 		let systemPrompt = await SYSTEM_PROMPT()
 		let tools = baseTools
 		if (useUdiff) {
 			systemPrompt = await UDIFF_SYSTEM_PROMPT()
 			tools = uDifftools
 		}
+		systemPrompt += `
+		===
+USER PERSONALIZED INSTRUCTIONS
+
+${
+	technicalBackground === "no-technical"
+		? NonTechnicalSystemPromptSection
+		: technicalBackground === "technical"
+		? ExperiencedDeveloperSystemPromptSection
+		: CodingBeginnerSystemPromptSection
+}
+		`
 		let customInstructions: string | undefined
 		if (this.customInstructions && this.customInstructions.trim()) {
 			customInstructions += `

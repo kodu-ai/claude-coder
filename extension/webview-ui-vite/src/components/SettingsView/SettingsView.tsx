@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import TechnicalLevelSelector from "./TechnicalLevelSelector"
 
 const IS_DEV = false // FIXME: use flags when packaging
 
@@ -32,6 +33,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 		setCreativeMode,
 		creativeMode,
 		alwaysAllowWriteOnly,
+		setTechnicalBackground,
+		technicalBackground,
 		useUdiff,
 		setUseUdiff,
 	} = useExtensionState()
@@ -67,6 +70,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 			vscode.postMessage({ type: "setCreativeMode", text: creativeMode })
 			vscode.postMessage({ type: "useUdiff", bool: useUdiff })
 			vscode.postMessage({ type: "experimentalTerminal", bool: experimentalTerminal })
+			vscode.postMessage({ type: "technicalBackground", value: technicalBackground! })
 			onDone()
 		}
 	}
@@ -97,6 +101,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 						<ApiOptions showModelOptions={true} />
 					</div>
 
+					<TechnicalLevelSelector
+						technicalBackground={technicalBackground}
+						setTechnicalBackground={setTechnicalBackground}
+					/>
 					<CreativityModeSelector creativeMode={creativeMode} setCreativeMode={setCreativeMode} />
 
 					<div className="flex items-start space-x-2">

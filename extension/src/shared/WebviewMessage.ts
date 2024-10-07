@@ -1,4 +1,5 @@
 import { ApiConfiguration } from "../api"
+import { GlobalState } from "../providers/claude-coder/state/GlobalStateManager"
 
 export type AmplitudeWebviewMessage = {
 	type: "amplitude"
@@ -62,12 +63,18 @@ type exportBugMessage = {
 	reproduction: string
 }
 
+type technicalBackgroundMessage = {
+	type: "technicalBackground"
+	value: NonNullable<GlobalState["technicalBackground"]>
+}
+
 export type WebviewMessage =
 	| exportBugMessage
 	| experimentalTerminalMessage
 	| AmplitudeWebviewMessage
 	| OpenExternalLink
 	| FreeTrial
+	| technicalBackgroundMessage
 	| ApiConfigurationMessage
 	| RenameTask
 	| QuickstartMessage

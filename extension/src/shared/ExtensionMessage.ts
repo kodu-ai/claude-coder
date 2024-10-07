@@ -45,6 +45,7 @@ export interface ExtensionState {
 	lastShownAnnouncementId?: string
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
+	technicalBackground?: "no-technical" | "technical" | "developer"
 	useUdiff?: boolean
 	experimentalTerminal?: boolean
 	alwaysAllowWriteOnly?: boolean
