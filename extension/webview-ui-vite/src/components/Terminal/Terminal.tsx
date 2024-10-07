@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, memo } from "react"
 import DynamicTextArea from "react-textarea-autosize"
 import stripAnsi from "strip-ansi"
+import { ScrollArea } from "../ui/scroll-area"
 
 interface TerminalProps {
 	rawOutput: string
@@ -247,8 +248,8 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 	const textAreaStyle: React.CSSProperties = {
 		fontFamily: "var(--vscode-editor-font-family)",
 		fontSize: "var(--vscode-editor-font-size)",
-		padding: "10px",
-		border: "1px solid var(--vscode-editorGroup-border)",
+		// padding: "10px",
+		// border: "1px solid var(--vscode-editorGroup-border)",
 		outline: "none",
 		whiteSpace: "pre-wrap",
 		overflow: "hidden",
@@ -259,8 +260,9 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 
 	return (
 		<div className="terminal-container">
-			<style>
-				{`
+			<ScrollArea viewProps={{ className: "max-h-[200px] w-full p-2 border-border border rounded" }}>
+				<style>
+					{`
 					.terminal-container {
 						position: relative;
 						overflow: hidden;  // Add this
@@ -306,44 +308,45 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 						}
 					}
 				`}
-			</style>
-			<DynamicTextArea
-				ref={textAreaRef}
-				value={output + (shouldAllowInput ? userInput : "")}
-				onChange={handleChange}
-				onKeyDown={handleKeyDown}
-				onKeyPress={handleKeyPress}
-				onFocus={() => setIsFocused(true)}
-				onBlur={() => setIsFocused(false)}
-				className="terminal-textarea"
-				style={{
-					// backgroundColor: "var(--vscode-editor-background)", // NOTE: adding cursor ontop of this color wouldnt work on some themes
-					caretColor: "transparent", // Hide default caret
-					color: "var(--vscode-terminal-foreground)",
-					borderRadius: "3px",
-					...(textAreaStyle as any),
-				}}
-				minRows={1}
-			/>
-			<div ref={mirrorRef} className="terminal-mirror"></div>
-			<DynamicTextArea
-				ref={hiddenTextareaRef}
-				className="terminal-textarea"
-				aria-hidden="true"
-				tabIndex={-1}
-				readOnly
-				minRows={1}
-				style={{
-					position: "absolute",
-					top: 0,
-					left: 0,
-					height: "100%",
-					width: "100%",
-					overflow: "hidden",
-					opacity: 0,
-					...(textAreaStyle as any),
-				}}
-			/>
+				</style>
+				<DynamicTextArea
+					ref={textAreaRef}
+					value={output + (shouldAllowInput ? userInput : "")}
+					onChange={handleChange}
+					onKeyDown={handleKeyDown}
+					onKeyPress={handleKeyPress}
+					onFocus={() => setIsFocused(true)}
+					onBlur={() => setIsFocused(false)}
+					className="terminal-textarea"
+					style={{
+						// backgroundColor: "var(--vscode-editor-background)", // NOTE: adding cursor ontop of this color wouldnt work on some themes
+						caretColor: "transparent", // Hide default caret
+						color: "var(--vscode-terminal-foreground)",
+						borderRadius: "3px",
+						...(textAreaStyle as any),
+					}}
+					minRows={1}
+				/>
+				<div ref={mirrorRef} className="terminal-mirror"></div>
+				<DynamicTextArea
+					ref={hiddenTextareaRef}
+					className="terminal-textarea"
+					aria-hidden="true"
+					tabIndex={-1}
+					readOnly
+					minRows={1}
+					style={{
+						position: "absolute",
+						top: 0,
+						left: 0,
+						height: "100%",
+						width: "100%",
+						overflow: "hidden",
+						opacity: 0,
+						...(textAreaStyle as any),
+					}}
+				/>
+			</ScrollArea>
 		</div>
 	)
 }
