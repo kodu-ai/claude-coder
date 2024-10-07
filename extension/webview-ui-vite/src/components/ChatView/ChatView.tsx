@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Code } from 'lucide-react'
+import { Code, GraduationCap, History } from 'lucide-react'
 import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import vsDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus'
 import { useEvent, useMount } from 'react-use'
@@ -590,7 +590,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 										<Button
 											variant="outline"
 											className="flex-1 bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
-											onClick={() => setInputValue("Let's start a new project, I'm thinking about making a...")}
+											onClick={() =>
+												setInputValue(
+													"Let's start a new project, I'm thinking about making a...",
+												)
+											}
 										>
 											<Code className="mr-2 h-4 w-4" />
 											Start a new project
@@ -601,38 +605,24 @@ const ChatView: React.FC<ChatViewProps> = ({
 										<Button
 											variant="outline"
 											className="flex-1 bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
-											onClick={() => setInputValue('I need help debugging my code, I have been encountering the following error: ...')}
+											// Change view to the history tab
+											onClick={() => showHistoryView()}
 										>
-											<Code className="mr-2 h-4 w-4" />
-											Debug my code
+											<History className="mr-2 h-4 w-4" />
+											Continue a previous task
 										</Button>
 										<Button
 											variant="outline"
 											className="flex-1 bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
-											onClick={() => setInputValue('Can you teach me coding basics ? I want to learn...')}
+											onClick={() =>
+												setInputValue(
+													'Can you teach me coding basics ? I want to learn how to do a...',
+												)
+											}
 										>
+											<GraduationCap className="mr-2 h-4 w-4" />
 											Learn coding basics
 										</Button>
-									</div>
-									<div className="relative w-full">
-										<InputArea
-											inputValue={inputValue}
-											setInputValue={setInputValue}
-											textAreaDisabled={textAreaDisabled}
-											handleSendMessage={handleSendMessage}
-											placeholderText={placeholderText}
-											selectedImages={selectedImages}
-											setSelectedImages={setSelectedImages}
-											shouldDisableImages={shouldDisableImages}
-											selectImages={selectImages}
-											thumbnailsHeight={thumbnailsHeight}
-											handleThumbnailsHeightChange={handleThumbnailsHeightChange}
-											isRequestRunning={!!isMessageRunning}
-											isInTask={!!task}
-											// @ts-expect-error - extract is not working here
-											handleKeyDown={handleKeyDown}
-											handlePaste={handlePaste}
-										/>
 									</div>
 								</div>
 							</CardContent>
@@ -640,28 +630,26 @@ const ChatView: React.FC<ChatViewProps> = ({
 					</div>
 				)}
 			</div>
-			{task && (
-				<div className="mt-2 border-t">
-					<InputArea
-						inputValue={inputValue}
-						setInputValue={setInputValue}
-						textAreaDisabled={textAreaDisabled}
-						handleSendMessage={handleSendMessage}
-						placeholderText={placeholderText}
-						selectedImages={selectedImages}
-						setSelectedImages={setSelectedImages}
-						shouldDisableImages={shouldDisableImages}
-						selectImages={selectImages}
-						thumbnailsHeight={thumbnailsHeight}
-						handleThumbnailsHeightChange={handleThumbnailsHeightChange}
-						isRequestRunning={!!isMessageRunning}
-						isInTask={!!task}
-						// @ts-expect-error - extract is not working here
-						handleKeyDown={handleKeyDown}
-						handlePaste={handlePaste}
-					/>
-				</div>
-			)}
+			<div className="mt-2 border-t">
+				<InputArea
+					inputValue={inputValue}
+					setInputValue={setInputValue}
+					textAreaDisabled={textAreaDisabled}
+					handleSendMessage={handleSendMessage}
+					placeholderText={placeholderText}
+					selectedImages={selectedImages}
+					setSelectedImages={setSelectedImages}
+					shouldDisableImages={shouldDisableImages}
+					selectImages={selectImages}
+					thumbnailsHeight={thumbnailsHeight}
+					handleThumbnailsHeightChange={handleThumbnailsHeightChange}
+					isRequestRunning={!!isMessageRunning}
+					isInTask={!!task}
+					// @ts-expect-error - extract is not working here
+					handleKeyDown={handleKeyDown}
+					handlePaste={handlePaste}
+				/>
+			</div>
 		</div>
 	)
 }
