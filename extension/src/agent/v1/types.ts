@@ -1,3 +1,4 @@
+import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ResultPromise } from "execa"
 import { ApiConfiguration } from "../../api"
@@ -5,7 +6,6 @@ import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvi
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { HistoryItem } from "../../shared/HistoryItem"
 import { ClaudeMessage } from "../../shared/ExtensionMessage"
-import { WebSearchResponseDto } from "../../api/interfaces"
 
 export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>
 export type UserContent = Array<
@@ -50,3 +50,5 @@ export interface ClaudeRequestResult {
 // Re-export types from other files to centralize type definitions
 export type { ClaudeMessage } from "../../shared/ExtensionMessage"
 export type { ToolName } from "../../shared/Tool"
+
+export type VsCodeDiagnostics = [vscode.Uri, vscode.Diagnostic[]][]

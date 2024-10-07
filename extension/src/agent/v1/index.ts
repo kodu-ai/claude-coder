@@ -14,6 +14,7 @@ import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
 import { createTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
+import { DiagnosticsHandler } from "./handlers"
 
 // new KoduDev
 export class KoduDev {
@@ -25,7 +26,7 @@ export class KoduDev {
 	private providerRef: WeakRef<ClaudeDevProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
-
+	public diagnosticsHandler: DiagnosticsHandler
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
 		this.stateManager = new StateManager(options)
@@ -43,6 +44,7 @@ export class KoduDev {
 		)
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
 		this.browserManager = new BrowserManager()
+		this.diagnosticsHandler = new DiagnosticsHandler()
 
 		this.setupTaskExecutor()
 
