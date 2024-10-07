@@ -1,12 +1,12 @@
+import { readdir } from "fs/promises"
+import path from "path"
 import * as vscode from "vscode"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
 import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
+import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ClaudeDevProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
-import { readdir } from "fs/promises"
-import path from "path"
-import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 
 interface FileTreeItem {
 	id: string
@@ -343,7 +343,7 @@ export class WebviewManager {
 					case "askResponse":
 						await this.provider
 							.getTaskManager()
-							.handleAskResponse(message.askResponse!, message.text, message.images)
+							.handleAskResponse(message.askResponse!, message.text, message.images, message.files)
 						break
 					case "clearTask":
 						await this.provider.getTaskManager().clearTask()

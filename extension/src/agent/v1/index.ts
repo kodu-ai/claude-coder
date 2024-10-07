@@ -2,7 +2,7 @@ import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { ClaudeAsk, isV1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { ToolName } from "../../shared/Tool"
-import { ClaudeAskResponse } from "../../shared/WebviewMessage"
+import { ClaudeAskResponse, Resource } from "../../shared/WebviewMessage"
 import { ApiManager } from "./api-handler"
 import { ToolExecutor } from "./tool-executor"
 import { KoduDevOptions, ToolResponse, UserContent } from "./types"
@@ -77,7 +77,7 @@ export class KoduDev {
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
 	}
 
-	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
+	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[], files?: Resource[]) {
 		console.log(`Is there a pending ask response? ${!!this.pendingAskResponse}`)
 		if (this.taskExecutor.state === TaskState.ABORTED && (text || images)) {
 			let textBlock: Anthropic.TextBlockParam = {
@@ -85,6 +85,7 @@ export class KoduDev {
 				text: text ?? "",
 			}
 			let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
+			let filesBlocks: Anthropic.Message[] = 
 			console.log(`current api history: ${JSON.stringify(this.stateManager.state.apiConversationHistory)}`)
 			await this.taskExecutor.newMessage([textBlock, ...imageBlocks])
 			return

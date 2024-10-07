@@ -1,4 +1,5 @@
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
+import { useAtom } from "jotai"
 import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
 import { useEvent, useMount } from "react-use"
@@ -6,14 +7,13 @@ import { VirtuosoHandle } from "react-virtuoso"
 import {
 	ClaudeAsk,
 	ClaudeMessage,
-	ClaudeSay,
 	ClaudeSayTool,
 	ExtensionMessage,
-	isV1ClaudeMessage,
 	V1ClaudeMessage,
+	isV1ClaudeMessage
 } from "../../../../src/shared/ExtensionMessage"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
-import { combineCommandSequences, COMMAND_STDIN_STRING } from "../../../../src/shared/combineCommandSequences"
+import { COMMAND_STDIN_STRING, combineCommandSequences } from "../../../../src/shared/combineCommandSequences"
 import { getApiMetrics } from "../../../../src/shared/getApiMetrics"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { getSyntaxHighlighterStyleFromTheme } from "../../utils/getSyntaxHighlighterStyleFromTheme"
@@ -25,9 +25,10 @@ import TaskHeader from "../TaskHeader/TaskHeader"
 import ProjectStarterChooser from "../project-starters"
 import ButtonSection from "./ButtonSection"
 import ChatMessages from "./ChatMessages"
-import InputArea from "./InputArea"
 import EmptyScreen from "./EmptyScreen"
+import InputArea from "./InputArea"
 import { CHAT_BOX_INPUT_ID } from "./InputTextArea"
+import { resourcesAtom } from "./InputV1"
 
 interface ChatViewProps {
 	isHidden: boolean
@@ -39,6 +40,8 @@ interface ChatViewProps {
 }
 
 const MAX_IMAGES_PER_MESSAGE = 5
+
+
 
 const ChatView: React.FC<ChatViewProps> = ({
 	isHidden,
@@ -57,6 +60,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 		shouldShowKoduPromo,
 		user,
 	} = useExtensionState()
+
+	const [attachedResources, setAttachedResources] = useAtom(resourcesAtom)
 
 	// Input-related state
 	const [inputValue, setInputValue] = useState("")
@@ -198,9 +203,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 					type: "askResponse",
 					askResponse: "messageResponse",
 					text,
+					files: attachedResources,
 					images: selectedImages,
 				})
 			}
+			setAttachedResources([])
 			setInputValue("")
 			setTextAreaDisabled(true)
 			setSelectedImages([])

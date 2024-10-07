@@ -62,6 +62,18 @@ type exportBugMessage = {
 	reproduction: string
 }
 
+type askResponseMessage = {
+	type: "askResponse"
+	askResponse: ClaudeAskResponse
+	text?: string
+	images?: string[]
+	files?: Resource[]
+}
+export type Resource = {
+	id: string
+	type: "file" | "folder" | "url"
+	name: string
+}
 export type WebviewMessage =
 	| exportBugMessage
 	| experimentalTerminalMessage
@@ -72,6 +84,7 @@ export type WebviewMessage =
 	| RenameTask
 	| QuickstartMessage
 	| setUseUdiff
+	| askResponseMessage
 	| {
 			type:
 				| "cancelCurrentRequest"
@@ -80,7 +93,6 @@ export type WebviewMessage =
 				| "alwaysAllowReadOnly"
 				| "webviewDidLaunch"
 				| "newTask"
-				| "askResponse"
 				| "retryTask"
 				| "alwaysAllowWriteOnly"
 				| "clearTask"

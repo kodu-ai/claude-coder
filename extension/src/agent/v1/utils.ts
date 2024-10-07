@@ -1,7 +1,7 @@
-import * as path from "path"
 import * as os from "os"
-import * as vscode from "vscode"
+import * as path from "path"
 import { Anthropic } from "@anthropic-ai/sdk"
+import * as vscode from "vscode"
 import { ClaudeSayTool } from "../../shared/ExtensionMessage"
 
 export const getCwd = (): string =>
@@ -86,6 +86,17 @@ VSCode Opened Tabs: ${
 </potentially_relevant_details>`
 }
 
+
+/**
+ * Reads all files and folders mentionned in argument
+ * @param ressources - Array of either file, folder or url, each represented as a string
+ * @returns Array of Anthropic.Message
+ */
+export async function readRessources(ressources: string[]): Promise<Anthropic.Message[]> {
+	const messages: Anthropic.Message[] = [];
+	//TODO: Implement reading of ressources
+	return [];
+}
 /**
  * Format images into Anthropic image blocks
  * @param images - Array of image data URLs

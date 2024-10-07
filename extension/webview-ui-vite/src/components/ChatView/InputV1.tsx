@@ -1,12 +1,13 @@
-import React, { useState, useRef, useEffect, KeyboardEvent, forwardRef, useImperativeHandle, useCallback } from "react"
 import { vscode } from "@/utils/vscode"
-import { ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
+import { atom, useAtom } from "jotai"
+import React, { KeyboardEvent, forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react"
 import { useEvent } from "react-use"
+import { ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
+import AttachedResources, { Resource } from "./AttachedResources"
+import FileDialog from "./FileDialog"
 import InputTextArea from "./InputTextArea"
 import MentionPopover, { popoverOptions } from "./MentionPopover"
-import FileDialog from "./FileDialog"
 import ScrapeDialog from "./ScrapeDialog"
-import AttachedResources, { Resource } from "./AttachedResources"
 import { FileNode } from "./file-tree"
 
 type InputOpts = {
@@ -21,6 +22,8 @@ type InputOpts = {
 	thumbnailsHeight: number
 }
 
+export const resourcesAtom = atom<Resource[]>([])
+
 const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef) => {
 	const [showPopover, setShowPopover] = useState(false)
 	const [textareaValue, setTextareaValue] = useState(props.value ?? "")
@@ -32,7 +35,7 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 	const [scrapeUrl, setScrapeUrl] = useState("")
 	const [scrapeDescription, setScrapeDescription] = useState("")
 	const [fileTree, setFileTree] = useState<FileNode[]>([])
-	const [attachedResources, setAttachedResources] = useState<Resource[]>([])
+	const [attachedResources, setAttachedResources] = useAtom(resourcesAtom)
 
 	useImperativeHandle(forwardedRef, () => localTextareaRef.current!, [])
 
@@ -133,6 +136,8 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 		// remove @ from the text
 		const newText = textareaValue.slice(0, cursorPosition - 1) + textareaValue.slice(cursorPosition)
 		setTextareaValue(newText)
+		props.onChange({ target: { value: newText } } as React.ChangeEvent<HTMLTextAreaElement>)
+		setShowPopover(false)
 	}
 
 	const handleScrapeSubmit = () => {
@@ -144,6 +149,7 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 			}
 			setAttachedResources((prev) => [...prev, newResource])
 			handleCloseDialog()
+			setShowPopover(false)
 		}
 	}
 
