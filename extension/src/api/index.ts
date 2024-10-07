@@ -1,7 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiModelId, ModelInfo } from "../shared/api"
 import { KoduHandler } from "./kodu"
-import { AskConsultantResponseDto, WebSearchResponseDto } from "./interfaces"
+import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { z } from "zod"
 import { koduSSEResponse } from "../shared/kodu"
 
@@ -59,6 +59,8 @@ export interface ApiHandler {
 	sendUrlScreenshotRequest?(url: string): Promise<Blob>
 
 	sendAskConsultantRequest?(query: string): Promise<AskConsultantResponseDto>
+
+	sendSummarizeRequest?(text: string, command: string): Promise<SummaryResponseDto>
 
 	sendBugReportRequest?(params: z.infer<typeof bugReportSchema>): Promise<void>
 }
