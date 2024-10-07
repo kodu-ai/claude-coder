@@ -35,20 +35,14 @@ const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>((props
 			autoFocus={true}
 			style={{
 				width: "100%",
+				padding: "8px 16px",
 				boxSizing: "border-box",
 				backgroundColor: "var(--vscode-input-background)",
 				color: "var(--vscode-input-foreground)",
 				borderRadius: 2,
 				fontFamily: "var(--vscode-font-family)",
-				fontSize: "var(--vscode-editor-font-size)",
-				lineHeight: "var(--vscode-editor-line-height)",
 				resize: "none",
 				overflow: "hidden",
-				borderTop: "9px solid transparent",
-				borderBottom: `${props.thumbnailsHeight + 9}px solid transparent`,
-				borderRight: "54px solid transparent",
-				borderLeft: "9px solid transparent",
-				padding: 0,
 				cursor: props.disabled ? "not-allowed" : undefined,
 				flex: 1,
 			}}

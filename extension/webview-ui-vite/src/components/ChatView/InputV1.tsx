@@ -1,13 +1,13 @@
-import React, { useState, useRef, useEffect, KeyboardEvent, forwardRef, useImperativeHandle, useCallback } from "react"
-import { vscode } from "@/utils/vscode"
-import { ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
-import { useEvent } from "react-use"
-import InputTextArea from "./InputTextArea"
-import MentionPopover, { popoverOptions } from "./MentionPopover"
-import FileDialog from "./FileDialog"
-import ScrapeDialog from "./ScrapeDialog"
-import AttachedResources, { Resource } from "./AttachedResources"
-import { FileNode } from "./file-tree"
+import { vscode } from '@/utils/vscode'
+import React, { KeyboardEvent, forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { useEvent } from 'react-use'
+import { ExtensionMessage } from '../../../../src/shared/ExtensionMessage'
+import AttachedResources, { Resource } from './AttachedResources'
+import FileDialog from './FileDialog'
+import InputTextArea from './InputTextArea'
+import MentionPopover, { popoverOptions } from './MentionPopover'
+import ScrapeDialog from './ScrapeDialog'
+import { FileNode } from './file-tree'
 
 type InputOpts = {
 	value: string
@@ -23,31 +23,31 @@ type InputOpts = {
 
 const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef) => {
 	const [showPopover, setShowPopover] = useState(false)
-	const [textareaValue, setTextareaValue] = useState(props.value ?? "")
+	const [textareaValue, setTextareaValue] = useState(props.value ?? '')
 	const [cursorPosition, setCursorPosition] = useState(0)
 	const [focusedIndex, setFocusedIndex] = useState(-1)
 	const localTextareaRef = useRef<HTMLTextAreaElement>(null)
 	const [openDialog, setOpenDialog] = useState<string | null>(null)
 	const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
-	const [scrapeUrl, setScrapeUrl] = useState("")
-	const [scrapeDescription, setScrapeDescription] = useState("")
+	const [scrapeUrl, setScrapeUrl] = useState('')
+	const [scrapeDescription, setScrapeDescription] = useState('')
 	const [fileTree, setFileTree] = useState<FileNode[]>([])
 	const [attachedResources, setAttachedResources] = useState<Resource[]>([])
 
 	useImperativeHandle(forwardedRef, () => localTextareaRef.current!, [])
 
 	useEffect(() => {
-		vscode.postMessage({ type: "fileTree" })
+		vscode.postMessage({ type: 'fileTree' })
 	}, [])
 
 	const handleMessage = useCallback((e: MessageEvent) => {
 		const message: ExtensionMessage = e.data
-		if (message.type === "fileTree") {
+		if (message.type === 'fileTree') {
 			setFileTree(message.tree)
 		}
 	}, [])
 
-	useEvent("message", handleMessage)
+	useEvent('message', handleMessage)
 
 	const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		props.onChange(e)
@@ -85,10 +85,10 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 	// Helper function to get all "@" positions
 	const getAllAtPositions = (text: string): number[] => {
 		const positions: number[] = []
-		let position = text.indexOf("@")
+		let position = text.indexOf('@')
 		while (position !== -1) {
 			positions.push(position)
-			position = text.indexOf("@", position + 1)
+			position = text.indexOf('@', position + 1)
 		}
 		return positions
 	}
@@ -99,22 +99,22 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 		}
 		if (showPopover) {
 			switch (e.key) {
-				case "ArrowDown":
-				case "Tab":
+				case 'ArrowDown':
+				case 'Tab':
 					e.preventDefault()
 					setFocusedIndex((prevIndex) => (prevIndex + 1) % popoverOptions.length)
 					break
-				case "ArrowUp":
+				case 'ArrowUp':
 					e.preventDefault()
 					setFocusedIndex((prevIndex) => (prevIndex - 1 + popoverOptions.length) % popoverOptions.length)
 					break
-				case "Enter":
+				case 'Enter':
 					if (focusedIndex !== -1) {
 						e.preventDefault()
 						handleOpenDialog(popoverOptions[focusedIndex].name)
 					}
 					break
-				case "Escape":
+				case 'Escape':
 					e.preventDefault()
 					setShowPopover(false)
 					break
@@ -125,8 +125,8 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 	const handleSubmitSelection = () => {
 		const newResources: Resource[] = Array.from(selectedItems).map((item) => ({
 			id: item,
-			type: item.includes(".") ? "file" : "folder",
-			name: item.split("/").pop() || item,
+			type: item.includes('.') ? 'file' : 'folder',
+			name: item.split('/').pop() || item,
 		}))
 		setAttachedResources((prev) => [...prev, ...newResources])
 		handleCloseDialog()
@@ -139,7 +139,7 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 		if (scrapeUrl) {
 			const newResource: Resource = {
 				id: Date.now().toString(),
-				type: "url",
+				type: 'url',
 				name: scrapeUrl,
 			}
 			setAttachedResources((prev) => [...prev, newResource])
@@ -151,16 +151,16 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 		setOpenDialog(dialogName)
 		setShowPopover(false)
 		setSelectedItems(new Set())
-		if (openDialog === "fileFolder") {
-			vscode.postMessage({ type: "fileTree" })
+		if (openDialog === 'fileFolder') {
+			vscode.postMessage({ type: 'fileTree' })
 		}
 	}
 
 	const handleCloseDialog = () => {
 		setOpenDialog(null)
 		setSelectedItems(new Set())
-		setScrapeUrl("")
-		setScrapeDescription("")
+		setScrapeUrl('')
+		setScrapeDescription('')
 		localTextareaRef.current?.focus()
 	}
 
@@ -195,7 +195,7 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 			</div>
 
 			<FileDialog
-				open={openDialog === "fileFolder"}
+				open={openDialog === 'fileFolder'}
 				onClose={handleCloseDialog}
 				fileTree={fileTree}
 				selectedItems={selectedItems}
@@ -204,7 +204,7 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 			/>
 
 			<ScrapeDialog
-				open={openDialog === "scrape"}
+				open={openDialog === 'scrape'}
 				onClose={handleCloseDialog}
 				scrapeUrl={scrapeUrl}
 				setScrapeUrl={setScrapeUrl}
@@ -216,6 +216,6 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 	)
 })
 
-InputV2.displayName = "InputV2"
+InputV2.displayName = 'InputV2'
 
 export default InputV2

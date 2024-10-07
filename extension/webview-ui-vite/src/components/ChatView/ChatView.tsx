@@ -1,33 +1,30 @@
-import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
-import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
-import { useEvent, useMount } from "react-use"
-import { VirtuosoHandle } from "react-virtuoso"
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Code } from 'lucide-react'
+import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import vsDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus'
+import { useEvent, useMount } from 'react-use'
+import { VirtuosoHandle } from 'react-virtuoso'
 import {
 	ClaudeAsk,
 	ClaudeMessage,
-	ClaudeSay,
 	ClaudeSayTool,
 	ExtensionMessage,
-	isV1ClaudeMessage,
 	V1ClaudeMessage,
-} from "../../../../src/shared/ExtensionMessage"
-import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
-import { combineCommandSequences, COMMAND_STDIN_STRING } from "../../../../src/shared/combineCommandSequences"
-import { getApiMetrics } from "../../../../src/shared/getApiMetrics"
-import { useExtensionState } from "../../context/ExtensionStateContext"
-import { getSyntaxHighlighterStyleFromTheme } from "../../utils/getSyntaxHighlighterStyleFromTheme"
-import { vscode } from "../../utils/vscode"
-import Announcement from "../Announcement/Announcement"
-import HistoryPreview from "../HistoryPreview/HistoryPreview"
-import KoduPromo from "../KoduPromo/KoduPromo"
-import TaskHeader from "../TaskHeader/TaskHeader"
-import ProjectStarterChooser from "../project-starters"
-import ButtonSection from "./ButtonSection"
-import ChatMessages from "./ChatMessages"
-import InputArea from "./InputArea"
-import EmptyScreen from "./EmptyScreen"
-import { CHAT_BOX_INPUT_ID } from "./InputTextArea"
+	isV1ClaudeMessage,
+} from '../../../../src/shared/ExtensionMessage'
+import { combineApiRequests } from '../../../../src/shared/combineApiRequests'
+import { COMMAND_STDIN_STRING, combineCommandSequences } from '../../../../src/shared/combineCommandSequences'
+import { getApiMetrics } from '../../../../src/shared/getApiMetrics'
+import { useExtensionState } from '../../context/ExtensionStateContext'
+import { getSyntaxHighlighterStyleFromTheme } from '../../utils/getSyntaxHighlighterStyleFromTheme'
+import { vscode } from '../../utils/vscode'
+import TaskHeader from '../TaskHeader/TaskHeader'
+import ProjectStarterChooser from '../project-starters'
+import ButtonSection from './ButtonSection'
+import ChatMessages from './ChatMessages'
+import InputArea from './InputArea'
 
 interface ChatViewProps {
 	isHidden: boolean
@@ -59,7 +56,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	} = useExtensionState()
 
 	// Input-related state
-	const [inputValue, setInputValue] = useState("")
+	const [inputValue, setInputValue] = useState('')
 	const [textAreaDisabled, setTextAreaDisabled] = useState(false)
 	const [selectedImages, setSelectedImages] = useState<string[]>([])
 	const [thumbnailsHeight, setThumbnailsHeight] = useState(0)
@@ -85,7 +82,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 			const lastSay = messages
 				.slice()
 				.reverse()
-				.find((message) => message.type === "say" && message.say === "api_req_started") as
+				.find((message) => message.type === 'say' && message.say === 'api_req_started') as
 				| V1ClaudeMessage
 				| undefined
 			if (lastSay && lastSay.isFetching) {
@@ -93,7 +90,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 			}
 			return false
 		}
-		if (lastMessage && lastMessage.type === "say" && lastMessage.say === "api_req_started") {
+		if (lastMessage && lastMessage.type === 'say' && lastMessage.say === 'api_req_started') {
 			return true
 		}
 		return false
@@ -104,7 +101,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const modifiedMessages = useMemo(() => combineApiRequests(combineCommandSequences(messages.slice(1))), [messages])
 	const apiMetrics = useMemo(() => getApiMetrics(modifiedMessages), [modifiedMessages])
 	const selectImages = () => {
-		vscode.postMessage({ type: "selectImages" })
+		vscode.postMessage({ type: 'selectImages' })
 	}
 	// Update syntax highlighter style when theme changes
 	useEffect(() => {
@@ -118,7 +115,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// handle keyDown
 	const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
 		const isComposing = event.nativeEvent?.isComposing ?? false
-		if (event.key === "Enter" && !event.shiftKey && !isComposing) {
+		if (event.key === 'Enter' && !event.shiftKey && !isComposing) {
 			event.preventDefault()
 			handleSendMessage()
 		}
@@ -129,11 +126,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 		const lastMessage = messages.at(-1)
 		if (lastMessage) {
 			switch (lastMessage.type) {
-				case "ask":
+				case 'ask':
 					console.log(`last message is ask ${lastMessage.ask}`)
 					handleAskMessage(lastMessage)
 					break
-				case "say":
+				case 'say':
 					console.log(`last message is say ${lastMessage.say}`)
 					handleSayMessage(lastMessage)
 					break
@@ -151,16 +148,16 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const visibleMessages = useMemo(() => {
 		return modifiedMessages.filter((message) => {
 			if (
-				(message.ask === "completion_result" && message.text === "") ||
-				["resume_task", "resume_completed_task"].includes(message.ask!)
+				(message.ask === 'completion_result' && message.text === '') ||
+				['resume_task', 'resume_completed_task'].includes(message.ask!)
 			) {
 				return false
 			}
-			if (["api_req_finished", "api_req_retried"].includes(message.say!)) {
+			if (['api_req_finished', 'api_req_retried'].includes(message.say!)) {
 				return false
 			}
-			if (message.say === "api_req_started") return true
-			if (message.say === "text" && (message.text ?? "") === "" && (message.images?.length ?? 0) === 0) {
+			if (message.say === 'api_req_started') return true
+			if (message.say === 'text' && (message.text ?? '') === '' && (message.images?.length ?? 0) === 0) {
 				return false
 			}
 			return true
@@ -180,7 +177,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Scroll to bottom when messages change
 	useEffect(() => {
 		const timer = setTimeout(() => {
-			virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: "smooth" })
+			virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: 'smooth' })
 		}, 50)
 		return () => clearTimeout(timer)
 	}, [visibleMessages])
@@ -190,18 +187,18 @@ const ChatView: React.FC<ChatViewProps> = ({
 		const text = inputValue.trim()
 		if (text || selectedImages.length > 0) {
 			if (messages.length === 0) {
-				vscode.postMessage({ type: "newTask", text, images: selectedImages })
+				vscode.postMessage({ type: 'newTask', text, images: selectedImages })
 			} else if (claudeAsk) {
 				handleClaudeAskResponse(text)
 			} else {
 				vscode.postMessage({
-					type: "askResponse",
-					askResponse: "messageResponse",
+					type: 'askResponse',
+					askResponse: 'messageResponse',
 					text,
 					images: selectedImages,
 				})
 			}
-			setInputValue("")
+			setInputValue('')
 			setTextAreaDisabled(true)
 			setSelectedImages([])
 			setClaudeAsk(undefined)
@@ -214,18 +211,17 @@ const ChatView: React.FC<ChatViewProps> = ({
 		(text: string) => {
 			if (claudeAsk) {
 				vscode.postMessage({
-					type: "askResponse",
-					askResponse: "messageResponse",
+					type: 'askResponse',
+					askResponse: 'messageResponse',
 					text,
 					images: selectedImages,
 				})
 			}
 		},
-		[claudeAsk, selectedImages]
+		[claudeAsk, selectedImages],
 	)
 
 	// Handle paste
-
 	const handlePaste = async (e: React.ClipboardEvent) => {
 		if (shouldDisableImages) {
 			e.preventDefault()
@@ -233,10 +229,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 		}
 
 		const items = e.clipboardData.items
-		const acceptedTypes = ["png", "jpeg", "webp"] // supported by anthropic and openrouter (jpg is just a file extension but the image will be recognized as jpeg)
+		const acceptedTypes = ['png', 'jpeg', 'webp'] // supported by anthropic and openrouter (jpg is just a file extension but the image will be recognized as jpeg)
 		const imageItems = Array.from(items).filter((item) => {
-			const [type, subtype] = item.type.split("/")
-			return type === "image" && acceptedTypes.includes(subtype)
+			const [type, subtype] = item.type.split('/')
+			return type === 'image' && acceptedTypes.includes(subtype)
 		})
 		if (imageItems.length > 0) {
 			e.preventDefault()
@@ -250,11 +246,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 					const reader = new FileReader()
 					reader.onloadend = () => {
 						if (reader.error) {
-							console.error("Error reading file:", reader.error)
+							console.error('Error reading file:', reader.error)
 							resolve(null)
 						} else {
 							const result = reader.result
-							resolve(typeof result === "string" ? result : null)
+							resolve(typeof result === 'string' ? result : null)
 						}
 					}
 					reader.readAsDataURL(blob)
@@ -266,7 +262,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 			if (dataUrls.length > 0) {
 				setSelectedImages((prevImages) => [...prevImages, ...dataUrls].slice(0, MAX_IMAGES_PER_MESSAGE))
 			} else {
-				console.warn("No valid images were processed")
+				console.warn('No valid images were processed')
 			}
 		}
 	}
@@ -274,17 +270,17 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Handle primary button click
 	const handlePrimaryButtonClick = useCallback(() => {
 		switch (claudeAsk) {
-			case "api_req_failed":
-			case "request_limit_reached":
-			case "command":
-			case "command_output":
-			case "tool":
-			case "resume_task":
-				vscode.postMessage({ type: "askResponse", askResponse: "yesButtonTapped" })
+			case 'api_req_failed':
+			case 'request_limit_reached':
+			case 'command':
+			case 'command_output':
+			case 'tool':
+			case 'resume_task':
+				vscode.postMessage({ type: 'askResponse', askResponse: 'yesButtonTapped' })
 				break
-			case "completion_result":
-			case "resume_completed_task":
-				vscode.postMessage({ type: "clearTask" })
+			case 'completion_result':
+			case 'resume_completed_task':
+				vscode.postMessage({ type: 'clearTask' })
 				break
 		}
 		setTextAreaDisabled(true)
@@ -295,13 +291,13 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Handle secondary button click
 	const handleSecondaryButtonClick = useCallback(() => {
 		switch (claudeAsk) {
-			case "request_limit_reached":
-			case "api_req_failed":
-				vscode.postMessage({ type: "clearTask" })
+			case 'request_limit_reached':
+			case 'api_req_failed':
+				vscode.postMessage({ type: 'clearTask' })
 				break
-			case "command":
-			case "tool":
-				vscode.postMessage({ type: "askResponse", askResponse: "noButtonTapped" })
+			case 'command':
+			case 'tool':
+				vscode.postMessage({ type: 'askResponse', askResponse: 'noButtonTapped' })
 				break
 		}
 		setTextAreaDisabled(true)
@@ -314,104 +310,104 @@ const ChatView: React.FC<ChatViewProps> = ({
 		(e: MessageEvent) => {
 			const message: ExtensionMessage = e.data
 			switch (message.type) {
-				case "action":
-					if (message.action === "didBecomeVisible") {
+				case 'action':
+					if (message.action === 'didBecomeVisible') {
 						if (!isHidden && !textAreaDisabled && !enableButtons) {
 							textAreaRef.current?.focus()
 						}
 					}
 					break
-				case "selectedImages":
+				case 'selectedImages':
 					const newImages = message.images ?? []
 					if (newImages.length > 0) {
 						setSelectedImages((prevImages) =>
-							[...prevImages, ...newImages].slice(0, MAX_IMAGES_PER_MESSAGE)
+							[...prevImages, ...newImages].slice(0, MAX_IMAGES_PER_MESSAGE),
 						)
 					}
 					break
 			}
 		},
-		[isHidden, textAreaDisabled, enableButtons]
+		[isHidden, textAreaDisabled, enableButtons],
 	)
 
-	useEvent("message", handleMessage)
+	useEvent('message', handleMessage)
 
 	useMount(() => {
 		textAreaRef.current?.focus()
 	})
 
-	const isAbortAllowed = messages.length > 2 && messages.at(-1)?.say === "api_req_started"
+	const isAbortAllowed = messages.length > 2 && messages.at(-1)?.say === 'api_req_started'
 
 	// Handle ask messages
 	const handleAskMessage = (message: ClaudeMessage) => {
 		// This function updates the component state based on the type of ask message received
 		switch (message.ask) {
-			case "request_limit_reached":
+			case 'request_limit_reached':
 				setTextAreaDisabled(true)
-				setClaudeAsk("request_limit_reached")
+				setClaudeAsk('request_limit_reached')
 
 				setEnableButtons(true)
-				setPrimaryButtonText("Proceed")
-				setSecondaryButtonText("Start New Task")
+				setPrimaryButtonText('Proceed')
+				setSecondaryButtonText('Start New Task')
 				break
-			case "api_req_failed":
+			case 'api_req_failed':
 				setTextAreaDisabled(true)
-				setClaudeAsk("api_req_failed")
+				setClaudeAsk('api_req_failed')
 				if (!message.autoApproved) {
 					setEnableButtons(true)
-					setPrimaryButtonText("Retry")
-					setSecondaryButtonText("Start New Task")
+					setPrimaryButtonText('Retry')
+					setSecondaryButtonText('Start New Task')
 				}
 				break
-			case "followup":
-				console.log("followup")
+			case 'followup':
+				console.log('followup')
 				setEnableButtons(false)
-				setPrimaryButtonText("")
-				setSecondaryButtonText("")
+				setPrimaryButtonText('')
+				setSecondaryButtonText('')
 				setTextAreaDisabled(false)
-				setClaudeAsk("followup")
+				setClaudeAsk('followup')
 				break
-			case "tool":
+			case 'tool':
 				setTextAreaDisabled(false)
-				setClaudeAsk("tool")
+				setClaudeAsk('tool')
 				if (!message.autoApproved) {
 					setEnableButtons(true)
-					const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
+					const tool = JSON.parse(message.text || '{}') as ClaudeSayTool
 					handleToolButtons(tool)
 				}
 				break
-			case "command":
+			case 'command':
 				setTextAreaDisabled(false)
-				setClaudeAsk("command")
+				setClaudeAsk('command')
 				if (!message.autoApproved) {
 					setEnableButtons(true)
-					setPrimaryButtonText("Run Command")
-					setSecondaryButtonText("Reject")
+					setPrimaryButtonText('Run Command')
+					setSecondaryButtonText('Reject')
 				}
 				break
-			case "command_output":
+			case 'command_output':
 				setTextAreaDisabled(false)
-				setClaudeAsk("command_output")
+				setClaudeAsk('command_output')
 				if (!message.autoApproved) {
 					setEnableButtons(true)
-					setPrimaryButtonText("Exit Command")
+					setPrimaryButtonText('Exit Command')
 					setSecondaryButtonText(undefined)
 				}
 
 				break
-			case "completion_result":
-			case "resume_completed_task":
+			case 'completion_result':
+			case 'resume_completed_task':
 				setTextAreaDisabled(false)
 				setClaudeAsk(message.ask)
 				setEnableButtons(true)
-				setPrimaryButtonText("Start New Task")
+				setPrimaryButtonText('Start New Task')
 				setSecondaryButtonText(undefined)
 				break
-			case "resume_task":
+			case 'resume_task':
 				setTextAreaDisabled(false)
-				setClaudeAsk("resume_task")
+				setClaudeAsk('resume_task')
 				setEnableButtons(true)
-				setPrimaryButtonText("Resume Task")
+				setPrimaryButtonText('Resume Task')
 				setSecondaryButtonText(undefined)
 				break
 		}
@@ -421,7 +417,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const handleSayMessage = (message: ClaudeMessage) => {
 		// This function updates the component state based on the type of say message received
 		switch (message.say) {
-			case "text":
+			case 'text':
 				setTextAreaDisabled(false)
 				setClaudeAsk(undefined)
 				// removes the button text if the message is say
@@ -429,23 +425,23 @@ const ChatView: React.FC<ChatViewProps> = ({
 				setSecondaryButtonText(undefined)
 				setEnableButtons(false)
 				break
-			case "abort_automode":
+			case 'abort_automode':
 				setTextAreaDisabled(false)
 				setClaudeAsk(undefined)
 				setEnableButtons(false)
 				setPrimaryButtonText(undefined)
 				setSecondaryButtonText(undefined)
 				break
-			case "api_req_started":
-				if (messages.at(-2)?.ask === "command_output") {
-					setInputValue("")
+			case 'api_req_started':
+				if (messages.at(-2)?.ask === 'command_output') {
+					setInputValue('')
 					setTextAreaDisabled(true)
 					setSelectedImages([])
 					setClaudeAsk(undefined)
 					setEnableButtons(false)
 				}
 				break
-			case "error":
+			case 'error':
 				setIsAbortingRequest(false)
 				setTextAreaDisabled(false)
 				setClaudeAsk(undefined)
@@ -459,17 +455,17 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Handle tool buttons
 	const handleToolButtons = (tool: ClaudeSayTool) => {
 		switch (tool.tool) {
-			case "editedExistingFile":
-				setPrimaryButtonText("Save")
-				setSecondaryButtonText("Reject")
+			case 'editedExistingFile':
+				setPrimaryButtonText('Save')
+				setSecondaryButtonText('Reject')
 				break
-			case "newFileCreated":
-				setPrimaryButtonText("Create")
-				setSecondaryButtonText("Reject")
+			case 'newFileCreated':
+				setPrimaryButtonText('Create')
+				setSecondaryButtonText('Reject')
 				break
 			default:
-				setPrimaryButtonText("Approve")
-				setSecondaryButtonText("Reject")
+				setPrimaryButtonText('Approve')
+				setSecondaryButtonText('Reject')
 				break
 		}
 	}
@@ -484,12 +480,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	// Set placeholder text
 	const placeholderText = useMemo(() => {
-		return task ? "Type a message..." : "Type your task here..."
+		return task ? 'Type a message...' : 'Describe your project or ask a coding question...'
 	}, [task])
-
-	// Check if a request is running
-
-	// Determine if abort automode should be shown
 
 	// Determine if images should be disabled
 	const shouldDisableImages =
@@ -509,96 +501,60 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Memoize the handleSendStdin function
 	const handleSendStdin = useCallback(
 		(text: string) => {
-			if (claudeAsk === "command_output") {
+			if (claudeAsk === 'command_output') {
 				vscode.postMessage({
-					type: "askResponse",
-					askResponse: "messageResponse",
+					type: 'askResponse',
+					askResponse: 'messageResponse',
 					text: COMMAND_STDIN_STRING + text,
 				})
 				setClaudeAsk(undefined)
 			}
 		},
-		[claudeAsk]
+		[claudeAsk],
 	)
+
+	// Handle quick start
+	const handleQuickStart = useCallback((template: string) => {
+		vscode.postMessage({ type: 'quickstart', template })
+	}, [])
 
 	return (
 		<div
 			style={{
-				position: "fixed",
+				position: 'fixed',
 				top: 0,
 				left: 0,
 				right: 0,
 				bottom: 0,
-				display: isHidden ? "none" : "flex",
-				flexDirection: "column",
-				overflow: "hidden",
-			}}>
+				display: isHidden ? 'none' : 'flex',
+				flexDirection: 'column',
+				overflow: 'hidden',
+			}}
+		>
 			<div
 				style={{
-					borderTop: "1px solid var(--section-border)",
-					flex: "1 1 0%",
-					display: "flex",
-					flexDirection: "column",
-					overflowY: "auto",
-				}}>
+					borderTop: '1px solid var(--section-border)',
+					flex: '1 1 0%',
+					display: 'flex',
+					flexDirection: 'column',
+					overflowY: 'auto',
+				}}
+			>
 				{task ? (
-					<TaskHeader
-						task={task}
-						tokensIn={apiMetrics.totalTokensIn}
-						tokensOut={apiMetrics.totalTokensOut}
-						doesModelSupportPromptCache={selectedModelSupportsPromptCache}
-						cacheWrites={apiMetrics.totalCacheWrites}
-						cacheReads={apiMetrics.totalCacheReads}
-						totalCost={apiMetrics.totalCost}
-						onClose={() => vscode.postMessage({ type: "clearTask" })}
-						isHidden={isHidden}
-						koduCredits={user?.credits ?? 0}
-						vscodeUriScheme={uriScheme}
-					/>
-				) : (
 					<>
-						{showAnnouncement && (
-							<Announcement
-								version={version}
-								hideAnnouncement={hideAnnouncement}
-								vscodeUriScheme={uriScheme}
-							/>
-						)}
-						{!showAnnouncement && shouldShowKoduPromo && (
-							<KoduPromo style={{ margin: "10px 15px -10px 15px" }} />
-						)}
-						<section className="text-start">
-							<h3 className="flex-line uppercase text-alt">What can I do for you?</h3>
-							<div>
-								Thanks to{" "}
-								<VSCodeLink
-									href="https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf"
-									style={{ display: "inline" }}>
-									Claude 3.5 Sonnet's agentic coding capabilities,
-								</VSCodeLink>{" "}
-								I can handle complex software development tasks step-by-step. With tools that let me
-								create & edit files, explore complex projects, and execute terminal commands (after you
-								grant permission), I can assist you in ways that go beyond simple code completion or
-								tech support.
-							</div>
-						</section>
-						{taskHistory.length > 0 ? (
-							<HistoryPreview showHistoryView={showHistoryView} />
-						) : (
-							<EmptyScreen
-								handleClick={(text) => {
-									setInputValue(text)
-									const el = document.getElementById(CHAT_BOX_INPUT_ID)
-									if (el) {
-										el.focus()
-									}
-								}}
-							/>
-						)}
-					</>
-				)}
-				{task && (
-					<>
+						<TaskHeader
+							task={task}
+							tokensIn={apiMetrics.totalTokensIn}
+							tokensOut={apiMetrics.totalTokensOut}
+							doesModelSupportPromptCache={selectedModelSupportsPromptCache}
+							cacheWrites={apiMetrics.totalCacheWrites}
+							cacheReads={apiMetrics.totalCacheReads}
+							totalCost={apiMetrics.totalCost}
+							onClose={() => vscode.postMessage({ type: 'clearTask' })}
+							isHidden={isHidden}
+							koduCredits={user?.credits ?? 0}
+							vscodeUriScheme={uriScheme}
+						/>
 						<ChatMessages
 							visibleMessages={visibleMessages}
 							syntaxHighlighterStyle={syntaxHighlighterStyle}
@@ -615,29 +571,97 @@ const ChatView: React.FC<ChatViewProps> = ({
 							handleSecondaryButtonClick={handleSecondaryButtonClick}
 						/>
 					</>
+				) : (
+					<div className="flex flex-col items-center justify-center min-h-80 p-4">
+						<Card className="w-full max-w-2xl border-gray-700">
+							<CardContent className="p-6">
+								<div className="flex flex-col items-center space-y-6">
+									<Avatar className="w-16 h-16 bg-purple-900 border-2 text-purple-100">
+										<AvatarFallback>Claude</AvatarFallback>
+									</Avatar>
+									<h1 className="text-2xl font-semibold text-center text-white">
+										What should we code today?
+									</h1>
+									<p className="text-center text-gray-400">
+										I'm Claude Coder, your AI coding assistant. I can help you build your dream
+										project, even if you're new to coding!
+									</p>
+									<div className="flex flex-col sm:flex-row gap-4 w-full">
+										<Button
+											variant="outline"
+											className="flex-1 bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
+											onClick={() => setInputValue("Let's start a new project, I'm thinking about making a...")}
+										>
+											<Code className="mr-2 h-4 w-4" />
+											Start a new project
+										</Button>
+										<ProjectStarterChooser onSelect={handleQuickStart} />
+									</div>
+									<div className="flex flex-col sm:flex-row gap-4 w-full">
+										<Button
+											variant="outline"
+											className="flex-1 bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
+											onClick={() => setInputValue('I need help debugging my code, I have been encountering the following error: ...')}
+										>
+											<Code className="mr-2 h-4 w-4" />
+											Debug my code
+										</Button>
+										<Button
+											variant="outline"
+											className="flex-1 bg-gray-700 text-white border-gray-600 hover:bg-gray-600"
+											onClick={() => setInputValue('Can you teach me coding basics ? I want to learn...')}
+										>
+											Learn coding basics
+										</Button>
+									</div>
+									<div className="relative w-full">
+										<InputArea
+											inputValue={inputValue}
+											setInputValue={setInputValue}
+											textAreaDisabled={textAreaDisabled}
+											handleSendMessage={handleSendMessage}
+											placeholderText={placeholderText}
+											selectedImages={selectedImages}
+											setSelectedImages={setSelectedImages}
+											shouldDisableImages={shouldDisableImages}
+											selectImages={selectImages}
+											thumbnailsHeight={thumbnailsHeight}
+											handleThumbnailsHeightChange={handleThumbnailsHeightChange}
+											isRequestRunning={!!isMessageRunning}
+											isInTask={!!task}
+											// @ts-expect-error - extract is not working here
+											handleKeyDown={handleKeyDown}
+											handlePaste={handlePaste}
+										/>
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					</div>
 				)}
 			</div>
-			<div className="mt-2 border-t">
-				{!task && <ProjectStarterChooser />}
-				<InputArea
-					inputValue={inputValue}
-					setInputValue={setInputValue}
-					textAreaDisabled={textAreaDisabled}
-					handleSendMessage={handleSendMessage}
-					placeholderText={placeholderText}
-					selectedImages={selectedImages}
-					setSelectedImages={setSelectedImages}
-					shouldDisableImages={shouldDisableImages}
-					selectImages={selectImages}
-					thumbnailsHeight={thumbnailsHeight}
-					handleThumbnailsHeightChange={handleThumbnailsHeightChange}
-					isRequestRunning={!!isMessageRunning}
-					isInTask={!!task}
-					// @ts-expect-error - extract is not working here
-					handleKeyDown={handleKeyDown}
-					handlePaste={handlePaste}
-				/>
-			</div>
+			{task && (
+				<div className="mt-2 border-t">
+					<InputArea
+						inputValue={inputValue}
+						setInputValue={setInputValue}
+						textAreaDisabled={textAreaDisabled}
+						handleSendMessage={handleSendMessage}
+						placeholderText={placeholderText}
+						selectedImages={selectedImages}
+						setSelectedImages={setSelectedImages}
+						shouldDisableImages={shouldDisableImages}
+						selectImages={selectImages}
+						thumbnailsHeight={thumbnailsHeight}
+						handleThumbnailsHeightChange={handleThumbnailsHeightChange}
+						isRequestRunning={!!isMessageRunning}
+						isInTask={!!task}
+						// @ts-expect-error - extract is not working here
+						handleKeyDown={handleKeyDown}
+						handlePaste={handlePaste}
+					/>
+				</div>
+			)}
 		</div>
 	)
 }
