@@ -26,7 +26,7 @@ import ProjectStarterChooser from "../project-starters"
 import ButtonSection from "./ButtonSection"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
-import EmptyScreen from "./EmptyScreen"
+import ChatScreen from "./chat-screen"
 import { CHAT_BOX_INPUT_ID } from "./InputTextArea"
 
 interface ChatViewProps {
@@ -186,28 +186,34 @@ const ChatView: React.FC<ChatViewProps> = ({
 	}, [visibleMessages])
 
 	// Handle sending messages
-	const handleSendMessage = useCallback(() => {
-		const text = inputValue.trim()
-		if (text || selectedImages.length > 0) {
-			if (messages.length === 0) {
-				vscode.postMessage({ type: "newTask", text, images: selectedImages })
-			} else if (claudeAsk) {
-				handleClaudeAskResponse(text)
-			} else {
-				vscode.postMessage({
-					type: "askResponse",
-					askResponse: "messageResponse",
-					text,
-					images: selectedImages,
-				})
+	const handleSendMessage = useCallback(
+		(input?: string) => {
+			let text = inputValue.trim()
+			if (input) {
+				text = input.trim()
 			}
-			setInputValue("")
-			setTextAreaDisabled(true)
-			setSelectedImages([])
-			setClaudeAsk(undefined)
-			setEnableButtons(false)
-		}
-	}, [inputValue, selectedImages, messages.length, claudeAsk])
+			if (text || selectedImages.length > 0) {
+				if (messages.length === 0) {
+					vscode.postMessage({ type: "newTask", text, images: selectedImages })
+				} else if (claudeAsk) {
+					handleClaudeAskResponse(text)
+				} else {
+					vscode.postMessage({
+						type: "askResponse",
+						askResponse: "messageResponse",
+						text,
+						images: selectedImages,
+					})
+				}
+				setInputValue("")
+				setTextAreaDisabled(true)
+				setSelectedImages([])
+				setClaudeAsk(undefined)
+				setEnableButtons(false)
+			}
+		},
+		[inputValue, selectedImages, messages.length, claudeAsk]
+	)
 
 	// Handle Claude ask response
 	const handleClaudeAskResponse = useCallback(
@@ -567,34 +573,13 @@ const ChatView: React.FC<ChatViewProps> = ({
 						{!showAnnouncement && shouldShowKoduPromo && (
 							<KoduPromo style={{ margin: "10px 15px -10px 15px" }} />
 						)}
-						<section className="text-start">
-							<h3 className="flex-line uppercase text-alt">What can I do for you?</h3>
-							<div>
-								Thanks to{" "}
-								<VSCodeLink
-									href="https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf"
-									style={{ display: "inline" }}>
-									Claude 3.5 Sonnet's agentic coding capabilities,
-								</VSCodeLink>{" "}
-								I can handle complex software development tasks step-by-step. With tools that let me
-								create & edit files, explore complex projects, and execute terminal commands (after you
-								grant permission), I can assist you in ways that go beyond simple code completion or
-								tech support.
-							</div>
-						</section>
-						{taskHistory.length > 0 ? (
-							<HistoryPreview showHistoryView={showHistoryView} />
-						) : (
-							<EmptyScreen
-								handleClick={(text) => {
-									setInputValue(text)
-									const el = document.getElementById(CHAT_BOX_INPUT_ID)
-									if (el) {
-										el.focus()
-									}
-								}}
-							/>
-						)}
+
+						<ChatScreen
+							taskHistory={<HistoryPreview showHistoryView={showHistoryView} />}
+							handleClick={(text) => {
+								handleSendMessage(text)
+							}}
+						/>
 					</>
 				)}
 				{task && (

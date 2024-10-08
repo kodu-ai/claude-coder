@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import CodeBlock from "../CodeBlock/CodeBlock"
 
 interface MarkdownRendererProps {
 	markdown: string
@@ -43,7 +44,7 @@ const ThinkingContent: React.FC<{ node: any; rendererProps: MarkdownRendererProp
 				<ScrollArea
 					viewProps={{ className: "max-h-[200px] pt-0" }}
 					className="w-full rounded-b-md bg-primary/5 p-4 pt-0">
-					<div className="whitespace-pre-wrap">{textContent}</div>
+					<div>{textContent}</div>
 					<ScrollBar forceMount />
 				</ScrollArea>
 			</CollapsibleContent>
@@ -110,6 +111,29 @@ const CustomButton: React.FC<{ node: any }> = ({ node }) => {
 	)
 }
 
+const WriteToFile: React.FC<{ node: any; syntaxHighlighterStyle: SyntaxHighlighterStyle }> = ({
+	node,
+	syntaxHighlighterStyle,
+}) => {
+	const [isExpanded, setIsExpanded] = React.useState(false)
+	const textContent = extractTextContent(node)
+	return (
+		<>
+			<h3 className="flex-line text-alt">
+				<span className={`codicon codicon-new-file text-alt`} />
+				Claude wants to create a new file:
+			</h3>
+			<CodeBlock
+				code={textContent}
+				path={node.properties.path}
+				syntaxHighlighterStyle={syntaxHighlighterStyle}
+				isExpanded={isExpanded}
+				onToggleExpand={() => setIsExpanded(!isExpanded)}
+			/>
+		</>
+	)
+}
+
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, syntaxHighlighterStyle }) => {
 	return (
 		<ReactMarkdown
@@ -118,9 +142,10 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, syntaxHig
 				// @ts-expect-error not typed
 				thinking: ThinkingContent,
 				"call-to-action": CallToAction,
+				// "write-to-file": (props) => <WriteToFile {...props} syntaxHighlighterStyle={syntaxHighlighterStyle} />,
 				preview: Preview,
-				p: (props) => <p className="my-4 leading-7" {...props} />,
-				ol: (props) => <ol className="list-decimal list-inside my-4 pl-6 space-y-2" {...props} />,
+				p: (props) => <p className="my-1 leading-6 " {...props} />,
+				ol: (props) => <ol className="list-decimal list-inside pl-4 space-y-2" {...props} />,
 				ul: (props) => <ul className="list-disc list-inside my-4 pl-6 space-y-2" {...props} />,
 				li: (props) => <li style={{ listStyle: "auto !important" }} className="mb-1 list" {...props} />,
 				h1: (props) => (

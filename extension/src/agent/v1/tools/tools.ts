@@ -370,25 +370,25 @@ export const tools: Tool[] = [
 			required: ["path"],
 		},
 	},
-	// {
-	// 	name: "write_to_file",
-	// 	description:
-	// 		"Write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. Always provide the full intended content of the file, without any truncation. This tool will automatically create any directories needed to write the file.",
-	// 	input_schema: {
-	// 		type: "object",
-	// 		properties: {
-	// 			path: {
-	// 				type: "string",
-	// 				description: `The path of the file to write to (relative to the current working directory ${cwd})`,
-	// 			},
-	// 			content: {
-	// 				type: "string",
-	// 				description: "The full content to write to the file.",
-	// 			},
-	// 		},
-	// 		required: ["path", "content"],
-	// 	},
-	// },
+	{
+		name: "write_to_file",
+		description:
+			"Write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. Always provide the full intended content of the file, without any truncation. This tool will automatically create any directories needed to write the file.",
+		input_schema: {
+			type: "object",
+			properties: {
+				path: {
+					type: "string",
+					description: `The path of the file to write to (relative to the current working directory ${cwd})`,
+				},
+				content: {
+					type: "string",
+					description: "The full content to write to the file.",
+				},
+			},
+			required: ["path", "content"],
+		},
+	},
 	{
 		name: "ask_followup_question",
 		description:
