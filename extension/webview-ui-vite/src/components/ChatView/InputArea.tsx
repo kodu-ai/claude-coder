@@ -1,11 +1,10 @@
 import React, { KeyboardEvent, useRef, useState } from "react"
-import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
-import DynamicTextArea from "react-textarea-autosize"
 import Thumbnails from "../Thumbnails/Thumbnails"
 import { Button } from "../ui/button"
-import { cn } from "@/lib/utils"
 import { vscode } from "@/utils/vscode"
 import InputV1 from "./InputV1"
+
+import GitDialog from "./GitDialog"
 
 interface InputAreaProps {
 	inputValue: string
@@ -44,6 +43,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 }) => {
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
 	const [isTextAreaFocused, setIsTextAreaFocused] = useState(false)
+
 	return (
 		<>
 			<div
@@ -56,14 +56,18 @@ const InputArea: React.FC<InputAreaProps> = ({
 					marginTop: 0,
 				}}>
 				{isInTask && (
-					<Button
-						onClick={() => vscode.postMessage({ type: "cancelCurrentRequest" })}
-						disabled={!isRequestRunning}
-						size="sm"
-						variant="destructive"
-						className="w-fit">
-						Abort Request
-					</Button>
+					<div className="flex justify-between">
+						<Button
+							onClick={() => vscode.postMessage({ type: "cancelCurrentRequest" })}
+							disabled={!isRequestRunning}
+							size="sm"
+							variant="destructive"
+							className="w-fit">
+							Abort Request
+						</Button>
+
+						{/* <GitDialog /> */}
+					</div>
 				)}
 
 				{/* {!isTextAreaFocused && (
@@ -110,7 +114,9 @@ const InputArea: React.FC<InputAreaProps> = ({
 						right: 20,
 						display: "flex",
 						alignItems: "flex-center",
-						height: "calc(100% - 20px)",
+						height: "calc(100% - 80px)",
+						marginTop: 30,
+						marginBottom: 30,
 						bottom: 10,
 					}}>
 					<div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2 }}>

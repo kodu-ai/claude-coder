@@ -66,6 +66,12 @@ type DebugMessage = {
 	type: "debug"
 }
 
+type GitCheckoutToMessage = {
+	type: "gitCheckoutTo"
+	identifier: string
+	newBranchName?: string
+}
+
 export type WebviewMessage =
 	| exportBugMessage
 	| experimentalTerminalMessage
@@ -77,6 +83,7 @@ export type WebviewMessage =
 	| QuickstartMessage
 	| setUseUdiff
 	| DebugMessage
+	| GitCheckoutToMessage
 	| {
 			type:
 				| "cancelCurrentRequest"
@@ -103,6 +110,8 @@ export type WebviewMessage =
 				| "setCreativeMode"
 				| "fileTree"
 				| "clearHistory"
+				| "gitLog"
+				| "gitBranches"
 			text?: string
 			askResponse?: ClaudeAskResponse
 			images?: string[]
