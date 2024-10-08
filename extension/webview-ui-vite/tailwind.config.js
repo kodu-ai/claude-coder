@@ -64,9 +64,21 @@ export default {
 					DEFAULT: createColorWithOpacity("--vscode-button-background"),
 					foreground: createColorWithOpacity("--vscode-button-foreground"),
 				},
+				success: {
+					DEFAULT: createColorWithOpacity("--vscode-terminal-ansiGreen"),
+					foreground: createColorWithOpacity("--vscode-button-foreground"),
+				},
 				secondary: {
 					DEFAULT: createColorWithOpacity("--vscode-button-secondaryBackground"),
 					foreground: createColorWithOpacity("--vscode-button-secondaryForeground"),
+				},
+				warning: {
+					DEFAULT: createColorWithOpacity("--vscode-editorWarning-foreground"),
+					foreground: createColorWithOpacity("--vscode-button-foreground"),
+				},
+				info: {
+					DEFAULT: createColorWithOpacity("--vscode-editorInfo-foreground"),
+					foreground: createColorWithOpacity("--vscode-button-foreground"),
 				},
 				destructive: {
 					DEFAULT: createColorWithOpacity("--vscode-editorError-foreground"),

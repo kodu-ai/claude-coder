@@ -1,17 +1,16 @@
-import { execa, ExecaError, ResultPromise } from "execa"
-import { serializeError } from "serialize-error"
-import { ToolResponse } from "../types"
-import { COMMAND_OUTPUT_DELAY } from "../constants"
-import { formatGenericToolFeedback, formatToolResponse, getCwd, getPotentiallyRelevantDetails } from "../utils"
-import delay from "delay"
-import { COMMAND_STDIN_STRING } from "../../../shared/combineCommandSequences"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { BaseAgentTool } from "./base-agent.tool"
-import treeKill from "tree-kill"
-import { findLastIndex } from "../../../utils"
-import { ExecaTerminalManager } from "../../../integrations/terminal/execa-terminal-manager"
-import { AdvancedTerminalManager } from "../../../integrations/terminal"
 import Anthropic from "@anthropic-ai/sdk"
+import delay from "delay"
+import { ExecaError, ResultPromise, execa } from "execa"
+import { serializeError } from "serialize-error"
+import treeKill from "tree-kill"
+import { AdvancedTerminalManager } from "../../../integrations/terminal"
+import { COMMAND_STDIN_STRING } from "../../../shared/combineCommandSequences"
+import { findLastIndex } from "../../../utils"
+import { COMMAND_OUTPUT_DELAY } from "../constants"
+import { ToolResponse } from "../types"
+import { formatGenericToolFeedback, formatToolResponse, getCwd, getPotentiallyRelevantDetails } from "../utils"
+import { BaseAgentTool } from "./base-agent.tool"
+import { AgentToolOptions, AgentToolParams } from "./types"
 
 export class ExecuteCommandTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -249,6 +248,20 @@ export class ExecuteCommandTool extends BaseAgentTool {
 
 			try {
 				await Promise.race([subprocess, timeoutPromise])
+				// Check if the output exceeds 15k characters and summarize it if necessary
+				if (result.length > 15_000) {
+					try {
+						say("info", `Command output exceeds 15 000 characters. Making a summary...`)
+						const summary = await this.koduDev.getApiManager().getApi()?.sendSummarizeRequest?.(result, command)
+						if (!summary || !summary.result) {
+							return 'Summarization failed.'
+						}
+						return `Summarized command output:\n${response.length}`
+					} catch (err) {
+						return `Failed to summarize the command output: ${err}`
+					}
+				}
+	
 				if (subprocess.exitCode !== 0) {
 					throw new Error(`Command failed with exit code ${subprocess.exitCode}`)
 				}
@@ -278,14 +291,15 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			}
 
 			if (returnEmptyStringOnSuccess) {
-				return ""
+				return ''
 			}
+
 			return `Command Output:\n${result}`
 		} catch (e) {
 			const error = e as any
 			let errorMessage = error.message || JSON.stringify(serializeError(error), null, 2)
 			const errorString = `Error executing command:\n${errorMessage}`
-			await say("error", `Error executing command:\n${errorMessage}`)
+			await say('error', `Error executing command:\n${errorMessage}`)
 
 			this.setRunningProcessId(undefined)
 			return errorString
