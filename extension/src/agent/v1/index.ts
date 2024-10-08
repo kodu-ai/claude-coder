@@ -24,7 +24,7 @@ export class KoduDev {
 	private toolExecutor: ToolExecutor
 	public taskExecutor: TaskExecutor
 	public terminalManager: ReturnType<typeof createTerminalManager>
-	private providerRef: WeakRef<ClaudeDevProvider>
+	public providerRef: WeakRef<ClaudeDevProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
 	public diagnosticsHandler: DiagnosticsHandler

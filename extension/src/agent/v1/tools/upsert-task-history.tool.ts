@@ -28,10 +28,10 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 				.catch(() => false)
 
 			if (!fileExists) {
-				await fs.mkdir(path.dirname(absolutePath), { recursive: true })
+				await fs.writeFile(absolutePath, "", { flag: "wx" })
 			}
-			await fs.writeFile(absolutePath, content)
-			this.koduDev.getStateManager().state.taskHistory = content
+
+			Promise.all([fs.writeFile(absolutePath, content), this.updateHistoryItemInState(content)])
 
 			const writePath = getReadablePath(absolutePath, this.cwd)
 			await this.koduDev.gitHandler.commitChanges(summary, writePath)
@@ -75,5 +75,15 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 - [ ] Store emails to sqlite via prisma"
 			Please try again with the correct markdown content..
 			`
+	}
+
+	private async updateHistoryItemInState(content: string) {
+		this.koduDev.getStateManager().state.taskHistory = content
+
+		const taskId = this.koduDev.getStateManager().state.taskId
+		const { historyItem } = await this.koduDev.providerRef.deref()?.getTaskManager().getTaskWithId(taskId)!
+		historyItem.taskHistory = content
+
+		await this.koduDev.providerRef.deref()?.getStateManager().updateTaskHistory(historyItem)
 	}
 }

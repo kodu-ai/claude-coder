@@ -189,7 +189,7 @@ export class TaskManager {
 		}
 	}
 
-	private async getTaskWithId(id: string): Promise<{
+	public async getTaskWithId(id: string): Promise<{
 		historyItem: HistoryItem
 		taskDirPath: string
 		apiConversationHistoryFilePath: string
