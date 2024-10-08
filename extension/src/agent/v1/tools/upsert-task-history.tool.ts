@@ -21,7 +21,7 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 		}
 
 		try {
-			const absolutePath = path.resolve(this.cwd, this.TASK_HISTORY_FILENAME)
+			const absolutePath = path.resolve(this.cwd, BaseAgentTool.TASK_HISTORY_FILENAME)
 			const fileExists = await fs
 				.access(absolutePath)
 				.then(() => true)
@@ -31,6 +31,7 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 				await fs.mkdir(path.dirname(absolutePath), { recursive: true })
 			}
 			await fs.writeFile(absolutePath, content)
+			this.koduDev.getStateManager().state.taskHistory = content
 
 			const writePath = getReadablePath(absolutePath, this.cwd)
 			await this.koduDev.gitHandler.commitChanges(summary, writePath)

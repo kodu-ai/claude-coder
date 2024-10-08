@@ -8,7 +8,5 @@ export type HistoryItem = {
 	cacheReads?: number
 	totalCost: number
 	name?: string
-	memory?: {
-		progres
-	}
+	taskHistory?: string
 }

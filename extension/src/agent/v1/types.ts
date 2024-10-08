@@ -39,6 +39,7 @@ export interface KoduDevState {
 	lastMessageTs?: number
 	executeCommandRunningProcess?: ResultPromise
 	abort: boolean
+	taskHistory?: string
 }
 
 export interface ClaudeRequestResult {

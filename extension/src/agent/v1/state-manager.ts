@@ -45,6 +45,7 @@ export class StateManager {
 
 		this._state = {
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
+			taskHistory: historyItem?.taskHistory ?? "",
 			requestCount: 0,
 			apiConversationHistory: [],
 			claudeMessages: [],

@@ -15,6 +15,7 @@ import { ToolInput } from "./tools/types"
 import { createTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
 import { DiagnosticsHandler, GitHandler } from "./handlers"
+import { ReadTaskHistoryTool } from "./tools"
 
 // new KoduDev
 export class KoduDev {
@@ -53,6 +54,7 @@ export class KoduDev {
 
 		this.stateManager.setState({
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
+			taskHistory: historyItem?.taskHistory ?? "",
 			requestCount: 0,
 			apiConversationHistory: [],
 			claudeMessages: [],
@@ -300,6 +302,9 @@ export class KoduDev {
 		amplitudeTracker.taskResume(this.stateManager.state.taskId, pastRequestsCount)
 
 		await this.gitHandler.initFromResumedTask(modifiedClaudeMessages)
+		const taskHistory = ReadTaskHistoryTool.getTaskHistory(getCwd())
+		this.stateManager.state.taskHistory = taskHistory
+
 		this.stateManager.state.isHistoryItemResumed = true
 		await this.stateManager.overwriteApiConversationHistory(modifiedApiConversationHistory)
 		await this.taskExecutor.startTask(combinedModifiedOldUserContentWithNewUserContent)
