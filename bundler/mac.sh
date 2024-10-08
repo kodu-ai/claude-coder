@@ -30,6 +30,6 @@ echo "Installing the VS Code extension..."
 echo "Opening Visual Studio Code and focusing on the extension..."
 open -a "Visual Studio Code"
 sleep 5
-open "vscode:extension/kodu-ai.claude-dev-experimental"
+open "vscode://kodu-ai.claude-dev-experimental/kodu-claude-coder-main.plusButtonTapped"
 
 echo "Installation and setup complete!"
