@@ -1,12 +1,12 @@
+import { readdir } from "fs/promises"
+import path from "path"
 import * as vscode from "vscode"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
 import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
+import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ClaudeDevProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
-import { readdir } from "fs/promises"
-import path from "path"
-import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 
 interface FileTreeItem {
 	id: string
@@ -215,7 +215,7 @@ export class WebviewManager {
 				continue
 			}
 
-			const id = parentId ? `${parentId}-${entry.name}` : entry.name
+			const id = parentId ? `${parentId}/${entry.name}` : entry.name
 			const fullPath = path.join(dir, entry.name)
 
 			if (entry.isDirectory()) {
@@ -318,7 +318,7 @@ export class WebviewManager {
 						await this.postStateToWebview()
 						break
 					case "newTask":
-						await this.provider.getTaskManager().handleNewTask(message.text, message.images)
+						await this.provider.getTaskManager().handleNewTask(message.text, message.images, message.attachements)
 						break
 					case "apiConfiguration":
 						if (message.apiConfiguration) {
@@ -347,7 +347,7 @@ export class WebviewManager {
 					case "askResponse":
 						await this.provider
 							.getTaskManager()
-							.handleAskResponse(message.askResponse!, message.text, message.images)
+							.handleAskResponse(message.askResponse!, message.text, message.images, message.attachements)
 						break
 					case "clearTask":
 						await this.provider.getTaskManager().clearTask()

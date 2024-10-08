@@ -1,20 +1,22 @@
-import React from "react"
-import ReactMarkdown from "react-markdown"
-import rehypeRaw from "rehype-raw"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
-import { ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Info, AlertTriangle, ExternalLink } from "lucide-react"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import CodeBlock from "../CodeBlock/CodeBlock"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, Info } from "lucide-react"
+import React from "react"
+import ReactMarkdown from "react-markdown"
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
+import rehypeRaw from "rehype-raw"
+import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
+import FileList from "./FileList"
 
 interface MarkdownRendererProps {
 	markdown: string
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
 }
+
 const extractTextContent = (node: any): string => {
 	if (typeof node === "string") return node
 	if (typeof node.value === "string") return node.value
@@ -23,6 +25,7 @@ const extractTextContent = (node: any): string => {
 	}
 	return ""
 }
+
 const ThinkingContent: React.FC<{ node: any; rendererProps: MarkdownRendererProps }> = ({ node, rendererProps }) => {
 	const [isExpanded, setIsExpanded] = React.useState(false)
 	const textContent = extractTextContent(node)
@@ -134,7 +137,7 @@ const WriteToFile: React.FC<{ node: any; syntaxHighlighterStyle: SyntaxHighlight
 	)
 }
 
-const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, syntaxHighlighterStyle }) => {
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, syntaxHighlighterStyle }) => {
 	return (
 		<ReactMarkdown
 			rehypePlugins={[rehypeRaw]}

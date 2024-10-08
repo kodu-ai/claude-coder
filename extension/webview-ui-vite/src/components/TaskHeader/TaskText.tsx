@@ -1,8 +1,60 @@
-import React, { useEffect, useRef, useState } from "react"
-import { useWindowSize } from "react-use"
+import React, { useEffect, useRef, useState } from "react";
+import { useWindowSize } from "react-use";
+import FileList, { FileItem } from "../ChatRow/FileList";
 
 interface TaskTextProps {
 	text?: string
+}
+
+function splitString(input: string) {
+  const regex = /<additional-context>\[(.*?)\]<\/additional-context>/;
+  const match = input.match(regex);
+
+  if (match) {
+    const additionalContent = match[1];
+    const mainContent = input.replace(match[0], '').trim();
+
+    return {
+      mainContent,
+      additionalContent,
+    };
+  } else {
+    return {
+      mainContent: input,
+      additionalContent: null,
+    };
+  }
+}
+
+function extractAdditionalContext(input: string): [string, string | null] {
+  const regex = /<additional-context(?:\s+[^>]*)?>[\s\S]*?<\/additional-context>/;
+  const match = input.match(regex);
+
+  if (match) {
+    const [fullMatch] = match;
+    const index = input.indexOf(fullMatch);
+    const before = input.slice(0, index);
+    const after = input.slice(index + fullMatch.length);
+    return [before + after, fullMatch];
+  }
+
+  return [input, null];
+}
+
+function extractFilesFromContext(input: string): FileItem[] {
+  const fileRegex = /<file\s+path="([^"]+)">(.*?)<\/file>/gs;
+  const files: FileItem[] = [];
+  let match;
+
+  while ((match = fileRegex.exec(input)) !== null) {
+    const path = match[1]; // Extract the path from the first capturing group
+    const content = match[2].trim(); // Extract and trim the content from the second capturing group
+    const name = path.split('/').pop() || ''; // Get the file name from the path
+
+    files.push({ name, content }); // Create a FileItem object and push it to the array
+  }
+
+  return files; // Return the array of FileItem objects
 }
 
 const TaskText: React.FC<TaskTextProps> = ({ text }) => {
@@ -35,6 +87,12 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 	}, [text, windowWidth])
 
 	const toggleExpand = () => setIsExpanded(!isExpanded)
+	const parts = extractAdditionalContext(text || '');
+	let filesCut: FileItem[] = []
+	if (parts[1]) {
+		filesCut = extractFilesFromContext(parts[1]);
+	}
+
 
 	return (
 		<>
@@ -58,7 +116,7 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 						wordBreak: "break-word",
 						overflowWrap: "anywhere",
 					}}>
-					{text}
+					{parts[0].trim()}
 				</div>
 				{!isExpanded && showSeeMore && (
 					<div
@@ -90,6 +148,10 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 					</div>
 				)}
 			</div>
+			{filesCut && (
+				<FileList files={filesCut} />
+			)}
+				
 			{isExpanded && showSeeMore && (
 				<div
 					style={{
