@@ -144,8 +144,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 					break
 			}
 		} else {
-			setTextAreaDisabled(false)
 			setAttachements([])
+			setTextAreaDisabled(false)
 			setClaudeAsk(undefined)
 			setEnableButtons(false)
 			setPrimaryButtonText(undefined)
@@ -212,6 +212,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 						attachements: attachements
 					})
 				}
+				setAttachements([])
 				setInputValue("")
 				setTextAreaDisabled(true)
 				setSelectedImages([])
