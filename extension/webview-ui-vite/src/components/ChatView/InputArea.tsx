@@ -66,7 +66,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 							Abort Request
 						</Button>
 
-						<GitDialog />
+						{/* <GitDialog /> */}
 					</div>
 				)}
 
