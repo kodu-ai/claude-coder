@@ -430,6 +430,15 @@ export class WebviewManager {
 							branches,
 						})
 						break
+					case "getTaskHistory":
+						this.postMessageToWebview({
+							type: "taskHistory",
+							history: this.provider.getKoduDev()?.getStateManager().state.taskHistory ?? "",
+						})
+						break
+					case "updateTaskHistory":
+						this.provider.getKoduDev()?.executeTool("upsert_task_history", { content: message.history })
+						break
 				}
 			},
 			null,
