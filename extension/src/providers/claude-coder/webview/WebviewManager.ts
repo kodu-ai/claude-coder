@@ -403,6 +403,33 @@ export class WebviewManager {
 					case "debug":
 						await this.handleDebugInstruction()
 						break
+					case "gitLog":
+						const history = (await this.provider.getKoduDev()?.gitHandler.getLog()) ?? []
+
+						this.postMessageToWebview({
+							type: "gitLog",
+							history,
+						})
+						break
+					case "gitCheckoutTo":
+						const isSuccess =
+							(await this.provider
+								.getKoduDev()
+								?.gitHandler.checkoutTo(message.identifier, message.newBranchName)) ?? false
+
+						this.postMessageToWebview({
+							type: "gitCheckoutTo",
+							isSuccess,
+						})
+						break
+					case "gitBranches":
+						const branches = (await this.provider.getKoduDev()?.gitHandler.getBranches()) ?? []
+
+						this.postMessageToWebview({
+							type: "gitBranches",
+							branches,
+						})
+						break
 				}
 			},
 			null,

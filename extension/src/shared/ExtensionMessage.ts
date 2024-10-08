@@ -14,6 +14,22 @@ type PostFoldersAndItems = {
 	type: "fileTree"
 	tree: FileTreeItem[]
 }
+
+type PostGitLog = {
+	type: "gitLog"
+	history: GitLogItem[]
+}
+
+type PostGitBranches = {
+	type: "gitBranches"
+	branches: GitBranchItem[]
+}
+
+type PostGitCheckoutSuccess = {
+	type: "gitCheckoutTo"
+	isSuccess: boolean
+}
+
 type PostClaudeMessages = {
 	type: "claudeMessages"
 	claudeMessages: ExtensionState["claudeMessages"]
@@ -38,6 +54,9 @@ export type ExtensionMessage =
 	  }
 	| PostFoldersAndItems
 	| PostClaudeMessages
+	| PostGitLog
+	| PostGitBranches
+	| PostGitCheckoutSuccess
 
 export interface ExtensionState {
 	version: string
@@ -171,3 +190,15 @@ export type ClaudeSayTool =
 			regex?: string
 			filePattern?: string
 	  }
+
+export type GitLogItem = {
+	hash: string
+	datetime: string
+	message: string
+}
+
+export type GitBranchItem = {
+	name: string
+	lastCommitRelativeTime: string
+	isCheckedOut: boolean
+}

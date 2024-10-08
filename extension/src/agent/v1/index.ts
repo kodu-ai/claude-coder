@@ -128,7 +128,6 @@ export class KoduDev {
 		let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
 		amplitudeTracker.taskStart(this.stateManager.state.taskId)
 
-		await this.gitHandler.setupRepository()
 		await this.taskExecutor.say("text", task, images)
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
 	}
@@ -300,6 +299,7 @@ export class KoduDev {
 		const pastRequestsCount = modifiedApiConversationHistory.filter((m) => m.role === "assistant").length
 		amplitudeTracker.taskResume(this.stateManager.state.taskId, pastRequestsCount)
 
+		await this.gitHandler.initFromResumedTask(modifiedClaudeMessages)
 		this.stateManager.state.isHistoryItemResumed = true
 		await this.stateManager.overwriteApiConversationHistory(modifiedApiConversationHistory)
 		await this.taskExecutor.startTask(combinedModifiedOldUserContentWithNewUserContent)
