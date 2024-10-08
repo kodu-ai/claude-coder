@@ -5,3 +5,7 @@ export type WebSearchResponseDto = {
 export type AskConsultantResponseDto = {
 	result: string
 }
+
+export type SummaryResponseDto = {
+	result: string
+}

@@ -106,6 +106,15 @@ const UserFeedbackMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo((
 	</div>
 ))
 
+const InfoMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => (
+	<div style={{ display: "flex", alignItems: "start", gap: "8px" }} className="text-info">
+		<span className="codicon codicon-info" style={{ marginTop: "2px" }} />
+		<div style={{ display: "grid", gap: "8px" }}>
+			<div>{message.text}</div>
+		</div>
+	</div>
+))
+
 const UserFeedbackDiffMessage: React.FC<{
 	message: V1ClaudeMessage
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
@@ -210,6 +219,8 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 						return null
 					case "text":
 						return <TextMessage message={message} syntaxHighlighterStyle={syntaxHighlighterStyle} />
+					case "info":
+						return <InfoMessage message={message} />
 					case "user_feedback":
 						return <UserFeedbackMessage message={message} />
 					case "user_feedback_diff":

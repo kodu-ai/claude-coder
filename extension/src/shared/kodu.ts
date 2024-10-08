@@ -35,6 +35,10 @@ export function getKoduBugReportUrl() {
 	return `${KODU_BASE_URL}/api/bug-report`
 }
 
+export function getKoduSummarizeUrl() {
+	return `${KODU_BASE_URL}/api/tools/summarize`
+}
+
 export function getKoduWebSearchUrl() {
 	return `${KODU_BASE_URL}/api/tools/web-search`
 }

@@ -405,10 +405,65 @@ export class WebviewManager {
 						await this.provider.getSecretStateManager().resetState()
 						await this.postStateToWebview()
 						break
+					case "debug":
+						await this.handleDebugInstruction()
+						break
+					case "gitLog":
+						const history = (await this.provider.getKoduDev()?.gitHandler.getLog()) ?? []
+
+						this.postMessageToWebview({
+							type: "gitLog",
+							history,
+						})
+						break
+					case "gitCheckoutTo":
+						const isSuccess =
+							(await this.provider
+								.getKoduDev()
+								?.gitHandler.checkoutTo(message.identifier, message.newBranchName)) ?? false
+
+						this.postMessageToWebview({
+							type: "gitCheckoutTo",
+							isSuccess,
+						})
+						break
+					case "gitBranches":
+						const branches = (await this.provider.getKoduDev()?.gitHandler.getBranches()) ?? []
+
+						this.postMessageToWebview({
+							type: "gitBranches",
+							branches,
+						})
+						break
 				}
 			},
 			null,
 			this.provider["disposables"]
 		)
+	}
+
+	private async handleDebugInstruction(): Promise<void> {
+		const agent = this.provider.getKoduDev()!
+		const openFolders = vscode.workspace.workspaceFolders
+
+		if (!openFolders) {
+			await agent.taskExecutor.say("error", "No open workspaces!")
+			return
+		}
+
+		if (openFolders.length > 1) {
+			await agent.taskExecutor.say("info", "Multiple workspaces detected! Please open only one workspace.")
+			return
+		}
+
+		const rootPath = openFolders[0].uri.fsPath
+
+		const problemsString = await agent.diagnosticsHandler?.getProblemsString(rootPath)
+		if (!problemsString) {
+			await agent.taskExecutor.say("info", "No problems detected!")
+			return
+		}
+
+		return await agent.taskExecutor.handleAskResponse("messageResponse", problemsString)
 	}
 }

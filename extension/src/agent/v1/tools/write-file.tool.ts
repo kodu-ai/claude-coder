@@ -10,6 +10,7 @@ import os from "os"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
 import { AgentToolOptions, AgentToolParams } from "./types"
 import { BaseAgentTool } from "./base-agent.tool"
+import { DiagnosticsHandler } from "../handlers"
 
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -24,38 +25,8 @@ export class WriteFileTool extends BaseAgentTool {
 		const { path: relPath, content } = input
 		let newContent = content
 
-		if (relPath === undefined) {
-			await say(
-				"error",
-				"Claude tried to use write_to_file without value for required parameter 'path'. Retrying..."
-			)
-
-			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
-			A good example of a writeToFile tool call is:
-			{
-				"tool": "write_to_file",
-				"path": "path/to/file.txt",
-				"content": "new content"
-			}
-			Please try again with the correct path and content, you are not allowed to write files without a path.
-			`
-		}
-
-		if (newContent === undefined) {
-			await say(
-				"error",
-				`Claude tried to use write_to_file for '${relPath}' without value for required parameter 'content'. This is likely due to output token limits. Retrying...`
-			)
-
-			return `Error: Missing value for required parameter 'content'. Please retry with complete response.
-						A good example of a writeToFile tool call is:
-			{
-				"tool": "write_to_file",
-				"path": "path/to/file.txt",
-				"content": "new content"
-			}
-			Please try again with the correct path and content, you are not allowed to write files without a path.
-			`
+		if (!newContent || !relPath) {
+			return await this.onBadInputReceived()
 		}
 
 		try {
@@ -74,10 +45,11 @@ export class WriteFileTool extends BaseAgentTool {
 				}
 			}
 
+			let response: ToolResponse
 			if (this.alwaysAllowWriteOnly) {
-				return await this.writeFileDirectly(absolutePath, newContent, fileExists, relPath, say)
+				response = await this.writeFileDirectly(absolutePath, newContent, fileExists, relPath, say)
 			} else {
-				return await this.writeFileWithUserApproval(
+				response = await this.writeFileWithUserApproval(
 					absolutePath,
 					originalContent,
 					newContent,
@@ -87,6 +59,19 @@ export class WriteFileTool extends BaseAgentTool {
 					say
 				)
 			}
+
+			const writePath = getReadablePath(relPath, this.cwd)
+			await this.koduDev.gitHandler.commitChanges(`Created file ${writePath}`, writePath)
+
+			const diagnosticsHandler = this.options.koduDev.diagnosticsHandler
+			const generatedErrors = diagnosticsHandler.getErrorsGeneratedByLastStep()
+			diagnosticsHandler.updateSeenErrors()
+
+			if (generatedErrors.length > 0) {
+				return response + DiagnosticsHandler.errorsToString(generatedErrors, this.cwd)
+			}
+
+			return response
 		} catch (error) {
 			const errorString = `Error writing file: ${JSON.stringify(serializeError(error))}
 						A good example of a writeToFile tool call is:
@@ -104,6 +89,43 @@ export class WriteFileTool extends BaseAgentTool {
 			)
 			return errorString
 		}
+	}
+
+	private async onBadInputReceived(): Promise<ToolResponse> {
+		const { input, say } = this.params
+		const { path: relPath, content: newContent } = input
+
+		if (relPath === undefined) {
+			await say(
+				"error",
+				"Claude tried to use write_to_file without value for required parameter 'path'. Retrying..."
+			)
+
+			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
+			A good example of a writeToFile tool call is:
+			{
+				"tool": "write_to_file",
+				"path": "path/to/file.txt",
+				"content": "new content"
+			}
+			Please try again with the correct path and content, you are not allowed to write files without a path.
+			`
+		}
+
+		await say(
+			"error",
+			`Claude tried to use write_to_file for '${relPath}' without value for required parameter 'content'. This is likely due to output token limits. Retrying...`
+		)
+
+		return `Error: Missing value for required parameter 'content'. Please retry with complete response.
+						A good example of a writeToFile tool call is:
+			{
+				"tool": "write_to_file",
+				"path": "path/to/file.txt",
+				"content": "new content"
+			}
+			Please try again with the correct path and content, you are not allowed to write files without a path.
+			`
 	}
 
 	private async writeFileDirectly(

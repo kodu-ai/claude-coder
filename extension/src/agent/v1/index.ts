@@ -14,6 +14,7 @@ import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
 import { createTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
+import { DiagnosticsHandler, GitHandler } from "./handlers"
 
 // new KoduDev
 export class KoduDev {
@@ -25,6 +26,8 @@ export class KoduDev {
 	private providerRef: WeakRef<ClaudeDevProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
+	public diagnosticsHandler: DiagnosticsHandler
+	public gitHandler: GitHandler
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
@@ -43,6 +46,8 @@ export class KoduDev {
 		)
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
 		this.browserManager = new BrowserManager()
+		this.diagnosticsHandler = new DiagnosticsHandler()
+		this.gitHandler = new GitHandler(getCwd())
 
 		this.setupTaskExecutor()
 
@@ -122,6 +127,7 @@ export class KoduDev {
 		}
 		let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
 		amplitudeTracker.taskStart(this.stateManager.state.taskId)
+
 		await this.taskExecutor.say("text", task, images)
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
 	}
@@ -293,6 +299,7 @@ export class KoduDev {
 		const pastRequestsCount = modifiedApiConversationHistory.filter((m) => m.role === "assistant").length
 		amplitudeTracker.taskResume(this.stateManager.state.taskId, pastRequestsCount)
 
+		await this.gitHandler.initFromResumedTask(modifiedClaudeMessages)
 		this.stateManager.state.isHistoryItemResumed = true
 		await this.stateManager.overwriteApiConversationHistory(modifiedApiConversationHistory)
 		await this.taskExecutor.startTask(combinedModifiedOldUserContentWithNewUserContent)
