@@ -1,7 +1,4 @@
-import * as path from "path"
-import fs from "fs/promises"
 import { ToolResponse } from "../types"
-import { getReadablePath } from "../utils"
 import { BaseAgentTool } from "./base-agent.tool"
 import type { AgentToolOptions, AgentToolParams } from "./types"
 import { serializeError } from "serialize-error"
@@ -21,20 +18,15 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 		}
 
 		try {
-			const absolutePath = path.resolve(this.cwd, BaseAgentTool.TASK_HISTORY_FILENAME)
-			const fileExists = await fs
-				.access(absolutePath)
-				.then(() => true)
-				.catch(() => false)
+			const taskId = this.koduDev.getStateManager().state.taskId
+			const { historyItem } = await this.koduDev.providerRef.deref()?.getTaskManager().getTaskWithId(taskId)!
+			const state = this.koduDev.getStateManager().state
 
-			if (!fileExists) {
-				await fs.writeFile(absolutePath, "", { flag: "wx" })
-			}
+			historyItem.memory = content
+			state.memory = content
 
-			Promise.all([fs.writeFile(absolutePath, content), this.updateHistoryItemInState(content)])
-
-			const writePath = getReadablePath(absolutePath, this.cwd)
-			await this.koduDev.gitHandler.commitChanges(summary, writePath)
+			await this.koduDev.providerRef.deref()?.getStateManager().updateTaskHistory(historyItem)
+			await this.koduDev.getStateManager().setState(state)
 
 			return "Successfully updated task history."
 		} catch (error) {
@@ -55,15 +47,15 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 	}
 
 	private async onBadInputReceived(): Promise<ToolResponse> {
-		const { summary, content } = this.params.input
-		const missingParam = !summary ? "summary" : "context"
+		const { summary } = this.params.input
+		const missingParam = !summary ? "summary" : "content"
 
 		await this.params.say(
 			"error",
-			`Error: Missing value for required parameter '${missingParam}'. Please provide both 'summary' and 'content' for the task history update.`
+			`Error: Missing value for required parameter '${missingParam}'. Please provide all values: 'summary' and 'content' for the task history update.`
 		)
 
-		return `Error: Missing value for required parameter 'content'. Please retry with complete response.
+		return `Error: Missing value for required parameter ${missingParam}. Please retry with complete response.
 						A good example of a upsert_task_history tool call is:
 			{
 				"tool": "upsert_task_history",
@@ -75,15 +67,5 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 - [ ] Store emails to sqlite via prisma"
 			Please try again with the correct markdown content..
 			`
-	}
-
-	private async updateHistoryItemInState(content: string) {
-		this.koduDev.getStateManager().state.taskHistory = content
-
-		const taskId = this.koduDev.getStateManager().state.taskId
-		const { historyItem } = await this.koduDev.providerRef.deref()?.getTaskManager().getTaskWithId(taskId)!
-		historyItem.taskHistory = content
-
-		await this.koduDev.providerRef.deref()?.getStateManager().updateTaskHistory(historyItem)
 	}
 }

@@ -28,7 +28,6 @@ export class KoduDev {
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
 	public diagnosticsHandler: DiagnosticsHandler
-	public gitHandler: GitHandler
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
@@ -45,16 +44,16 @@ export class KoduDev {
 			!!this.stateManager.experimentalTerminal,
 			this.providerRef.deref()!.context
 		)
-		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
+		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this.providerRef)
 		this.browserManager = new BrowserManager()
 		this.diagnosticsHandler = new DiagnosticsHandler()
-		this.gitHandler = new GitHandler(getCwd())
 
 		this.setupTaskExecutor()
 
 		this.stateManager.setState({
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
-			taskHistory: historyItem?.taskHistory ?? "",
+			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
+			isRepoInitialized: historyItem?.isRepoInitialized ?? false,
 			requestCount: 0,
 			apiConversationHistory: [],
 			claudeMessages: [],
@@ -81,7 +80,7 @@ export class KoduDev {
 
 	private setupTaskExecutor() {
 		// Pass necessary methods to the TaskExecutor
-		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
+		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this.providerRef)
 	}
 
 	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
@@ -300,10 +299,6 @@ export class KoduDev {
 
 		const pastRequestsCount = modifiedApiConversationHistory.filter((m) => m.role === "assistant").length
 		amplitudeTracker.taskResume(this.stateManager.state.taskId, pastRequestsCount)
-
-		await this.gitHandler.initFromResumedTask(modifiedClaudeMessages)
-		const taskHistory = ReadTaskHistoryTool.getTaskHistory(getCwd())
-		this.stateManager.state.taskHistory = taskHistory
 
 		this.stateManager.state.isHistoryItemResumed = true
 		await this.stateManager.overwriteApiConversationHistory(modifiedApiConversationHistory)

@@ -139,8 +139,12 @@ export class TaskManager {
 	async showTaskWithId(id: string) {
 		if (id !== this.provider.getKoduDev()?.getStateManager().state.taskId) {
 			const { historyItem } = await this.getTaskWithId(id)
+
 			await this.provider.initClaudeDevWithHistoryItem(historyItem)
+			await this.provider.getKoduDev()?.taskExecutor.gitHandler.init(historyItem.dirAbsolutePath!)
 		}
+
+		// await this.provider.getTaskExecutor().runTask()
 		await this.provider.getWebviewManager().postMessageToWebview({ type: "action", action: "chatButtonTapped" })
 	}
 

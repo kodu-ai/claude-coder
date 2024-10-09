@@ -38,6 +38,7 @@ type PostClaudeMessages = {
 type PostTaskHistory = {
 	type: "taskHistory"
 	history: string
+	isInitialized: boolean
 }
 
 // webview will hold state

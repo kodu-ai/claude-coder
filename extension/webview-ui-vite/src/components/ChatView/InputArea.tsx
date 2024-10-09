@@ -67,9 +67,11 @@ const InputArea: React.FC<InputAreaProps> = ({
 							Abort Request
 						</Button>
 
-						<TaskHistoryModal />
+						<div className="flex gap-2">
+							<TaskHistoryModal />
 
-						{/* <GitDialog /> */}
+							<GitDialog />
+						</div>
 					</div>
 				)}
 

@@ -5,8 +5,6 @@ import { AgentToolOptions, AgentToolParams } from "./types"
 import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "../utils"
 
 export abstract class BaseAgentTool {
-	protected static readonly TASK_HISTORY_FILENAME = ".kodu.md"
-
 	protected cwd: string
 	protected alwaysAllowReadOnly: boolean
 	protected alwaysAllowWriteOnly: boolean

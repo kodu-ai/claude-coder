@@ -36,7 +36,7 @@ export class ToolExecutor {
 		this.terminalManager = new TerminalManager()
 	}
 
-	private get options(): AgentToolOptions {
+	public get options(): AgentToolOptions {
 		return {
 			cwd: this.cwd,
 			alwaysAllowReadOnly: this.alwaysAllowReadOnly,
