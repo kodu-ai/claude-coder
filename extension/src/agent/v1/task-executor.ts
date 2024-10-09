@@ -1,3 +1,4 @@
+import * as path from "path"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeAsk, ClaudeMessage, ClaudeSay, isV1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
@@ -12,6 +13,9 @@ import { ToolInput } from "./tools/types"
 import { ToolName, UserContent } from "./types"
 import { debounce } from "lodash"
 import { ChunkProcessor } from "./chunk-proccess"
+import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
+import { GitHandler } from "./handlers/git-handler"
+import { getCwd } from "./utils"
 
 export enum TaskState {
 	IDLE = "IDLE",
@@ -42,8 +46,10 @@ class TaskError extends Error {
  */
 export class TaskExecutor {
 	public state: TaskState = TaskState.IDLE
+	public gitHandler: GitHandler
 	private stateManager: StateManager
 	private toolExecutor: ToolExecutor
+	private providerRef: WeakRef<ClaudeDevProvider>
 	private currentUserContent: UserContent | null = null
 	private currentApiResponse: Anthropic.Messages.Message | null = null
 	private currentToolResults: Anthropic.ToolResultBlockParam[] = []
@@ -55,9 +61,11 @@ export class TaskExecutor {
 	private abortController: AbortController | null = null
 	private consecutiveErrorCount: number = 0
 
-	constructor(stateManager: StateManager, toolExecutor: ToolExecutor) {
+	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ClaudeDevProvider>) {
 		this.stateManager = stateManager
 		this.toolExecutor = toolExecutor
+		this.providerRef = providerRef
+		this.gitHandler = new GitHandler()
 	}
 
 	public async newMessage(message: UserContent) {
@@ -347,6 +355,8 @@ export class TaskExecutor {
 					totalInputTokens: metrics.totalTokensIn,
 				})
 			}
+
+			await this.onBeforeToolExecution(toolName as ToolName, input)
 			const result = await this.toolExecutor.executeTool({
 				name: toolName as ToolName,
 				input,
@@ -354,12 +364,51 @@ export class TaskExecutor {
 				ask: this.ask.bind(this),
 				say: this.say.bind(this),
 			})
+			await this.onAfterToolExecution(toolName as ToolName, input)
 
 			console.log(`Tool result:`, result)
 			this.currentToolResults.push({ type: "tool_result", tool_use_id: toolUseId, content: result })
 			this.state = TaskState.PROCESSING_RESPONSE
 		} catch (error) {
+			console.error(`Error executing tool: ${toolName}`, error)
 			await this.handleToolError(error as TaskError)
+		}
+	}
+
+	private async onBeforeToolExecution(toolName: ToolName, input: ToolInput): Promise<void> {
+		const initTriggers = ["write_to_file", "update_file"]
+		// on the first write_to_file tool call, set dirAbsolutePath and initialize repo
+		if (initTriggers.includes(toolName)) {
+			const state = this.stateManager.state
+			const isNotInitialized = !state.dirAbsolutePath || !state.isRepoInitialized
+
+			if (isNotInitialized && input.path) {
+				const { historyItem } = await this.providerRef.deref()?.getTaskManager().getTaskWithId(state.taskId)!
+
+				const [baseDir] = input.path.split(path.sep)
+				const cwd = this.toolExecutor.options.cwd
+				const dirAbsolutePath = path.join(cwd, baseDir)
+				if (dirAbsolutePath) {
+					historyItem.dirAbsolutePath = dirAbsolutePath
+					state.dirAbsolutePath = dirAbsolutePath
+				}
+
+				if (!state.isRepoInitialized) {
+					const isRepoInitialized = await this.gitHandler.init(dirAbsolutePath)
+					historyItem.isRepoInitialized = isRepoInitialized
+					state.isRepoInitialized = isRepoInitialized
+				}
+
+				await this.providerRef.deref()?.getStateManager().updateTaskHistory(historyItem)
+				await this.stateManager.setState(state)
+			}
+		}
+	}
+
+	// say and git commit and dignaostics can happen here
+	private async onAfterToolExecution(toolName: ToolName, input: ToolInput): Promise<void> {
+		if (toolName === "upsert_task_history") {
+			await this.gitHandler.commitChangesOnMilestone(input.summary!)
 		}
 	}
 

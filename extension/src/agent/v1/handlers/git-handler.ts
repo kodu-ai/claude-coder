@@ -2,38 +2,28 @@ import * as path from "path"
 import { exec } from "child_process"
 import { promises as fs } from "fs"
 import { ClaudeMessage, GitBranchItem, GitLogItem } from "../../../shared/ExtensionMessage"
+import { ToolName } from "../types"
 
 export class GitHandler {
-	private basePath: string
 	private repoPath: string | undefined
 	private DEFAULT_USER_NAME = "kodu-ai"
 	private DEFAULT_USER_EMAIL = "bot@kodu.ai"
 
-	constructor(basePath: string) {
-		this.basePath = basePath
-	}
+	constructor() {}
 
-	async initFromResumedTask(messages: ClaudeMessage[]): Promise<void> {
-		const firstWriteMessage = messages.find(
-			(msg) => msg.type === "ask" && msg?.ask === "tool" && JSON.parse(msg?.text ?? "").tool === "newFileCreated"
-		)
-
-		if (!firstWriteMessage) {
-			return
-		}
-
-		const fileWritePath = JSON.parse(firstWriteMessage.text!).path
-
-		await this.setupRepository(fileWritePath)
-	}
-
-	async setupRepository(fileWritePath: string): Promise<boolean> {
-		if (!this.basePath || !fileWritePath) {
+	async init(dirAbsolutePath: string): Promise<boolean> {
+		if (!dirAbsolutePath) {
 			return false
 		}
+		this.repoPath = dirAbsolutePath
 
-		const workspaceFolder = fileWritePath.split(path.sep)[0]
-		this.repoPath = path.resolve(this.basePath, workspaceFolder)
+		return await this.setupRepository()
+	}
+
+	private async setupRepository(): Promise<boolean> {
+		if (!this.repoPath) {
+			return false
+		}
 
 		try {
 			if (!(await this.isGitInstalled())) {
@@ -59,100 +49,149 @@ export class GitHandler {
 		}
 	}
 
-	async commitChanges(message: string, fileWritePath: string = ""): Promise<void> {
+	async commitChangesOnMilestone(message: string): Promise<boolean> {
+		if (!this.repoPath) {
+			return false
+		}
+
+		return await this.commitChanges(message)
+	}
+
+	/**
+	 * @deprecated, not using this now, the commit happens on achieving a milestone
+	 */
+	async commitChangesOnToolUse(toolName: ToolName, fileWritePath: string): Promise<boolean> {
+		if (!this.repoPath || !fileWritePath) {
+			return false
+		}
+
+		let message = ""
+		const fileName = fileWritePath.split(path.sep).pop()
+		switch (toolName) {
+			case "write_to_file":
+				message = `Created file ${fileName}`
+				break
+			case "update_file":
+				message = `Updated file ${fileName}`
+				break
+			case "upsert_task_history":
+				message = "Updated task history"
+				break
+			default:
+				return false
+		}
+
+		return await this.commitChanges(message)
+	}
+
+	private async commitChanges(message: string): Promise<boolean> {
 		try {
 			if (!(await this.isGitInstalled())) {
-				console.log("Git is not installed")
-				return
+				throw new Error("Git is not installed")
 			}
 
 			if (!(await this.isRepositorySetup())) {
-				const isSetup = await this.setupRepository(fileWritePath)
+				const isSetup = await this.setupRepository()
 
 				if (!isSetup) {
-					return
+					throw new Error("Failed to setup repository")
 				}
+			}
+
+			if (!message) {
+				throw new Error("Message is required")
 			}
 
 			return new Promise((resolve) => {
 				exec(`git add . && git commit -m "${message}"`, { cwd: this.repoPath }, (error, stdout, stderr) => {
 					if (error) {
-						console.error(`Error committing changes: ${error}`)
-						console.log(`Error committing changes: ${stderr}`)
+						throw new Error(`Error committing changes: ${error} \n ${stderr}`)
+					} else {
+						resolve(true)
 					}
-					resolve()
 				})
 			})
 		} catch (error) {
 			console.error(`Error committing changes: ${error}`)
+			return false
 		}
 	}
 
-	async getLog(): Promise<GitLogItem[]> {
-		if (!this.repoPath) {
+	static async getLog(repoAbsolutePath: string): Promise<GitLogItem[]> {
+		if (!repoAbsolutePath) {
 			return []
 		}
 
-		return new Promise((resolve) => {
-			exec(
-				`git log --pretty=format:"%h%x09%ad%x09%s" --date=format:"%Y-%m-%d %H:%M"`,
-				{ cwd: this.repoPath },
-				(error, stdout, stderr) => {
-					resolve(
-						stdout
+		try {
+			return new Promise((resolve) => {
+				exec(
+					`git log --pretty=format:"%h%x09%ad%x09%s" --date=format:"%Y-%m-%d %H:%M"`,
+					{ cwd: repoAbsolutePath },
+					(error, stdout, stderr) => {
+						resolve(
+							stdout
+								.trim()
+								.split("\n")
+								.map((line) => {
+									const [hash, date, time, ...messageParts] = line.split(/\s+/)
+									return {
+										hash,
+										datetime: `${date} ${time}`,
+										message: messageParts.join(" "),
+									}
+								})
+						)
+					}
+				)
+			})
+		} catch (error) {
+			console.error(`Error getting log: ${error}`)
+			return []
+		}
+	}
+
+	static async getBranches(repoAbsolutePath: string): Promise<GitBranchItem[]> {
+		if (!repoAbsolutePath) {
+			return []
+		}
+
+		try {
+			return new Promise((resolve) => {
+				exec(
+					"git for-each-ref --sort=-committerdate refs/heads/ --format='%(if)%(HEAD)%(then)* %(end)%(refname:short) %(committerdate:relative)'",
+					{ cwd: repoAbsolutePath },
+					(error, stdout, stderr) => {
+						const branches = stdout
 							.trim()
 							.split("\n")
 							.map((line) => {
-								const [hash, date, time, ...messageParts] = line.split(/\s+/)
+								const isCheckedOut = line.startsWith("*")
+								const cleanLine = isCheckedOut ? line.substring(2) : line // Remove "* " if it's the current branch
+								const spaceIndex = cleanLine.indexOf(" ")
+								const name = cleanLine.substring(0, spaceIndex)
+								const lastCommitRelativeTime = cleanLine.substring(spaceIndex + 1).trim()
+
 								return {
-									hash,
-									datetime: `${date} ${time}`,
-									message: messageParts.join(" "),
+									name,
+									isCheckedOut,
+									lastCommitRelativeTime,
 								}
 							})
-					)
-				}
-			)
-		})
-	}
 
-	async getBranches(): Promise<GitBranchItem[]> {
-		if (!this.repoPath) {
-			return []
-		}
-
-		return new Promise((resolve) => {
-			exec(
-				"git for-each-ref --sort=-committerdate refs/heads/ --format='%(if)%(HEAD)%(then)* %(end)%(refname:short) %(committerdate:relative)'",
-				{ cwd: this.repoPath },
-				(error, stdout, stderr) => {
-					const branches = stdout
-						.trim()
-						.split("\n")
-						.map((line) => {
-							const isCheckedOut = line.startsWith("*")
-							const cleanLine = isCheckedOut ? line.substring(2) : line // Remove "* " if it's the current branch
-							const spaceIndex = cleanLine.indexOf(" ")
-							const name = cleanLine.substring(0, spaceIndex)
-							const lastCommitRelativeTime = cleanLine.substring(spaceIndex + 1).trim()
-
-							return {
-								name,
-								isCheckedOut,
-								lastCommitRelativeTime,
-							}
+						const sortedBranches = branches.sort((a, b) => {
+							if (a.isCheckedOut) return -1
+							if (b.isCheckedOut) return 1
+							return 0
 						})
 
-					const sortedBranches = branches.sort((a, b) => {
-						if (a.isCheckedOut) return -1
-						if (b.isCheckedOut) return 1
-						return 0
-					})
-
-					resolve(sortedBranches)
-				}
-			)
-		})
+						resolve(sortedBranches)
+					}
+				)
+			})
+		} catch (error) {
+			console.error(`Error getting branches: ${error}`)
+			return []
+		}
 	}
 
 	async checkoutTo(identifier: string, newBranchName?: string): Promise<boolean> {
@@ -162,7 +201,7 @@ export class GitHandler {
 
 		return new Promise((resolve) => {
 			const command = newBranchName
-				? `git checkout ${identifier} && git checkout -b ${newBranchName}`
+				? `git checkout ${identifier} && git checkout -b ${newBranchName.replace(/ /g, "-")}`
 				: `git checkout ${identifier}`
 			exec(command, { cwd: this.repoPath }, (error) => {
 				if (error) {

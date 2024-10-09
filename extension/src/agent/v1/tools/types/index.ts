@@ -17,6 +17,7 @@ export type ToolInput = {
 	query?: string
 	baseLink?: string
 	url?: string
+	summary?: string
 }
 
 export type AgentToolParams = {

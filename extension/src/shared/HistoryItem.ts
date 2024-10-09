@@ -8,7 +8,7 @@ export type HistoryItem = {
 	cacheReads?: number
 	totalCost: number
 	name?: string
-	memory?: {
-		progres
-	}
+	dirAbsolutePath?: string
+	memory?: string
+	isRepoInitialized?: boolean
 }

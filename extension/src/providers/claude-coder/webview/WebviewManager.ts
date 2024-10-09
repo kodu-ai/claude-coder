@@ -7,6 +7,9 @@ import { quickStart } from "./quick-start"
 import { readdir } from "fs/promises"
 import path from "path"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
+import { ReadTaskHistoryTool } from "../../../agent/v1/tools"
+import { KoduDevState } from "../../../agent/v1/types"
+import { GitHandler } from "../../../agent/v1/handlers"
 
 interface FileTreeItem {
 	id: string
@@ -33,6 +36,10 @@ export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
 
 	constructor(private provider: ClaudeDevProvider) {}
+
+	private get state(): KoduDevState | undefined {
+		return this.provider.getKoduDev()?.getStateManager()?.state
+	}
 
 	setupWebview(webviewView: vscode.WebviewView | vscode.WebviewPanel) {
 		webviewView.webview.options = {
@@ -404,18 +411,17 @@ export class WebviewManager {
 						await this.handleDebugInstruction()
 						break
 					case "gitLog":
-						const history = (await this.provider.getKoduDev()?.gitHandler.getLog()) ?? []
-
 						this.postMessageToWebview({
 							type: "gitLog",
-							history,
+							history: await GitHandler.getLog(this.state?.dirAbsolutePath!),
 						})
 						break
 					case "gitCheckoutTo":
 						const isSuccess =
 							(await this.provider
 								.getKoduDev()
-								?.gitHandler.checkoutTo(message.identifier, message.newBranchName)) ?? false
+								?.taskExecutor?.gitHandler.checkoutTo(message.identifier, message.newBranchName)) ??
+							false
 
 						this.postMessageToWebview({
 							type: "gitCheckoutTo",
@@ -423,12 +429,18 @@ export class WebviewManager {
 						})
 						break
 					case "gitBranches":
-						const branches = (await this.provider.getKoduDev()?.gitHandler.getBranches()) ?? []
+						const branches = await GitHandler.getBranches(this.state?.dirAbsolutePath!)
 
 						this.postMessageToWebview({
 							type: "gitBranches",
 							branches,
 						})
+						break
+					case "getTaskHistory":
+						await this.getTaskHistory()
+						break
+					case "updateTaskHistory":
+						this.provider.getKoduDev()?.executeTool("upsert_task_history", { content: message.history })
 						break
 				}
 			},
@@ -460,5 +472,17 @@ export class WebviewManager {
 		}
 
 		return await agent.taskExecutor.handleAskResponse("messageResponse", problemsString)
+	}
+
+	private async getTaskHistory(): Promise<void> {
+		let memory = this.state?.memory
+
+		this.postMessageToWebview({
+			type: "taskHistory",
+			history:
+				memory ??
+				"Task history is not initialized yet, Agent will initialize it soon, or you can ask Agent to create it.",
+			isInitialized: !!memory,
+		})
 	}
 }

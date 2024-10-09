@@ -39,6 +39,9 @@ export interface KoduDevState {
 	lastMessageTs?: number
 	executeCommandRunningProcess?: ResultPromise
 	abort: boolean
+	memory?: string
+	dirAbsolutePath?: string
+	isRepoInitialized?: boolean
 }
 
 export interface ClaudeRequestResult {

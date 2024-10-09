@@ -5,6 +5,7 @@ import { vscode } from "@/utils/vscode"
 import InputV1 from "./InputV1"
 
 import GitDialog from "./GitDialog"
+import TaskHistoryModal from "./TaskHistoryDialog"
 
 interface InputAreaProps {
 	inputValue: string
@@ -66,7 +67,11 @@ const InputArea: React.FC<InputAreaProps> = ({
 							Abort Request
 						</Button>
 
-						{/* <GitDialog /> */}
+						<div className="flex gap-2">
+							{/* <TaskHistoryModal /> */}
+
+							<GitDialog />
+						</div>
 					</div>
 				)}
 
