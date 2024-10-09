@@ -1,11 +1,9 @@
 import { ApiConfiguration } from "../api"
 import { GlobalState } from "../providers/claude-coder/state/GlobalStateManager"
 
-export type Resource = {
-	id: string
-	type: "file" | "folder" | "url"
-	name: string
-}
+export type Resource = 
+  | { id: string; type: 'file' | 'folder'; name: string }
+  | { id: string; type: 'url'; description: string; name: string };
 
 export type AmplitudeWebviewMessage = {
 	type: "amplitude"

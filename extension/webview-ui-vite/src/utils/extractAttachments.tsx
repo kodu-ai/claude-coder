@@ -1,4 +1,4 @@
-import FileList, { FileItem } from "@/components/ChatRow/FileList"
+import AttachmentsList, { FileItem, UrlItem } from "@/components/ChatRow/FileList"
 
 export function extractAdditionalContext(input: string): [string, string | null] {
 	const regex = /<additional-context(?:\s+[^>]*)?>[\s\S]*?<\/additional-context>/
@@ -31,17 +31,49 @@ export function extractFilesFromContext(input: string): FileItem[] {
 	return files // Return the array of FileItem objects
 }
 
+export function extractUrlsFromContext(input: string): UrlItem[] {
+	const urlRegex = /<url\s+link="([^"]+)"\s+description="([^"]+)"\s*\/>/gs
+	const urls: UrlItem[] = []
+	let match
+
+	// Extract individual URLs
+	while ((match = urlRegex.exec(input)) !== null) {
+		const url = match[1] // Extract the link from the first capturing group
+		const description = match[2].trim() // Extract and trim the description from the second capturing group
+
+		urls.push({ url, description }) // Create a UrlItem object and push it to the array
+	}
+
+	// Extract grouped URLs
+	const groupedUrlRegex = /<urls\s+count="\d+">([\s\S]*?)<\/urls>/g
+	while ((match = groupedUrlRegex.exec(input)) !== null) {
+		const urlsContent = match[1].trim() // Extract the content between <urls> tags
+
+		// Split the content into individual URLs (assuming they are separated by newlines)
+		const additionalUrls = urlsContent.split('\n').map((url) => url.trim()).filter(Boolean)
+
+		// Add each URL to the UrlItem list with a default description if needed
+		additionalUrls.forEach((url) => {
+			urls.push({ url, description: 'No description provided' })
+		})
+	}
+
+	return urls // Return the array of UrlItem objects
+}
+
+
 export const TextWithAttachments = ({ text }: { text?: string }) => {
 	if (!text) {
 		return null
 	}
 	const [mainContent, additionalContent] = extractAdditionalContext(text)
 	const files = extractFilesFromContext(additionalContent || "")
+	const urls = extractUrlsFromContext(additionalContent || "")
 
 	return (
 		<div>
 			{mainContent}
-			{files.length > 0 && <FileList files={files} />}
+			<AttachmentsList files={files}  urls={urls}/>
 		</div>
 	)
 }

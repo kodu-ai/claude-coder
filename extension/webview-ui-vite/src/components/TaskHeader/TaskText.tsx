@@ -1,7 +1,7 @@
+import { extractAdditionalContext, extractFilesFromContext, extractUrlsFromContext } from "@/utils/extractAttachments";
 import React, { useEffect, useRef, useState } from "react";
 import { useWindowSize } from "react-use";
-import FileList, { FileItem } from "../ChatRow/FileList";
-import { extractAdditionalContext, extractFilesFromContext } from "@/utils/extractAttachments";
+import AttachmentsList, { FileItem, UrlItem } from "../ChatRow/FileList";
 
 interface TaskTextProps {
 	text?: string
@@ -62,7 +62,10 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 	if (parts[1]) {
 		filesCut = extractFilesFromContext(parts[1]);
 	}
-
+	let urlsCut: UrlItem[] = []
+	if (parts[1]) {
+		urlsCut = extractUrlsFromContext(parts[1]);
+	}
 
 	return (
 		<>
@@ -118,9 +121,7 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 					</div>
 				)}
 			</div>
-			{filesCut && (
-				<FileList files={filesCut} />
-			)}
+				<AttachmentsList files={filesCut} urls={urlsCut} />
 				
 			{isExpanded && showSeeMore && (
 				<div

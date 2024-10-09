@@ -1,10 +1,16 @@
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronUp } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { ChevronDown, ChevronUp, Link } from 'lucide-react'
+import { useState } from 'react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 
 export interface FileItem {
 	name: string
 	content: string
+}
+
+export interface UrlItem {
+	url: string
+	description: string
 }
 
 const getFileExtension = (filename: string): string => {
@@ -14,50 +20,35 @@ const getFileExtension = (filename: string): string => {
 
 const getLanguageIcon = (filename: string): string => {
 	const extension = getFileExtension(filename)
-	// This function would return the appropriate icon based on file extension
-	// For simplicity, we're using a placeholder. In a real implementation,
-	// you'd import icons or use a library like 'vscode-icons'
 	return extension.toUpperCase()
 }
 
-// Sample files for testing
-const sampleFiles: FileItem[] = [
-	{ name: 'README.md', content: '# Project Title\n\nThis is a sample README file.' },
-	{ name: 'App.tsx', content: 'export default function App() {\n  return <div>Hello World</div>\n}' },
-	{ name: 'styles.css', content: 'body {\n  font-family: sans-serif;\n}' },
-	{ name: 'api.js', content: 'const api = {\n  getUser: () => fetch("/user")\n}' },
-	{ name: 'config.json', content: '{\n  "apiUrl": "https://api.example.com"\n}' },
-	{ name: 'index.html', content: '<html><body><h1>Welcome</h1></body></html>' },
-	{ name: 'database.sql', content: 'CREATE TABLE users (id INT, name VARCHAR(255));' },
-	{ name: 'requirements.txt', content: 'react\nreact-dom\ntailwindcss' },
-	{ name: 'Dockerfile', content: 'FROM node:14\nWORKDIR /app\nCOPY . .\nRUN npm install' },
-	{ name: '.gitignore', content: 'node_modules\n.env\n.DS_Store' },
-]
+const isFileItem = (item: FileItem | UrlItem): item is FileItem => {
+	return (item as FileItem).name !== undefined
+}
 
-export default function FileList({ files = sampleFiles }: { files?: FileItem[] }) {
+const isUrlItem = (item: FileItem | UrlItem): item is UrlItem => {
+	return (item as UrlItem).url !== undefined
+}
+
+export default function AttachmentsList({
+	files,
+	urls,
+}: {
+	files?: FileItem[]
+	urls?: UrlItem[]
+}) {
 	const [isExpanded, setIsExpanded] = useState(false)
+	const items = [...(files ?? []), ...(urls ?? [])]
 
-	if (!files || files.length === 0) {
-		return <div className="text-white text-sm">No files to display</div>
+	if (items.length === 0) {
+		return null
 	}
 
-	const { visibleFiles, hiddenCount } = useMemo(() => {
-		let totalLength = 0
-		let visibleCount = 0
-
-		for (let i = 0; i < files.length; i++) {
-			totalLength += files[i].name.length
-			if (totalLength > 40 && !isExpanded) {
-				break
-			}
-			visibleCount++
-		}
-
-		return {
-			visibleFiles: isExpanded ? files : files.slice(0, visibleCount),
-			hiddenCount: files.length - visibleCount,
-		}
-	}, [files, isExpanded])
+	// Determine how many items should be visible by default
+	const visibleCount = isExpanded ? items.length : 3
+	const visibleItems = items.slice(0, visibleCount)
+	const hiddenCount = items.length - visibleCount
 
 	const toggleExpand = () => {
 		setIsExpanded(!isExpanded)
@@ -66,18 +57,36 @@ export default function FileList({ files = sampleFiles }: { files?: FileItem[] }
 	return (
 		<div className="space-y-1 mt-1">
 			<div className="flex flex-wrap gap-1 items-center">
-				{visibleFiles.map((file, index) => (
-					<Button
-						variant="outline"
-						className="bg-gray-700 text-white hover:bg-gray-600 transition-colors h-6 px-2 py-0 text-xs"
-					>
-						<span className="font-mono mr-1 border border-gray-500 rounded px-1">
-							{getLanguageIcon(file.name)}
-						</span>
-						<span>{file.name}</span>
-					</Button>
-				))}
-				{hiddenCount > 0 && (
+				{visibleItems.map((item, index) =>
+					isFileItem(item) ? (
+						<Button
+							key={index}
+							variant="outline"
+							className="bg-gray-700 text-white hover:bg-gray-600 transition-colors h-6 px-2 py-0 text-xs"
+						>
+							<span className="font-mono mr-1 border border-gray-500 rounded px-1">
+								{getLanguageIcon(item.name)}
+							</span>
+							<span>{item.name}</span>
+						</Button>
+					) : (
+						<Tooltip key={index}>
+							<TooltipContent>{item.url}</TooltipContent>
+							<TooltipTrigger>
+								<Button
+									key={index}
+									variant="outline"
+									className="bg-gray-700 text-white hover:bg-gray-600 transition-colors h-6 px-2 py-0 text-xs"
+								>
+									<Link className="w-3 h-3 mr-1" />
+									<span>{item.description}</span>
+								</Button>
+							</TooltipTrigger>
+						</Tooltip>
+					),
+				)}
+
+				{items.length > 3 && (
 					<Button
 						variant="outline"
 						onClick={toggleExpand}

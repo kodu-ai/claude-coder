@@ -1,7 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import CodeBlock from "../CodeBlock/CodeBlock"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, Info } from "lucide-react"
@@ -10,7 +9,7 @@ import ReactMarkdown from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import rehypeRaw from "rehype-raw"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
-import FileList from "./FileList"
+import CodeBlock from "../CodeBlock/CodeBlock"
 
 interface MarkdownRendererProps {
 	markdown: string

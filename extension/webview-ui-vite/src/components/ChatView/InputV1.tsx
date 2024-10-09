@@ -144,8 +144,10 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 			const newResource: Resource = {
 				id: Date.now().toString(),
 				type: "url",
+				description: scrapeDescription,
 				name: scrapeUrl,
 			}
+			console.debug(newResource)
 			setAttachedResources((prev) => [...prev, newResource])
 			handleCloseDialog()
 			setShowPopover(false)
