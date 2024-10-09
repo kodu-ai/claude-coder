@@ -38,7 +38,8 @@ export interface ApiHandler {
 		tools: Anthropic.Messages.Tool[],
 		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null,
-		customInstructions?: string
+		customInstructions?: string,
+		userMemory?: string
 	): AsyncIterableIterator<koduSSEResponse>
 
 	createUserReadableRequest(

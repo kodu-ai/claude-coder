@@ -48,7 +48,7 @@ export const technicalLevels = {
 export default function OnboardingDialog() {
 	const { setTechnicalBackground, technicalBackground } = useExtensionState()
 	const open = !technicalBackground
-	const [selectedLevel, setSelectedLevel] = useState<typeof technicalBackground>(undefined)
+	const [selectedLevel, setSelectedLevel] = useState<typeof technicalBackground>("no-technical")
 	const [progress, setProgress] = useState(0)
 
 	useEffect(() => {
@@ -129,7 +129,7 @@ export default function OnboardingDialog() {
 				<DialogFooter className="sticky bottom-0">
 					<Button
 						onClick={handleSubmit}
-						disabled={!selectedLevel}
+						// disabled={!selectedLevel}
 						className={`w-full transition-all duration-300 border-0 border-none ${
 							selectedLevel
 								? "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"

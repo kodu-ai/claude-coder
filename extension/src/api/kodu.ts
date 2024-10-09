@@ -20,6 +20,7 @@ import {
 } from "../shared/kodu"
 import { healMessages } from "./auto-heal"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
+import { USER_TASK_HISTORY_PROMPT } from "../agent/v1/system-prompt"
 const temperatures = {
 	creative: {
 		top_p: 0.8,
@@ -282,7 +283,8 @@ export class KoduHandler implements ApiHandler {
 		tools: Anthropic.Messages.Tool[],
 		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null,
-		customInstructions?: string
+		customInstructions?: string,
+		userMemory?: string
 	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
 		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming
@@ -321,6 +323,13 @@ export class KoduHandler implements ApiHandler {
 				cache_control: { type: "ephemeral" },
 			})
 		}
+		/**
+		 * push it last to not break the cache
+		 */
+		system.push({
+			text: USER_TASK_HISTORY_PROMPT(userMemory),
+			type: "text",
+		})
 
 		switch (modelId) {
 			case "claude-3-5-sonnet-20240620":

@@ -6,7 +6,7 @@ import { useEvent } from "react-use"
 import { ExtensionMessage, GitBranchItem, GitLogItem } from "../../../../src/shared/ExtensionMessage"
 import { vscode } from "@/utils/vscode"
 import { FlagTriangleRight, Goal, Info } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 import { ScrollArea } from "../ui/scroll-area"
 import { Separator } from "../ui/separator"
 import { Input } from "@/components/ui/input"
@@ -103,14 +103,16 @@ const GitDialog: React.FC = () => {
 
 				<div className="flex items-center space-x-1">
 					<p className="text-sm font-semibold">Checkpoints</p>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Info className="h-3 w-3 text-muted-foreground" />
-						</TooltipTrigger>
-						<TooltipContent side="top">
-							<p>You can create a new branch from any checkpoint.</p>
-						</TooltipContent>
-					</Tooltip>
+					<TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Info className="h-3 w-3 text-muted-foreground" />
+							</TooltipTrigger>
+							<TooltipContent avoidCollisions side="right">
+								<p>You can create a new branch from any checkpoint.</p>
+							</TooltipContent>
+						</Tooltip>
+					</TooltipProvider>
 				</div>
 				<div className="relative h-[100px] overflow-hidden">
 					<ScrollArea className="h-[100px] pr-2">
