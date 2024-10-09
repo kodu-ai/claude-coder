@@ -68,7 +68,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 						</Button>
 
 						<div className="flex gap-2">
-							<TaskHistoryModal />
+							{/* <TaskHistoryModal /> */}
 
 							<GitDialog />
 						</div>

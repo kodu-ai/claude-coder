@@ -98,6 +98,10 @@ export class GitHandler {
 				}
 			}
 
+			if (!message) {
+				throw new Error("Message is required")
+			}
+
 			return new Promise((resolve) => {
 				exec(`git add . && git commit -m "${message}"`, { cwd: this.repoPath }, (error, stdout, stderr) => {
 					if (error) {
@@ -197,7 +201,7 @@ export class GitHandler {
 
 		return new Promise((resolve) => {
 			const command = newBranchName
-				? `git checkout ${identifier} && git checkout -b ${newBranchName}`
+				? `git checkout ${identifier} && git checkout -b ${newBranchName.replace(/ /g, "-")}`
 				: `git checkout ${identifier}`
 			exec(command, { cwd: this.repoPath }, (error) => {
 				if (error) {
