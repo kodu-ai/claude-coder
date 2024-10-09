@@ -60,7 +60,11 @@ export class KoduDev {
 			abort: false,
 		})
 
+		if (historyItem?.dirAbsolutePath) {
+		}
+
 		if (historyItem) {
+			this.diagnosticsHandler.init(historyItem.dirAbsolutePath ?? "")
 			this.stateManager.state.isHistoryItem = true
 			this.resumeTaskFromHistory()
 		} else if (task || images) {

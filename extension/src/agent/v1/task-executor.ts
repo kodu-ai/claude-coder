@@ -391,6 +391,8 @@ export class TaskExecutor {
 				if (dirAbsolutePath) {
 					historyItem.dirAbsolutePath = dirAbsolutePath
 					state.dirAbsolutePath = dirAbsolutePath
+
+					this.providerRef.deref()?.getKoduDev()?.diagnosticsHandler.init(dirAbsolutePath)
 				}
 
 				if (!state.isRepoInitialized) {

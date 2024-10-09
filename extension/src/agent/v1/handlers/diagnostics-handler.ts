@@ -6,9 +6,18 @@ import { VsCodeDiagnostics } from ".."
 
 export class DiagnosticsHandler {
 	private seenErrors: VsCodeDiagnostics = []
+	private dirAbsolutePath = ""
 
 	constructor() {
 		this.seenErrors = this.currentErrors
+	}
+
+	init(dirAbsolutePath: string) {
+		if (!dirAbsolutePath) {
+			return
+		}
+
+		this.dirAbsolutePath = dirAbsolutePath
 	}
 
 	getProblemsString(cwd: string): string {
@@ -20,9 +29,12 @@ export class DiagnosticsHandler {
 	}
 
 	get currentErrors(): VsCodeDiagnostics {
-		return vscode.languages
-			.getDiagnostics()
-			.map(([uri, d]) => [uri, d.filter((d) => d.severity === vscode.DiagnosticSeverity.Error)])
+		let errors = vscode.languages.getDiagnostics()
+
+		if (this.dirAbsolutePath) {
+			errors = errors.filter(([uri]) => uri.toString().includes(this.dirAbsolutePath))
+		}
+		return errors.map(([uri, d]) => [uri, d.filter((d) => d.severity === vscode.DiagnosticSeverity.Error)])
 	}
 
 	getErrorsGeneratedByLastStep(): VsCodeDiagnostics {
