@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-interface FileItem {
+export interface FileItem {
 	name: string
 	content: string
 }
@@ -64,7 +64,7 @@ export default function FileList({ files = sampleFiles }: { files?: FileItem[] }
 	}
 
 	return (
-		<div className="space-y-1">
+		<div className="space-y-1 mt-1">
 			<div className="flex flex-wrap gap-1 items-center">
 				{visibleFiles.map((file, index) => (
 					<Button
@@ -77,7 +77,7 @@ export default function FileList({ files = sampleFiles }: { files?: FileItem[] }
 						<span>{file.name}</span>
 					</Button>
 				))}
-				{(
+				{hiddenCount > 0 && (
 					<Button
 						variant="outline"
 						onClick={toggleExpand}
@@ -96,9 +96,6 @@ export default function FileList({ files = sampleFiles }: { files?: FileItem[] }
 						)}
 					</Button>
 				)}
-			</div>
-			<div className="text-gray-400 text-xs">
-				{files.length} file{files.length !== 1 ? 's' : ''}
 			</div>
 		</div>
 	)
