@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 
 // const KODU_BASE_URL = "http://localhost:3001"
-const KODU_BASE_URL = "https://kodu.ai"
+const KODU_BASE_URL = "https://kodu-ai-git-main-ada-ai.vercel.app"
 
 export function getKoduSignInUrl(uriScheme?: string, extensionName?: string) {
 	return `${KODU_BASE_URL}/auth/login?redirectTo=${uriScheme}://kodu-ai.${extensionName}&ext=1`

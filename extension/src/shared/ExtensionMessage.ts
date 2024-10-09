@@ -35,6 +35,12 @@ type PostClaudeMessages = {
 	claudeMessages: ExtensionState["claudeMessages"]
 }
 
+type PostTaskHistory = {
+	type: "taskHistory"
+	history: string
+	isInitialized: boolean
+}
+
 // webview will hold state
 export type ExtensionMessage =
 	| {
@@ -57,7 +63,7 @@ export type ExtensionMessage =
 	| PostGitLog
 	| PostGitBranches
 	| PostGitCheckoutSuccess
-
+	| PostTaskHistory
 export interface ExtensionState {
 	version: string
 	maxRequestsPerTask?: number

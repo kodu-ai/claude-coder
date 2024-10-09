@@ -71,6 +71,7 @@
 		"react-wrap-balancer": "^1.1.1",
 		"recharts": "^2.12.7",
 		"rehype-raw": "^7.0.0",
+		"remark-gfm": "^4.0.0",
 		"sonner": "^1.5.0",
 		"styled-components": "^6.1.13",
 		"tailwind-merge": "^2.5.2",

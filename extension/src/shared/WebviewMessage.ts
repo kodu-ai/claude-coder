@@ -78,6 +78,11 @@ type GitCheckoutToMessage = {
 	newBranchName?: string
 }
 
+type UpdateTaskHistoryMessage = {
+	type: "updateTaskHistory"
+	history: string
+}
+
 export type WebviewMessage =
 	| exportBugMessage
 	| experimentalTerminalMessage
@@ -91,6 +96,7 @@ export type WebviewMessage =
 	| setUseUdiff
 	| DebugMessage
 	| GitCheckoutToMessage
+	| UpdateTaskHistoryMessage
 	| {
 			type:
 				| "cancelCurrentRequest"
@@ -119,6 +125,7 @@ export type WebviewMessage =
 				| "clearHistory"
 				| "gitLog"
 				| "gitBranches"
+				| "getTaskHistory"
 			text?: string
 			askResponse?: ClaudeAskResponse
 			images?: string[]
