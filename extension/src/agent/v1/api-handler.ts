@@ -121,7 +121,8 @@ ${this.customInstructions.trim()}
 				tools,
 				creativeMode,
 				abortSignal,
-				customInstructions
+				customInstructions,
+				await this.providerRef.deref()?.getKoduDev()?.getStateManager().state.memory
 			)
 
 			for await (const chunk of stream) {

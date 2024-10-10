@@ -165,6 +165,9 @@ section {
 .text-error {
 	color: var(--vscode-terminal-ansiRed) !important;
 }
+.text-info {
+	color: var(--vscode-terminal-ansiBlue) !important;
+}
 h3 {
 	color: var(--vscode-sideBarSectionHeader-foreground);
 	font-size: var(--vscode-editor-font-size);

@@ -14,9 +14,31 @@ type PostFoldersAndItems = {
 	type: "fileTree"
 	tree: FileTreeItem[]
 }
+
+type PostGitLog = {
+	type: "gitLog"
+	history: GitLogItem[]
+}
+
+type PostGitBranches = {
+	type: "gitBranches"
+	branches: GitBranchItem[]
+}
+
+type PostGitCheckoutSuccess = {
+	type: "gitCheckoutTo"
+	isSuccess: boolean
+}
+
 type PostClaudeMessages = {
 	type: "claudeMessages"
 	claudeMessages: ExtensionState["claudeMessages"]
+}
+
+type PostTaskHistory = {
+	type: "taskHistory"
+	history: string
+	isInitialized: boolean
 }
 
 // webview will hold state
@@ -38,7 +60,10 @@ export type ExtensionMessage =
 	  }
 	| PostFoldersAndItems
 	| PostClaudeMessages
-
+	| PostGitLog
+	| PostGitBranches
+	| PostGitCheckoutSuccess
+	| PostTaskHistory
 export interface ExtensionState {
 	version: string
 	maxRequestsPerTask?: number
@@ -132,6 +157,7 @@ export type ClaudeSay =
 	| "api_req_retried"
 	| "command_output"
 	| "tool"
+	| "info"
 	| "abort_automode"
 	| "shell_integration_warning"
 
@@ -171,3 +197,15 @@ export type ClaudeSayTool =
 			regex?: string
 			filePattern?: string
 	  }
+
+export type GitLogItem = {
+	hash: string
+	datetime: string
+	message: string
+}
+
+export type GitBranchItem = {
+	name: string
+	lastCommitRelativeTime: string
+	isCheckedOut: boolean
+}

@@ -72,6 +72,21 @@ type technicalBackgroundMessage = {
 	value: NonNullable<GlobalState["technicalBackground"]>
 }
 
+type DebugMessage = {
+	type: "debug"
+}
+
+type GitCheckoutToMessage = {
+	type: "gitCheckoutTo"
+	identifier: string
+	newBranchName?: string
+}
+
+type UpdateTaskHistoryMessage = {
+	type: "updateTaskHistory"
+	history: string
+}
+
 export type WebviewMessage =
 	| exportBugMessage
 	| experimentalTerminalMessage
@@ -83,6 +98,9 @@ export type WebviewMessage =
 	| RenameTask
 	| QuickstartMessage
 	| setUseUdiff
+	| DebugMessage
+	| GitCheckoutToMessage
+	| UpdateTaskHistoryMessage
 	| {
 			type:
 				| "cancelCurrentRequest"
@@ -109,6 +127,9 @@ export type WebviewMessage =
 				| "setCreativeMode"
 				| "fileTree"
 				| "clearHistory"
+				| "gitLog"
+				| "gitBranches"
+				| "getTaskHistory"
 			text?: string
 			askResponse?: ClaudeAskResponse
 			images?: string[]

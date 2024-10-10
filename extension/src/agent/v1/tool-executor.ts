@@ -14,6 +14,8 @@ import {
 	WriteFileTool,
 	UrlScreenshotTool,
 	AskConsultantTool,
+	ReadTaskHistoryTool,
+	UpsertTaskHistoryTool,
 } from "./tools"
 import { WebSearchTool } from "./tools/web-search-tool"
 import { TerminalManager } from "../../integrations/terminal/terminal-manager"
@@ -34,7 +36,7 @@ export class ToolExecutor {
 		this.terminalManager = new TerminalManager()
 	}
 
-	private get options(): AgentToolOptions {
+	public get options(): AgentToolOptions {
 		return {
 			cwd: this.cwd,
 			alwaysAllowReadOnly: this.alwaysAllowReadOnly,
@@ -70,6 +72,10 @@ export class ToolExecutor {
 				return new UrlScreenshotTool(params, this.options).execute()
 			case "ask_consultant":
 				return new AskConsultantTool(params, this.options).execute()
+			case "read_task_history":
+				return new ReadTaskHistoryTool(params, this.options).execute()
+			case "upsert_task_history":
+				return new UpsertTaskHistoryTool(params, this.options).execute()
 			default:
 				return `Unknown tool: ${params.name}`
 		}

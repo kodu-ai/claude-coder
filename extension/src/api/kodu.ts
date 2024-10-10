@@ -1,24 +1,26 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import axios, { CancelTokenSource } from "axios"
+import * as vscode from "vscode"
 import { z } from "zod"
 import { ApiHandler, ApiHandlerMessageResponse, withoutImageData } from "."
 import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduModels } from "../shared/api"
 import {
-	getKoduBugReportUrl,
-	getKoduConsultantUrl,
 	KODU_ERROR_CODES,
 	KoduError,
+	getKoduBugReportUrl,
+	getKoduConsultantUrl,
 	getKoduCurrentUser,
 	getKoduInferenceUrl,
 	getKoduScreenshotUrl,
+	getKoduSummarizeUrl,
 	getKoduVisitorUrl,
 	getKoduWebSearchUrl,
 	koduErrorMessages,
 	koduSSEResponse,
 } from "../shared/kodu"
-import { AskConsultantResponseDto, WebSearchResponseDto } from "./interfaces"
-import * as vscode from "vscode"
 import { healMessages } from "./auto-heal"
+import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
+import { USER_TASK_HISTORY_PROMPT } from "../agent/v1/system-prompt"
 const temperatures = {
 	creative: {
 		top_p: 0.8,
@@ -281,7 +283,8 @@ export class KoduHandler implements ApiHandler {
 		tools: Anthropic.Messages.Tool[],
 		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null,
-		customInstructions?: string
+		customInstructions?: string,
+		userMemory?: string
 	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
 		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming
@@ -320,6 +323,13 @@ export class KoduHandler implements ApiHandler {
 				cache_control: { type: "ephemeral" },
 			})
 		}
+		/**
+		 * push it last to not break the cache
+		 */
+		system.push({
+			text: USER_TASK_HISTORY_PROMPT(userMemory),
+			type: "text",
+		})
 
 		switch (modelId) {
 			case "claude-3-5-sonnet-20240620":
@@ -546,5 +556,27 @@ export class KoduHandler implements ApiHandler {
 				"x-api-key": this.options.koduApiKey || "",
 			},
 		})
+	}
+
+	async sendSummarizeRequest(output: string, command: string): Promise<SummaryResponseDto> {
+		this.cancelTokenSource = axios.CancelToken.source()
+
+		const response = await axios.post(
+			getKoduSummarizeUrl(),
+			{
+				output,
+				command,
+			},
+			{
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
+				},
+				timeout: 60_000,
+				cancelToken: this.cancelTokenSource?.token,
+			}
+		)
+
+		return response.data
 	}
 }

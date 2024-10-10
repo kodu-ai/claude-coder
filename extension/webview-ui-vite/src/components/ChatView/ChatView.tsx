@@ -194,9 +194,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Handle sending messages
 	const handleSendMessage = useCallback(
 		(input?: string) => {
-			let text = inputValue.trim()
-			if (input) {
-				text = input.trim()
+			console.log(`inputValue: ${inputValue}`)
+			let text = inputValue?.trim()
+			if (!!input && input.length > 1) {
+				text = input?.trim()
 			}
 			if (text || selectedImages.length > 0) {
 				if (messages.length === 0) {

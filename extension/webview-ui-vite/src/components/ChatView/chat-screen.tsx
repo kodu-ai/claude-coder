@@ -48,7 +48,8 @@ const taskPrompts = {
 }
 const getRandomPrompt = (category: keyof typeof taskPrompts) => {
 	const prompts = taskPrompts[category]
-	return prompts[Math.floor(Math.random() * prompts.length)]
+	const randomIndex = Math.floor(Math.random() * prompts.length)
+	return prompts[randomIndex]
 }
 
 const ChatScreen: React.FC<{
@@ -188,7 +189,7 @@ const ChatScreen: React.FC<{
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: 20 }}
 						transition={{ duration: 0.3 }}
-						className="absolute bottom-2 right-4">
+						className="sticky bottom-2 mr-auto">
 						<Button
 							onClick={() => setShowHistory(false)}
 							variant="outline"

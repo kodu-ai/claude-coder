@@ -13,6 +13,8 @@ export type ToolName =
 	| "url_screenshot"
 	| "ask_consultant"
 	| "update_file"
+	| "read_task_history"
+	| "upsert_task_history"
 
 export type Tool = Omit<Anthropic.Tool, "name"> & {
 	name: ToolName

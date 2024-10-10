@@ -45,6 +45,8 @@ export class StateManager {
 
 		this._state = {
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
+			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
+			isRepoInitialized: historyItem?.isRepoInitialized ?? false,
 			requestCount: 0,
 			apiConversationHistory: [],
 			claudeMessages: [],
@@ -71,6 +73,14 @@ export class StateManager {
 
 	get taskId(): string {
 		return this.taskId
+	}
+
+	get dirAbsolutePath(): string | undefined {
+		return this.state.dirAbsolutePath
+	}
+
+	get isRepoInitialized(): boolean {
+		return this.state.isRepoInitialized ?? false
 	}
 
 	get apiManager(): ApiManager {

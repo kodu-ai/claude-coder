@@ -7,6 +7,12 @@ import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ClaudeDevProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
+import { readdir } from "fs/promises"
+import path from "path"
+import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
+import { ReadTaskHistoryTool } from "../../../agent/v1/tools"
+import { KoduDevState } from "../../../agent/v1/types"
+import { GitHandler } from "../../../agent/v1/handlers"
 
 interface FileTreeItem {
 	id: string
@@ -33,6 +39,10 @@ export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
 
 	constructor(private provider: ClaudeDevProvider) {}
+
+	private get state(): KoduDevState | undefined {
+		return this.provider.getKoduDev()?.getStateManager()?.state
+	}
 
 	setupWebview(webviewView: vscode.WebviewView | vscode.WebviewPanel) {
 		webviewView.webview.options = {
@@ -405,10 +415,82 @@ export class WebviewManager {
 						await this.provider.getSecretStateManager().resetState()
 						await this.postStateToWebview()
 						break
+					case "debug":
+						await this.handleDebugInstruction()
+						break
+					case "gitLog":
+						this.postMessageToWebview({
+							type: "gitLog",
+							history: await GitHandler.getLog(this.state?.dirAbsolutePath!),
+						})
+						break
+					case "gitCheckoutTo":
+						const isSuccess =
+							(await this.provider
+								.getKoduDev()
+								?.taskExecutor?.gitHandler.checkoutTo(message.identifier, message.newBranchName)) ??
+							false
+
+						this.postMessageToWebview({
+							type: "gitCheckoutTo",
+							isSuccess,
+						})
+						break
+					case "gitBranches":
+						const branches = await GitHandler.getBranches(this.state?.dirAbsolutePath!)
+
+						this.postMessageToWebview({
+							type: "gitBranches",
+							branches,
+						})
+						break
+					case "getTaskHistory":
+						await this.getTaskHistory()
+						break
+					case "updateTaskHistory":
+						this.provider.getKoduDev()?.executeTool("upsert_task_history", { content: message.history })
+						break
 				}
 			},
 			null,
 			this.provider["disposables"]
 		)
+	}
+
+	private async handleDebugInstruction(): Promise<void> {
+		const agent = this.provider.getKoduDev()!
+		const openFolders = vscode.workspace.workspaceFolders
+
+		if (!openFolders) {
+			await agent.taskExecutor.say("error", "No open workspaces!")
+			return
+		}
+
+		if (openFolders.length > 1) {
+			await agent.taskExecutor.say("info", "Multiple workspaces detected! Please open only one workspace.")
+			return
+		}
+
+		const rootPath = openFolders[0].uri.fsPath
+
+		const problemsString = await agent.diagnosticsHandler?.getProblemsString(rootPath)
+		if (!problemsString) {
+			await agent.taskExecutor.say("info", "No problems detected!")
+			return
+		}
+
+		return await agent.taskExecutor.handleAskResponse("messageResponse", problemsString)
+	}
+
+	private async getTaskHistory(): Promise<void> {
+		let memory = this.state?.memory
+
+		this.postMessageToWebview({
+			type: "taskHistory",
+			history:
+				memory ??
+				"Task history is not initialized yet, Agent will initialize it soon, or you can ask Agent to create it.",
+			isInitialized: !!memory,
+		})
 	}
 }

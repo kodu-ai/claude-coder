@@ -14,6 +14,8 @@ import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
 import { createTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
+import { DiagnosticsHandler, GitHandler } from "./handlers"
+import { ReadTaskHistoryTool } from "./tools"
 
 // new KoduDev
 export class KoduDev {
@@ -22,9 +24,10 @@ export class KoduDev {
 	private toolExecutor: ToolExecutor
 	public taskExecutor: TaskExecutor
 	public terminalManager: ReturnType<typeof createTerminalManager>
-	private providerRef: WeakRef<ClaudeDevProvider>
+	public providerRef: WeakRef<ClaudeDevProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
+	public diagnosticsHandler: DiagnosticsHandler
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
@@ -41,20 +44,27 @@ export class KoduDev {
 			!!this.stateManager.experimentalTerminal,
 			this.providerRef.deref()!.context
 		)
-		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
+		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this.providerRef)
 		this.browserManager = new BrowserManager()
+		this.diagnosticsHandler = new DiagnosticsHandler()
 
 		this.setupTaskExecutor()
 
 		this.stateManager.setState({
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
+			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
+			isRepoInitialized: historyItem?.isRepoInitialized ?? false,
 			requestCount: 0,
 			apiConversationHistory: [],
 			claudeMessages: [],
 			abort: false,
 		})
 
+		if (historyItem?.dirAbsolutePath) {
+		}
+
 		if (historyItem) {
+			this.diagnosticsHandler.init(historyItem.dirAbsolutePath ?? "")
 			this.stateManager.state.isHistoryItem = true
 			this.resumeTaskFromHistory()
 		} else if (task || images) {
@@ -74,7 +84,7 @@ export class KoduDev {
 
 	private setupTaskExecutor() {
 		// Pass necessary methods to the TaskExecutor
-		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor)
+		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this.providerRef)
 	}
 
 	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
@@ -122,6 +132,7 @@ export class KoduDev {
 		}
 		let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
 		amplitudeTracker.taskStart(this.stateManager.state.taskId)
+
 		await this.taskExecutor.say("text", task, images)
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
 	}
