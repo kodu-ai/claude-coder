@@ -5,7 +5,7 @@ import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessa
 import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
-import { ClaudeDevProvider } from "../ClaudeCoderProvider"
+import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
 import { KoduDevState } from "../../../agent/v1/types"
 import { GitHandler } from "../../../agent/v1/handlers"
@@ -34,7 +34,7 @@ const excludedDirectories = [
 export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
 
-	constructor(private provider: ClaudeDevProvider) {}
+	constructor(private provider: ExtensionProvider) {}
 
 	private get state(): KoduDevState | undefined {
 		return this.provider.getKoduDev()?.getStateManager()?.state
@@ -279,7 +279,7 @@ export class WebviewManager {
 						this.provider.getTaskManager().handleNewTask
 						const callback = async (description: string) => {
 							// create new KoduDev instance with description as first message
-							await this.provider.initClaudeDevWithTask(description, [])
+							await this.provider.initWithTask(description, [])
 						}
 						await quickStart(message.repo, message.name, callback)
 						break
@@ -447,20 +447,25 @@ export class WebviewManager {
 	}
 
 	private async handleDebugInstruction(): Promise<void> {
-		const agent = this.provider.getKoduDev()!
+		const agent = this.provider.getKoduDev()
 		const openFolders = vscode.workspace.workspaceFolders
-
 		if (!openFolders) {
-			await agent.taskExecutor.say("error", "No open workspaces!")
+			// vscode toast
+			vscode.window.showErrorMessage("No open workspaces, please open a workspace.")
 			return
 		}
 
 		if (openFolders.length > 1) {
-			await agent.taskExecutor.say("info", "Multiple workspaces detected! Please open only one workspace.")
+			// vscode toast
+			vscode.window.showErrorMessage("Multiple workspaces detected! Please open only one workspace.")
 			return
 		}
 
 		const rootPath = openFolders[0].uri.fsPath
+		if (!agent) {
+			const res = await this.provider.initWithTask(`Let's debug my project`, undefined, true)
+			return
+		}
 
 		const problemsString = await agent.diagnosticsHandler?.getProblemsString(rootPath)
 		if (!problemsString) {

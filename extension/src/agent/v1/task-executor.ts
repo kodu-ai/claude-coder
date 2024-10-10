@@ -12,7 +12,7 @@ import { ToolInput } from "./tools/types"
 import { ToolName, UserContent } from "./types"
 import { debounce } from "lodash"
 import { ChunkProcessor } from "./chunk-proccess"
-import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
+import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { GitHandler } from "./handlers/git-handler"
 
 export enum TaskState {
@@ -47,7 +47,7 @@ export class TaskExecutor {
 	public gitHandler: GitHandler
 	private stateManager: StateManager
 	private toolExecutor: ToolExecutor
-	private providerRef: WeakRef<ClaudeDevProvider>
+	private providerRef: WeakRef<ExtensionProvider>
 	private currentUserContent: UserContent | null = null
 	private currentApiResponse: Anthropic.Messages.Message | null = null
 	private currentToolResults: Anthropic.ToolResultBlockParam[] = []
@@ -59,7 +59,7 @@ export class TaskExecutor {
 	private abortController: AbortController | null = null
 	private consecutiveErrorCount: number = 0
 
-	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ClaudeDevProvider>) {
+	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		this.stateManager = stateManager
 		this.toolExecutor = toolExecutor
 		this.providerRef = providerRef

@@ -1,12 +1,12 @@
 import * as vscode from "vscode"
 import { ApiModelId, koduDefaultModelId, koduModels } from "../../../shared/api"
 import { fetchKoduUser as fetchKoduUserAPI, initVisitor } from "../../../api/kodu"
-import { ClaudeDevProvider } from "../ClaudeCoderProvider"
+import { ExtensionProvider } from "../ClaudeCoderProvider"
 
 type SecretKey = "koduApiKey"
 
 export class ApiManager {
-	constructor(private context: ClaudeDevProvider) {}
+	constructor(private context: ExtensionProvider) {}
 
 	async updateApiConfiguration(apiConfiguration: { apiModelId?: ApiModelId; koduApiKey?: string }) {
 		const { apiModelId, koduApiKey } = apiConfiguration

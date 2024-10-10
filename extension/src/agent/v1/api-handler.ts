@@ -13,7 +13,7 @@ import {
 	SYSTEM_PROMPT,
 	UDIFF_SYSTEM_PROMPT,
 } from "./system-prompt"
-import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
+import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { tools as baseTools, uDifftools } from "./tools/tools"
 import { findLast } from "../../utils"
 import delay from "delay"
@@ -21,9 +21,9 @@ import delay from "delay"
 export class ApiManager {
 	private api: ApiHandler
 	private customInstructions?: string
-	private providerRef: WeakRef<ClaudeDevProvider>
+	private providerRef: WeakRef<ExtensionProvider>
 
-	constructor(provider: ClaudeDevProvider, apiConfiguration: ApiConfiguration, customInstructions?: string) {
+	constructor(provider: ExtensionProvider, apiConfiguration: ApiConfiguration, customInstructions?: string) {
 		this.api = buildApiHandler(apiConfiguration)
 		this.customInstructions = customInstructions
 		this.providerRef = new WeakRef(provider)

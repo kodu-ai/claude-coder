@@ -16,6 +16,7 @@ type MentionPopoverProps = {
 export const popoverOptions = [
 	{ name: "fileFolder", icon: FolderIcon, label: "Select Files/Folders" },
 	{ name: "scrape", icon: Link, label: "Paste URL to scrape" },
+	{ name: "debug", icon: ShieldAlert, label: "Debug" },
 ]
 const MentionPopover: React.FC<MentionPopoverProps> = ({
 	showPopover,
@@ -26,21 +27,9 @@ const MentionPopover: React.FC<MentionPopoverProps> = ({
 	handleKeyDown,
 }) => {
 	const popoverButtonsRef = useRef<(HTMLButtonElement | null)[]>([])
-	const { claudeMessages: messages } = useExtensionState()
-
-	useEffect(() => {
-		if (messages.length > 0 && popoverOptions.length < 3) {
-			popoverOptions.push({ name: "debug", icon: ShieldAlert, label: "Debug Errors" })
-		}
-	}, [messages])
 
 	const handleOptionClick = (name: string) => {
-		if (["fileFolder", "scrape"].includes(name)) {
-			handleOpenDialog(name)
-		} else {
-			vscode.postMessage({ type: "debug" })
-			setShowPopover(false)
-		}
+		handleOpenDialog(name)
 	}
 
 	return (

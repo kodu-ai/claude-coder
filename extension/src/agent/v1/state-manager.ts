@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import fs from "fs/promises"
 import path from "path"
-import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
+import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { combineApiRequests } from "../../shared/combineApiRequests"
 import { combineCommandSequences } from "../../shared/combineCommandSequences"
 import { getApiMetrics } from "../../shared/getApiMetrics"
@@ -15,7 +15,7 @@ export class StateManager {
 	private _state: KoduDevState
 	private _apiManager: ApiManager
 	private _maxRequestsPerTask: number
-	private _providerRef: WeakRef<ClaudeDevProvider>
+	private _providerRef: WeakRef<ExtensionProvider>
 	private _alwaysAllowReadOnly: boolean
 	private _creativeMode: "creative" | "normal" | "deterministic"
 	private _customInstructions?: string
@@ -95,7 +95,7 @@ export class StateManager {
 		return this._maxRequestsPerTask
 	}
 
-	get providerRef(): WeakRef<ClaudeDevProvider> {
+	get providerRef(): WeakRef<ExtensionProvider> {
 		return this._providerRef
 	}
 
@@ -132,7 +132,7 @@ export class StateManager {
 		this._maxRequestsPerTask = newMax ?? DEFAULT_MAX_REQUESTS_PER_TASK
 	}
 
-	public setProviderRef(newProviderRef: WeakRef<ClaudeDevProvider>): void {
+	public setProviderRef(newProviderRef: WeakRef<ExtensionProvider>): void {
 		this._providerRef = newProviderRef
 	}
 
