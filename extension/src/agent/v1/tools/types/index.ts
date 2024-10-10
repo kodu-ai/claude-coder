@@ -3,22 +3,29 @@ import { ToolName } from "../../../../shared/Tool"
 import { ClaudeAskResponse } from "../../../../shared/WebviewMessage"
 import { KoduDev } from "../.."
 
-export type ToolInput = {
-	path?: string
-	content?: string
-	regex?: string
-	udiff?: string
-	filePattern?: string
-	recursive?: string
-	command?: string
-	question?: string
-	result?: string
-	searchQuery?: string
-	query?: string
-	baseLink?: string
-	url?: string
-	summary?: string
+export type UpsertMemoryInput = {
+	milestoneName: string
+	summary: string
+	content: string
 }
+
+export type ToolInput =
+	| UpsertMemoryInput
+	| {
+			path?: string
+			content?: string
+			regex?: string
+			udiff?: string
+			filePattern?: string
+			recursive?: string
+			command?: string
+			question?: string
+			result?: string
+			searchQuery?: string
+			query?: string
+			baseLink?: string
+			url?: string
+	  }
 
 export type AgentToolParams = {
 	name: ToolName

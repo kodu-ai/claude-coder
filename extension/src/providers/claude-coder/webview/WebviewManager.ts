@@ -426,8 +426,7 @@ export class WebviewManager {
 						const isSuccess =
 							(await this.provider
 								.getKoduDev()
-								?.taskExecutor?.gitHandler.checkoutTo(message.identifier, message.newBranchName)) ??
-							false
+								?.taskExecutor?.gitHandler.checkoutTo(message.branchName)) ?? false
 
 						this.postMessageToWebview({
 							type: "gitCheckoutTo",

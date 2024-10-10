@@ -484,6 +484,10 @@ export const tools: Tool[] = [
 		input_schema: {
 			type: "object",
 			properties: {
+				milestoneName: {
+					type: "string",
+					description: "The name of the milestone achieved, around 30 characters.",
+				},
 				summary: {
 					type: "string",
 					description: "The summary of changes made in each update to the task history.",

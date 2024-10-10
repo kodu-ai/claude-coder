@@ -410,7 +410,7 @@ export class TaskExecutor {
 	// say and git commit and dignaostics can happen here
 	private async onAfterToolExecution(toolName: ToolName, input: ToolInput): Promise<void> {
 		if (toolName === "upsert_memory") {
-			await this.gitHandler.commitChangesOnMilestone(input.summary!)
+			await this.gitHandler.commitChanges(input.milestoneName!, input.summary!)
 		}
 	}
 
