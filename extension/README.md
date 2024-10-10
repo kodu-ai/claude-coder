@@ -4,7 +4,7 @@
 
 # 👋 Hey there !
 
-<img src="./assets/kodu.png" width="100" align="right" alt="Claude Coder Logo" />
+<img src="https://raw.githubusercontent.com/kodu-ai/claude-coder/refs/heads/main/extension/assets/kodu.png" width="100" align="right" alt="Claude Coder Logo" />
 
 Welcome to Claude Coder. Whether you're a developer looking to supercharge your workflow, or someone with a brilliant idea but limited coding experience, you're in the right place. I created this tool to bridge the gap between imagination and implementation, making coding more accessible and efficient for everyone.
 
