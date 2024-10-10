@@ -492,10 +492,12 @@ export class WebviewManager {
 		const taskExecutor = this.provider.getKoduDev()?.taskExecutor!
 		const isSuccess = (await taskExecutor?.gitHandler.checkoutTo(message.branchName!)) ?? false
 
-		await taskExecutor.handleAskResponse(
-			"messageResponse",
-			`The user checked out to version: '${message.branchName}'`
-		)
+		if (isSuccess) {
+			await taskExecutor.handleAskResponse(
+				"messageResponse",
+				`The user checked out to version: '${message.branchName}'`
+			)
+		}
 
 		this.postMessageToWebview({
 			type: "gitCheckoutTo",

@@ -32,7 +32,11 @@ const GitDialog: React.FC = () => {
 	}
 
 	const checkout = () => {
-		vscode.postMessage({ type: "gitCheckoutTo", branchName: checkoutToBranchName })
+		const isCurrentBranch = gitBranches.find((branch) => branch.isCheckedOut)?.name === checkoutToBranchName
+		if (!isCurrentBranch) {
+			vscode.postMessage({ type: "gitCheckoutTo", branchName: checkoutToBranchName })
+		}
+
 		setOpen(false)
 		setCheckoutToBranchName("")
 	}
