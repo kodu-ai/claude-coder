@@ -2,7 +2,7 @@ import { readdir } from "fs/promises"
 import path from "path"
 import * as vscode from "vscode"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
-import { WebviewMessage } from "../../../shared/WebviewMessage"
+import { GitCheckoutToMessage, WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
@@ -488,7 +488,7 @@ export class WebviewManager {
 		})
 	}
 
-	private async checkoutToBranch(message: WebviewMessage): Promise<void> {
+	private async checkoutToBranch(message: GitCheckoutToMessage): Promise<void> {
 		const taskExecutor = this.provider.getKoduDev()?.taskExecutor!
 		const isSuccess = (await taskExecutor?.gitHandler.checkoutTo(message.branchName!)) ?? false
 

@@ -76,7 +76,7 @@ type DebugMessage = {
 	type: "debug"
 }
 
-type GitCheckoutToMessage = {
+export type GitCheckoutToMessage = {
 	type: "gitCheckoutTo"
 	branchName: string
 }
