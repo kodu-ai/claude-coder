@@ -1,13 +1,12 @@
+import { readdir } from "fs/promises"
+import path from "path"
 import * as vscode from "vscode"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
 import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
-import { ClaudeDevProvider } from "../ClaudeCoderProvider"
-import { quickStart } from "./quick-start"
-import { readdir } from "fs/promises"
-import path from "path"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
-import { ReadTaskHistoryTool } from "../../../agent/v1/tools"
+import { ExtensionProvider } from "../ClaudeCoderProvider"
+import { quickStart } from "./quick-start"
 import { KoduDevState } from "../../../agent/v1/types"
 import { GitHandler } from "../../../agent/v1/handlers"
 
@@ -35,7 +34,7 @@ const excludedDirectories = [
 export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
 
-	constructor(private provider: ClaudeDevProvider) {}
+	constructor(private provider: ExtensionProvider) {}
 
 	private get state(): KoduDevState | undefined {
 		return this.provider.getKoduDev()?.getStateManager()?.state
@@ -222,7 +221,7 @@ export class WebviewManager {
 				continue
 			}
 
-			const id = parentId ? `${parentId}-${entry.name}` : entry.name
+			const id = parentId ? `${parentId}/${entry.name}` : entry.name
 			const fullPath = path.join(dir, entry.name)
 
 			if (entry.isDirectory()) {
@@ -251,6 +250,10 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "technicalBackground":
+						await this.provider.getStateManager().setTechnicalBackground(message.value)
+						await this.postStateToWebview()
+						break
 					case "experimentalTerminal":
 						await this.provider.getStateManager().setExperimentalTerminal(message.bool)
 						await this.postStateToWebview()
@@ -276,7 +279,7 @@ export class WebviewManager {
 						this.provider.getTaskManager().handleNewTask
 						const callback = async (description: string) => {
 							// create new KoduDev instance with description as first message
-							await this.provider.initClaudeDevWithTask(description, [])
+							await this.provider.initWithTask(description, [])
 						}
 						await quickStart(message.repo, message.name, callback)
 						break
@@ -321,7 +324,9 @@ export class WebviewManager {
 						await this.postStateToWebview()
 						break
 					case "newTask":
-						await this.provider.getTaskManager().handleNewTask(message.text, message.images)
+						await this.provider
+							.getTaskManager()
+							.handleNewTask(message.text, message.images, message.attachements)
 						break
 					case "apiConfiguration":
 						if (message.apiConfiguration) {
@@ -350,7 +355,7 @@ export class WebviewManager {
 					case "askResponse":
 						await this.provider
 							.getTaskManager()
-							.handleAskResponse(message.askResponse!, message.text, message.images)
+							.handleAskResponse(message.askResponse!, message.text, message.images, message.attachements)
 						break
 					case "clearTask":
 						await this.provider.getTaskManager().clearTask()
@@ -366,7 +371,7 @@ export class WebviewManager {
 						const images = await this.provider.getTaskManager().selectImages()
 						await this.postMessageToWebview({
 							type: "selectedImages",
-							images: images.map((img) => img.data),
+							images: images.map((img) => img),
 						})
 						break
 					case "exportCurrentTask":
@@ -405,6 +410,7 @@ export class WebviewManager {
 						break
 					case "resetState":
 						await this.provider.getGlobalStateManager().resetState()
+						await this.provider.getSecretStateManager().resetState()
 						await this.postStateToWebview()
 						break
 					case "debug":
@@ -417,16 +423,7 @@ export class WebviewManager {
 						})
 						break
 					case "gitCheckoutTo":
-						const isSuccess =
-							(await this.provider
-								.getKoduDev()
-								?.taskExecutor?.gitHandler.checkoutTo(message.identifier, message.newBranchName)) ??
-							false
-
-						this.postMessageToWebview({
-							type: "gitCheckoutTo",
-							isSuccess,
-						})
+						await this.checkoutToBranch(message)
 						break
 					case "gitBranches":
 						const branches = await GitHandler.getBranches(this.state?.dirAbsolutePath!)
@@ -440,7 +437,7 @@ export class WebviewManager {
 						await this.getTaskHistory()
 						break
 					case "updateTaskHistory":
-						this.provider.getKoduDev()?.executeTool("upsert_task_history", { content: message.history })
+						this.provider.getKoduDev()?.executeTool("upsert_memory", { content: message.history })
 						break
 				}
 			},
@@ -450,20 +447,25 @@ export class WebviewManager {
 	}
 
 	private async handleDebugInstruction(): Promise<void> {
-		const agent = this.provider.getKoduDev()!
+		const agent = this.provider.getKoduDev()
 		const openFolders = vscode.workspace.workspaceFolders
-
 		if (!openFolders) {
-			await agent.taskExecutor.say("error", "No open workspaces!")
+			// vscode toast
+			vscode.window.showErrorMessage("No open workspaces, please open a workspace.")
 			return
 		}
 
 		if (openFolders.length > 1) {
-			await agent.taskExecutor.say("info", "Multiple workspaces detected! Please open only one workspace.")
+			// vscode toast
+			vscode.window.showErrorMessage("Multiple workspaces detected! Please open only one workspace.")
 			return
 		}
 
 		const rootPath = openFolders[0].uri.fsPath
+		if (!agent) {
+			const res = await this.provider.initWithTask(`Let's debug my project`, undefined, true)
+			return
+		}
 
 		const problemsString = await agent.diagnosticsHandler?.getProblemsString(rootPath)
 		if (!problemsString) {
@@ -483,6 +485,23 @@ export class WebviewManager {
 				memory ??
 				"Task history is not initialized yet, Agent will initialize it soon, or you can ask Agent to create it.",
 			isInitialized: !!memory,
+		})
+	}
+
+	private async checkoutToBranch(message: WebviewMessage): Promise<void> {
+		const taskExecutor = this.provider.getKoduDev()?.taskExecutor!
+		const isSuccess = (await taskExecutor?.gitHandler.checkoutTo(message.branchName!)) ?? false
+
+		if (isSuccess) {
+			await taskExecutor.handleAskResponse(
+				"messageResponse",
+				`The user checked out to version: '${message.branchName}'`
+			)
+		}
+
+		this.postMessageToWebview({
+			type: "gitCheckoutTo",
+			isSuccess,
 		})
 	}
 }

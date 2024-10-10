@@ -50,27 +50,53 @@ export default {
 				sm: "calc(var(--radius) - 4px)",
 			},
 			colors: {
-				// border: "var(--vscode-widget-border)",
-				// input: "var(--vscode-input-background)",
-				// ring: "var(--vscode-focusBorder)",
-				// background: "var(--vscode-diffEditor-unchangedRegionBackground)",
-				// foreground: "var(--vscode-diffEditor-unchangedRegionForeground)",
 				border: createColorWithOpacity("--vscode-widget-border"),
 				input: createColorWithOpacity("--vscode-input-background"),
 				ring: createColorWithOpacity("--vscode-focusBorder"),
 				background: createColorWithOpacity("--vscode-diffEditor-unchangedRegionBackground"),
 				foreground: createColorWithOpacity("--vscode-diffEditor-unchangedRegionForeground"),
+				// background: createColorWithOpacity("--vscode-editor-background"),
+				// foreground: createColorWithOpacity("--vscode-editor-foreground"),
 				primary: {
 					DEFAULT: createColorWithOpacity("--vscode-button-background"),
-					foreground: createColorWithOpacity("--vscode-button-foreground"),
-				},
-				success: {
-					DEFAULT: createColorWithOpacity("--vscode-terminal-ansiGreen"),
 					foreground: createColorWithOpacity("--vscode-button-foreground"),
 				},
 				secondary: {
 					DEFAULT: createColorWithOpacity("--vscode-button-secondaryBackground"),
 					foreground: createColorWithOpacity("--vscode-button-secondaryForeground"),
+				},
+				destructive: {
+					DEFAULT: createColorWithOpacity("--vscode-inputValidation-errorBackground"),
+					foreground: createColorWithOpacity("--vscode-inputValidation-errorForeground"),
+				},
+				muted: {
+					DEFAULT: createColorWithOpacity("--vscode-editor-inactiveSelectionBackground"),
+					foreground: createColorWithOpacity("--vscode-disabledForeground"),
+				},
+				accent: {
+					DEFAULT: createColorWithOpacity("--vscode-statusBar-background"),
+					foreground: createColorWithOpacity("--vscode-statusBar-foreground"),
+				},
+				popover: {
+					DEFAULT: createColorWithOpacity("--vscode-editorWidget-background"),
+					foreground: createColorWithOpacity("--vscode-editorWidget-foreground"),
+				},
+				card: {
+					// DEFAULT: createColorWithOpacity("--vscode-sideBar-background"),
+					// foreground: createColorWithOpacity("--vscode-sideBar-foreground"),
+					DEFAULT: createColorWithOpacity("--vscode-editor-background"),
+					foreground: createColorWithOpacity("--vscode-editor-foreground"),
+				},
+				chart: {
+					1: createColorWithOpacity("--vscode-charts-red"),
+					2: createColorWithOpacity("--vscode-charts-blue"),
+					3: createColorWithOpacity("--vscode-charts-yellow"),
+					4: createColorWithOpacity("--vscode-charts-orange"),
+					5: createColorWithOpacity("--vscode-charts-green"),
+				},
+				success: {
+					DEFAULT: createColorWithOpacity("--vscode-terminal-ansiGreen"),
+					foreground: createColorWithOpacity("--vscode-button-foreground"),
 				},
 				warning: {
 					DEFAULT: createColorWithOpacity("--vscode-editorWarning-foreground"),
@@ -80,34 +106,62 @@ export default {
 					DEFAULT: createColorWithOpacity("--vscode-editorInfo-foreground"),
 					foreground: createColorWithOpacity("--vscode-button-foreground"),
 				},
-				destructive: {
-					DEFAULT: createColorWithOpacity("--vscode-editorError-foreground"),
-					foreground: createColorWithOpacity("--vscode-button-foreground"),
-				},
-				muted: {
-					DEFAULT: createColorWithOpacity("--vscode-editorWidget-background"),
-					foreground: createColorWithOpacity("--vscode-editorWidget-foreground"),
-				},
-				accent: {
-					DEFAULT: createColorWithOpacity("--vscode-editor-inactiveSelectionBackground"),
-					foreground: createColorWithOpacity("--vscode-editor-foreground"),
-				},
-				popover: {
-					DEFAULT: createColorWithOpacity("--vscode-editorWidget-background"),
-					foreground: createColorWithOpacity("--vscode-editorWidget-foreground"),
-				},
-				card: {
-					DEFAULT: createColorWithOpacity("--vscode-editorWidget-background"),
-					foreground: createColorWithOpacity("--vscode-editorWidget-foreground"),
-				},
-				chart: {
-					1: createColorWithOpacity("--vscode-charts-red"),
-					2: createColorWithOpacity("--vscode-charts-blue"),
-					3: createColorWithOpacity("--vscode-charts-yellow"),
-					4: createColorWithOpacity("--vscode-charts-orange"),
-					5: createColorWithOpacity("--vscode-charts-green"),
-				},
 			},
+
+			// colors: {
+			// 	border: createColorWithOpacity("--vscode-widget-border"),
+			// 	input: createColorWithOpacity("--vscode-input-background"),
+			// 	ring: createColorWithOpacity("--vscode-focusBorder"),
+			// 	background: createColorWithOpacity("--vscode-diffEditor-unchangedRegionBackground"),
+			// 	foreground: createColorWithOpacity("--vscode-diffEditor-unchangedRegionForeground"),
+			// 	primary: {
+			// 		DEFAULT: createColorWithOpacity("--vscode-button-background"),
+			// 		foreground: createColorWithOpacity("--vscode-button-foreground"),
+			// 	},
+			// 	success: {
+			// 		DEFAULT: createColorWithOpacity("--vscode-terminal-ansiGreen"),
+			// 		foreground: createColorWithOpacity("--vscode-button-foreground"),
+			// 	},
+			// 	secondary: {
+			// 		DEFAULT: createColorWithOpacity("--vscode-button-secondaryBackground"),
+			// 		foreground: createColorWithOpacity("--vscode-button-secondaryForeground"),
+			// 	},
+			// 	warning: {
+			// 		DEFAULT: createColorWithOpacity("--vscode-editorWarning-foreground"),
+			// 		foreground: createColorWithOpacity("--vscode-button-foreground"),
+			// 	},
+			// 	info: {
+			// 		DEFAULT: createColorWithOpacity("--vscode-editorInfo-foreground"),
+			// 		foreground: createColorWithOpacity("--vscode-button-foreground"),
+			// 	},
+			// 	destructive: {
+			// 		DEFAULT: createColorWithOpacity("--vscode-editorError-foreground"),
+			// 		foreground: createColorWithOpacity("--vscode-button-foreground"),
+			// 	},
+			// 	// muted: {
+			// 	// 	DEFAULT: createColorWithOpacity("--vscode-editorWidget-background"),
+			// 	// 	foreground: createColorWithOpacity("--vscode-editorWidget-foreground"),
+			// 	// },
+			// 	// accent: {
+			// 	// 	DEFAULT: createColorWithOpacity("--vscode-editor-inactiveSelectionBackground"),
+			// 	// 	foreground: createColorWithOpacity("--vscode-editor-foreground"),
+			// 	// },
+			// 	// popover: {
+			// 	// 	DEFAULT: createColorWithOpacity("--vscode-editorWidget-background"),
+			// 	// 	foreground: createColorWithOpacity("--vscode-editorWidget-foreground"),
+			// 	// },
+			// 	// card: {
+			// 	// 	DEFAULT: createColorWithOpacity("--vscode-editorWidget-background"),
+			// 	// 	foreground: createColorWithOpacity("--vscode-editorWidget-foreground"),
+			// 	// },
+			// 	chart: {
+			// 		1: createColorWithOpacity("--vscode-charts-red"),
+			// 		2: createColorWithOpacity("--vscode-charts-blue"),
+			// 		3: createColorWithOpacity("--vscode-charts-yellow"),
+			// 		4: createColorWithOpacity("--vscode-charts-orange"),
+			// 		5: createColorWithOpacity("--vscode-charts-green"),
+			// 	},
+			// },
 			keyframes: {
 				"accordion-down": {
 					from: {
@@ -125,10 +179,17 @@ export default {
 						height: "0",
 					},
 				},
+				"border-beam": {
+					"100%": {
+						"offset-distance": "100%",
+					},
+				},
 			},
+
 			animation: {
 				"accordion-down": "accordion-down 0.2s ease-out",
 				"accordion-up": "accordion-up 0.2s ease-out",
+				"border-beam": "border-beam calc(var(--duration)*1s) infinite linear",
 			},
 		},
 	},

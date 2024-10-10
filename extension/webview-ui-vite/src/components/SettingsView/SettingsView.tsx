@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import TechnicalLevelSelector from "./TechnicalLevelSelector"
 
-const IS_DEV = false // FIXME: use flags when packaging
+const IS_DEV = true // FIXME: use flags when packaging
 
 interface SettingsViewProps {
 	onDone: () => void
@@ -32,6 +33,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 		setCreativeMode,
 		creativeMode,
 		alwaysAllowWriteOnly,
+		setTechnicalBackground,
+		technicalBackground,
 		useUdiff,
 		setUseUdiff,
 	} = useExtensionState()
@@ -65,8 +68,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 			vscode.postMessage({ type: "customInstructions", text: customInstructions })
 			vscode.postMessage({ type: "alwaysAllowReadOnly", bool: alwaysAllowReadOnly })
 			vscode.postMessage({ type: "setCreativeMode", text: creativeMode })
-			vscode.postMessage({ type: "useUdiff", bool: useUdiff })
+			// vscode.postMessage({ type: "useUdiff", bool: useUdiff })
 			vscode.postMessage({ type: "experimentalTerminal", bool: experimentalTerminal })
+			vscode.postMessage({ type: "technicalBackground", value: technicalBackground! })
 			onDone()
 		}
 	}
@@ -97,6 +101,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 						<ApiOptions showModelOptions={true} />
 					</div>
 
+					<TechnicalLevelSelector
+						technicalBackground={technicalBackground}
+						setTechnicalBackground={setTechnicalBackground}
+					/>
 					<CreativityModeSelector creativeMode={creativeMode} setCreativeMode={setCreativeMode} />
 
 					<div className="flex items-start space-x-2">
@@ -139,7 +147,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 						</div>
 					</div>
 
-					<div className="flex items-start space-x-2">
+					{/* <div className="flex items-start space-x-2">
 						<Checkbox
 							id="use-udiff"
 							checked={useUdiff}
@@ -154,7 +162,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 								writing the entire file. <em>Use with caution, this might lead to reduced accuracy.</em>
 							</p>
 						</div>
-					</div>
+					</div> */}
 
 					<div className="flex items-start space-x-2">
 						<Checkbox

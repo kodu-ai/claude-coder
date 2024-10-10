@@ -2,7 +2,7 @@ import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ResultPromise } from "execa"
 import { ApiConfiguration } from "../../api"
-import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
+import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { HistoryItem } from "../../shared/HistoryItem"
 import { ClaudeMessage } from "../../shared/ExtensionMessage"
@@ -13,7 +13,7 @@ export type UserContent = Array<
 >
 
 export interface KoduDevOptions {
-	provider: ClaudeDevProvider
+	provider: ExtensionProvider
 	apiConfiguration: ApiConfiguration
 	maxRequestsPerTask?: number
 	customInstructions?: string
@@ -24,6 +24,10 @@ export interface KoduDevOptions {
 	task?: string
 	images?: string[]
 	historyItem?: HistoryItem
+	/**
+	 * If true, the task will start with debugging the project
+	 */
+	isDebug?: boolean
 }
 
 export interface KoduDevState {

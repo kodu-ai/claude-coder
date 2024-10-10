@@ -1,4 +1,5 @@
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
+import { atom, useAtom } from "jotai"
 import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
 import { useEvent, useMount } from "react-use"
@@ -6,14 +7,13 @@ import { VirtuosoHandle } from "react-virtuoso"
 import {
 	ClaudeAsk,
 	ClaudeMessage,
-	ClaudeSay,
 	ClaudeSayTool,
 	ExtensionMessage,
-	isV1ClaudeMessage,
 	V1ClaudeMessage,
+	isV1ClaudeMessage,
 } from "../../../../src/shared/ExtensionMessage"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
-import { combineCommandSequences, COMMAND_STDIN_STRING } from "../../../../src/shared/combineCommandSequences"
+import { COMMAND_STDIN_STRING, combineCommandSequences } from "../../../../src/shared/combineCommandSequences"
 import { getApiMetrics } from "../../../../src/shared/getApiMetrics"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { getSyntaxHighlighterStyleFromTheme } from "../../utils/getSyntaxHighlighterStyleFromTheme"
@@ -26,8 +26,12 @@ import ProjectStarterChooser from "../project-starters"
 import ButtonSection from "./ButtonSection"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
-import EmptyScreen from "./EmptyScreen"
 import { CHAT_BOX_INPUT_ID } from "./InputTextArea"
+import ChatScreen from "./chat-screen"
+import { Resource } from "../../../../src/shared/WebviewMessage"
+import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
+
+export const attachementsAtom = atom<Resource[]>([])
 
 interface ChatViewProps {
 	isHidden: boolean
@@ -63,7 +67,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const [textAreaDisabled, setTextAreaDisabled] = useState(false)
 	const [selectedImages, setSelectedImages] = useState<string[]>([])
 	const [thumbnailsHeight, setThumbnailsHeight] = useState(0)
-
+	const { openOutOfCreditDialog, shouldOpenOutOfCreditDialog } = useOutOfCreditDialog()
 	// UI control state
 	const [claudeAsk, setClaudeAsk] = useState<ClaudeAsk | undefined>(undefined)
 	const [_, setIsAbortingRequest] = useState(false)
@@ -72,6 +76,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const [secondaryButtonText, setSecondaryButtonText] = useState<string | undefined>(undefined)
 	const [syntaxHighlighterStyle, setSyntaxHighlighterStyle] = useState(vsDarkPlus)
 	const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
+	const [attachements, setAttachements] = useAtom(attachementsAtom)
 
 	// Refs
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
@@ -139,6 +144,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 					break
 			}
 		} else {
+			setAttachements([])
 			setTextAreaDisabled(false)
 			setClaudeAsk(undefined)
 			setEnableButtons(false)
@@ -186,28 +192,41 @@ const ChatView: React.FC<ChatViewProps> = ({
 	}, [visibleMessages])
 
 	// Handle sending messages
-	const handleSendMessage = useCallback(() => {
-		const text = inputValue.trim()
-		if (text || selectedImages.length > 0) {
-			if (messages.length === 0) {
-				vscode.postMessage({ type: "newTask", text, images: selectedImages })
-			} else if (claudeAsk) {
-				handleClaudeAskResponse(text)
-			} else {
-				vscode.postMessage({
-					type: "askResponse",
-					askResponse: "messageResponse",
-					text,
-					images: selectedImages,
-				})
+	const handleSendMessage = useCallback(
+		(input?: string) => {
+			if (shouldOpenOutOfCreditDialog) {
+				openOutOfCreditDialog()
+				return
 			}
-			setInputValue("")
-			setTextAreaDisabled(true)
-			setSelectedImages([])
-			setClaudeAsk(undefined)
-			setEnableButtons(false)
-		}
-	}, [inputValue, selectedImages, messages.length, claudeAsk])
+			console.log(`inputValue: ${inputValue}`)
+			let text = inputValue?.trim()
+			if (!!input && input.length > 1) {
+				text = input?.trim()
+			}
+			if (text || selectedImages.length > 0) {
+				if (messages.length === 0) {
+					vscode.postMessage({ type: "newTask", text, images: selectedImages, attachements: attachements })
+				} else if (claudeAsk) {
+					handleClaudeAskResponse(text)
+				} else {
+					vscode.postMessage({
+						type: "askResponse",
+						askResponse: "messageResponse",
+						text,
+						images: selectedImages,
+						attachements: attachements,
+					})
+				}
+				setAttachements([])
+				setInputValue("")
+				setTextAreaDisabled(true)
+				setSelectedImages([])
+				setClaudeAsk(undefined)
+				setEnableButtons(false)
+			}
+		},
+		[inputValue, selectedImages, messages.length, claudeAsk, user, shouldOpenOutOfCreditDialog]
+	)
 
 	// Handle Claude ask response
 	const handleClaudeAskResponse = useCallback(
@@ -280,6 +299,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 			case "command_output":
 			case "tool":
 			case "resume_task":
+				if (shouldOpenOutOfCreditDialog) {
+					openOutOfCreditDialog()
+					return
+				}
 				vscode.postMessage({ type: "askResponse", askResponse: "yesButtonTapped" })
 				break
 			case "completion_result":
@@ -290,7 +313,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 		setTextAreaDisabled(true)
 		setClaudeAsk(undefined)
 		setEnableButtons(false)
-	}, [claudeAsk])
+	}, [claudeAsk, shouldOpenOutOfCreditDialog])
 
 	// Handle secondary button click
 	const handleSecondaryButtonClick = useCallback(() => {
@@ -567,34 +590,13 @@ const ChatView: React.FC<ChatViewProps> = ({
 						{!showAnnouncement && shouldShowKoduPromo && (
 							<KoduPromo style={{ margin: "10px 15px -10px 15px" }} />
 						)}
-						<section className="text-start">
-							<h3 className="flex-line uppercase text-alt">What can I do for you?</h3>
-							<div>
-								Thanks to{" "}
-								<VSCodeLink
-									href="https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf"
-									style={{ display: "inline" }}>
-									Claude 3.5 Sonnet's agentic coding capabilities,
-								</VSCodeLink>{" "}
-								I can handle complex software development tasks step-by-step. With tools that let me
-								create & edit files, explore complex projects, and execute terminal commands (after you
-								grant permission), I can assist you in ways that go beyond simple code completion or
-								tech support.
-							</div>
-						</section>
-						{taskHistory.length > 0 ? (
-							<HistoryPreview showHistoryView={showHistoryView} />
-						) : (
-							<EmptyScreen
-								handleClick={(text) => {
-									setInputValue(text)
-									const el = document.getElementById(CHAT_BOX_INPUT_ID)
-									if (el) {
-										el.focus()
-									}
-								}}
-							/>
-						)}
+
+						<ChatScreen
+							taskHistory={<HistoryPreview showHistoryView={showHistoryView} />}
+							handleClick={(text) => {
+								handleSendMessage(text)
+							}}
+						/>
 					</>
 				)}
 				{task && (

@@ -1,3 +1,4 @@
+import { z } from "zod"
 import { Tool } from "../../../shared/Tool"
 import { cwd } from "../utils"
 
@@ -477,21 +478,16 @@ export const tools: Tool[] = [
 		},
 	},
 	{
-		name: "read_task_history",
-		description: `Allows you to read the task history in markdown.
-		The tasks history tracks Agent's progress and is useful for the user to understand the changes made and the current state of the task.`,
-		input_schema: {
-			type: "object",
-			properties: {},
-		},
-	},
-	{
-		name: "upsert_task_history",
-		description: `Allows you to update the task history with a summary of changes and the complete content of the task history in markdown.
-		The tasks history tracks Agent's progress and is useful for the user to understand the changes made and the current state of the task.`,
+		name: "upsert_memory",
+		description: `Allows you to create or update the task history with a summary of changes and the complete content of the task history in markdown.
+		The tasks history tracks your progress and changes made to the task over time. it should also include notes and memories for future reference. that you can refer back to when needed.`,
 		input_schema: {
 			type: "object",
 			properties: {
+				milestoneName: {
+					type: "string",
+					description: "The name of the milestone achieved, around 30 characters.",
+				},
 				summary: {
 					type: "string",
 					description: "The summary of changes made in each update to the task history.",

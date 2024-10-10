@@ -45,5 +45,6 @@ function getMimeType(filePath: string): string {
 }
 
 export async function compressImages(images: string[]) {
-	return images.map((image) => ({ data: image }))
+	// TODO: Implement image compression
+	return images;
 }

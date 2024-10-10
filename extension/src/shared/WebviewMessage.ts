@@ -1,4 +1,9 @@
 import { ApiConfiguration } from "../api"
+import { GlobalState } from "../providers/claude-coder/state/GlobalStateManager"
+
+export type Resource =
+	| { id: string; type: "file" | "folder"; name: string }
+	| { id: string; type: "url"; description: string; name: string }
 
 export type AmplitudeWebviewMessage = {
 	type: "amplitude"
@@ -62,14 +67,18 @@ type exportBugMessage = {
 	reproduction: string
 }
 
+type technicalBackgroundMessage = {
+	type: "technicalBackground"
+	value: NonNullable<GlobalState["technicalBackground"]>
+}
+
 type DebugMessage = {
 	type: "debug"
 }
 
 type GitCheckoutToMessage = {
 	type: "gitCheckoutTo"
-	identifier: string
-	newBranchName?: string
+	branchName: string
 }
 
 type UpdateTaskHistoryMessage = {
@@ -83,6 +92,7 @@ export type WebviewMessage =
 	| AmplitudeWebviewMessage
 	| OpenExternalLink
 	| FreeTrial
+	| technicalBackgroundMessage
 	| ApiConfigurationMessage
 	| RenameTask
 	| QuickstartMessage
@@ -122,6 +132,7 @@ export type WebviewMessage =
 			text?: string
 			askResponse?: ClaudeAskResponse
 			images?: string[]
+			attachements?: Resource[]
 			bool?: boolean
 	  }
 

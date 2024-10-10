@@ -7,10 +7,11 @@ import { GlobalStateManager } from "./state/GlobalStateManager"
 import { ApiManager } from "./state/ApiManager"
 import { HistoryItem } from "../../shared/HistoryItem"
 import { SecretStateManager } from "./state/SecretStateManager"
+import { extensionName } from "../../shared/Constants"
 
-export class ClaudeDevProvider implements vscode.WebviewViewProvider {
-	public static readonly sideBarId = "kodu-claude-coder-main.SidebarProvider"
-	public static readonly tabPanelId = "kodu-claude-coder-main.TabPanelProvider"
+export class ExtensionProvider implements vscode.WebviewViewProvider {
+	public static readonly sideBarId = `${extensionName}.SidebarProvider`
+	public static readonly tabPanelId = `${extensionName}.TabPanelProvider`
 	private disposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
 	private koduDev?: KoduDev
@@ -22,7 +23,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	private apiManager: ApiManager
 
 	constructor(readonly context: vscode.ExtensionContext, private readonly outputChannel: vscode.OutputChannel) {
-		this.outputChannel.appendLine("ClaudeDevProvider instantiated")
+		this.outputChannel.appendLine("ExtensionProvider instantiated")
 		this.globalStateManager = new GlobalStateManager(context)
 		this.secretStateManager = new SecretStateManager(context)
 		this.stateManager = new StateManager(this)
@@ -32,7 +33,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 	}
 
 	async dispose() {
-		this.outputChannel.appendLine("Disposing ClaudeDevProvider...")
+		this.outputChannel.appendLine("Disposing ExtensionProvider...")
 		await this.taskManager.clearTask()
 		this.outputChannel.appendLine("Cleared task")
 		if (this.view && "dispose" in this.view) {
@@ -80,7 +81,7 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 		this.outputChannel.appendLine("Webview view resolved")
 	}
 
-	async initClaudeDevWithTask(task?: string, images?: string[]) {
+	async initWithTask(task?: string, images?: string[], isDebug?: boolean) {
 		await this.taskManager.clearTask()
 		const state = await this.stateManager.getState()
 		this.koduDev = new KoduDev({
@@ -94,10 +95,11 @@ export class ClaudeDevProvider implements vscode.WebviewViewProvider {
 			images,
 			experimentalTerminal: state.experimentalTerminal,
 			creativeMode: state.creativeMode,
+			isDebug,
 		})
 	}
 
-	async initClaudeDevWithHistoryItem(historyItem: HistoryItem) {
+	async initWithHistoryItem(historyItem: HistoryItem) {
 		await this.taskManager.clearTask()
 		const state = await this.stateManager.getState()
 		this.koduDev = new KoduDev({

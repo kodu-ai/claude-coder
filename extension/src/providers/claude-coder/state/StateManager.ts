@@ -5,14 +5,14 @@ import { ApiManager } from "./ApiManager"
 import { HistoryItem } from "../../../shared/HistoryItem"
 import { SecretStateManager } from "./SecretStateManager"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
-import { ClaudeDevProvider } from "../ClaudeCoderProvider"
+import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { ExtensionState } from "../../../shared/ExtensionMessage"
 export class StateManager {
 	private globalStateManager: GlobalStateManager
 	private secretStateManager: SecretStateManager
 	private apiManager: ApiManager
 
-	constructor(private context: ClaudeDevProvider) {
+	constructor(private context: ExtensionProvider) {
 		this.globalStateManager = new GlobalStateManager(context.context)
 		this.apiManager = new ApiManager(context)
 		this.secretStateManager = new SecretStateManager(context.context)
@@ -34,6 +34,7 @@ export class StateManager {
 			fp,
 			useUdiff,
 			experimentalTerminal,
+			technicalBackground,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.secretStateManager.getSecretState("koduApiKey"),
@@ -49,6 +50,7 @@ export class StateManager {
 			this.secretStateManager.getSecretState("fp"),
 			this.globalStateManager.getGlobalState("useUdiff"),
 			this.globalStateManager.getGlobalState("experimentalTerminal"),
+			this.globalStateManager.getGlobalState("technicalBackground"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -62,6 +64,7 @@ export class StateManager {
 			maxRequestsPerTask,
 			lastShownAnnouncementId,
 			customInstructions,
+			technicalBackground,
 			experimentalTerminal:
 				experimentalTerminal === undefined || experimentalTerminal === null ? true : experimentalTerminal,
 			currentTaskId,
@@ -127,6 +130,10 @@ export class StateManager {
 			user.credits = credits
 			await this.globalStateManager.updateGlobalState("user", user)
 		}
+	}
+
+	setTechnicalBackground(value: "no-technical" | "technical" | "developer") {
+		return this.globalStateManager.updateGlobalState("technicalBackground", value)
 	}
 
 	setMaxRequestsPerTask(value: number | undefined) {

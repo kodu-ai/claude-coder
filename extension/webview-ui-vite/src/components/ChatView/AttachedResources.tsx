@@ -5,12 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-
-export type Resource = {
-	id: string
-	type: "file" | "folder" | "url"
-	name: string
-}
+import { Resource } from "../../../../src/shared/WebviewMessage"
 
 type AttachedResourcesProps = {
 	resources: Resource[]

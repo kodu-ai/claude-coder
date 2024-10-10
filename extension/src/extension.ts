@@ -1,10 +1,12 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode"
-import { ClaudeDevProvider } from "./providers/claude-coder/ClaudeCoderProvider"
+import { ExtensionProvider } from "./providers/claude-coder/ClaudeCoderProvider"
 import { amplitudeTracker } from "./utils/amplitude"
 import * as dotenv from "dotenv"
 import * as path from "path"
+import { extensionName } from "./shared/Constants"
+
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
 
@@ -18,7 +20,7 @@ let outputChannel: vscode.OutputChannel
 var creditFetchInterval: NodeJS.Timeout | null | number = null
 var lastFetchedAt = 0
 
-async function updateUserCredit(provider?: ClaudeDevProvider) {
+async function updateUserCredit(provider?: ExtensionProvider) {
 	const now = Date.now()
 	if (now - lastFetchedAt < 5000) {
 		return
@@ -35,7 +37,7 @@ async function updateUserCredit(provider?: ClaudeDevProvider) {
 	}
 }
 
-async function startCreditFetch(provider: ClaudeDevProvider) {
+async function startCreditFetch(provider: ExtensionProvider) {
 	const now = Date.now()
 	if (now - lastFetchedAt > 500) {
 		await updateUserCredit(provider)
@@ -84,7 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
 			handleFirstInstall(context)
 		})
 	outputChannel.appendLine("Claude Coder extension activated")
-	const sidebarProvider = new ClaudeDevProvider(context, outputChannel)
+	const sidebarProvider = new ExtensionProvider(context, outputChannel)
 	context.subscriptions.push(outputChannel)
 	console.log(`Claude Coder extension activated`)
 
@@ -119,13 +121,13 @@ export function activate(context: vscode.ExtensionContext) {
 	// context.subscriptions.push(disposable)
 
 	context.subscriptions.push(
-		vscode.window.registerWebviewViewProvider(ClaudeDevProvider.sideBarId, sidebarProvider, {
+		vscode.window.registerWebviewViewProvider(ExtensionProvider.sideBarId, sidebarProvider, {
 			webviewOptions: { retainContextWhenHidden: true },
 		})
 	)
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu-claude-coder-main.plusButtonTapped", async () => {
+		vscode.commands.registerCommand(`${extensionName}.plusButtonTapped`, async () => {
 			outputChannel.appendLine("Plus button tapped")
 			await sidebarProvider?.getTaskManager().clearTask()
 			await sidebarProvider?.getWebviewManager().postStateToWebview()
@@ -135,15 +137,15 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	)
 
-	const openClaudeDevInNewTab = async () => {
+	const openExtensionInNewTab = async () => {
 		outputChannel.appendLine("Opening Claude Coder in new tab")
 		// (this example uses webviewProvider activation event which is necessary to deserialize cached webview, but since we use retainContextWhenHidden, we don't need to use that event)
 		// https://github.com/microsoft/vscode-extension-samples/blob/main/webview-sample/src/extension.ts
-		const tabProvider = new ClaudeDevProvider(context, outputChannel)
+		const tabProvider = new ExtensionProvider(context, outputChannel)
 		//const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined
 		const lastCol = Math.max(...vscode.window.visibleTextEditors.map((editor) => editor.viewColumn || 0))
 		const targetCol = Math.max(lastCol + 1, 1)
-		const panel = vscode.window.createWebviewPanel(ClaudeDevProvider.tabPanelId, "Claude Coder", targetCol, {
+		const panel = vscode.window.createWebviewPanel(ExtensionProvider.tabPanelId, "Claude Coder", targetCol, {
 			enableScripts: true,
 			retainContextWhenHidden: true,
 			localResourceRoots: [context.extensionUri],
@@ -164,14 +166,12 @@ export function activate(context: vscode.ExtensionContext) {
 	}
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu-claude-coder-main.popoutButtonTapped", openClaudeDevInNewTab)
+		vscode.commands.registerCommand(`${extensionName}.popoutButtonTapped`, openExtensionInNewTab)
 	)
-	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu-claude-coder-main.openInNewTab", openClaudeDevInNewTab)
-	)
+	context.subscriptions.push(vscode.commands.registerCommand(`${extensionName}.openInNewTab`, openExtensionInNewTab))
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu-claude-coder-main.settingsButtonTapped", () => {
+		vscode.commands.registerCommand(`${extensionName}.settingsButtonTapped`, () => {
 			//const message = "kodu-claude-coder-main.settingsButtonTapped!"
 			//vscode.window.showInformationMessage(message)
 			sidebarProvider
@@ -181,7 +181,7 @@ export function activate(context: vscode.ExtensionContext) {
 	)
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand("kodu-claude-coder-main.historyButtonTapped", () => {
+		vscode.commands.registerCommand(`${extensionName}.historyButtonTapped`, () => {
 			sidebarProvider
 				?.getWebviewManager()
 				?.postMessageToWebview({ type: "action", action: "historyButtonTapped" })
@@ -210,17 +210,29 @@ export function activate(context: vscode.ExtensionContext) {
 		const token = query.get("token")
 		const postTrial = query.get("postTrial")
 		const email = query.get("email")
+
 		if (token) {
 			amplitudeTracker.authSuccess()
 			console.log(`Received token: ${token}`)
 			if (postTrial) {
 				amplitudeTracker.trialUpsellSuccess()
 			}
-
+			await vscode.commands.executeCommand(`${extensionName}.SidebarProvider.focus`)
 			await sidebarProvider.getApiManager().saveKoduApiKey(token)
 		}
 	}
-	context.subscriptions.push(vscode.window.registerUriHandler({ handleUri }))
+	context.subscriptions.push(
+		vscode.window.registerUriHandler({
+			async handleUri(uri: vscode.Uri) {
+				console.log(`Received URI: ${uri.toString()}`)
+				if (uri.path === `/${extensionName}.plusButtonTapped`) {
+					await vscode.commands.executeCommand(`${extensionName}.SidebarProvider.focus`)
+				} else {
+					handleUri(uri)
+				}
+			},
+		})
+	)
 }
 
 // This method is called when your extension is deactivated

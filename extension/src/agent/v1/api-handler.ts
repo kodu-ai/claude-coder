@@ -6,8 +6,14 @@ import { tools } from "./tools/tools"
 import { UserContent } from "./types"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { truncateHalfConversation } from "../../utils/context-management"
-import { SYSTEM_PROMPT, UDIFF_SYSTEM_PROMPT } from "./system-prompt"
-import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
+import {
+	CodingBeginnerSystemPromptSection,
+	ExperiencedDeveloperSystemPromptSection,
+	NonTechnicalSystemPromptSection,
+	SYSTEM_PROMPT,
+	UDIFF_SYSTEM_PROMPT,
+} from "./system-prompt"
+import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { tools as baseTools, uDifftools } from "./tools/tools"
 import { findLast } from "../../utils"
 import delay from "delay"
@@ -15,9 +21,9 @@ import delay from "delay"
 export class ApiManager {
 	private api: ApiHandler
 	private customInstructions?: string
-	private providerRef: WeakRef<ClaudeDevProvider>
+	private providerRef: WeakRef<ExtensionProvider>
 
-	constructor(provider: ClaudeDevProvider, apiConfiguration: ApiConfiguration, customInstructions?: string) {
+	constructor(provider: ExtensionProvider, apiConfiguration: ApiConfiguration, customInstructions?: string) {
 		this.api = buildApiHandler(apiConfiguration)
 		this.customInstructions = customInstructions
 		this.providerRef = new WeakRef(provider)
@@ -50,12 +56,26 @@ export class ApiManager {
 	): AsyncGenerator<koduSSEResponse> {
 		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
 		const useUdiff = (await this.providerRef.deref()?.getStateManager()?.getState())?.useUdiff
+		const technicalBackground =
+			(await this.providerRef.deref()?.getStateManager()?.getState())?.technicalBackground ?? "no-technical"
 		let systemPrompt = await SYSTEM_PROMPT()
 		let tools = baseTools
-		if (useUdiff) {
-			systemPrompt = await UDIFF_SYSTEM_PROMPT()
-			tools = uDifftools
-		}
+		// if (useUdiff) {
+		// 	systemPrompt = await UDIFF_SYSTEM_PROMPT()
+		// 	tools = uDifftools
+		// }
+		systemPrompt += `
+		===
+USER PERSONALIZED INSTRUCTIONS
+
+${
+	technicalBackground === "no-technical"
+		? NonTechnicalSystemPromptSection
+		: technicalBackground === "technical"
+		? ExperiencedDeveloperSystemPromptSection
+		: CodingBeginnerSystemPromptSection
+}
+		`
 		let customInstructions: string | undefined
 		if (this.customInstructions && this.customInstructions.trim()) {
 			customInstructions += `
@@ -101,7 +121,8 @@ ${this.customInstructions.trim()}
 				tools,
 				creativeMode,
 				abortSignal,
-				customInstructions
+				customInstructions,
+				await this.providerRef.deref()?.getKoduDev()?.getStateManager().state.memory
 			)
 
 			for await (const chunk of stream) {
@@ -161,10 +182,10 @@ ${this.customInstructions.trim()}
 		const useUdiff = (await this.providerRef.deref()?.getStateManager()?.getState())?.useUdiff
 		let systemPrompt = await SYSTEM_PROMPT()
 		let tools = baseTools
-		if (useUdiff) {
-			systemPrompt = await UDIFF_SYSTEM_PROMPT()
-			tools = uDifftools
-		}
+		// if (useUdiff) {
+		// 	systemPrompt = await UDIFF_SYSTEM_PROMPT()
+		// 	tools = uDifftools
+		// }
 		let customInstructions: string | undefined
 		if (this.customInstructions && this.customInstructions.trim()) {
 			customInstructions += `

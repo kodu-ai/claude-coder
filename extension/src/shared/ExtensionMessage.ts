@@ -70,6 +70,7 @@ export interface ExtensionState {
 	lastShownAnnouncementId?: string
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
+	technicalBackground?: "no-technical" | "technical" | "developer"
 	useUdiff?: boolean
 	experimentalTerminal?: boolean
 	alwaysAllowWriteOnly?: boolean
@@ -207,4 +208,5 @@ export type GitBranchItem = {
 	name: string
 	lastCommitRelativeTime: string
 	isCheckedOut: boolean
+	lastCommitMessage: string
 }

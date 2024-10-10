@@ -1,29 +1,19 @@
-import { ClaudeDevProvider } from "../ClaudeCoderProvider"
-import { compressImages, downloadTask, selectImages } from "../../../utils"
-import { HistoryItem } from "../../../shared/HistoryItem"
-import * as path from "path"
-import fs from "fs/promises"
 import { Anthropic } from "@anthropic-ai/sdk"
+import fs from "fs/promises"
+import * as path from "path"
 import * as vscode from "vscode"
+import { formatAttachementsIntoBlocks } from "../../../agent/v1/tools/format-content"
+import { HistoryItem } from "../../../shared/HistoryItem"
+import { Resource } from "../../../shared/WebviewMessage"
+import { compressImages, downloadTask, selectImages } from "../../../utils"
+import { ExtensionProvider } from "../ClaudeCoderProvider"
 
 export class TaskManager {
-	constructor(private provider: ClaudeDevProvider) {}
+	constructor(private provider: ExtensionProvider) {}
 
 	async clearTask() {
 		this.provider.getKoduDev()?.abortTask()
 		this.provider["koduDev"] = undefined
-	}
-
-	async handleNewTask(task?: string, images?: string[]) {
-		if (images && images.length > 0) {
-			const compressedImages = await compressImages(images)
-			await this.provider.initClaudeDevWithTask(
-				task,
-				compressedImages.map((img) => img.data)
-			)
-		} else {
-			await this.provider.initClaudeDevWithTask(task, images)
-		}
 	}
 
 	async exportBug(description: string, reproduction: string) {
@@ -68,17 +58,18 @@ export class TaskManager {
 		)
 	}
 
-	async handleAskResponse(askResponse: any, text?: string, images?: string[]) {
-		if (images && images.length > 0) {
-			const compressedImages = await compressImages(images)
-			this.provider.getKoduDev()?.handleWebviewAskResponse(
-				askResponse,
-				text,
-				compressedImages.map((img) => img.data)
-			)
-		} else {
-			this.provider.getKoduDev()?.handleWebviewAskResponse(askResponse, text, images)
-		}
+	async handleNewTask(task?: string, images?: string[], attachements?: Resource[]) {
+		const compressedImages = await compressImages(images ?? [])
+		const additionalContextBlocks = await formatAttachementsIntoBlocks(attachements)
+		await this.provider.initWithTask(task + additionalContextBlocks, compressedImages)
+	}
+
+	async handleAskResponse(askResponse: any, text?: string, images?: string[], attachements?: Resource[]) {
+		const compressedImages = await compressImages(images ?? [])
+		const additionalContextBlocks = await formatAttachementsIntoBlocks(attachements)
+		this.provider
+			.getKoduDev()
+			?.handleWebviewAskResponse(askResponse, text + additionalContextBlocks, compressedImages)
 	}
 
 	async renameTask(
@@ -140,7 +131,7 @@ export class TaskManager {
 		if (id !== this.provider.getKoduDev()?.getStateManager().state.taskId) {
 			const { historyItem } = await this.getTaskWithId(id)
 
-			await this.provider.initClaudeDevWithHistoryItem(historyItem)
+			await this.provider.initWithHistoryItem(historyItem)
 			await this.provider.getKoduDev()?.taskExecutor.gitHandler.init(historyItem.dirAbsolutePath!)
 		}
 
