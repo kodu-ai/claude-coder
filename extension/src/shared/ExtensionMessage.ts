@@ -157,6 +157,7 @@ export type ClaudeSay =
 	| "api_req_retried"
 	| "command_output"
 	| "tool"
+	| "memory_updated"
 	| "info"
 	| "abort_automode"
 	| "shell_integration_warning"

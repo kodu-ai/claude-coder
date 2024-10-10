@@ -27,6 +27,7 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 
 			await this.koduDev.providerRef.deref()?.getStateManager().updateTaskHistory(historyItem)
 			await this.koduDev.getStateManager().setState(state)
+			this.params.say("memory_updated", content)
 
 			return "Successfully updated task history."
 		} catch (error) {

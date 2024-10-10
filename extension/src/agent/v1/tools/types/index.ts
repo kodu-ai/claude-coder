@@ -9,23 +9,23 @@ export type UpsertMemoryInput = {
 	content: string
 }
 
-export type ToolInput =
-	| UpsertMemoryInput
-	| {
-			path?: string
-			content?: string
-			regex?: string
-			udiff?: string
-			filePattern?: string
-			recursive?: string
-			command?: string
-			question?: string
-			result?: string
-			searchQuery?: string
-			query?: string
-			baseLink?: string
-			url?: string
-	  }
+export type ToolInput = {
+	milestoneName?: string
+	summary?: string
+	path?: string
+	content?: string
+	regex?: string
+	udiff?: string
+	filePattern?: string
+	recursive?: string
+	command?: string
+	question?: string
+	result?: string
+	searchQuery?: string
+	query?: string
+	baseLink?: string
+	url?: string
+}
 
 export type AgentToolParams = {
 	name: ToolName

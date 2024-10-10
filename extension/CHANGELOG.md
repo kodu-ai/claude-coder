@@ -4,6 +4,17 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.9.0]
+
+-   Improved Attachments: removed the need for approval to read attachments.
+-   Improved Design: redesigned the chat interface to better suit non-technical users.
+-   Added Task Memory: built-in memory to improve performance on long-term tasks, keeping our AI on track.
+-   Version Control: built-in version control to view your task timeline and jump to specific versions.
+-   Improved Internal System Prompt: non-technical prompts should now work much better, with improved thinking and communication processes.
+-   New Chat Elements: Call to Action, Thinking, Preview!
+-   Removed udiff: current models are not strong enough to use udiff consistently.
+-   Added Technical Settings: set your technical level to personalize your experience to better fit your needs.
+
 ## [1.8.0]
 
 -   minor updates to readme file

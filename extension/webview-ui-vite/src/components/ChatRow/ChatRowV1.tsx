@@ -10,6 +10,7 @@ import Thumbnails from "../Thumbnails/Thumbnails"
 import IconAndTitle from "./IconAndTitle"
 import MarkdownRenderer from "./MarkdownRenderer"
 import ToolRenderer from "./ToolRenderer"
+import MemoryUpdate from "./memory-update"
 
 interface ChatRowProps {
 	message: V1ClaudeMessage
@@ -96,17 +97,17 @@ const TextMessage: React.FC<{ message: V1ClaudeMessage; syntaxHighlighterStyle: 
 	)
 )
 
-const UserFeedbackMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => { 
+const UserFeedbackMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => {
 	return (
 		<div style={{ display: "flex", alignItems: "start", gap: "8px" }}>
-		<span className="codicon codicon-account" style={{ marginTop: "2px" }} />
-		<div style={{ display: "grid", gap: "8px" }}>
-			<TextWithAttachments text={message.text} />
-			{message.images && message.images.length > 0 && <Thumbnails images={message.images} />}
+			<span className="codicon codicon-account" style={{ marginTop: "2px" }} />
+			<div style={{ display: "grid", gap: "8px" }}>
+				<TextWithAttachments text={message.text} />
+				{message.images && message.images.length > 0 && <Thumbnails images={message.images} />}
+			</div>
 		</div>
-	</div>
-	)}
-)
+	)
+})
 
 const InfoMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => (
 	<div style={{ display: "flex", alignItems: "start", gap: "8px" }} className="text-info">
@@ -215,6 +216,16 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 								isExpanded={isExpanded}
 								onToggleExpand={onToggleExpand}
 								syntaxHighlighterStyle={syntaxHighlighterStyle}
+							/>
+						)
+					case "memory_updated":
+						return (
+							<MemoryUpdate
+								message={{
+									title: "Memory Updated",
+									content: message.text!,
+									say: "success",
+								}}
 							/>
 						)
 					case "api_req_finished":
