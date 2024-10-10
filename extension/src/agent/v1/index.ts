@@ -15,7 +15,6 @@ import { ToolInput } from "./tools/types"
 import { createTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
 import { DiagnosticsHandler, GitHandler } from "./handlers"
-import { ReadTaskHistoryTool } from "./tools"
 
 // new KoduDev
 export class KoduDev {
