@@ -1,8 +1,30 @@
-import React, { useEffect, useRef, useState } from "react"
-import { useWindowSize } from "react-use"
+import { extractAdditionalContext, extractFilesFromContext, extractUrlsFromContext } from "@/utils/extractAttachments";
+import React, { useEffect, useRef, useState } from "react";
+import { useWindowSize } from "react-use";
+import AttachmentsList, { FileItem, UrlItem } from "../ChatRow/FileList";
 
 interface TaskTextProps {
 	text?: string
+}
+
+function splitString(input: string) {
+  const regex = /<additional-context>\[(.*?)\]<\/additional-context>/;
+  const match = input.match(regex);
+
+  if (match) {
+    const additionalContent = match[1];
+    const mainContent = input.replace(match[0], '').trim();
+
+    return {
+      mainContent,
+      additionalContent,
+    };
+  } else {
+    return {
+      mainContent: input,
+      additionalContent: null,
+    };
+  }
 }
 
 const TaskText: React.FC<TaskTextProps> = ({ text }) => {
@@ -35,6 +57,15 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 	}, [text, windowWidth])
 
 	const toggleExpand = () => setIsExpanded(!isExpanded)
+	const parts = extractAdditionalContext(text || '');
+	let filesCut: FileItem[] = []
+	if (parts[1]) {
+		filesCut = extractFilesFromContext(parts[1]);
+	}
+	let urlsCut: UrlItem[] = []
+	if (parts[1]) {
+		urlsCut = extractUrlsFromContext(parts[1]);
+	}
 
 	return (
 		<>
@@ -58,7 +89,7 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 						wordBreak: "break-word",
 						overflowWrap: "anywhere",
 					}}>
-					{text}
+					{parts[0].trim()}
 				</div>
 				{!isExpanded && showSeeMore && (
 					<div
@@ -90,6 +121,8 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 					</div>
 				)}
 			</div>
+				<AttachmentsList files={filesCut} urls={urlsCut} />
+				
 			{isExpanded && showSeeMore && (
 				<div
 					style={{

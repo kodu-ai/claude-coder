@@ -1,6 +1,10 @@
 import { ApiConfiguration } from "../api"
 import { GlobalState } from "../providers/claude-coder/state/GlobalStateManager"
 
+export type Resource = 
+  | { id: string; type: 'file' | 'folder'; name: string }
+  | { id: string; type: 'url'; description: string; name: string };
+
 export type AmplitudeWebviewMessage = {
 	type: "amplitude"
 	event_type:
@@ -129,6 +133,7 @@ export type WebviewMessage =
 			text?: string
 			askResponse?: ClaudeAskResponse
 			images?: string[]
+			attachements?: Resource[]
 			bool?: boolean
 	  }
 

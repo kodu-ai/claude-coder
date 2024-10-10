@@ -1,15 +1,15 @@
-import React from "react"
+import { TextWithAttachments } from "@/utils/extractAttachments"
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
-import { V1ClaudeMessage, ClaudeSayTool } from "../../../../src/shared/ExtensionMessage"
+import React from "react"
+import { ClaudeSayTool, V1ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
 import { COMMAND_OUTPUT_STRING } from "../../../../src/shared/combineCommandSequences"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import CodeBlock from "../CodeBlock/CodeBlock"
-import Thumbnails from "../Thumbnails/Thumbnails"
 import Terminal from "../Terminal/Terminal"
+import Thumbnails from "../Thumbnails/Thumbnails"
 import IconAndTitle from "./IconAndTitle"
 import MarkdownRenderer from "./MarkdownRenderer"
 import ToolRenderer from "./ToolRenderer"
-import { ScrollArea } from "../ui/scroll-area"
 
 interface ChatRowProps {
 	message: V1ClaudeMessage
@@ -96,15 +96,17 @@ const TextMessage: React.FC<{ message: V1ClaudeMessage; syntaxHighlighterStyle: 
 	)
 )
 
-const UserFeedbackMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => (
-	<div style={{ display: "flex", alignItems: "start", gap: "8px" }}>
+const UserFeedbackMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => { 
+	return (
+		<div style={{ display: "flex", alignItems: "start", gap: "8px" }}>
 		<span className="codicon codicon-account" style={{ marginTop: "2px" }} />
 		<div style={{ display: "grid", gap: "8px" }}>
-			<div>{message.text}</div>
+			<TextWithAttachments text={message.text} />
 			{message.images && message.images.length > 0 && <Thumbnails images={message.images} />}
 		</div>
 	</div>
-))
+	)}
+)
 
 const InfoMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => (
 	<div style={{ display: "flex", alignItems: "start", gap: "8px" }} className="text-info">
