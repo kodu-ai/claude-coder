@@ -81,33 +81,38 @@ const GitDialog: React.FC = () => {
 				</DialogHeader>
 
 				<p className="text-sm font-semibold">Branches</p>
-				<div className="relative h-[100px] overflow-hidden">
-					<ScrollArea className="h-[100px] pr-2 pb-2">
-						<div className="mb-2">
-							{gitBranches.map((branch) => (
-								<div
-									key={branch.name}
-									onClick={() => checkoutTo(branch.name)}
-									className="flex items-center space-x-2 py-1 cursor-pointer rounded-sm bg-accent-light">
+				{gitBranches.length ? (
+					<div className="relative h-[100px] overflow-hidden">
+						<ScrollArea className="h-[100px] pr-2 pb-2">
+							<div className="mb-2">
+								{gitBranches.map((branch) => (
 									<div
-										className={`w-4 h-4 rounded-full flex items-center justify-center ${
-											branch.isCheckedOut ? "bg-primary" : "bg-secondary"
-										}`}>
-										<Goal className="h-3 w-3 text-secondary-foreground" />
-									</div>
+										key={branch.name}
+										onClick={() => checkoutTo(branch.name)}
+										className="flex items-center space-x-2 py-1 cursor-pointer rounded-sm bg-accent-light">
+										<div
+											className={`w-4 h-4 rounded-full flex items-center justify-center ${
+												branch.isCheckedOut ? "bg-primary" : "bg-secondary"
+											}`}>
+											<Goal className="h-3 w-3 text-secondary-foreground" />
+										</div>
 
-									<div className="flex items-center justify-between flex-grow">
-										<p className="text-[12px] truncate">{branch.name}</p>
-										<p className="text-[8px] text-muted-foreground/40">
-											{branch.lastCommitRelativeTime}
-										</p>
+										<div className="flex items-center justify-between flex-grow">
+											<p className="text-[12px] truncate">{branch.name}</p>
+											<p className="text-[8px] text-muted-foreground/40">
+												{branch.lastCommitRelativeTime}
+											</p>
+										</div>
 									</div>
-								</div>
-							))}
-						</div>
-						<div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent pointer-events-none"></div>
-					</ScrollArea>
-				</div>
+								))}
+							</div>
+							<div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent pointer-events-none"></div>
+						</ScrollArea>
+					</div>
+				) : (
+					<div className="text-muted-foreground text-[10px] mb-10">No branches found</div>
+				)}
+
 				<Separator />
 
 				<div className="flex items-center space-x-1">

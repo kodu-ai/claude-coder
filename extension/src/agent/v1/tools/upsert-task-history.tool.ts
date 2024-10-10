@@ -31,9 +31,9 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 			return "Successfully updated task history."
 		} catch (error) {
 			return `Error writing file: ${JSON.stringify(serializeError(error))}
-						A good example of a upsert_task_history tool call is:
+						A good example of a upsert_memory tool call is:
 			{
-				"tool": "upsert_task_history",
+				"tool": "upsert_memory",
         "summary" "Landing page accepts user email"
 				"content": "## Task
 - [x] Create the package.json file
@@ -56,9 +56,9 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 		)
 
 		return `Error: Missing value for required parameter ${missingParam}. Please retry with complete response.
-						A good example of a upsert_task_history tool call is:
+						A good example of a upsert_memory tool call is:
 			{
-				"tool": "upsert_task_history",
+				"tool": "upsert_memory",
         "summary" "Landing page accepts user email"
 				"content": "## Task
 - [x] Create the package.json file

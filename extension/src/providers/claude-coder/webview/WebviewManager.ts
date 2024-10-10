@@ -7,7 +7,6 @@ import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ClaudeDevProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
-import { ReadTaskHistoryTool } from "../../../agent/v1/tools"
 import { KoduDevState } from "../../../agent/v1/types"
 import { GitHandler } from "../../../agent/v1/handlers"
 
@@ -447,7 +446,7 @@ export class WebviewManager {
 						await this.getTaskHistory()
 						break
 					case "updateTaskHistory":
-						this.provider.getKoduDev()?.executeTool("upsert_task_history", { content: message.history })
+						this.provider.getKoduDev()?.executeTool("upsert_memory", { content: message.history })
 						break
 				}
 			},

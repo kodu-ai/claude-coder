@@ -478,7 +478,7 @@ export const tools: Tool[] = [
 		},
 	},
 	{
-		name: "upsert_task_history",
+		name: "upsert_memory",
 		description: `Allows you to create or update the task history with a summary of changes and the complete content of the task history in markdown.
 		The tasks history tracks your progress and changes made to the task over time. it should also include notes and memories for future reference. that you can refer back to when needed.`,
 		input_schema: {

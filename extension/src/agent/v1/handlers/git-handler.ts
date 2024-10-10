@@ -3,6 +3,7 @@ import { exec } from "child_process"
 import { promises as fs } from "fs"
 import { ClaudeMessage, GitBranchItem, GitLogItem } from "../../../shared/ExtensionMessage"
 import { ToolName } from "../types"
+import { has } from "lodash"
 
 export class GitHandler {
 	private repoPath: string | undefined
@@ -74,7 +75,7 @@ export class GitHandler {
 			case "update_file":
 				message = `Updated file ${fileName}`
 				break
-			case "upsert_task_history":
+			case "upsert_memory":
 				message = "Updated task history"
 				break
 			default:
@@ -123,31 +124,48 @@ export class GitHandler {
 		}
 
 		try {
-			return new Promise((resolve) => {
-				exec(
-					`git log --pretty=format:"%h%x09%ad%x09%s" --date=format:"%Y-%m-%d %H:%M"`,
-					{ cwd: repoAbsolutePath },
-					(error, stdout, stderr) => {
-						resolve(
-							stdout
-								.trim()
-								.split("\n")
-								.map((line) => {
-									const [hash, date, time, ...messageParts] = line.split(/\s+/)
-									return {
-										hash,
-										datetime: `${date} ${time}`,
-										message: messageParts.join(" "),
-									}
-								})
-						)
-					}
-				)
-			})
+			return (
+				new Promise((resolve) => {
+					exec(
+						`git log --pretty=format:"%h%x09%ad%x09%s" --date=format:"%Y-%m-%d %H:%M"`,
+						{ cwd: repoAbsolutePath },
+						(error, stdout, stderr) => {
+							if (error) {
+								resolve([])
+							}
+
+							resolve(this.parseGitLogs(stdout))
+						}
+					)
+				}) ?? []
+			)
 		} catch (error) {
 			console.error(`Error getting log: ${error}`)
 			return []
 		}
+	}
+
+	private static parseGitLogs(stdout: string): GitLogItem[] {
+		if (!stdout) {
+			return []
+		}
+
+		return stdout
+			.trim()
+			.split("\n")
+			.map((line) => {
+				const [hash, date, time, ...messageParts] = line.split(/\s+/)
+				if (!hash || !date) {
+					return null
+				}
+
+				return {
+					hash,
+					datetime: `${date} ${time}`,
+					message: messageParts.join(" "),
+				}
+			})
+			.filter((x) => !!x)
 	}
 
 	static async getBranches(repoAbsolutePath: string): Promise<GitBranchItem[]> {
@@ -161,30 +179,7 @@ export class GitHandler {
 					"git for-each-ref --sort=-committerdate refs/heads/ --format='%(if)%(HEAD)%(then)* %(end)%(refname:short) %(committerdate:relative)'",
 					{ cwd: repoAbsolutePath },
 					(error, stdout, stderr) => {
-						const branches = stdout
-							.trim()
-							.split("\n")
-							.map((line) => {
-								const isCheckedOut = line.startsWith("*")
-								const cleanLine = isCheckedOut ? line.substring(2) : line // Remove "* " if it's the current branch
-								const spaceIndex = cleanLine.indexOf(" ")
-								const name = cleanLine.substring(0, spaceIndex)
-								const lastCommitRelativeTime = cleanLine.substring(spaceIndex + 1).trim()
-
-								return {
-									name,
-									isCheckedOut,
-									lastCommitRelativeTime,
-								}
-							})
-
-						const sortedBranches = branches.sort((a, b) => {
-							if (a.isCheckedOut) return -1
-							if (b.isCheckedOut) return 1
-							return 0
-						})
-
-						resolve(sortedBranches)
+						resolve(this.parseGitBranches(stdout))
 					}
 				)
 			})
@@ -192,6 +187,40 @@ export class GitHandler {
 			console.error(`Error getting branches: ${error}`)
 			return []
 		}
+	}
+
+	private static parseGitBranches(stdout: string): GitBranchItem[] {
+		if (!stdout) {
+			return []
+		}
+
+		const branches = stdout
+			.trim()
+			.split("\n")
+			.map((line) => {
+				if (!line) {
+					return null
+				}
+
+				const isCheckedOut = line.startsWith("*")
+				const cleanLine = isCheckedOut ? line.substring(2) : line // Remove "* " if it's the current branch
+				const spaceIndex = cleanLine.indexOf(" ")
+				const name = cleanLine.substring(0, spaceIndex)
+				const lastCommitRelativeTime = cleanLine.substring(spaceIndex + 1).trim()
+
+				return {
+					name,
+					isCheckedOut,
+					lastCommitRelativeTime,
+				}
+			})
+			.filter((x) => !!x)
+
+		return branches.sort((a, b) => {
+			if (a.isCheckedOut) return -1
+			if (b.isCheckedOut) return 1
+			return 0
+		})
 	}
 
 	async checkoutTo(identifier: string, newBranchName?: string): Promise<boolean> {
