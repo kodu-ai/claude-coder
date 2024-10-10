@@ -7,9 +7,6 @@ import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ClaudeDevProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
-import { readdir } from "fs/promises"
-import path from "path"
-import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ReadTaskHistoryTool } from "../../../agent/v1/tools"
 import { KoduDevState } from "../../../agent/v1/types"
 import { GitHandler } from "../../../agent/v1/handlers"
@@ -328,7 +325,9 @@ export class WebviewManager {
 						await this.postStateToWebview()
 						break
 					case "newTask":
-						await this.provider.getTaskManager().handleNewTask(message.text, message.images, message.attachements)
+						await this.provider
+							.getTaskManager()
+							.handleNewTask(message.text, message.images, message.attachements)
 						break
 					case "apiConfiguration":
 						if (message.apiConfiguration) {
@@ -373,7 +372,7 @@ export class WebviewManager {
 						const images = await this.provider.getTaskManager().selectImages()
 						await this.postMessageToWebview({
 							type: "selectedImages",
-							images: images.map((img) => img.data),
+							images: images.map((img) => img),
 						})
 						break
 					case "exportCurrentTask":
