@@ -14,9 +14,9 @@ import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
 import { createTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
-import { DiagnosticsHandler, GitHandler } from "./handlers"
-import { ReadTaskHistoryTool } from "./tools"
+import { DiagnosticsHandler } from "./handlers"
 import vscode from "vscode"
+
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager

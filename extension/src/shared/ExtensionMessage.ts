@@ -208,4 +208,5 @@ export type GitBranchItem = {
 	name: string
 	lastCommitRelativeTime: string
 	isCheckedOut: boolean
+	lastCommitMessage: string
 }

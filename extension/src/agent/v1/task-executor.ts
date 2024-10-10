@@ -6,7 +6,6 @@ import { combineApiRequests } from "../../shared/combineApiRequests"
 import { getApiMetrics } from "../../shared/getApiMetrics"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
-import { createStreamDebouncer } from "../../utils/stream-debouncer"
 import { StateManager } from "./state-manager"
 import { ToolExecutor } from "./tool-executor"
 import { ToolInput } from "./tools/types"
@@ -15,7 +14,6 @@ import { debounce } from "lodash"
 import { ChunkProcessor } from "./chunk-proccess"
 import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { GitHandler } from "./handlers/git-handler"
-import { getCwd } from "./utils"
 
 export enum TaskState {
 	IDLE = "IDLE",
@@ -409,8 +407,8 @@ export class TaskExecutor {
 
 	// say and git commit and dignaostics can happen here
 	private async onAfterToolExecution(toolName: ToolName, input: ToolInput): Promise<void> {
-		if (toolName === "upsert_task_history") {
-			await this.gitHandler.commitChangesOnMilestone(input.summary!)
+		if (toolName === "upsert_memory") {
+			await this.gitHandler.commitChanges(input.milestoneName!, input.summary!)
 		}
 	}
 

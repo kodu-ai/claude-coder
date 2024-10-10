@@ -12,8 +12,8 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 	}
 
 	async execute(): Promise<ToolResponse> {
-		const { content, summary } = this.params.input
-		if (!content || !summary) {
+		const { content, milestoneName, summary } = this.params.input
+		if (!content || !milestoneName || !summary) {
 			return await this.onBadInputReceived()
 		}
 
@@ -31,10 +31,11 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 			return "Successfully updated task history."
 		} catch (error) {
 			return `Error writing file: ${JSON.stringify(serializeError(error))}
-						A good example of a upsert_task_history tool call is:
+						A good example of a upsert_memory tool call is:
 			{
-				"tool": "upsert_task_history",
+				"tool": "upsert_memory",
         "summary" "Landing page accepts user email"
+				"milestoneName": "add-email-to-lp",
 				"content": "## Task
 - [x] Create the package.json file
 - [x] Initialize the App.jsx file
@@ -47,8 +48,8 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 	}
 
 	private async onBadInputReceived(): Promise<ToolResponse> {
-		const { summary } = this.params.input
-		const missingParam = !summary ? "summary" : "content"
+		const { summary, content } = this.params.input
+		const missingParam = !summary ? "summary" : !content ? "content" : "milestoneName"
 
 		await this.params.say(
 			"error",
@@ -56,9 +57,10 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 		)
 
 		return `Error: Missing value for required parameter ${missingParam}. Please retry with complete response.
-						A good example of a upsert_task_history tool call is:
+						A good example of a upsert_memory tool call is:
 			{
-				"tool": "upsert_task_history",
+				"tool": "upsert_memory",
+				"milestoneName": "add-email-to-lp",
         "summary" "Landing page accepts user email"
 				"content": "## Task
 - [x] Create the package.json file
