@@ -186,13 +186,6 @@ export class GitHandler {
 
 			const isCheckedOut = isCheckedOutIndicator === "*"
 
-			console.log({
-				stdout,
-				name,
-				lastCommitRelativeTime,
-				isCheckedOutIndicator,
-			})
-
 			branches.push({
 				name,
 				lastCommitRelativeTime,
@@ -204,15 +197,13 @@ export class GitHandler {
 		return branches
 	}
 
-	async checkoutTo(identifier: string, newBranchName?: string): Promise<boolean> {
+	async checkoutTo(identifier: string): Promise<boolean> {
 		if (!this.repoPath) {
 			return false
 		}
 
 		return new Promise((resolve) => {
-			const command = newBranchName
-				? `git checkout ${identifier} && git checkout -b ${newBranchName.replace(/ /g, "-")}`
-				: `git checkout ${identifier}`
+			const command = `git checkout ${identifier}`
 			exec(command, { cwd: this.repoPath }, (error) => {
 				if (error) {
 					resolve(false)

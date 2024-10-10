@@ -6,7 +6,6 @@ import { combineApiRequests } from "../../shared/combineApiRequests"
 import { getApiMetrics } from "../../shared/getApiMetrics"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
-import { createStreamDebouncer } from "../../utils/stream-debouncer"
 import { StateManager } from "./state-manager"
 import { ToolExecutor } from "./tool-executor"
 import { ToolInput } from "./tools/types"
@@ -15,7 +14,6 @@ import { debounce } from "lodash"
 import { ChunkProcessor } from "./chunk-proccess"
 import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { GitHandler } from "./handlers/git-handler"
-import { getCwd } from "./utils"
 
 export enum TaskState {
 	IDLE = "IDLE",

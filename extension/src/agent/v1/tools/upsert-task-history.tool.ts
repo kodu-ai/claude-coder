@@ -13,7 +13,7 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 
 	async execute(): Promise<ToolResponse> {
 		const { content, milestoneName, summary } = this.params.input
-		if (!content || !milestoneName) {
+		if (!content || !milestoneName || !summary) {
 			return await this.onBadInputReceived()
 		}
 

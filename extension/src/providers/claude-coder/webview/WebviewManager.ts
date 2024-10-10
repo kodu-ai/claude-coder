@@ -423,15 +423,7 @@ export class WebviewManager {
 						})
 						break
 					case "gitCheckoutTo":
-						const isSuccess =
-							(await this.provider
-								.getKoduDev()
-								?.taskExecutor?.gitHandler.checkoutTo(message.branchName)) ?? false
-
-						this.postMessageToWebview({
-							type: "gitCheckoutTo",
-							isSuccess,
-						})
+						await this.checkoutToBranch(message)
 						break
 					case "gitBranches":
 						const branches = await GitHandler.getBranches(this.state?.dirAbsolutePath!)
@@ -488,6 +480,21 @@ export class WebviewManager {
 				memory ??
 				"Task history is not initialized yet, Agent will initialize it soon, or you can ask Agent to create it.",
 			isInitialized: !!memory,
+		})
+	}
+
+	private async checkoutToBranch(message: WebviewMessage): Promise<void> {
+		const taskExecutor = this.provider.getKoduDev()?.taskExecutor!
+		const isSuccess = (await taskExecutor?.gitHandler.checkoutTo(message.branchName!)) ?? false
+
+		await taskExecutor.handleAskResponse(
+			"messageResponse",
+			`The user checked out to version: '${message.branchName}'`
+		)
+
+		this.postMessageToWebview({
+			type: "gitCheckoutTo",
+			isSuccess,
 		})
 	}
 }
