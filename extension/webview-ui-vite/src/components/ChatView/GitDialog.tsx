@@ -11,15 +11,13 @@ import { ScrollArea } from "../ui/scroll-area"
 import { Separator } from "../ui/separator"
 import { Input } from "@/components/ui/input"
 
-// function tryNCatch<T>(fn: (...args: any[]) => T, ...args: any[]): T | null {
-// 	try {
-// 	  return fn(...args);
-// 	} catch (error) {
-// 	  return null;
-// 	}
-//   }
-// const d = tryNCatch(formatDistanceToNow('checkpoint.datetime', { addSuffix: true }))
-
+const dialogTime = (time: string) => {
+	try {
+		return formatDistanceToNow(new Date(time), { addSuffix: true })
+	} catch (err) {
+		return null
+	}
+}
 const GitDialog: React.FC = () => {
 	const [gitLog, setGitLog] = useState<GitLogItem[]>([])
 	const [open, setOpen] = useState(false)
@@ -139,7 +137,7 @@ const GitDialog: React.FC = () => {
 									<div className="w-full flex flex-col">
 										<div className="text-[12px] max-w-[320px] truncate">{checkpoint.message}</div>
 										<p className="text-[8px] text-muted-foreground/40">
-											{formatDistanceToNow(checkpoint.datetime, { addSuffix: true })}
+											{dialogTime(checkpoint.datetime)}
 										</p>
 									</div>
 								</div>

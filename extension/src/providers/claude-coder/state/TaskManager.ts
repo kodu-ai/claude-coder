@@ -6,10 +6,10 @@ import { formatAttachementsIntoBlocks } from "../../../agent/v1/tools/format-con
 import { HistoryItem } from "../../../shared/HistoryItem"
 import { Resource } from "../../../shared/WebviewMessage"
 import { compressImages, downloadTask, selectImages } from "../../../utils"
-import { ClaudeDevProvider } from "../ClaudeCoderProvider"
+import { ExtensionProvider } from "../ClaudeCoderProvider"
 
 export class TaskManager {
-	constructor(private provider: ClaudeDevProvider) {}
+	constructor(private provider: ExtensionProvider) {}
 
 	async clearTask() {
 		this.provider.getKoduDev()?.abortTask()
@@ -61,7 +61,7 @@ export class TaskManager {
 	async handleNewTask(task?: string, images?: string[], attachements?: Resource[]) {
 		const compressedImages = await compressImages(images ?? [])
 		const additionalContextBlocks = await formatAttachementsIntoBlocks(attachements)
-		await this.provider.initClaudeDevWithTask(task + additionalContextBlocks, compressedImages)
+		await this.provider.initWithTask(task + additionalContextBlocks, compressedImages)
 	}
 
 	async handleAskResponse(askResponse: any, text?: string, images?: string[], attachements?: Resource[]) {
@@ -131,7 +131,7 @@ export class TaskManager {
 		if (id !== this.provider.getKoduDev()?.getStateManager().state.taskId) {
 			const { historyItem } = await this.getTaskWithId(id)
 
-			await this.provider.initClaudeDevWithHistoryItem(historyItem)
+			await this.provider.initWithHistoryItem(historyItem)
 			await this.provider.getKoduDev()?.taskExecutor.gitHandler.init(historyItem.dirAbsolutePath!)
 		}
 

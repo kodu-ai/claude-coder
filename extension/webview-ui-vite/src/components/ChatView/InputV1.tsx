@@ -132,11 +132,6 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 		}))
 		setAttachedResources((prev) => [...prev, ...newResources])
 		handleCloseDialog()
-		// remove @ from the text
-		const newText = textareaValue.slice(0, cursorPosition - 1) + textareaValue.slice(cursorPosition)
-		setTextareaValue(newText)
-		props.onChange({ target: { value: newText } } as React.ChangeEvent<HTMLTextAreaElement>)
-		setShowPopover(false)
 	}
 
 	const handleScrapeSubmit = () => {
@@ -150,20 +145,28 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 			console.debug(newResource)
 			setAttachedResources((prev) => [...prev, newResource])
 			handleCloseDialog()
-			setShowPopover(false)
 		}
 	}
 
 	const handleOpenDialog = (dialogName: string) => {
-		setOpenDialog(dialogName)
 		setShowPopover(false)
-		setSelectedItems(new Set())
+		if (dialogName === "debug") {
+			vscode.postMessage({ type: "debug" })
+			handleCloseDialog()
+			return
+		}
+		setOpenDialog(dialogName)
 		if (openDialog === "fileFolder") {
 			vscode.postMessage({ type: "fileTree" })
 		}
 	}
 
 	const handleCloseDialog = () => {
+		// remove @ from the text
+		const newText = textareaValue.slice(0, cursorPosition - 1) + textareaValue.slice(cursorPosition)
+		setTextareaValue(newText)
+		props.onChange({ target: { value: newText } } as React.ChangeEvent<HTMLTextAreaElement>)
+		setShowPopover(false)
 		setOpenDialog(null)
 		setSelectedItems(new Set())
 		setScrapeUrl("")

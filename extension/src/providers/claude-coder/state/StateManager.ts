@@ -5,14 +5,14 @@ import { ApiManager } from "./ApiManager"
 import { HistoryItem } from "../../../shared/HistoryItem"
 import { SecretStateManager } from "./SecretStateManager"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
-import { ClaudeDevProvider } from "../ClaudeCoderProvider"
+import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { ExtensionState } from "../../../shared/ExtensionMessage"
 export class StateManager {
 	private globalStateManager: GlobalStateManager
 	private secretStateManager: SecretStateManager
 	private apiManager: ApiManager
 
-	constructor(private context: ClaudeDevProvider) {
+	constructor(private context: ExtensionProvider) {
 		this.globalStateManager = new GlobalStateManager(context.context)
 		this.apiManager = new ApiManager(context)
 		this.secretStateManager = new SecretStateManager(context.context)

@@ -1,5 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ClaudeDevProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
+import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { ClaudeAsk, isV1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { ToolName } from "../../shared/Tool"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
@@ -16,7 +16,7 @@ import { createTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
 import { DiagnosticsHandler, GitHandler } from "./handlers"
 import { ReadTaskHistoryTool } from "./tools"
-
+import vscode from "vscode"
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
@@ -24,7 +24,7 @@ export class KoduDev {
 	private toolExecutor: ToolExecutor
 	public taskExecutor: TaskExecutor
 	public terminalManager: ReturnType<typeof createTerminalManager>
-	public providerRef: WeakRef<ClaudeDevProvider>
+	public providerRef: WeakRef<ExtensionProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
 	public diagnosticsHandler: DiagnosticsHandler
@@ -61,6 +61,21 @@ export class KoduDev {
 		})
 
 		if (historyItem?.dirAbsolutePath) {
+		}
+		if (options.isDebug) {
+			const openFolders = vscode.workspace.workspaceFolders
+			if (!openFolders || !openFolders[0]) {
+				vscode.window.showErrorMessage("Please open only one workspace folder to debug the project.")
+				return
+			}
+
+			const rootPath = openFolders[0].uri.fsPath
+			const problemsString = this.diagnosticsHandler?.getProblemsString(rootPath)
+			if (!problemsString) {
+				vscode.window.showErrorMessage("No problems found in the project.")
+			}
+			this.startTask(`Please debug the project. here are some of the problems:\n ${problemsString}`, [])
+			return
 		}
 
 		if (historyItem) {
