@@ -10,7 +10,7 @@ import {
 	ClaudeSayTool,
 	ExtensionMessage,
 	V1ClaudeMessage,
-	isV1ClaudeMessage
+	isV1ClaudeMessage,
 } from "../../../../src/shared/ExtensionMessage"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
 import { COMMAND_STDIN_STRING, combineCommandSequences } from "../../../../src/shared/combineCommandSequences"
@@ -29,9 +29,9 @@ import InputArea from "./InputArea"
 import { CHAT_BOX_INPUT_ID } from "./InputTextArea"
 import ChatScreen from "./chat-screen"
 import { Resource } from "../../../../src/shared/WebviewMessage"
+import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
 
 export const attachementsAtom = atom<Resource[]>([])
-
 
 interface ChatViewProps {
 	isHidden: boolean
@@ -67,7 +67,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const [textAreaDisabled, setTextAreaDisabled] = useState(false)
 	const [selectedImages, setSelectedImages] = useState<string[]>([])
 	const [thumbnailsHeight, setThumbnailsHeight] = useState(0)
-
+	const { openOutOfCreditDialog, shouldOpenOutOfCreditDialog } = useOutOfCreditDialog()
 	// UI control state
 	const [claudeAsk, setClaudeAsk] = useState<ClaudeAsk | undefined>(undefined)
 	const [_, setIsAbortingRequest] = useState(false)
@@ -76,7 +76,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const [secondaryButtonText, setSecondaryButtonText] = useState<string | undefined>(undefined)
 	const [syntaxHighlighterStyle, setSyntaxHighlighterStyle] = useState(vsDarkPlus)
 	const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
-	const [attachements, setAttachements] = useAtom(attachementsAtom);
+	const [attachements, setAttachements] = useAtom(attachementsAtom)
 
 	// Refs
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
@@ -194,6 +194,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Handle sending messages
 	const handleSendMessage = useCallback(
 		(input?: string) => {
+			if (shouldOpenOutOfCreditDialog) {
+				openOutOfCreditDialog()
+				return
+			}
 			console.log(`inputValue: ${inputValue}`)
 			let text = inputValue?.trim()
 			if (!!input && input.length > 1) {
@@ -210,7 +214,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 						askResponse: "messageResponse",
 						text,
 						images: selectedImages,
-						attachements: attachements
+						attachements: attachements,
 					})
 				}
 				setAttachements([])
@@ -221,7 +225,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 				setEnableButtons(false)
 			}
 		},
-		[inputValue, selectedImages, messages.length, claudeAsk]
+		[inputValue, selectedImages, messages.length, claudeAsk, user, shouldOpenOutOfCreditDialog]
 	)
 
 	// Handle Claude ask response
@@ -295,6 +299,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 			case "command_output":
 			case "tool":
 			case "resume_task":
+				if (shouldOpenOutOfCreditDialog) {
+					openOutOfCreditDialog()
+					return
+				}
 				vscode.postMessage({ type: "askResponse", askResponse: "yesButtonTapped" })
 				break
 			case "completion_result":
@@ -305,7 +313,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 		setTextAreaDisabled(true)
 		setClaudeAsk(undefined)
 		setEnableButtons(false)
-	}, [claudeAsk])
+	}, [claudeAsk, shouldOpenOutOfCreditDialog])
 
 	// Handle secondary button click
 	const handleSecondaryButtonClick = useCallback(() => {
