@@ -103,6 +103,7 @@ export class TaskExecutor {
 	public abortTask(): void {
 		this.logState("Aborting task")
 		this.abortController?.abort()
+		this.cancelCurrentRequest()
 		this.resetState()
 	}
 
@@ -285,6 +286,10 @@ export class TaskExecutor {
 							assistantResponses.push(contentBlock)
 						} else if (contentBlock.type === "tool_use") {
 							assistantResponses.push(contentBlock)
+							const koduDev = this.providerRef.deref()?.getKoduDev()
+							if (koduDev && "write_to_file" === contentBlock.name) {
+								koduDev.isLastMessageFileEdit = true
+							}
 						}
 
 						// if the request was cancelled after processing a block, return to prevent further processing (ui state + anthropic state)

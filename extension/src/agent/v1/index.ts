@@ -6,7 +6,7 @@ import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { ApiManager } from "./api-handler"
 import { ToolExecutor } from "./tool-executor"
 import { KoduDevOptions, ToolResponse, UserContent } from "./types"
-import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "./utils"
+import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails, formatFilesList } from "./utils"
 import { StateManager } from "./state-manager"
 import { AskResponse, TaskExecutor, TaskState } from "./task-executor"
 import { findLastIndex } from "../../utils"
@@ -16,6 +16,13 @@ import { createTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
 import { DiagnosticsHandler } from "./handlers"
 import vscode from "vscode"
+import path from "path"
+import { TerminalManager } from "../../integrations/terminal/terminal-manager"
+import delay from "delay"
+import pWaitFor from "p-wait-for"
+import os from "os"
+import { arePathsEqual } from "../../utils/path-helpers"
+import { listFiles } from "../../parse-source-code"
 
 // new KoduDev
 export class KoduDev {
@@ -23,6 +30,10 @@ export class KoduDev {
 	private apiManager: ApiManager
 	private toolExecutor: ToolExecutor
 	public taskExecutor: TaskExecutor
+	/**
+	 * If the last api message caused a file edit
+	 */
+	public isLastMessageFileEdit: boolean = false
 	public terminalManager: ReturnType<typeof createTerminalManager>
 	public providerRef: WeakRef<ExtensionProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
@@ -338,6 +349,120 @@ export class KoduDev {
 			ask: this.taskExecutor.ask.bind(this.taskExecutor),
 			say: this.taskExecutor.say.bind(this.taskExecutor),
 		})
+		4
+	}
+
+	async getEnvironmentDetails(includeFileDetails: boolean = true) {
+		let details = ""
+
+		// It could be useful for cline to know if the user went from one or no file to another between messages, so we always include this context
+		details += "\n\n# VSCode Visible Files"
+		const visibleFiles = vscode.window.visibleTextEditors
+			?.map((editor) => editor.document?.uri?.fsPath)
+			.filter(Boolean)
+			.map((absolutePath) => path.relative(getCwd(), absolutePath).toPosix())
+			.join("\n")
+		if (visibleFiles) {
+			details += `\n${visibleFiles}`
+		} else {
+			details += "\n(No visible files)"
+		}
+
+		details += "\n\n# VSCode Open Tabs"
+		const openTabs = vscode.window.tabGroups.all
+			.flatMap((group) => group.tabs)
+			.map((tab) => (tab.input as vscode.TabInputText)?.uri?.fsPath)
+			.filter(Boolean)
+			.map((absolutePath) => path.relative(getCwd(), absolutePath).toPosix())
+			.join("\n")
+		if (openTabs) {
+			details += `\n${openTabs}`
+		} else {
+			details += "\n(No open tabs)"
+		}
+
+		if (this.terminalManager instanceof TerminalManager) {
+			const busyTerminals = this.terminalManager.getTerminals(true)
+			const inactiveTerminals = this.terminalManager.getTerminals(false)
+
+			if (busyTerminals.length > 0 && this.isLastMessageFileEdit) {
+				await delay(300) // delay after saving file to let terminals catch up
+			}
+
+			// let terminalWasBusy = false
+			if (busyTerminals.length > 0) {
+				// wait for terminals to cool down
+				// terminalWasBusy = allTerminals.some((t) => this.terminalManager.isProcessHot(t.id))
+				await pWaitFor(
+					() =>
+						busyTerminals.every(
+							(t) =>
+								this.terminalManager instanceof TerminalManager &&
+								!this.terminalManager.isProcessHot(t.id)
+						),
+					{
+						interval: 100,
+						timeout: 15_000,
+					}
+				).catch(() => {})
+			}
+			this.isLastMessageFileEdit = false // reset, this lets us know when to wait for saved files to update terminals
+
+			// waiting for updated diagnostics lets terminal output be the most up-to-date possible
+			let terminalDetails = ""
+			if (busyTerminals.length > 0) {
+				// terminals are cool, let's retrieve their output
+				terminalDetails += "\n\n# Actively Running Terminals"
+				for (const busyTerminal of busyTerminals) {
+					terminalDetails += `\n## Original command: \`${busyTerminal.lastCommand}\``
+					const newOutput = this.terminalManager.getUnretrievedOutput(busyTerminal.id)
+					if (newOutput) {
+						terminalDetails += `\n### New Output\n${newOutput}`
+					} else {
+						// details += `\n(Still running, no new output)` // don't want to show this right after running the command
+					}
+				}
+			}
+			// only show inactive terminals if there's output to show
+			if (inactiveTerminals.length > 0) {
+				const inactiveTerminalOutputs = new Map<number, string>()
+				for (const inactiveTerminal of inactiveTerminals) {
+					const newOutput = this.terminalManager.getUnretrievedOutput(inactiveTerminal.id)
+					if (newOutput) {
+						inactiveTerminalOutputs.set(inactiveTerminal.id, newOutput)
+					}
+				}
+				if (inactiveTerminalOutputs.size > 0) {
+					terminalDetails += "\n\n# Inactive Terminals"
+					for (const [terminalId, newOutput] of inactiveTerminalOutputs) {
+						const inactiveTerminal = inactiveTerminals.find((t) => t.id === terminalId)
+						if (inactiveTerminal) {
+							terminalDetails += `\n## ${inactiveTerminal.lastCommand}`
+							terminalDetails += `\n### New Output\n${newOutput}`
+						}
+					}
+				}
+			}
+			if (terminalDetails) {
+				details += terminalDetails
+			}
+		}
+
+		if (includeFileDetails) {
+			details += `\n\n# Current Working Directory (${getCwd().toPosix()}) Files\n`
+			const isDesktop = arePathsEqual(getCwd(), path.join(os.homedir(), "Desktop"))
+			if (isDesktop) {
+				// don't want to immediately access desktop since it would show permission popup
+				details += "(Desktop files not shown automatically. Use list_files to explore if needed.)"
+			} else {
+				const [files, didHitLimit] = await listFiles(getCwd(), true, 200)
+				const result = formatFilesList(getCwd(), files, didHitLimit)
+
+				details += result
+			}
+		}
+
+		return `<environment_details>\n${details.trim()}\n</environment_details>`
 	}
 }
 

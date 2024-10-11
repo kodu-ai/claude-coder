@@ -3,22 +3,20 @@ import { globby, Options } from "globby"
 import os from "os"
 import * as path from "path"
 import { LanguageParser, loadRequiredLanguageParsers } from "./languageParser"
+import { arePathsEqual, fileExistsAtPath } from "../utils/path-helpers"
 
 export const LIST_FILES_LIMIT = 200
 
 // TODO: implement caching behavior to avoid having to keep analyzing project for new tasks.
 export async function parseSourceCodeForDefinitionsTopLevel(dirPath: string): Promise<string> {
 	// check if the path exists
-	const dirExists = await fs
-		.access(path.resolve(dirPath))
-		.then(() => true)
-		.catch(() => false)
+	const dirExists = await fileExistsAtPath(path.resolve(dirPath))
 	if (!dirExists) {
 		return "This directory does not exist or you do not have permission to access it."
 	}
 
 	// Get all files at top level (not gitignored)
-	const allFiles = await listFiles(dirPath, false)
+	const [allFiles, _] = await listFiles(dirPath, false, 200)
 
 	let result = ""
 
@@ -32,7 +30,7 @@ export async function parseSourceCodeForDefinitionsTopLevel(dirPath: string): Pr
 	for (const file of filesToParse) {
 		const definitions = await parseFile(file, languageParsers)
 		if (definitions) {
-			result += `${path.relative(dirPath, file)}\n${definitions}\n`
+			result += `${path.relative(dirPath, file).toPosix()}\n${definitions}\n`
 		}
 		// else {
 		// 	filesWithoutDefinitions.push(file)
@@ -55,18 +53,18 @@ export async function parseSourceCodeForDefinitionsTopLevel(dirPath: string): Pr
 	return result ? result : "No source code definitions found."
 }
 
-export async function listFiles(dirPath: string, recursive: boolean): Promise<string[]> {
+export async function listFiles(dirPath: string, recursive: boolean, limit: number): Promise<[string[], boolean]> {
 	const absolutePath = path.resolve(dirPath)
-	// Do not allow listing files in root or home directory, which Claude tends to want to do when the user's prompt is vague.
+	// Do not allow listing files in root or home directory, which cline tends to want to do when the user's prompt is vague.
 	const root = process.platform === "win32" ? path.parse(absolutePath).root : "/"
-	const isRoot = absolutePath === root
+	const isRoot = arePathsEqual(absolutePath, root)
 	if (isRoot) {
-		return [root]
+		return [[root], false]
 	}
 	const homeDir = os.homedir()
-	const isHomeDir = absolutePath === homeDir
+	const isHomeDir = arePathsEqual(absolutePath, homeDir)
 	if (isHomeDir) {
-		return [homeDir]
+		return [[homeDir], false]
 	}
 
 	const dirsToIgnore = [
@@ -92,38 +90,50 @@ export async function listFiles(dirPath: string, recursive: boolean): Promise<st
 		cwd: dirPath,
 		dot: true, // do not ignore hidden files/directories
 		absolute: true,
-		markDirectories: true, // Append a / on any directories matched
+		markDirectories: true, // Append a / on any directories matched (/ is used on windows as well, so dont use path.sep)
 		gitignore: recursive, // globby ignores any files that are gitignored
 		ignore: recursive ? dirsToIgnore : undefined, // just in case there is no gitignore, we ignore sensible defaults
 		onlyFiles: false, // true by default, false means it will list directories on their own too
 	}
 	// * globs all files in one dir, ** globs files in nested directories
-	const files = recursive
-		? await globbyLevelByLevel(options)
-		: (await globby("*", options)).slice(0, LIST_FILES_LIMIT)
-	return files
+	const files = recursive ? await globbyLevelByLevel(limit, options) : (await globby("*", options)).slice(0, limit)
+	return [files, files.length >= limit]
 }
 
-// globby doesnt natively support top down level by level globbing, so we implement it ourselves
-async function globbyLevelByLevel(options?: Options) {
-	let results: string[] = []
+/*
+Breadth-first traversal of directory structure level by level up to a limit:
+   - Queue-based approach ensures proper breadth-first traversal
+   - Processes directory patterns level by level
+   - Captures a representative sample of the directory structure up to the limit
+   - Minimizes risk of missing deeply nested files
+
+- Notes:
+   - Relies on globby to mark directories with /
+   - Potential for loops if symbolic links reference back to parent (we could use followSymlinks: false but that may not be ideal for some projects and it's pointless if they're not using symlinks wrong)
+   - Timeout mechanism prevents infinite loops
+*/
+async function globbyLevelByLevel(limit: number, options?: Options) {
+	let results: Set<string> = new Set()
+	let queue: string[] = ["*"]
+
 	const globbingProcess = async () => {
-		let currentLevel = 0
-		while (results.length < LIST_FILES_LIMIT) {
-			const pattern = currentLevel === 0 ? "*" : `${"*/".repeat(currentLevel)}*`
+		while (queue.length > 0 && results.size < limit) {
+			const pattern = queue.shift()!
 			const filesAtLevel = await globby(pattern, options)
-			if (filesAtLevel.length === 0) {
-				break
+
+			for (const file of filesAtLevel) {
+				if (results.size >= limit) {
+					break
+				}
+				results.add(file)
+				if (file.endsWith("/")) {
+					queue.push(`${file}*`)
+				}
 			}
-			results.push(...filesAtLevel)
-			if (results.length >= LIST_FILES_LIMIT) {
-				results = results.slice(0, LIST_FILES_LIMIT)
-				break
-			}
-			currentLevel++
 		}
-		return results
+		return Array.from(results).slice(0, limit)
 	}
+
 	// Timeout after 10 seconds and return partial results
 	const timeoutPromise = new Promise<string[]>((_, reject) => {
 		setTimeout(() => reject(new Error("Globbing timeout")), 10_000)
@@ -132,7 +142,7 @@ async function globbyLevelByLevel(options?: Options) {
 		return await Promise.race([globbingProcess(), timeoutPromise])
 	} catch (error) {
 		console.warn("Globbing timed out, returning partial results")
-		return results
+		return Array.from(results)
 	}
 }
 

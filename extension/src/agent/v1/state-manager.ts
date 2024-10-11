@@ -48,6 +48,7 @@ export class StateManager {
 			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
 			isRepoInitialized: historyItem?.isRepoInitialized ?? false,
 			requestCount: 0,
+			memory: historyItem?.memory,
 			apiConversationHistory: [],
 			claudeMessages: [],
 			abort: false,

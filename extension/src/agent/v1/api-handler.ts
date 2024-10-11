@@ -11,7 +11,6 @@ import {
 	ExperiencedDeveloperSystemPromptSection,
 	NonTechnicalSystemPromptSection,
 	SYSTEM_PROMPT,
-	UDIFF_SYSTEM_PROMPT,
 } from "./system-prompt"
 import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { tools as baseTools, uDifftools } from "./tools/tools"
@@ -122,7 +121,8 @@ ${this.customInstructions.trim()}
 				creativeMode,
 				abortSignal,
 				customInstructions,
-				await this.providerRef.deref()?.getKoduDev()?.getStateManager().state.memory
+				await this.providerRef.deref()?.getKoduDev()?.getStateManager().state.memory,
+				await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails()
 			)
 
 			for await (const chunk of stream) {
@@ -179,7 +179,6 @@ ${this.customInstructions.trim()}
 		abortSignal?: AbortSignal | null
 	): Promise<Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage> {
 		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
-		const useUdiff = (await this.providerRef.deref()?.getStateManager()?.getState())?.useUdiff
 		let systemPrompt = await SYSTEM_PROMPT()
 		let tools = baseTools
 		// if (useUdiff) {

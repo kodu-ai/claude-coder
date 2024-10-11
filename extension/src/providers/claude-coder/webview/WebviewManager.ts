@@ -478,6 +478,10 @@ export class WebviewManager {
 
 	private async getTaskHistory(): Promise<void> {
 		let memory = this.state?.memory
+		const { historyItem } = await this.provider.getTaskManager().getTaskWithId(this.state?.taskId!)
+		if (historyItem) {
+			memory = historyItem.memory
+		}
 
 		this.postMessageToWebview({
 			type: "taskHistory",

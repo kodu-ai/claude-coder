@@ -1,3 +1,4 @@
+import { access, accessSync } from "fs"
 import * as path from "path"
 
 /*
@@ -75,4 +76,19 @@ function normalizePath(p: string): string {
 		normalized = normalized.slice(0, -1)
 	}
 	return normalized
+}
+
+/**
+ * Helper function to check if a path exists.
+ *
+ * @param path - The path to check.
+ * @returns A promise that resolves to true if the path exists, false otherwise.
+ */
+export async function fileExistsAtPath(filePath: string): Promise<boolean> {
+	try {
+		await accessSync(filePath)
+		return true
+	} catch {
+		return false
+	}
 }

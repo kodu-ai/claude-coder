@@ -284,7 +284,8 @@ export class KoduHandler implements ApiHandler {
 		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null,
 		customInstructions?: string,
-		userMemory?: string
+		userMemory?: string,
+		environmentDetails?: string
 	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
 		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming
@@ -309,27 +310,34 @@ export class KoduHandler implements ApiHandler {
 		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = [
 			{ text: systemPrompt, type: "text", cache_control: { type: "ephemeral" } },
 		]
-		if (dotKoduFileContent) {
-			system.push({
-				text: dotKoduFileContent,
-				type: "text",
-				// cache_control: { type: "ephemeral" },
-			})
-		}
-		if (customInstructions && customInstructions.trim()) {
-			system.push({
-				text: customInstructions,
-				type: "text",
-				cache_control: { type: "ephemeral" },
-			})
-		}
+		// if (dotKoduFileContent) {
+		// 	system.push({
+		// 		text: dotKoduFileContent,
+		// 		type: "text",
+		// 		// cache_control: { type: "ephemeral" },
+		// 	})
+		// }
+		// if (customInstructions && customInstructions.trim()) {
+		// 	system.push({
+		// 		text: customInstructions,
+		// 		type: "text",
+		// 	})
+		// }
 		/**
 		 * push it last to not break the cache
 		 */
-		system.push({
-			text: USER_TASK_HISTORY_PROMPT(userMemory),
-			type: "text",
-		})
+		// system.push({
+		// 	text: USER_TASK_HISTORY_PROMPT(userMemory),
+		// 	type: "text",
+		// 	// cache_control: { type: "ephemeral" },
+		// })
+
+		// if (environmentDetails) {
+		// 	system.push({
+		// 		text: environmentDetails,
+		// 		type: "text",
+		// 	})
+		// }
 
 		switch (modelId) {
 			case "claude-3-5-sonnet-20240620":

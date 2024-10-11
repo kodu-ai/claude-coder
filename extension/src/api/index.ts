@@ -39,7 +39,8 @@ export interface ApiHandler {
 		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null,
 		customInstructions?: string,
-		userMemory?: string
+		userMemory?: string,
+		EnvironmentDetails?: string
 	): AsyncIterableIterator<koduSSEResponse>
 
 	createUserReadableRequest(
