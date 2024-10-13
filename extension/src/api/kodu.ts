@@ -96,6 +96,9 @@ export class KoduHandler implements ApiHandler {
 		}
 	}
 
+	/**
+	 * @deprecated
+	 */
 	async createMessage(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
@@ -127,20 +130,34 @@ export class KoduHandler implements ApiHandler {
 		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = [
 			{ text: systemPrompt, type: "text", cache_control: { type: "ephemeral" } },
 		]
-		if (dotKoduFileContent) {
-			system.push({
-				text: dotKoduFileContent,
-				type: "text",
-				// cache_control: { type: "ephemeral" },
-			})
-		}
+		// if (dotKoduFileContent) {
+		// 	system.push({
+		// 		text: dotKoduFileContent,
+		// 		type: "text",
+		// 		// cache_control: { type: "ephemeral" },
+		// 	})
+		// }
 		if (customInstructions && customInstructions.trim()) {
 			system.push({
 				text: customInstructions,
 				type: "text",
-				cache_control: { type: "ephemeral" },
 			})
 		}
+		// 		/**
+		//  * push it last to not break the cache
+		//  */
+		// // system.push({
+		// // 	text: USER_TASK_HISTORY_PROMPT(userMemory),
+		// // 	type: "text",
+		// // 	// cache_control: { type: "ephemeral" },
+		// // })
+
+		// // if (environmentDetails) {
+		// // 	system.push({
+		// // 		text: environmentDetails,
+		// // 		type: "text",
+		// // 	})
+		// // }
 
 		switch (modelId) {
 			case "claude-3-5-sonnet-20240620":
@@ -157,7 +174,7 @@ export class KoduHandler implements ApiHandler {
 					model: modelId,
 					max_tokens: this.getModel().info.maxTokens,
 					system,
-					messages: healMessages(messages).map((message, index) => {
+					messages: messages.map((message, index) => {
 						if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
 							return {
 								...message,
@@ -326,11 +343,11 @@ export class KoduHandler implements ApiHandler {
 		/**
 		 * push it last to not break the cache
 		 */
-		// system.push({
-		// 	text: USER_TASK_HISTORY_PROMPT(userMemory),
-		// 	type: "text",
-		// 	// cache_control: { type: "ephemeral" },
-		// })
+		system.push({
+			text: USER_TASK_HISTORY_PROMPT(userMemory),
+			type: "text",
+			cache_control: { type: "ephemeral" },
+		})
 
 		// if (environmentDetails) {
 		// 	system.push({

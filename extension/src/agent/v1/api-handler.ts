@@ -54,15 +54,10 @@ export class ApiManager {
 		abortSignal?: AbortSignal | null
 	): AsyncGenerator<koduSSEResponse> {
 		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
-		const useUdiff = (await this.providerRef.deref()?.getStateManager()?.getState())?.useUdiff
 		const technicalBackground =
 			(await this.providerRef.deref()?.getStateManager()?.getState())?.technicalBackground ?? "no-technical"
 		let systemPrompt = await SYSTEM_PROMPT()
 		let tools = baseTools
-		// if (useUdiff) {
-		// 	systemPrompt = await UDIFF_SYSTEM_PROMPT()
-		// 	tools = uDifftools
-		// }
 		systemPrompt += `
 		===
 USER PERSONALIZED INSTRUCTIONS
@@ -115,7 +110,7 @@ ${this.customInstructions.trim()}
 
 		try {
 			const stream = await this.api.createMessageStream(
-				systemPrompt,
+				systemPrompt.trim(),
 				apiConversationHistory,
 				tools,
 				creativeMode,
