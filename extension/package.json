@@ -163,6 +163,7 @@
 	"devDependencies": {
 		"@tomjs/vite-plugin-vscode": "^2.5.5",
 		"@types/diff": "^5.2.1",
+		"@types/jest": "^29.5.13",
 		"@types/lodash": "^4.17.9",
 		"@types/mocha": "^10.0.7",
 		"@types/node": "20.x",
@@ -197,6 +198,7 @@
 		"globby": "^14.0.2",
 		"image-size": "^1.1.1",
 		"isbinaryfile": "^5.0.2",
+		"jest": "^29.7.0",
 		"jotai": "^2.9.3",
 		"loadash": "^1.0.0",
 		"lodash": "^4.17.21",
