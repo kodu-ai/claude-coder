@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "kodu-eval"
+version = "0.1.0"
+description = ""
+authors = ["gagandt <gagandeep280597@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+langchain-anthropic = "^0.2.3"
+langchain-core = "^0.3.10"
+langgraph = "^0.2.35"
+requests = "^2.32.3"
+mypy = "^1.11.2"
+
+
+[tool.poetry.group.dev.dependencies]
+types-requests = "^2.32.0.20240914"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
