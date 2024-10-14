@@ -20,7 +20,7 @@
 		"useDefineForClassFields": true,
 		"useUnknownInCatchVariables": false
 	},
-	"types": ["jest"],
+	"types": ["jest", "vscode"],
 	"include": ["src/**/*", "scripts/**/*"],
 	"exclude": ["node_modules", ".vscode-test", "webview-ui"]
 }

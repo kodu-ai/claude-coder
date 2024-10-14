@@ -8,13 +8,17 @@ import { KoduError, koduSSEResponse } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { StateManager } from "./state-manager"
 import { ToolExecutor } from "./tool-executor"
+import ToolParser from "./tools/tool-parser/tool-parser"
 import { ToolInput } from "./tools/types"
-import { ToolName, UserContent } from "./types"
+import { ToolName, ToolResponse, UserContent } from "./types"
 import { debounce } from "lodash"
 import { ChunkProcessor } from "./chunk-proccess"
 import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { GitHandler } from "./handlers/git-handler"
-
+import { tools } from "./tools/schema"
+import { nanoid } from "nanoid"
+import { BaseAgentTool } from "./tools/base-agent.tool"
+import { WriteFileTool } from "./tools"
 export enum TaskState {
 	IDLE = "IDLE",
 	WAITING_FOR_API = "WAITING_FOR_API",
@@ -39,9 +43,19 @@ class TaskError extends Error {
 	}
 }
 
-/**
- * @deprecated requires a major refactor this is not suitable for the future.
- */
+export class ToolItem {
+	public toolName: string
+	public input: ToolInput
+	public id: string
+	public isDone: boolean
+	constructor(toolName: string, input: ToolInput, id: string) {
+		this.toolName = toolName
+		this.input = input
+		this.id = id
+		this.isDone = false
+	}
+}
+
 export class TaskExecutor {
 	public state: TaskState = TaskState.IDLE
 	public gitHandler: GitHandler
@@ -50,14 +64,17 @@ export class TaskExecutor {
 	private providerRef: WeakRef<ExtensionProvider>
 	private currentUserContent: UserContent | null = null
 	private currentApiResponse: Anthropic.Messages.Message | null = null
-	private currentToolResults: Anthropic.ToolResultBlockParam[] = []
-	/**
-	 * this is a callback function that will be called when the user responds to an ask question
-	 */
+	private currentToolResults: { name: string; result: ToolResponse }[] = []
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	private isRequestCancelled: boolean = false
 	private abortController: AbortController | null = null
 	private consecutiveErrorCount: number = 0
+	private toolQueue: BaseAgentTool[] = []
+	private isProcessingTool: boolean = false
+	private toolInstances: { [id: string]: BaseAgentTool } = {}
+	private toolExecutionPromises: Promise<void>[] = []
+	private toolProcessingComplete: Promise<void> | null = null
+	private resolveToolProcessing: (() => void) | null = null
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		this.stateManager = stateManager
@@ -117,17 +134,14 @@ export class TaskExecutor {
 			return // Prevent multiple cancellations
 		}
 
-		// check if this is the first message
 		if (this.stateManager.state.claudeMessages.length === 2) {
-			// cant cancel the first message
-			return
+			return // Can't cancel the first message
 		}
 		this.logState("Cancelling current request")
 
 		this.isRequestCancelled = true
 		this.abortController?.abort()
 		this.state = TaskState.ABORTED
-		// find the last api request
 		const lastApiRequest = this.stateManager.state.claudeMessages
 			.slice()
 			.reverse()
@@ -142,38 +156,29 @@ export class TaskExecutor {
 			})
 			await this.stateManager.removeEverythingAfterMessage(lastApiRequest.ts)
 		}
-		await this.ask("followup", "The current request has been cancelled. Would you like to ask a new question ?")
-		// Update the provider state
+		await this.ask("followup", "The current request has been cancelled. Would you like to ask a new question?")
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
-		console.log(`[TaskExecutor] makeClaudeRequest (State: ${this.state})`)
-		console.log(`[TaskExecutor] makeClaudeRequest (isRequestCancelled: ${this.isRequestCancelled})`)
-		console.log(`[TaskExecutor] makeClaudeRequest (currentUserContent: ${JSON.stringify(this.currentUserContent)})`)
-		if (this.state !== TaskState.WAITING_FOR_API || !this.currentUserContent || this.isRequestCancelled) {
-			return
-		}
-		if (this.consecutiveErrorCount >= 3) {
-			await this.ask(
-				"resume_task",
-				"Claude has encountered an error 3 times in a row. Would you like to resume the task?"
-			)
-		}
-
-		if (this.stateManager.state.requestCount >= this.stateManager.maxRequestsPerTask) {
-			await this.handleRequestLimitReached()
-			return
-		}
-
 		try {
+			if (this.state !== TaskState.WAITING_FOR_API || !this.currentUserContent || this.isRequestCancelled) {
+				return
+			}
+			if (this.consecutiveErrorCount >= 3) {
+				await this.ask(
+					"resume_task",
+					"Claude has encountered an error 3 times in a row. Would you like to resume the task?"
+				)
+			}
+
+			if (this.stateManager.state.requestCount >= this.stateManager.maxRequestsPerTask) {
+				await this.handleRequestLimitReached()
+				return
+			}
+
 			this.logState("Making Claude API request")
-			const tempHistoryLength = this.stateManager.state.apiConversationHistory.length
-			console.log(`[TaskExecutor] tempHistoryLength:`, tempHistoryLength)
-			console.log(
-				`[TaskExecutor] stateManager.state.apiConversationHistory:`,
-				JSON.stringify(this.stateManager.state.apiConversationHistory)
-			)
+
 			await this.stateManager.addToApiConversationHistory({ role: "user", content: this.currentUserContent })
 			const startedReqId = await this.say(
 				"api_req_started",
@@ -198,7 +203,6 @@ export class TaskExecutor {
 			await this.processApiResponse(stream, startedReqId)
 		} catch (error) {
 			if (!this.isRequestCancelled) {
-				// if it's a KoduError, it's an error from the API (can get anthropic error or network error)
 				if (error instanceof KoduError) {
 					console.log(`[TaskExecutor] KoduError:`, error)
 					await this.handleApiError(new TaskError({ type: "API_ERROR", message: error.message }))
@@ -219,132 +223,215 @@ export class TaskExecutor {
 			return
 		}
 
-		this.logState("Processing API response")
-		// const { inputTokens, outputTokens } = this.logApiResponse(this.currentApiResponse)
-		const assistantResponses: Anthropic.Messages.ContentBlock[] = []
-		this.currentToolResults = []
-		/**
-		 * first create a placeholder say
-		 */
-		const currentReplyId = await this.say("text", "")
-		let textBuffer = ""
-		const updateInterval = 5 // milliseconds
-
-		const debouncedUpdate = debounce(async (text: string) => {
-			textBuffer = ""
-			await this.stateManager.appendToClaudeMessage(currentReplyId, text)
-			await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-		}, updateInterval)
-		const processor = new ChunkProcessor({
-			onImmediateEndOfStream: async (chunk) => {
-				if (chunk.code === 1) {
-					console.log(`End of stream reached`)
-					console.log(`Chunk body:`, chunk.body)
-					const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
-						chunk.body.internal
-					const updatedMsg: ClaudeMessage = {
-						...this.stateManager.getMessageById(startedReqId)!,
-						apiMetrics: {
-							cost: chunk.body.internal.cost,
-							inputTokens,
-							outputTokens,
-							inputCacheRead: cacheReadInputTokens,
-							inputCacheWrite: cacheCreationInputTokens,
-						},
-						isDone: true,
-						isFetching: false,
-					}
-					await this.stateManager.updateClaudeMessage(startedReqId, updatedMsg)
-					await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-				}
-				if (chunk.code === -1) {
-					// update current request to fail
-					const updatedMsg: ClaudeMessage = {
-						...this.stateManager.getMessageById(startedReqId)!,
-						isDone: true,
-						isFetching: false,
-						errorText: chunk.body.msg ?? `Internal Server Error`,
-						isError: true,
-					}
-					await this.stateManager.updateClaudeMessage(startedReqId, updatedMsg)
-					await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-					throw new KoduError({ code: chunk.body.status ?? 500 })
-				}
-			},
-			onChunk: async (chunk) => {
-				if (chunk.code === 1) {
-					const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
-						chunk.body.internal
-					for (const contentBlock of chunk.body.anthropic.content) {
-						// if request was cancelled, stop processing and don't add to history or show in UI
-						if (this.isRequestCancelled) {
-							console.log(`Request was cancelled, ignoring response`)
-							return
-						}
-
-						if (contentBlock.type === "text") {
-							assistantResponses.push(contentBlock)
-						} else if (contentBlock.type === "tool_use") {
-							assistantResponses.push(contentBlock)
-							const koduDev = this.providerRef.deref()?.getKoduDev()
-							if (koduDev && "write_to_file" === contentBlock.name) {
-								koduDev.isLastMessageFileEdit = true
+		try {
+			this.logState("Processing API response")
+			const assistantResponses: Anthropic.Messages.ContentBlock[] = []
+			this.currentToolResults = []
+			const currentReplyId = await this.say("text", "")
+			let textBuffer = ""
+			const updateInterval = 5 // milliseconds
+			const toolExecutor = new ToolParser(
+				tools.map((tool) => tool.schema),
+				{
+					onToolUpdate: async (id, toolName, params) => {
+						let toolInstance = this.toolInstances[id]
+						if (!toolInstance) {
+							const newTool = this.toolExecutor.getTool({
+								name: toolName as ToolName,
+								input: params,
+								id: id,
+								isFinal: false,
+								isLastWriteToFile: false,
+								ask: this.ask.bind(this),
+								say: this.say.bind(this),
+							})
+							this.toolInstances[id] = newTool
+						} else {
+							toolInstance.updateParams(params)
+							toolInstance.updateIsFinal(false)
+							const inToolQueue = this.toolQueue.find((tool) => tool.id === id)
+							if (inToolQueue) {
+								inToolQueue.updateParams(params)
 							}
 						}
+						if (toolName === "write_to_file") {
+							// if the queue is empty, then we can handle the partial content
+							const isInQueue = this.toolQueue.find((tool) => tool.id === id)
+							const isInQueueIndex = this.toolQueue.findIndex((tool) => tool.id === id)
+							// if (this.toolQueue.length === 0) {
+							// 	;(this.toolInstances[id] as WriteFileTool).handlePartialContent(
+							// 		params.path,
+							// 		params.content
+							// 	)
+							// 	this.toolQueue.push(this.toolInstances[id])
+							// }
+							// if (isInQueue && isInQueueIndex === 0) {
+							// 	// this means that the tool is the only one in the queue
+							// 	// so we can keep handling the partial content
+							// 	;(this.toolInstances[id] as WriteFileTool).handlePartialContent(
+							// 		params.path,
+							// 		params.content
+							// 	)
+							// }
+						}
+					},
+					onToolEnd: async (id, toolName, input) => {
+						let toolInstance = this.toolInstances[id]
+						if (!toolInstance) {
+							const newTool = this.toolExecutor.getTool({
+								name: toolName as ToolName,
+								input: input,
+								id: id,
+								isFinal: true,
+								isLastWriteToFile: false,
+								ask: this.ask.bind(this),
+								say: this.say.bind(this),
+							})
+							this.toolInstances[id] = newTool
+						} else {
+							toolInstance.updateParams(input)
+							toolInstance.updateIsFinal(true)
+						}
+						this.addToolToQueue(toolInstance)
+					},
+				}
+			)
 
-						// if the request was cancelled after processing a block, return to prevent further processing (ui state + anthropic state)
+			const debouncedUpdate = debounce(async (text: string) => {
+				if (this.isRequestCancelled) {
+					console.log("Request was cancelled, not updating UI")
+					return
+				}
+				textBuffer = ""
+				await this.stateManager.appendToClaudeMessage(currentReplyId, text)
+				await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+			}, updateInterval)
+
+			const processor = new ChunkProcessor({
+				onImmediateEndOfStream: async (chunk) => {
+					if (this.isRequestCancelled) {
+						this.logState("Request was cancelled during onImmediateEndOfStream")
+						return
+					}
+					if (chunk.code === 1) {
+						console.log(`End of stream reached`)
+						const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
+							chunk.body.internal
+						const updatedMsg: ClaudeMessage = {
+							...this.stateManager.getMessageById(startedReqId)!,
+							apiMetrics: {
+								cost: chunk.body.internal.cost,
+								inputTokens,
+								outputTokens,
+								inputCacheRead: cacheReadInputTokens,
+								inputCacheWrite: cacheCreationInputTokens,
+							},
+							isDone: true,
+							isFetching: false,
+						}
+						await this.stateManager.updateClaudeMessage(startedReqId, updatedMsg)
+						await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+					}
+					if (chunk.code === -1) {
+						const updatedMsg: ClaudeMessage = {
+							...this.stateManager.getMessageById(startedReqId)!,
+							isDone: true,
+							isFetching: false,
+							errorText: chunk.body.msg ?? `Internal Server Error`,
+							isError: true,
+						}
+						await this.stateManager.updateClaudeMessage(startedReqId, updatedMsg)
+						await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						throw new KoduError({ code: chunk.body.status ?? 500 })
+					}
+				},
+				onChunk: async (chunk) => {
+					if (this.isRequestCancelled) {
+						this.logState("Request was cancelled during onChunk")
+						return
+					}
+					if (chunk.code === 1) {
+						const { inputTokens, outputTokens } = chunk.body.internal
+						for (const contentBlock of chunk.body.anthropic.content) {
+							if (this.isRequestCancelled) {
+								console.log(`Request was cancelled, ignoring response`)
+								return
+							}
+
+							if (contentBlock.type === "text") {
+								assistantResponses.push(contentBlock)
+							} else if (contentBlock.type === "tool_use") {
+								assistantResponses.push(contentBlock)
+								const koduDev = this.providerRef.deref()?.getKoduDev()
+								if (koduDev && "write_to_file" === contentBlock.name) {
+									koduDev.isLastMessageFileEdit = true
+								}
+							}
+
+							if (this.isRequestCancelled) {
+								console.log(`Request was cancelled after processing a block`)
+								return
+							}
+						}
+					}
+					if (chunk.code === 2) {
 						if (this.isRequestCancelled) {
-							console.log(`Request was cancelled after processing a block`)
+							this.logState("Request was cancelled during debounced update")
 							return
 						}
-						console.log(`[TaskExecutor] assistantResponses:`, assistantResponses)
+						textBuffer += chunk.body.text
+						debouncedUpdate(textBuffer)
+						toolExecutor.appendText(chunk.body.text)
 					}
-					if (!this.isRequestCancelled) {
-						console.log(`About to call finishProcessingResponse at ${Date.now()}`)
-						await this.finishProcessingResponse(assistantResponses, inputTokens, outputTokens)
-					}
-				}
-				if (chunk.code === 2) {
-					textBuffer += chunk.body.text
-					debouncedUpdate(textBuffer)
-				}
-				if (chunk.code === 3) {
-					const { contentBlock } = chunk.body
-					if (contentBlock.type === "tool_use") {
-						await this.executeTool(contentBlock)
-					}
-				}
-			},
-			onFinalEndOfStream: async (chunk) => {
-				console.log("Final processing of end-of-stream chunk:", chunk)
-				// Perform final end-of-stream processing
-			},
-		})
+				},
+				onFinalEndOfStream: async (chunk) => {},
+			})
 
-		await processor.processStream(stream)
+			await processor.processStream(stream)
+			if (this.isRequestCancelled) {
+				this.logState("Request was cancelled during onFinalEndOfStream")
+				return
+			}
+			console.log(`All promises length: ${this.toolExecutionPromises.length}`)
+			// Wait for all tool executions to complete
+			await this.waitForToolProcessing()
+			await this.finishProcessingResponse(assistantResponses, /*inputTokens*/ 0, /*outputTokens*/ 0)
+		} finally {
+		}
+	}
+	private addToolToQueue(toolInstance: BaseAgentTool): void {
+		this.toolQueue.push(toolInstance)
+		if (!this.isProcessingTool) {
+			this.processNextTool()
+		}
+		if (!this.toolProcessingComplete) {
+			this.toolProcessingComplete = new Promise((resolve) => {
+				this.resolveToolProcessing = resolve
+			})
+		}
 	}
 
-	private resetState(): void {
-		this.state = TaskState.IDLE
-		this.abortController?.abort()
-		// this.currentUserContent = null
-		this.currentApiResponse = null
-		this.currentToolResults = []
-		this.isRequestCancelled = false
-		this.abortController = null
-		this.consecutiveErrorCount = 0
-		this.logState("State reset due to request cancellation")
-	}
+	private async processNextTool(): Promise<void> {
+		if (this.toolQueue.length === 0) {
+			this.isProcessingTool = false
+			if (this.resolveToolProcessing) {
+				this.resolveToolProcessing()
+				this.toolProcessingComplete = null
+				this.resolveToolProcessing = null
+			}
+			return
+		}
 
-	private async executeTool(toolUseBlock: Anthropic.Messages.ToolUseBlock): Promise<void> {
-		const toolName = toolUseBlock.name
-		const input = toolUseBlock.input as ToolInput
-		const toolUseId = toolUseBlock.id
+		this.isProcessingTool = true
+		const toolInstance = this.toolQueue.shift()!
 
-		this.logState(`Executing tool: ${toolName}`)
 		try {
+			if (this.isRequestCancelled) {
+				this.logState("Request was cancelled during tool execution")
+				return
+			}
 			this.state = TaskState.EXECUTING_TOOL
-			if (toolName === "attempt_completion") {
+			if (toolInstance.name === "attempt_completion") {
 				const combinedMessages = combineApiRequests(this.stateManager.state.claudeMessages)
 				const metrics = getApiMetrics(combinedMessages)
 
@@ -358,29 +445,57 @@ export class TaskExecutor {
 					totalInputTokens: metrics.totalTokensIn,
 				})
 			}
-
-			await this.onBeforeToolExecution(toolName as ToolName, input)
-			const result = await this.toolExecutor.executeTool({
-				name: toolName as ToolName,
-				input,
+			// Execute the tool
+			const result = await toolInstance?.execute({
+				name: toolInstance?.name as ToolName,
+				input: toolInstance?.paramsInput!,
+				id: toolInstance?.id!,
+				isFinal: toolInstance?.isFinal!,
 				isLastWriteToFile: false,
 				ask: this.ask.bind(this),
 				say: this.say.bind(this),
 			})
-			await this.onAfterToolExecution(toolName as ToolName, input)
-
-			console.log(`Tool result:`, result)
-			this.currentToolResults.push({ type: "tool_result", tool_use_id: toolUseId, content: result })
+			// Store the result
+			this.currentToolResults.push({ name: toolInstance.name, result: result! })
 			this.state = TaskState.PROCESSING_RESPONSE
 		} catch (error) {
-			console.error(`Error executing tool: ${toolName}`, error)
+			console.error(`Error executing tool: ${toolInstance.name}`, error)
 			await this.handleToolError(error as TaskError)
+		} finally {
+			// Process the next tool in the queue
+			this.processNextTool()
 		}
+	}
+
+	private async waitForToolProcessing(): Promise<void> {
+		if (this.toolProcessingComplete) {
+			await this.toolProcessingComplete
+		}
+	}
+
+	private resetState(): void {
+		this.state = TaskState.IDLE
+		this.abortController?.abort()
+		this.currentApiResponse = null
+		this.currentToolResults = []
+		this.isRequestCancelled = false
+		this.abortController = null
+		this.consecutiveErrorCount = 0
+		this.isProcessingTool = false
+		this.toolQueue = []
+		this.toolExecutionPromises = []
+
+		// Abort ongoing tools
+		for (const toolId in this.toolInstances) {
+			this.toolInstances[toolId]?.abortToolExecution()
+			delete this.toolInstances[toolId]
+		}
+
+		this.logState("State reset due to request cancellation")
 	}
 
 	private async onBeforeToolExecution(toolName: ToolName, input: ToolInput): Promise<void> {
 		const initTriggers = ["write_to_file", "update_file"]
-		// on the first write_to_file tool call, set dirAbsolutePath and initialize repo
 		if (initTriggers.includes(toolName)) {
 			const state = this.stateManager.state
 			const isNotInitialized = !state.dirAbsolutePath || !state.isRepoInitialized
@@ -404,26 +519,18 @@ export class TaskExecutor {
 					state.isRepoInitialized = isRepoInitialized
 				}
 
-				await this.providerRef.deref()?.getStateManager().updateTaskHistory(historyItem)
+				await this.providerRef.deref()?.getStateManager()?.updateTaskHistory(historyItem)
 				await this.stateManager.setState(state)
 			}
 		}
 	}
 
-	// say and git commit and dignaostics can happen here
 	private async onAfterToolExecution(toolName: ToolName, input: ToolInput): Promise<void> {
 		if (toolName === "upsert_memory") {
 			await this.gitHandler.commitChanges(input.milestoneName!, input.summary!)
 		}
 	}
 
-	/**
-	 *
-	 * @param assistantResponses The assistant responses that need to be added to the history
-	 * @param inputTokens Number of input tokens used in the API request (NOT NEEDED - api manager manually handles this)
-	 * @param outputTokens Number of output tokens used in the API request (NOT NEEDED - api manager manually handles this)
-	 * @returns
-	 */
 	private async finishProcessingResponse(
 		assistantResponses: Anthropic.Messages.ContentBlock[],
 		inputTokens: number,
@@ -446,18 +553,16 @@ export class TaskExecutor {
 		}
 		if (this.currentToolResults.length > 0) {
 			console.log(`[TaskExecutor] assistantResponses:`, assistantResponses)
-			const completionAttempted = this.currentToolResults.some(
-				(result) =>
-					result.content === "" &&
-					assistantResponses.some(
-						(response) => response.type === "tool_use" && response.name === "attempt_completion"
-					)
-			)
+			const completionAttempted = this.currentToolResults.find((result) => {
+				return result.name === "attempt_completion"
+			})
 			console.log(`[TaskExecutor] Completion attempted:`, completionAttempted)
-			console.log(JSON.stringify(this.currentToolResults, null, 2))
 
 			if (completionAttempted) {
-				await this.stateManager.addToApiConversationHistory({ role: "user", content: this.currentToolResults })
+				await this.stateManager.addToApiConversationHistory({
+					role: "user",
+					content: completionAttempted.result,
+				})
 				await this.stateManager.addToApiConversationHistory({
 					role: "assistant",
 					content: [
@@ -467,9 +572,20 @@ export class TaskExecutor {
 						},
 					],
 				})
+				if (this.currentUserContent) {
+					this.consecutiveErrorCount = 0
+					this.state = TaskState.WAITING_FOR_USER
+					await this.makeClaudeRequest()
+				}
 			} else {
 				this.state = TaskState.WAITING_FOR_API
-				this.currentUserContent = this.currentToolResults
+				this.currentUserContent = this.currentToolResults.flatMap((result) => {
+					if (typeof result.result === "string") {
+						const block: Anthropic.Messages.TextBlockParam = { type: "text", text: result.result }
+						return block
+					}
+					return result.result
+				})
 				this.consecutiveErrorCount = 0
 				await this.makeClaudeRequest()
 			}
@@ -484,10 +600,6 @@ export class TaskExecutor {
 		}
 	}
 
-	/**
-	 * @todo test this function
-	 * @deprecated
-	 */
 	private async handleRequestLimitReached(): Promise<void> {
 		this.logState("Request limit reached")
 		const { response } = await this.ask(
@@ -512,26 +624,13 @@ export class TaskExecutor {
 		}
 	}
 
-	/**
-	 * @description currently the ui dosen't know how to handle multiple retries of the same request (original implementation was missing)
-	 * @todo make sure this is handled correctly with the ui (original implementation was missing)
-	 * @param error The error that occurred during API request
-	 */
 	private async handleApiError(error: TaskError): Promise<void> {
 		this.logError(error)
 		console.log(`[TaskExecutor] Error (State: ${this.state}):`, error)
-		/**
-		 * Pop the last message from the history as it was request that failed
-		 */
 		this.stateManager.popLastApiConversationMessage()
-		// await this.stateManager.addToApiConversationHistory({
-		// 	role: "assistant",
-		// 	content: [{ type: "text", text: `API request failed: ${error.message}` }],
-		// })
 		this.consecutiveErrorCount++
-		const { response, text } = await this.ask("api_req_failed", error.message)
+		const { response } = await this.ask("api_req_failed", error.message)
 		if (response === "yesButtonTapped" || response === "messageResponse") {
-			// pop last message from the history
 			console.log(JSON.stringify(this.stateManager.state.claudeMessages, null, 2))
 
 			await this.say("api_req_retried")
@@ -542,10 +641,6 @@ export class TaskExecutor {
 		}
 	}
 
-	/**
-	 * @todo make sure this is handled correctly with the ui (original implementation was missing)
-	 * @param error The error that occurred during tool execution
-	 */
 	private async handleToolError(error: TaskError): Promise<void> {
 		this.logError(error)
 		this.consecutiveErrorCount++
@@ -559,12 +654,6 @@ export class TaskExecutor {
 		]
 	}
 
-	/**
-	 *
-	 * @param type The type of message to ask
-	 * @param question The question to ask the user
-	 * @returns The response from the user
-	 */
 	public async ask(type: ClaudeAsk, question?: string): Promise<AskResponse> {
 		return new Promise((resolve) => {
 			const askTs = Date.now()
@@ -594,12 +683,6 @@ export class TaskExecutor {
 		})
 	}
 
-	/**
-	 *
-	 * @param type - The type of message to say
-	 * @param text - The text to say
-	 * @param images - The images to show
-	 */
 	public async say(type: ClaudeSay, text?: string, images?: string[], sayTs = Date.now()): Promise<number> {
 		await this.stateManager.addToClaudeMessages({
 			ts: sayTs,
@@ -614,12 +697,6 @@ export class TaskExecutor {
 		return sayTs
 	}
 
-	/**
-	 *
-	 * @param type - The type of message to say
-	 * @param text - The text to say
-	 * @param images - The images to show
-	 */
 	public async sayAfter(type: ClaudeSay, target: number, text?: string, images?: string[]): Promise<void> {
 		console.log(`Saying after: ${type} ${text}`)
 		await this.stateManager.addToClaudeAfterMessage(target, {
@@ -633,16 +710,7 @@ export class TaskExecutor {
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
-	/**
-	 *
-	 * @param response - The response from the user to the ask question (yes, no, or messageResponse)
-	 * @param text - The text in case the response is messageResponse
-	 * @param images - The images in case the response is messageResponse
-	 */
 	public handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void {
-		/**
-		 * If there is a pending ask response, call the resolve function with the response
-		 */
 		if (this.pendingAskResponse) {
 			this.pendingAskResponse({ response, text, images })
 			this.pendingAskResponse = null

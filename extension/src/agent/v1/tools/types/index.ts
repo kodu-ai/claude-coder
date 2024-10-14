@@ -2,6 +2,7 @@ import { ClaudeAsk, ClaudeSay } from "../../../../shared/ExtensionMessage"
 import { ToolName } from "../../../../shared/Tool"
 import { ClaudeAskResponse } from "../../../../shared/WebviewMessage"
 import { KoduDev } from "../.."
+import { ToolItem } from "../../task-executor"
 
 export type UpsertMemoryInput = {
 	milestoneName: string
@@ -14,6 +15,7 @@ export type ToolInput = {
 	summary?: string
 	path?: string
 	content?: string
+	isFinal?: boolean
 	regex?: string
 	udiff?: string
 	filePattern?: string
@@ -29,8 +31,11 @@ export type ToolInput = {
 
 export type AgentToolParams = {
 	name: ToolName
+	id: string
 	input: ToolInput
 	isLastWriteToFile: boolean
+	isFinal?: boolean
+	queueItem?: ToolItem
 	ask: (type: ClaudeAsk, question?: string) => Promise<AskConfirmationResponse>
 	say: (type: ClaudeSay, text?: string, images?: string[]) => void
 	returnEmptyStringOnSuccess?: boolean

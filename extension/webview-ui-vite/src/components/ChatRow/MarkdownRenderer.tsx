@@ -142,10 +142,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, sy
 			rehypePlugins={[rehypeRaw]}
 			components={{
 				// @ts-expect-error not typed
-				thinking: ThinkingContent,
+				// thinking: ThinkingContent,
+				preview: Preview,
 				"call-to-action": CallToAction,
 				// "write-to-file": (props) => <WriteToFile {...props} syntaxHighlighterStyle={syntaxHighlighterStyle} />,
-				preview: Preview,
 				p: (props) => <p className="my-1 leading-6 " {...props} />,
 				ol: (props) => <ol className="list-decimal list-inside pl-4 space-y-2" {...props} />,
 				ul: (props) => <ul className="list-disc list-inside my-4 pl-6 space-y-2" {...props} />,

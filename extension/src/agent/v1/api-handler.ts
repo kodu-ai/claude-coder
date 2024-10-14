@@ -13,9 +13,11 @@ import {
 	SYSTEM_PROMPT,
 } from "./system-prompt"
 import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { tools as baseTools, uDifftools } from "./tools/tools"
+import { tools as baseTools } from "./tools/tools"
 import { findLast } from "../../utils"
 import delay from "delay"
+import { BASE_SYSTEM_PROMPT } from "./prompts/base-system"
+import { getCwd } from "./utils"
 
 export class ApiManager {
 	private api: ApiHandler
@@ -82,6 +84,8 @@ The following additional instructions are provided by the user. They should be f
 ${this.customInstructions.trim()}
 `
 		}
+		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), true)
+
 		const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
 		// If the last API request's total token usage is close to the context window, truncate the conversation history to free up space for the new request
 		const lastApiReqFinished = findLast(claudeMessages!, (m) => m.say === "api_req_finished")
@@ -110,9 +114,8 @@ ${this.customInstructions.trim()}
 
 		try {
 			const stream = await this.api.createMessageStream(
-				systemPrompt.trim(),
+				newSystemPrompt.trim(),
 				apiConversationHistory,
-				tools,
 				creativeMode,
 				abortSignal,
 				customInstructions,
@@ -167,84 +170,6 @@ ${this.customInstructions.trim()}
 			}
 			throw error
 		}
-	}
-
-	async createApiRequest(
-		apiConversationHistory: Anthropic.MessageParam[],
-		abortSignal?: AbortSignal | null
-	): Promise<Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage> {
-		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
-		let systemPrompt = await SYSTEM_PROMPT()
-		let tools = baseTools
-		// if (useUdiff) {
-		// 	systemPrompt = await UDIFF_SYSTEM_PROMPT()
-		// 	tools = uDifftools
-		// }
-		let customInstructions: string | undefined
-		if (this.customInstructions && this.customInstructions.trim()) {
-			customInstructions += `
-====
-
-USER'S CUSTOM INSTRUCTIONS
-
-The following additional instructions are provided by the user. They should be followed and given precedence in case of conflicts with previous instructions.
-
-${this.customInstructions.trim()}
-`
-		}
-		const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
-		// If the last API request's total token usage is close to the context window, truncate the conversation history to free up space for the new request
-		const lastApiReqFinished = findLast(claudeMessages!, (m) => m.say === "api_req_finished")
-		if (lastApiReqFinished && lastApiReqFinished.text) {
-			const {
-				tokensIn,
-				tokensOut,
-				cacheWrites,
-				cacheReads,
-			}: { tokensIn?: number; tokensOut?: number; cacheWrites?: number; cacheReads?: number } = JSON.parse(
-				lastApiReqFinished.text
-			)
-			const totalTokens = (tokensIn || 0) + (tokensOut || 0) + (cacheWrites || 0) + (cacheReads || 0)
-			const contextWindow = this.api.getModel().info.contextWindow
-			const maxAllowedSize = Math.max(contextWindow - 40_000, contextWindow * 0.8)
-			if (totalTokens >= maxAllowedSize) {
-				const truncatedMessages = truncateHalfConversation(apiConversationHistory)
-				apiConversationHistory = truncatedMessages
-				this.providerRef
-					.deref()
-					?.getKoduDev()
-					?.getStateManager()
-					.overwriteApiConversationHistory(truncatedMessages)
-			}
-		}
-
-		try {
-			const { message, userCredits } = await this.api.createMessage(
-				systemPrompt,
-				apiConversationHistory,
-				tools,
-				creativeMode,
-				abortSignal,
-				customInstructions
-			)
-
-			if (userCredits !== undefined) {
-				console.log("Updating kodu credits", userCredits)
-				this.providerRef.deref()?.getStateManager()?.updateKoduCredits(userCredits)
-			}
-
-			return message
-		} catch (error) {
-			if (error instanceof KoduError) {
-				console.error("KODU API request failed", error)
-			}
-			throw error
-		}
-	}
-
-	async retryApiRequest(apiConversationHistory: Anthropic.MessageParam[]): Promise<Anthropic.Messages.Message> {
-		await new Promise((resolve) => setTimeout(resolve, API_RETRY_DELAY))
-		return this.createApiRequest(apiConversationHistory)
 	}
 
 	createUserReadableRequest(userContent: UserContent): string {

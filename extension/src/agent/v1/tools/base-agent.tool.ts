@@ -21,7 +21,31 @@ export abstract class BaseAgentTool {
 		this.setRunningProcessId = options.setRunningProcessId!
 	}
 
+	get name(): string {
+		return this.params.name
+	}
+	get id(): string {
+		return this.params.id
+	}
+
+	get paramsInput(): AgentToolParams["input"] {
+		return this.params.input
+	}
+
+	get isFinal(): boolean {
+		return this.params.isFinal ?? false
+	}
+
 	abstract execute(params: AgentToolParams): Promise<ToolResponse>
+
+	public updateParams(input: AgentToolParams["input"]) {
+		this.params.input = input
+	}
+
+	public updateIsFinal(isFinal: boolean) {
+		this.params.isFinal = isFinal
+	}
+
 	public async formatToolDeniedFeedback(feedback?: string) {
 		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>`
 	}
@@ -50,6 +74,12 @@ export abstract class BaseAgentTool {
 			return text
 		}
 	}
+
+	public async abortToolExecution() {
+		this.setRunningProcessId(undefined)
+		console.log(`Aborted tool execution for ${this.name} with id ${this.id}`)
+	}
+
 	protected get options(): AgentToolOptions {
 		return {
 			cwd: this.cwd,

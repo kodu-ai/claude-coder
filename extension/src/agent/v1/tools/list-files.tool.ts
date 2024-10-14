@@ -37,8 +37,8 @@ export class ListFilesTool extends BaseAgentTool {
 		try {
 			const recursive = recursiveRaw?.toLowerCase() === "true"
 			const absolutePath = path.resolve(this.cwd, relDirPath)
-			const files = await listFiles(absolutePath, recursive)
-			const result = this.formatFilesList(absolutePath, files)
+			const files = await listFiles(absolutePath, recursive, 200)
+			const result = this.formatFilesList(absolutePath, files[0])
 
 			const message = JSON.stringify({
 				tool: recursive ? "listFilesRecursive" : "listFilesTopLevel",
@@ -97,8 +97,8 @@ export class ListFilesTool extends BaseAgentTool {
 		}
 		try {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
-			const files = await listFiles(absolutePath, false)
-			const result = this.formatFilesList(absolutePath, files)
+			const files = await listFiles(absolutePath, false, 200)
+			const result = this.formatFilesList(absolutePath, files[0])
 
 			const message = JSON.stringify({
 				tool: "listFilesTopLevel",
@@ -157,8 +157,8 @@ export class ListFilesTool extends BaseAgentTool {
 
 		try {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
-			const files = await listFiles(absolutePath, true)
-			const result = this.formatFilesList(absolutePath, files)
+			const files = await listFiles(absolutePath, true, 200)
+			const result = this.formatFilesList(absolutePath, files[0])
 
 			const message = JSON.stringify({
 				tool: "listFilesRecursive",

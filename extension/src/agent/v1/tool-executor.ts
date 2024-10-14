@@ -18,6 +18,7 @@ import {
 } from "./tools"
 import { WebSearchTool } from "./tools/web-search-tool"
 import { TerminalManager } from "../../integrations/terminal/terminal-manager"
+import { BaseAgentTool } from "./tools/base-agent.tool"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined
@@ -75,6 +76,39 @@ export class ToolExecutor {
 				return new UpsertTaskHistoryTool(params, this.options).execute()
 			default:
 				return `Unknown tool: ${params.name}`
+		}
+	}
+
+	public getTool(params: AgentToolParams): BaseAgentTool {
+		switch (params.name) {
+			case "update_file":
+				return new FileUpdateTool(params, this.options)
+			case "read_file":
+				return new ReadFileTool(params, this.options)
+			case "list_files":
+				return new ListFilesTool(params, this.options)
+			case "search_files":
+				return new SearchFilesTool(params, this.options)
+			case "write_to_file":
+				return new WriteFileTool(params, this.options)
+			case "list_code_definition_names":
+				return new ListCodeDefinitionNamesTool(params, this.options)
+			case "execute_command":
+				return new ExecuteCommandTool(params, this.options)
+			case "ask_followup_question":
+				return new AskFollowupQuestionTool(params, this.options)
+			case "attempt_completion":
+				return new AttemptCompletionTool(params, this.options)
+			case "web_search":
+				return new WebSearchTool(params, this.options)
+			case "url_screenshot":
+				return new UrlScreenshotTool(params, this.options)
+			case "ask_consultant":
+				return new AskConsultantTool(params, this.options)
+			case "upsert_memory":
+				return new UpsertTaskHistoryTool(params, this.options)
+			default:
+				throw new Error(`Unknown tool: ${params.name}`)
 		}
 	}
 

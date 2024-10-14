@@ -23,12 +23,14 @@ import pWaitFor from "p-wait-for"
 import os from "os"
 import { arePathsEqual } from "../../utils/path-helpers"
 import { listFiles } from "../../parse-source-code"
+import { DiffViewProvider } from "../../integrations/editor/diff-view-provider"
 
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
 	private apiManager: ApiManager
 	private toolExecutor: ToolExecutor
+	public diffViewProvider: DiffViewProvider
 	public taskExecutor: TaskExecutor
 	/**
 	 * If the last api message caused a file edit
@@ -44,6 +46,7 @@ export class KoduDev {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
 		this.stateManager = new StateManager(options)
 		this.providerRef = new WeakRef(provider)
+		this.diffViewProvider = new DiffViewProvider(getCwd(), this)
 		this.apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
 		this.toolExecutor = new ToolExecutor({
 			cwd: getCwd(),
@@ -345,6 +348,7 @@ export class KoduDev {
 		return this.toolExecutor.executeTool({
 			name,
 			input,
+			id: Date.now().toString(),
 			isLastWriteToFile,
 			ask: this.taskExecutor.ask.bind(this.taskExecutor),
 			say: this.taskExecutor.say.bind(this.taskExecutor),
