@@ -134,19 +134,22 @@ export class TaskExecutor {
 			return // Prevent multiple cancellations
 		}
 
+		// check if this is the first message
 		if (this.stateManager.state.claudeMessages.length === 2) {
-			return // Can't cancel the first message
+			// cant cancel the first message
+			return
 		}
 		this.logState("Cancelling current request")
 
 		this.isRequestCancelled = true
 		this.abortController?.abort()
 		this.state = TaskState.ABORTED
+		// find the last api request
 		const lastApiRequest = this.stateManager.state.claudeMessages
 			.slice()
 			.reverse()
 			.find((msg) => msg.type === "say" && msg.say === "api_req_started")
-		if (lastApiRequest && isV1ClaudeMessage(lastApiRequest)) {
+		if (lastApiRequest && isV1ClaudeMessage(lastApiRequest) && !lastApiRequest.isDone) {
 			await this.stateManager.updateClaudeMessage(lastApiRequest.ts, {
 				...lastApiRequest,
 				isDone: true,
@@ -156,7 +159,8 @@ export class TaskExecutor {
 			})
 			await this.stateManager.removeEverythingAfterMessage(lastApiRequest.ts)
 		}
-		await this.ask("followup", "The current request has been cancelled. Would you like to ask a new question?")
+		await this.ask("followup", "The current request has been cancelled. Would you like to ask a new question ?")
+		// Update the provider state
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 

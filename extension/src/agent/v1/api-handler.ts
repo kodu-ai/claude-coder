@@ -100,7 +100,8 @@ ${this.customInstructions.trim()}
 			)
 			const totalTokens = (tokensIn || 0) + (tokensOut || 0) + (cacheWrites || 0) + (cacheReads || 0)
 			const contextWindow = this.api.getModel().info.contextWindow
-			const maxAllowedSize = Math.max(contextWindow - 40_000, contextWindow * 0.8)
+			const safetyBuffer = 45_000
+			const maxAllowedSize = Math.max(contextWindow - safetyBuffer, contextWindow * 0.8)
 			if (totalTokens >= maxAllowedSize) {
 				const truncatedMessages = truncateHalfConversation(apiConversationHistory)
 				apiConversationHistory = truncatedMessages
