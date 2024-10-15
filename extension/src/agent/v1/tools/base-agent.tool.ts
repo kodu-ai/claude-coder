@@ -32,6 +32,10 @@ export abstract class BaseAgentTool {
 		return this.params.input
 	}
 
+	get toolParams(): AgentToolParams {
+		return this.params
+	}
+
 	get isFinal(): boolean {
 		return this.params.isFinal ?? false
 	}

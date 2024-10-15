@@ -1,5 +1,5 @@
 import treeKill from "tree-kill"
-import { ToolResponse } from "./types"
+import { ToolName, ToolResponse } from "./types"
 import { KoduDev } from "."
 import { AgentToolOptions, AgentToolParams } from "./tools/types"
 import {
@@ -19,6 +19,8 @@ import {
 import { WebSearchTool } from "./tools/web-search-tool"
 import { TerminalManager } from "../../integrations/terminal/terminal-manager"
 import { BaseAgentTool } from "./tools/base-agent.tool"
+import ToolParser from "./tools/tool-parser/tool-parser"
+import { tools } from "./tools/schema"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined
@@ -27,6 +29,13 @@ export class ToolExecutor {
 	private alwaysAllowWriteOnly: boolean
 	private terminalManager: TerminalManager
 	private koduDev: KoduDev
+	private toolQueue: BaseAgentTool[] = []
+	private isProcessingTool: boolean = false
+	private toolInstances: { [id: string]: BaseAgentTool } = {}
+	private toolExecutionPromises: Promise<{ name: string; id: string; value: ToolResponse }>[] = []
+	private toolProcessingComplete: Promise<void> | null = null
+	private resolveToolProcessing: (() => void) | null = null
+	private toolParser: ToolParser
 
 	constructor(options: AgentToolOptions) {
 		this.cwd = options.cwd
@@ -34,6 +43,13 @@ export class ToolExecutor {
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
 		this.koduDev = options.koduDev
 		this.terminalManager = new TerminalManager()
+		this.toolParser = new ToolParser(
+			tools.map((tool) => tool.schema),
+			{
+				onToolUpdate: this.handleToolUpdate.bind(this),
+				onToolEnd: this.handleToolEnd.bind(this),
+			}
+		)
 	}
 
 	public get options(): AgentToolOptions {
@@ -47,36 +63,16 @@ export class ToolExecutor {
 	}
 
 	async executeTool(params: AgentToolParams): Promise<ToolResponse> {
-		switch (params.name) {
-			case "update_file":
-				return new FileUpdateTool(params, this.options).execute()
-			case "read_file":
-				return new ReadFileTool(params, this.options).execute()
-			case "list_files":
-				return new ListFilesTool(params, this.options).execute()
-			case "search_files":
-				return new SearchFilesTool(params, this.options).execute()
-			case "write_to_file":
-				return new WriteFileTool(params, this.options).execute()
-			case "list_code_definition_names":
-				return new ListCodeDefinitionNamesTool(params, this.options).execute()
-			case "execute_command":
-				return new ExecuteCommandTool(params, this.options).execute()
-			case "ask_followup_question":
-				return new AskFollowupQuestionTool(params, this.options).execute()
-			case "attempt_completion":
-				return new AttemptCompletionTool(params, this.options).execute()
-			case "web_search":
-				return new WebSearchTool(params, this.options).execute()
-			case "url_screenshot":
-				return new UrlScreenshotTool(params, this.options).execute()
-			case "ask_consultant":
-				return new AskConsultantTool(params, this.options).execute()
-			case "upsert_memory":
-				return new UpsertTaskHistoryTool(params, this.options).execute()
-			default:
-				return `Unknown tool: ${params.name}`
-		}
+		const tool = this.getTool(params)
+		return tool.execute({
+			name: tool?.name as ToolName,
+			input: tool?.paramsInput,
+			id: tool?.id,
+			isFinal: tool?.isFinal,
+			isLastWriteToFile: false,
+			ask: this.koduDev.taskExecutor.ask.bind(this),
+			say: this.koduDev.taskExecutor.say.bind(this),
+		})
 	}
 
 	public getTool(params: AgentToolParams): BaseAgentTool {
@@ -129,5 +125,150 @@ export class ToolExecutor {
 		if (runningProcessId) {
 			treeKill(runningProcessId, "SIGTERM")
 		}
+	}
+
+	public async processToolUse(text: string): Promise<void> {
+		await this.toolParser.appendText(text)
+	}
+
+	private async handleToolUpdate(id: string, toolName: string, params: any): Promise<void> {
+		let toolInstance = this.toolInstances[id]
+		if (!toolInstance) {
+			const newTool = this.getTool({
+				name: toolName as ToolName,
+				input: params,
+				id: id,
+				isFinal: false,
+				isLastWriteToFile: false,
+				ask: this.koduDev.taskExecutor.ask.bind(this.koduDev.taskExecutor),
+				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
+			})
+			this.toolInstances[id] = newTool
+		} else {
+			toolInstance.updateParams(params)
+			toolInstance.updateIsFinal(false)
+			const inToolQueue = this.toolQueue.find((tool) => tool.id === id)
+			if (inToolQueue) {
+				inToolQueue.updateParams(params)
+			}
+		}
+		if (toolName === "write_to_file") {
+			const isInQueue = this.toolQueue.find((tool) => tool.id === id)
+			const isInQueueIndex = this.toolQueue.findIndex((tool) => tool.id === id)
+			// Handle partial content if needed
+		}
+	}
+
+	private async handleToolEnd(id: string, toolName: string, input: any): Promise<void> {
+		let toolInstance = this.toolInstances[id]
+		if (!toolInstance) {
+			const newTool = this.getTool({
+				name: toolName as ToolName,
+				input: input,
+				id: id,
+				isFinal: true,
+				isLastWriteToFile: false,
+				ask: this.koduDev.taskExecutor.ask.bind(this.koduDev.taskExecutor),
+				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
+			})
+			this.toolInstances[id] = newTool
+		} else {
+			toolInstance.updateParams(input)
+			toolInstance.updateIsFinal(true)
+		}
+		this.addToolToQueue(this.toolInstances[id])
+	}
+
+	private addToolToQueue(toolInstance: BaseAgentTool): void {
+		this.toolQueue.push(toolInstance)
+		if (!this.isProcessingTool) {
+			this.processNextTool()
+		}
+		if (!this.toolProcessingComplete) {
+			this.toolProcessingComplete = new Promise((resolve) => {
+				this.resolveToolProcessing = resolve
+			})
+		}
+	}
+
+	private async processNextTool(): Promise<void> {
+		if (this.toolQueue.length === 0) {
+			this.isProcessingTool = false
+			if (this.resolveToolProcessing) {
+				this.resolveToolProcessing()
+				this.toolProcessingComplete = null
+				this.resolveToolProcessing = null
+			}
+			return
+		}
+
+		this.isProcessingTool = true
+		const toolInstance = this.toolQueue.shift()!
+
+		try {
+			const result = await toolInstance?.execute({
+				name: toolInstance?.name as ToolName,
+				input: toolInstance?.paramsInput!,
+				id: toolInstance?.id!,
+				isFinal: toolInstance?.isFinal!,
+				isLastWriteToFile: false,
+				ask: this.koduDev.taskExecutor.ask.bind(this.koduDev.taskExecutor),
+				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
+			})
+			this.toolExecutionPromises.push(
+				Promise.resolve({
+					value: result,
+					name: toolInstance.name,
+					id: toolInstance.id,
+				})
+			)
+		} catch (error) {
+			console.error(`Error executing tool: ${toolInstance.name}`, error)
+			this.toolExecutionPromises.push(
+				Promise.reject({
+					error,
+					name: toolInstance.name,
+					id: toolInstance.id,
+				})
+			)
+		} finally {
+			this.processNextTool()
+		}
+	}
+
+	public async waitForToolProcessing(): Promise<void> {
+		if (this.toolProcessingComplete) {
+			await this.toolProcessingComplete
+		}
+		await Promise.allSettled(this.toolExecutionPromises)
+	}
+
+	public async getToolResults(): Promise<{ name: string; result: ToolResponse }[]> {
+		const results = await Promise.allSettled(this.toolExecutionPromises)
+		return results.map((result, index) => {
+			if (result.status === "fulfilled") {
+				return { name: result.value.name, result: result.value.value }
+			} else {
+				return { name: result?.reason?.name ?? "Tool", result: `Error: ${result.reason?.error}` }
+			}
+		})
+	}
+
+	private async handlePartialWriteToFile(tool: WriteFileTool): Promise<void> {
+		const { path, content } = tool.paramsInput
+		if (!path || !content) {
+			// wait for both path and content to be available
+			return
+		}
+		await tool.handlePartialContent(path, content)
+	}
+
+	public resetToolState(): void {
+		this.toolQueue = []
+		this.isProcessingTool = false
+		this.toolInstances = {}
+		this.toolExecutionPromises = []
+		this.toolProcessingComplete = null
+		this.resolveToolProcessing = null
 	}
 }

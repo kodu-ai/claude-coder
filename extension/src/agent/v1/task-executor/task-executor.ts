@@ -1,86 +1,39 @@
 import * as path from "path"
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ClaudeAsk, ClaudeMessage, ClaudeSay, isV1ClaudeMessage } from "../../shared/ExtensionMessage"
-import { ClaudeAskResponse } from "../../shared/WebviewMessage"
-import { combineApiRequests } from "../../shared/combineApiRequests"
-import { getApiMetrics } from "../../shared/getApiMetrics"
-import { KoduError, koduSSEResponse } from "../../shared/kodu"
-import { amplitudeTracker } from "../../utils/amplitude"
-import { StateManager } from "./state-manager"
-import { ToolExecutor } from "./tool-executor"
-import ToolParser from "./tools/tool-parser/tool-parser"
-import { ToolInput } from "./tools/types"
-import { ToolName, ToolResponse, UserContent } from "./types"
+import { ClaudeAsk, ClaudeMessage, ClaudeSay, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
+import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
+import { combineApiRequests } from "../../../shared/combineApiRequests"
+import { getApiMetrics } from "../../../shared/getApiMetrics"
+import { KoduError, koduSSEResponse } from "../../../shared/kodu"
+import { amplitudeTracker } from "../../../utils/amplitude"
+import { StateManager } from "../state-manager"
+import { ToolExecutor } from "../tool-executor"
+import { ChunkProcessor } from "../chunk-proccess"
+import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
+import { GitHandler } from "../handlers/git-handler"
+import { ToolName, ToolResponse, UserContent } from "../types"
 import { debounce } from "lodash"
-import { ChunkProcessor } from "./chunk-proccess"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { GitHandler } from "./handlers/git-handler"
-import { tools } from "./tools/schema"
-import { nanoid } from "nanoid"
-import { BaseAgentTool } from "./tools/base-agent.tool"
-import { WriteFileTool } from "./tools"
-export enum TaskState {
-	IDLE = "IDLE",
-	WAITING_FOR_API = "WAITING_FOR_API",
-	PROCESSING_RESPONSE = "PROCESSING_RESPONSE",
-	EXECUTING_TOOL = "EXECUTING_TOOL",
-	WAITING_FOR_USER = "WAITING_FOR_USER",
-	COMPLETED = "COMPLETED",
-	ABORTED = "ABORTED",
-}
+import { ToolInput } from "../tools/types"
+import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
 
-class TaskError extends Error {
-	type: "API_ERROR" | "TOOL_ERROR" | "USER_ABORT" | "UNKNOWN_ERROR"
-	constructor({
-		type,
-		message,
-	}: {
-		type: "API_ERROR" | "TOOL_ERROR" | "USER_ABORT" | "UNKNOWN_ERROR"
-		message: string
-	}) {
-		super(message)
-		this.type = type
-	}
-}
-
-export class ToolItem {
-	public toolName: string
-	public input: ToolInput
-	public id: string
-	public isDone: boolean
-	constructor(toolName: string, input: ToolInput, id: string) {
-		this.toolName = toolName
-		this.input = input
-		this.id = id
-		this.isDone = false
-	}
-}
-
-export class TaskExecutor {
+export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
 	public gitHandler: GitHandler
-	private stateManager: StateManager
-	private toolExecutor: ToolExecutor
-	private providerRef: WeakRef<ExtensionProvider>
+	public toolExecutor: ToolExecutor
 	private currentUserContent: UserContent | null = null
 	private currentApiResponse: Anthropic.Messages.Message | null = null
 	private currentToolResults: { name: string; result: ToolResponse }[] = []
-	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	private isRequestCancelled: boolean = false
 	private abortController: AbortController | null = null
 	private consecutiveErrorCount: number = 0
-	private toolQueue: BaseAgentTool[] = []
-	private isProcessingTool: boolean = false
-	private toolInstances: { [id: string]: BaseAgentTool } = {}
-	private toolExecutionPromises: Promise<void>[] = []
-	private toolProcessingComplete: Promise<void> | null = null
-	private resolveToolProcessing: (() => void) | null = null
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
-		this.stateManager = stateManager
+		super(stateManager, providerRef)
 		this.toolExecutor = toolExecutor
-		this.providerRef = providerRef
 		this.gitHandler = new GitHandler()
+	}
+	protected getState(): TaskState {
+		return this.state
 	}
 
 	public async newMessage(message: UserContent) {
@@ -208,13 +161,13 @@ export class TaskExecutor {
 		} catch (error) {
 			if (!this.isRequestCancelled) {
 				if (error instanceof KoduError) {
-					console.log(`[TaskExecutor] KoduError:`, error)
+					console.log("[TaskExecutor] KoduError:", error)
 					await this.handleApiError(new TaskError({ type: "API_ERROR", message: error.message }))
 					return
 				}
 				await this.handleApiError(new TaskError({ type: "UNKNOWN_ERROR", message: error.message }))
 			} else {
-				console.log(`[TaskExecutor] Request was cancelled, ignoring error`)
+				console.log("[TaskExecutor] Request was cancelled, ignoring error")
 			}
 		}
 	}
@@ -234,72 +187,6 @@ export class TaskExecutor {
 			const currentReplyId = await this.say("text", "")
 			let textBuffer = ""
 			const updateInterval = 5 // milliseconds
-			const toolExecutor = new ToolParser(
-				tools.map((tool) => tool.schema),
-				{
-					onToolUpdate: async (id, toolName, params) => {
-						let toolInstance = this.toolInstances[id]
-						if (!toolInstance) {
-							const newTool = this.toolExecutor.getTool({
-								name: toolName as ToolName,
-								input: params,
-								id: id,
-								isFinal: false,
-								isLastWriteToFile: false,
-								ask: this.ask.bind(this),
-								say: this.say.bind(this),
-							})
-							this.toolInstances[id] = newTool
-						} else {
-							toolInstance.updateParams(params)
-							toolInstance.updateIsFinal(false)
-							const inToolQueue = this.toolQueue.find((tool) => tool.id === id)
-							if (inToolQueue) {
-								inToolQueue.updateParams(params)
-							}
-						}
-						if (toolName === "write_to_file") {
-							// if the queue is empty, then we can handle the partial content
-							const isInQueue = this.toolQueue.find((tool) => tool.id === id)
-							const isInQueueIndex = this.toolQueue.findIndex((tool) => tool.id === id)
-							// if (this.toolQueue.length === 0) {
-							// 	;(this.toolInstances[id] as WriteFileTool).handlePartialContent(
-							// 		params.path,
-							// 		params.content
-							// 	)
-							// 	this.toolQueue.push(this.toolInstances[id])
-							// }
-							// if (isInQueue && isInQueueIndex === 0) {
-							// 	// this means that the tool is the only one in the queue
-							// 	// so we can keep handling the partial content
-							// 	;(this.toolInstances[id] as WriteFileTool).handlePartialContent(
-							// 		params.path,
-							// 		params.content
-							// 	)
-							// }
-						}
-					},
-					onToolEnd: async (id, toolName, input) => {
-						let toolInstance = this.toolInstances[id]
-						if (!toolInstance) {
-							const newTool = this.toolExecutor.getTool({
-								name: toolName as ToolName,
-								input: input,
-								id: id,
-								isFinal: true,
-								isLastWriteToFile: false,
-								ask: this.ask.bind(this),
-								say: this.say.bind(this),
-							})
-							this.toolInstances[id] = newTool
-						} else {
-							toolInstance.updateParams(input)
-							toolInstance.updateIsFinal(true)
-						}
-						this.addToolToQueue(toolInstance)
-					},
-				}
-			)
 
 			const debouncedUpdate = debounce(async (text: string) => {
 				if (this.isRequestCancelled) {
@@ -318,7 +205,7 @@ export class TaskExecutor {
 						return
 					}
 					if (chunk.code === 1) {
-						console.log(`End of stream reached`)
+						console.log("End of stream reached")
 						const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
 							chunk.body.internal
 						const updatedMsg: ClaudeMessage = {
@@ -341,7 +228,7 @@ export class TaskExecutor {
 							...this.stateManager.getMessageById(startedReqId)!,
 							isDone: true,
 							isFetching: false,
-							errorText: chunk.body.msg ?? `Internal Server Error`,
+							errorText: chunk.body.msg ?? "Internal Server Error",
 							isError: true,
 						}
 						await this.stateManager.updateClaudeMessage(startedReqId, updatedMsg)
@@ -358,7 +245,7 @@ export class TaskExecutor {
 						const { inputTokens, outputTokens } = chunk.body.internal
 						for (const contentBlock of chunk.body.anthropic.content) {
 							if (this.isRequestCancelled) {
-								console.log(`Request was cancelled, ignoring response`)
+								console.log("Request was cancelled, ignoring response")
 								return
 							}
 
@@ -373,7 +260,7 @@ export class TaskExecutor {
 							}
 
 							if (this.isRequestCancelled) {
-								console.log(`Request was cancelled after processing a block`)
+								console.log("Request was cancelled after processing a block")
 								return
 							}
 						}
@@ -385,10 +272,10 @@ export class TaskExecutor {
 						}
 						textBuffer += chunk.body.text
 						debouncedUpdate(textBuffer)
-						toolExecutor.appendText(chunk.body.text)
+						this.toolExecutor.processToolUse(chunk.body.text)
 					}
 				},
-				onFinalEndOfStream: async (chunk) => {},
+				onFinalEndOfStream: async () => {},
 			})
 
 			await processor.processStream(stream)
@@ -396,84 +283,10 @@ export class TaskExecutor {
 				this.logState("Request was cancelled during onFinalEndOfStream")
 				return
 			}
-			console.log(`All promises length: ${this.toolExecutionPromises.length}`)
 			// Wait for all tool executions to complete
-			await this.waitForToolProcessing()
+			await this.toolExecutor.waitForToolProcessing()
 			await this.finishProcessingResponse(assistantResponses, /*inputTokens*/ 0, /*outputTokens*/ 0)
 		} finally {
-		}
-	}
-	private addToolToQueue(toolInstance: BaseAgentTool): void {
-		this.toolQueue.push(toolInstance)
-		if (!this.isProcessingTool) {
-			this.processNextTool()
-		}
-		if (!this.toolProcessingComplete) {
-			this.toolProcessingComplete = new Promise((resolve) => {
-				this.resolveToolProcessing = resolve
-			})
-		}
-	}
-
-	private async processNextTool(): Promise<void> {
-		if (this.toolQueue.length === 0) {
-			this.isProcessingTool = false
-			if (this.resolveToolProcessing) {
-				this.resolveToolProcessing()
-				this.toolProcessingComplete = null
-				this.resolveToolProcessing = null
-			}
-			return
-		}
-
-		this.isProcessingTool = true
-		const toolInstance = this.toolQueue.shift()!
-
-		try {
-			if (this.isRequestCancelled) {
-				this.logState("Request was cancelled during tool execution")
-				return
-			}
-			this.state = TaskState.EXECUTING_TOOL
-			if (toolInstance.name === "attempt_completion") {
-				const combinedMessages = combineApiRequests(this.stateManager.state.claudeMessages)
-				const metrics = getApiMetrics(combinedMessages)
-
-				console.log(`[TaskExecutor] Task completed. Metrics:`, metrics)
-				amplitudeTracker.taskComplete({
-					taskId: this.stateManager.state.taskId,
-					totalCost: metrics.totalCost,
-					totalCacheReadTokens: metrics.totalCacheReads ?? 0,
-					totalCacheWriteTokens: metrics.totalCacheWrites ?? 0,
-					totalOutputTokens: metrics.totalTokensOut,
-					totalInputTokens: metrics.totalTokensIn,
-				})
-			}
-			// Execute the tool
-			const result = await toolInstance?.execute({
-				name: toolInstance?.name as ToolName,
-				input: toolInstance?.paramsInput!,
-				id: toolInstance?.id!,
-				isFinal: toolInstance?.isFinal!,
-				isLastWriteToFile: false,
-				ask: this.ask.bind(this),
-				say: this.say.bind(this),
-			})
-			// Store the result
-			this.currentToolResults.push({ name: toolInstance.name, result: result! })
-			this.state = TaskState.PROCESSING_RESPONSE
-		} catch (error) {
-			console.error(`Error executing tool: ${toolInstance.name}`, error)
-			await this.handleToolError(error as TaskError)
-		} finally {
-			// Process the next tool in the queue
-			this.processNextTool()
-		}
-	}
-
-	private async waitForToolProcessing(): Promise<void> {
-		if (this.toolProcessingComplete) {
-			await this.toolProcessingComplete
 		}
 	}
 
@@ -485,54 +298,9 @@ export class TaskExecutor {
 		this.isRequestCancelled = false
 		this.abortController = null
 		this.consecutiveErrorCount = 0
-		this.isProcessingTool = false
-		this.toolQueue = []
-		this.toolExecutionPromises = []
-
-		// Abort ongoing tools
-		for (const toolId in this.toolInstances) {
-			this.toolInstances[toolId]?.abortToolExecution()
-			delete this.toolInstances[toolId]
-		}
+		this.toolExecutor.resetToolState()
 
 		this.logState("State reset due to request cancellation")
-	}
-
-	private async onBeforeToolExecution(toolName: ToolName, input: ToolInput): Promise<void> {
-		const initTriggers = ["write_to_file", "update_file"]
-		if (initTriggers.includes(toolName)) {
-			const state = this.stateManager.state
-			const isNotInitialized = !state.dirAbsolutePath || !state.isRepoInitialized
-
-			if (isNotInitialized && input.path) {
-				const { historyItem } = await this.providerRef.deref()?.getTaskManager().getTaskWithId(state.taskId)!
-
-				const [baseDir] = input.path.split(path.sep)
-				const cwd = this.toolExecutor.options.cwd
-				const dirAbsolutePath = path.join(cwd, baseDir)
-				if (dirAbsolutePath) {
-					historyItem.dirAbsolutePath = dirAbsolutePath
-					state.dirAbsolutePath = dirAbsolutePath
-
-					this.providerRef.deref()?.getKoduDev()?.diagnosticsHandler.init(dirAbsolutePath)
-				}
-
-				if (!state.isRepoInitialized) {
-					const isRepoInitialized = await this.gitHandler.init(dirAbsolutePath)
-					historyItem.isRepoInitialized = isRepoInitialized
-					state.isRepoInitialized = isRepoInitialized
-				}
-
-				await this.providerRef.deref()?.getStateManager()?.updateTaskHistory(historyItem)
-				await this.stateManager.setState(state)
-			}
-		}
-	}
-
-	private async onAfterToolExecution(toolName: ToolName, input: ToolInput): Promise<void> {
-		if (toolName === "upsert_memory") {
-			await this.gitHandler.commitChanges(input.milestoneName!, input.summary!)
-		}
 	}
 
 	private async finishProcessingResponse(
@@ -546,7 +314,7 @@ export class TaskExecutor {
 		}
 
 		if (assistantResponses.length > 0) {
-			console.log(`[TaskExecutor] assistantResponses:`, assistantResponses)
+			console.log("[TaskExecutor] assistantResponses:", assistantResponses)
 			await this.stateManager.addToApiConversationHistory({ role: "assistant", content: assistantResponses })
 		} else {
 			await this.say("error", "Unexpected Error: No assistant messages were found in the API response")
@@ -555,12 +323,14 @@ export class TaskExecutor {
 				content: [{ type: "text", text: "Failure: I did not have a response to provide." }],
 			})
 		}
+
+		this.currentToolResults = await this.toolExecutor.getToolResults()
 		if (this.currentToolResults.length > 0) {
-			console.log(`[TaskExecutor] assistantResponses:`, assistantResponses)
+			console.log("[TaskExecutor] Tool results:", this.currentToolResults)
 			const completionAttempted = this.currentToolResults.find((result) => {
-				return result.name === "attempt_completion"
+				return result?.name === "attempt_completion"
 			})
-			console.log(`[TaskExecutor] Completion attempted:`, completionAttempted)
+			console.log("[TaskExecutor] Completion attempted:", completionAttempted)
 
 			if (completionAttempted) {
 				await this.stateManager.addToApiConversationHistory({
@@ -608,7 +378,7 @@ export class TaskExecutor {
 		this.logState("Request limit reached")
 		const { response } = await this.ask(
 			"request_limit_reached",
-			`Claude Coder has reached the maximum number of requests for this task. Would you like to reset the count and allow him to proceed?`
+			"Claude Coder has reached the maximum number of requests for this task. Would you like to reset the count and allow him to proceed?"
 		)
 		if (response === "yesButtonTapped") {
 			this.stateManager.state.requestCount = 0
@@ -643,90 +413,6 @@ export class TaskExecutor {
 		} else {
 			this.state = TaskState.COMPLETED
 		}
-	}
-
-	private async handleToolError(error: TaskError): Promise<void> {
-		this.logError(error)
-		this.consecutiveErrorCount++
-		await this.say("error", `Tool execution failed: ${error.message}`)
-		this.state = TaskState.WAITING_FOR_USER
-		this.currentUserContent = [
-			{
-				type: "text",
-				text: `A tool execution error occurred: ${error.message}. Please review the error and decide how to proceed.`,
-			},
-		]
-	}
-
-	public async ask(type: ClaudeAsk, question?: string): Promise<AskResponse> {
-		return new Promise((resolve) => {
-			const askTs = Date.now()
-			this.stateManager.addToClaudeMessages({
-				ts: askTs,
-				type: "ask",
-				ask: type,
-				text: question,
-				v: 1,
-				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
-			})
-			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion:: ${question}`)
-			this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-			const mustRequestApproval: ClaudeAsk[] = [
-				"completion_result",
-				"resume_completed_task",
-				"resume_task",
-				"request_limit_reached",
-				"followup",
-			]
-			if (this.stateManager.alwaysAllowWriteOnly && !mustRequestApproval.includes(type)) {
-				resolve({ response: "yesButtonTapped", text: "", images: [] })
-				this.pendingAskResponse = null
-				return
-			}
-			this.pendingAskResponse = resolve
-		})
-	}
-
-	public async say(type: ClaudeSay, text?: string, images?: string[], sayTs = Date.now()): Promise<number> {
-		await this.stateManager.addToClaudeMessages({
-			ts: sayTs,
-			type: "say",
-			say: type,
-			text: text,
-			images,
-			isFetching: type === "api_req_started",
-			v: 1,
-		})
-		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-		return sayTs
-	}
-
-	public async sayAfter(type: ClaudeSay, target: number, text?: string, images?: string[]): Promise<void> {
-		console.log(`Saying after: ${type} ${text}`)
-		await this.stateManager.addToClaudeAfterMessage(target, {
-			ts: Date.now(),
-			type: "say",
-			say: type,
-			text: text,
-			images,
-			v: 1,
-		})
-		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-	}
-
-	public handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void {
-		if (this.pendingAskResponse) {
-			this.pendingAskResponse({ response, text, images })
-			this.pendingAskResponse = null
-		}
-	}
-
-	private logState(message: string): void {
-		console.log(`[TaskExecutor] ${message} (State: ${this.state})`)
-	}
-
-	private logError(error: TaskError): void {
-		console.error(`[TaskExecutor] Error (State: ${this.state}):`, error)
 	}
 }
 

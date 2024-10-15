@@ -8,7 +8,6 @@ import { ToolExecutor } from "./tool-executor"
 import { KoduDevOptions, ToolResponse, UserContent } from "./types"
 import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails, formatFilesList } from "./utils"
 import { StateManager } from "./state-manager"
-import { AskResponse, TaskExecutor, TaskState } from "./task-executor"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
@@ -24,6 +23,8 @@ import os from "os"
 import { arePathsEqual } from "../../utils/path-helpers"
 import { listFiles } from "../../parse-source-code"
 import { DiffViewProvider } from "../../integrations/editor/diff-view-provider"
+import { TaskExecutor } from "./task-executor/task-executor"
+import { AskResponse, TaskState } from "./task-executor/utils"
 
 // new KoduDev
 export class KoduDev {

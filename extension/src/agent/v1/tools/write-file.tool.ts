@@ -29,12 +29,10 @@ export class WriteFileTool extends BaseAgentTool {
 			return this.executionPromise
 		}
 
-		this.executionPromise = new Promise((resolve) => {
+		this.executionPromise = new Promise(async (resolve) => {
 			this.resolveExecution = resolve
+			await this.processFileWrite()
 		})
-
-		// We'll process the file write when this method is called, not immediately
-		await this.processFileWrite()
 
 		return this.executionPromise
 	}
@@ -50,9 +48,11 @@ export class WriteFileTool extends BaseAgentTool {
 
 			await this.handlePartialContent(relPath, content)
 			await this.handleFinalContent(relPath, content)
+			// Make sure to resolve here if everything succeeds
+			await this.resolveExecutionWithResult(formatToolResponse("File write operation completed successfully"))
 		} catch (error) {
 			console.error("Error in processFileWrite:", error)
-			this.resolveExecutionWithResult(formatToolResponse(`Error: ${error.message}`))
+			await this.resolveExecutionWithResult(formatToolResponse(`Error: ${error.message}`))
 		}
 	}
 
