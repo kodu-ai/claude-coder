@@ -1,21 +1,24 @@
 import { z } from "zod"
 import { nanoid } from "nanoid"
+
 type ToolSchema = {
 	name: string
 	schema: z.ZodObject<any>
 }
 
-type ToolUpdateCallback = (id: string, toolName: string, params: any) => void
-type ToolEndCallback = (id: string, toolName: string, params: any) => void
+type ToolUpdateCallback = (id: string, toolName: string, params: any, ts: number) => void
+type ToolEndCallback = (id: string, toolName: string, params: any, ts: number) => void
 type ToolErrorCallback = (id: string, toolName: string, error: Error) => void
 type ToolClosingErrorCallback = (error: Error) => void
 
 interface Context {
 	id: string
+	ts: number
 	toolName: string
 	params: Record<string, string>
 	currentParam: string
 	content: string
+	depth: number
 }
 
 interface ToolParserConstructor {
@@ -30,6 +33,7 @@ export class ToolParser {
 	private stack: Context[] = []
 	private buffer: string = ""
 	private isInTag: boolean = false
+	private nonXmlBuffer: string = ""
 	public onToolUpdate?: ToolUpdateCallback
 	public onToolEnd?: ToolEndCallback
 	public onToolError?: ToolErrorCallback
@@ -46,10 +50,12 @@ export class ToolParser {
 		this.onToolClosingError = onToolClosingError
 	}
 
-	appendText(text: string): void {
+	appendText(text: string): string {
+		this.nonXmlBuffer = ""
 		for (const char of text) {
 			this.processChar(char)
 		}
+		return this.nonXmlBuffer
 	}
 
 	private processChar(char: string): void {
@@ -71,13 +77,22 @@ export class ToolParser {
 	}
 
 	private handleBufferContent(): void {
-		if (this.buffer && this.stack.length > 0) {
-			const currentContext = this.stack[this.stack.length - 1]
-			if (currentContext.currentParam) {
-				currentContext.params[currentContext.currentParam] += this.buffer
-				this.onToolUpdate?.(currentContext.id, currentContext.toolName, { ...currentContext.params })
+		if (this.buffer) {
+			if (this.stack.length > 0) {
+				const currentContext = this.stack[this.stack.length - 1]
+				if (currentContext.currentParam) {
+					currentContext.params[currentContext.currentParam] += this.buffer
+					this.onToolUpdate?.(
+						currentContext.id,
+						currentContext.toolName,
+						{ ...currentContext.params },
+						currentContext.ts
+					)
+				} else {
+					currentContext.content += this.buffer
+				}
 			} else {
-				currentContext.content += this.buffer
+				this.nonXmlBuffer += this.buffer
 			}
 			this.buffer = ""
 		}
@@ -95,18 +110,31 @@ export class ToolParser {
 		const tagName = tag.slice(1, -1).split(" ")[0]
 		if (this.toolSchemas.some((schema) => schema.name === tagName)) {
 			const id = nanoid()
+			const ts = Date.now()
 			this.stack.push({
 				id,
+				ts,
 				toolName: tagName,
 				params: {},
 				currentParam: "",
 				content: "",
+				depth: 0,
 			})
-			this.onToolUpdate?.(id, tagName, {})
+			this.onToolUpdate?.(id, tagName, {}, ts)
 		} else if (this.stack.length > 0) {
 			const currentContext = this.stack[this.stack.length - 1]
-			currentContext.currentParam = tagName
-			currentContext.params[tagName] = ""
+			if (currentContext.currentParam) {
+				// We're inside a parameter, treat this as content
+				currentContext.params[currentContext.currentParam] += tag
+			} else if (!currentContext.currentParam) {
+				currentContext.currentParam = tagName
+				currentContext.params[tagName] = ""
+				currentContext.depth = 1
+			} else {
+				// Nested tag, increase depth
+				currentContext.depth++
+				currentContext.params[currentContext.currentParam] += tag
+			}
 		}
 	}
 
@@ -118,7 +146,18 @@ export class ToolParser {
 				this.finalizeTool(currentContext)
 				this.stack.pop()
 			} else if (tagName === currentContext.currentParam) {
-				currentContext.currentParam = ""
+				if (currentContext.depth > 1) {
+					// Nested closing tag, decrease depth
+					currentContext.depth--
+					currentContext.params[currentContext.currentParam] += tag
+				} else {
+					// End of parameter
+					currentContext.currentParam = ""
+					currentContext.depth = 0
+				}
+			} else if (currentContext.currentParam) {
+				// Closing tag inside parameter content
+				currentContext.params[currentContext.currentParam] += tag
 			}
 		}
 	}
@@ -132,7 +171,7 @@ export class ToolParser {
 
 		try {
 			const validatedParams = toolSchema.schema.parse(context.params)
-			this.onToolEnd?.(context.id, context.toolName, validatedParams)
+			this.onToolEnd?.(context.id, context.toolName, validatedParams, context.ts)
 		} catch (error) {
 			if (error instanceof z.ZodError) {
 				this.onToolError?.(context.id, context.toolName, new Error(`Validation error: ${error.message}`))

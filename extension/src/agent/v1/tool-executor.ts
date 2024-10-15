@@ -10,7 +10,6 @@ import {
 	AttemptCompletionTool,
 	AskFollowupQuestionTool,
 	ReadFileTool,
-	FileUpdateTool,
 	WriteFileTool,
 	UrlScreenshotTool,
 	AskConsultantTool,
@@ -68,17 +67,16 @@ export class ToolExecutor {
 			name: tool?.name as ToolName,
 			input: tool?.paramsInput,
 			id: tool?.id,
+			ts: tool?.ts,
 			isFinal: tool?.isFinal,
 			isLastWriteToFile: false,
-			ask: this.koduDev.taskExecutor.ask.bind(this),
+			ask: this.koduDev.taskExecutor.askWithId.bind(this),
 			say: this.koduDev.taskExecutor.say.bind(this),
 		})
 	}
 
 	public getTool(params: AgentToolParams): BaseAgentTool {
 		switch (params.name) {
-			case "update_file":
-				return new FileUpdateTool(params, this.options)
 			case "read_file":
 				return new ReadFileTool(params, this.options)
 			case "list_files":
@@ -127,23 +125,30 @@ export class ToolExecutor {
 		}
 	}
 
-	public async processToolUse(text: string): Promise<void> {
-		await this.toolParser.appendText(text)
+	/**
+	 *
+	 * @param text - text to process
+	 * @returns the non-xml text
+	 */
+	public async processToolUse(text: string): Promise<string> {
+		return await this.toolParser.appendText(text)
 	}
 
-	private async handleToolUpdate(id: string, toolName: string, params: any): Promise<void> {
+	private async handleToolUpdate(id: string, toolName: string, params: any, ts: number): Promise<void> {
 		let toolInstance = this.toolInstances[id]
 		if (!toolInstance) {
 			const newTool = this.getTool({
 				name: toolName as ToolName,
 				input: params,
 				id: id,
+				ts: ts,
 				isFinal: false,
 				isLastWriteToFile: false,
-				ask: this.koduDev.taskExecutor.ask.bind(this.koduDev.taskExecutor),
+				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
 			})
 			this.toolInstances[id] = newTool
+			toolInstance = newTool
 		} else {
 			toolInstance.updateParams(params)
 			toolInstance.updateIsFinal(false)
@@ -152,11 +157,21 @@ export class ToolExecutor {
 				inToolQueue.updateParams(params)
 			}
 		}
-		if (toolName === "write_to_file") {
-			const isInQueue = this.toolQueue.find((tool) => tool.id === id)
-			const isInQueueIndex = this.toolQueue.findIndex((tool) => tool.id === id)
-			// Handle partial content if needed
-		}
+		// this.koduDev.taskExecutor.sayWithId(
+		// 	ts,
+		// 	"tool",
+		// 	JSON.stringify({
+		// 		id: id,
+		// 		tool: toolName,
+		// 		...params,
+		// 	})
+		// )
+
+		// if (toolName === "write_to_file") {
+		// 	if (toolInstance instanceof WriteFileTool) {
+		// 		await this.handlePartialWriteToFile(toolInstance)
+		// 	}
+		// }
 	}
 
 	private async handleToolEnd(id: string, toolName: string, input: any): Promise<void> {
@@ -166,9 +181,10 @@ export class ToolExecutor {
 				name: toolName as ToolName,
 				input: input,
 				id: id,
+				ts: Date.now(),
 				isFinal: true,
 				isLastWriteToFile: false,
-				ask: this.koduDev.taskExecutor.ask.bind(this.koduDev.taskExecutor),
+				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
 			})
 			this.toolInstances[id] = newTool
@@ -210,9 +226,10 @@ export class ToolExecutor {
 				name: toolInstance?.name as ToolName,
 				input: toolInstance?.paramsInput!,
 				id: toolInstance?.id!,
+				ts: toolInstance?.ts!,
 				isFinal: toolInstance?.isFinal!,
 				isLastWriteToFile: false,
-				ask: this.koduDev.taskExecutor.ask.bind(this.koduDev.taskExecutor),
+				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
 			})
 			this.toolExecutionPromises.push(
@@ -260,7 +277,11 @@ export class ToolExecutor {
 			// wait for both path and content to be available
 			return
 		}
-		await tool.handlePartialContent(path, content)
+		// check if current tool is write to file (in queue) if so, update the content, otherwise skip it.
+		const inToolQueue = this.toolQueue.findIndex((tool) => tool.id === tool.id)
+		// if (inToolQueue === 0) {
+		// 	await tool.handlePartialContent(path, content)
+		// }
 	}
 
 	public resetToolState(): void {

@@ -11,6 +11,7 @@ import IconAndTitle from "./IconAndTitle"
 import MarkdownRenderer from "./MarkdownRenderer"
 import ToolRenderer from "./ToolRenderer"
 import MemoryUpdate from "./memory-update"
+import { cn } from "@/lib/utils"
 
 interface ChatRowProps {
 	message: V1ClaudeMessage
@@ -68,7 +69,8 @@ const APIRequestMessage: React.FC<{
 			<div className="flex-line">
 				{icon}
 				{title}
-				{cost && <code className="text-light">${Number(cost)?.toFixed(4)}</code>}
+				{/* hide cost for now - not needed */}
+				{/* {cost && <code className="text-light">${Number(cost)?.toFixed(4)}</code>} */}
 				<div className={`ml-2 ${className}`}>{status}</div>
 				<div className="flex-1" />
 				<VSCodeButton appearance="icon" aria-label="Toggle Details" onClick={onToggleExpand}>
@@ -389,7 +391,17 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 	if (renderContent() === null) {
 		return null
 	}
-	return <section>{renderContent()}</section>
+	{
+	}
+	return (
+		<section
+			className={cn(
+				"!border-b-0 border-t-border border-t-2",
+				message.text?.includes('"tool":"') && "!border-t-0 !py-1"
+			)}>
+			{renderContent()}
+		</section>
+	)
 }
 
 export default React.memo(ChatRowV1)

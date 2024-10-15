@@ -21,12 +21,40 @@ export class AskConsultantTool extends BaseAgentTool {
 
 		const confirmation = await this.askToolExecConfirmation()
 		if (confirmation.response !== "yesButtonTapped") {
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "ask_consultant",
+						status: "rejected",
+						query: this.params.input.query!,
+					},
+				},
+				this.ts
+			)
 			return await this.onExecDenied(confirmation)
 		}
+		this.params.ask(
+			"tool",
+			{ tool: { tool: "ask_consultant", status: "loading", query: this.params.input.query! } },
+			this.ts
+		)
 
 		try {
 			const response = await this.koduDev.getApiManager().getApi()?.sendAskConsultantRequest?.(query)
 			if (!response || !response.result) {
+				this.params.ask(
+					"tool",
+					{
+						tool: {
+							tool: "ask_consultant",
+							status: "error",
+							query: this.params.input.query!,
+							error: "Consultant failed to answer your question.",
+						},
+					},
+					this.ts
+				)
 				return "Consultant failed to answer your question."
 			}
 
@@ -34,6 +62,18 @@ export class AskConsultantTool extends BaseAgentTool {
 
 			return `This is the advice from the consultant: ${response.result}`
 		} catch (err) {
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "ask_consultant",
+						status: "error",
+						query: this.params.input.query!,
+						error: err,
+					},
+				},
+				this.ts
+			)
 			return `Consultant failed to answer your question with the error: ${err}`
 		}
 	}
@@ -55,12 +95,18 @@ export class AskConsultantTool extends BaseAgentTool {
 
 	private async askToolExecConfirmation(): Promise<AskConfirmationResponse> {
 		const { query } = this.params.input
-		const message = JSON.stringify({
-			tool: "ask_consultant",
-			context: query,
-		} as ClaudeSayTool)
 
-		return await this.params.ask("tool", message)
+		return await this.params.ask(
+			"tool",
+			{
+				tool: {
+					tool: "ask_consultant",
+					query: query!,
+					status: "pending",
+				},
+			},
+			this.ts
+		)
 	}
 
 	private async onExecDenied(confirmation: AskConfirmationResponse) {
@@ -75,11 +121,17 @@ export class AskConsultantTool extends BaseAgentTool {
 	}
 
 	private async relaySuccessfulResponse(data: Record<string, string>) {
-		const message = JSON.stringify({
-			tool: "ask_consultant",
-			context: data.context,
-		} as ClaudeSayTool)
-
-		await this.params.say("tool", message)
+		return await this.params.ask(
+			"tool",
+			{
+				tool: {
+					tool: "ask_consultant",
+					status: "approved",
+					result: data.result,
+					query: this.params.input.query!,
+				},
+			},
+			this.ts
+		)
 	}
 }

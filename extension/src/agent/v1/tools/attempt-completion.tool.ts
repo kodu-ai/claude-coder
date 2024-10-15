@@ -32,7 +32,14 @@ export class AttemptCompletionTool extends BaseAgentTool {
 
 		let resultToSend = result
 		if (command) {
-			await say("completion_result", resultToSend)
+			await ask("tool", {
+				tool: {
+					tool: "attempt_completion",
+					result: result,
+					command: command,
+					status: "approved",
+				},
+			})
 
 			const executeCommandParams = {
 				...this.params,
@@ -46,7 +53,13 @@ export class AttemptCompletionTool extends BaseAgentTool {
 			resultToSend = ""
 		}
 
-		const { response, text, images } = await ask("completion_result", resultToSend)
+		const { response, text, images } = await ask("tool", {
+			tool: {
+				tool: "attempt_completion",
+				result: resultToSend,
+				status: "approved",
+			},
+		})
 		if (response === "yesButtonTapped") {
 			return ""
 		}

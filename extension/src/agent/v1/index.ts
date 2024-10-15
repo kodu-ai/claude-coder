@@ -30,7 +30,7 @@ import { AskResponse, TaskState } from "./task-executor/utils"
 export class KoduDev {
 	private stateManager: StateManager
 	private apiManager: ApiManager
-	private toolExecutor: ToolExecutor
+	public toolExecutor: ToolExecutor
 	public diffViewProvider: DiffViewProvider
 	public taskExecutor: TaskExecutor
 	/**
@@ -346,10 +346,12 @@ export class KoduDev {
 	}
 
 	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false): Promise<ToolResponse> {
+		const now = Date.now()
 		return this.toolExecutor.executeTool({
 			name,
 			input,
-			id: Date.now().toString(),
+			id: now.toString(),
+			ts: now,
 			isLastWriteToFile,
 			ask: this.taskExecutor.ask.bind(this.taskExecutor),
 			say: this.taskExecutor.say.bind(this.taskExecutor),

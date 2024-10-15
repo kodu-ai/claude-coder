@@ -112,7 +112,13 @@ export class TaskExecutor extends TaskExecutorUtils {
 			})
 			await this.stateManager.removeEverythingAfterMessage(lastApiRequest.ts)
 		}
-		await this.ask("followup", "The current request has been cancelled. Would you like to ask a new question ?")
+		await this.ask("tool", {
+			tool: {
+				tool: "ask_followup_question",
+				question: "The current request has been cancelled. Would you like to ask a new question ?",
+			},
+			// question: "The current request has been cancelled. Would you like to ask a new question ?",
+		})
 		// Update the provider state
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
@@ -123,10 +129,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 				return
 			}
 			if (this.consecutiveErrorCount >= 3) {
-				await this.ask(
-					"resume_task",
-					"Claude has encountered an error 3 times in a row. Would you like to resume the task?"
-				)
+				await this.ask("resume_task", {
+					question: "Claude has encountered an error 3 times in a row. Would you like to resume the task?",
+				})
 			}
 
 			if (this.stateManager.state.requestCount >= this.stateManager.maxRequestsPerTask) {
@@ -186,7 +191,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.currentToolResults = []
 			const currentReplyId = await this.say("text", "")
 			let textBuffer = ""
-			const updateInterval = 5 // milliseconds
+			const updateInterval = 10 // milliseconds
 
 			const debouncedUpdate = debounce(async (text: string) => {
 				if (this.isRequestCancelled) {
@@ -270,9 +275,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 							this.logState("Request was cancelled during debounced update")
 							return
 						}
-						textBuffer += chunk.body.text
+						const nonXMLText = await this.toolExecutor.processToolUse(chunk.body.text)
+						textBuffer += nonXMLText
 						debouncedUpdate(textBuffer)
-						this.toolExecutor.processToolUse(chunk.body.text)
 					}
 				},
 				onFinalEndOfStream: async () => {},
@@ -376,10 +381,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 	private async handleRequestLimitReached(): Promise<void> {
 		this.logState("Request limit reached")
-		const { response } = await this.ask(
-			"request_limit_reached",
-			"Claude Coder has reached the maximum number of requests for this task. Would you like to reset the count and allow him to proceed?"
-		)
+		const { response } = await this.ask("request_limit_reached", {
+			question:
+				"Claude Coder has reached the maximum number of requests for this task. Would you like to reset the count and allow him to proceed?",
+		})
 		if (response === "yesButtonTapped") {
 			this.stateManager.state.requestCount = 0
 			this.state = TaskState.WAITING_FOR_API
@@ -403,7 +408,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		console.log(`[TaskExecutor] Error (State: ${this.state}):`, error)
 		this.stateManager.popLastApiConversationMessage()
 		this.consecutiveErrorCount++
-		const { response } = await this.ask("api_req_failed", error.message)
+		const { response } = await this.ask("api_req_failed", { question: error.message })
 		if (response === "yesButtonTapped" || response === "messageResponse") {
 			console.log(JSON.stringify(this.stateManager.state.claudeMessages, null, 2))
 

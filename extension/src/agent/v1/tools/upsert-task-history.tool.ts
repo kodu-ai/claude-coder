@@ -27,10 +27,28 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 
 			await this.koduDev.providerRef.deref()?.getStateManager().updateTaskHistory(historyItem)
 			await this.koduDev.getStateManager().setState(state)
-			this.params.say("memory_updated", content)
+			this.params.ask(
+				"tool",
+				{ tool: { tool: "upsert_memory", status: "approved", milestoneName, summary, content } },
+				this.ts
+			)
 
 			return "Successfully updated task history."
 		} catch (error) {
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "upsert_memory",
+						status: "error",
+						milestoneName,
+						summary,
+						content,
+						error: serializeError(error),
+					},
+				},
+				this.ts
+			)
 			return `Error writing file: ${JSON.stringify(serializeError(error))}
 						A good example of a upsert_memory tool call is:
 			{

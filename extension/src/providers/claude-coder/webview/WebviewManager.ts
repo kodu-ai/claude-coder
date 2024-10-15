@@ -250,6 +250,11 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "toolFeedback":
+						await this.provider
+							.getTaskManager()
+							.handleAskResponse(message.feedback === "approve" ? "yesButtonTapped" : "noButtonTapped")
+						break
 					case "technicalBackground":
 						await this.provider.getStateManager().setTechnicalBackground(message.value)
 						await this.postStateToWebview()

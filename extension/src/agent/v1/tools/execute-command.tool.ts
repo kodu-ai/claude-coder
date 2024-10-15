@@ -50,14 +50,46 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		}
 		const { ask, say, returnEmptyStringOnSuccess } = this.params
 		const cwd = getCwd()
-		const { response, text, images } = await ask("command", command)
-		if (response !== "yesButtonTapped" && !this.alwaysAllowWriteOnly) {
+		const { response, text, images } = await ask(
+			"tool",
+			{
+				tool: {
+					tool: "execute_command",
+					command,
+					status: "pending",
+				},
+			},
+			this.ts
+		)
+		if (response !== "yesButtonTapped") {
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						command,
+						status: "rejected",
+					},
+				},
+				this.ts
+			)
 			if (response === "messageResponse") {
 				await say("user_feedback", text, images)
 				return this.formatToolResponseWithImages(await this.formatToolDeniedFeedback(text), images)
 			}
 			return await this.formatToolDenied()
 		}
+		ask(
+			"tool",
+			{
+				tool: {
+					tool: "execute_command",
+					command,
+					status: "loading",
+				},
+			},
+			this.ts
+		)
 
 		try {
 			console.log(`Creating terminal: ${typeof terminalManager} `)
@@ -70,7 +102,18 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			let didContinue = false
 			const sendCommandOutput = async (line: string): Promise<void> => {
 				try {
-					const { response, text, images } = await ask("command_output", line)
+					const { response, text, images } = await ask(
+						"tool",
+						{
+							tool: {
+								tool: "execute_command",
+								command,
+								output: line,
+								status: "approved",
+							},
+						},
+						this.ts
+					)
 					if (response === "yesButtonTapped") {
 						// proceed while running
 					} else {
@@ -86,10 +129,25 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			let result = ""
 			process.on("line", (line) => {
 				result += line + "\n"
+				// if it starts with \n, remove it
+				if (result.startsWith("\n")) {
+					result = result.slice(1)
+				}
 				if (!didContinue) {
-					sendCommandOutput(line)
+					sendCommandOutput(result)
 				} else {
-					say("command_output", line)
+					ask(
+						"tool",
+						{
+							tool: {
+								tool: "execute_command",
+								command,
+								output: result,
+								status: "approved",
+							},
+						},
+						this.ts
+					)
 				}
 			})
 
@@ -167,16 +225,21 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					`
 		}
 
-		let response = "yesButtonTapped"
-		if (!this.alwaysAllowWriteOnly) {
-			const result = await ask("command", command)
-			response = result.response
-			if (response === "messageResponse") {
-				await say("user_feedback", result.text, result.images)
-				return formatToolResponse(formatGenericToolFeedback(result.text), result.images)
-			}
-		} else {
-			ask("command", command)
+		const result = await ask(
+			"tool",
+			{
+				tool: {
+					tool: "execute_command",
+					command,
+					status: "pending",
+				},
+			},
+			this.ts
+		)
+		const response = result.response
+		if (response === "messageResponse") {
+			await say("user_feedback", result.text, result.images)
+			return formatToolResponse(formatGenericToolFeedback(result.text), result.images)
 		}
 
 		if (response !== "yesButtonTapped") {
@@ -186,39 +249,42 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		let userFeedback: { text?: string; images?: string[] } | undefined
 		const sendCommandOutput = async (subprocess: ResultPromise, line: string): Promise<void> => {
 			try {
-				if (this.alwaysAllowWriteOnly) {
-					await say("command_output", line)
+				const { response, text, images } = await ask("command_output", {
+					tool: {
+						tool: "execute_command",
+						command,
+						output: line,
+						status: "approved",
+					},
+				})
+				const isStdin = (text ?? "").startsWith(COMMAND_STDIN_STRING)
+				if (response === "yesButtonTapped") {
+					if (subprocess.pid) {
+						treeKill(subprocess.pid, "SIGINT")
+					}
 				} else {
-					const { response, text, images } = await ask("command_output", line)
-					const isStdin = (text ?? "").startsWith(COMMAND_STDIN_STRING)
-					if (response === "yesButtonTapped") {
+					if (isStdin) {
+						const stdin = text?.slice(COMMAND_STDIN_STRING.length) ?? ""
+
+						// replace last commandoutput with + stdin
+						const lastCommandOutput = findLastIndex(
+							this.koduDev.getStateManager().state.claudeMessages,
+							(m) => m.ask === "command_output"
+						)
+						if (lastCommandOutput !== -1) {
+							this.koduDev.getStateManager().state.claudeMessages[lastCommandOutput].text += stdin
+						}
+
+						// if the user sent some input, we send it to the command stdin
+						// add newline as cli programs expect a newline after each input
+						// (stdin needs to be set to `pipe` to send input to the command, execa does this by default when using template literals - other options are inherit (from parent process stdin) or null (no stdin))
+						subprocess.stdin?.write(stdin + "\n")
+						// Recurse with an empty string to continue listening for more input
+						sendCommandOutput(subprocess, "") // empty strings are effectively ignored by the webview, this is done solely to relinquish control over the exit command button
+					} else {
+						userFeedback = { text, images }
 						if (subprocess.pid) {
 							treeKill(subprocess.pid, "SIGINT")
-						}
-					} else {
-						if (isStdin) {
-							const stdin = text?.slice(COMMAND_STDIN_STRING.length) ?? ""
-
-							// replace last commandoutput with + stdin
-							const lastCommandOutput = findLastIndex(
-								this.koduDev.getStateManager().state.claudeMessages,
-								(m) => m.ask === "command_output"
-							)
-							if (lastCommandOutput !== -1) {
-								this.koduDev.getStateManager().state.claudeMessages[lastCommandOutput].text += stdin
-							}
-
-							// if the user sent some input, we send it to the command stdin
-							// add newline as cli programs expect a newline after each input
-							// (stdin needs to be set to `pipe` to send input to the command, execa does this by default when using template literals - other options are inherit (from parent process stdin) or null (no stdin))
-							subprocess.stdin?.write(stdin + "\n")
-							// Recurse with an empty string to continue listening for more input
-							sendCommandOutput(subprocess, "") // empty strings are effectively ignored by the webview, this is done solely to relinquish control over the exit command button
-						} else {
-							userFeedback = { text, images }
-							if (subprocess.pid) {
-								treeKill(subprocess.pid, "SIGINT")
-							}
 						}
 					}
 				}
@@ -252,16 +318,19 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				if (result.length > 15_000) {
 					try {
 						say("info", `Command output exceeds 15 000 characters. Making a summary...`)
-						const summary = await this.koduDev.getApiManager().getApi()?.sendSummarizeRequest?.(result, command)
+						const summary = await this.koduDev
+							.getApiManager()
+							.getApi()
+							?.sendSummarizeRequest?.(result, command)
 						if (!summary || !summary.result) {
-							return 'Summarization failed.'
+							return "Summarization failed."
 						}
 						return `Summarized command output:\n${response.length}`
 					} catch (err) {
 						return `Failed to summarize the command output: ${err}`
 					}
 				}
-	
+
 				if (subprocess.exitCode !== 0) {
 					throw new Error(`Command failed with exit code ${subprocess.exitCode}`)
 				}
@@ -291,7 +360,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			}
 
 			if (returnEmptyStringOnSuccess) {
-				return ''
+				return ""
 			}
 
 			return `Command Output:\n${result}`
@@ -299,7 +368,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			const error = e as any
 			let errorMessage = error.message || JSON.stringify(serializeError(error), null, 2)
 			const errorString = `Error executing command:\n${errorMessage}`
-			await say('error', `Error executing command:\n${errorMessage}`)
+			await say("error", `Error executing command:\n${errorMessage}`)
 
 			this.setRunningProcessId(undefined)
 			return errorString

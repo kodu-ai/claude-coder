@@ -37,28 +37,69 @@ export class ReadFileTool extends BaseAgentTool {
 			const absolutePath = path.resolve(this.cwd, relPath)
 			const content = await extractTextFromFile(absolutePath)
 
-			const message = JSON.stringify({
-				tool: "readFile",
-				path: getReadablePath(relPath, this.cwd),
-				content,
-			} as ClaudeSayTool)
-			if (this.alwaysAllowReadOnly) {
-				await say("tool", message)
-			} else {
-				const { response, text, images } = await ask("tool", message)
+			const { response, text, images } = await ask(
+				"tool",
+				{
+					tool: {
+						tool: "read_file",
+						path: getReadablePath(relPath, this.cwd),
+						status: "pending",
+						content,
+					},
+				},
+				this.ts
+			)
 
-				if (response !== "yesButtonTapped") {
-					if (response === "messageResponse") {
-						await say("user_feedback", text, images)
-						return formatToolResponse(formatGenericToolFeedback(text), images)
-					}
+			if (response !== "yesButtonTapped") {
+				ask(
+					"tool",
+					{
+						tool: {
+							tool: "read_file",
+							path: getReadablePath(relPath, this.cwd),
+							status: "rejected",
+							content,
+						},
+					},
+					this.ts
+				)
 
-					return "The user denied this operation."
+				if (response === "messageResponse") {
+					await say("user_feedback", text, images)
+					return formatToolResponse(formatGenericToolFeedback(text), images)
 				}
-			}
 
-			return content
+				return "The user denied this operation."
+			}
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "read_file",
+						path: getReadablePath(relPath, this.cwd),
+						status: "approved",
+						content,
+					},
+				},
+				this.ts
+			)
+			if (content.trim().length === 0) {
+				return "The file is empty."
+			}
+			return content.length > 0 ? content : "The file is empty."
 		} catch (error) {
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "read_file",
+						path: getReadablePath(relPath, this.cwd),
+						content: "Cannot read content",
+						status: "error",
+					},
+				},
+				this.ts
+			)
 			const errorString = `
 			Error reading file: ${JSON.stringify(serializeError(error))}
 			An example of a good readFile tool call is:

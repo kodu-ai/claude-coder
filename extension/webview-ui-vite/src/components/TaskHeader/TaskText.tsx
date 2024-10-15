@@ -1,30 +1,31 @@
-import { extractAdditionalContext, extractFilesFromContext, extractUrlsFromContext } from "@/utils/extractAttachments";
-import React, { useEffect, useRef, useState } from "react";
-import { useWindowSize } from "react-use";
-import AttachmentsList, { FileItem, UrlItem } from "../ChatRow/FileList";
+import { extractAdditionalContext, extractFilesFromContext, extractUrlsFromContext } from "@/utils/extractAttachments"
+import React, { useEffect, useRef, useState } from "react"
+import { useWindowSize } from "react-use"
+import AttachmentsList, { FileItem, UrlItem } from "../ChatRow/FileList"
+import { Button } from "../ui/button"
 
 interface TaskTextProps {
 	text?: string
 }
 
 function splitString(input: string) {
-  const regex = /<additional-context>\[(.*?)\]<\/additional-context>/;
-  const match = input.match(regex);
+	const regex = /<additional-context>\[(.*?)\]<\/additional-context>/
+	const match = input.match(regex)
 
-  if (match) {
-    const additionalContent = match[1];
-    const mainContent = input.replace(match[0], '').trim();
+	if (match) {
+		const additionalContent = match[1]
+		const mainContent = input.replace(match[0], "").trim()
 
-    return {
-      mainContent,
-      additionalContent,
-    };
-  } else {
-    return {
-      mainContent: input,
-      additionalContent: null,
-    };
-  }
+		return {
+			mainContent,
+			additionalContent,
+		}
+	} else {
+		return {
+			mainContent: input,
+			additionalContent: null,
+		}
+	}
 }
 
 const TaskText: React.FC<TaskTextProps> = ({ text }) => {
@@ -57,14 +58,14 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 	}, [text, windowWidth])
 
 	const toggleExpand = () => setIsExpanded(!isExpanded)
-	const parts = extractAdditionalContext(text || '');
+	const parts = extractAdditionalContext(text || "")
 	let filesCut: FileItem[] = []
 	if (parts[1]) {
-		filesCut = extractFilesFromContext(parts[1]);
+		filesCut = extractFilesFromContext(parts[1])
 	}
 	let urlsCut: UrlItem[] = []
 	if (parts[1]) {
-		urlsCut = extractUrlsFromContext(parts[1]);
+		urlsCut = extractUrlsFromContext(parts[1])
 	}
 
 	return (
@@ -97,44 +98,19 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 							position: "absolute",
 							right: 0,
 							bottom: 0,
-							display: "flex",
-							alignItems: "center",
 						}}>
-						<div
-							style={{
-								width: 30,
-								height: "1.2em",
-								background: "linear-gradient(to right, transparent, var(--section-border))",
-							}}
-						/>
-						<div
-							style={{
-								cursor: "pointer",
-								color: "var(--vscode-textLink-foreground)",
-								paddingRight: 0,
-								paddingLeft: 3,
-								backgroundColor: "var(--section-border)",
-							}}
-							onClick={toggleExpand}>
-							See more
-						</div>
+						<Button variant="link" size="sm" className="ml-auto text-right" onClick={toggleExpand}>
+							see more
+						</Button>
 					</div>
 				)}
 			</div>
-				<AttachmentsList files={filesCut} urls={urlsCut} />
-				
+			<AttachmentsList files={filesCut} urls={urlsCut} />
+
 			{isExpanded && showSeeMore && (
-				<div
-					style={{
-						cursor: "pointer",
-						color: "var(--vscode-textLink-foreground)",
-						marginLeft: "auto",
-						textAlign: "right",
-						paddingRight: 0,
-					}}
-					onClick={toggleExpand}>
-					See less
-				</div>
+				<Button variant="link" size="sm" className="ml-auto text-right" onClick={toggleExpand}>
+					see less
+				</Button>
 			)}
 		</>
 	)

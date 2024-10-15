@@ -24,10 +24,22 @@ export class UrlScreenshotTool extends BaseAgentTool {
 
 		const confirmation = await this.askToolExecConfirmation()
 		if (confirmation.response !== "yesButtonTapped") {
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "url_screenshot",
+						status: "rejected",
+						url: url!,
+					},
+				},
+				this.ts
+			)
 			return await this.onExecDenied(confirmation)
 		}
 
 		try {
+			this.params.ask("tool", { tool: { tool: "url_screenshot", status: "loading", url } }, this.ts)
 			const browserManager = this.koduDev.browserManager
 			await browserManager.launchBrowser()
 			const { buffer } = await browserManager.urlToScreenshotAndLogs(url)
@@ -56,9 +68,21 @@ export class UrlScreenshotTool extends BaseAgentTool {
 					data: imageToBase64,
 				},
 			}
-
+			this.params.ask("tool", { tool: { tool: "url_screenshot", status: "approved", url } }, this.ts)
 			return [textBlock, imageBlock]
 		} catch (err) {
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "url_screenshot",
+						status: "error",
+						url: url!,
+						error: `Screenshot failed with error: ${err}`,
+					},
+				},
+				this.ts
+			)
 			return `Screenshot failed with error: ${err}`
 		}
 	}
@@ -79,12 +103,17 @@ export class UrlScreenshotTool extends BaseAgentTool {
 	}
 
 	private async askToolExecConfirmation(): Promise<AskConfirmationResponse> {
-		const message = JSON.stringify({
-			tool: "url_screenshot",
-			url: this.params.input.url,
-		} as ClaudeSayTool)
-
-		return await this.params.ask("tool", message)
+		return await this.params.ask(
+			"tool",
+			{
+				tool: {
+					tool: "url_screenshot",
+					url: this.params.input.url!,
+					status: "pending",
+				},
+			},
+			this.ts
+		)
 	}
 
 	private async onExecDenied(confirmation: AskConfirmationResponse) {

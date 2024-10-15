@@ -30,7 +30,14 @@ export class AskFollowupQuestionTool extends BaseAgentTool {
 			`
 		}
 
-		const { text, images } = await ask("followup", question)
+		const { text, images } = await ask(
+			"tool",
+			{
+				tool: { tool: "ask_followup_question", question, status: "pending" },
+			},
+			this.ts
+		)
+		await ask("tool", { tool: { tool: "ask_followup_question", question, status: "approved" } }, this.ts)
 		await say("user_feedback", text ?? "", images)
 
 		return formatToolResponse(`<answer>\n${text}\n</answer>`, images)

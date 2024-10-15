@@ -1,7 +1,8 @@
-import { ClaudeAsk, ClaudeSay, ClaudeMessage } from "../../../shared/ExtensionMessage"
+import { ClaudeAsk, ClaudeSay, ClaudeMessage, MessageStatus, V1ClaudeMessage } from "../../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
 import { StateManager } from "../state-manager"
 import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
+import { ChatTool } from "../../../shared/new-tools"
 
 export enum TaskState {
 	IDLE = "IDLE",
@@ -33,6 +34,16 @@ export interface AskResponse {
 	images?: string[]
 }
 
+export type AskDetails = {
+	question?: string
+	tool?: ChatTool & {
+		status?: MessageStatus
+		error?: string
+	}
+}
+
+export type AskForConfirmation = (type: ClaudeAsk, details?: AskDetails, askTs?: number) => Promise<AskResponse>
+
 export abstract class TaskExecutorUtils {
 	protected stateManager: StateManager
 	protected providerRef: WeakRef<ExtensionProvider>
@@ -43,15 +54,17 @@ export abstract class TaskExecutorUtils {
 		this.providerRef = providerRef
 	}
 
-	public async ask(type: ClaudeAsk, question?: string): Promise<AskResponse> {
+	public async ask(type: ClaudeAsk, data?: AskDetails): Promise<AskResponse> {
+		const { question, tool } = data ?? {}
 		return new Promise((resolve) => {
 			const askTs = Date.now()
-			const askMessage: ClaudeMessage = {
+			const askMessage: V1ClaudeMessage = {
 				ts: askTs,
 				type: "ask",
 				ask: type,
-				text: question,
+				text: question ? question : tool ? JSON.stringify(tool) : "",
 				v: 1,
+				status: tool?.status,
 				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
 			}
 
@@ -74,6 +87,67 @@ export abstract class TaskExecutorUtils {
 
 			this.pendingAskResponse = resolve
 		})
+	}
+
+	public async askWithId(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
+		if (!askTs) {
+			askTs = Date.now()
+		}
+		const { question, tool } = data ?? {}
+		return new Promise(async (resolve) => {
+			const askMessage: V1ClaudeMessage = {
+				ts: askTs,
+				type: "ask",
+				ask: type,
+				text: question ? question : tool ? JSON.stringify(tool) : "",
+				v: 1,
+				status: tool?.status,
+				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
+			}
+			if (this.stateManager.getMessageById(askTs)) {
+				this.stateManager.updateClaudeMessage(askTs, askMessage)
+			} else {
+				await this.stateManager.addToClaudeMessages(askMessage)
+			}
+			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion: ${question}`)
+			this.updateWebview()
+
+			const mustRequestApproval: ClaudeAsk[] = [
+				"completion_result",
+				"resume_completed_task",
+				"resume_task",
+				"request_limit_reached",
+				"followup",
+			]
+			if (this.stateManager.alwaysAllowWriteOnly && !mustRequestApproval.includes(type)) {
+				resolve({ response: "yesButtonTapped", text: "", images: [] })
+				return
+			}
+			// skip assigning pendingAskResponse if it's already assigned
+			// if (this.pendingAskResponse) {
+			// 	return
+			// }
+			this.pendingAskResponse = resolve
+		})
+	}
+
+	public async sayWithId(sayTs: number, type: ClaudeSay, text?: string, images?: string[]): Promise<number> {
+		const sayMessage: ClaudeMessage = {
+			ts: sayTs,
+			type: "say",
+			say: type,
+			text: text,
+			images,
+			isFetching: type === "api_req_started",
+			v: 1,
+		}
+		if (this.stateManager.getMessageById(sayTs)) {
+			await this.stateManager.updateClaudeMessage(sayTs, sayMessage)
+		} else {
+			await this.stateManager.addToClaudeMessages(sayMessage)
+		}
+		await this.updateWebview()
+		return sayTs
 	}
 
 	public async say(type: ClaudeSay, text?: string, images?: string[], sayTs = Date.now()): Promise<number> {

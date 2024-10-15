@@ -9,6 +9,9 @@ import TokenInfo from "./TokenInfo"
 import CreditsInfo from "./CreditsInfo"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import BugReportDialog from "./bug-report-dialog"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ChevronDown, ChevronUp } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 
 interface TaskHeaderProps {
 	task: ClaudeMessage
@@ -38,6 +41,7 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 	vscodeUriScheme,
 }) => {
 	const { currentTaskId, currentTask } = useExtensionState()
+	const [isOpen, setIsOpen] = React.useState(true)
 
 	const handleDownload = () => {
 		vscode.postMessage({ type: "exportCurrentTask" })
@@ -47,9 +51,9 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 	}
 
 	return (
-		<>
-			<section>
-				<div className="flex-line">
+		<section className="pb-1">
+			<Collapsible open={isOpen} onOpenChange={setIsOpen}>
+				<div className="flex flex-wrap">
 					<h3 className="uppercase">Task</h3>
 					<div style={{ flex: "1 1 0%" }}></div>
 					<BugReportDialog />
@@ -62,20 +66,37 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 					<VSCodeButton appearance="icon" onClick={onClose}>
 						<span className="codicon codicon-close"></span>
 					</VSCodeButton>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<CollapsibleTrigger asChild>
+								<VSCodeButton appearance="icon">
+									{isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+								</VSCodeButton>
+							</CollapsibleTrigger>
+						</TooltipTrigger>
+						<TooltipContent avoidCollisions side="left">
+							{isOpen ? "Collapse" : "Expand"}
+						</TooltipContent>
+					</Tooltip>
+					<div className="basis-full">
+						<TaskText text={currentTask?.name ?? currentTask?.task ?? task.text} />
+					</div>
 				</div>
-				<TaskText text={currentTask?.name ?? currentTask?.task ?? task.text} />
-				{task.images && task.images.length > 0 && <Thumbnails images={task.images} />}
-				<TokenInfo
-					tokensIn={tokensIn}
-					tokensOut={tokensOut}
-					doesModelSupportPromptCache={doesModelSupportPromptCache}
-					cacheWrites={cacheWrites}
-					cacheReads={cacheReads}
-					totalCost={totalCost}
-				/>
-			</section>
-			<CreditsInfo koduCredits={koduCredits} vscodeUriScheme={vscodeUriScheme} />
-		</>
+
+				<CollapsibleContent className="flex flex-col pt-1 gap-2">
+					{task.images && task.images.length > 0 && <Thumbnails images={task.images} />}
+					<TokenInfo
+						tokensIn={tokensIn}
+						tokensOut={tokensOut}
+						doesModelSupportPromptCache={doesModelSupportPromptCache}
+						cacheWrites={cacheWrites}
+						cacheReads={cacheReads}
+						totalCost={totalCost}
+					/>
+					<CreditsInfo koduCredits={koduCredits} vscodeUriScheme={vscodeUriScheme} />
+				</CollapsibleContent>
+			</Collapsible>
+		</section>
 	)
 }
 

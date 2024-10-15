@@ -6,6 +6,8 @@ import { ToolResponse } from "../types"
 import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../utils"
 import { AgentToolOptions, AgentToolParams } from "./types"
 import { BaseAgentTool } from "./base-agent.tool"
+import { AskDetails, AskForConfirmation } from "../task-executor/utils"
+import { AskResponse } from "../task-executor/task-executor"
 
 export class ListFilesTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -40,151 +42,73 @@ export class ListFilesTool extends BaseAgentTool {
 			const files = await listFiles(absolutePath, recursive, 200)
 			const result = this.formatFilesList(absolutePath, files[0])
 
-			const message = JSON.stringify({
-				tool: recursive ? "listFilesRecursive" : "listFilesTopLevel",
-				path: getReadablePath(relDirPath, this.cwd),
-				content: result,
-			} as ClaudeSayTool)
+			const { response, text, images } = await ask(
+				"tool",
+				{
+					tool: {
+						tool: "list_files",
+						path: getReadablePath(relDirPath, this.cwd),
+						status: "pending",
+						content: result,
+						recursive: recursive ? "true" : "false",
+					},
+				},
+				this.ts
+			)
 
-			if (this.alwaysAllowReadOnly) {
-				await say("tool", message)
-			} else {
-				const { response, text, images } = await ask("tool", message)
-
-				if (response !== "yesButtonTapped") {
-					if (response === "messageResponse") {
-						await say("user_feedback", text, images)
-						return formatToolResponse(formatGenericToolFeedback(text), images)
-					}
-
-					return "The user denied this operation."
+			if (response !== "yesButtonTapped") {
+				ask(
+					"tool",
+					{
+						tool: {
+							tool: "list_files",
+							path: getReadablePath(relDirPath, this.cwd),
+							status: "rejected",
+							recursive: recursive ? "true" : "false",
+						},
+					},
+					this.ts
+				)
+				if (response === "messageResponse") {
+					await say("user_feedback", text, images)
+					return formatToolResponse(formatGenericToolFeedback(text), images)
 				}
+
+				return "The user denied this operation."
 			}
+
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "list_files",
+						path: getReadablePath(relDirPath, this.cwd),
+						status: "approved",
+						content: result,
+						recursive: recursive ? "true" : "false",
+					},
+				},
+				this.ts
+			)
 
 			return result
 		} catch (error) {
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "list_files",
+						path: getReadablePath(relDirPath, this.cwd),
+						status: "error",
+						error: serializeError(error),
+					},
+				},
+				this.ts
+			)
 			const errorString = `Error listing files and directories: ${JSON.stringify(serializeError(error))}`
 			await say(
 				"error",
 				`Error listing files and directories:\n${
-					(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)
-				}`
-			)
-
-			return errorString
-		}
-	}
-
-	async listFilesTopLevel(
-		relDirPath: string | undefined,
-		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => void
-	): Promise<ToolResponse> {
-		if (relDirPath === undefined) {
-			await say(
-				"error",
-				"Claude tried to use list_files_top_level without value for required parameter 'path'. Retrying..."
-			)
-
-			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
-			An example of a good listFilesTopLevel tool call is:
-			{
-				"tool": "list_files_top_level",
-				"path": "path/to/directory"
-			}
-			Please try again with the correct path, you are not allowed to list files without a path.
-			`
-		}
-		try {
-			const absolutePath = path.resolve(this.cwd, relDirPath)
-			const files = await listFiles(absolutePath, false, 200)
-			const result = this.formatFilesList(absolutePath, files[0])
-
-			const message = JSON.stringify({
-				tool: "listFilesTopLevel",
-				path: getReadablePath(relDirPath, this.cwd),
-				content: result,
-			} as ClaudeSayTool)
-			if (this.alwaysAllowReadOnly) {
-				await say("tool", message)
-			} else {
-				const { response, text, images } = await ask("tool", message)
-
-				if (response !== "yesButtonTapped") {
-					if (response === "messageResponse") {
-						await say("user_feedback", text, images)
-						return formatToolResponse(formatGenericToolFeedback(text), images)
-					}
-
-					return "The user denied this operation."
-				}
-			}
-
-			return result
-		} catch (error) {
-			const errorString = `Error listing files and directories: ${JSON.stringify(serializeError(error))}`
-			await say(
-				"error",
-				`Error listing files and directories:\n${
-					(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)
-				}`
-			)
-
-			return errorString
-		}
-	}
-
-	async listFilesRecursive(
-		relDirPath: string | undefined,
-		ask: (type: ClaudeAsk, question?: string) => Promise<{ response: string; text?: string; images?: string[] }>,
-		say: (type: ClaudeSay, text?: string, images?: string[]) => void
-	): Promise<ToolResponse> {
-		if (relDirPath === undefined) {
-			await say(
-				"error",
-				"Claude tried to use list_files_recursive without value for required parameter 'path'. Retrying..."
-			)
-
-			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
-			An example of a good listFilesRecursive tool call is:
-			{
-				"tool": "list_files_recursive",
-				"path": "path/to/directory"
-			}
-			Please try again with the correct path, you are not allowed to list files without a path.
-			`
-		}
-
-		try {
-			const absolutePath = path.resolve(this.cwd, relDirPath)
-			const files = await listFiles(absolutePath, true, 200)
-			const result = this.formatFilesList(absolutePath, files[0])
-
-			const message = JSON.stringify({
-				tool: "listFilesRecursive",
-				path: getReadablePath(relDirPath, this.cwd),
-				content: result,
-			} as ClaudeSayTool)
-			if (this.alwaysAllowReadOnly) {
-				await say("tool", message)
-			} else {
-				const { response, text, images } = await ask("tool", message)
-				if (response !== "yesButtonTapped") {
-					if (response === "messageResponse") {
-						await say("user_feedback", text, images)
-						return formatToolResponse(formatGenericToolFeedback(text), images)
-					}
-
-					return "The user denied this operation."
-				}
-			}
-
-			return result
-		} catch (error) {
-			const errorString = `Error listing files recursively: ${JSON.stringify(serializeError(error))}`
-			await say(
-				"error",
-				`Error listing files recursively:\n${
 					(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)
 				}`
 			)

@@ -56,27 +56,42 @@ export class SearchFilesTool extends BaseAgentTool {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
 			const results = await regexSearchFiles(this.cwd, absolutePath, regex, filePattern)
 
-			const message = JSON.stringify({
-				tool: "searchFiles",
-				path: getReadablePath(relDirPath, this.cwd),
-				regex: regex,
-				filePattern: filePattern,
-				content: results,
-			} as ClaudeSayTool)
+			const { response, text, images } = await ask(
+				"tool",
+				{
+					tool: {
+						tool: "search_files",
+						path: getReadablePath(relDirPath, this.cwd),
+						regex: regex,
+						filePattern: filePattern,
+						status: "pending",
+						content: results,
+					},
+				},
+				this.ts
+			)
 
-			if (this.alwaysAllowReadOnly) {
-				await say("tool", message)
-			} else {
-				const { response, text, images } = await ask("tool", message)
-
-				if (response !== "yesButtonTapped") {
-					if (response === "messageResponse") {
-						await say("user_feedback", text, images)
-						return formatToolResponse(formatGenericToolFeedback(text), images)
-					}
-
-					return "The user denied this operation."
+			if (response !== "yesButtonTapped") {
+				ask(
+					"tool",
+					{
+						tool: {
+							tool: "search_files",
+							path: getReadablePath(relDirPath, this.cwd),
+							regex: regex,
+							filePattern: filePattern,
+							status: "rejected",
+							content: results,
+						},
+					},
+					this.ts
+				)
+				if (response === "messageResponse") {
+					await say("user_feedback", text, images)
+					return formatToolResponse(formatGenericToolFeedback(text), images)
 				}
+
+				return "The user denied this operation."
 			}
 
 			return results

@@ -144,6 +144,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, sy
 				// @ts-expect-error not typed
 				// thinking: ThinkingContent,
 				preview: Preview,
+				write_to_file: WriteToFile,
 				"call-to-action": CallToAction,
 				// "write-to-file": (props) => <WriteToFile {...props} syntaxHighlighterStyle={syntaxHighlighterStyle} />,
 				p: (props) => <p className="my-1 leading-6 " {...props} />,

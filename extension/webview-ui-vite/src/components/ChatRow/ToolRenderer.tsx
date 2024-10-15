@@ -1,15 +1,17 @@
 import React from "react"
-import { ClaudeMessage, ClaudeSayTool } from "../../../../src/shared/ExtensionMessage"
+import { V1ClaudeMessage, ClaudeSayTool } from "../../../../src/shared/ExtensionMessage"
 import CodeBlock from "../CodeBlock/CodeBlock"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import { AskConsultantTool, UrlScreenshotTool, WebSearchTool } from "./Tools"
+import { ChatTool } from "../../../../src/shared/new-tools"
+import { ToolContentBlock } from "./ToolRenderV1"
 
 export interface ToolRendererProps {
-	message: ClaudeMessage
+	message: V1ClaudeMessage
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
 	isExpanded: boolean
 	onToggleExpand: () => void
-	nextMessage?: ClaudeMessage
+	nextMessage?: V1ClaudeMessage
 }
 
 const ToolRenderer: React.FC<ToolRendererProps> = ({
@@ -19,7 +21,7 @@ const ToolRenderer: React.FC<ToolRendererProps> = ({
 	onToggleExpand,
 	nextMessage,
 }) => {
-	const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
+	const tool = JSON.parse(message.text || "{}") as ClaudeSayTool | ChatTool
 	const toolIcon = (name: string) => <span className={`codicon codicon-${name} text-alt`} />
 
 	switch (tool.tool) {
@@ -125,39 +127,6 @@ const ToolRenderer: React.FC<ToolRendererProps> = ({
 				</>
 			)
 
-		case "web_search":
-			console.log(nextMessage)
-			return (
-				<WebSearchTool
-					message={message}
-					syntaxHighlighterStyle={syntaxHighlighterStyle}
-					isExpanded={isExpanded}
-					onToggleExpand={onToggleExpand}
-					nextMessage={nextMessage}
-				/>
-			)
-
-		case "url_screenshot":
-			return (
-				<UrlScreenshotTool
-					message={message}
-					syntaxHighlighterStyle={syntaxHighlighterStyle}
-					isExpanded={isExpanded}
-					onToggleExpand={onToggleExpand}
-					nextMessage={nextMessage}
-				/>
-			)
-
-		case "ask_consultant":
-			return (
-				<AskConsultantTool
-					message={message}
-					syntaxHighlighterStyle={syntaxHighlighterStyle}
-					isExpanded={isExpanded}
-					onToggleExpand={onToggleExpand}
-				/>
-			)
-
 		case "searchFiles":
 			return (
 				<>
@@ -184,7 +153,7 @@ const ToolRenderer: React.FC<ToolRendererProps> = ({
 				</>
 			)
 		default:
-			return null
+			return <ToolContentBlock tool={{ ...tool, approvalState: message.status }} />
 	}
 }
 

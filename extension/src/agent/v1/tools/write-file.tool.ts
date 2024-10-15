@@ -15,6 +15,8 @@ export class WriteFileTool extends BaseAgentTool {
 	private fileExists: boolean | undefined
 	private executionPromise: Promise<ToolResponse> | null = null
 	private resolveExecution: ((response: ToolResponse) => void) | null = null
+	private isProcessingFinalContent: boolean = false
+	private askPromise: Promise<{ response: string; text?: string; images?: string[] }> | null = null
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
@@ -46,17 +48,55 @@ export class WriteFileTool extends BaseAgentTool {
 				throw new Error("Missing required parameters 'path' or 'content'")
 			}
 
-			await this.handlePartialContent(relPath, content)
-			await this.handleFinalContent(relPath, content)
-			// Make sure to resolve here if everything succeeds
+			// Handle the ask at the beginning of the execution
+			this.askPromise = this.params.ask("tool", {
+				tool: {
+					tool: "write_to_file",
+					content: content,
+					status: "pending",
+					path: relPath,
+				},
+			})
+
+			if (!this.params.isFinal) {
+				await this.handlePartialContent(relPath, content)
+			} else {
+				this.isProcessingFinalContent = true
+				await this.handlePartialContent(relPath, content)
+				await this.handleFinalContent(relPath, content)
+			}
+
+			// Wait for the ask promise to be resolved
+			const { response, text, images } = await this.askPromise
+
+			if (response !== "yesButtonTapped") {
+				await this.koduDev.diffViewProvider.revertChanges()
+				if (response === "noButtonTapped") {
+					await this.resolveExecutionWithResult(formatToolResponse("Write operation cancelled by user."))
+					return
+				}
+				await this.resolveExecutionWithResult(
+					formatToolResponse(text ?? "Write operation cancelled by user.", images)
+				)
+				return
+			}
+
+			// If we reach here, it means the changes were approved
 			await this.resolveExecutionWithResult(formatToolResponse("File write operation completed successfully"))
 		} catch (error) {
 			console.error("Error in processFileWrite:", error)
 			await this.resolveExecutionWithResult(formatToolResponse(`Error: ${error.message}`))
+		} finally {
+			this.isProcessingFinalContent = false
 		}
 	}
 
 	public async handlePartialContent(relPath: string, newContent: string): Promise<void> {
+		if (this.isProcessingFinalContent && this.fileExists !== undefined) {
+			console.log("Skipping partial update as final content is being processed")
+			return
+		}
+
 		console.log("handlePartialContent started")
 		if (this.fileExists === undefined) {
 			const result = await this.checkFileExists(relPath)
@@ -83,33 +123,7 @@ export class WriteFileTool extends BaseAgentTool {
 		newContent = this.preprocessContent(newContent)
 
 		await this.koduDev.diffViewProvider.update(newContent, true)
-		// await delay(300) // Wait for diff view to update
-
-		const sharedMessageProps: ClaudeSayTool = {
-			tool: this.koduDev.diffViewProvider.editType === "modify" ? "editedExistingFile" : "newFileCreated",
-			path: getReadablePath(getCwd(), relPath),
-		}
-
-		const completeMessage = JSON.stringify({
-			...sharedMessageProps,
-			content: fileExists ? undefined : newContent,
-			diff: fileExists
-				? createPrettyPatch(relPath, this.koduDev.diffViewProvider.originalContent, newContent)
-				: undefined,
-		})
-		const { response, text, images } = await this.params.ask("tool", completeMessage)
-
-		if (response !== "yesButtonTapped") {
-			await this.koduDev.diffViewProvider.revertChanges()
-			if (response === "noButtonTapped") {
-				await this.resolveExecutionWithResult(formatToolResponse("Write operation cancelled by user."))
-				return
-			}
-			await this.resolveExecutionWithResult(
-				formatToolResponse(text ?? "Write operation cancelled by user.", images)
-			)
-			return
-		}
+		await delay(300) // Wait for diff view to update
 
 		const { newProblemsMessage, userEdits } = await this.koduDev.diffViewProvider.saveChanges()
 
@@ -122,16 +136,9 @@ export class WriteFileTool extends BaseAgentTool {
 					diff: userEdits,
 				} as ClaudeSayTool)
 			)
-			await this.resolveExecutionWithResult(
-				formatToolResponse(
-					`The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content has been successfully saved to ${relPath}. (Note this does not mean you need to re-write the file with the user's changes, as they have already been applied to the file.)${newProblemsMessage}`
-				)
-			)
-		} else {
-			await this.resolveExecutionWithResult(
-				formatToolResponse(`The content was successfully saved to ${relPath}.${newProblemsMessage}`)
-			)
+			console.log(`User edits detected: ${userEdits}`)
 		}
+
 		console.log("handleFinalContent completed")
 	}
 
@@ -167,42 +174,5 @@ export class WriteFileTool extends BaseAgentTool {
 		}
 
 		return content.replace(/>/g, ">").replace(/</g, "<").replace(/"/g, '"')
-	}
-
-	private async onBadInputReceived(): Promise<ToolResponse> {
-		const { input, say } = this.params
-		const { path: relPath } = input
-
-		if (relPath === undefined) {
-			await say(
-				"error",
-				"Claude tried to use write_to_file without value for required parameter 'path'. Retrying..."
-			)
-
-			return formatToolResponse(`Error: Missing value for required parameter 'path'. Please retry with complete response.
-            A good example of a writeToFile tool call is:
-            {
-                "tool": "write_to_file",
-                "path": "path/to/file.txt",
-                "content": "new content"
-            }
-            Please try again with the correct path and content, you are not allowed to write files without a path.
-            `)
-		}
-
-		await say(
-			"error",
-			`Claude tried to use write_to_file for '${relPath}' without value for required parameter 'content'. This is likely due to output token limits. Retrying...`
-		)
-
-		return formatToolResponse(`Error: Missing value for required parameter 'content'. Please retry with complete response.
-            A good example of a writeToFile tool call is:
-            {
-                "tool": "write_to_file",
-                "path": "path/to/file.txt",
-                "content": "new content"
-            }
-            Please try again with the correct path and content, you are not allowed to write files without a path.
-            `)
 	}
 }

@@ -27,6 +27,9 @@ export abstract class BaseAgentTool {
 	get id(): string {
 		return this.params.id
 	}
+	get ts(): number {
+		return this.params.ts
+	}
 
 	get paramsInput(): AgentToolParams["input"] {
 		return this.params.input

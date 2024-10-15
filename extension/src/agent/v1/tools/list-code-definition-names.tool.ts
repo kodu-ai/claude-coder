@@ -39,34 +39,65 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
 			const result = await parseSourceCodeForDefinitionsTopLevel(absolutePath)
 
-			const message = JSON.stringify({
-				tool: "listCodeDefinitionNames",
-				path: getReadablePath(relDirPath),
-				content: result,
-			} as ClaudeSayTool)
-
-			if (this.alwaysAllowReadOnly) {
-				await say("tool", message)
-			} else {
-				const { response, text, images } = await ask("tool", message)
-				if (response !== "yesButtonTapped") {
-					if (response === "messageResponse") {
-						await say("user_feedback", text, images)
-						return formatToolResponse(await formatGenericToolFeedback(text), images)
-					}
-					return "The user denied this operation."
+			const { response, text, images } = await ask(
+				"tool",
+				{
+					tool: {
+						tool: "list_code_definition_names",
+						path: getReadablePath(relDirPath),
+						status: "pending",
+						content: result,
+					},
+				},
+				this.ts
+			)
+			if (response !== "yesButtonTapped") {
+				ask(
+					"tool",
+					{
+						tool: {
+							tool: "list_code_definition_names",
+							path: getReadablePath(relDirPath),
+							status: "rejected",
+							content: result,
+						},
+					},
+					this.ts
+				)
+				if (response === "messageResponse") {
+					await say("user_feedback", text, images)
+					return formatToolResponse(await formatGenericToolFeedback(text), images)
 				}
+				return "The user denied this operation."
 			}
-
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "list_code_definition_names",
+						path: getReadablePath(relDirPath),
+						status: "approved",
+						content: result,
+					},
+				},
+				this.ts
+			)
 			return result
 		} catch (error) {
 			const errorString = `Error parsing source code definitions: ${JSON.stringify(serializeError(error))}`
-			await say(
-				"error",
-				`Error parsing source code definitions:\n${
-					error.message ?? JSON.stringify(serializeError(error), null, 2)
-				}`
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "list_code_definition_names",
+						status: "rejected",
+						path: getReadablePath(relDirPath),
+						error: errorString,
+					},
+				},
+				this.ts
 			)
+
 			return errorString
 		}
 	}
