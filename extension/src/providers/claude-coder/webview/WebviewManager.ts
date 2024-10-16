@@ -41,8 +41,6 @@ const excludedDirectories = [
 export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
 	private execaTerminalManager: ExecaTerminalManager
-	private currentCommandId: string | null = null
-	private currentCommandInput: string = ""
 
 	constructor(private provider: ExtensionProvider) {
 		this.execaTerminalManager = new ExecaTerminalManager()
@@ -528,64 +526,26 @@ export class WebviewManager {
 	}
 
 	private async executeCommand(message: ExecuteCommandMessage): Promise<void> {
-		if (this.currentCommandId) {
+		if (message.commandId) {
 			await this.handleCommandInput(message)
 			return
 		}
 
-		if (!message.isEnter) {
-			console.log("command", message.command)
-			this.currentCommandInput += message.command
-			return
+		const callbackFunction = (event: "error" | "exit" | "response", commandId: number, data: string) => {
+			this.postMessageToWebview({
+				type: "commandExecutionResponse",
+				status: event,
+				payload: data,
+				commandId: commandId.toString(),
+			})
 		}
 
 		const commandId = await this.execaTerminalManager.runCommand(
-			this.currentCommandInput,
-			"/Users/tomar.gagandeep/tmp"
+			message.command,
+			"/Users/tomar.gagandeep/tmp",
+			callbackFunction
 		)
 
-		// Set up event listeners
-		this.execaTerminalManager.on("output", (id, type, data) => {
-			if (id === commandId) {
-				this.currentCommandId = commandId
-				this.postMessageToWebview({
-					type: "commandExecutionResponse",
-					status: "response",
-					payload: data,
-					commandId,
-				})
-			}
-		})
-
-		this.execaTerminalManager.on("error", (id, error) => {
-			if (id === commandId) {
-				this.currentCommandId = null
-				this.currentCommandInput = ""
-
-				this.postMessageToWebview({
-					type: "commandExecutionResponse",
-					status: "error",
-					payload: error.message,
-					commandId,
-				})
-			}
-		})
-
-		this.execaTerminalManager.on("exit", (id, code, signal) => {
-			if (id === commandId) {
-				this.currentCommandId = null
-				this.currentCommandInput = ""
-
-				this.postMessageToWebview({
-					type: "commandExecutionResponse",
-					status: "exit",
-					payload: `Command exited with code ${code}${signal ? ` and signal ${signal}` : ""}`,
-					commandId,
-				})
-			}
-		})
-
-		// Wait for the command to complete
 		try {
 			await this.execaTerminalManager.awaitCommand(commandId)
 		} catch (error) {
@@ -599,6 +559,6 @@ export class WebviewManager {
 			input = input + "\n"
 		}
 
-		await this.execaTerminalManager.sendInput(this.currentCommandId!, input)
+		await this.execaTerminalManager.sendInput(Number(message.commandId!), input)
 	}
 }

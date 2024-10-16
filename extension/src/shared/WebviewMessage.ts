@@ -90,6 +90,7 @@ export type ExecuteCommandMessage = {
 	type: "executeCommand"
 	command: string
 	isEnter: boolean
+	commandId?: string
 }
 
 export type CommandInputMessage = {

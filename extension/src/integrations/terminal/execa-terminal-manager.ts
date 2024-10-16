@@ -2,7 +2,7 @@ import { execa, ExecaError, ResultPromise } from "execa"
 import { EventEmitter } from "events"
 import treeKill from "tree-kill"
 
-type CommandId = string
+type CommandId = number
 
 interface CommandOutput {
 	stdout: string
@@ -17,8 +17,12 @@ interface RunningCommand {
 export class ExecaTerminalManager {
 	private runningCommands: Map<CommandId, RunningCommand> = new Map()
 
-	async runCommand(command: string, cwd: string, postToWebview?: Function): Promise<CommandId> {
-		const commandId = Math.random().toString(36).substring(7)
+	async runCommand(
+		command: string,
+		cwd: string,
+		callbackFunction: (event: "error" | "exit" | "response", commandId: CommandId, data: string) => void
+	): Promise<CommandId> {
+		const commandId = Math.floor(Math.random() * 1000000)
 		const subprocess = execa(command, {
 			shell: true,
 			cwd: cwd,
@@ -31,57 +35,23 @@ export class ExecaTerminalManager {
 
 		this.runningCommands.set(commandId, runningCommand)
 
-		// subprocess.stdout.on("")
-
 		subprocess.stdout?.on("data", (data) => {
 			runningCommand.output.stdout += data.toString()
-			this.emit("output", commandId, "stdout", data.toString())
-
-			// if (postToWebview) {
-			// 	postToWebview({
-			// 		type: "commandExecutionResponse",
-			// 		status: "response",
-			// 		payload: data.toString(),
-			// 	})
-			// }
+			callbackFunction("response", commandId, data.toString())
 		})
 
 		subprocess.stderr?.on("data", (data) => {
 			runningCommand.output.stderr += data.toString()
-			this.emit("output", commandId, "stderr", data.toString())
-
-			// if (postToWebview) {
-			// 	postToWebview({
-			// 		type: "commandExecutionResponse",
-			// 		status: "response",
-			// 		payload: data.toString(),
-			// 	})
-			// }
+			callbackFunction("response", commandId, data.toString())
 		})
 
 		subprocess.on("error", (error) => {
-			this.emit("error", commandId, error)
-
-			// if (postToWebview) {
-			// 	postToWebview({
-			// 		type: "commandExecutionResponse",
-			// 		status: "error",
-			// 		payload: error.message,
-			// 	})
-			// }
+			callbackFunction("error", commandId, error.message)
 		})
 
 		subprocess.on("exit", (code, signal) => {
-			this.emit("exit", commandId, code, signal)
+			callbackFunction("exit", commandId, "")
 			this.runningCommands.delete(commandId)
-
-			if (postToWebview) {
-				postToWebview({
-					type: "commandExecutionResponse",
-					status: "exit",
-					payload: `Command exited with code ${code}${signal ? ` and signal ${signal}` : ""}`,
-				})
-			}
 		})
 
 		return commandId

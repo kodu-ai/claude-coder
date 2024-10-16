@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from "react"
-import { useEvent, useMount, useUnmount } from "react-use"
+import { useEvent } from "react-use"
 import { vscode } from "@/utils/vscode"
 
 import { FitAddon } from "@xterm/addon-fit"
@@ -9,46 +9,72 @@ import { Terminal as XTerm } from "@xterm/xterm"
 import "xterm/css/xterm.css"
 import { CommandExecutionResponse } from "../../../../src/shared/ExtensionMessage"
 
-interface InteractiveTerminalProps {
-	initialCommands?: string[]
+interface HistoryEntry {
+	command: string
+	output: string
 }
 
-const InteractiveTerminal = React.memo(() => {
+const InteractiveTerminal = () => {
 	const terminalElementRef = useRef<HTMLDivElement>(null)
 	const terminalRef = useRef<XTerm>()
 	const [isExecuting, setIsExecuting] = useState(false)
 	const [commandId, setCommandId] = useState<string | null>(null)
+	const commandIdRef = useRef<string | undefined>(undefined)
+	const commandInputRef = useRef<string>("")
+	const terminalHistoryRef = useRef<HistoryEntry[]>([])
+	const currentHistoryIndexRef = useRef<number>(-1)
+	const preservedInputRef = useRef<string>("")
 
-	const executeCommand = useCallback((command: string, isEnter = false) => {
-		if (terminalRef.current) {
-			setIsExecuting(true)
-
-			console.log("Executing command:", command)
-			vscode.postMessage({ type: "executeCommand", command, isEnter })
-			console.log("Executing command:", command)
-		}
+	const addToHistory = useCallback((entry: HistoryEntry) => {
+		terminalHistoryRef.current.push(entry)
+		currentHistoryIndexRef.current = terminalHistoryRef.current.length
 	}, [])
 
-	const handleCommandResponse = useCallback((event: MessageEvent) => {
-		const response = event.data as CommandExecutionResponse
-		if (response.type === "commandExecutionResponse" && terminalRef.current) {
-			switch (response.status) {
-				case "response":
-					terminalRef.current.write(response.payload)
-					setCommandId(response.commandId!)
-					break
-				case "error":
-					terminalRef.current.writeln(`Error: ${response.payload}`)
-					break
-				case "exit":
-					terminalRef.current.writeln(response.payload)
-					setIsExecuting(false)
-					terminalRef.current.write("$ ")
-					setCommandId(null)
-					break
+	const executeCommand = useCallback(
+		(command: string, isEnter = false) => {
+			if (terminalRef.current) {
+				setIsExecuting(true)
+				vscode.postMessage({ type: "executeCommand", commandId: commandIdRef.current, command, isEnter })
+
+				if (!commandIdRef.current) {
+					addToHistory({ command, output: "" })
+				}
 			}
-		}
+		},
+		[addToHistory]
+	)
+
+	const updateCommandId = useCallback((newCommandId: string | null) => {
+		setCommandId(newCommandId)
+		commandIdRef.current = newCommandId ?? undefined
 	}, [])
+
+	const handleCommandResponse = useCallback(
+		(event: MessageEvent) => {
+			const response = event.data as CommandExecutionResponse
+			if (response.type === "commandExecutionResponse" && terminalRef.current) {
+				switch (response.status) {
+					case "response":
+						terminalRef.current.write(response.payload)
+						updateCommandId(response.commandId!)
+						break
+					case "error":
+						terminalRef.current.writeln(`Error: ${response.payload}`)
+						updateCommandId(null)
+						setIsExecuting(false)
+						terminalRef.current.write("$ ")
+						break
+					case "exit":
+						terminalRef.current.writeln(response.payload)
+						setIsExecuting(false)
+						terminalRef.current.write("$ ")
+						updateCommandId(null)
+						break
+				}
+			}
+		},
+		[updateCommandId]
+	)
 
 	useEffect(() => {
 		const element = terminalElementRef.current!
@@ -82,26 +108,63 @@ const InteractiveTerminal = React.memo(() => {
 		terminal.onKey(({ key, domEvent }) => {
 			const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey
 
-			executeCommand(key, domEvent.keyCode === 13)
-			if (domEvent.keyCode === 13) {
-				// Enter
-				terminal.write("\r\n")
-				if (currentLine.trim()) {
-				}
-				currentLine = ""
-				if (!isExecuting) {
-					terminal.write("$ ")
-				}
-			} else if (domEvent.keyCode === 8) {
-				// Backspace
-				if (currentLine.length > 0) {
-					currentLine = currentLine.slice(0, -1)
+			if (commandIdRef.current) {
+				// Long-running command mode: send every keystroke
+				executeCommand(key, domEvent.keyCode === 13)
+				if (printable || domEvent.keyCode === 13) {
+					terminal.write(key)
+				} else if (domEvent.keyCode === 8) {
+					// Backspace
 					terminal.write("\b \b")
 				}
-			} else if (printable) {
-				currentLine += key
-				terminal.write(key)
+			} else {
+				// Single execution command mode
+				if (domEvent.keyCode === 13) {
+					// Enter key
+					terminal.write("\r\n")
+					if (currentLine.trim()) {
+						executeCommand(currentLine, true)
+						preservedInputRef.current = ""
+					} else if (!isExecuting) {
+						terminal.write("$ ")
+					}
+					currentLine = ""
+				} else if (domEvent.keyCode === 8) {
+					// Backspace
+					if (currentLine.length > 0) {
+						currentLine = currentLine.slice(0, -1)
+						terminal.write("\b \b")
+					}
+				} else if (domEvent.keyCode === 38) {
+					// Up arrow
+					if (currentHistoryIndexRef.current === terminalHistoryRef.current.length) {
+						preservedInputRef.current = currentLine
+					}
+					if (currentHistoryIndexRef.current > 0) {
+						currentHistoryIndexRef.current--
+						const prevCommand = terminalHistoryRef.current[currentHistoryIndexRef.current].command
+						terminal.write("\x1b[2K\r$ " + prevCommand)
+						currentLine = prevCommand
+					}
+				} else if (domEvent.keyCode === 40) {
+					// Down arrow
+					if (currentHistoryIndexRef.current < terminalHistoryRef.current.length - 1) {
+						currentHistoryIndexRef.current++
+						const nextCommand = terminalHistoryRef.current[currentHistoryIndexRef.current].command
+						terminal.write("\x1b[2K\r$ " + nextCommand)
+						currentLine = nextCommand
+					} else if (currentHistoryIndexRef.current === terminalHistoryRef.current.length - 1) {
+						currentHistoryIndexRef.current++
+						terminal.write("\x1b[2K\r$ " + preservedInputRef.current)
+						currentLine = preservedInputRef.current
+					}
+				} else if (printable) {
+					currentLine += key
+					terminal.write(key)
+				}
 			}
+
+			commandInputRef.current = currentLine
 		})
 
 		const resizeObserver = new ResizeObserver(() => {
@@ -109,9 +172,6 @@ const InteractiveTerminal = React.memo(() => {
 		})
 
 		resizeObserver.observe(element)
-
-		// Execute initial commands
-		// initialCommands.forEach(executeCommand)
 
 		return () => {
 			resizeObserver.disconnect()
@@ -122,6 +182,6 @@ const InteractiveTerminal = React.memo(() => {
 	useEvent("message", handleCommandResponse)
 
 	return <div ref={terminalElementRef} style={{ height: "300px" }} />
-})
+}
 
 export default InteractiveTerminal
