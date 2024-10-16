@@ -24,6 +24,7 @@ const InteractiveTerminal = () => {
 	const terminalHistoryRef = useRef<HistoryEntry[]>([])
 	const currentHistoryIndexRef = useRef<number>(-1)
 	const preservedInputRef = useRef<string>("")
+	const isLongRunningCommandRef = useRef<boolean>(false)
 
 	const addToHistory = useCallback((entry: HistoryEntry) => {
 		terminalHistoryRef.current.push(entry)
@@ -38,6 +39,16 @@ const InteractiveTerminal = () => {
 
 				if (!commandIdRef.current) {
 					addToHistory({ command, output: "" })
+					// Determine if it's likely a long-running command
+					isLongRunningCommandRef.current =
+						command.startsWith("npx") || command.includes("install") || command.includes("build")
+
+					if (isLongRunningCommandRef.current) {
+						terminalRef.current.clear()
+						terminalRef.current.writeln(`Executing: ${command}`)
+					} else {
+						terminalRef.current.write(`\r\n$ ${command}\r\n`)
+					}
 				}
 			}
 		},
@@ -55,20 +66,30 @@ const InteractiveTerminal = () => {
 			if (response.type === "commandExecutionResponse" && terminalRef.current) {
 				switch (response.status) {
 					case "response":
+						if (isLongRunningCommandRef.current) {
+							terminalRef.current.clear()
+						}
 						terminalRef.current.write(response.payload)
 						updateCommandId(response.commandId!)
 						break
 					case "error":
+						if (isLongRunningCommandRef.current) {
+							terminalRef.current.clear()
+						}
 						terminalRef.current.writeln(`Error: ${response.payload}`)
 						updateCommandId(null)
 						setIsExecuting(false)
 						terminalRef.current.write("$ ")
 						break
 					case "exit":
-						terminalRef.current.writeln(response.payload)
+						if (isLongRunningCommandRef.current) {
+							terminalRef.current.clear()
+							terminalRef.current.writeln(response.payload)
+						}
 						setIsExecuting(false)
 						terminalRef.current.write("$ ")
 						updateCommandId(null)
+						isLongRunningCommandRef.current = false
 						break
 				}
 			}
