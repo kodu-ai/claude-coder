@@ -16,6 +16,7 @@ import { quickStart } from "./quick-start"
 import { KoduDevState } from "../../../agent/v1/types"
 import { GitHandler } from "../../../agent/v1/handlers"
 import { ExecaTerminalManager } from "../../../integrations/terminal/execa-terminal-manager"
+import { cwd } from "../../../agent/v1/utils"
 
 interface FileTreeItem {
 	id: string
@@ -449,12 +450,10 @@ export class WebviewManager {
 					case "updateTaskHistory":
 						this.provider.getKoduDev()?.executeTool("upsert_memory", { content: message.history })
 						break
+					// only for testing
 					case "executeCommand":
 						await this.executeCommand(message)
 						break
-					// case "commandInput":
-					// 	await this.handleCommandInput(message)
-					// 	break
 				}
 			},
 			null,
@@ -540,11 +539,7 @@ export class WebviewManager {
 			})
 		}
 
-		const commandId = await this.execaTerminalManager.runCommand(
-			message.command,
-			"/Users/tomar.gagandeep/tmp",
-			callbackFunction
-		)
+		const commandId = await this.execaTerminalManager.runCommand(message.command, cwd, callbackFunction)
 
 		try {
 			await this.execaTerminalManager.awaitCommand(commandId)
