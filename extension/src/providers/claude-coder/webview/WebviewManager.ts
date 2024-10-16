@@ -1,14 +1,21 @@
+import os from "os"
 import { readdir } from "fs/promises"
 import path from "path"
 import * as vscode from "vscode"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
-import { GitCheckoutToMessage, WebviewMessage } from "../../../shared/WebviewMessage"
+import {
+	CommandInputMessage,
+	ExecuteCommandMessage,
+	GitCheckoutToMessage,
+	WebviewMessage,
+} from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
 import { KoduDevState } from "../../../agent/v1/types"
 import { GitHandler } from "../../../agent/v1/handlers"
+import { ExecaTerminalManager } from "../../../integrations/terminal/execa-terminal-manager"
 
 interface FileTreeItem {
 	id: string
@@ -33,8 +40,13 @@ const excludedDirectories = [
 ]
 export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
+	private execaTerminalManager: ExecaTerminalManager
+	private currentCommandId: string | null = null
+	private currentCommandInput: string = ""
 
-	constructor(private provider: ExtensionProvider) {}
+	constructor(private provider: ExtensionProvider) {
+		this.execaTerminalManager = new ExecaTerminalManager()
+	}
 
 	private get state(): KoduDevState | undefined {
 		return this.provider.getKoduDev()?.getStateManager()?.state
@@ -439,6 +451,12 @@ export class WebviewManager {
 					case "updateTaskHistory":
 						this.provider.getKoduDev()?.executeTool("upsert_memory", { content: message.history })
 						break
+					case "executeCommand":
+						await this.executeCommand(message)
+						break
+					// case "commandInput":
+					// 	await this.handleCommandInput(message)
+					// 	break
 				}
 			},
 			null,
@@ -507,5 +525,80 @@ export class WebviewManager {
 			type: "gitCheckoutTo",
 			isSuccess,
 		})
+	}
+
+	private async executeCommand(message: ExecuteCommandMessage): Promise<void> {
+		if (this.currentCommandId) {
+			await this.handleCommandInput(message)
+			return
+		}
+
+		if (!message.isEnter) {
+			console.log("command", message.command)
+			this.currentCommandInput += message.command
+			return
+		}
+
+		const commandId = await this.execaTerminalManager.runCommand(
+			this.currentCommandInput,
+			"/Users/tomar.gagandeep/tmp"
+		)
+
+		// Set up event listeners
+		this.execaTerminalManager.on("output", (id, type, data) => {
+			if (id === commandId) {
+				this.currentCommandId = commandId
+				this.postMessageToWebview({
+					type: "commandExecutionResponse",
+					status: "response",
+					payload: data,
+					commandId,
+				})
+			}
+		})
+
+		this.execaTerminalManager.on("error", (id, error) => {
+			if (id === commandId) {
+				this.currentCommandId = null
+				this.currentCommandInput = ""
+
+				this.postMessageToWebview({
+					type: "commandExecutionResponse",
+					status: "error",
+					payload: error.message,
+					commandId,
+				})
+			}
+		})
+
+		this.execaTerminalManager.on("exit", (id, code, signal) => {
+			if (id === commandId) {
+				this.currentCommandId = null
+				this.currentCommandInput = ""
+
+				this.postMessageToWebview({
+					type: "commandExecutionResponse",
+					status: "exit",
+					payload: `Command exited with code ${code}${signal ? ` and signal ${signal}` : ""}`,
+					commandId,
+				})
+			}
+		})
+
+		// Wait for the command to complete
+		try {
+			await this.execaTerminalManager.awaitCommand(commandId)
+		} catch (error) {
+			console.error("Error executing command:", error)
+		}
+	}
+
+	private async handleCommandInput(message: ExecuteCommandMessage): Promise<void> {
+		let input = message.command
+		if (message.isEnter) {
+			input = input + "\n"
+		}
+
+		await this.execaTerminalManager.sendInput(this.currentCommandId!, input)
 	}
 }

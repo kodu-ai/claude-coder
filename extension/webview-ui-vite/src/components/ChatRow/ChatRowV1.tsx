@@ -11,6 +11,7 @@ import IconAndTitle from "./IconAndTitle"
 import MarkdownRenderer from "./MarkdownRenderer"
 import ToolRenderer from "./ToolRenderer"
 import MemoryUpdate from "./memory-update"
+import InteractiveTerminal from "./InteractiveTerminal"
 
 interface ChatRowProps {
 	message: V1ClaudeMessage
@@ -236,6 +237,8 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 						return <InfoMessage message={message} />
 					case "user_feedback":
 						return <UserFeedbackMessage message={message} />
+					case "terminal_view":
+						return <InteractiveTerminal initialCommands={message.text?.split("\n") || []} />
 					case "user_feedback_diff":
 						return (
 							<UserFeedbackDiffMessage

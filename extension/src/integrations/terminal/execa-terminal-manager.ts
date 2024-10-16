@@ -17,7 +17,7 @@ interface RunningCommand {
 export class ExecaTerminalManager {
 	private runningCommands: Map<CommandId, RunningCommand> = new Map()
 
-	async runCommand(command: string, cwd: string): Promise<CommandId> {
+	async runCommand(command: string, cwd: string, postToWebview?: Function): Promise<CommandId> {
 		const commandId = Math.random().toString(36).substring(7)
 		const subprocess = execa(command, {
 			shell: true,
@@ -31,32 +31,66 @@ export class ExecaTerminalManager {
 
 		this.runningCommands.set(commandId, runningCommand)
 
+		// subprocess.stdout.on("")
+
 		subprocess.stdout?.on("data", (data) => {
 			runningCommand.output.stdout += data.toString()
 			this.emit("output", commandId, "stdout", data.toString())
+
+			// if (postToWebview) {
+			// 	postToWebview({
+			// 		type: "commandExecutionResponse",
+			// 		status: "response",
+			// 		payload: data.toString(),
+			// 	})
+			// }
 		})
 
 		subprocess.stderr?.on("data", (data) => {
 			runningCommand.output.stderr += data.toString()
 			this.emit("output", commandId, "stderr", data.toString())
+
+			// if (postToWebview) {
+			// 	postToWebview({
+			// 		type: "commandExecutionResponse",
+			// 		status: "response",
+			// 		payload: data.toString(),
+			// 	})
+			// }
 		})
 
 		subprocess.on("error", (error) => {
 			this.emit("error", commandId, error)
+
+			// if (postToWebview) {
+			// 	postToWebview({
+			// 		type: "commandExecutionResponse",
+			// 		status: "error",
+			// 		payload: error.message,
+			// 	})
+			// }
 		})
 
 		subprocess.on("exit", (code, signal) => {
 			this.emit("exit", commandId, code, signal)
 			this.runningCommands.delete(commandId)
+
+			if (postToWebview) {
+				postToWebview({
+					type: "commandExecutionResponse",
+					status: "exit",
+					payload: `Command exited with code ${code}${signal ? ` and signal ${signal}` : ""}`,
+				})
+			}
 		})
 
 		return commandId
 	}
 
-	async awaitCommand(commandId: CommandId): Promise<void> {
+	async awaitCommand(commandId: CommandId) {
 		const runningCommand = this.runningCommands.get(commandId)
 		if (runningCommand) {
-			await runningCommand.process
+			return await runningCommand.process
 		} else {
 			throw new Error(`No running command found with id ${commandId}`)
 		}
@@ -65,7 +99,7 @@ export class ExecaTerminalManager {
 	sendInput(commandId: CommandId, input: string): void {
 		const runningCommand = this.runningCommands.get(commandId)
 		if (runningCommand) {
-			runningCommand.process.stdin?.write(input + "\n")
+			runningCommand.process.stdin?.write(input)
 		} else {
 			throw new Error(`No running command found with id ${commandId}`)
 		}

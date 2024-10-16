@@ -37,17 +37,14 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			Please try again with the correct command, you are not allowed to execute commands without a command.
 			`
 		}
-		if (this.koduDev.terminalManager instanceof AdvancedTerminalManager) {
-			return this.executeShellTerminal(command)
-		}
-		return this.executeExeca()
+		return this.executeShellTerminal(command)
+		// if (this.koduDev.terminalManager instanceof AdvancedTerminalManager) {
+		// }
+		// return this.executeExeca()
 	}
 
 	private async executeShellTerminal(command: string): Promise<ToolResponse> {
 		const { terminalManager } = this.koduDev
-		if (!(terminalManager instanceof AdvancedTerminalManager)) {
-			throw new Error("AdvancedTerminalManager is not available")
-		}
 		const { ask, say, returnEmptyStringOnSuccess } = this.params
 		const cwd = getCwd()
 		const { response, text, images } = await ask("command", command)
@@ -60,86 +57,96 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		}
 
 		try {
+			const postToWebview = this.koduDev.providerRef.deref()!["view"]?.webview.postMessage
+
 			console.log(`Creating terminal: ${typeof terminalManager} `)
-			const terminalInfo = await terminalManager.getOrCreateTerminal(this.cwd)
+			// const terminalInfo = await terminalManager.getOrCreateTerminal(this.cwd)
 			console.log("Terminal created")
-			terminalInfo.terminal.show() // weird visual bug when creating new terminals (even manually) where there's an empty space at the top.
-			const process = terminalManager.runCommand(terminalInfo, command)
 
-			let userFeedback: { text?: string; images?: string[] } | undefined
-			let didContinue = false
-			const sendCommandOutput = async (line: string): Promise<void> => {
-				try {
-					const { response, text, images } = await ask("command_output", line)
-					if (response === "yesButtonTapped") {
-						// proceed while running
-					} else {
-						userFeedback = { text, images }
-					}
-					didContinue = true
-					process.continue() // continue past the await
-				} catch {
-					// This can only happen if this ask promise was ignored, so ignore this error
-				}
-			}
+			await say("terminal_view", command)
+			// terminalInfo.terminal.show() // weird visual bug when creating new terminals (even manually) where there's an empty space at the top.
+			// const process = await terminalManager.runCommand(command, this.cwd, postToWebview)
+			// const result = await terminalManager.awaitCommand(process)
 
-			let result = ""
-			process.on("line", (line) => {
-				result += line + "\n"
-				if (!didContinue) {
-					sendCommandOutput(line)
-				} else {
-					say("command_output", line)
-				}
-			})
+			return "The command execution succeeded."
 
-			let completed = false
-			process.once("completed", () => {
-				completed = true
-			})
+			// return `The command execution ${result.exitCode === 0 ? "succeeded" : "failed"}.
+			// ${result.stdout?.toString() ?? result.stderr?.toString() ?? ""}`
 
-			process.once("no_shell_integration", async () => {
-				await say("shell_integration_warning")
-			})
+			// let userFeedback: { text?: string; images?: string[] } | undefined
+			// let didContinue = false
+			// const sendCommandOutput = async (line: string): Promise<void> => {
+			// 	try {
+			// 		const { response, text, images } = await ask("command_output", line)
+			// 		if (response === "yesButtonTapped") {
+			// 			// proceed while running
+			// 		} else {
+			// 			userFeedback = { text, images }
+			// 		}
+			// 		didContinue = true
+			// 		process.continue() // continue past the await
+			// 	} catch {
+			// 		// This can only happen if this ask promise was ignored, so ignore this error
+			// 	}
+			// }
 
-			await process
+			// let result = ""
+			// process.on("line", (line) => {
+			// 	result += line + "\n"
+			// 	if (!didContinue) {
+			// 		sendCommandOutput(line)
+			// 	} else {
+			// 		say("command_output", line)
+			// 	}
+			// })
 
-			// Wait for a short delay to ensure all messages are sent to the webview
-			// This delay allows time for non-awaited promises to be created and
-			// for their associated messages to be sent to the webview, maintaining
-			// the correct order of messages (although the webview is smart about
-			// grouping command_output messages despite any gaps anyways)
-			await delay(50)
+			// let completed = false
+			// process.once("completed", () => {
+			// 	completed = true
+			// })
 
-			result = result.trim()
+			// process.once("no_shell_integration", async () => {
+			// 	await say("shell_integration_warning")
+			// })
 
-			if (userFeedback) {
-				await say("user_feedback", userFeedback.text, userFeedback.images)
-				return this.formatToolResponseWithImages(
-					await this.formatToolResult(
-						`Command executed.${
-							result.length > 0 ? `\nOutput:\n${result}` : ""
-						}\n\nThe user provided the following feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
-					),
-					userFeedback.images
-				)
-			}
+			// await process
 
-			// for attemptCompletion, we don't want to return the command output
-			if (returnEmptyStringOnSuccess) {
-				return this.formatToolResponseWithImages(await this.formatToolResult(""), [])
-			}
-			if (completed) {
-				return await this.formatToolResult(
-					`Command executed.${result.length > 0 ? `\nOutput:\n${result}` : ""}`
-				)
-			} else {
-				return await this.formatToolResult(
-					`Command is still running in the user's terminal.${
-						result.length > 0 ? `\nHere's the output so far:\n${result}` : ""
-					}\n\nYou will be updated on the terminal status and new output in the future.`
-				)
-			}
+			// // Wait for a short delay to ensure all messages are sent to the webview
+			// // This delay allows time for non-awaited promises to be created and
+			// // for their associated messages to be sent to the webview, maintaining
+			// // the correct order of messages (although the webview is smart about
+			// // grouping command_output messages despite any gaps anyways)
+			// await delay(50)
+
+			// result = result.trim()
+
+			// if (userFeedback) {
+			// 	await say("user_feedback", userFeedback.text, userFeedback.images)
+			// 	return this.formatToolResponseWithImages(
+			// 		await this.formatToolResult(
+			// 			`Command executed.${
+			// 				result.length > 0 ? `\nOutput:\n${result}` : ""
+			// 			}\n\nThe user provided the following feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
+			// 		),
+			// 		userFeedback.images
+			// 	)
+			// }
+
+			// // for attemptCompletion, we don't want to return the command output
+			// if (returnEmptyStringOnSuccess) {
+			// 	return this.formatToolResponseWithImages(await this.formatToolResult(""), [])
+			// }
+			// if (completed) {
+			// 	return await this.formatToolResult(
+			// 		`Command executed.${result.length > 0 ? `\nOutput:\n${result}` : ""}`
+			// 	)
+			// } else {
+			// 	return await this.formatToolResult(
+			// 		`Command is still running in the user's terminal.${
+			// 			result.length > 0 ? `\nHere's the output so far:\n${result}` : ""
+			// 		}\n\nYou will be updated on the terminal status and new output in the future.`
+			// 	)
+			// }
 		} catch (error) {
 			let errorMessage = error.message || JSON.stringify(serializeError(error), null, 2)
 			const errorString = `Error executing command:\n${errorMessage}`
@@ -252,16 +259,19 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				if (result.length > 15_000) {
 					try {
 						say("info", `Command output exceeds 15 000 characters. Making a summary...`)
-						const summary = await this.koduDev.getApiManager().getApi()?.sendSummarizeRequest?.(result, command)
+						const summary = await this.koduDev
+							.getApiManager()
+							.getApi()
+							?.sendSummarizeRequest?.(result, command)
 						if (!summary || !summary.result) {
-							return 'Summarization failed.'
+							return "Summarization failed."
 						}
 						return `Summarized command output:\n${response.length}`
 					} catch (err) {
 						return `Failed to summarize the command output: ${err}`
 					}
 				}
-	
+
 				if (subprocess.exitCode !== 0) {
 					throw new Error(`Command failed with exit code ${subprocess.exitCode}`)
 				}
@@ -291,7 +301,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			}
 
 			if (returnEmptyStringOnSuccess) {
-				return ''
+				return ""
 			}
 
 			return `Command Output:\n${result}`
@@ -299,7 +309,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			const error = e as any
 			let errorMessage = error.message || JSON.stringify(serializeError(error), null, 2)
 			const errorString = `Error executing command:\n${errorMessage}`
-			await say('error', `Error executing command:\n${errorMessage}`)
+			await say("error", `Error executing command:\n${errorMessage}`)
 
 			this.setRunningProcessId(undefined)
 			return errorString

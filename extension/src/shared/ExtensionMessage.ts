@@ -41,6 +41,13 @@ type PostTaskHistory = {
 	isInitialized: boolean
 }
 
+export type CommandExecutionResponse = {
+	type: "commandExecutionResponse"
+	status: "response" | "error" | "exit"
+	payload: string
+	commandId?: string
+}
+
 // webview will hold state
 export type ExtensionMessage =
 	| {
@@ -64,6 +71,8 @@ export type ExtensionMessage =
 	| PostGitBranches
 	| PostGitCheckoutSuccess
 	| PostTaskHistory
+	| CommandExecutionResponse
+
 export interface ExtensionState {
 	version: string
 	maxRequestsPerTask?: number
@@ -161,6 +170,7 @@ export type ClaudeSay =
 	| "info"
 	| "abort_automode"
 	| "shell_integration_warning"
+	| "terminal_view"
 
 type WebSearchTool = {
 	tool: "web_search"

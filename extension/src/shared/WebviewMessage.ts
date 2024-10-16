@@ -86,6 +86,18 @@ type UpdateTaskHistoryMessage = {
 	history: string
 }
 
+export type ExecuteCommandMessage = {
+	type: "executeCommand"
+	command: string
+	isEnter: boolean
+}
+
+export type CommandInputMessage = {
+	type: "commandInput"
+	commandId: string
+	input: string
+}
+
 export type WebviewMessage =
 	| exportBugMessage
 	| experimentalTerminalMessage
@@ -100,6 +112,8 @@ export type WebviewMessage =
 	| DebugMessage
 	| GitCheckoutToMessage
 	| UpdateTaskHistoryMessage
+	| ExecuteCommandMessage
+	| CommandInputMessage
 	| {
 			type:
 				| "cancelCurrentRequest"
