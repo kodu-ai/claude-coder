@@ -60,7 +60,7 @@ type ToolBlockProps = {
 	title: string
 	children: React.ReactNode
 	tool: ChatTool["tool"]
-	variant: "default" | "primary" | "info" | "accent" | "info" | "success" | "info"
+	variant: "default" | "primary" | "info" | "accent" | "info" | "success" | "info" | "destructive"
 } & ToolAddons
 
 const ToolBlock: React.FC<ToolBlockProps> = ({
@@ -74,6 +74,12 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 	onApprove,
 	onReject,
 }) => {
+	variant =
+		approvalState === "loading"
+			? "info"
+			: approvalState === "error" || approvalState === "rejected"
+			? "destructive"
+			: variant
 	const stateIcons = {
 		pending: <AlertCircle className="w-4 h-4 text-info" />,
 		approved: <CheckCircle className="w-4 h-4 text-success" />,
@@ -97,6 +103,7 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 				"border-success": variant === "success",
 				"border-info": variant === "info",
 				"border-muted": variant === "default",
+				"border-destructive": variant === "destructive",
 			})}>
 			<div className="flex items-center justify-between mb-2">
 				<div className="flex items-center">

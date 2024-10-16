@@ -672,7 +672,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 				)}
 			</div>
 			<div className="mt-2 border-t">
-				{!task && <ProjectStarterChooser />}
+				{/* {!task && <ProjectStarterChooser />} */}
 				<InputArea
 					inputValue={inputValue}
 					setInputValue={setInputValue}

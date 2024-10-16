@@ -150,7 +150,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, sy
 				p: (props) => <p className="my-1 leading-6 " {...props} />,
 				ol: (props) => <ol className="list-decimal list-inside pl-4 space-y-2" {...props} />,
 				ul: (props) => <ul className="list-disc list-inside my-4 pl-6 space-y-2" {...props} />,
-				li: (props) => <li style={{ listStyle: "auto !important" }} className="mb-1 list" {...props} />,
+				li: (props) => <li style={{ listStyle: "auto!important" }} className="mb-1 list item" {...props} />,
 				h1: (props) => (
 					<h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl" {...props} />
 				),
