@@ -14,7 +14,7 @@ export class WriteFileTool extends BaseAgentTool {
 	private readonly TIMEOUT = 180_000 // 3 min timeout
 	private fileExists: boolean | undefined
 	private executionPromise: Promise<ToolResponse> | null = null
-	private diffViewProvider: DiffViewProvider
+	public diffViewProvider: DiffViewProvider
 
 	private resolveExecution: ((response: ToolResponse) => void) | null = null
 	private isProcessingFinalContent: boolean = false
@@ -69,8 +69,8 @@ export class WriteFileTool extends BaseAgentTool {
 			if (!this.params.isFinal) {
 				await this.handlePartialContent(relPath, content)
 			} else {
-				this.isProcessingFinalContent = true
 				await this.handlePartialContent(relPath, content)
+				this.isProcessingFinalContent = true
 			}
 
 			// Wait for the ask promise to be resolved
@@ -123,6 +123,7 @@ export class WriteFileTool extends BaseAgentTool {
 		}
 
 		await this.diffViewProvider.update(newContent, false)
+		await delay(50) // Wait for diff view to update
 		console.log("handlePartialContent completed")
 	}
 
@@ -160,7 +161,6 @@ export class WriteFileTool extends BaseAgentTool {
 			)
 			console.log(`User edits detected: ${userEdits}`)
 		}
-
 		console.log("handleFinalContent completed")
 	}
 
@@ -169,6 +169,7 @@ export class WriteFileTool extends BaseAgentTool {
 		if (this.resolveExecution) {
 			this.diffViewProvider.isEditing = false
 			await this.diffViewProvider.reset()
+			await delay(50)
 
 			this.resolveExecution(result)
 			this.executionPromise = null

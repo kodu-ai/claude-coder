@@ -11,9 +11,11 @@ interface ChatMessagesProps {
 	expandedRows: Record<number, boolean>
 	toggleRowExpansion: (ts: number) => void
 	handleSendStdin: (text: string) => void
+	taskId: number
 }
 
 const ChatMessages: React.FC<ChatMessagesProps> = ({
+	taskId,
 	visibleMessages,
 	syntaxHighlighterStyle,
 	expandedRows,
@@ -28,7 +30,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 		}, 50)
 
 		return () => clearTimeout(timer)
-	}, [visibleMessages])
+	}, [taskId])
 
 	return (
 		<Virtuoso

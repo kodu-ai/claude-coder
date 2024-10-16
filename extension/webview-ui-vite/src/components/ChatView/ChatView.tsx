@@ -141,11 +141,9 @@ const ChatView: React.FC<ChatViewProps> = ({
 		if (lastMessage) {
 			switch (lastMessage.type) {
 				case "ask":
-					console.log(`last message is ask ${lastMessage.ask}`)
 					handleAskMessage(lastMessage)
 					break
 				case "say":
-					console.log(`last message is say ${lastMessage.say}`)
 					handleSayMessage(lastMessage)
 					break
 			}
@@ -191,10 +189,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	// Scroll to bottom when messages change
 	useEffect(() => {
-		const timer = setTimeout(() => {
-			virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: "smooth" })
-		}, 50)
-		return () => clearTimeout(timer)
+		// const timer = setTimeout(() => {
+		// 	virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: "smooth" })
+		// }, 50)
+		// return () => clearTimeout(timer)
 	}, [visibleMessages])
 
 	// Handle sending messages
@@ -654,6 +652,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 				{task && (
 					<>
 						<ChatMessages
+							taskId={task.ts}
 							visibleMessages={visibleMessages}
 							syntaxHighlighterStyle={syntaxHighlighterStyle}
 							expandedRows={expandedRows}

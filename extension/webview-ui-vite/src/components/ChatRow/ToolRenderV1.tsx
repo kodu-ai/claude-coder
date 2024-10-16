@@ -302,8 +302,8 @@ export type ToolStatus = "pending" | "rejected" | "approved" | "error" | "loadin
 const CHUNK_SIZE = 50
 
 const textVariants = {
-	hidden: { opacity: 0, y: 20, height: 0 },
-	visible: { opacity: 1, y: 0, height: "auto" },
+	hidden: { opacity: 0, y: 20 },
+	visible: { opacity: 1, y: 0 },
 }
 
 export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
@@ -321,6 +321,7 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 	const isStreaming = approvalState === "loading"
 	const scrollAreaRef = useRef<HTMLDivElement>(null)
 	const lastChunkRef = useRef<HTMLPreElement>(null)
+	const animationCompleteCountRef = useRef(0)
 
 	useEffect(() => {
 		const text = content ?? ""
@@ -332,19 +333,10 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 		} else {
 			setVisibleContent([text])
 		}
+
+		// Reset the animation complete count when content changes
+		animationCompleteCountRef.current = 0
 	}, [content, isStreaming])
-
-	useEffect(() => {
-		if (isStreaming && lastChunkRef.current) {
-			setTimeout(() => {
-				lastChunkRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
-			}, 50)
-		}
-	}, [visibleContent, isStreaming])
-
-	const handleViewFile = () => {
-		console.log("Opening file:", path)
-	}
 
 	return (
 		<ToolBlock
@@ -359,7 +351,7 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 			<p className="text-xs mb-1">
 				<span className="font-semibold">File:</span> {path}
 			</p>
-			<ScrollArea ref={scrollAreaRef} className="h-24 rounded border bg-background p-2">
+			<ScrollArea viewProps={{ ref: scrollAreaRef }} className="h-24 rounded border bg-background p-2">
 				<ScrollBar orientation="vertical" />
 				<ScrollBar orientation="horizontal" />
 				<div className="relative">
@@ -383,7 +375,7 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 								variants={textVariants}
 								initial="hidden"
 								animate="visible"
-								transition={{ duration: 0.3, delay: index * 0.05 }}
+								transition={{ duration: 0.3, delay: index * 0.03 }}
 								className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
 								{index === 0 ? chunk.trim() : chunk}
 							</motion.pre>
