@@ -253,12 +253,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 							if (contentBlock.type === "text") {
 								assistantResponses.push(contentBlock)
-							} else if (contentBlock.type === "tool_use") {
-								assistantResponses.push(contentBlock)
-								const koduDev = this.providerRef.deref()?.getKoduDev()
-								if (koduDev && "write_to_file" === contentBlock.name) {
-									koduDev.isLastMessageFileEdit = true
-								}
 							}
 
 							if (this.isRequestCancelled) {

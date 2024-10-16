@@ -60,7 +60,7 @@ export class KoduDev {
 			this.providerRef.deref()!.context
 		)
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this.providerRef)
-		this.browserManager = new BrowserManager()
+		this.browserManager = new BrowserManager(this.providerRef.deref()!.context)
 		this.diagnosticsHandler = new DiagnosticsHandler()
 
 		this.setupTaskExecutor()

@@ -21,9 +21,11 @@ export class DiffViewProvider {
 	public lastEditPosition?: vscode.Position
 	private updateTimeout: NodeJS.Timeout | null = null
 	private preDiagnostics: [vscode.Uri, vscode.Diagnostic[]][] = []
+	private updateInterval: number
 
-	constructor(private cwd: string, koduDev: KoduDev) {
+	constructor(private cwd: string, koduDev: KoduDev, updateInterval: number = 8) {
 		this.koduDev = koduDev
+		this.updateInterval = updateInterval
 	}
 
 	public async open(relPath: string): Promise<void> {
@@ -45,7 +47,7 @@ export class DiffViewProvider {
 		await this.openDiffEditor(relPath)
 	}
 
-	private async openDiffEditor(relPath: string): Promise<void> {
+	private async openDiffEditor(relPath: string, isFinal?: boolean): Promise<void> {
 		const fileName = path.basename(relPath)
 		this.originalUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${fileName}`).with({
 			query: Buffer.from(this.originalContent).toString("base64"),
@@ -60,7 +62,7 @@ export class DiffViewProvider {
 			this.originalUri,
 			this.modifiedUri,
 			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Editable)`,
-			{ viewColumn: vscode.ViewColumn.Active, preview: false }
+			{ viewColumn: vscode.ViewColumn.Active, preview: false, editable: isFinal }
 		)
 
 		const editor = vscode.window.activeTextEditor
@@ -74,6 +76,14 @@ export class DiffViewProvider {
 	public async update(accumulatedContent: string, isFinal: boolean): Promise<void> {
 		if (!this.diffEditor) {
 			throw new Error("Diff editor not initialized")
+		}
+		if (isFinal) {
+			if (this.updateTimeout) {
+				clearTimeout(this.updateTimeout)
+			}
+			await this.applyUpdate(accumulatedContent)
+			await this.finalizeDiff()
+			return
 		}
 
 		if (this.updateTimeout) {
@@ -112,18 +122,19 @@ export class DiffViewProvider {
 	}
 
 	private async finalizeDiff(): Promise<void> {
-		if (!this.diffEditor) return
+		if (!this.diffEditor || !this.relPath) return
 
-		const fileName = path.basename(this.relPath!)
-		await vscode.commands.executeCommand(
-			"vscode.diff",
-			this.originalUri,
-			this.modifiedUri,
-			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Final)`,
-			{ viewColumn: vscode.ViewColumn.Active, preview: false }
-		)
+		const fileName = path.basename(this.relPath)
+
+		// Ensure the content is up to date
+		await this.applyUpdate(this.streamedContent)
+
+		// Update the diff view title without closing the editor
 
 		this.lastEditPosition = new vscode.Position(this.diffEditor.document.lineCount - 1, 0)
+
+		// Scroll to the bottom of the finalized diff view
+		this.scrollToBottom()
 	}
 
 	public async revertChanges(): Promise<void> {

@@ -2,8 +2,8 @@
 	"name": "claude-dev-experimental",
 	"displayName": "Claude Coder",
 	"description": "Claude Coder: Your AI pair programmer in VSCode. Powered by Anthropic's Claude, it assists both beginners and pros in coding, debugging, and more. Create/edit files and execute commands with AI guidance. Perfect for no-coders to senior devs. Enjoy free credits to supercharge your coding experience. Let Claude Coder transform your IDE into a collaborative AI workspace.",
-	"version": "1.9.1",
-	"preview": true,
+	"version": "1.9.4",
+	"private": true,
 	"icon": "assets/icon.png",
 	"engines": {
 		"vscode": "^1.84.0"
@@ -208,9 +208,11 @@
 		"nanoid": "^5.0.7",
 		"openai": "^4.54.0",
 		"os-name": "^6.0.0",
+		"p-queue": "^8.0.1",
 		"p-wait-for": "^5.0.2",
 		"pdf-parse": "^1.1.1",
-		"playwright": "^1.48.0",
+		"puppeteer-chromium-resolver": "^23.0.0",
+		"puppeteer-core": "^23.6.0",
 		"rxjs": "^7.8.1",
 		"serialize-error": "^11.0.3",
 		"sharp": "^0.33.5",

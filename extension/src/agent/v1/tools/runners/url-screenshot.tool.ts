@@ -60,7 +60,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 
 			await this.relaySuccessfulResponse({ absolutePath, imageToBase64 })
 			const uri = vscode.Uri.file(absolutePath)
-			await vscode.commands.executeCommand("vscode.open", uri)
+			// await vscode.commands.executeCommand("vscode.open", uri)
 
 			const textBlock: Anthropic.TextBlockParam = {
 				type: "text",
@@ -76,7 +76,15 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			}
 			this.params.ask(
 				"tool",
-				{ tool: { tool: "url_screenshot", approvalState: "approved", url, ts: this.ts } },
+				{
+					tool: {
+						tool: "url_screenshot",
+						base64Image: imageToBase64,
+						approvalState: "approved",
+						url,
+						ts: this.ts,
+					},
+				},
 				this.ts
 			)
 			return [textBlock, imageBlock]

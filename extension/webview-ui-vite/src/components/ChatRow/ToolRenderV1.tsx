@@ -474,6 +474,7 @@ export const UrlScreenshotBlock: React.FC<UrlScreenshotTool & ToolAddons> = ({
 	onApprove,
 	onReject,
 	tool,
+	base64Image,
 	ts,
 }) => (
 	<ToolBlock
@@ -488,6 +489,11 @@ export const UrlScreenshotBlock: React.FC<UrlScreenshotTool & ToolAddons> = ({
 		<p className="text-xs">
 			<span className="font-semibold">Website:</span> {url}
 		</p>
+		{base64Image && (
+			<div className="bg-muted rounded-md mt-2 text-xs w-full max-h-40 overflow-auto">
+				<img src={`data:image/png;base64,${base64Image}`} alt="URL Screenshot" />
+			</div>
+		)}
 	</ToolBlock>
 )
 

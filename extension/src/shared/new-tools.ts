@@ -68,6 +68,7 @@ export type WebSearchTool = {
 export type UrlScreenshotTool = {
 	tool: "url_screenshot"
 	url: string
+	base64Image?: string
 }
 
 export type AskConsultantTool = {
