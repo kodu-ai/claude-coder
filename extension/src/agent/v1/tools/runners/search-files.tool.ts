@@ -1,11 +1,11 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
-import { ClaudeSayTool } from "../../../shared/ExtensionMessage"
-import { ToolResponse } from "../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../utils"
-import { regexSearchFiles } from "../../../utils/ripgrep"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { BaseAgentTool } from "./base-agent.tool"
+import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ToolResponse } from "../../types"
+import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
+import { regexSearchFiles } from "../../../../utils/ripgrep"
+import { AgentToolOptions, AgentToolParams } from "../types"
+import { BaseAgentTool } from "../base-agent.tool"
 
 export class SearchFilesTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -64,8 +64,9 @@ export class SearchFilesTool extends BaseAgentTool {
 						path: getReadablePath(relDirPath, this.cwd),
 						regex: regex,
 						filePattern: filePattern,
-						status: "pending",
+						approvalState: "pending",
 						content: results,
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -80,8 +81,9 @@ export class SearchFilesTool extends BaseAgentTool {
 							path: getReadablePath(relDirPath, this.cwd),
 							regex: regex,
 							filePattern: filePattern,
-							status: "rejected",
+							approvalState: "rejected",
 							content: results,
+							ts: this.ts,
 						},
 					},
 					this.ts

@@ -1,9 +1,9 @@
-import { WebSearchResponseDto } from "../../../api/interfaces"
-import { ClaudeSayTool } from "../../../shared/ExtensionMessage"
-import { ToolResponse } from "../types"
-import { formatGenericToolFeedback, formatToolResponse } from "../utils"
-import { BaseAgentTool } from "./base-agent.tool"
-import type { AgentToolOptions, AgentToolParams } from "./types"
+import { WebSearchResponseDto } from "../../../../api/interfaces"
+import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ToolResponse } from "../../types"
+import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
+import { BaseAgentTool } from "../base-agent.tool"
+import type { AgentToolOptions, AgentToolParams } from "../types"
 
 export class WebSearchTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -37,7 +37,8 @@ export class WebSearchTool extends BaseAgentTool {
 					tool: "web_search",
 					searchQuery,
 					baseLink,
-					status: "pending",
+					approvalState: "pending",
+					ts: this.ts,
 				},
 			},
 			this.ts
@@ -50,7 +51,8 @@ export class WebSearchTool extends BaseAgentTool {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
-						status: "rejected",
+						approvalState: "rejected",
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -70,7 +72,8 @@ export class WebSearchTool extends BaseAgentTool {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
-						status: "approved",
+						approvalState: "approved",
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -89,8 +92,9 @@ export class WebSearchTool extends BaseAgentTool {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
-						status: "error",
+						approvalState: "error",
 						error: err,
+						ts: this.ts,
 					},
 				},
 				this.ts

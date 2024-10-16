@@ -25,6 +25,7 @@ import { listFiles } from "../../parse-source-code"
 import { DiffViewProvider } from "../../integrations/editor/diff-view-provider"
 import { TaskExecutor } from "./task-executor/task-executor"
 import { AskResponse, TaskState } from "./task-executor/utils"
+import { ChatTool } from "../../shared/new-tools"
 
 // new KoduDev
 export class KoduDev {
@@ -190,6 +191,18 @@ export class KoduDev {
 					m.isDone = true
 					m.isError = true
 					m.errorText = "Task was interrupted before this API request could be completed."
+				}
+				if (m.ask === "tool" && m.type === "ask") {
+					const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool
+					if (
+						parsedTool.approvalState === "pending" ||
+						parsedTool.approvalState === undefined ||
+						parsedTool.approvalState === "loading"
+					) {
+						parsedTool.approvalState = "rejected"
+						parsedTool.error = "Task was interrupted before this tool call could be completed."
+						m.text = JSON.stringify(parsedTool)
+					}
 				}
 			}
 		})

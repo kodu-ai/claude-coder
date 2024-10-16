@@ -1,12 +1,12 @@
 import { serializeError } from "serialize-error"
 import * as path from "path"
-import { ClaudeAsk, ClaudeSayTool } from "../../../shared/ExtensionMessage"
-import { ToolResponse } from "../types"
-import { formatToolResponse, getCwd, getReadablePath } from "../utils"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { BaseAgentTool } from "./base-agent.tool"
-import { createPrettyPatch } from "../../../integrations/editor/diff-view-provider"
-import { fileExistsAtPath } from "../../../utils/path-helpers"
+import { ClaudeAsk, ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ToolResponse } from "../../types"
+import { formatToolResponse, getCwd, getReadablePath } from "../../utils"
+import { AgentToolOptions, AgentToolParams } from "../types"
+import { BaseAgentTool } from "../base-agent.tool"
+import { createPrettyPatch } from "../../../../integrations/editor/diff-view-provider"
+import { fileExistsAtPath } from "../../../../utils/path-helpers"
 import delay from "delay"
 
 export class WriteFileTool extends BaseAgentTool {
@@ -53,8 +53,9 @@ export class WriteFileTool extends BaseAgentTool {
 				tool: {
 					tool: "write_to_file",
 					content: content,
-					status: "pending",
+					approvalState: "pending",
 					path: relPath,
+					ts: this.ts,
 				},
 			})
 

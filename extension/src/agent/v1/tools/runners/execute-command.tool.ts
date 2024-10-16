@@ -3,14 +3,15 @@ import delay from "delay"
 import { ExecaError, ResultPromise, execa } from "execa"
 import { serializeError } from "serialize-error"
 import treeKill from "tree-kill"
-import { AdvancedTerminalManager } from "../../../integrations/terminal"
-import { COMMAND_STDIN_STRING } from "../../../shared/combineCommandSequences"
-import { findLastIndex } from "../../../utils"
-import { COMMAND_OUTPUT_DELAY } from "../constants"
-import { ToolResponse } from "../types"
-import { formatGenericToolFeedback, formatToolResponse, getCwd, getPotentiallyRelevantDetails } from "../utils"
-import { BaseAgentTool } from "./base-agent.tool"
-import { AgentToolOptions, AgentToolParams } from "./types"
+import { AdvancedTerminalManager } from "../../../../integrations/terminal"
+import { COMMAND_STDIN_STRING } from "../../../../shared/combineCommandSequences"
+import { findLastIndex } from "../../../../utils"
+import { COMMAND_OUTPUT_DELAY } from "../../constants"
+import { ToolResponse } from "../../types"
+import { formatGenericToolFeedback, formatToolResponse, getCwd, getPotentiallyRelevantDetails } from "../../utils"
+import { BaseAgentTool } from "../base-agent.tool"
+import { AgentToolOptions, AgentToolParams } from "../types"
+import { render } from "react-dom"
 
 export class ExecuteCommandTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -50,13 +51,15 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		}
 		const { ask, say, returnEmptyStringOnSuccess } = this.params
 		const cwd = getCwd()
+
 		const { response, text, images } = await ask(
 			"tool",
 			{
 				tool: {
 					tool: "execute_command",
 					command,
-					status: "pending",
+					approvalState: "pending",
+					ts: this.ts,
 				},
 			},
 			this.ts
@@ -68,7 +71,8 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					tool: {
 						tool: "execute_command",
 						command,
-						status: "rejected",
+						approvalState: "rejected",
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -85,7 +89,8 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				tool: {
 					tool: "execute_command",
 					command,
-					status: "loading",
+					approvalState: "loading",
+					ts: this.ts,
 				},
 			},
 			this.ts
@@ -109,7 +114,8 @@ export class ExecuteCommandTool extends BaseAgentTool {
 								tool: "execute_command",
 								command,
 								output: line,
-								status: "approved",
+								approvalState: "approved",
+								ts: this.ts,
 							},
 						},
 						this.ts
@@ -143,7 +149,8 @@ export class ExecuteCommandTool extends BaseAgentTool {
 								tool: "execute_command",
 								command,
 								output: result,
-								status: "approved",
+								approvalState: "approved",
+								ts: this.ts,
 							},
 						},
 						this.ts
@@ -231,7 +238,8 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				tool: {
 					tool: "execute_command",
 					command,
-					status: "pending",
+					approvalState: "pending",
+					ts: this.ts,
 				},
 			},
 			this.ts
@@ -254,7 +262,8 @@ export class ExecuteCommandTool extends BaseAgentTool {
 						tool: "execute_command",
 						command,
 						output: line,
-						status: "approved",
+						approvalState: "approved",
+						ts: this.ts,
 					},
 				})
 				const isStdin = (text ?? "").startsWith(COMMAND_STDIN_STRING)

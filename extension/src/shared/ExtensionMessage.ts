@@ -103,7 +103,10 @@ type V0ClaudeMessage = {
 	autoApproved?: boolean
 }
 
-export type MessageStatus = "pending" | "rejected" | "approved" | "error" | "loading" | undefined
+/**
+ * The status of the tool
+ */
+export type ToolStatus = "pending" | "rejected" | "approved" | "error" | "loading" | undefined
 
 export type V1ClaudeMessage = {
 	/**
@@ -119,7 +122,7 @@ export type V1ClaudeMessage = {
 	isExecutingCommand?: boolean
 	errorText?: string
 	retryCount?: number
-	status?: MessageStatus
+	status?: ToolStatus
 	isDone?: boolean
 	modelId?: string
 	apiMetrics?: {

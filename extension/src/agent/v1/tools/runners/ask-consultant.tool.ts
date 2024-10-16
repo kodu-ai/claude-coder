@@ -1,8 +1,8 @@
-import { ClaudeSayTool } from "../../../shared/ExtensionMessage"
-import { ToolResponse } from "../types"
-import { formatGenericToolFeedback, formatToolResponse } from "../utils"
-import { BaseAgentTool } from "./base-agent.tool"
-import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "./types"
+import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ToolResponse } from "../../types"
+import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
+import { BaseAgentTool } from "../base-agent.tool"
+import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "../types"
 
 export class AskConsultantTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -26,8 +26,9 @@ export class AskConsultantTool extends BaseAgentTool {
 				{
 					tool: {
 						tool: "ask_consultant",
-						status: "rejected",
+						approvalState: "rejected",
 						query: this.params.input.query!,
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -36,7 +37,14 @@ export class AskConsultantTool extends BaseAgentTool {
 		}
 		this.params.ask(
 			"tool",
-			{ tool: { tool: "ask_consultant", status: "loading", query: this.params.input.query! } },
+			{
+				tool: {
+					tool: "ask_consultant",
+					approvalState: "loading",
+					query: this.params.input.query!,
+					ts: this.ts,
+				},
+			},
 			this.ts
 		)
 
@@ -48,9 +56,10 @@ export class AskConsultantTool extends BaseAgentTool {
 					{
 						tool: {
 							tool: "ask_consultant",
-							status: "error",
+							approvalState: "error",
 							query: this.params.input.query!,
 							error: "Consultant failed to answer your question.",
+							ts: this.ts,
 						},
 					},
 					this.ts
@@ -67,9 +76,10 @@ export class AskConsultantTool extends BaseAgentTool {
 				{
 					tool: {
 						tool: "ask_consultant",
-						status: "error",
+						approvalState: "error",
 						query: this.params.input.query!,
 						error: err,
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -102,7 +112,8 @@ export class AskConsultantTool extends BaseAgentTool {
 				tool: {
 					tool: "ask_consultant",
 					query: query!,
-					status: "pending",
+					approvalState: "pending",
+					ts: this.ts,
 				},
 			},
 			this.ts
@@ -126,9 +137,10 @@ export class AskConsultantTool extends BaseAgentTool {
 			{
 				tool: {
 					tool: "ask_consultant",
-					status: "approved",
+					approvalState: "approved",
 					result: data.result,
 					query: this.params.input.query!,
+					ts: this.ts,
 				},
 			},
 			this.ts

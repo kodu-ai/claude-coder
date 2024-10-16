@@ -1,12 +1,13 @@
 import * as path from "path"
 import * as vscode from "vscode"
 import fs from "fs/promises"
-import { ClaudeSayTool } from "../../../shared/ExtensionMessage"
-import { ToolResponse } from "../types"
-import { formatGenericToolFeedback, formatToolResponse } from "../utils"
-import { BaseAgentTool } from "./base-agent.tool"
-import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "./types"
+import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ToolResponse } from "../../types"
+import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
+import { BaseAgentTool } from "../base-agent.tool"
+import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "../types"
 import Anthropic from "@anthropic-ai/sdk"
+import { ChatTool } from "../../../../shared/new-tools"
 
 export class UrlScreenshotTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -29,8 +30,9 @@ export class UrlScreenshotTool extends BaseAgentTool {
 				{
 					tool: {
 						tool: "url_screenshot",
-						status: "rejected",
+						approvalState: "rejected",
 						url: url!,
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -39,7 +41,11 @@ export class UrlScreenshotTool extends BaseAgentTool {
 		}
 
 		try {
-			this.params.ask("tool", { tool: { tool: "url_screenshot", status: "loading", url } }, this.ts)
+			this.params.ask(
+				"tool",
+				{ tool: { tool: "url_screenshot", approvalState: "loading", url, ts: this.ts } },
+				this.ts
+			)
 			const browserManager = this.koduDev.browserManager
 			await browserManager.launchBrowser()
 			const { buffer } = await browserManager.urlToScreenshotAndLogs(url)
@@ -68,7 +74,11 @@ export class UrlScreenshotTool extends BaseAgentTool {
 					data: imageToBase64,
 				},
 			}
-			this.params.ask("tool", { tool: { tool: "url_screenshot", status: "approved", url } }, this.ts)
+			this.params.ask(
+				"tool",
+				{ tool: { tool: "url_screenshot", approvalState: "approved", url, ts: this.ts } },
+				this.ts
+			)
 			return [textBlock, imageBlock]
 		} catch (err) {
 			this.params.ask(
@@ -76,9 +86,10 @@ export class UrlScreenshotTool extends BaseAgentTool {
 				{
 					tool: {
 						tool: "url_screenshot",
-						status: "error",
+						approvalState: "error",
 						url: url!,
 						error: `Screenshot failed with error: ${err}`,
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -109,7 +120,8 @@ export class UrlScreenshotTool extends BaseAgentTool {
 				tool: {
 					tool: "url_screenshot",
 					url: this.params.input.url!,
-					status: "pending",
+					approvalState: "pending",
+					ts: this.ts,
 				},
 			},
 			this.ts
@@ -132,7 +144,8 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			tool: "url_screenshot",
 			url: data.absolutePath,
 			base64Image: data.imageToBase64,
-		} as ClaudeSayTool)
+			ts: this.ts,
+		} as ChatTool)
 
 		await this.params.say("tool", message)
 	}

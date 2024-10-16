@@ -1,12 +1,12 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
 
-import { parseSourceCodeForDefinitionsTopLevel } from "../../../parse-source-code"
-import { ClaudeSayTool } from "../../../shared/ExtensionMessage"
-import { ToolResponse } from "../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../utils"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { BaseAgentTool } from "./base-agent.tool"
+import { parseSourceCodeForDefinitionsTopLevel } from "../../../../parse-source-code"
+import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ToolResponse } from "../../types"
+import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
+import { AgentToolOptions, AgentToolParams } from "../types"
+import { BaseAgentTool } from "../base-agent.tool"
 
 export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -45,8 +45,9 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 					tool: {
 						tool: "list_code_definition_names",
 						path: getReadablePath(relDirPath),
-						status: "pending",
+						approvalState: "pending",
 						content: result,
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -58,8 +59,9 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 						tool: {
 							tool: "list_code_definition_names",
 							path: getReadablePath(relDirPath),
-							status: "rejected",
+							approvalState: "rejected",
 							content: result,
+							ts: this.ts,
 						},
 					},
 					this.ts
@@ -76,8 +78,9 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 					tool: {
 						tool: "list_code_definition_names",
 						path: getReadablePath(relDirPath),
-						status: "approved",
+						approvalState: "approved",
 						content: result,
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -90,9 +93,10 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 				{
 					tool: {
 						tool: "list_code_definition_names",
-						status: "rejected",
+						approvalState: "rejected",
 						path: getReadablePath(relDirPath),
 						error: errorString,
+						ts: this.ts,
 					},
 				},
 				this.ts

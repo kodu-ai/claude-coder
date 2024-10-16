@@ -78,7 +78,7 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 							{isOpen ? "Collapse" : "Expand"}
 						</TooltipContent>
 					</Tooltip>
-					<div className="basis-full">
+					<div className="basis-full flex ">
 						<TaskText text={currentTask?.name ?? currentTask?.task ?? task.text} />
 					</div>
 				</div>

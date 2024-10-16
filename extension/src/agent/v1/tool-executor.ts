@@ -15,7 +15,7 @@ import {
 	AskConsultantTool,
 	UpsertTaskHistoryTool,
 } from "./tools"
-import { WebSearchTool } from "./tools/web-search-tool"
+import { WebSearchTool } from "./tools/runners/web-search-tool"
 import { TerminalManager } from "../../integrations/terminal/terminal-manager"
 import { BaseAgentTool } from "./tools/base-agent.tool"
 import ToolParser from "./tools/tool-parser/tool-parser"
@@ -157,14 +157,14 @@ export class ToolExecutor {
 				inToolQueue.updateParams(params)
 			}
 		}
-		// this.koduDev.taskExecutor.sayWithId(
-		// 	ts,
+		// this.koduDev.taskExecutor.askWithId(
 		// 	"tool",
-		// 	JSON.stringify({
-		// 		id: id,
-		// 		tool: toolName,
+		// 	{
+		// 		tool: toolInstance.name,
+		// 		status: "pending",
 		// 		...params,
-		// 	})
+		// 	},
+		// 	toolInstance.ts
 		// )
 
 		// if (toolName === "write_to_file") {

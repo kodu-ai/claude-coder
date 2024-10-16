@@ -1,6 +1,6 @@
-import { ToolResponse } from "../types"
-import { BaseAgentTool } from "./base-agent.tool"
-import type { AgentToolOptions, AgentToolParams } from "./types"
+import { ToolResponse } from "../../types"
+import { BaseAgentTool } from "../base-agent.tool"
+import type { AgentToolOptions, AgentToolParams } from "../types"
 import { serializeError } from "serialize-error"
 
 export class UpsertTaskHistoryTool extends BaseAgentTool {
@@ -29,7 +29,16 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 			await this.koduDev.getStateManager().setState(state)
 			this.params.ask(
 				"tool",
-				{ tool: { tool: "upsert_memory", status: "approved", milestoneName, summary, content } },
+				{
+					tool: {
+						tool: "upsert_memory",
+						approvalState: "approved",
+						milestoneName,
+						summary,
+						content,
+						ts: this.ts,
+					},
+				},
 				this.ts
 			)
 
@@ -40,11 +49,12 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 				{
 					tool: {
 						tool: "upsert_memory",
-						status: "error",
+						approvalState: "error",
 						milestoneName,
 						summary,
 						content,
 						error: serializeError(error),
+						ts: this.ts,
 					},
 				},
 				this.ts

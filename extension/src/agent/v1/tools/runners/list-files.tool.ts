@@ -1,13 +1,13 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
-import { LIST_FILES_LIMIT, listFiles } from "../../../parse-source-code"
-import { ClaudeAsk, ClaudeSay, ClaudeSayTool } from "../../../shared/ExtensionMessage"
-import { ToolResponse } from "../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../utils"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { BaseAgentTool } from "./base-agent.tool"
-import { AskDetails, AskForConfirmation } from "../task-executor/utils"
-import { AskResponse } from "../task-executor/task-executor"
+import { LIST_FILES_LIMIT, listFiles } from "../../../../parse-source-code"
+import { ClaudeAsk, ClaudeSay, ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ToolResponse } from "../../types"
+import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
+import { AgentToolOptions, AgentToolParams } from "../types"
+import { BaseAgentTool } from "../base-agent.tool"
+import { AskDetails, AskForConfirmation } from "../../task-executor/utils"
+import { AskResponse } from "../../task-executor/task-executor"
 
 export class ListFilesTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -48,9 +48,10 @@ export class ListFilesTool extends BaseAgentTool {
 					tool: {
 						tool: "list_files",
 						path: getReadablePath(relDirPath, this.cwd),
-						status: "pending",
+						approvalState: "pending",
 						content: result,
 						recursive: recursive ? "true" : "false",
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -63,8 +64,9 @@ export class ListFilesTool extends BaseAgentTool {
 						tool: {
 							tool: "list_files",
 							path: getReadablePath(relDirPath, this.cwd),
-							status: "rejected",
+							approvalState: "rejected",
 							recursive: recursive ? "true" : "false",
+							ts: this.ts,
 						},
 					},
 					this.ts
@@ -83,9 +85,10 @@ export class ListFilesTool extends BaseAgentTool {
 					tool: {
 						tool: "list_files",
 						path: getReadablePath(relDirPath, this.cwd),
-						status: "approved",
+						approvalState: "approved",
 						content: result,
 						recursive: recursive ? "true" : "false",
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -99,8 +102,9 @@ export class ListFilesTool extends BaseAgentTool {
 					tool: {
 						tool: "list_files",
 						path: getReadablePath(relDirPath, this.cwd),
-						status: "error",
+						approvalState: "error",
 						error: serializeError(error),
+						ts: this.ts,
 					},
 				},
 				this.ts

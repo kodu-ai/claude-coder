@@ -1,13 +1,13 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
 
-import { ToolResponse } from "../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../utils"
+import { ToolResponse } from "../../types"
+import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
 
-import { extractTextFromFile } from "../../../utils/extract-text"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { BaseAgentTool } from "./base-agent.tool"
-import { ClaudeSayTool } from "../../../shared/ExtensionMessage"
+import { extractTextFromFile } from "../../../../utils/extract-text"
+import { AgentToolOptions, AgentToolParams } from "../types"
+import { BaseAgentTool } from "../base-agent.tool"
+import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
 
 export class ReadFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -43,8 +43,9 @@ export class ReadFileTool extends BaseAgentTool {
 					tool: {
 						tool: "read_file",
 						path: getReadablePath(relPath, this.cwd),
-						status: "pending",
+						approvalState: "pending",
 						content,
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -57,8 +58,9 @@ export class ReadFileTool extends BaseAgentTool {
 						tool: {
 							tool: "read_file",
 							path: getReadablePath(relPath, this.cwd),
-							status: "rejected",
+							approvalState: "rejected",
 							content,
+							ts: this.ts,
 						},
 					},
 					this.ts
@@ -77,8 +79,9 @@ export class ReadFileTool extends BaseAgentTool {
 					tool: {
 						tool: "read_file",
 						path: getReadablePath(relPath, this.cwd),
-						status: "approved",
+						approvalState: "approved",
 						content,
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -95,7 +98,8 @@ export class ReadFileTool extends BaseAgentTool {
 						tool: "read_file",
 						path: getReadablePath(relPath, this.cwd),
 						content: "Cannot read content",
-						status: "error",
+						approvalState: "error",
+						ts: this.ts,
 					},
 				},
 				this.ts

@@ -40,9 +40,9 @@ import {
 } from "../../../../src/shared/new-tools"
 import { vscode } from "@/utils/vscode"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
-import { MessageStatus } from "../../../../src/shared/ExtensionMessage"
+import { ToolStatus } from "../../../../src/shared/ExtensionMessage"
 
-type ApprovalState = MessageStatus
+type ApprovalState = ToolStatus
 type ToolAddons = {
 	approvalState?: ApprovalState
 	onApprove?: () => void
@@ -391,7 +391,6 @@ export const UpsertMemoryBlock: React.FC<UpsertMemoryTool & ToolAddons> = ({
 
 export const ToolContentBlock: React.FC<{
 	tool: ChatTool & {
-		approvalState?: ApprovalState
 		onApprove?: () => void
 		onReject?: () => void
 	}
@@ -399,14 +398,14 @@ export const ToolContentBlock: React.FC<{
 	tool.onApprove = () => {
 		vscode.postMessage({
 			feedback: "approve",
-			toolId: "-1",
+			toolId: tool.ts,
 			type: "toolFeedback",
 		})
 	}
 	tool.onReject = () => {
 		vscode.postMessage({
 			feedback: "reject",
-			toolId: "-1",
+			toolId: tool.ts,
 			type: "toolFeedback",
 		})
 	}

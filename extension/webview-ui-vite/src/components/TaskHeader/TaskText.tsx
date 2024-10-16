@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react"
 import { useWindowSize } from "react-use"
 import AttachmentsList, { FileItem, UrlItem } from "../ChatRow/FileList"
 import { Button } from "../ui/button"
+import { cn } from "@/lib/utils"
 
 interface TaskTextProps {
 	text?: string
@@ -33,7 +34,7 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 	const [showSeeMore, setShowSeeMore] = useState(false)
 	const textContainerRef = useRef<HTMLDivElement>(null)
 	const textRef = useRef<HTMLDivElement>(null)
-
+	const showMoreVis = (!isExpanded && showSeeMore) || (isExpanded && showSeeMore)
 	const { height: windowHeight, width: windowWidth } = useWindowSize()
 
 	useEffect(() => {
@@ -60,6 +61,7 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 	const toggleExpand = () => setIsExpanded(!isExpanded)
 	const parts = extractAdditionalContext(text || "")
 	let filesCut: FileItem[] = []
+	const textLines = parts[0].split("\n")
 	if (parts[1]) {
 		filesCut = extractFilesFromContext(parts[1])
 	}
@@ -72,6 +74,7 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 		<>
 			<div
 				ref={textContainerRef}
+				className="w-full relative"
 				style={{
 					fontSize: "var(--vscode-font-size)",
 					overflowY: isExpanded ? "auto" : "hidden",
@@ -90,28 +93,24 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 						wordBreak: "break-word",
 						overflowWrap: "anywhere",
 					}}>
-					{parts[0].trim()}
+					{textLines.slice(0, -2).join("\n").trim()}
+					{/* last line give it a minor padding-right of 40px */}
+					<br />
+					<span className="pr-10">{textLines[textLines.length - 1]}</span>
 				</div>
-				{!isExpanded && showSeeMore && (
-					<div
-						style={{
-							position: "absolute",
-							right: 0,
-							bottom: 0,
-						}}>
-						<Button variant="link" size="sm" className="ml-auto text-right" onClick={toggleExpand}>
-							see more
-						</Button>
-					</div>
-				)}
-			</div>
-			<AttachmentsList files={filesCut} urls={urlsCut} />
+				<AttachmentsList files={filesCut} urls={urlsCut} />
 
-			{isExpanded && showSeeMore && (
-				<Button variant="link" size="sm" className="ml-auto text-right" onClick={toggleExpand}>
-					see less
-				</Button>
-			)}
+				<div
+					className={cn(
+						showMoreVis ? "block" : "hidden",
+						"ml-auto mt-auto text-right w-fit mb-2",
+						"absolute bottom-0 right-0 mb-0 bg-background z-10 pl-1"
+					)}>
+					<Button variant="link" size="sm" className="shrink-0" onClick={toggleExpand}>
+						{isExpanded ? "see less" : "see more"}
+					</Button>
+				</div>
+			</div>
 		</>
 	)
 }

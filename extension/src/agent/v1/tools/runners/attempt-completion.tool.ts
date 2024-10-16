@@ -1,7 +1,7 @@
-import { ToolResponse } from "../types"
-import { formatToolResponse } from "../utils"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { BaseAgentTool } from "./base-agent.tool"
+import { ToolResponse } from "../../types"
+import { formatToolResponse } from "../../utils"
+import { AgentToolOptions, AgentToolParams } from "../types"
+import { BaseAgentTool } from "../base-agent.tool"
 import { ExecuteCommandTool } from "./execute-command.tool"
 
 export class AttemptCompletionTool extends BaseAgentTool {
@@ -37,7 +37,8 @@ export class AttemptCompletionTool extends BaseAgentTool {
 					tool: "attempt_completion",
 					result: result,
 					command: command,
-					status: "approved",
+					approvalState: "approved",
+					ts: this.ts,
 				},
 			})
 
@@ -57,7 +58,8 @@ export class AttemptCompletionTool extends BaseAgentTool {
 			tool: {
 				tool: "attempt_completion",
 				result: resultToSend,
-				status: "approved",
+				approvalState: "approved",
+				ts: this.ts,
 			},
 		})
 		if (response === "yesButtonTapped") {

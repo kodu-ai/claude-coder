@@ -1,4 +1,4 @@
-import { ClaudeAsk, ClaudeSay, ClaudeMessage, MessageStatus, V1ClaudeMessage } from "../../../shared/ExtensionMessage"
+import { ClaudeAsk, ClaudeSay, ClaudeMessage, ToolStatus, V1ClaudeMessage } from "../../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
 import { StateManager } from "../state-manager"
 import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
@@ -36,10 +36,7 @@ export interface AskResponse {
 
 export type AskDetails = {
 	question?: string
-	tool?: ChatTool & {
-		status?: MessageStatus
-		error?: string
-	}
+	tool?: ChatTool
 }
 
 export type AskForConfirmation = (type: ClaudeAsk, details?: AskDetails, askTs?: number) => Promise<AskResponse>
@@ -64,7 +61,7 @@ export abstract class TaskExecutorUtils {
 				ask: type,
 				text: question ? question : tool ? JSON.stringify(tool) : "",
 				v: 1,
-				status: tool?.status,
+				status: tool?.approvalState,
 				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
 			}
 
@@ -101,7 +98,7 @@ export abstract class TaskExecutorUtils {
 				ask: type,
 				text: question ? question : tool ? JSON.stringify(tool) : "",
 				v: 1,
-				status: tool?.status,
+				status: tool?.approvalState,
 				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
 			}
 			if (this.stateManager.getMessageById(askTs)) {

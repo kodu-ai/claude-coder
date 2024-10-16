@@ -88,7 +88,7 @@ type UpdateTaskHistoryMessage = {
 
 export type ToolFeedbackMessage = {
 	type: "toolFeedback"
-	toolId: string
+	toolId: number
 	feedback: "approve" | "reject"
 }
 

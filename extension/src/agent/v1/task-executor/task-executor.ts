@@ -116,6 +116,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			tool: {
 				tool: "ask_followup_question",
 				question: "The current request has been cancelled. Would you like to ask a new question ?",
+				ts: Date.now(),
 			},
 			// question: "The current request has been cancelled. Would you like to ask a new question ?",
 		})

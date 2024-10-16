@@ -1,6 +1,17 @@
+import { ToolStatus } from "./ExtensionMessage"
+
+/**
+ * This is the input and output for execute_command tool
+ */
 export type ExecuteCommandTool = {
 	tool: "execute_command"
+	/**
+	 * the command to execute
+	 */
 	command: string
+	/**
+	 * the output of the command
+	 */
 	output?: string
 }
 
@@ -72,7 +83,7 @@ export type UpsertMemoryTool = {
 	content: string
 }
 
-export type ChatTool =
+export type ChatTool = (
 	| ExecuteCommandTool
 	| ListFilesTool
 	| ListCodeDefinitionNamesTool
@@ -85,3 +96,8 @@ export type ChatTool =
 	| UrlScreenshotTool
 	| AskConsultantTool
 	| UpsertMemoryTool
+) & {
+	ts: number
+	approvalState?: ToolStatus
+	error?: string
+}
