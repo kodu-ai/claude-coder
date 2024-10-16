@@ -46,8 +46,6 @@ const InteractiveTerminal = () => {
 					if (isLongRunningCommandRef.current) {
 						terminalRef.current.clear()
 						terminalRef.current.writeln(`Executing: ${command}`)
-					} else {
-						terminalRef.current.write(`\r\n$ ${command}\r\n`)
 					}
 				}
 			}
