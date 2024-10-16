@@ -202,7 +202,7 @@ const InteractiveTerminal = () => {
 
 	useEvent("message", handleCommandResponse)
 
-	return <div ref={terminalElementRef} style={{ height: "300px" }} />
+	return <div ref={terminalElementRef} style={{ height: "150px" }} />
 }
 
 export default InteractiveTerminal

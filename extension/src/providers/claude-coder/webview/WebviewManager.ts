@@ -450,7 +450,7 @@ export class WebviewManager {
 					case "updateTaskHistory":
 						this.provider.getKoduDev()?.executeTool("upsert_memory", { content: message.history })
 						break
-					// only for testing
+					// @TODO: only for testing, remove this
 					case "executeCommand":
 						await this.executeCommand(message)
 						break

@@ -88,6 +88,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 					/>
 				)} */}
 
+				{/* @TODO: only for testing, remove this */}
 				<InteractiveTerminal />
 
 				<InputV1
