@@ -20,6 +20,7 @@ import { TerminalManager } from "../../../integrations/terminal/terminal-manager
 import { BaseAgentTool } from "./base-agent.tool"
 import ToolParser from "./tool-parser/tool-parser"
 import { tools } from "./schema"
+import pWaitFor from "p-wait-for"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined
@@ -149,6 +150,7 @@ export class ToolExecutor {
 			})
 			this.toolInstances[id] = newTool
 			toolInstance = newTool
+			void this.addToolToQueue(toolInstance)
 		} else {
 			toolInstance.updateParams(params)
 			toolInstance.updateIsFinal(false)
@@ -157,21 +159,21 @@ export class ToolExecutor {
 				inToolQueue.updateParams(params)
 			}
 		}
-		// this.koduDev.taskExecutor.askWithId(
-		// 	"tool",
-		// 	{
-		// 		tool: toolInstance.name,
-		// 		status: "pending",
-		// 		...params,
-		// 	},
-		// 	toolInstance.ts
-		// )
-
-		// if (toolName === "write_to_file") {
-		// 	if (toolInstance instanceof WriteFileTool) {
-		// 		await this.handlePartialWriteToFile(toolInstance)
-		// 	}
-		// }
+		// if the tool is the first in the queue, we should update his askContent
+		if (this.toolQueue[0].id === id) {
+			this.koduDev.taskExecutor.askWithId(
+				"tool",
+				{
+					tool: {
+						tool: toolInstance.name,
+						...params,
+						ts,
+						approvalState: "loading",
+					},
+				},
+				ts
+			)
+		}
 	}
 
 	private async handleToolEnd(id: string, toolName: string, input: any): Promise<void> {
@@ -192,11 +194,20 @@ export class ToolExecutor {
 			toolInstance.updateParams(input)
 			toolInstance.updateIsFinal(true)
 		}
-		this.addToolToQueue(this.toolInstances[id])
+		// check if the tool is in the queue, if so, update the tool
+		const inToolQueue = this.toolQueue.find((tool) => tool.id === id)
+		if (inToolQueue) {
+			inToolQueue.updateParams(input)
+			inToolQueue.updateIsFinal(true)
+		} else {
+			await this.addToolToQueue(this.toolInstances[id])
+		}
 	}
 
-	private addToolToQueue(toolInstance: BaseAgentTool): void {
+	private async addToolToQueue(toolInstance: BaseAgentTool): Promise<void> {
 		this.toolQueue.push(toolInstance)
+		// check if the current tool is finalized, if so, process the next tool and check it with interval using pWaitFor
+		await pWaitFor(() => this.toolQueue[0].isFinal, { interval: 20 })
 		if (!this.isProcessingTool) {
 			this.processNextTool()
 		}

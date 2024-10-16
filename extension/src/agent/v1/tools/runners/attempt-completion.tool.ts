@@ -54,14 +54,18 @@ export class AttemptCompletionTool extends BaseAgentTool {
 			resultToSend = ""
 		}
 
-		const { response, text, images } = await ask("tool", {
-			tool: {
-				tool: "attempt_completion",
-				result: resultToSend,
-				approvalState: "approved",
-				ts: this.ts,
+		const { response, text, images } = await ask(
+			"tool",
+			{
+				tool: {
+					tool: "attempt_completion",
+					result: resultToSend,
+					approvalState: "approved",
+					ts: this.ts,
+				},
 			},
-		})
+			this.ts
+		)
 		if (response === "yesButtonTapped") {
 			return ""
 		}
