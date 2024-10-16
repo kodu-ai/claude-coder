@@ -324,9 +324,9 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			try {
 				await Promise.race([subprocess, timeoutPromise])
 				// Check if the output exceeds 15k characters and summarize it if necessary
-				if (result.length > 15_000) {
+				if (result.length > 30_000) {
 					try {
-						say("info", `Command output exceeds 15 000 characters. Making a summary...`)
+						say("info", `Command output exceeds 30 000 characters. Making a summary...`)
 						const summary = await this.koduDev
 							.getApiManager()
 							.getApi()

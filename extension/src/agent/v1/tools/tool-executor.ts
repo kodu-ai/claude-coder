@@ -100,8 +100,8 @@ export class ToolExecutor {
 				return new UrlScreenshotTool(params, this.options)
 			case "ask_consultant":
 				return new AskConsultantTool(params, this.options)
-			case "upsert_memory":
-				return new UpsertTaskHistoryTool(params, this.options)
+			// case "upsert_memory":
+			// 	return new UpsertTaskHistoryTool(params, this.options)
 			default:
 				throw new Error(`Unknown tool: ${params.name}`)
 		}
@@ -161,13 +161,6 @@ export class ToolExecutor {
 		}
 		// if the tool is the first in the queue, we should update his askContent
 		if (this.toolQueue[0].id === id) {
-			if (toolInstance.toolParams.name === "write_to_file") {
-				this.handlePartialWriteToFile(toolInstance as WriteFileTool)
-				// skip updating the tool if the diff view is in editing mode
-				if ((toolInstance as WriteFileTool).diffViewProvider.isEditing) {
-					return
-				}
-			}
 			this.koduDev.taskExecutor.askWithId(
 				"tool",
 				{
@@ -180,6 +173,13 @@ export class ToolExecutor {
 				},
 				ts
 			)
+			if (toolInstance.toolParams.name === "write_to_file") {
+				this.handlePartialWriteToFile(toolInstance as WriteFileTool)
+				// skip updating the tool if the diff view is in editing mode
+				if ((toolInstance as WriteFileTool).diffViewProvider.isEditing) {
+					return
+				}
+			}
 		}
 	}
 

@@ -10,7 +10,6 @@ import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
 import { ChunkProcessor } from "../chunk-proccess"
 import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
-import { GitHandler } from "../handlers/git-handler"
 import { ToolName, ToolResponse, UserContent } from "../types"
 import { debounce } from "lodash"
 import { ToolInput } from "../tools/types"
@@ -18,7 +17,6 @@ import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
-	public gitHandler: GitHandler
 	public toolExecutor: ToolExecutor
 	private currentUserContent: UserContent | null = null
 	private currentApiResponse: Anthropic.Messages.Message | null = null
@@ -30,7 +28,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
 		this.toolExecutor = toolExecutor
-		this.gitHandler = new GitHandler()
 	}
 	protected getState(): TaskState {
 		return this.state

@@ -371,6 +371,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	// Handle ask messages
 	const handleAskMessage = (message: ClaudeMessage) => {
+		if (!isV1ClaudeMessage(message)) {
+			// bug in the code, this should never happen
+			return
+		}
 		// This function updates the component state based on the type of ask message received
 		switch (message.ask) {
 			case "request_limit_reached":
@@ -404,6 +408,12 @@ const ChatView: React.FC<ChatViewProps> = ({
 				if (!message.autoApproved) {
 					setEnableButtons(true)
 					const tool = JSON.parse(message.text || "{}") as ChatTool
+					if (tool.approvalState !== "pending") {
+						setEnableButtons(false)
+						setPrimaryButtonText(undefined)
+						setSecondaryButtonText(undefined)
+						return
+					}
 					switch (tool?.tool) {
 						case "write_to_file":
 							setPrimaryButtonText("Save")

@@ -218,6 +218,7 @@ export class KoduHandler implements ApiHandler {
 				},
 				responseType: "stream",
 				signal: abortSignal ?? undefined,
+				timeout: 60_000,
 			}
 		)
 

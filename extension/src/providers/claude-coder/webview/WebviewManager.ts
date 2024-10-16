@@ -8,7 +8,7 @@ import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
 import { KoduDevState } from "../../../agent/v1/types"
-import { GitHandler } from "../../../agent/v1/handlers"
+// import { GitHandler } from "../../../agent/v1/handlers"
 
 interface FileTreeItem {
 	id: string
@@ -421,29 +421,29 @@ export class WebviewManager {
 					case "debug":
 						await this.handleDebugInstruction()
 						break
-					case "gitLog":
-						this.postMessageToWebview({
-							type: "gitLog",
-							history: await GitHandler.getLog(this.state?.dirAbsolutePath!),
-						})
-						break
-					case "gitCheckoutTo":
-						await this.checkoutToBranch(message)
-						break
-					case "gitBranches":
-						const branches = await GitHandler.getBranches(this.state?.dirAbsolutePath!)
+					// case "gitLog":
+					// 	this.postMessageToWebview({
+					// 		type: "gitLog",
+					// 		history: await GitHandler.getLog(this.state?.dirAbsolutePath!),
+					// 	})
+					// 	break
+					// case "gitCheckoutTo":
+					// 	await this.checkoutToBranch(message)
+					// 	break
+					// case "gitBranches":
+					// 	const branches = await GitHandler.getBranches(this.state?.dirAbsolutePath!)
 
-						this.postMessageToWebview({
-							type: "gitBranches",
-							branches,
-						})
-						break
-					case "getTaskHistory":
-						await this.getTaskHistory()
-						break
-					case "updateTaskHistory":
-						this.provider.getKoduDev()?.executeTool("upsert_memory", { content: message.history })
-						break
+					// 	this.postMessageToWebview({
+					// 		type: "gitBranches",
+					// 		branches,
+					// 	})
+					// 	break
+					// case "getTaskHistory":
+					// 	await this.getTaskHistory()
+					// 	break
+					// case "updateTaskHistory":
+					// 	this.provider.getKoduDev()?.executeTool("upsert_memory", { content: message.history })
+					// 	break
 				}
 			},
 			null,
@@ -497,20 +497,20 @@ export class WebviewManager {
 		})
 	}
 
-	private async checkoutToBranch(message: GitCheckoutToMessage): Promise<void> {
-		const taskExecutor = this.provider.getKoduDev()?.taskExecutor!
-		const isSuccess = (await taskExecutor?.gitHandler.checkoutTo(message.branchName!)) ?? false
+	// private async checkoutToBranch(message: GitCheckoutToMessage): Promise<void> {
+	// 	const taskExecutor = this.provider.getKoduDev()?.taskExecutor!
+	// 	const isSuccess = (await taskExecutor?.gitHandler.checkoutTo(message.branchName!)) ?? false
 
-		if (isSuccess) {
-			await taskExecutor.handleAskResponse(
-				"messageResponse",
-				`The user checked out to version: '${message.branchName}'`
-			)
-		}
+	// 	if (isSuccess) {
+	// 		await taskExecutor.handleAskResponse(
+	// 			"messageResponse",
+	// 			`The user checked out to version: '${message.branchName}'`
+	// 		)
+	// 	}
 
-		this.postMessageToWebview({
-			type: "gitCheckoutTo",
-			isSuccess,
-		})
-	}
+	// 	this.postMessageToWebview({
+	// 		type: "gitCheckoutTo",
+	// 		isSuccess,
+	// 	})
+	// }
 }

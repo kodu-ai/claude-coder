@@ -5,9 +5,10 @@ import { ToolResponse } from "../../types"
 import { formatToolResponse, getCwd, getReadablePath } from "../../utils"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
-import { createPrettyPatch, DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
+import { DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
 import { fileExistsAtPath } from "../../../../utils/path-helpers"
 import delay from "delay"
+import { debounce } from "lodash"
 
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -15,10 +16,14 @@ export class WriteFileTool extends BaseAgentTool {
 	private fileExists: boolean | undefined
 	private executionPromise: Promise<ToolResponse> | null = null
 	public diffViewProvider: DiffViewProvider
-
+	private updateQueue: string[] = []
+	private isUpdating = false
 	private resolveExecution: ((response: ToolResponse) => void) | null = null
 	private isProcessingFinalContent: boolean = false
 	private askPromise: Promise<{ response: string; text?: string; images?: string[] }> | null = null
+	private lastUpdateLength: number = 0
+	private lastUpdateTime: number = 0
+	private readonly UPDATE_INTERVAL = 15 // Minimum time between updates in milliseconds
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
@@ -69,15 +74,28 @@ export class WriteFileTool extends BaseAgentTool {
 			if (!this.params.isFinal) {
 				await this.handlePartialContent(relPath, content)
 			} else {
-				await this.handlePartialContent(relPath, content)
 				this.isProcessingFinalContent = true
+				await this.handleFinalContentForConfirmation(relPath, content)
 			}
 
 			// Wait for the ask promise to be resolved
 			const { response, text, images } = await this.askPromise
 
 			if (response !== "yesButtonTapped") {
-				await this.diffViewProvider.revertChanges()
+				void this.diffViewProvider.revertChanges()
+				this.params.ask(
+					"tool",
+					{
+						tool: {
+							tool: "write_to_file",
+							content: this.params.input.content ?? "No content provided",
+							approvalState: "rejected",
+							path: relPath,
+							ts: this.ts,
+						},
+					},
+					this.ts
+				)
 				if (response === "noButtonTapped") {
 					await this.resolveExecutionWithResult(formatToolResponse("Write operation cancelled by user."))
 					return
@@ -101,41 +119,43 @@ export class WriteFileTool extends BaseAgentTool {
 	}
 
 	public async handlePartialContent(relPath: string, newContent: string): Promise<void> {
-		if (this.isProcessingFinalContent && this.fileExists !== undefined) {
+		if (this.isProcessingFinalContent) {
 			console.log("Skipping partial update as final content is being processed")
 			return
 		}
 
-		console.log("handlePartialContent started")
-		if (this.fileExists === undefined) {
-			const result = await this.checkFileExists(relPath)
-			this.diffViewProvider.editType = result ? "modify" : "create"
-			this.fileExists = result
-		}
-		newContent = this.preprocessContent(newContent)
+		const currentTime = Date.now()
 
 		if (!this.diffViewProvider.isEditing) {
 			try {
+				const fileExists = await this.checkFileExists(relPath)
 				await this.diffViewProvider.open(relPath)
+				this.lastUpdateLength = 0
+				this.lastUpdateTime = currentTime
 			} catch (e) {
 				console.error("Error opening file: ", e)
 			}
 		}
 
+		// Check if enough time has passed since the last update
+		if (currentTime - this.lastUpdateTime < this.UPDATE_INTERVAL) {
+			return
+		}
+
+		// Perform the update
 		await this.diffViewProvider.update(newContent, false)
-		await delay(50) // Wait for diff view to update
-		console.log("handlePartialContent completed")
+		this.lastUpdateTime = currentTime
+	}
+
+	private async handleFinalContentForConfirmation(relPath: string, newContent: string): Promise<void> {
+		newContent = this.preprocessContent(newContent)
+		await this.diffViewProvider.update(newContent, true)
 	}
 
 	public async handleFinalContent(relPath: string, newContent: string): Promise<void> {
-		console.log("handleFinalContent started")
 		const fileExists = await this.checkFileExists(relPath)
-		newContent = this.preprocessContent(newContent)
-
-		await this.diffViewProvider.update(newContent, true)
-		await delay(300) // Wait for diff view to update
-
 		const { newProblemsMessage, userEdits } = await this.diffViewProvider.saveChanges()
+		await delay(300)
 		this.params.ask(
 			"tool",
 			{
@@ -168,8 +188,6 @@ export class WriteFileTool extends BaseAgentTool {
 		console.log("resolveExecutionWithResult called")
 		if (this.resolveExecution) {
 			this.diffViewProvider.isEditing = false
-			await this.diffViewProvider.reset()
-			await delay(50)
 
 			this.resolveExecution(result)
 			this.executionPromise = null
@@ -183,7 +201,6 @@ export class WriteFileTool extends BaseAgentTool {
 	private async checkFileExists(relPath: string): Promise<boolean> {
 		const absolutePath = path.resolve(getCwd(), relPath)
 		const fileExists = await fileExistsAtPath(absolutePath)
-		this.diffViewProvider.editType = fileExists ? "modify" : "create"
 		return fileExists
 	}
 
