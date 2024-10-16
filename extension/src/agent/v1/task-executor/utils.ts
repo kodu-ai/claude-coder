@@ -117,7 +117,9 @@ export abstract class TaskExecutorUtils {
 			if (
 				tool &&
 				tool.approvalState === "pending" &&
-				(readCommands.includes(tool.tool) || !mustRequestApprovalTool.includes(tool.tool))
+				((this.stateManager.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool["tool"])) ||
+					(this.stateManager.alwaysAllowWriteOnly &&
+						!mustRequestApprovalTool.includes(tool?.tool as ChatTool["tool"])))
 			) {
 				// update the tool.status
 				tool.approvalState = "loading"

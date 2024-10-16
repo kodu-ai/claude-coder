@@ -230,8 +230,8 @@ export class ToolExecutor {
 		}
 
 		this.isProcessingTool = true
-		const toolInstance = this.toolQueue.shift()!
 
+		const toolInstance = this.toolQueue[0]
 		try {
 			const result = await toolInstance?.execute({
 				name: toolInstance?.name as ToolName,
@@ -260,6 +260,7 @@ export class ToolExecutor {
 				})
 			)
 		} finally {
+			this.toolQueue.shift()!
 			this.processNextTool()
 		}
 	}

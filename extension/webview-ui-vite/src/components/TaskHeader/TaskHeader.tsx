@@ -86,6 +86,7 @@ export default function TaskHeader({
 								initial={{ opacity: 0.6 }}
 								animate={{ opacity: 1 }}
 								exit={{ opacity: 0.6 }}
+								className="w-full"
 								transition={{ duration: 0.2 }}>
 								<TaskText text={currentTask?.name ?? currentTask?.task ?? task.text} />
 							</motion.div>
@@ -96,7 +97,7 @@ export default function TaskHeader({
 				<CollapsibleContent className="flex flex-col pt-1 gap-2">
 					<AnimatePresence mode="wait">
 						<motion.div
-							className="flex flex-col pt-1 gap-2"
+							className="flex flex-col pt-1 gap-2 w-full"
 							key={currentTask?.name ?? currentTask?.task ?? task.text}
 							initial={{ opacity: 0.6 }}
 							animate={{ opacity: 1 }}
