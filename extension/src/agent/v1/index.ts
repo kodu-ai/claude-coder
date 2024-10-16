@@ -190,11 +190,12 @@ export class KoduDev {
 					m.errorText = "Task was interrupted before this API request could be completed."
 				}
 				if (m.ask === "tool" && m.type === "ask") {
-					const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool
+					const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
 					if (
-						parsedTool.approvalState === "pending" ||
-						parsedTool.approvalState === undefined ||
-						parsedTool.approvalState === "loading"
+						typeof parsedTool === "object" &&
+						(parsedTool.approvalState === "pending" ||
+							parsedTool.approvalState === undefined ||
+							parsedTool.approvalState === "loading")
 					) {
 						const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
 						if (toolsToSkip.includes(parsedTool.tool)) {
