@@ -161,6 +161,9 @@ export class ToolExecutor {
 		}
 		// if the tool is the first in the queue, we should update his askContent
 		if (this.toolQueue[0].id === id) {
+			// if (toolInstance.toolParams.name === "write_to_file") {
+			// 	await this.handlePartialWriteToFile(toolInstance as WriteFileTool)
+			// }
 			this.koduDev.taskExecutor.askWithId(
 				"tool",
 				{
@@ -291,9 +294,9 @@ export class ToolExecutor {
 		}
 		// check if current tool is write to file (in queue) if so, update the content, otherwise skip it.
 		const inToolQueue = this.toolQueue.findIndex((tool) => tool.id === tool.id)
-		// if (inToolQueue === 0) {
-		// 	await tool.handlePartialContent(path, content)
-		// }
+		if (inToolQueue === 0) {
+			await tool.handlePartialContent(path, content)
+		}
 	}
 
 	public resetToolState(): void {

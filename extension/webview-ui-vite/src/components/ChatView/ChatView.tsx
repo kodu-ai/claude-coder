@@ -1,5 +1,5 @@
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
-import { atom, useAtom } from "jotai"
+import { atom, useAtom, useSetAtom } from "jotai"
 import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
 import { useEvent, useMount } from "react-use"
@@ -45,6 +45,8 @@ interface ChatViewProps {
 
 const MAX_IMAGES_PER_MESSAGE = 5
 
+export const SyntaxHighlighterAtom = atom(vsDarkPlus)
+
 const ChatView: React.FC<ChatViewProps> = ({
 	isHidden,
 	showAnnouncement,
@@ -78,6 +80,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const [syntaxHighlighterStyle, setSyntaxHighlighterStyle] = useState(vsDarkPlus)
 	const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
 	const [attachements, setAttachements] = useAtom(attachementsAtom)
+	const setSyntaxHighlighterStyleAtom = useSetAtom(SyntaxHighlighterAtom)
 
 	// Refs
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
@@ -114,10 +117,12 @@ const ChatView: React.FC<ChatViewProps> = ({
 	}
 	// Update syntax highlighter style when theme changes
 	useEffect(() => {
+		setSyntaxHighlighterStyle(vsDarkPlus)
 		if (!vscodeThemeName) return
 		const theme = getSyntaxHighlighterStyleFromTheme(vscodeThemeName)
 		if (theme) {
 			setSyntaxHighlighterStyle(theme)
+			setSyntaxHighlighterStyleAtom(theme)
 		}
 	}, [vscodeThemeName])
 

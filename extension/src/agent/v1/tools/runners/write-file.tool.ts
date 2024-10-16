@@ -52,22 +52,25 @@ export class WriteFileTool extends BaseAgentTool {
 			}
 
 			// Handle the ask at the beginning of the execution
-			this.askPromise = this.params.ask("tool", {
-				tool: {
-					tool: "write_to_file",
-					content: content,
-					approvalState: "pending",
-					path: relPath,
-					ts: this.ts,
+			this.askPromise = this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "write_to_file",
+						content: content,
+						approvalState: "pending",
+						path: relPath,
+						ts: this.ts,
+					},
 				},
-			})
+				this.ts
+			)
 
 			if (!this.params.isFinal) {
 				await this.handlePartialContent(relPath, content)
 			} else {
 				this.isProcessingFinalContent = true
 				await this.handlePartialContent(relPath, content)
-				await this.handleFinalContent(relPath, content)
 			}
 
 			// Wait for the ask promise to be resolved
@@ -84,9 +87,11 @@ export class WriteFileTool extends BaseAgentTool {
 				)
 				return
 			}
+			await this.handleFinalContent(relPath, content)
 
 			// If we reach here, it means the changes were approved
 			await this.resolveExecutionWithResult(formatToolResponse("File write operation completed successfully"))
+			return
 		} catch (error) {
 			console.error("Error in processFileWrite:", error)
 			await this.resolveExecutionWithResult(formatToolResponse(`Error: ${error.message}`))
@@ -130,6 +135,19 @@ export class WriteFileTool extends BaseAgentTool {
 		await delay(300) // Wait for diff view to update
 
 		const { newProblemsMessage, userEdits } = await this.diffViewProvider.saveChanges()
+		this.params.ask(
+			"tool",
+			{
+				tool: {
+					tool: "write_to_file",
+					content: newContent,
+					approvalState: "approved",
+					ts: this.ts,
+					path: relPath,
+				},
+			},
+			this.ts
+		)
 
 		if (userEdits) {
 			await this.params.say(

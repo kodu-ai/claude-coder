@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import {
 	Terminal,
 	FolderTree,
@@ -19,6 +19,7 @@ import {
 	ChevronDown,
 	ChevronUp,
 	LoaderPinwheel,
+	ExternalLink,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -40,7 +41,12 @@ import {
 } from "../../../../src/shared/new-tools"
 import { vscode } from "@/utils/vscode"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
-import { ToolStatus } from "../../../../src/shared/ExtensionMessage"
+import { ScrollArea, ScrollBar } from "../ui/scroll-area"
+import SyntaxHighlighter from "react-syntax-highlighter"
+import { useAtomValue } from "jotai"
+import { SyntaxHighlighterAtom } from "../ChatView/ChatView"
+import { syntaxHighlighterCustomStyle } from "../CodeBlock/utils"
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
 
 type ApprovalState = ToolStatus
 type ToolAddons = {
@@ -284,6 +290,15 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 	)
 }
 
+export type ToolStatus = "pending" | "rejected" | "approved" | "error" | "loading" | undefined
+
+const CHUNK_SIZE = 50
+
+const textVariants = {
+	hidden: { opacity: 0, y: 20, height: 0 },
+	visible: { opacity: 1, y: 0, height: "auto" },
+}
+
 export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 	path,
 	content,
@@ -292,23 +307,91 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 	onReject,
 	tool,
 	ts,
-}) => (
-	<ToolBlock
-		ts={ts}
-		tool={tool}
-		icon={Edit}
-		title="Write to File"
-		variant="info"
-		approvalState={approvalState}
-		onApprove={onApprove}
-		onReject={onReject}>
-		<p className="text-xs mb-1">
-			<span className="font-semibold">File:</span> {path}
-		</p>
-		<div className="bg-muted p-2 rounded font-mono text-xs max-h-20 overflow-y-auto">{content}</div>
-	</ToolBlock>
-)
+}) => {
+	content = content ?? ""
+	const [visibleContent, setVisibleContent] = useState<string[]>([])
+	const [totalLines, setTotalLines] = useState(0)
+	const isStreaming = approvalState === "loading"
+	const scrollAreaRef = useRef<HTMLDivElement>(null)
+	const lastChunkRef = useRef<HTMLPreElement>(null)
 
+	useEffect(() => {
+		const text = content ?? ""
+		setTotalLines(text.split("\n").length)
+
+		if (isStreaming) {
+			const chunks = text.match(new RegExp(`.{1,${CHUNK_SIZE * 2}}`, "g")) || []
+			setVisibleContent(chunks)
+		} else {
+			setVisibleContent([text])
+		}
+	}, [content, isStreaming])
+
+	useEffect(() => {
+		if (isStreaming && lastChunkRef.current) {
+			setTimeout(() => {
+				lastChunkRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+			}, 50)
+		}
+	}, [visibleContent, isStreaming])
+
+	const handleViewFile = () => {
+		console.log("Opening file:", path)
+	}
+
+	return (
+		<ToolBlock
+			ts={ts}
+			tool={tool}
+			icon={Edit}
+			title="Write to File"
+			variant="info"
+			approvalState={approvalState}
+			onApprove={onApprove}
+			onReject={onReject}>
+			<p className="text-xs mb-1">
+				<span className="font-semibold">File:</span> {path}
+			</p>
+			<ScrollArea ref={scrollAreaRef} className="h-24 rounded border bg-background p-2">
+				<ScrollBar orientation="vertical" />
+				<ScrollBar orientation="horizontal" />
+				<div className="relative">
+					{isStreaming && (
+						<motion.div
+							className="absolute left-0 top-0 w-full h-1 bg-primary"
+							initial={{ scaleX: 0 }}
+							animate={{ scaleX: 1 }}
+							transition={{
+								repeat: Infinity,
+								duration: 2,
+								ease: "linear",
+							}}
+						/>
+					)}
+					<AnimatePresence>
+						{visibleContent.map((chunk, index) => (
+							<motion.pre
+								key={index}
+								ref={index === visibleContent.length - 1 ? lastChunkRef : null}
+								variants={textVariants}
+								initial="hidden"
+								animate="visible"
+								transition={{ duration: 0.3, delay: index * 0.05 }}
+								className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
+								{index === 0 ? chunk.trim() : chunk}
+							</motion.pre>
+						))}
+					</AnimatePresence>
+				</div>
+			</ScrollArea>
+			<div className="mt-2 flex justify-between items-center">
+				<span className="text-xs text-muted-foreground">
+					{isStreaming ? "Streaming..." : `Completed: ${totalLines} lines written`}
+				</span>
+			</div>
+		</ToolBlock>
+	)
+}
 export const AskFollowupQuestionBlock: React.FC<AskFollowupQuestionTool & ToolAddons> = ({
 	question,
 	approvalState,

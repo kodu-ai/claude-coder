@@ -32,15 +32,19 @@ export class AttemptCompletionTool extends BaseAgentTool {
 
 		let resultToSend = result
 		if (command) {
-			await ask("tool", {
-				tool: {
-					tool: "attempt_completion",
-					result: result,
-					command: command,
-					approvalState: "approved",
-					ts: this.ts,
+			await ask(
+				"tool",
+				{
+					tool: {
+						tool: "attempt_completion",
+						result: result,
+						command: command,
+						approvalState: "approved",
+						ts: this.ts,
+					},
 				},
-			})
+				this.ts
+			)
 
 			const executeCommandParams = {
 				...this.params,
