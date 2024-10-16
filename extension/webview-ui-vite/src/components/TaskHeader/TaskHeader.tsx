@@ -12,6 +12,7 @@ import BugReportDialog from "./bug-report-dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ChevronDown, ChevronUp } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
+import { motion, AnimatePresence } from "framer-motion"
 
 interface TaskHeaderProps {
 	task: ClaudeMessage
@@ -28,7 +29,7 @@ interface TaskHeaderProps {
 	apiProvider?: ApiProvider
 }
 
-const TaskHeader: React.FC<TaskHeaderProps> = ({
+export default function TaskHeader({
 	task,
 	tokensIn,
 	tokensOut,
@@ -39,7 +40,7 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 	onClose,
 	koduCredits,
 	vscodeUriScheme,
-}) => {
+}: TaskHeaderProps) {
 	const { currentTaskId, currentTask } = useExtensionState()
 	const [isOpen, setIsOpen] = React.useState(true)
 
@@ -78,26 +79,43 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 							{isOpen ? "Collapse" : "Expand"}
 						</TooltipContent>
 					</Tooltip>
-					<div className="basis-full flex ">
-						<TaskText text={currentTask?.name ?? currentTask?.task ?? task.text} />
+					<div className="basis-full flex">
+						<AnimatePresence mode="wait">
+							<motion.div
+								key={currentTask?.name ?? currentTask?.task ?? task.text}
+								initial={{ opacity: 0.6 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0.6 }}
+								transition={{ duration: 0.2 }}>
+								<TaskText text={currentTask?.name ?? currentTask?.task ?? task.text} />
+							</motion.div>
+						</AnimatePresence>
 					</div>
 				</div>
 
 				<CollapsibleContent className="flex flex-col pt-1 gap-2">
-					{task.images && task.images.length > 0 && <Thumbnails images={task.images} />}
-					<TokenInfo
-						tokensIn={tokensIn}
-						tokensOut={tokensOut}
-						doesModelSupportPromptCache={doesModelSupportPromptCache}
-						cacheWrites={cacheWrites}
-						cacheReads={cacheReads}
-						totalCost={totalCost}
-					/>
+					<AnimatePresence mode="wait">
+						<motion.div
+							className="flex flex-col pt-1 gap-2"
+							key={currentTask?.name ?? currentTask?.task ?? task.text}
+							initial={{ opacity: 0.6 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0.6 }}
+							transition={{ duration: 0.5 }}>
+							{task.images && task.images.length > 0 && <Thumbnails images={task.images} />}
+							<TokenInfo
+								tokensIn={tokensIn}
+								tokensOut={tokensOut}
+								doesModelSupportPromptCache={doesModelSupportPromptCache}
+								cacheWrites={cacheWrites}
+								cacheReads={cacheReads}
+								totalCost={totalCost}
+							/>
+						</motion.div>
+					</AnimatePresence>
 					<CreditsInfo koduCredits={koduCredits} vscodeUriScheme={vscodeUriScheme} />
 				</CollapsibleContent>
 			</Collapsible>
 		</section>
 	)
 }
-
-export default TaskHeader

@@ -153,7 +153,7 @@ const ToolRenderer: React.FC<ToolRendererProps> = ({
 				</>
 			)
 		default:
-			return <ToolContentBlock tool={{ ...tool, approvalState: message.status, ts: message.ts }} />
+			return <ToolContentBlock tool={{ ...tool }} />
 	}
 }
 

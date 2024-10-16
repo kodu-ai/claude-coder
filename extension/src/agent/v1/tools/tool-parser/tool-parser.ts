@@ -18,7 +18,6 @@ interface Context {
 	params: Record<string, string>
 	currentParam: string
 	content: string
-	depth: number
 }
 
 interface ToolParserConstructor {
@@ -30,10 +29,11 @@ interface ToolParserConstructor {
 
 export class ToolParser {
 	private toolSchemas: ToolSchema[]
-	private stack: Context[] = []
+	private currentContext: Context | null = null
 	private buffer: string = ""
 	private isInTag: boolean = false
-	private nonXmlBuffer: string = ""
+	private isInTool: boolean = false
+	private nonToolBuffer: string = ""
 	public onToolUpdate?: ToolUpdateCallback
 	public onToolEnd?: ToolEndCallback
 	public onToolError?: ToolErrorCallback
@@ -51,15 +51,42 @@ export class ToolParser {
 	}
 
 	appendText(text: string): string {
-		this.nonXmlBuffer = ""
 		for (const char of text) {
 			this.processChar(char)
 		}
-		return this.nonXmlBuffer
+		const output = this.nonToolBuffer
+		this.nonToolBuffer = ""
+		return output
 	}
 
 	private processChar(char: string): void {
-		if (char === "<" && !this.isInTag) {
+		if (this.isInTool) {
+			this.processToolChar(char)
+		} else {
+			this.processNonToolChar(char)
+		}
+	}
+
+	private processNonToolChar(char: string): void {
+		if (char === "<") {
+			this.isInTag = true
+			this.buffer = char
+		} else if (char === ">" && this.isInTag) {
+			this.buffer += char
+			this.checkForToolStart(this.buffer)
+			this.isInTag = false
+			this.buffer = ""
+		} else {
+			if (this.isInTag) {
+				this.buffer += char
+			} else {
+				this.nonToolBuffer += char
+			}
+		}
+	}
+
+	private processToolChar(char: string): void {
+		if (char === "<") {
 			this.handleBufferContent()
 			this.isInTag = true
 			this.buffer = char
@@ -76,23 +103,38 @@ export class ToolParser {
 		}
 	}
 
+	private checkForToolStart(tag: string): void {
+		const tagName = tag.slice(1, -1).split(" ")[0]
+		if (this.toolSchemas.some((schema) => schema.name === tagName)) {
+			this.isInTool = true
+			const id = nanoid()
+			const ts = Date.now()
+			this.currentContext = {
+				id,
+				ts,
+				toolName: tagName,
+				params: {},
+				currentParam: "",
+				content: "",
+			}
+			this.onToolUpdate?.(id, tagName, {}, ts)
+		} else {
+			this.nonToolBuffer += tag
+		}
+	}
+
 	private handleBufferContent(): void {
-		if (this.buffer) {
-			if (this.stack.length > 0) {
-				const currentContext = this.stack[this.stack.length - 1]
-				if (currentContext.currentParam) {
-					currentContext.params[currentContext.currentParam] += this.buffer
-					this.onToolUpdate?.(
-						currentContext.id,
-						currentContext.toolName,
-						{ ...currentContext.params },
-						currentContext.ts
-					)
-				} else {
-					currentContext.content += this.buffer
-				}
+		if (this.buffer && this.currentContext) {
+			if (this.currentContext.currentParam) {
+				this.currentContext.params[this.currentContext.currentParam] += this.buffer
+				this.onToolUpdate?.(
+					this.currentContext.id,
+					this.currentContext.toolName,
+					{ ...this.currentContext.params },
+					this.currentContext.ts
+				)
 			} else {
-				this.nonXmlBuffer += this.buffer
+				this.currentContext.content += this.buffer
 			}
 			this.buffer = ""
 		}
@@ -107,57 +149,31 @@ export class ToolParser {
 	}
 
 	private handleOpeningTag(tag: string): void {
-		const tagName = tag.slice(1, -1).split(" ")[0]
-		if (this.toolSchemas.some((schema) => schema.name === tagName)) {
-			const id = nanoid()
-			const ts = Date.now()
-			this.stack.push({
-				id,
-				ts,
-				toolName: tagName,
-				params: {},
-				currentParam: "",
-				content: "",
-				depth: 0,
-			})
-			this.onToolUpdate?.(id, tagName, {}, ts)
-		} else if (this.stack.length > 0) {
-			const currentContext = this.stack[this.stack.length - 1]
-			if (currentContext.currentParam) {
+		if (this.currentContext) {
+			const tagName = tag.slice(1, -1).split(" ")[0]
+			if (this.currentContext.currentParam) {
 				// We're inside a parameter, treat this as content
-				currentContext.params[currentContext.currentParam] += tag
-			} else if (!currentContext.currentParam) {
-				currentContext.currentParam = tagName
-				currentContext.params[tagName] = ""
-				currentContext.depth = 1
+				this.currentContext.params[this.currentContext.currentParam] += tag
 			} else {
-				// Nested tag, increase depth
-				currentContext.depth++
-				currentContext.params[currentContext.currentParam] += tag
+				this.currentContext.currentParam = tagName
+				this.currentContext.params[tagName] = ""
 			}
 		}
 	}
 
 	private handleClosingTag(tag: string): void {
-		const tagName = tag.slice(2, -1)
-		if (this.stack.length > 0) {
-			const currentContext = this.stack[this.stack.length - 1]
-			if (tagName === currentContext.toolName) {
-				this.finalizeTool(currentContext)
-				this.stack.pop()
-			} else if (tagName === currentContext.currentParam) {
-				if (currentContext.depth > 1) {
-					// Nested closing tag, decrease depth
-					currentContext.depth--
-					currentContext.params[currentContext.currentParam] += tag
-				} else {
-					// End of parameter
-					currentContext.currentParam = ""
-					currentContext.depth = 0
-				}
-			} else if (currentContext.currentParam) {
+		if (this.currentContext) {
+			const tagName = tag.slice(2, -1)
+			if (tagName === this.currentContext.toolName) {
+				this.finalizeTool(this.currentContext)
+				this.isInTool = false
+				this.currentContext = null
+			} else if (tagName === this.currentContext.currentParam) {
+				// End of parameter
+				this.currentContext.currentParam = ""
+			} else if (this.currentContext.currentParam) {
 				// Closing tag inside parameter content
-				currentContext.params[currentContext.currentParam] += tag
+				this.currentContext.params[this.currentContext.currentParam] += tag
 			}
 		}
 	}
@@ -182,8 +198,8 @@ export class ToolParser {
 	}
 
 	endParsing(): void {
-		if (this.stack.length > 0) {
-			this.onToolClosingError?.(new Error("Unclosed tags at end of input"))
+		if (this.currentContext) {
+			this.onToolClosingError?.(new Error("Unclosed tool tag at end of input"))
 		}
 	}
 }

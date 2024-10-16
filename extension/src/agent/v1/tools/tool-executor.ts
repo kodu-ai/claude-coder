@@ -1,7 +1,7 @@
 import treeKill from "tree-kill"
-import { ToolName, ToolResponse } from "./types"
-import { KoduDev } from "."
-import { AgentToolOptions, AgentToolParams } from "./tools/types"
+import { ToolName, ToolResponse } from "../types"
+import { KoduDev } from ".."
+import { AgentToolOptions, AgentToolParams } from "./types"
 import {
 	SearchFilesTool,
 	ListFilesTool,
@@ -14,12 +14,12 @@ import {
 	UrlScreenshotTool,
 	AskConsultantTool,
 	UpsertTaskHistoryTool,
-} from "./tools"
-import { WebSearchTool } from "./tools/runners/web-search-tool"
-import { TerminalManager } from "../../integrations/terminal/terminal-manager"
-import { BaseAgentTool } from "./tools/base-agent.tool"
-import ToolParser from "./tools/tool-parser/tool-parser"
-import { tools } from "./tools/schema"
+} from "."
+import { WebSearchTool } from "./runners/web-search-tool"
+import { TerminalManager } from "../../../integrations/terminal/terminal-manager"
+import { BaseAgentTool } from "./base-agent.tool"
+import ToolParser from "./tool-parser/tool-parser"
+import { tools } from "./schema"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined

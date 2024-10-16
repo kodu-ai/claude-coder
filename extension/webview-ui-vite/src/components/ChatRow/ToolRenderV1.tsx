@@ -45,22 +45,23 @@ import { ToolStatus } from "../../../../src/shared/ExtensionMessage"
 type ApprovalState = ToolStatus
 type ToolAddons = {
 	approvalState?: ApprovalState
+	ts: number
 	onApprove?: () => void
 	onReject?: () => void
 }
-interface ToolBlockProps {
+type ToolBlockProps = {
 	icon: React.FC<React.SVGProps<SVGSVGElement>>
 	title: string
 	children: React.ReactNode
+	tool: ChatTool["tool"]
 	variant: "default" | "primary" | "info" | "accent" | "info" | "success" | "info"
-	approvalState?: ApprovalState
-	onApprove?: () => void
-	onReject?: () => void
-}
+} & ToolAddons
 
 const ToolBlock: React.FC<ToolBlockProps> = ({
 	icon: Icon,
 	title,
+	ts,
+	tool,
 	children,
 	variant,
 	approvalState,
@@ -74,7 +75,6 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 		error: <AlertCircle className="w-4 h-4 text-destructive" />,
 		loading: <LoaderPinwheel className="w-4 h-4 text-info animate-spin" />,
 	}
-
 	const avoidRenderingApprovalTools: ChatTool["tool"][] = ["ask_followup_question", "upsert_memory"]
 
 	if (!approvalState) {
@@ -100,17 +100,16 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 				{stateIcons[approvalState]}
 			</div>
 			<div className="text-sm">{children}</div>
-			{approvalState === "pending" &&
-				!avoidRenderingApprovalTools.some((tool) => title.toLowerCase().includes(tool)) && (
-					<div className="flex justify-end space-x-1 mt-2">
-						<Button variant="outline" size="sm" onClick={onReject}>
-							Deny
-						</Button>
-						<Button variant="outline" size="sm" onClick={onApprove}>
-							Accept
-						</Button>
-					</div>
-				)}
+			{approvalState === "pending" && !avoidRenderingApprovalTools.includes(tool) && (
+				<div className="flex justify-end space-x-1 mt-2">
+					<Button variant="outline" size="sm" onClick={onReject}>
+						Deny
+					</Button>
+					<Button variant="outline" size="sm" onClick={onApprove}>
+						Accept
+					</Button>
+				</div>
+			)}
 		</div>
 	)
 }
@@ -120,12 +119,16 @@ export const ExecuteCommandBlock: React.FC<ExecuteCommandTool & ToolAddons> = ({
 	output,
 	approvalState,
 	onApprove,
+	tool,
+	ts,
 	onReject,
 }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
 
 	return (
 		<ToolBlock
+			ts={ts}
+			tool={tool}
 			icon={Terminal}
 			title="Execute Command"
 			variant="primary"
@@ -161,8 +164,12 @@ export const ListFilesBlock: React.FC<ListFilesTool & ToolAddons> = ({
 	approvalState,
 	onApprove,
 	onReject,
+	tool,
+	ts,
 }) => (
 	<ToolBlock
+		ts={ts}
+		tool={tool}
 		icon={FolderTree}
 		title="List Files"
 		variant="info"
@@ -183,8 +190,12 @@ export const ListCodeDefinitionNamesBlock: React.FC<ListCodeDefinitionNamesTool 
 	approvalState,
 	onApprove,
 	onReject,
+	tool,
+	ts,
 }) => (
 	<ToolBlock
+		ts={ts}
+		tool={tool}
 		icon={Code}
 		title="List Code Definitions"
 		variant="accent"
@@ -204,8 +215,12 @@ export const SearchFilesBlock: React.FC<SearchFilesTool & ToolAddons> = ({
 	approvalState,
 	onApprove,
 	onReject,
+	tool,
+	ts,
 }) => (
 	<ToolBlock
+		ts={ts}
+		tool={tool}
 		icon={Search}
 		title="Search Files"
 		variant="info"
@@ -226,19 +241,48 @@ export const SearchFilesBlock: React.FC<SearchFilesTool & ToolAddons> = ({
 	</ToolBlock>
 )
 
-export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({ path, approvalState, onApprove, onReject }) => (
-	<ToolBlock
-		icon={FileText}
-		title="Read File"
-		variant="primary"
-		approvalState={approvalState}
-		onApprove={onApprove}
-		onReject={onReject}>
-		<p className="text-xs">
-			<span className="font-semibold">File:</span> {path}
-		</p>
-	</ToolBlock>
-)
+export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
+	path,
+	approvalState,
+	onApprove,
+	content,
+	onReject,
+	tool,
+	ts,
+}) => {
+	const [isOpen, setIsOpen] = React.useState(false)
+
+	return (
+		<ToolBlock
+			ts={ts}
+			tool={tool}
+			icon={FileText}
+			title="Read File"
+			variant="primary"
+			approvalState={approvalState}
+			onApprove={onApprove}
+			onReject={onReject}>
+			<p className="text-xs">
+				<span className="font-semibold">File:</span> {path}
+			</p>
+			{content && content.length > 0 && (
+				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
+					<CollapsibleTrigger asChild>
+						<Button variant="ghost" size="sm" className="flex items-center w-full justify-between">
+							<span>View Output</span>
+							{isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+						</Button>
+					</CollapsibleTrigger>
+					<CollapsibleContent className="mt-2">
+						<div className="bg-secondary/20 p-3 rounded-md text-sm">
+							<pre className="whitespace-pre-wrap">{content}</pre>
+						</div>
+					</CollapsibleContent>
+				</Collapsible>
+			)}
+		</ToolBlock>
+	)
+}
 
 export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 	path,
@@ -246,8 +290,12 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 	approvalState,
 	onApprove,
 	onReject,
+	tool,
+	ts,
 }) => (
 	<ToolBlock
+		ts={ts}
+		tool={tool}
 		icon={Edit}
 		title="Write to File"
 		variant="info"
@@ -266,8 +314,12 @@ export const AskFollowupQuestionBlock: React.FC<AskFollowupQuestionTool & ToolAd
 	approvalState,
 	onApprove,
 	onReject,
+	tool,
+	ts,
 }) => (
 	<ToolBlock
+		ts={ts}
+		tool={tool}
 		icon={HelpCircle}
 		title="Follow-up Question"
 		variant="info"
@@ -284,8 +336,12 @@ export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons
 	approvalState,
 	onApprove,
 	onReject,
+	tool,
+	ts,
 }) => (
 	<ToolBlock
+		ts={ts}
+		tool={tool}
 		icon={CheckCircle}
 		title="Task Completion"
 		variant="success"
@@ -307,8 +363,12 @@ export const WebSearchBlock: React.FC<WebSearchTool & ToolAddons> = ({
 	approvalState,
 	onApprove,
 	onReject,
+	tool,
+	ts,
 }) => (
 	<ToolBlock
+		ts={ts}
+		tool={tool}
 		icon={Globe}
 		title="Web Search"
 		variant="info"
@@ -331,8 +391,12 @@ export const UrlScreenshotBlock: React.FC<UrlScreenshotTool & ToolAddons> = ({
 	approvalState,
 	onApprove,
 	onReject,
+	tool,
+	ts,
 }) => (
 	<ToolBlock
+		ts={ts}
+		tool={tool}
 		icon={Image}
 		title="URL Screenshot"
 		variant="accent"
@@ -350,8 +414,12 @@ export const AskConsultantBlock: React.FC<AskConsultantTool & ToolAddons> = ({
 	approvalState,
 	onApprove,
 	onReject,
+	tool,
+	ts,
 }) => (
 	<ToolBlock
+		ts={ts}
+		tool={tool}
 		icon={MessageCircle}
 		title="Ask Consultant"
 		variant="primary"
@@ -369,8 +437,12 @@ export const UpsertMemoryBlock: React.FC<UpsertMemoryTool & ToolAddons> = ({
 	approvalState,
 	onApprove,
 	onReject,
+	tool,
+	ts,
 }) => (
 	<ToolBlock
+		ts={ts}
+		tool={tool}
 		icon={BookOpen}
 		title="Update Task History"
 		variant="info"
@@ -409,7 +481,6 @@ export const ToolContentBlock: React.FC<{
 			type: "toolFeedback",
 		})
 	}
-	console.log(tool)
 	switch (tool.tool) {
 		case "execute_command":
 			return <ExecuteCommandBlock {...tool} />
@@ -424,7 +495,7 @@ export const ToolContentBlock: React.FC<{
 		case "write_to_file":
 			return <WriteToFileBlock {...tool} />
 		case "ask_followup_question":
-			return <AskFollowupQuestionBlock {...tool} />
+			return <AskFollowupQuestionBlock {...tool} approvalState="pending" />
 		case "attempt_completion":
 			return <AttemptCompletionBlock {...tool} />
 		case "web_search":

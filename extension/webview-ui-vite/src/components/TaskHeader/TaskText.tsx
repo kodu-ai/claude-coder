@@ -93,10 +93,14 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 						wordBreak: "break-word",
 						overflowWrap: "anywhere",
 					}}>
-					{textLines.slice(0, -2).join("\n").trim()}
+					{isExpanded ? textLines.slice(0, -1).join("\n").trim() : textLines.join("\n").trim()}
 					{/* last line give it a minor padding-right of 40px */}
-					<br />
-					<span className="pr-10">{textLines[textLines.length - 1]}</span>
+					{textLines.length > 2 && (
+						<>
+							<br />
+							<span className="pr-10">{textLines[textLines.length - 1]}</span>
+						</>
+					)}
 				</div>
 				<AttachmentsList files={filesCut} urls={urlsCut} />
 

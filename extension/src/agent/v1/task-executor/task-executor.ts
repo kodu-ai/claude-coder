@@ -7,7 +7,7 @@ import { getApiMetrics } from "../../../shared/getApiMetrics"
 import { KoduError, koduSSEResponse } from "../../../shared/kodu"
 import { amplitudeTracker } from "../../../utils/amplitude"
 import { StateManager } from "../state-manager"
-import { ToolExecutor } from "../tool-executor"
+import { ToolExecutor } from "../tools/tool-executor"
 import { ChunkProcessor } from "../chunk-proccess"
 import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
 import { GitHandler } from "../handlers/git-handler"
@@ -112,14 +112,13 @@ export class TaskExecutor extends TaskExecutorUtils {
 			})
 			await this.stateManager.removeEverythingAfterMessage(lastApiRequest.ts)
 		}
-		await this.ask("tool", {
-			tool: {
-				tool: "ask_followup_question",
-				question: "The current request has been cancelled. Would you like to ask a new question ?",
-				ts: Date.now(),
-			},
-			// question: "The current request has been cancelled. Would you like to ask a new question ?",
-		})
+		// await this.ask("tool", {
+		// 	tool: {
+		// 		tool: "ask_followup_question",
+		// 		question: "The current request has been cancelled. Would you like to ask a new question ?",
+		// 		ts: Date.now(),
+		// 	},
+		// })
 		// Update the provider state
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
@@ -354,7 +353,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				})
 				if (this.currentUserContent) {
 					this.consecutiveErrorCount = 0
-					this.state = TaskState.WAITING_FOR_USER
+					this.state = TaskState.WAITING_FOR_API
 					await this.makeClaudeRequest()
 				}
 			} else {
@@ -370,7 +369,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				await this.makeClaudeRequest()
 			}
 		} else {
-			this.state = TaskState.WAITING_FOR_USER
+			this.state = TaskState.WAITING_FOR_API
 			this.currentUserContent = [
 				{
 					type: "text",

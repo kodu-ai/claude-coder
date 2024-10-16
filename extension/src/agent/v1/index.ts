@@ -4,7 +4,7 @@ import { ClaudeAsk, isV1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { ToolName } from "../../shared/Tool"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { ApiManager } from "./api-handler"
-import { ToolExecutor } from "./tool-executor"
+import { ToolExecutor } from "./tools/tool-executor"
 import { KoduDevOptions, ToolResponse, UserContent } from "./types"
 import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails, formatFilesList } from "./utils"
 import { StateManager } from "./state-manager"
@@ -26,13 +26,13 @@ import { DiffViewProvider } from "../../integrations/editor/diff-view-provider"
 import { TaskExecutor } from "./task-executor/task-executor"
 import { AskResponse, TaskState } from "./task-executor/utils"
 import { ChatTool } from "../../shared/new-tools"
+import { Chat } from "openai/resources/index.mjs"
 
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
 	private apiManager: ApiManager
 	public toolExecutor: ToolExecutor
-	public diffViewProvider: DiffViewProvider
 	public taskExecutor: TaskExecutor
 	/**
 	 * If the last api message caused a file edit
@@ -48,7 +48,6 @@ export class KoduDev {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
 		this.stateManager = new StateManager(options)
 		this.providerRef = new WeakRef(provider)
-		this.diffViewProvider = new DiffViewProvider(getCwd(), this)
 		this.apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
 		this.toolExecutor = new ToolExecutor({
 			cwd: getCwd(),
@@ -199,6 +198,12 @@ export class KoduDev {
 						parsedTool.approvalState === undefined ||
 						parsedTool.approvalState === "loading"
 					) {
+						const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
+						if (toolsToSkip.includes(parsedTool.tool)) {
+							parsedTool.approvalState = "pending"
+							m.text = JSON.stringify(parsedTool)
+							return
+						}
 						parsedTool.approvalState = "rejected"
 						parsedTool.error = "Task was interrupted before this tool call could be completed."
 						m.text = JSON.stringify(parsedTool)

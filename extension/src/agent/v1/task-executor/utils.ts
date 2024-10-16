@@ -109,14 +109,32 @@ export abstract class TaskExecutorUtils {
 			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion: ${question}`)
 			this.updateWebview()
 
-			const mustRequestApproval: ClaudeAsk[] = [
+			const mustRequestApprovalType: ClaudeAsk[] = [
 				"completion_result",
 				"resume_completed_task",
 				"resume_task",
 				"request_limit_reached",
 				"followup",
 			]
-			if (this.stateManager.alwaysAllowWriteOnly && !mustRequestApproval.includes(type)) {
+			const mustRequestApprovalTool: ChatTool["tool"][] = ["ask_followup_question", "attempt_completion"]
+			const readCommands: ChatTool["tool"][] = [
+				"read_file",
+				"list_files",
+				"search_files",
+				"list_code_definition_names",
+				"web_search",
+				"url_screenshot",
+			]
+			if (this.stateManager.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool["tool"])) {
+				resolve({ response: "yesButtonTapped", text: "", images: [] })
+				return
+			}
+
+			if (
+				this.stateManager.alwaysAllowWriteOnly &&
+				!mustRequestApprovalType.includes(type) &&
+				!mustRequestApprovalTool.includes(tool?.tool as ChatTool["tool"])
+			) {
 				resolve({ response: "yesButtonTapped", text: "", images: [] })
 				return
 			}

@@ -1,5 +1,7 @@
 import { z } from "zod"
+import { nanoid } from "nanoid"
 import ToolParser from "./tool-parser"
+import { jsWriteToFileTool } from "./test-utils"
 
 describe("ToolParser", () => {
 	const writeFileSchema = z.object({
@@ -40,15 +42,21 @@ describe("ToolParser", () => {
 				onToolClosingError: onToolClosingErrorMock,
 			}
 		)
+		jest.useFakeTimers()
+		jest.setSystemTime(new Date("2023-01-01"))
+	})
+
+	afterEach(() => {
+		jest.useRealTimers()
 	})
 
 	const objectToXml = (obj: Record<string, any>): string => {
 		const { toolName, ...params } = obj
-		let xml = `<tool name="${toolName}">`
+		let xml = `<${toolName}>`
 		for (const [key, value] of Object.entries(params)) {
 			xml += `<${key}>${value}</${key}>`
 		}
-		xml += "</tool>"
+		xml += `</${toolName}>`
 		return xml
 	}
 
@@ -89,28 +97,37 @@ describe("ToolParser", () => {
 		let callIndex = 0
 
 		// First, the 'path' parameter update
-		expect(onToolUpdateMock.mock.calls[callIndex][0]).toBe("writeFile")
-		expect(onToolUpdateMock.mock.calls[callIndex][1]).toEqual({
+		expect(onToolUpdateMock.mock.calls[callIndex][0]).toBe("mocked-nanoid")
+		expect(onToolUpdateMock.mock.calls[callIndex][1]).toBe("writeFile")
+		expect(onToolUpdateMock.mock.calls[callIndex][2]).toEqual({
 			path: toolObj.path,
 		})
+		expect(onToolUpdateMock.mock.calls[callIndex][3]).toBe(new Date("2023-01-01").getTime())
 		callIndex++
 
 		// Then, updates for each character in 'value'
 		for (let i = 0; i < value.length; i++) {
 			accumulatedValue += value[i]
-			expect(onToolUpdateMock.mock.calls[callIndex][0]).toBe("writeFile")
-			expect(onToolUpdateMock.mock.calls[callIndex][1]).toEqual({
+			expect(onToolUpdateMock.mock.calls[callIndex][0]).toBe("mocked-nanoid")
+			expect(onToolUpdateMock.mock.calls[callIndex][1]).toBe("writeFile")
+			expect(onToolUpdateMock.mock.calls[callIndex][2]).toEqual({
 				path: toolObj.path,
 				value: accumulatedValue,
 			})
+			expect(onToolUpdateMock.mock.calls[callIndex][3]).toBe(new Date("2023-01-01").getTime())
 			callIndex++
 		}
 
 		expect(onToolEndMock).toHaveBeenCalledTimes(1)
-		expect(onToolEndMock).toHaveBeenCalledWith("writeFile", {
-			path: toolObj.path,
-			value: toolObj.value,
-		})
+		expect(onToolEndMock).toHaveBeenCalledWith(
+			"mocked-nanoid",
+			"writeFile",
+			{
+				path: toolObj.path,
+				value: toolObj.value,
+			},
+			new Date("2023-01-01").getTime()
+		)
 		expect(onToolErrorMock).not.toHaveBeenCalled()
 		expect(onToolClosingErrorMock).not.toHaveBeenCalled()
 	})
@@ -128,14 +145,24 @@ describe("ToolParser", () => {
 		expect(onToolUpdateMock).toHaveBeenCalledTimes(expectedUpdates)
 
 		// Verify that 'path' parameter update is correct
-		expect(onToolUpdateMock).toHaveBeenCalledWith("readFile", {
-			path: toolObj.path,
-		})
+		expect(onToolUpdateMock).toHaveBeenCalledWith(
+			"mocked-nanoid",
+			"readFile",
+			{
+				path: toolObj.path,
+			},
+			new Date("2023-01-01").getTime()
+		)
 
 		expect(onToolEndMock).toHaveBeenCalledTimes(1)
-		expect(onToolEndMock).toHaveBeenCalledWith("readFile", {
-			path: toolObj.path,
-		})
+		expect(onToolEndMock).toHaveBeenCalledWith(
+			"mocked-nanoid",
+			"readFile",
+			{
+				path: toolObj.path,
+			},
+			new Date("2023-01-01").getTime()
+		)
 		expect(onToolErrorMock).not.toHaveBeenCalled()
 		expect(onToolClosingErrorMock).not.toHaveBeenCalled()
 	})
@@ -203,7 +230,7 @@ describe("ToolParser", () => {
 			value: "Hello, World!",
 		}
 		const toolXml = objectToXml(toolObj)
-		const incompleteXml = toolXml.slice(0, toolXml.indexOf("</tool>") - 1)
+		const incompleteXml = toolXml.slice(0, toolXml.indexOf("</writeFile>") - 1)
 
 		simulateStream(incompleteXml)
 		toolParser.endParsing()
@@ -237,26 +264,31 @@ describe("ToolParser", () => {
 			{ toolName: "readFile", path: "/tmp/incomplete.txt" },
 		]
 		const toolXml = toolObjs.map(objectToXml).join("\n")
-		const incompleteXml = toolXml.slice(0, toolXml.lastIndexOf("</tool>") - 1)
+		const incompleteXml = toolXml.slice(0, toolXml.lastIndexOf("</readFile>") - 1)
 
 		simulateStream(incompleteXml)
 		toolParser.endParsing()
 
 		// Updates for the first tool should be complete
 		const expectedUpdatesFirstTool = countExpectedUpdates(toolObjs[0])
-		expect(onToolUpdateMock).toHaveBeenCalledTimes(expectedUpdatesFirstTool)
+		expect(onToolUpdateMock).toHaveBeenCalledTimes(expectedUpdatesFirstTool + 1) // +1 for the incomplete readFile
 		expect(onToolEndMock).toHaveBeenCalledTimes(1)
-		expect(onToolEndMock).toHaveBeenCalledWith("writeFile", {
-			path: "/tmp/complete.txt",
-			value: "Complete content",
-		})
+		expect(onToolEndMock).toHaveBeenCalledWith(
+			"mocked-nanoid",
+			"writeFile",
+			{
+				path: "/tmp/complete.txt",
+				value: "Complete content",
+			},
+			new Date("2023-01-01").getTime()
+		)
 		expect(onToolErrorMock).not.toHaveBeenCalled()
 		expect(onToolClosingErrorMock).toHaveBeenCalledTimes(1)
 		expect(onToolClosingErrorMock).toHaveBeenCalledWith(expect.any(Error))
 	})
 
 	test("should call onToolClosingError when interrupted in the middle of wrong tool tags", () => {
-		const toolXml = '<tool name="unknownTool"><param>value</param>' // Missing closing </tool>
+		const toolXml = "<invalidTool><param>value</param>" // Missing closing </invalidTool>
 		simulateStream(toolXml)
 		toolParser.endParsing()
 
@@ -265,5 +297,21 @@ describe("ToolParser", () => {
 		expect(onToolErrorMock).not.toHaveBeenCalled()
 		expect(onToolClosingErrorMock).toHaveBeenCalledTimes(1)
 		expect(onToolClosingErrorMock).toHaveBeenCalledWith(expect.any(Error))
+	})
+
+	test("should handle complicated write_to_file", () => {
+		const toolObj = jsWriteToFileTool
+		const toolXml = objectToXml(toolObj)
+
+		simulateStream(toolXml)
+
+		// const expectedUpdates = countExpectedUpdates(toolObj)
+		// expect(onToolUpdateMock).toHaveBeenCalledTimes(expectedUpdates)
+
+		// Verify final update
+		const lastCall = onToolUpdateMock.mock.calls[onToolUpdateMock.mock.calls.length - 1]
+		expect(lastCall[1]).toBe("writeFile")
+		// expect(lastCall[2]).toEqual(toolParser)
+		// expect(lastCall[3]).toBe(new Date("2023-01-01").getTime())
 	})
 })

@@ -5,7 +5,7 @@ import { ToolResponse } from "../../types"
 import { formatToolResponse, getCwd, getReadablePath } from "../../utils"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
-import { createPrettyPatch } from "../../../../integrations/editor/diff-view-provider"
+import { createPrettyPatch, DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
 import { fileExistsAtPath } from "../../../../utils/path-helpers"
 import delay from "delay"
 
@@ -14,6 +14,8 @@ export class WriteFileTool extends BaseAgentTool {
 	private readonly TIMEOUT = 180_000 // 3 min timeout
 	private fileExists: boolean | undefined
 	private executionPromise: Promise<ToolResponse> | null = null
+	private diffViewProvider: DiffViewProvider
+
 	private resolveExecution: ((response: ToolResponse) => void) | null = null
 	private isProcessingFinalContent: boolean = false
 	private askPromise: Promise<{ response: string; text?: string; images?: string[] }> | null = null
@@ -21,6 +23,7 @@ export class WriteFileTool extends BaseAgentTool {
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
+		this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev)
 	}
 
 	override async execute(): Promise<ToolResponse> {
@@ -71,7 +74,7 @@ export class WriteFileTool extends BaseAgentTool {
 			const { response, text, images } = await this.askPromise
 
 			if (response !== "yesButtonTapped") {
-				await this.koduDev.diffViewProvider.revertChanges()
+				await this.diffViewProvider.revertChanges()
 				if (response === "noButtonTapped") {
 					await this.resolveExecutionWithResult(formatToolResponse("Write operation cancelled by user."))
 					return
@@ -101,20 +104,20 @@ export class WriteFileTool extends BaseAgentTool {
 		console.log("handlePartialContent started")
 		if (this.fileExists === undefined) {
 			const result = await this.checkFileExists(relPath)
-			this.koduDev.diffViewProvider.editType = result ? "modify" : "create"
+			this.diffViewProvider.editType = result ? "modify" : "create"
 			this.fileExists = result
 		}
 		newContent = this.preprocessContent(newContent)
 
-		if (!this.koduDev.diffViewProvider.isEditing) {
+		if (!this.diffViewProvider.isEditing) {
 			try {
-				await this.koduDev.diffViewProvider.open(relPath)
+				await this.diffViewProvider.open(relPath)
 			} catch (e) {
 				console.error("Error opening file: ", e)
 			}
 		}
 
-		await this.koduDev.diffViewProvider.update(newContent, false)
+		await this.diffViewProvider.update(newContent, false)
 		console.log("handlePartialContent completed")
 	}
 
@@ -123,10 +126,10 @@ export class WriteFileTool extends BaseAgentTool {
 		const fileExists = await this.checkFileExists(relPath)
 		newContent = this.preprocessContent(newContent)
 
-		await this.koduDev.diffViewProvider.update(newContent, true)
+		await this.diffViewProvider.update(newContent, true)
 		await delay(300) // Wait for diff view to update
 
-		const { newProblemsMessage, userEdits } = await this.koduDev.diffViewProvider.saveChanges()
+		const { newProblemsMessage, userEdits } = await this.diffViewProvider.saveChanges()
 
 		if (userEdits) {
 			await this.params.say(
@@ -146,8 +149,8 @@ export class WriteFileTool extends BaseAgentTool {
 	private async resolveExecutionWithResult(result: ToolResponse) {
 		console.log("resolveExecutionWithResult called")
 		if (this.resolveExecution) {
-			this.koduDev.diffViewProvider.isEditing = false
-			await this.koduDev.diffViewProvider.reset()
+			this.diffViewProvider.isEditing = false
+			await this.diffViewProvider.reset()
 
 			this.resolveExecution(result)
 			this.executionPromise = null
@@ -161,7 +164,7 @@ export class WriteFileTool extends BaseAgentTool {
 	private async checkFileExists(relPath: string): Promise<boolean> {
 		const absolutePath = path.resolve(getCwd(), relPath)
 		const fileExists = await fileExistsAtPath(absolutePath)
-		this.koduDev.diffViewProvider.editType = fileExists ? "modify" : "create"
+		this.diffViewProvider.editType = fileExists ? "modify" : "create"
 		return fileExists
 	}
 
