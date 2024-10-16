@@ -3,6 +3,7 @@
 import type { GlobalState } from "../providers/claude-coder/state/GlobalStateManager"
 import { ApiConfiguration } from "./api"
 import { HistoryItem } from "./HistoryItem"
+import { ChatTool } from "./new-tools"
 interface FileTreeItem {
 	id: string
 	depth: number
@@ -111,6 +112,11 @@ type V0ClaudeMessage = {
 	autoApproved?: boolean
 }
 
+/**
+ * The status of the tool
+ */
+export type ToolStatus = "pending" | "rejected" | "approved" | "error" | "loading" | undefined
+
 export type V1ClaudeMessage = {
 	/**
 	 * the version of the message format
@@ -125,6 +131,7 @@ export type V1ClaudeMessage = {
 	isExecutingCommand?: boolean
 	errorText?: string
 	retryCount?: number
+	status?: ToolStatus
 	isDone?: boolean
 	modelId?: string
 	apiMetrics?: {
@@ -149,10 +156,10 @@ export type ClaudeAsk =
 	| "command"
 	| "command_output"
 	| "completion_result"
-	| "tool"
 	| "api_req_failed"
 	| "resume_task"
 	| "resume_completed_task"
+	| "tool"
 
 export type ClaudeSay =
 	| "task"
@@ -190,9 +197,7 @@ export type AskConsultantTool = {
 }
 
 export type ClaudeSayTool =
-	| WebSearchTool
-	| UrlScreenshotTool
-	| AskConsultantTool
+	| ChatTool
 	| {
 			tool:
 				| "editedExistingFile"

@@ -1,7 +1,7 @@
-import { ToolResponse } from "../types"
-import { formatToolResponse } from "../utils"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { BaseAgentTool } from "./base-agent.tool"
+import { ToolResponse } from "../../types"
+import { formatToolResponse } from "../../utils"
+import { AgentToolOptions, AgentToolParams } from "../types"
+import { BaseAgentTool } from "../base-agent.tool"
 import { ExecuteCommandTool } from "./execute-command.tool"
 
 export class AttemptCompletionTool extends BaseAgentTool {
@@ -32,7 +32,15 @@ export class AttemptCompletionTool extends BaseAgentTool {
 
 		let resultToSend = result
 		if (command) {
-			await say("completion_result", resultToSend)
+			await ask("tool", {
+				tool: {
+					tool: "attempt_completion",
+					result: result,
+					command: command,
+					approvalState: "approved",
+					ts: this.ts,
+				},
+			})
 
 			const executeCommandParams = {
 				...this.params,
@@ -46,7 +54,14 @@ export class AttemptCompletionTool extends BaseAgentTool {
 			resultToSend = ""
 		}
 
-		const { response, text, images } = await ask("completion_result", resultToSend)
+		const { response, text, images } = await ask("tool", {
+			tool: {
+				tool: "attempt_completion",
+				result: resultToSend,
+				approvalState: "approved",
+				ts: this.ts,
+			},
+		})
 		if (response === "yesButtonTapped") {
 			return ""
 		}

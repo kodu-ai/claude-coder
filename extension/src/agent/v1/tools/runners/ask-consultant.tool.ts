@@ -1,8 +1,8 @@
-import { ClaudeSayTool } from "../../../shared/ExtensionMessage"
-import { ToolResponse } from "../types"
-import { formatGenericToolFeedback, formatToolResponse } from "../utils"
-import { BaseAgentTool } from "./base-agent.tool"
-import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "./types"
+import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ToolResponse } from "../../types"
+import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
+import { BaseAgentTool } from "../base-agent.tool"
+import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "../types"
 
 export class AskConsultantTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -21,12 +21,49 @@ export class AskConsultantTool extends BaseAgentTool {
 
 		const confirmation = await this.askToolExecConfirmation()
 		if (confirmation.response !== "yesButtonTapped") {
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "ask_consultant",
+						approvalState: "rejected",
+						query: this.params.input.query!,
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 			return await this.onExecDenied(confirmation)
 		}
+		this.params.ask(
+			"tool",
+			{
+				tool: {
+					tool: "ask_consultant",
+					approvalState: "loading",
+					query: this.params.input.query!,
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
 
 		try {
 			const response = await this.koduDev.getApiManager().getApi()?.sendAskConsultantRequest?.(query)
 			if (!response || !response.result) {
+				this.params.ask(
+					"tool",
+					{
+						tool: {
+							tool: "ask_consultant",
+							approvalState: "error",
+							query: this.params.input.query!,
+							error: "Consultant failed to answer your question.",
+							ts: this.ts,
+						},
+					},
+					this.ts
+				)
 				return "Consultant failed to answer your question."
 			}
 
@@ -34,6 +71,19 @@ export class AskConsultantTool extends BaseAgentTool {
 
 			return `This is the advice from the consultant: ${response.result}`
 		} catch (err) {
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "ask_consultant",
+						approvalState: "error",
+						query: this.params.input.query!,
+						error: err,
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 			return `Consultant failed to answer your question with the error: ${err}`
 		}
 	}
@@ -55,12 +105,19 @@ export class AskConsultantTool extends BaseAgentTool {
 
 	private async askToolExecConfirmation(): Promise<AskConfirmationResponse> {
 		const { query } = this.params.input
-		const message = JSON.stringify({
-			tool: "ask_consultant",
-			context: query,
-		} as ClaudeSayTool)
 
-		return await this.params.ask("tool", message)
+		return await this.params.ask(
+			"tool",
+			{
+				tool: {
+					tool: "ask_consultant",
+					query: query!,
+					approvalState: "pending",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
 	}
 
 	private async onExecDenied(confirmation: AskConfirmationResponse) {
@@ -75,11 +132,18 @@ export class AskConsultantTool extends BaseAgentTool {
 	}
 
 	private async relaySuccessfulResponse(data: Record<string, string>) {
-		const message = JSON.stringify({
-			tool: "ask_consultant",
-			context: data.context,
-		} as ClaudeSayTool)
-
-		await this.params.say("tool", message)
+		return await this.params.ask(
+			"tool",
+			{
+				tool: {
+					tool: "ask_consultant",
+					approvalState: "approved",
+					result: data.result,
+					query: this.params.input.query!,
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
 	}
 }

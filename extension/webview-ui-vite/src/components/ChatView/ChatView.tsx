@@ -30,6 +30,7 @@ import { CHAT_BOX_INPUT_ID } from "./InputTextArea"
 import ChatScreen from "./chat-screen"
 import { Resource } from "../../../../src/shared/WebviewMessage"
 import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
+import { ChatTool } from "../../../../src/shared/new-tools"
 
 export const attachementsAtom = atom<Resource[]>([])
 
@@ -399,8 +400,54 @@ const ChatView: React.FC<ChatViewProps> = ({
 				setClaudeAsk("tool")
 				if (!message.autoApproved) {
 					setEnableButtons(true)
-					const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
-					handleToolButtons(tool)
+					const tool = JSON.parse(message.text || "{}") as ChatTool
+					switch (tool?.tool) {
+						case "write_to_file":
+							setPrimaryButtonText("Save")
+							setSecondaryButtonText("Reject")
+							break
+						case "web_search":
+							setPrimaryButtonText("Search")
+							setSecondaryButtonText("Reject")
+							break
+						case "attempt_completion":
+							// we want to update the type of button executed based on the tool
+							setClaudeAsk("completion_result")
+							setPrimaryButtonText("Start New Task")
+							setSecondaryButtonText(undefined)
+							break
+						case "ask_followup_question":
+							setPrimaryButtonText(undefined)
+							setSecondaryButtonText(undefined)
+							setEnableButtons(false)
+							break
+						case "url_screenshot":
+							setPrimaryButtonText("Capture Screenshot")
+							setSecondaryButtonText("Reject")
+							break
+						case "ask_consultant":
+							setPrimaryButtonText("Ask Consultant")
+							setSecondaryButtonText("Reject")
+							break
+						case "execute_command":
+							setPrimaryButtonText("Run Command")
+							setSecondaryButtonText("Reject")
+							break
+						case "upsert_memory":
+							setPrimaryButtonText(undefined)
+							setSecondaryButtonText(undefined)
+							setEnableButtons(false)
+							break
+						case "list_files":
+						case "list_code_definition_names":
+						case "search_files":
+						case "read_file":
+							setPrimaryButtonText("Read")
+							setSecondaryButtonText("Reject")
+							break
+						default:
+							handleToolButtons(tool)
+					}
 				}
 				break
 			case "command":

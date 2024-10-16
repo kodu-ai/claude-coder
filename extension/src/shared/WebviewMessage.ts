@@ -98,7 +98,20 @@ export type CommandInputMessage = {
 	input: string
 }
 
+export type ToolFeedbackMessage = {
+	type: "toolFeedback"
+	toolId: number
+	feedback: "approve" | "reject"
+}
+
+export type ToolFeedbackAllMessage = {
+	type: "toolFeedbackAll"
+	feedback: "approve" | "reject"
+}
+
 export type WebviewMessage =
+	| ToolFeedbackAllMessage
+	| ToolFeedbackMessage
 	| exportBugMessage
 	| experimentalTerminalMessage
 	| AmplitudeWebviewMessage

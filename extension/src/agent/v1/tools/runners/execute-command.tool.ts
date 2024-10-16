@@ -3,14 +3,15 @@ import delay from "delay"
 import { ExecaError, ResultPromise, execa } from "execa"
 import { serializeError } from "serialize-error"
 import treeKill from "tree-kill"
-import { AdvancedTerminalManager } from "../../../integrations/terminal"
-import { COMMAND_STDIN_STRING } from "../../../shared/combineCommandSequences"
-import { findLastIndex } from "../../../utils"
-import { COMMAND_OUTPUT_DELAY } from "../constants"
-import { ToolResponse } from "../types"
-import { formatGenericToolFeedback, formatToolResponse, getCwd, getPotentiallyRelevantDetails } from "../utils"
-import { BaseAgentTool } from "./base-agent.tool"
-import { AgentToolOptions, AgentToolParams } from "./types"
+import { AdvancedTerminalManager } from "../../../../integrations/terminal"
+import { COMMAND_STDIN_STRING } from "../../../../shared/combineCommandSequences"
+import { findLastIndex } from "../../../../utils"
+import { COMMAND_OUTPUT_DELAY } from "../../constants"
+import { ToolResponse } from "../../types"
+import { formatGenericToolFeedback, formatToolResponse, getCwd, getPotentiallyRelevantDetails } from "../../utils"
+import { BaseAgentTool } from "../base-agent.tool"
+import { AgentToolOptions, AgentToolParams } from "../types"
+import { render } from "react-dom"
 
 export class ExecuteCommandTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -47,14 +48,50 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		const { terminalManager } = this.koduDev
 		const { ask, say, returnEmptyStringOnSuccess } = this.params
 		const cwd = getCwd()
-		const { response, text, images } = await ask("command", command)
-		if (response !== "yesButtonTapped" && !this.alwaysAllowWriteOnly) {
+
+		const { response, text, images } = await ask(
+			"tool",
+			{
+				tool: {
+					tool: "execute_command",
+					command,
+					approvalState: "pending",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
+		if (response !== "yesButtonTapped") {
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						command,
+						approvalState: "rejected",
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 			if (response === "messageResponse") {
 				await say("user_feedback", text, images)
 				return this.formatToolResponseWithImages(await this.formatToolDeniedFeedback(text), images)
 			}
 			return await this.formatToolDenied()
 		}
+		ask(
+			"tool",
+			{
+				tool: {
+					tool: "execute_command",
+					command,
+					approvalState: "loading",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
 
 		try {
 			const postToWebview = this.koduDev.providerRef.deref()!["view"]?.webview.postMessage
@@ -63,12 +100,60 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			// const terminalInfo = await terminalManager.getOrCreateTerminal(this.cwd)
 			console.log("Terminal created")
 
-			await say("terminal_view", command)
-			// terminalInfo.terminal.show() // weird visual bug when creating new terminals (even manually) where there's an empty space at the top.
-			// const process = await terminalManager.runCommand(command, this.cwd, postToWebview)
-			// const result = await terminalManager.awaitCommand(process)
+			let userFeedback: { text?: string; images?: string[] } | undefined
+			let didContinue = false
+			const sendCommandOutput = async (line: string): Promise<void> => {
+				try {
+					const { response, text, images } = await ask(
+						"tool",
+						{
+							tool: {
+								tool: "execute_command",
+								command,
+								output: line,
+								approvalState: "approved",
+								ts: this.ts,
+							},
+						},
+						this.ts
+					)
+					if (response === "yesButtonTapped") {
+						// proceed while running
+					} else {
+						userFeedback = { text, images }
+					}
+					didContinue = true
+					process.continue() // continue past the await
+				} catch {
+					// This can only happen if this ask promise was ignored, so ignore this error
+				}
+			}
 
-			return "The command execution succeeded."
+			let result = ""
+			process.on("line", (line) => {
+				result += line + "\n"
+				// if it starts with \n, remove it
+				if (result.startsWith("\n")) {
+					result = result.slice(1)
+				}
+				if (!didContinue) {
+					sendCommandOutput(result)
+				} else {
+					ask(
+						"tool",
+						{
+							tool: {
+								tool: "execute_command",
+								command,
+								output: result,
+								approvalState: "approved",
+								ts: this.ts,
+							},
+						},
+						this.ts
+					)
+				}
+			})
 
 			// return `The command execution ${result.exitCode === 0 ? "succeeded" : "failed"}.
 			// ${result.stdout?.toString() ?? result.stderr?.toString() ?? ""}`
@@ -174,16 +259,22 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					`
 		}
 
-		let response = "yesButtonTapped"
-		if (!this.alwaysAllowWriteOnly) {
-			const result = await ask("command", command)
-			response = result.response
-			if (response === "messageResponse") {
-				await say("user_feedback", result.text, result.images)
-				return formatToolResponse(formatGenericToolFeedback(result.text), result.images)
-			}
-		} else {
-			ask("command", command)
+		const result = await ask(
+			"tool",
+			{
+				tool: {
+					tool: "execute_command",
+					command,
+					approvalState: "pending",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
+		const response = result.response
+		if (response === "messageResponse") {
+			await say("user_feedback", result.text, result.images)
+			return formatToolResponse(formatGenericToolFeedback(result.text), result.images)
 		}
 
 		if (response !== "yesButtonTapped") {
@@ -193,39 +284,43 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		let userFeedback: { text?: string; images?: string[] } | undefined
 		const sendCommandOutput = async (subprocess: ResultPromise, line: string): Promise<void> => {
 			try {
-				if (this.alwaysAllowWriteOnly) {
-					await say("command_output", line)
+				const { response, text, images } = await ask("command_output", {
+					tool: {
+						tool: "execute_command",
+						command,
+						output: line,
+						approvalState: "approved",
+						ts: this.ts,
+					},
+				})
+				const isStdin = (text ?? "").startsWith(COMMAND_STDIN_STRING)
+				if (response === "yesButtonTapped") {
+					if (subprocess.pid) {
+						treeKill(subprocess.pid, "SIGINT")
+					}
 				} else {
-					const { response, text, images } = await ask("command_output", line)
-					const isStdin = (text ?? "").startsWith(COMMAND_STDIN_STRING)
-					if (response === "yesButtonTapped") {
+					if (isStdin) {
+						const stdin = text?.slice(COMMAND_STDIN_STRING.length) ?? ""
+
+						// replace last commandoutput with + stdin
+						const lastCommandOutput = findLastIndex(
+							this.koduDev.getStateManager().state.claudeMessages,
+							(m) => m.ask === "command_output"
+						)
+						if (lastCommandOutput !== -1) {
+							this.koduDev.getStateManager().state.claudeMessages[lastCommandOutput].text += stdin
+						}
+
+						// if the user sent some input, we send it to the command stdin
+						// add newline as cli programs expect a newline after each input
+						// (stdin needs to be set to `pipe` to send input to the command, execa does this by default when using template literals - other options are inherit (from parent process stdin) or null (no stdin))
+						subprocess.stdin?.write(stdin + "\n")
+						// Recurse with an empty string to continue listening for more input
+						sendCommandOutput(subprocess, "") // empty strings are effectively ignored by the webview, this is done solely to relinquish control over the exit command button
+					} else {
+						userFeedback = { text, images }
 						if (subprocess.pid) {
 							treeKill(subprocess.pid, "SIGINT")
-						}
-					} else {
-						if (isStdin) {
-							const stdin = text?.slice(COMMAND_STDIN_STRING.length) ?? ""
-
-							// replace last commandoutput with + stdin
-							const lastCommandOutput = findLastIndex(
-								this.koduDev.getStateManager().state.claudeMessages,
-								(m) => m.ask === "command_output"
-							)
-							if (lastCommandOutput !== -1) {
-								this.koduDev.getStateManager().state.claudeMessages[lastCommandOutput].text += stdin
-							}
-
-							// if the user sent some input, we send it to the command stdin
-							// add newline as cli programs expect a newline after each input
-							// (stdin needs to be set to `pipe` to send input to the command, execa does this by default when using template literals - other options are inherit (from parent process stdin) or null (no stdin))
-							subprocess.stdin?.write(stdin + "\n")
-							// Recurse with an empty string to continue listening for more input
-							sendCommandOutput(subprocess, "") // empty strings are effectively ignored by the webview, this is done solely to relinquish control over the exit command button
-						} else {
-							userFeedback = { text, images }
-							if (subprocess.pid) {
-								treeKill(subprocess.pid, "SIGINT")
-							}
 						}
 					}
 				}

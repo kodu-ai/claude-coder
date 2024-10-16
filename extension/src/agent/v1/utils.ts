@@ -160,3 +160,10 @@ export function createToolMessage(tool: string, path: string, content: string, c
 		content,
 	} as ClaudeSayTool)
 }
+
+export const isTextBlock = (block: any): block is Anthropic.TextBlockParam => {
+	if (typeof block === "object") {
+		return block.type === "text"
+	}
+	return false
+}
