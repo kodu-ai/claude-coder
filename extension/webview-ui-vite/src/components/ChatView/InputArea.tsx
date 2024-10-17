@@ -88,8 +88,8 @@ const InputArea: React.FC<InputAreaProps> = ({
 					/>
 				)} */}
 
-				{/* @TODO: only for testing, remove this */}
-				<InteractiveTerminal />
+				{/* @TODO: only for testing*/}
+				{/* <InteractiveTerminal /> */}
 
 				<InputV1
 					isRequestRunning={isRequestRunning}
