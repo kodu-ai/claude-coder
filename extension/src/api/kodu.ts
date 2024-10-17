@@ -143,11 +143,11 @@ export class KoduHandler implements ApiHandler {
 		/**
 		 * push it last to not break the cache
 		 */
-		system.push({
-			text: USER_TASK_HISTORY_PROMPT(userMemory),
-			type: "text",
-			cache_control: { type: "ephemeral" },
-		})
+		// system.push({
+		// 	text: USER_TASK_HISTORY_PROMPT(userMemory),
+		// 	type: "text",
+		// 	cache_control: { type: "ephemeral" },
+		// })
 
 		// if (environmentDetails) {
 		// 	system.push({
