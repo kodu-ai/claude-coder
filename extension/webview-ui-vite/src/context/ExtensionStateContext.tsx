@@ -118,7 +118,6 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
-		console.log("message at extension state context", event)
 		if (message.type === "claudeMessages") {
 			setClaudeMessages(message.claudeMessages)
 		}

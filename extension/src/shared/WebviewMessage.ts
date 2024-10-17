@@ -86,7 +86,33 @@ type UpdateTaskHistoryMessage = {
 	history: string
 }
 
+export type ExecuteCommandMessage = {
+	type: "executeCommand"
+	command: string
+	isEnter: boolean
+	commandId?: string
+}
+
+export type CommandInputMessage = {
+	type: "commandInput"
+	commandId: string
+	input: string
+}
+
+export type ToolFeedbackMessage = {
+	type: "toolFeedback"
+	toolId: number
+	feedback: "approve" | "reject"
+}
+
+export type ToolFeedbackAllMessage = {
+	type: "toolFeedbackAll"
+	feedback: "approve" | "reject"
+}
+
 export type WebviewMessage =
+	| ToolFeedbackAllMessage
+	| ToolFeedbackMessage
 	| exportBugMessage
 	| experimentalTerminalMessage
 	| AmplitudeWebviewMessage
@@ -100,6 +126,8 @@ export type WebviewMessage =
 	| DebugMessage
 	| GitCheckoutToMessage
 	| UpdateTaskHistoryMessage
+	| ExecuteCommandMessage
+	| CommandInputMessage
 	| {
 			type:
 				| "cancelCurrentRequest"

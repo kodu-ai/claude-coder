@@ -1,14 +1,22 @@
+import os from "os"
 import { readdir } from "fs/promises"
 import path from "path"
 import * as vscode from "vscode"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
-import { GitCheckoutToMessage, WebviewMessage } from "../../../shared/WebviewMessage"
+import {
+	CommandInputMessage,
+	ExecuteCommandMessage,
+	GitCheckoutToMessage,
+	WebviewMessage,
+} from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
 import { KoduDevState } from "../../../agent/v1/types"
-import { GitHandler } from "../../../agent/v1/handlers"
+// import { GitHandler } from "../../../agent/v1/handlers"
+import { ExecaTerminalManager } from "../../../integrations/terminal/execa-terminal-manager"
+import { cwd } from "../../../agent/v1/utils"
 
 interface FileTreeItem {
 	id: string
@@ -33,8 +41,11 @@ const excludedDirectories = [
 ]
 export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
+	private execaTerminalManager: ExecaTerminalManager
 
-	constructor(private provider: ExtensionProvider) {}
+	constructor(private provider: ExtensionProvider) {
+		this.execaTerminalManager = new ExecaTerminalManager()
+	}
 
 	private get state(): KoduDevState | undefined {
 		return this.provider.getKoduDev()?.getStateManager()?.state
@@ -250,6 +261,11 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "toolFeedback":
+						await this.provider
+							.getTaskManager()
+							.handleAskResponse(message.feedback === "approve" ? "yesButtonTapped" : "noButtonTapped")
+						break
 					case "technicalBackground":
 						await this.provider.getStateManager().setTechnicalBackground(message.value)
 						await this.postStateToWebview()
@@ -416,28 +432,43 @@ export class WebviewManager {
 					case "debug":
 						await this.handleDebugInstruction()
 						break
-					case "gitLog":
-						this.postMessageToWebview({
-							type: "gitLog",
-							history: await GitHandler.getLog(this.state?.dirAbsolutePath!),
-						})
-						break
-					case "gitCheckoutTo":
-						await this.checkoutToBranch(message)
-						break
-					case "gitBranches":
-						const branches = await GitHandler.getBranches(this.state?.dirAbsolutePath!)
+					// case "gitLog":
+					// 	this.postMessageToWebview({
+					// 		type: "gitLog",
+					// 		history: await GitHandler.getLog(this.state?.dirAbsolutePath!),
+					// 	})
+					// 	break
+					// case "gitCheckoutTo":
+					// 	await this.checkoutToBranch(message)
+					// 	break
+					// case "gitBranches":
+					// 	const branches = await GitHandler.getBranches(this.state?.dirAbsolutePath!)
 
-						this.postMessageToWebview({
-							type: "gitBranches",
-							branches,
-						})
-						break
-					case "getTaskHistory":
-						await this.getTaskHistory()
-						break
-					case "updateTaskHistory":
-						this.provider.getKoduDev()?.executeTool("upsert_memory", { content: message.history })
+					// 	this.postMessageToWebview({
+					// 		type: "gitBranches",
+					// 		branches,
+					// 	})
+					// 	break
+					// case "getTaskHistory":
+					// 	await this.getTaskHistory()
+					// 	break
+					// case "updateTaskHistory":
+					// 	this.provider.getKoduDev()?.executeTool("upsert_memory", { content: message.history })
+					// 	break
+					case "executeCommand":
+						const callbackFunction = (
+							event: "error" | "exit" | "response",
+							commandId: number,
+							data: string
+						) => {
+							this.postMessageToWebview({
+								type: "commandExecutionResponse",
+								status: event,
+								payload: data,
+								commandId: commandId.toString(),
+							})
+						}
+						await this.execaTerminalManager.executeCommand(message, callbackFunction)
 						break
 				}
 			},
@@ -492,20 +523,20 @@ export class WebviewManager {
 		})
 	}
 
-	private async checkoutToBranch(message: GitCheckoutToMessage): Promise<void> {
-		const taskExecutor = this.provider.getKoduDev()?.taskExecutor!
-		const isSuccess = (await taskExecutor?.gitHandler.checkoutTo(message.branchName!)) ?? false
+	// private async checkoutToBranch(message: GitCheckoutToMessage): Promise<void> {
+	// 	const taskExecutor = this.provider.getKoduDev()?.taskExecutor!
+	// 	const isSuccess = (await taskExecutor?.gitHandler.checkoutTo(message.branchName!)) ?? false
 
-		if (isSuccess) {
-			await taskExecutor.handleAskResponse(
-				"messageResponse",
-				`The user checked out to version: '${message.branchName}'`
-			)
-		}
+	// 	if (isSuccess) {
+	// 		await taskExecutor.handleAskResponse(
+	// 			"messageResponse",
+	// 			`The user checked out to version: '${message.branchName}'`
+	// 		)
+	// 	}
 
-		this.postMessageToWebview({
-			type: "gitCheckoutTo",
-			isSuccess,
-		})
-	}
+	// 	this.postMessageToWebview({
+	// 		type: "gitCheckoutTo",
+	// 		isSuccess,
+	// 	})
+	// }
 }

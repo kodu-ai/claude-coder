@@ -6,3 +6,5 @@ webview-ui-vite/node_modules
 *.vsix
 .env
 .env.local
+
+eval/env
