@@ -14,11 +14,10 @@ interface HistoryEntry {
 	output: string
 }
 
-const InteractiveTerminal = () => {
+const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) => {
 	const terminalElementRef = useRef<HTMLDivElement>(null)
 	const terminalRef = useRef<XTerm>()
 	const [isExecuting, setIsExecuting] = useState(false)
-	const [commandId, setCommandId] = useState<string | null>(null)
 	const commandIdRef = useRef<string | undefined>(undefined)
 	const commandInputRef = useRef<string>("")
 	const terminalHistoryRef = useRef<HistoryEntry[]>([])
@@ -54,7 +53,6 @@ const InteractiveTerminal = () => {
 	)
 
 	const updateCommandId = useCallback((newCommandId: string | null) => {
-		setCommandId(newCommandId)
 		commandIdRef.current = newCommandId ?? undefined
 	}, [])
 
@@ -85,7 +83,9 @@ const InteractiveTerminal = () => {
 							terminalRef.current.writeln(response.payload)
 						}
 						setIsExecuting(false)
-						terminalRef.current.write("$ ")
+						if (commandIdRef.current) {
+							terminalRef.current.write("$ ")
+						}
 						updateCommandId(null)
 						isLongRunningCommandRef.current = false
 						break
@@ -105,7 +105,7 @@ const InteractiveTerminal = () => {
 			cursorBlink: true,
 			convertEol: true,
 			disableStdin: false,
-			fontSize: 14,
+			fontSize: 12,
 			fontFamily: '"Cascadia Code", Menlo, courier-new, courier, monospace',
 			theme: {
 				background: "#1e1e1e",
@@ -119,8 +119,12 @@ const InteractiveTerminal = () => {
 		terminal.loadAddon(webLinksAddon)
 		terminal.open(element)
 
-		terminal.writeln("Welcome to the Interactive Terminal!")
 		terminal.write("$ ")
+
+		if (initialCommand) {
+			terminal.write(initialCommand)
+			terminal.write("\r\n")
+		}
 
 		let currentLine = ""
 
@@ -142,7 +146,12 @@ const InteractiveTerminal = () => {
 					// Enter key
 					terminal.write("\r\n")
 					if (currentLine.trim()) {
-						executeCommand(currentLine, true)
+						if (currentLine === "clear") {
+							terminal.clear()
+							terminal.write("$ ")
+						} else {
+							executeCommand(currentLine, true)
+						}
 						preservedInputRef.current = ""
 					} else if (!isExecuting) {
 						terminal.write("$ ")
@@ -200,7 +209,7 @@ const InteractiveTerminal = () => {
 
 	useEvent("message", handleCommandResponse)
 
-	return <div ref={terminalElementRef} style={{ height: "150px" }} />
+	return <div ref={terminalElementRef} style={{ height: "150px", borderRadius: "12px" }} />
 }
 
 export default InteractiveTerminal

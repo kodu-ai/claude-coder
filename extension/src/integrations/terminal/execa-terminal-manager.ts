@@ -1,6 +1,7 @@
 import { execa, ExecaError, ResultPromise } from "execa"
 import { EventEmitter } from "events"
 import treeKill from "tree-kill"
+import pWaitFor from "p-wait-for"
 
 type CommandId = number
 
@@ -12,6 +13,7 @@ interface CommandOutput {
 interface RunningCommand {
 	process: ResultPromise
 	output: CommandOutput
+	id?: number
 }
 
 export class ExecaTerminalManager {
@@ -22,11 +24,16 @@ export class ExecaTerminalManager {
 		cwd: string,
 		callbackFunction: (event: "error" | "exit" | "response", commandId: CommandId, data: string) => void
 	): Promise<CommandId> {
-		const commandId = Math.floor(Math.random() * 1000000)
 		const subprocess = execa(command, {
 			shell: true,
 			cwd: cwd,
 		})
+
+		const commandId = subprocess.pid
+		if (!commandId) {
+			callbackFunction("error", 0, "Could not run command")
+			return 0
+		}
 
 		const runningCommand: RunningCommand = {
 			process: subprocess,
@@ -34,6 +41,10 @@ export class ExecaTerminalManager {
 		}
 
 		this.runningCommands.set(commandId, runningCommand)
+
+		pWaitFor(async () => !(await this.isProcessRunning(commandId)), { interval: 200 }).finally(() => {
+			callbackFunction("exit", commandId, "")
+		})
 
 		subprocess.stdout?.on("data", (data) => {
 			runningCommand.output.stdout += data.toString()
@@ -55,6 +66,18 @@ export class ExecaTerminalManager {
 		})
 
 		return commandId
+	}
+
+	async isProcessRunning(commandId: CommandId): Promise<boolean> {
+		const process = this.runningCommands.get(commandId)?.process
+		if (!process) {
+			return false
+		}
+
+		const psCommand = `ps -p ${process.pid} -o pid=`
+		const psResult = await execa(psCommand, { shell: true })
+
+		return psResult.stdout.trim() !== ""
 	}
 
 	async awaitCommand(commandId: CommandId) {

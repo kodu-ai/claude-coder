@@ -177,7 +177,7 @@ export type ClaudeSay =
 	| "info"
 	| "abort_automode"
 	| "shell_integration_warning"
-	| "terminal_view"
+	| "show_terminal"
 
 type WebSearchTool = {
 	tool: "web_search"

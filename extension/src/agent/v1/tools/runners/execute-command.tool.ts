@@ -258,6 +258,8 @@ export class ExecuteCommandTool extends BaseAgentTool {
 
 		let userFeedback: { text?: string; images?: string[] } | undefined
 
+		await say("show_terminal", command, undefined)
+
 		try {
 			let result = ""
 			let didError = false
@@ -265,7 +267,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			const callbackFunction = (event: "error" | "exit" | "response", commandId: number, data: string) => {
 				if (event === "response") {
 					result += data
-				} else if (event === "exit") {
+				} else if (event === "error") {
 					didError = true
 				}
 

@@ -239,8 +239,8 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 						return <InfoMessage message={message} />
 					case "user_feedback":
 						return <UserFeedbackMessage message={message} />
-					case "terminal_view":
-						return <InteractiveTerminal />
+					case "show_terminal":
+						return <InteractiveTerminal initialCommand={message.text} refId={message.metadata?.refId} />
 					case "user_feedback_diff":
 						return (
 							<UserFeedbackDiffMessage
