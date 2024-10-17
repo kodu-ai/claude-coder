@@ -1,7 +1,7 @@
-import { ToolResponse } from "../types"
-import { formatToolResponse } from "../utils"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { BaseAgentTool } from "./base-agent.tool"
+import { ToolResponse } from "../../types"
+import { formatToolResponse } from "../../utils"
+import { AgentToolOptions, AgentToolParams } from "../types"
+import { BaseAgentTool } from "../base-agent.tool"
 
 export class AskFollowupQuestionTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -30,7 +30,18 @@ export class AskFollowupQuestionTool extends BaseAgentTool {
 			`
 		}
 
-		const { text, images } = await ask("followup", question)
+		const { text, images } = await ask(
+			"tool",
+			{
+				tool: { tool: "ask_followup_question", question, approvalState: "pending", ts: this.ts },
+			},
+			this.ts
+		)
+		await ask(
+			"tool",
+			{ tool: { tool: "ask_followup_question", question, approvalState: "approved", ts: this.ts } },
+			this.ts
+		)
 		await say("user_feedback", text ?? "", images)
 
 		return formatToolResponse(`<answer>\n${text}\n</answer>`, images)

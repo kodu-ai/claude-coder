@@ -1,6 +1,6 @@
 import React from "react"
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
-import { ClaudeMessage, ClaudeSayTool } from "../../../../src/shared/ExtensionMessage"
+import { ClaudeMessage, ClaudeSayTool, V1ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
 import { COMMAND_OUTPUT_STRING } from "../../../../src/shared/combineCommandSequences"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import CodeBlock from "../CodeBlock/CodeBlock"
@@ -231,10 +231,10 @@ const ChatRow: React.FC<ChatRowProps> = ({
 					case "tool":
 						return (
 							<ToolRenderer
-								message={message}
+								message={message as V1ClaudeMessage}
 								syntaxHighlighterStyle={syntaxHighlighterStyle}
 								isExpanded={isExpanded}
-								nextMessage={nextMessage}
+								nextMessage={nextMessage as V1ClaudeMessage}
 								onToggleExpand={onToggleExpand}
 							/>
 						)
@@ -298,7 +298,7 @@ const ChatRow: React.FC<ChatRowProps> = ({
 					case "tool":
 						return (
 							<ToolRenderer
-								message={message}
+								message={message as V1ClaudeMessage}
 								syntaxHighlighterStyle={syntaxHighlighterStyle}
 								isExpanded={isExpanded}
 								onToggleExpand={onToggleExpand}

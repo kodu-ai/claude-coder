@@ -1,11 +1,11 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
-import { ClaudeSayTool } from "../../../shared/ExtensionMessage"
-import { ToolResponse } from "../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../utils"
-import { regexSearchFiles } from "../../../utils/ripgrep"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { BaseAgentTool } from "./base-agent.tool"
+import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ToolResponse } from "../../types"
+import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
+import { regexSearchFiles } from "../../../../utils/ripgrep"
+import { AgentToolOptions, AgentToolParams } from "../types"
+import { BaseAgentTool } from "../base-agent.tool"
 
 export class SearchFilesTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -56,27 +56,44 @@ export class SearchFilesTool extends BaseAgentTool {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
 			const results = await regexSearchFiles(this.cwd, absolutePath, regex, filePattern)
 
-			const message = JSON.stringify({
-				tool: "searchFiles",
-				path: getReadablePath(relDirPath, this.cwd),
-				regex: regex,
-				filePattern: filePattern,
-				content: results,
-			} as ClaudeSayTool)
+			const { response, text, images } = await ask(
+				"tool",
+				{
+					tool: {
+						tool: "search_files",
+						path: getReadablePath(relDirPath, this.cwd),
+						regex: regex,
+						filePattern: filePattern,
+						approvalState: "pending",
+						content: results,
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 
-			if (this.alwaysAllowReadOnly) {
-				await say("tool", message)
-			} else {
-				const { response, text, images } = await ask("tool", message)
-
-				if (response !== "yesButtonTapped") {
-					if (response === "messageResponse") {
-						await say("user_feedback", text, images)
-						return formatToolResponse(formatGenericToolFeedback(text), images)
-					}
-
-					return "The user denied this operation."
+			if (response !== "yesButtonTapped") {
+				ask(
+					"tool",
+					{
+						tool: {
+							tool: "search_files",
+							path: getReadablePath(relDirPath, this.cwd),
+							regex: regex,
+							filePattern: filePattern,
+							approvalState: "rejected",
+							content: results,
+							ts: this.ts,
+						},
+					},
+					this.ts
+				)
+				if (response === "messageResponse") {
+					await say("user_feedback", text, images)
+					return formatToolResponse(formatGenericToolFeedback(text), images)
 				}
+
+				return "The user denied this operation."
 			}
 
 			return results

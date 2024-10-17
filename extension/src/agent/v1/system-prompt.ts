@@ -37,10 +37,12 @@ Guidelines:
 Additional Instructions:
 
 - Web Project Bootstrapping:
-  - Use the boilerplate at https://github.com/kodu-ai/kodu-remix-shadcn to bootstrap web projects. It creates a Remix web app with shadcn and Tailwind CSS.
+  - You must use https://github.com/kodu-ai/kodu-remix-shadcn.git to bootstrap web projects. It creates a Remix V2 project with the following tech stack: remix version 2, vite (includes hotreload), shadcn ui, Tailwind CSS and framer motion it's a solid fundation for any web project!
   - To use it:
     git clone https://github.com/kodu-ai/kodu-remix-shadcn.git <project-name> && cd <project-name> && npm install
     then use list_files to understand the project structure and read the root files to see what's inside.
+    from the momemnt you clone the project you should start writing to your memory and remember at all time that you project is located at <project-name> folder.
+    it means that any command you run should be run from the <project-name> folder unless specified otherwise.
 
   - You can skip this boilerplate if the user provides a specific technology stack.
 

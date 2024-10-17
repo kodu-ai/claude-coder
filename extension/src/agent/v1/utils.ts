@@ -4,6 +4,12 @@ import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeMessage, ClaudeSayTool } from "../../shared/ExtensionMessage"
 
+declare global {
+	interface String {
+		toPosix(): string
+	}
+}
+
 export const getCwd = (): string =>
 	vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), "Desktop")
 
@@ -159,4 +165,11 @@ export function createToolMessage(tool: string, path: string, content: string, c
 		path: getReadablePath(path, customCwd),
 		content,
 	} as ClaudeSayTool)
+}
+
+export const isTextBlock = (block: any): block is Anthropic.TextBlockParam => {
+	if (typeof block === "object") {
+		return block.type === "text"
+	}
+	return false
 }

@@ -66,8 +66,10 @@ export default {
 					foreground: createColorWithOpacity("--vscode-button-secondaryForeground"),
 				},
 				destructive: {
-					DEFAULT: createColorWithOpacity("--vscode-inputValidation-errorBackground"),
-					foreground: createColorWithOpacity("--vscode-inputValidation-errorForeground"),
+					DEFAULT: createColorWithOpacity("--vscode-editorError-foreground"),
+					foreground: createColorWithOpacity("--vscode-button-foreground"),
+					// DEFAULT: createColorWithOpacity("--vscode-inputValidation-errorBackground"),
+					// foreground: createColorWithOpacity("--vscode-inputValidation-errorForeground"),
 				},
 				muted: {
 					DEFAULT: createColorWithOpacity("--vscode-editor-inactiveSelectionBackground"),

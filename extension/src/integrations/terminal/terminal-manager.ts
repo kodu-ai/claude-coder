@@ -82,7 +82,7 @@ declare module "vscode" {
 	}
 	// https://github.com/microsoft/vscode/blob/f0417069c62e20f3667506f4b7e53ca0004b4e3e/src/vscode-dts/vscode.d.ts#L10794
 	interface Window {
-		onDidEndTerminalShellExecution?: (
+		onDidStartTerminalShellExecution?: (
 			listener: (e: any) => any,
 			thisArgs?: any,
 			disposables?: vscode.Disposable[]
@@ -90,17 +90,23 @@ declare module "vscode" {
 	}
 }
 
+export interface TerminalInfo {
+	terminal: vscode.Terminal
+	busy: boolean
+	lastCommand: string
+	id: number
+}
+
 // Although vscode.window.terminals provides a list of all open terminals, there's no way to know whether they're busy or not (exitStatus does not provide useful information for most commands). In order to prevent creating too many terminals, we need to keep track of terminals through the life of the extension, as well as session specific terminals for the life of a task (to get latest unretrieved output).
 // Since we have promises keeping track of terminal processes, we get the added benefit of keep track of busy terminals even after a task is closed.
-class TerminalRegistry {
+export class TerminalRegistry {
 	private static terminals: TerminalInfo[] = []
 	private static nextTerminalId = 1
 
 	static createTerminal(cwd?: string | vscode.Uri | undefined): TerminalInfo {
 		const terminal = vscode.window.createTerminal({
 			cwd,
-			name: "Claude Coder",
-			// iconPath: new vscode.ThemeIcon("robot"),
+			name: "Kodu.AI",
 		})
 		const newInfo: TerminalInfo = {
 			terminal,
@@ -149,17 +155,11 @@ export class TerminalManager {
 	private disposables: vscode.Disposable[] = []
 
 	constructor() {
-		// Listening to this reduces the # of empty terminal outputs!
 		let disposable: vscode.Disposable | undefined
 		try {
-			disposable = (vscode.window as vscode.Window).onDidEndTerminalShellExecution?.(async (e) => {
-				// console.log(`Terminal shell execution ended. Command line:`, e.execution.commandLine.value)
-				const stream = e?.execution?.read()
-				if (stream) {
-					for await (let _ of stream) {
-						// console.log(`from onDidEndTerminalShellExecution, read:`, data)
-					}
-				}
+			disposable = (vscode.window as vscode.Window).onDidStartTerminalShellExecution?.(async (e) => {
+				// Creating a read stream here results in a more consistent output. This is most obvious when running the `date` command.
+				e?.execution?.read()
 			})
 		} catch (error) {
 			// console.error("Error setting up onDidEndTerminalShellExecution", error)
@@ -167,7 +167,6 @@ export class TerminalManager {
 		if (disposable) {
 			this.disposables.push(disposable)
 		}
-		// Oddly if we listen to `onDidStartTerminalShellExecution` or `onDidChangeTerminalShellIntegration` this hack doesn't work...
 	}
 
 	runCommand(terminalInfo: TerminalInfo, command: string): TerminalProcessResultPromise {
@@ -223,7 +222,7 @@ export class TerminalManager {
 			if (t.busy) {
 				return false
 			}
-			const terminalCwd = t.terminal.shellIntegration?.cwd // one of claude's commands could have changed the cwd of the terminal
+			const terminalCwd = t.terminal.shellIntegration?.cwd // one of cline's commands could have changed the cwd of the terminal
 			if (!terminalCwd) {
 				return false
 			}
@@ -270,13 +269,6 @@ export class TerminalManager {
 	}
 }
 
-interface TerminalInfo {
-	terminal: vscode.Terminal
-	busy: boolean
-	lastCommand: string
-	id: number
-}
-
 interface TerminalProcessEvents {
 	line: [line: string]
 	continue: []
@@ -288,7 +280,6 @@ interface TerminalProcessEvents {
 // how long to wait after a process outputs anything before we consider it "cool" again
 const PROCESS_HOT_TIMEOUT_NORMAL = 2_000
 const PROCESS_HOT_TIMEOUT_COMPILING = 15_000
-
 export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 	waitForShellIntegration: boolean = true
 	private isListening: boolean = true
@@ -394,7 +385,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 				if (this.hotTimer) {
 					clearTimeout(this.hotTimer)
 				}
-				// these markers indicate the command is some kind of local dev server recompiling the app, which we want to wait for output of before sending request to claude
+				// these markers indicate the command is some kind of local dev server recompiling the app, which we want to wait for output of before sending request to cline
 				const compilingMarkers = ["compiling", "building", "bundling", "transpiling", "generating", "starting"]
 				const markerNullifiers = [
 					"compiled",
@@ -512,7 +503,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 export type TerminalProcessResultPromise = TerminalProcess & Promise<void>
 
 // Similar to execa's ResultPromise, this lets us create a mixin of both a TerminalProcess and a Promise: https://github.com/sindresorhus/execa/blob/main/lib/methods/promise.js
-function mergePromise(process: TerminalProcess, promise: Promise<void>): TerminalProcessResultPromise {
+export function mergePromise(process: TerminalProcess, promise: Promise<void>): TerminalProcessResultPromise {
 	const nativePromisePrototype = (async () => {})().constructor.prototype
 	const descriptors = ["then", "catch", "finally"].map(
 		(property) => [property, Reflect.getOwnPropertyDescriptor(nativePromisePrototype, property)] as const
@@ -525,3 +516,18 @@ function mergePromise(process: TerminalProcess, promise: Promise<void>): Termina
 	}
 	return process as TerminalProcessResultPromise
 }
+
+// // Similar to execa's ResultPromise, this lets us create a mixin of both a TerminalProcess and a Promise: https://github.com/sindresorhus/execa/blob/main/lib/methods/promise.js
+// function mergePromise(process: TerminalProcess, promise: Promise<void>): TerminalProcessResultPromise {
+// 	const nativePromisePrototype = (async () => {})().constructor.prototype
+// 	const descriptors = ["then", "catch", "finally"].map(
+// 		(property) => [property, Reflect.getOwnPropertyDescriptor(nativePromisePrototype, property)] as const
+// 	)
+// 	for (const [property, descriptor] of descriptors) {
+// 		if (descriptor) {
+// 			const value = descriptor.value.bind(promise)
+// 			Reflect.defineProperty(process, property, { ...descriptor, value })
+// 		}
+// 	}
+// 	return process as TerminalProcessResultPromise
+// }
