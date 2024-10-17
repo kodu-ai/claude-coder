@@ -149,7 +149,7 @@ Parameters:
 - query: (required) The question or request for help you have for the consultant.
 Usage:
 <ask_consultant>
-<question>Your question or request for help here</question>
+<query>Your question or request for help here</query>
 </ask_consultant>
 
 ## web_search

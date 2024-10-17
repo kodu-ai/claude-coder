@@ -64,6 +64,7 @@ export type WebSearchTool = {
 	tool: "web_search"
 	searchQuery: string
 	baseLink?: string
+	content?: string
 }
 
 export type UrlScreenshotTool = {

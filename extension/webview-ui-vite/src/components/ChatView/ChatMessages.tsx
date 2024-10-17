@@ -4,6 +4,7 @@ import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../../../../s
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import ChatRow from "../ChatRow/ChatRow"
 import ChatRowV1 from "../ChatRow/ChatRowV1"
+import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom"
 
 interface ChatMessagesProps {
 	visibleMessages: ClaudeMessage[]
@@ -23,7 +24,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 	handleSendStdin,
 }) => {
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
-
+	const [messagesContainerRef, messagesEndRef] = useScrollToBottom<HTMLDivElement>()
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: "smooth" })
@@ -42,38 +43,38 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 			}}
 			increaseViewportBy={{ top: 0, bottom: Number.MAX_SAFE_INTEGER }}
 			data={visibleMessages ?? []}
-			itemContent={(index, message) =>
-				// here we will do a version check and render the appropriate component
-
-				// V0
-				isV1ClaudeMessage(message) ? (
-					<ChatRowV1
-						key={message.ts}
-						message={message}
-						syntaxHighlighterStyle={syntaxHighlighterStyle}
-						isExpanded={expandedRows[message.ts] || false}
-						onToggleExpand={() => toggleRowExpansion(message.ts)}
-						isLast={index === visibleMessages.length - 1}
-						handleSendStdin={handleSendStdin}
-						nextMessage={
-							index < visibleMessages.length - 1
-								? (visibleMessages[index + 1] as V1ClaudeMessage)
-								: undefined
-						}
-					/>
-				) : (
-					<ChatRow
-						key={message.ts}
-						message={message}
-						syntaxHighlighterStyle={syntaxHighlighterStyle}
-						isExpanded={expandedRows[message.ts] || false}
-						onToggleExpand={() => toggleRowExpansion(message.ts)}
-						isLast={index === visibleMessages.length - 1}
-						nextMessage={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
-						handleSendStdin={handleSendStdin}
-					/>
-				)
-			}
+			itemContent={(index, message) => (
+				<>
+					{isV1ClaudeMessage(message) ? (
+						<ChatRowV1
+							key={message.ts}
+							message={message}
+							syntaxHighlighterStyle={syntaxHighlighterStyle}
+							isExpanded={expandedRows[message.ts] || false}
+							onToggleExpand={() => toggleRowExpansion(message.ts)}
+							isLast={index === visibleMessages.length - 1}
+							handleSendStdin={handleSendStdin}
+							nextMessage={
+								index < visibleMessages.length - 1
+									? (visibleMessages[index + 1] as V1ClaudeMessage)
+									: undefined
+							}
+						/>
+					) : (
+						<ChatRow
+							key={message.ts}
+							message={message}
+							syntaxHighlighterStyle={syntaxHighlighterStyle}
+							isExpanded={expandedRows[message.ts] || false}
+							onToggleExpand={() => toggleRowExpansion(message.ts)}
+							isLast={index === visibleMessages.length - 1}
+							nextMessage={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
+							handleSendStdin={handleSendStdin}
+						/>
+					)}
+					<div ref={messagesEndRef} id="end" className="shrink-0 min-w-[24px] min-h-[24px]" />
+				</>
+			)}
 		/>
 	)
 }

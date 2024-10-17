@@ -96,6 +96,22 @@ export class SearchFilesTool extends BaseAgentTool {
 				return "The user denied this operation."
 			}
 
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "search_files",
+						path: getReadablePath(relDirPath, this.cwd),
+						regex: regex,
+						filePattern: filePattern,
+						approvalState: "approved",
+						content: results,
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
+
 			return results
 		} catch (error) {
 			const errorString = `Error searching files: ${JSON.stringify(serializeError(error))}
