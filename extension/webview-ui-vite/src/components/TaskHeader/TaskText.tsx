@@ -61,7 +61,8 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 	const toggleExpand = () => setIsExpanded(!isExpanded)
 	const parts = extractAdditionalContext(text || "")
 	let filesCut: FileItem[] = []
-	const textLines = parts[0].split("\n")
+	// split by new line or end of line this can all be one long line so we need to account for that
+	const textLines = parts[0]?.split(/\n|\r/)
 	if (parts[1]) {
 		filesCut = extractFilesFromContext(parts[1])
 	}
@@ -93,11 +94,7 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 						wordBreak: "break-word",
 						overflowWrap: "anywhere",
 					}}>
-					{isExpanded
-						? textLines.length > 0
-							? textLines.slice(0, -1).join("\n").trim()
-							: textLines.join("\n").trim()
-						: textLines.join("\n").trim()}
+					{isExpanded ? (textLines.length > 0 ? textLines.join("\n") : parts[0]?.trim()) : parts[0]?.trim()}
 
 					{/* last line give it a minor padding-right of 40px */}
 					{textLines.length > 2 && (

@@ -24,7 +24,6 @@ export class WriteFileTool extends BaseAgentTool {
 	}
 
 	override async execute(): Promise<ToolResponse> {
-		console.log("WriteFileTool execute method called at:", Date.now())
 		// Perform initial ask without awaiting
 		this.params.ask(
 			"tool",
@@ -40,17 +39,13 @@ export class WriteFileTool extends BaseAgentTool {
 			this.ts
 		)
 		await pWaitFor(() => this.isFinal, { interval: 20 })
-		console.log("WriteFileTool execute method called at:", Date.now())
 
 		const result = await this.processFileWrite()
-
-		console.log("WriteFileTool execute method completed at:", Date.now())
 
 		return result
 	}
 
 	private async processFileWrite(): Promise<ToolResponse> {
-		console.log("processFileWrite started at:", Date.now())
 		try {
 			const { path: relPath, content } = this.params.input
 
@@ -68,7 +63,6 @@ export class WriteFileTool extends BaseAgentTool {
 			}
 
 			// Ask for user approval and await response
-			console.log("Waiting for user approval at:", Date.now())
 
 			const { response, text, images } = await this.params.ask(
 				"tool",
@@ -137,7 +131,6 @@ export class WriteFileTool extends BaseAgentTool {
 	}
 
 	public async handlePartialContent(relPath: string, newContent: string): Promise<void> {
-		console.log("handlePartialContent called", relPath, newContent)
 		if (this.isProcessingFinalContent) {
 			console.log("Skipping partial update as final content is being processed")
 			return

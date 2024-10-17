@@ -253,10 +253,6 @@ export class ToolExecutor {
 	}
 
 	private async processTool(tool: BaseAgentTool): Promise<void> {
-		console.log(
-			`Processing tool: ${tool.name} | isFinal: ${tool.isFinal} | timestamp: ${tool.ts} | now: ${Date.now()}`
-		)
-
 		// Ensure tool is final before execution
 		await pWaitFor(() => tool.isFinal, { interval: 50 })
 
