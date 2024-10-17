@@ -22,6 +22,7 @@ import pWaitFor from "p-wait-for"
 import os from "os"
 import { arePathsEqual } from "../../utils/path-helpers"
 import { listFiles } from "../../parse-source-code"
+import { ExecaTerminalManager } from "../../integrations/terminal/execa-terminal-manager"
 import { DiffViewProvider } from "../../integrations/editor/diff-view-provider"
 import { TaskExecutor } from "./task-executor/task-executor"
 import { AskResponse, TaskState } from "./task-executor/utils"
@@ -38,7 +39,7 @@ export class KoduDev {
 	 * If the last api message caused a file edit
 	 */
 	public isLastMessageFileEdit: boolean = false
-	public terminalManager: ReturnType<typeof createTerminalManager>
+	public terminalManager: ExecaTerminalManager
 	public providerRef: WeakRef<ExtensionProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
@@ -55,10 +56,7 @@ export class KoduDev {
 			alwaysAllowWriteOnly: this.stateManager.alwaysAllowWriteOnly,
 			koduDev: this,
 		})
-		this.terminalManager = createTerminalManager(
-			!!this.stateManager.experimentalTerminal,
-			this.providerRef.deref()!.context
-		)
+		this.terminalManager = new ExecaTerminalManager()
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this.providerRef)
 		this.browserManager = new BrowserManager(this.providerRef.deref()!.context)
 		this.diagnosticsHandler = new DiagnosticsHandler()

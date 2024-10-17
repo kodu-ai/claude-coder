@@ -6,6 +6,7 @@ import InputV1 from "./InputV1"
 
 import GitDialog from "./GitDialog"
 import TaskHistoryModal from "./TaskHistoryDialog"
+import InteractiveTerminal from "../ChatRow/InteractiveTerminal"
 
 interface InputAreaProps {
 	inputValue: string
@@ -86,6 +87,9 @@ const InputArea: React.FC<InputAreaProps> = ({
 						}}
 					/>
 				)} */}
+
+				{/* @TODO: only for testing*/}
+				{/* <InteractiveTerminal /> */}
 
 				<InputV1
 					isRequestRunning={isRequestRunning}
