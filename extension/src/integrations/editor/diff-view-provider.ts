@@ -59,8 +59,8 @@ export class DiffViewProvider {
 			"vscode.diff",
 			this.originalUri,
 			this.modifiedUri,
-			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Editable)`,
-			{ viewColumn: vscode.ViewColumn.Active, preview: false, editable: true }
+			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Editable)`
+			// { viewColumn: vscode.ViewColumn.Active, preview: false, editable: true }
 		)
 
 		const editor = vscode.window.activeTextEditor
@@ -97,12 +97,14 @@ export class DiffViewProvider {
 	}
 
 	private async applyUpdate(content: string): Promise<void> {
-		if (!this.diffEditor) return
+		if (!this.diffEditor) {
+			return
+		}
 
 		const document = this.diffEditor.document
 		const edit = new vscode.WorkspaceEdit()
 		const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
-		edit.replace(this.modifiedUri!, fullRange, content)
+		edit.replace(document.uri!, fullRange, content)
 		await vscode.workspace.applyEdit(edit)
 
 		this.streamedContent = content
@@ -120,7 +122,9 @@ export class DiffViewProvider {
 	}
 
 	private async finalizeDiff(): Promise<void> {
-		if (!this.diffEditor || !this.relPath) return
+		if (!this.diffEditor || !this.relPath) {
+			return
+		}
 
 		const fileName = path.basename(this.relPath)
 

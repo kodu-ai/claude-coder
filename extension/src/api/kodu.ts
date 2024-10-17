@@ -137,6 +137,12 @@ export class KoduHandler implements ApiHandler {
 			system.push({
 				text: customInstructions,
 				type: "text",
+			})
+		}
+		if (environmentDetails) {
+			system.push({
+				text: environmentDetails,
+				type: "text",
 				cache_control: { type: "ephemeral" },
 			})
 		}
@@ -148,13 +154,6 @@ export class KoduHandler implements ApiHandler {
 		// 	type: "text",
 		// 	cache_control: { type: "ephemeral" },
 		// })
-
-		// if (environmentDetails) {
-		// 	system.push({
-		// 		text: environmentDetails,
-		// 		type: "text",
-		// 	})
-		// }
 
 		switch (modelId) {
 			case "claude-3-5-sonnet-20240620":
@@ -202,7 +201,8 @@ export class KoduHandler implements ApiHandler {
 					max_tokens: this.getModel().info.maxTokens,
 					system: [{ text: systemPrompt, type: "text" }],
 					messages,
-					...creativitySettings,
+					// ...creativitySettings,
+					temperature: 0,
 				}
 		}
 		this.cancelTokenSource = axios.CancelToken.source()

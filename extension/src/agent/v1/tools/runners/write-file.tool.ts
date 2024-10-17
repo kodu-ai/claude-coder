@@ -1,6 +1,5 @@
-import { serializeError } from "serialize-error"
 import * as path from "path"
-import { ClaudeAsk, ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
 import { ToolResponse } from "../../types"
 import { formatToolResponse, getCwd, getReadablePath } from "../../utils"
 import { AgentToolOptions, AgentToolParams } from "../types"
@@ -8,7 +7,6 @@ import { BaseAgentTool } from "../base-agent.tool"
 import { DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
 import { fileExistsAtPath } from "../../../../utils/path-helpers"
 import delay from "delay"
-import { debounce } from "lodash"
 import pWaitFor from "p-wait-for"
 
 export class WriteFileTool extends BaseAgentTool {
@@ -174,7 +172,7 @@ export class WriteFileTool extends BaseAgentTool {
 
 	public async handleFinalContent(relPath: string, newContent: string): Promise<string> {
 		const fileExists = await this.checkFileExists(relPath)
-		const { userEdits } = await this.diffViewProvider.saveChanges()
+		const { userEdits, newProblemsMessage } = await this.diffViewProvider.saveChanges()
 		await delay(300)
 		this.params.ask(
 			"tool",
@@ -201,13 +199,15 @@ export class WriteFileTool extends BaseAgentTool {
 			)
 			console.log(`User edits detected: ${userEdits}`)
 		}
-		console.log("handleFinalContent completed")
-		return userEdits
-			? `User updated the file: ${getReadablePath(getCwd(), relPath)} with the following changes:\n${userEdits}`
-			: `File write operation completed successfully: ${getReadablePath(
-					getCwd(),
-					relPath
-			  )} file content updated: ${newContent}`
+
+		let response: string
+		if (userEdits) {
+			response = `The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content, which includes both your original modifications and the user's additional edits, has been successfully saved to ${relPath.toPosix()}. (Note this does not mean you need to re-write the file with the user's changes, as they have already been applied to the file.)${newProblemsMessage}`
+		} else {
+			response = `The content was successfully saved to ${relPath.toPosix()}.${newProblemsMessage}`
+		}
+
+		return response
 	}
 
 	private async checkFileExists(relPath: string): Promise<boolean> {

@@ -112,7 +112,12 @@ ${this.customInstructions.trim()}
 					.overwriteApiConversationHistory(truncatedMessages)
 			}
 		}
-
+		const isFirstRequest = this.providerRef.deref()?.getKoduDev()?.isFirstMessage ?? false
+		// on first request, we need to get the environment details with details of the current task and folder
+		const environmentDetails = await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
+		if (isFirstRequest && this.providerRef.deref()?.getKoduDev()) {
+			this.providerRef.deref()!.getKoduDev()!.isFirstMessage = false
+		}
 		try {
 			const stream = await this.api.createMessageStream(
 				newSystemPrompt.trim(),
@@ -121,7 +126,7 @@ ${this.customInstructions.trim()}
 				abortSignal,
 				customInstructions,
 				await this.providerRef.deref()?.getKoduDev()?.getStateManager().state.memory,
-				await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails()
+				environmentDetails
 			)
 
 			for await (const chunk of stream) {

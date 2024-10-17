@@ -43,6 +43,7 @@ export class KoduDev {
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
 	public diagnosticsHandler: DiagnosticsHandler
+	public isFirstMessage: boolean = true
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
