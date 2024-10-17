@@ -1,6 +1,6 @@
-import { ToolResponse } from "../types"
-import { BaseAgentTool } from "./base-agent.tool"
-import type { AgentToolOptions, AgentToolParams } from "./types"
+import { ToolResponse } from "../../types"
+import { BaseAgentTool } from "../base-agent.tool"
+import type { AgentToolOptions, AgentToolParams } from "../types"
 import { serializeError } from "serialize-error"
 
 export class UpsertTaskHistoryTool extends BaseAgentTool {
@@ -27,10 +27,38 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 
 			await this.koduDev.providerRef.deref()?.getStateManager().updateTaskHistory(historyItem)
 			await this.koduDev.getStateManager().setState(state)
-			this.params.say("memory_updated", content)
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "upsert_memory",
+						approvalState: "approved",
+						milestoneName,
+						summary,
+						content,
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 
 			return "Successfully updated task history."
 		} catch (error) {
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "upsert_memory",
+						approvalState: "error",
+						milestoneName,
+						summary,
+						content,
+						error: serializeError(error),
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 			return `Error writing file: ${JSON.stringify(serializeError(error))}
 						A good example of a upsert_memory tool call is:
 			{

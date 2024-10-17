@@ -34,7 +34,6 @@ const AppContent = () => {
 		switch (message.type) {
 			case "state":
 				const hasKey = !!message.state?.user
-				console.log(`hasKey: ${hasKey}`)
 				setShowWelcome(!hasKey)
 				// don't update showAnnouncement to false if shouldShowAnnouncement is false
 				if (message.state!.shouldShowAnnouncement) {

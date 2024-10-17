@@ -1,30 +1,32 @@
-import { extractAdditionalContext, extractFilesFromContext, extractUrlsFromContext } from "@/utils/extractAttachments";
-import React, { useEffect, useRef, useState } from "react";
-import { useWindowSize } from "react-use";
-import AttachmentsList, { FileItem, UrlItem } from "../ChatRow/FileList";
+import { extractAdditionalContext, extractFilesFromContext, extractUrlsFromContext } from "@/utils/extractAttachments"
+import React, { useEffect, useRef, useState } from "react"
+import { useWindowSize } from "react-use"
+import AttachmentsList, { FileItem, UrlItem } from "../ChatRow/FileList"
+import { Button } from "../ui/button"
+import { cn } from "@/lib/utils"
 
 interface TaskTextProps {
 	text?: string
 }
 
 function splitString(input: string) {
-  const regex = /<additional-context>\[(.*?)\]<\/additional-context>/;
-  const match = input.match(regex);
+	const regex = /<additional-context>\[(.*?)\]<\/additional-context>/
+	const match = input.match(regex)
 
-  if (match) {
-    const additionalContent = match[1];
-    const mainContent = input.replace(match[0], '').trim();
+	if (match) {
+		const additionalContent = match[1]
+		const mainContent = input.replace(match[0], "").trim()
 
-    return {
-      mainContent,
-      additionalContent,
-    };
-  } else {
-    return {
-      mainContent: input,
-      additionalContent: null,
-    };
-  }
+		return {
+			mainContent,
+			additionalContent,
+		}
+	} else {
+		return {
+			mainContent: input,
+			additionalContent: null,
+		}
+	}
 }
 
 const TaskText: React.FC<TaskTextProps> = ({ text }) => {
@@ -32,7 +34,7 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 	const [showSeeMore, setShowSeeMore] = useState(false)
 	const textContainerRef = useRef<HTMLDivElement>(null)
 	const textRef = useRef<HTMLDivElement>(null)
-
+	const showMoreVis = (!isExpanded && showSeeMore) || (isExpanded && showSeeMore)
 	const { height: windowHeight, width: windowWidth } = useWindowSize()
 
 	useEffect(() => {
@@ -57,20 +59,22 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 	}, [text, windowWidth])
 
 	const toggleExpand = () => setIsExpanded(!isExpanded)
-	const parts = extractAdditionalContext(text || '');
+	const parts = extractAdditionalContext(text || "")
 	let filesCut: FileItem[] = []
+	const textLines = parts[0].split("\n")
 	if (parts[1]) {
-		filesCut = extractFilesFromContext(parts[1]);
+		filesCut = extractFilesFromContext(parts[1])
 	}
 	let urlsCut: UrlItem[] = []
 	if (parts[1]) {
-		urlsCut = extractUrlsFromContext(parts[1]);
+		urlsCut = extractUrlsFromContext(parts[1])
 	}
 
 	return (
 		<>
 			<div
 				ref={textContainerRef}
+				className="w-full relative"
 				style={{
 					fontSize: "var(--vscode-font-size)",
 					overflowY: isExpanded ? "auto" : "hidden",
@@ -89,53 +93,33 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 						wordBreak: "break-word",
 						overflowWrap: "anywhere",
 					}}>
-					{parts[0].trim()}
+					{isExpanded
+						? textLines.length > 0
+							? textLines.slice(0, -1).join("\n").trim()
+							: textLines.join("\n").trim()
+						: textLines.join("\n").trim()}
+
+					{/* last line give it a minor padding-right of 40px */}
+					{textLines.length > 2 && (
+						<>
+							<br />
+							<span className="pr-10">{textLines[textLines.length - 1]}</span>
+						</>
+					)}
 				</div>
-				{!isExpanded && showSeeMore && (
-					<div
-						style={{
-							position: "absolute",
-							right: 0,
-							bottom: 0,
-							display: "flex",
-							alignItems: "center",
-						}}>
-						<div
-							style={{
-								width: 30,
-								height: "1.2em",
-								background: "linear-gradient(to right, transparent, var(--section-border))",
-							}}
-						/>
-						<div
-							style={{
-								cursor: "pointer",
-								color: "var(--vscode-textLink-foreground)",
-								paddingRight: 0,
-								paddingLeft: 3,
-								backgroundColor: "var(--section-border)",
-							}}
-							onClick={toggleExpand}>
-							See more
-						</div>
-					</div>
-				)}
-			</div>
 				<AttachmentsList files={filesCut} urls={urlsCut} />
-				
-			{isExpanded && showSeeMore && (
+
 				<div
-					style={{
-						cursor: "pointer",
-						color: "var(--vscode-textLink-foreground)",
-						marginLeft: "auto",
-						textAlign: "right",
-						paddingRight: 0,
-					}}
-					onClick={toggleExpand}>
-					See less
+					className={cn(
+						showMoreVis ? "block" : "hidden",
+						"ml-auto mt-auto text-right w-fit mb-2",
+						"absolute bottom-0 right-0 mb-0 bg-background z-10 pl-1"
+					)}>
+					<Button variant="link" size="sm" className="shrink-0" onClick={toggleExpand}>
+						{isExpanded ? "see less" : "see more"}
+					</Button>
 				</div>
-			)}
+			</div>
 		</>
 	)
 }

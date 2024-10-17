@@ -1,5 +1,5 @@
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
-import { atom, useAtom } from "jotai"
+import { atom, useAtom, useSetAtom } from "jotai"
 import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
 import { useEvent, useMount } from "react-use"
@@ -30,6 +30,7 @@ import { CHAT_BOX_INPUT_ID } from "./InputTextArea"
 import ChatScreen from "./chat-screen"
 import { Resource } from "../../../../src/shared/WebviewMessage"
 import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
+import { ChatTool } from "../../../../src/shared/new-tools"
 
 export const attachementsAtom = atom<Resource[]>([])
 
@@ -43,6 +44,8 @@ interface ChatViewProps {
 }
 
 const MAX_IMAGES_PER_MESSAGE = 5
+
+export const SyntaxHighlighterAtom = atom(vsDarkPlus)
 
 const ChatView: React.FC<ChatViewProps> = ({
 	isHidden,
@@ -77,6 +80,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const [syntaxHighlighterStyle, setSyntaxHighlighterStyle] = useState(vsDarkPlus)
 	const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
 	const [attachements, setAttachements] = useAtom(attachementsAtom)
+	const setSyntaxHighlighterStyleAtom = useSetAtom(SyntaxHighlighterAtom)
 
 	// Refs
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
@@ -113,10 +117,12 @@ const ChatView: React.FC<ChatViewProps> = ({
 	}
 	// Update syntax highlighter style when theme changes
 	useEffect(() => {
+		setSyntaxHighlighterStyle(vsDarkPlus)
 		if (!vscodeThemeName) return
 		const theme = getSyntaxHighlighterStyleFromTheme(vscodeThemeName)
 		if (theme) {
 			setSyntaxHighlighterStyle(theme)
+			setSyntaxHighlighterStyleAtom(theme)
 		}
 	}, [vscodeThemeName])
 
@@ -135,11 +141,9 @@ const ChatView: React.FC<ChatViewProps> = ({
 		if (lastMessage) {
 			switch (lastMessage.type) {
 				case "ask":
-					console.log(`last message is ask ${lastMessage.ask}`)
 					handleAskMessage(lastMessage)
 					break
 				case "say":
-					console.log(`last message is say ${lastMessage.say}`)
 					handleSayMessage(lastMessage)
 					break
 			}
@@ -185,10 +189,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	// Scroll to bottom when messages change
 	useEffect(() => {
-		const timer = setTimeout(() => {
-			virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: "smooth" })
-		}, 50)
-		return () => clearTimeout(timer)
+		// const timer = setTimeout(() => {
+		// 	virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: "smooth" })
+		// }, 50)
+		// return () => clearTimeout(timer)
 	}, [visibleMessages])
 
 	// Handle sending messages
@@ -367,6 +371,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	// Handle ask messages
 	const handleAskMessage = (message: ClaudeMessage) => {
+		if (!isV1ClaudeMessage(message)) {
+			// bug in the code, this should never happen
+			return
+		}
 		// This function updates the component state based on the type of ask message received
 		switch (message.ask) {
 			case "request_limit_reached":
@@ -399,8 +407,60 @@ const ChatView: React.FC<ChatViewProps> = ({
 				setClaudeAsk("tool")
 				if (!message.autoApproved) {
 					setEnableButtons(true)
-					const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
-					handleToolButtons(tool)
+					const tool = JSON.parse(message.text || "{}") as ChatTool
+					if (tool.approvalState !== "pending") {
+						setEnableButtons(false)
+						setPrimaryButtonText(undefined)
+						setSecondaryButtonText(undefined)
+						return
+					}
+					switch (tool?.tool) {
+						case "write_to_file":
+							setPrimaryButtonText("Save")
+							setSecondaryButtonText("Reject")
+							break
+						case "web_search":
+							setPrimaryButtonText("Search")
+							setSecondaryButtonText("Reject")
+							break
+						case "attempt_completion":
+							// we want to update the type of button executed based on the tool
+							setClaudeAsk("completion_result")
+							setPrimaryButtonText("Start New Task")
+							setSecondaryButtonText(undefined)
+							break
+						case "ask_followup_question":
+							setPrimaryButtonText(undefined)
+							setSecondaryButtonText(undefined)
+							setEnableButtons(false)
+							break
+						case "url_screenshot":
+							setPrimaryButtonText("Capture Screenshot")
+							setSecondaryButtonText("Reject")
+							break
+						case "ask_consultant":
+							setPrimaryButtonText("Ask Consultant")
+							setSecondaryButtonText("Reject")
+							break
+						case "execute_command":
+							setPrimaryButtonText("Run Command")
+							setSecondaryButtonText("Reject")
+							break
+						case "upsert_memory":
+							setPrimaryButtonText(undefined)
+							setSecondaryButtonText(undefined)
+							setEnableButtons(false)
+							break
+						case "list_files":
+						case "list_code_definition_names":
+						case "search_files":
+						case "read_file":
+							setPrimaryButtonText("Read")
+							setSecondaryButtonText("Reject")
+							break
+						default:
+							handleToolButtons(tool)
+					}
 				}
 				break
 			case "command":
@@ -602,6 +662,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 				{task && (
 					<>
 						<ChatMessages
+							taskId={task.ts}
 							visibleMessages={visibleMessages}
 							syntaxHighlighterStyle={syntaxHighlighterStyle}
 							expandedRows={expandedRows}
@@ -620,7 +681,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 				)}
 			</div>
 			<div className="mt-2 border-t">
-				{!task && <ProjectStarterChooser />}
+				{/* {!task && <ProjectStarterChooser />} */}
 				<InputArea
 					inputValue={inputValue}
 					setInputValue={setInputValue}

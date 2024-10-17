@@ -3,15 +3,15 @@ import delay from "delay"
 import { ExecaError, ResultPromise, execa } from "execa"
 import { serializeError } from "serialize-error"
 import treeKill from "tree-kill"
-import { AdvancedTerminalManager } from "../../../integrations/terminal"
-import { COMMAND_STDIN_STRING } from "../../../shared/combineCommandSequences"
-import { findLastIndex } from "../../../utils"
-import { COMMAND_OUTPUT_DELAY } from "../constants"
-import { ToolResponse } from "../types"
-import { formatGenericToolFeedback, formatToolResponse, getCwd, getPotentiallyRelevantDetails } from "../utils"
-import { BaseAgentTool } from "./base-agent.tool"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { ExecaTerminalManager } from "../../../integrations/terminal/execa-terminal-manager"
+import { AdvancedTerminalManager } from "../../../../integrations/terminal"
+import { COMMAND_STDIN_STRING } from "../../../../shared/combineCommandSequences"
+import { findLastIndex } from "../../../../utils"
+import { COMMAND_OUTPUT_DELAY } from "../../constants"
+import { ToolResponse } from "../../types"
+import { formatGenericToolFeedback, formatToolResponse, getCwd, getPotentiallyRelevantDetails } from "../../utils"
+import { BaseAgentTool } from "../base-agent.tool"
+import { AgentToolOptions, AgentToolParams } from "../types"
+import { ExecaTerminalManager } from "../../../../integrations/terminal/execa-terminal-manager"
 
 export class ExecuteCommandTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -53,14 +53,50 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		}
 		const { ask, say, returnEmptyStringOnSuccess } = this.params
 		const cwd = getCwd()
-		const { response, text, images } = await ask("command", command)
-		if (response !== "yesButtonTapped" && !this.alwaysAllowWriteOnly) {
+
+		const { response, text, images } = await ask(
+			"tool",
+			{
+				tool: {
+					tool: "execute_command",
+					command,
+					approvalState: "pending",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
+		if (response !== "yesButtonTapped") {
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						command,
+						approvalState: "rejected",
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 			if (response === "messageResponse") {
 				await say("user_feedback", text, images)
 				return this.formatToolResponseWithImages(await this.formatToolDeniedFeedback(text), images)
 			}
 			return await this.formatToolDenied()
 		}
+		ask(
+			"tool",
+			{
+				tool: {
+					tool: "execute_command",
+					command,
+					approvalState: "loading",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
 
 		try {
 			console.log(`Creating terminal: ${typeof terminalManager} `)
@@ -73,7 +109,19 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			let didContinue = false
 			const sendCommandOutput = async (line: string): Promise<void> => {
 				try {
-					const { response, text, images } = await ask("command_output", line)
+					const { response, text, images } = await ask(
+						"tool",
+						{
+							tool: {
+								tool: "execute_command",
+								command,
+								output: line,
+								approvalState: "approved",
+								ts: this.ts,
+							},
+						},
+						this.ts
+					)
 					if (response === "yesButtonTapped") {
 						// proceed while running
 					} else {
@@ -89,10 +137,26 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			let result = ""
 			process.on("line", (line) => {
 				result += line + "\n"
+				// if it starts with \n, remove it
+				if (result.startsWith("\n")) {
+					result = result.slice(1)
+				}
 				if (!didContinue) {
-					sendCommandOutput(line)
+					sendCommandOutput(result)
 				} else {
-					say("command_output", line)
+					ask(
+						"tool",
+						{
+							tool: {
+								tool: "execute_command",
+								command,
+								output: result,
+								approvalState: "approved",
+								ts: this.ts,
+							},
+						},
+						this.ts
+					)
 				}
 			})
 
@@ -170,16 +234,22 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					`
 		}
 
-		let response = "yesButtonTapped"
-		if (!this.alwaysAllowWriteOnly) {
-			const result = await ask("command", command)
-			response = result.response
-			if (response === "messageResponse") {
-				await say("user_feedback", result.text, result.images)
-				return formatToolResponse(formatGenericToolFeedback(result.text), result.images)
-			}
-		} else {
-			ask("command", command)
+		const result = await ask(
+			"tool",
+			{
+				tool: {
+					tool: "execute_command",
+					command,
+					approvalState: "pending",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
+		const response = result.response
+		if (response === "messageResponse") {
+			await say("user_feedback", result.text, result.images)
+			return formatToolResponse(formatGenericToolFeedback(result.text), result.images)
 		}
 
 		if (response !== "yesButtonTapped") {
@@ -219,9 +289,9 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			try {
 				await Promise.race([this.execaTerminalManager.awaitCommand(commandId), timeoutPromise])
 				// Check if the output exceeds 15k characters and summarize it if necessary
-				if (result.length > 15_000) {
+				if (result.length > 30_000) {
 					try {
-						say("info", `Command output exceeds 15 000 characters. Making a summary...`)
+						say("info", `Command output exceeds 30 000 characters. Making a summary...`)
 						const summary = await this.koduDev
 							.getApiManager()
 							.getApi()

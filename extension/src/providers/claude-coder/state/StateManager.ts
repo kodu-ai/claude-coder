@@ -100,7 +100,6 @@ export class StateManager {
 		const history = (await this.globalStateManager.getGlobalState("taskHistory")) ?? []
 		const existingItemIndex = history.findIndex((h) => h.id === item.id)
 		if (existingItemIndex !== -1) {
-			console.log(`Updating existing task with id ${item.id}`)
 			history[existingItemIndex] = {
 				...history[existingItemIndex],
 				...item,

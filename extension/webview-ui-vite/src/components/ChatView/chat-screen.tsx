@@ -195,7 +195,7 @@ const ChatScreen: React.FC<{
 	handleClick: (value: string) => void
 	taskHistory: React.ReactNode
 }> = ({ handleClick, taskHistory }) => {
-	const [showHistory, setShowHistory] = useState(false)
+	const [showHistory, setShowHistory] = useState(true)
 	const [greeting, setGreeting] = useState("")
 	const [showProjectDialog, setShowProjectDialog] = useState(false)
 	const [projectType, setProjectType] = useState<ProjectType | null>(null)
@@ -272,13 +272,13 @@ const ChatScreen: React.FC<{
 
 	return (
 		<>
-			<ProjectDialog
+			{/* <ProjectDialog
 				isOpen={showProjectDialog}
 				sendMessage={handleClick}
 				onClose={() => setShowProjectDialog(false)}
 				projectType={projectType ?? "landingPage"}
 				onPreFill={(text) => console.log("Pre-filled text:", text)}
-			/>
+			/> */}
 			<div className="flex flex-col items-center justify-start h-[calc(100%_-_24px)] p-2 sm:p-4 mb-auto mt-2 relative">
 				<Card className="w-full max-w-screen-lg border-0 border-unset bg-transparent">
 					<CardHeader>
@@ -336,24 +336,22 @@ const ChatScreen: React.FC<{
 						</AnimatePresence>
 					</CardContent>
 				</Card>
-				<AnimatePresence>
-					{showHistory && (
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: 20 }}
-							transition={{ duration: 0.3 }}
-							className="sticky bottom-2 mr-auto">
-							<Button
-								onClick={() => setShowHistory(false)}
-								variant="outline"
-								size="sm"
-								className="w-fit flex items-center justify-center">
-								<ArrowLeft className="w-4 h-4 mr-2" /> Back
-							</Button>
-						</motion.div>
-					)}
-				</AnimatePresence>
+				{/* <AnimatePresence>
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: 20 }}
+						transition={{ duration: 0.3 }}
+						className="sticky bottom-2 mr-auto">
+						<Button
+							onClick={() => setShowHistory(false)}
+							variant="outline"
+							size="sm"
+							className="w-fit flex items-center justify-center">
+							<ArrowLeft className="w-4 h-4 mr-2" /> Back
+						</Button>
+					</motion.div>
+				</AnimatePresence> */}
 			</div>
 		</>
 	)
