@@ -41,7 +41,7 @@ Additional Instructions:
   - To use it:
     git clone https://github.com/kodu-ai/kodu-remix-shadcn.git <project-name> && cd <project-name> && npm install
     then use list_files to understand the project structure and read the root files to see what's inside.
-    from the momemnt you clone the project you should start writing to your memory and remember at all time that you project is located at <project-name> folder.
+    from the moment you clone the project you should start writing to your memory and remember at all time that you project is located at <project-name> folder.
     it means that any command you run should be run from the <project-name> folder unless specified otherwise.
 
   - You can skip this boilerplate if the user provides a specific technology stack.
