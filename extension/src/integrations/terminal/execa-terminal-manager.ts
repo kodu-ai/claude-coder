@@ -2,6 +2,8 @@ import { execa, ExecaError, ResultPromise } from "execa"
 import { EventEmitter } from "events"
 import treeKill from "tree-kill"
 import pWaitFor from "p-wait-for"
+import { ExecuteCommandMessage } from "../../shared/WebviewMessage"
+import { cwd } from "../../agent/v1/utils"
 
 type CommandId = number
 
@@ -140,5 +142,32 @@ export class ExecaTerminalManager {
 
 	private emit(event: string, ...args: any[]): boolean {
 		return EventEmitter.prototype.emit.call(this, event, ...args)
+	}
+
+	public async executeCommand(
+		message: ExecuteCommandMessage,
+		callbackFunction: (event: "error" | "exit" | "response", commandId: number, data: string) => void
+	): Promise<void> {
+		if (message.commandId) {
+			await this.handleCommandInput(message)
+			return
+		}
+
+		const commandId = await this.runCommand(message.command, cwd, callbackFunction)
+
+		try {
+			await this.awaitCommand(commandId)
+		} catch (error) {
+			console.error("Error executing command:", error)
+		}
+	}
+
+	private async handleCommandInput(message: ExecuteCommandMessage): Promise<void> {
+		let input = message.command
+		if (message.isEnter) {
+			input = input + "\n"
+		}
+
+		await this.sendInput(Number(message.commandId!), input)
 	}
 }

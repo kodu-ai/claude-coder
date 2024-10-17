@@ -1,17 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk"
 import delay from "delay"
-import { ExecaError, ResultPromise, execa } from "execa"
+import { ExecaError } from "execa"
 import { serializeError } from "serialize-error"
-import treeKill from "tree-kill"
 import { AdvancedTerminalManager } from "../../../../integrations/terminal"
-import { COMMAND_STDIN_STRING } from "../../../../shared/combineCommandSequences"
-import { findLastIndex } from "../../../../utils"
 import { COMMAND_OUTPUT_DELAY } from "../../constants"
 import { ToolResponse } from "../../types"
 import { formatGenericToolFeedback, formatToolResponse, getCwd, getPotentiallyRelevantDetails } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { ExecaTerminalManager } from "../../../../integrations/terminal/execa-terminal-manager"
+import { WebviewMessage } from "../../../../shared/WebviewMessage"
 
 export class ExecuteCommandTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -259,11 +257,16 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		let userFeedback: { text?: string; images?: string[] } | undefined
 
 		await say("show_terminal", command, undefined)
+		this.koduDev.providerRef.deref()!["view"]?.webview.postMessage({
+			type: "hideCommandBlock",
+			identifier: this.ts,
+		})
 
 		try {
 			let result = ""
 			let didError = false
 
+			const webview = this.koduDev.providerRef.deref()!["view"]?.webview!
 			const callbackFunction = (event: "error" | "exit" | "response", commandId: number, data: string) => {
 				if (event === "response") {
 					result += data
@@ -271,7 +274,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					didError = true
 				}
 
-				this.koduDev.providerRef.deref()!["view"]?.webview.postMessage({
+				webview.postMessage({
 					type: "commandExecutionResponse",
 					status: event,
 					payload: data,
@@ -280,6 +283,18 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			}
 
 			const commandId = await this.execaTerminalManager.runCommand(command, this.cwd, callbackFunction)
+			webview.onDidReceiveMessage(
+				async (message: WebviewMessage) => {
+					switch (message.type) {
+						case "executeCommand":
+							await this.execaTerminalManager.executeCommand(message, callbackFunction)
+							break
+					}
+				},
+				null,
+				this.koduDev.providerRef.deref()!["disposables"]
+			)
+
 			this.setRunningProcessId(commandId)
 
 			const timeoutPromise = new Promise<string>((_, reject) => {
@@ -334,6 +349,20 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					userFeedback.images
 				)
 			}
+
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						command,
+						output: result,
+						approvalState: "approved",
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 
 			if (returnEmptyStringOnSuccess) {
 				return ""

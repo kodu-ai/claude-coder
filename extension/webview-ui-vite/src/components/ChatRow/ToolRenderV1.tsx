@@ -47,6 +47,7 @@ import { useAtomValue } from "jotai"
 import { SyntaxHighlighterAtom } from "../ChatView/ChatView"
 import { syntaxHighlighterCustomStyle } from "../CodeBlock/utils"
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
+import { useEvent } from "react-use"
 
 type ApprovalState = ToolStatus
 type ToolAddons = {
@@ -137,6 +138,17 @@ export const ExecuteCommandBlock: React.FC<ExecuteCommandTool & ToolAddons> = ({
 	onReject,
 }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
+	const [isHidden, setIsHidden] = React.useState(false)
+
+	useEvent("message", (message: any) => {
+		if (message.data.type === "hideCommandBlock" && message.data.identifier === ts) {
+			setIsHidden(true)
+		}
+	})
+
+	if (isHidden) {
+		return null
+	}
 
 	return (
 		<ToolBlock

@@ -49,6 +49,11 @@ export type CommandExecutionResponse = {
 	commandId?: string
 }
 
+export type HideCommandBlockMessage = {
+	type: "hideCommandBlock"
+	identifier?: string
+}
+
 // webview will hold state
 export type ExtensionMessage =
 	| {
@@ -73,6 +78,7 @@ export type ExtensionMessage =
 	| PostGitCheckoutSuccess
 	| PostTaskHistory
 	| CommandExecutionResponse
+	| HideCommandBlockMessage
 
 export interface ExtensionState {
 	version: string

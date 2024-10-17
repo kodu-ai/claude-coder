@@ -8,10 +8,16 @@ import { Terminal as XTerm } from "@xterm/xterm"
 
 import "xterm/css/xterm.css"
 import { CommandExecutionResponse } from "../../../../src/shared/ExtensionMessage"
+import { Button } from "../ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 
 interface HistoryEntry {
 	command: string
 	output: string
+}
+
+function createColor(cssVariable: string) {
+	return getComputedStyle(document.documentElement).getPropertyValue(cssVariable).trim()
 }
 
 const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) => {
@@ -108,8 +114,8 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 			fontSize: 12,
 			fontFamily: '"Cascadia Code", Menlo, courier-new, courier, monospace',
 			theme: {
-				background: "#1e1e1e",
-				foreground: "#ffffff",
+				background: createColor("--vscode-editor-background"), // Gets button background color
+				foreground: createColor("--vscode-terminal-foreground"), // Gets terminal foreground color
 			},
 		})
 
@@ -209,7 +215,32 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 
 	useEvent("message", handleCommandResponse)
 
-	return <div ref={terminalElementRef} style={{ height: "150px", borderRadius: "12px" }} />
+	return (
+		<div className="relative bg-card p-2 rounded-md">
+			<div
+				ref={terminalElementRef}
+				style={{
+					height: "150px",
+					// padding: "4px",
+					borderRadius: "4px",
+					// border: "1px solid var(--vscode-panel-border)",
+				}}
+			/>
+			<Button
+				className="absolute bottom-1 right-1 p-0 m-0 h-6 w-6 hover:bg-primary/40"
+				variant="ghost"
+				size="icon"
+				onClick={() => {
+					terminalRef.current?.clear()
+				}}>
+				<span className="codicon codicon-clear-all text-primary-foreground" />
+			</Button>
+
+			<div className="absolute top-2 right-2">
+				<span className="codicon codicon-terminal text-primary" />
+			</div>
+		</div>
+	)
 }
 
 export default InteractiveTerminal
