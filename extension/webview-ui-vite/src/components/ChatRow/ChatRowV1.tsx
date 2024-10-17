@@ -240,7 +240,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 					case "user_feedback":
 						return <UserFeedbackMessage message={message} />
 					case "terminal_view":
-						return <InteractiveTerminal initialCommands={message.text?.split("\n") || []} />
+						return <InteractiveTerminal />
 					case "user_feedback_diff":
 						return (
 							<UserFeedbackDiffMessage
