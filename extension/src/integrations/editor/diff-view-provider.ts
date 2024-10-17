@@ -105,7 +105,7 @@ export class DiffViewProvider {
 		const edit = new vscode.WorkspaceEdit()
 		const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
 		edit.replace(this.modifiedUri!, fullRange, content)
-		await vscode.workspace.applyEdit(edit)
+		// await vscode.workspace.applyEdit(edit,)
 
 		this.streamedContent = content
 

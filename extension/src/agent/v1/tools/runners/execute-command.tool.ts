@@ -60,6 +60,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					command,
 					approvalState: "pending",
 					ts: this.ts,
+					isSubMsg: this.params.isSubMsg,
 				},
 			},
 			this.ts
@@ -73,6 +74,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 						command,
 						approvalState: "rejected",
 						ts: this.ts,
+						isSubMsg: this.params.isSubMsg,
 					},
 				},
 				this.ts
@@ -91,6 +93,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					command,
 					approvalState: "loading",
 					ts: this.ts,
+					isSubMsg: this.params.isSubMsg,
 				},
 			},
 			this.ts
@@ -116,6 +119,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 								output: line,
 								approvalState: "approved",
 								ts: this.ts,
+								isSubMsg: this.params.isSubMsg,
 							},
 						},
 						this.ts
@@ -151,6 +155,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 								output: result,
 								approvalState: "approved",
 								ts: this.ts,
+								isSubMsg: this.params.isSubMsg,
 							},
 						},
 						this.ts
@@ -240,6 +245,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					command,
 					approvalState: "pending",
 					ts: this.ts,
+					isSubMsg: this.params.isSubMsg,
 				},
 			},
 			this.ts
@@ -264,6 +270,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 						output: line,
 						approvalState: "approved",
 						ts: this.ts,
+						isSubMsg: this.params.isSubMsg,
 					},
 				})
 				const isStdin = (text ?? "").startsWith(COMMAND_STDIN_STRING)

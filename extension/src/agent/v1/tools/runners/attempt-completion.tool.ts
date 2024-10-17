@@ -32,30 +32,18 @@ export class AttemptCompletionTool extends BaseAgentTool {
 
 		let resultToSend = result
 		if (command) {
-			await ask(
-				"tool",
-				{
-					tool: {
-						tool: "attempt_completion",
-						result: result,
-						command: command,
-						approvalState: "approved",
-						ts: this.ts,
-					},
-				},
-				this.ts
-			)
-
-			const executeCommandParams = {
+			const executeCommandParams: AgentToolParams = {
 				...this.params,
 				returnEmptyStringOnSuccess: true,
+				isSubMsg: true,
+				ts: Date.now(), // add a timestamp to the command to ensure it is unique and goes to next msg
 			}
+
 			const commandResult = await new ExecuteCommandTool(executeCommandParams, this.options).execute()
 
 			if (commandResult) {
 				return commandResult
 			}
-			resultToSend = ""
 		}
 
 		const { response, text, images } = await ask(

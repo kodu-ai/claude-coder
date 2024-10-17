@@ -54,6 +54,10 @@ type ToolAddons = {
 	ts: number
 	onApprove?: () => void
 	onReject?: () => void
+	/**
+	 * If this is a sub message, it will force it to stick to previous tool call in the ui (same message)
+	 */
+	isSubMsg?: boolean
 }
 type ToolBlockProps = {
 	icon: React.FC<React.SVGProps<SVGSVGElement>>
@@ -70,6 +74,7 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 	tool,
 	children,
 	variant,
+	isSubMsg,
 	approvalState,
 	onApprove,
 	onReject,
@@ -79,6 +84,8 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 			? "info"
 			: approvalState === "error" || approvalState === "rejected"
 			? "destructive"
+			: approvalState === "approved"
+			? "success"
 			: variant
 	const stateIcons = {
 		pending: <AlertCircle className="w-4 h-4 text-info" />,
@@ -96,15 +103,19 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 
 	return (
 		<div
-			className={cn("border-l-4 p-3 mb-3 bg-card text-card-foreground", {
-				"border-primary": variant === "primary",
-				"border-secondary": variant === "info",
-				"border-accent": variant === "accent",
-				"border-success": variant === "success",
-				"border-info": variant === "info",
-				"border-muted": variant === "default",
-				"border-destructive": variant === "destructive",
-			})}>
+			className={cn(
+				"border-l-4 p-3 mb-3 bg-card text-card-foreground",
+				{
+					"border-primary": variant === "primary",
+					"border-secondary": variant === "info",
+					"border-accent": variant === "accent",
+					"border-success": variant === "success",
+					"border-info": variant === "info",
+					"border-muted": variant === "default",
+					"border-destructive": variant === "destructive",
+				},
+				isSubMsg && "!-mt-5"
+			)}>
 			<div className="flex items-center justify-between mb-2">
 				<div className="flex items-center">
 					<Icon className={cn("w-5 h-5 mr-2", `text-${variant}`)} />
@@ -135,16 +146,18 @@ export const ExecuteCommandBlock: React.FC<ExecuteCommandTool & ToolAddons> = ({
 	tool,
 	ts,
 	onReject,
+	...rest
 }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
 
 	return (
 		<ToolBlock
+			{...rest}
 			ts={ts}
 			tool={tool}
 			icon={Terminal}
 			title="Execute Command"
-			variant="primary"
+			variant="info"
 			approvalState={approvalState}
 			onApprove={onApprove}
 			onReject={onReject}>
@@ -179,8 +192,10 @@ export const ListFilesBlock: React.FC<ListFilesTool & ToolAddons> = ({
 	onReject,
 	tool,
 	ts,
+	...rest
 }) => (
 	<ToolBlock
+		{...rest}
 		ts={ts}
 		tool={tool}
 		icon={FolderTree}
@@ -205,8 +220,10 @@ export const ListCodeDefinitionNamesBlock: React.FC<ListCodeDefinitionNamesTool 
 	onReject,
 	tool,
 	ts,
+	...rest
 }) => (
 	<ToolBlock
+		{...rest}
 		ts={ts}
 		tool={tool}
 		icon={Code}
@@ -230,8 +247,10 @@ export const SearchFilesBlock: React.FC<SearchFilesTool & ToolAddons> = ({
 	onReject,
 	tool,
 	ts,
+	...rest
 }) => (
 	<ToolBlock
+		{...rest}
 		ts={ts}
 		tool={tool}
 		icon={Search}
@@ -262,11 +281,13 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 	onReject,
 	tool,
 	ts,
+	...rest
 }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
 
 	return (
 		<ToolBlock
+			{...rest}
 			ts={ts}
 			tool={tool}
 			icon={FileText}
@@ -314,6 +335,7 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 	onReject,
 	tool,
 	ts,
+	...rest
 }) => {
 	content = content ?? ""
 	const [visibleContent, setVisibleContent] = useState<string[]>([])
@@ -340,6 +362,7 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 
 	return (
 		<ToolBlock
+			{...rest}
 			ts={ts}
 			tool={tool}
 			icon={Edit}
@@ -398,8 +421,10 @@ export const AskFollowupQuestionBlock: React.FC<AskFollowupQuestionTool & ToolAd
 	onReject,
 	tool,
 	ts,
+	...rest
 }) => (
 	<ToolBlock
+		{...rest}
 		ts={ts}
 		tool={tool}
 		icon={HelpCircle}
@@ -420,8 +445,10 @@ export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons
 	onReject,
 	tool,
 	ts,
+	...rest
 }) => (
 	<ToolBlock
+		{...rest}
 		ts={ts}
 		tool={tool}
 		icon={CheckCircle}
@@ -430,11 +457,11 @@ export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons
 		approvalState={approvalState}
 		onApprove={onApprove}
 		onReject={onReject}>
-		{command && (
+		{/* {command && (
 			<div className="bg-muted p-2 rounded font-mono text-xs overflow-x-auto mb-2">
 				<span className="text-success">$</span> {command}
 			</div>
-		)}
+		)} */}
 		<div className="bg-success/20 text-success-foreground p-2 rounded text-xs">{result}</div>
 	</ToolBlock>
 )
@@ -447,8 +474,10 @@ export const WebSearchBlock: React.FC<WebSearchTool & ToolAddons> = ({
 	onReject,
 	tool,
 	ts,
+	...rest
 }) => (
 	<ToolBlock
+		{...rest}
 		ts={ts}
 		tool={tool}
 		icon={Globe}
@@ -476,8 +505,10 @@ export const UrlScreenshotBlock: React.FC<UrlScreenshotTool & ToolAddons> = ({
 	tool,
 	base64Image,
 	ts,
+	...rest
 }) => (
 	<ToolBlock
+		{...rest}
 		ts={ts}
 		tool={tool}
 		icon={Image}
@@ -504,8 +535,10 @@ export const AskConsultantBlock: React.FC<AskConsultantTool & ToolAddons> = ({
 	onReject,
 	tool,
 	ts,
+	...rest
 }) => (
 	<ToolBlock
+		{...rest}
 		ts={ts}
 		tool={tool}
 		icon={MessageCircle}
@@ -527,8 +560,10 @@ export const UpsertMemoryBlock: React.FC<UpsertMemoryTool & ToolAddons> = ({
 	onReject,
 	tool,
 	ts,
+	...rest
 }) => (
 	<ToolBlock
+		{...rest}
 		ts={ts}
 		tool={tool}
 		icon={BookOpen}
