@@ -8,7 +8,7 @@ type ToolSchema = {
 
 type ToolUpdateCallback = (id: string, toolName: string, params: any, ts: number) => void
 type ToolEndCallback = (id: string, toolName: string, params: any, ts: number) => void
-type ToolErrorCallback = (id: string, toolName: string, error: Error) => void
+type ToolErrorCallback = (id: string, toolName: string, error: Error, ts: number) => void
 type ToolClosingErrorCallback = (error: Error) => void
 
 interface Context {
@@ -181,7 +181,7 @@ export class ToolParser {
 	private finalizeTool(context: Context): void {
 		const toolSchema = this.toolSchemas.find((schema) => schema.name === context.toolName)
 		if (!toolSchema) {
-			this.onToolError?.(context.id, context.toolName, new Error(`Unknown tool: ${context.toolName}`))
+			this.onToolError?.(context.id, context.toolName, new Error(`Unknown tool: ${context.toolName}`), context.ts)
 			return
 		}
 
@@ -190,9 +190,14 @@ export class ToolParser {
 			this.onToolEnd?.(context.id, context.toolName, validatedParams, context.ts)
 		} catch (error) {
 			if (error instanceof z.ZodError) {
-				this.onToolError?.(context.id, context.toolName, new Error(`Validation error: ${error.message}`))
+				this.onToolError?.(
+					context.id,
+					context.toolName,
+					new Error(`Validation error: ${error.message}`),
+					context.ts
+				)
 			} else {
-				this.onToolError?.(context.id, context.toolName, error as Error)
+				this.onToolError?.(context.id, context.toolName, error as Error, context.ts)
 			}
 		}
 	}

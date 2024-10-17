@@ -133,20 +133,21 @@ export class KoduHandler implements ApiHandler {
 		// 		// cache_control: { type: "ephemeral" },
 		// 	})
 		// }
-		// if (customInstructions && customInstructions.trim()) {
-		// 	system.push({
-		// 		text: customInstructions,
-		// 		type: "text",
-		// 	})
-		// }
+		if (customInstructions && customInstructions.trim()) {
+			system.push({
+				text: customInstructions,
+				type: "text",
+				cache_control: { type: "ephemeral" },
+			})
+		}
 		/**
 		 * push it last to not break the cache
 		 */
-		system.push({
-			text: USER_TASK_HISTORY_PROMPT(userMemory),
-			type: "text",
-			cache_control: { type: "ephemeral" },
-		})
+		// system.push({
+		// 	text: USER_TASK_HISTORY_PROMPT(userMemory),
+		// 	type: "text",
+		// 	cache_control: { type: "ephemeral" },
+		// })
 
 		// if (environmentDetails) {
 		// 	system.push({

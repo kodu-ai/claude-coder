@@ -60,6 +60,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					command,
 					approvalState: "pending",
 					ts: this.ts,
+					isSubMsg: this.params.isSubMsg,
 				},
 			},
 			this.ts
@@ -73,6 +74,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 						command,
 						approvalState: "rejected",
 						ts: this.ts,
+						isSubMsg: this.params.isSubMsg,
 					},
 				},
 				this.ts
@@ -91,6 +93,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					command,
 					approvalState: "loading",
 					ts: this.ts,
+					isSubMsg: this.params.isSubMsg,
 				},
 			},
 			this.ts
@@ -116,6 +119,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 								output: line,
 								approvalState: "approved",
 								ts: this.ts,
+								isSubMsg: this.params.isSubMsg,
 							},
 						},
 						this.ts
@@ -151,6 +155,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 								output: result,
 								approvalState: "approved",
 								ts: this.ts,
+								isSubMsg: this.params.isSubMsg,
 							},
 						},
 						this.ts
@@ -179,6 +184,35 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			result = result.trim()
 
 			if (userFeedback) {
+				if (result.length > 0) {
+					ask(
+						"tool",
+						{
+							tool: {
+								tool: "execute_command",
+								command,
+								approvalState: "approved",
+								ts: this.ts,
+								isSubMsg: this.params.isSubMsg,
+							},
+						},
+						this.ts
+					)
+				} else {
+					ask(
+						"tool",
+						{
+							tool: {
+								tool: "execute_command",
+								command,
+								approvalState: "rejected",
+								ts: this.ts,
+								isSubMsg: this.params.isSubMsg,
+							},
+						},
+						this.ts
+					)
+				}
 				await say("user_feedback", userFeedback.text, userFeedback.images)
 				return this.formatToolResponseWithImages(
 					await this.formatToolResult(
@@ -240,17 +274,44 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					command,
 					approvalState: "pending",
 					ts: this.ts,
+					isSubMsg: this.params.isSubMsg,
 				},
 			},
 			this.ts
 		)
 		const response = result.response
 		if (response === "messageResponse") {
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						command,
+						approvalState: "rejected",
+						ts: this.ts,
+						isSubMsg: this.params.isSubMsg,
+					},
+				},
+				this.ts
+			)
 			await say("user_feedback", result.text, result.images)
 			return formatToolResponse(formatGenericToolFeedback(result.text), result.images)
 		}
 
 		if (response !== "yesButtonTapped") {
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						command,
+						approvalState: "rejected",
+						ts: this.ts,
+						isSubMsg: this.params.isSubMsg,
+					},
+				},
+				this.ts
+			)
 			return "The user denied this operation."
 		}
 

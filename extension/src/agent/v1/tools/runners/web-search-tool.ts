@@ -72,7 +72,7 @@ export class WebSearchTool extends BaseAgentTool {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
-						approvalState: "approved",
+						approvalState: "pending",
 						ts: this.ts,
 					},
 				},
@@ -80,9 +80,36 @@ export class WebSearchTool extends BaseAgentTool {
 			)
 			const result = await this.koduDev.getApiManager().getApi()?.sendWebSearchRequest?.(searchQuery, baseLink)
 			if (!result) {
+				ask(
+					"tool",
+					{
+						tool: {
+							tool: "web_search",
+							searchQuery,
+							baseLink,
+							approvalState: "error",
+							error: "No result found.",
+							ts: this.ts,
+						},
+					},
+					this.ts
+				)
 				return "Web search failed with error: No result found."
 			}
-			console.log("Web search result: ", result)
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "web_search",
+						searchQuery,
+						baseLink,
+						content: result.content,
+						approvalState: "approved",
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 			return `This is the result of the web search: ${result.content}`
 		} catch (err) {
 			this.params.ask(

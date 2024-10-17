@@ -19,7 +19,19 @@ export class AskConsultantTool extends BaseAgentTool {
 			return await this.onBadInputReceived()
 		}
 
-		const confirmation = await this.askToolExecConfirmation()
+		const confirmation = await this.params.ask(
+			"tool",
+			{
+				tool: {
+					tool: "ask_consultant",
+					query: query!,
+					approvalState: "pending",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
+
 		if (confirmation.response !== "yesButtonTapped") {
 			this.params.ask(
 				"tool",
@@ -67,7 +79,19 @@ export class AskConsultantTool extends BaseAgentTool {
 				return "Consultant failed to answer your question."
 			}
 
-			await this.relaySuccessfulResponse(response)
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "ask_consultant",
+						approvalState: "approved",
+						result: response.result,
+						query: this.params.input.query!,
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 
 			return `This is the advice from the consultant: ${response.result}`
 		} catch (err) {
@@ -89,6 +113,19 @@ export class AskConsultantTool extends BaseAgentTool {
 	}
 
 	private async onBadInputReceived() {
+		this.params.ask(
+			"tool",
+			{
+				tool: {
+					tool: "ask_consultant",
+					approvalState: "error",
+					query: "",
+					error: "Missing value for required parameter 'query'.",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
 		await this.params.say(
 			"error",
 			"Claude tried to use `ask_consultant` without required parameter `query`. Retrying..."
@@ -103,23 +140,6 @@ export class AskConsultantTool extends BaseAgentTool {
 			Please try again with the correct query, you are not allowed to search without a query.`
 	}
 
-	private async askToolExecConfirmation(): Promise<AskConfirmationResponse> {
-		const { query } = this.params.input
-
-		return await this.params.ask(
-			"tool",
-			{
-				tool: {
-					tool: "ask_consultant",
-					query: query!,
-					approvalState: "pending",
-					ts: this.ts,
-				},
-			},
-			this.ts
-		)
-	}
-
 	private async onExecDenied(confirmation: AskConfirmationResponse) {
 		const { response, text, images } = confirmation
 		if (response === "messageResponse") {
@@ -129,21 +149,5 @@ export class AskConsultantTool extends BaseAgentTool {
 		}
 
 		return "The user denied this operation."
-	}
-
-	private async relaySuccessfulResponse(data: Record<string, string>) {
-		return await this.params.ask(
-			"tool",
-			{
-				tool: {
-					tool: "ask_consultant",
-					approvalState: "approved",
-					result: data.result,
-					query: this.params.input.query!,
-					ts: this.ts,
-				},
-			},
-			this.ts
-		)
 	}
 }

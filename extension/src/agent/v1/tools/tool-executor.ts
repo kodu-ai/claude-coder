@@ -22,6 +22,7 @@ import ToolParser from "./tool-parser/tool-parser"
 import { tools } from "./schema"
 import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
+import { ChatTool } from "../../../shared/new-tools"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined
@@ -49,6 +50,22 @@ export class ToolExecutor {
 			{
 				onToolUpdate: this.handleToolUpdate.bind(this),
 				onToolEnd: this.handleToolEnd.bind(this),
+				onToolError: (id, toolName, error, ts) => {
+					console.error(`Error processing tool: ${id}`, error)
+					this.koduDev.taskExecutor.askWithId(
+						"tool",
+						{
+							// @ts-expect-error - missing body
+							tool: {
+								tool: toolName as ChatTool["tool"],
+								ts,
+								approvalState: "error",
+								error: error.message,
+							},
+						},
+						ts
+					)
+				},
 			}
 		)
 	}

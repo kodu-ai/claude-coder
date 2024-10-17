@@ -40,14 +40,12 @@ export class DiffViewProvider {
 			this.originalContent = ""
 		}
 
-		// Get pre-edit diagnostics
-		this.preDiagnostics = vscode.languages.getDiagnostics()
-
 		// Open diff editor
 		await this.openDiffEditor(relPath)
 	}
 
 	private async openDiffEditor(relPath: string, isFinal?: boolean): Promise<void> {
+		await this.closeAllDiffViews()
 		const fileName = path.basename(relPath)
 		this.originalUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${fileName}`).with({
 			query: Buffer.from(this.originalContent).toString("base64"),
@@ -62,7 +60,7 @@ export class DiffViewProvider {
 			this.originalUri,
 			this.modifiedUri,
 			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Editable)`,
-			{ viewColumn: vscode.ViewColumn.Active, preview: false, editable: isFinal }
+			{ viewColumn: vscode.ViewColumn.Active, preview: false, editable: true }
 		)
 
 		const editor = vscode.window.activeTextEditor

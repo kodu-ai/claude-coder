@@ -56,6 +56,7 @@ export type AskFollowupQuestionTool = {
 export type AttemptCompletionTool = {
 	tool: "attempt_completion"
 	command?: string
+	commandResult?: string
 	result: string
 }
 
@@ -63,6 +64,7 @@ export type WebSearchTool = {
 	tool: "web_search"
 	searchQuery: string
 	baseLink?: string
+	content?: string
 }
 
 export type UrlScreenshotTool = {
@@ -100,5 +102,9 @@ export type ChatTool = (
 ) & {
 	ts: number
 	approvalState?: ToolStatus
+	/**
+	 * If this is a sub message, it will force it to stick to previous tool call in the ui (same message)
+	 */
+	isSubMsg?: boolean
 	error?: string
 }

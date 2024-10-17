@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react"
+import React, { useRef, useEffect, useState, useCallback } from "react"
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso"
 import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
@@ -23,57 +23,66 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 	handleSendStdin,
 }) => {
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
+	const [atBottom, setAtBottom] = useState(true)
+
+	const followOutput = useCallback((isAtBottom: boolean) => {
+		if (isAtBottom) {
+			return "smooth"
+		}
+		return false
+	}, [])
+
+	const handleAtBottomStateChange = useCallback((bottom: boolean) => {
+		setAtBottom(bottom)
+	}, [])
 
 	useEffect(() => {
-		const timer = setTimeout(() => {
-			virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: "smooth" })
-		}, 50)
-
-		return () => clearTimeout(timer)
-	}, [taskId])
+		if (atBottom) {
+			virtuosoRef.current?.scrollToIndex({
+				index: visibleMessages.length - 1,
+				behavior: "smooth",
+				align: "end",
+			})
+		}
+	}, [visibleMessages, atBottom])
 
 	return (
 		<Virtuoso
 			ref={virtuosoRef}
-			className="scrollable"
-			style={{
-				flexGrow: 1,
-				overflowY: "scroll",
-			}}
-			increaseViewportBy={{ top: 0, bottom: Number.MAX_SAFE_INTEGER }}
-			data={visibleMessages ?? []}
-			itemContent={(index, message) =>
-				// here we will do a version check and render the appropriate component
-
-				// V0
-				isV1ClaudeMessage(message) ? (
-					<ChatRowV1
-						key={message.ts}
-						message={message}
-						syntaxHighlighterStyle={syntaxHighlighterStyle}
-						isExpanded={expandedRows[message.ts] || false}
-						onToggleExpand={() => toggleRowExpansion(message.ts)}
-						isLast={index === visibleMessages.length - 1}
-						handleSendStdin={handleSendStdin}
-						nextMessage={
-							index < visibleMessages.length - 1
-								? (visibleMessages[index + 1] as V1ClaudeMessage)
-								: undefined
-						}
-					/>
-				) : (
-					<ChatRow
-						key={message.ts}
-						message={message}
-						syntaxHighlighterStyle={syntaxHighlighterStyle}
-						isExpanded={expandedRows[message.ts] || false}
-						onToggleExpand={() => toggleRowExpansion(message.ts)}
-						isLast={index === visibleMessages.length - 1}
-						nextMessage={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
-						handleSendStdin={handleSendStdin}
-					/>
-				)
-			}
+			data={visibleMessages}
+			followOutput={followOutput}
+			atBottomStateChange={handleAtBottomStateChange}
+			itemContent={(index, message) => (
+				<>
+					{isV1ClaudeMessage(message) ? (
+						<ChatRowV1
+							key={message.ts}
+							message={message}
+							syntaxHighlighterStyle={syntaxHighlighterStyle}
+							isExpanded={expandedRows[message.ts] || false}
+							onToggleExpand={() => toggleRowExpansion(message.ts)}
+							isLast={index === visibleMessages.length - 1}
+							handleSendStdin={handleSendStdin}
+							nextMessage={
+								index < visibleMessages.length - 1
+									? (visibleMessages[index + 1] as V1ClaudeMessage)
+									: undefined
+							}
+						/>
+					) : (
+						<ChatRow
+							key={message.ts}
+							message={message}
+							syntaxHighlighterStyle={syntaxHighlighterStyle}
+							isExpanded={expandedRows[message.ts] || false}
+							onToggleExpand={() => toggleRowExpansion(message.ts)}
+							isLast={index === visibleMessages.length - 1}
+							nextMessage={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
+							handleSendStdin={handleSendStdin}
+						/>
+					)}
+				</>
+			)}
 		/>
 	)
 }
