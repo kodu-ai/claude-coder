@@ -4,6 +4,11 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.9.6]
+
+-   [FIX]: prompt caching
+-   [FIX]: attempt_completion tool when command is included.
+
 ## [1.9.3]
 
 -   Streaming UI Beta
