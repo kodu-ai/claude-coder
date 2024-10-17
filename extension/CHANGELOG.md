@@ -4,6 +4,10 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.9.9]
+
+-   [FIX]: tools and chat scroll
+
 ## [1.9.6]
 
 -   [FIX]: prompt caching
