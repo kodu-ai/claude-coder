@@ -1,10 +1,9 @@
-import React, { useRef, useEffect } from "react"
+import React, { useRef, useEffect, useState, useCallback } from "react"
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso"
 import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import ChatRow from "../ChatRow/ChatRow"
 import ChatRowV1 from "../ChatRow/ChatRowV1"
-import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom"
 
 interface ChatMessagesProps {
 	visibleMessages: ClaudeMessage[]
@@ -24,25 +23,35 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 	handleSendStdin,
 }) => {
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
-	const [messagesContainerRef, messagesEndRef] = useScrollToBottom<HTMLDivElement>()
-	useEffect(() => {
-		const timer = setTimeout(() => {
-			virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: "smooth" })
-		}, 50)
+	const [atBottom, setAtBottom] = useState(true)
 
-		return () => clearTimeout(timer)
-	}, [taskId])
+	const followOutput = useCallback((isAtBottom: boolean) => {
+		if (isAtBottom) {
+			return "smooth"
+		}
+		return false
+	}, [])
+
+	const handleAtBottomStateChange = useCallback((bottom: boolean) => {
+		setAtBottom(bottom)
+	}, [])
+
+	useEffect(() => {
+		if (atBottom) {
+			virtuosoRef.current?.scrollToIndex({
+				index: visibleMessages.length - 1,
+				behavior: "smooth",
+				align: "end",
+			})
+		}
+	}, [visibleMessages, atBottom])
 
 	return (
 		<Virtuoso
 			ref={virtuosoRef}
-			className="scrollable"
-			style={{
-				flexGrow: 1,
-				overflowY: "scroll",
-			}}
-			increaseViewportBy={{ top: 0, bottom: Number.MAX_SAFE_INTEGER }}
-			data={visibleMessages ?? []}
+			data={visibleMessages}
+			followOutput={followOutput}
+			atBottomStateChange={handleAtBottomStateChange}
 			itemContent={(index, message) => (
 				<>
 					{isV1ClaudeMessage(message) ? (
@@ -72,7 +81,6 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 							handleSendStdin={handleSendStdin}
 						/>
 					)}
-					<div ref={messagesEndRef} id="end" className="shrink-0 min-w-[24px] min-h-[24px]" />
 				</>
 			)}
 		/>
