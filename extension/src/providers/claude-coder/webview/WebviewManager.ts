@@ -329,7 +329,7 @@ export class WebviewManager {
 						AmplitudeWebviewManager.handleMessage(message)
 						break
 					case "cancelCurrentRequest":
-						await this.provider.getKoduDev()?.taskExecutor.cancelCurrentRequest()
+						await this.provider.getKoduDev()?.taskExecutor.abortTask()
 						await this.postStateToWebview()
 						break
 					case "abortAutomode":

@@ -67,14 +67,13 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 	}
 
-	public abortTask(): void {
+	public async abortTask(): Promise<void> {
 		this.logState("Aborting task")
-		this.abortController?.abort()
-		this.cancelCurrentRequest()
-		this.resetState()
+		await this.cancelCurrentRequest()
+		await this.resetState()
 	}
 
-	public async cancelCurrentRequest(): Promise<void> {
+	private async cancelCurrentRequest(): Promise<void> {
 		if (
 			this.isRequestCancelled ||
 			this.state === TaskState.IDLE ||
@@ -286,7 +285,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 	}
 
-	private resetState(): void {
+	private async resetState() {
 		this.state = TaskState.IDLE
 		this.abortController?.abort()
 		this.currentApiResponse = null
@@ -294,7 +293,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.isRequestCancelled = false
 		this.abortController = null
 		this.consecutiveErrorCount = 0
-		this.toolExecutor.resetToolState()
+		await this.toolExecutor.resetToolState()
 
 		this.logState("State reset due to request cancellation")
 	}

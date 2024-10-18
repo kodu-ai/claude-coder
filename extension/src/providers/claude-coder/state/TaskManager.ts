@@ -12,7 +12,7 @@ export class TaskManager {
 	constructor(private provider: ExtensionProvider) {}
 
 	async clearTask() {
-		this.provider.getKoduDev()?.abortTask()
+		await this.provider.getKoduDev()?.abortTask()
 		this.provider["koduDev"] = undefined
 	}
 

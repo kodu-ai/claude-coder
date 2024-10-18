@@ -296,9 +296,13 @@ export class ToolExecutor {
 		}
 	}
 
-	public resetToolState(): void {
-		for (const tool of this.toolQueue) {
-			tool.abortToolExecution()
+	public async resetToolState() {
+		// for (const tool of this.toolQueue) {
+		// 	tool.abortToolExecution()
+		// }
+		// await for
+		for await (const tool of this.toolQueue) {
+			await tool.abortToolExecution()
 		}
 		this.toolQueue = []
 		this.isProcessing = null

@@ -358,8 +358,7 @@ export class KoduDev {
 	}
 
 	async abortTask() {
-		this.taskExecutor.abortTask()
-		this.toolExecutor.abortTask()
+		await this.taskExecutor.abortTask()
 		this.browserManager.closeBrowser()
 		this.terminalManager.disposeAll()
 	}
