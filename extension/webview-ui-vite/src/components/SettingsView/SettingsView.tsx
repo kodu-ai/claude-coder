@@ -105,7 +105,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 						technicalBackground={technicalBackground}
 						setTechnicalBackground={setTechnicalBackground}
 					/>
-					<CreativityModeSelector creativeMode={creativeMode} setCreativeMode={setCreativeMode} />
+					{/* <CreativityModeSelector creativeMode={creativeMode} setCreativeMode={setCreativeMode} /> */}
 
 					<div className="flex items-start space-x-2">
 						<Checkbox

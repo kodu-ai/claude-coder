@@ -23,19 +23,9 @@ export const bugReportSchema = z.object({
 	claudeMessage: z.string(),
 })
 export interface ApiHandler {
-	createMessage(
-		systemPrompt: string,
-		messages: Anthropic.Messages.MessageParam[],
-		tools: Anthropic.Messages.Tool[],
-		creativeMode?: "normal" | "creative" | "deterministic",
-		abortSignal?: AbortSignal | null,
-		customInstructions?: string
-	): Promise<ApiHandlerMessageResponse>
-
 	createMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
-		tools: Anthropic.Messages.Tool[],
 		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null,
 		customInstructions?: string,

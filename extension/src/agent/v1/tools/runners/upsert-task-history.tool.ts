@@ -1,6 +1,6 @@
-import { ToolResponse } from "../types"
-import { BaseAgentTool } from "./base-agent.tool"
-import type { AgentToolOptions, AgentToolParams } from "./types"
+import { ToolResponse } from "../../types"
+import { BaseAgentTool } from "../base-agent.tool"
+import type { AgentToolOptions, AgentToolParams } from "../types"
 import { serializeError } from "serialize-error"
 
 export class UpsertTaskHistoryTool extends BaseAgentTool {
@@ -13,7 +13,7 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 
 	async execute(): Promise<ToolResponse> {
 		const { content, milestoneName, summary } = this.params.input
-		if (!content || !milestoneName || !summary) {
+		if (!content) {
 			return await this.onBadInputReceived()
 		}
 
@@ -27,23 +27,39 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 
 			await this.koduDev.providerRef.deref()?.getStateManager().updateTaskHistory(historyItem)
 			await this.koduDev.getStateManager().setState(state)
-			this.params.say("memory_updated", content)
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "upsert_memory",
+						approvalState: "approved",
+						milestoneName: "",
+						summary: "",
+						content,
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 
-			return "Successfully updated task history."
+			return "Successfully updated task history, let's move on to the next step."
 		} catch (error) {
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "upsert_memory",
+						approvalState: "error",
+						milestoneName: "",
+						summary: "",
+						content,
+						error: serializeError(error),
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 			return `Error writing file: ${JSON.stringify(serializeError(error))}
-						A good example of a upsert_memory tool call is:
-			{
-				"tool": "upsert_memory",
-        "summary" "Landing page accepts user email"
-				"milestoneName": "add-email-to-lp",
-				"content": "## Task
-- [x] Create the package.json file
-- [x] Initialize the App.jsx file
-- [x] Create UserForm.tsx to accept waitlist emails
-- [ ] Store emails to sqlite via prisma"
-			}
-			Please try again with the correct markdown content.
 			`
 		}
 	}

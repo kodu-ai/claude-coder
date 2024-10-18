@@ -4,15 +4,14 @@ import { ClaudeAsk, isV1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { ToolName } from "../../shared/Tool"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { ApiManager } from "./api-handler"
-import { ToolExecutor } from "./tool-executor"
+import { ToolExecutor } from "./tools/tool-executor"
 import { KoduDevOptions, ToolResponse, UserContent } from "./types"
 import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails, formatFilesList } from "./utils"
 import { StateManager } from "./state-manager"
-import { AskResponse, TaskExecutor, TaskState } from "./task-executor"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
-import { createTerminalManager } from "../../integrations/terminal"
+import { AdvancedTerminalManager, createTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
 import { DiagnosticsHandler } from "./handlers"
 import vscode from "vscode"
@@ -23,22 +22,29 @@ import pWaitFor from "p-wait-for"
 import os from "os"
 import { arePathsEqual } from "../../utils/path-helpers"
 import { listFiles } from "../../parse-source-code"
+import { ExecaTerminalManager } from "../../integrations/terminal/execa-terminal-manager"
+import { DiffViewProvider } from "../../integrations/editor/diff-view-provider"
+import { TaskExecutor } from "./task-executor/task-executor"
+import { AskResponse, TaskState } from "./task-executor/utils"
+import { ChatTool } from "../../shared/new-tools"
+import { Chat } from "openai/resources/index.mjs"
 
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
 	private apiManager: ApiManager
-	private toolExecutor: ToolExecutor
+	public toolExecutor: ToolExecutor
 	public taskExecutor: TaskExecutor
 	/**
 	 * If the last api message caused a file edit
 	 */
 	public isLastMessageFileEdit: boolean = false
-	public terminalManager: ReturnType<typeof createTerminalManager>
+	public terminalManager: AdvancedTerminalManager
 	public providerRef: WeakRef<ExtensionProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
 	public diagnosticsHandler: DiagnosticsHandler
+	public isFirstMessage: boolean = true
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
@@ -51,12 +57,9 @@ export class KoduDev {
 			alwaysAllowWriteOnly: this.stateManager.alwaysAllowWriteOnly,
 			koduDev: this,
 		})
-		this.terminalManager = createTerminalManager(
-			!!this.stateManager.experimentalTerminal,
-			this.providerRef.deref()!.context
-		)
+		this.terminalManager = new AdvancedTerminalManager()
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this.providerRef)
-		this.browserManager = new BrowserManager()
+		this.browserManager = new BrowserManager(this.providerRef.deref()!.context)
 		this.diagnosticsHandler = new DiagnosticsHandler()
 
 		this.setupTaskExecutor()
@@ -187,6 +190,25 @@ export class KoduDev {
 					m.isError = true
 					m.errorText = "Task was interrupted before this API request could be completed."
 				}
+				if (m.ask === "tool" && m.type === "ask") {
+					const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
+					if (
+						typeof parsedTool === "object" &&
+						(parsedTool.approvalState === "pending" ||
+							parsedTool.approvalState === undefined ||
+							parsedTool.approvalState === "loading")
+					) {
+						const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
+						if (toolsToSkip.includes(parsedTool.tool)) {
+							parsedTool.approvalState = "pending"
+							m.text = JSON.stringify(parsedTool)
+							return
+						}
+						parsedTool.approvalState = "rejected"
+						parsedTool.error = "Task was interrupted before this tool call could be completed."
+						m.text = JSON.stringify(parsedTool)
+					}
+				}
 			}
 		})
 		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessages)
@@ -276,11 +298,11 @@ export class KoduDev {
 						modifiedApiConversationHistory = existingApiConversationHistory.slice(0, -1)
 						modifiedOldUserContent = [...existingUserContent, ...missingToolResponses]
 					} else {
-						modifiedApiConversationHistory = existingApiConversationHistory.slice(0, -1)
+						modifiedApiConversationHistory = [...existingApiConversationHistory]
 						modifiedOldUserContent = [...existingUserContent]
 					}
 				} else {
-					modifiedApiConversationHistory = existingApiConversationHistory.slice(0, -1)
+					modifiedApiConversationHistory = [...existingApiConversationHistory]
 					modifiedOldUserContent = [...existingUserContent]
 				}
 			} else {
@@ -336,15 +358,18 @@ export class KoduDev {
 	}
 
 	async abortTask() {
-		this.taskExecutor.abortTask()
-		this.toolExecutor.abortTask()
+		await this.taskExecutor.abortTask()
+		this.browserManager.closeBrowser()
 		this.terminalManager.disposeAll()
 	}
 
 	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false): Promise<ToolResponse> {
+		const now = Date.now()
 		return this.toolExecutor.executeTool({
 			name,
 			input,
+			id: now.toString(),
+			ts: now,
 			isLastWriteToFile,
 			ask: this.taskExecutor.ask.bind(this.taskExecutor),
 			say: this.taskExecutor.say.bind(this.taskExecutor),

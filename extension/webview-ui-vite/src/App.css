@@ -42,6 +42,9 @@
 .read-the-docs {
 	color: #888;
 }
+li {
+	list-style: auto;
+}
 
 @layer base {
 	:root {

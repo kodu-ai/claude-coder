@@ -278,7 +278,6 @@ export class StateManager {
 			console.error(`[StateManager] updateClaudeMessage: Message with id ${messageId} not found`)
 			return
 		}
-		console.log(`[StateManager] updateClaudeMessage: Updating message with id ${messageId}`)
 		this.state.claudeMessages[index] = message
 		await this.saveClaudeMessages()
 	}
