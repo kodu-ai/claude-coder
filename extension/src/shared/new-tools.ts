@@ -13,6 +13,10 @@ export type ExecuteCommandTool = {
 	 * the output of the command
 	 */
 	output?: string
+	/**
+	 * this is a long running command so ask user if they want to continue
+	 */
+	earlyExit?: "pending" | "approved" | "rejected"
 }
 
 export type ListFilesTool = {

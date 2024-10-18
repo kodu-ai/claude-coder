@@ -11,7 +11,7 @@ import { StateManager } from "./state-manager"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
-import { createTerminalManager } from "../../integrations/terminal"
+import { AdvancedTerminalManager, createTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
 import { DiagnosticsHandler } from "./handlers"
 import vscode from "vscode"
@@ -39,7 +39,7 @@ export class KoduDev {
 	 * If the last api message caused a file edit
 	 */
 	public isLastMessageFileEdit: boolean = false
-	public terminalManager: ExecaTerminalManager
+	public terminalManager: AdvancedTerminalManager
 	public providerRef: WeakRef<ExtensionProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
@@ -57,7 +57,7 @@ export class KoduDev {
 			alwaysAllowWriteOnly: this.stateManager.alwaysAllowWriteOnly,
 			koduDev: this,
 		})
-		this.terminalManager = new ExecaTerminalManager()
+		this.terminalManager = new AdvancedTerminalManager()
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this.providerRef)
 		this.browserManager = new BrowserManager(this.providerRef.deref()!.context)
 		this.diagnosticsHandler = new DiagnosticsHandler()
@@ -298,11 +298,11 @@ export class KoduDev {
 						modifiedApiConversationHistory = existingApiConversationHistory.slice(0, -1)
 						modifiedOldUserContent = [...existingUserContent, ...missingToolResponses]
 					} else {
-						modifiedApiConversationHistory = existingApiConversationHistory.slice(0, -1)
+						modifiedApiConversationHistory = [...existingApiConversationHistory]
 						modifiedOldUserContent = [...existingUserContent]
 					}
 				} else {
-					modifiedApiConversationHistory = existingApiConversationHistory.slice(0, -1)
+					modifiedApiConversationHistory = [...existingApiConversationHistory]
 					modifiedOldUserContent = [...existingUserContent]
 				}
 			} else {
@@ -360,6 +360,7 @@ export class KoduDev {
 	async abortTask() {
 		this.taskExecutor.abortTask()
 		this.toolExecutor.abortTask()
+		this.browserManager.closeBrowser()
 		this.terminalManager.disposeAll()
 	}
 
@@ -473,19 +474,19 @@ export class KoduDev {
 			}
 		}
 
-		// if (includeFileDetails) {
-		details += `\n\n# Current Working Directory (${getCwd().toPosix()}) Files\n`
-		const isDesktop = arePathsEqual(getCwd(), path.join(os.homedir(), "Desktop"))
-		if (isDesktop) {
-			// don't want to immediately access desktop since it would show permission popup
-			details += "(Desktop files not shown automatically. Use list_files to explore if needed.)"
-		} else {
-			const [files, didHitLimit] = await listFiles(getCwd(), true, 200)
-			const result = formatFilesList(getCwd(), files, didHitLimit)
+		if (includeFileDetails) {
+			details += `\n\n# Current Working Directory (${getCwd().toPosix()}) Files\n`
+			const isDesktop = arePathsEqual(getCwd(), path.join(os.homedir(), "Desktop"))
+			if (isDesktop) {
+				// don't want to immediately access desktop since it would show permission popup
+				details += "(Desktop files not shown automatically. Use list_files to explore if needed.)"
+			} else {
+				const [files, didHitLimit] = await listFiles(getCwd(), true, 200)
+				const result = formatFilesList(getCwd(), files, didHitLimit)
 
-			details += result
+				details += result
+			}
 		}
-		// }
 
 		return `<environment_details>\n${details.trim()}\n</environment_details>`
 	}

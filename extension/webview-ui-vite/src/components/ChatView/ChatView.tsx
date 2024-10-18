@@ -189,10 +189,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	// Scroll to bottom when messages change
 	useEffect(() => {
-		// const timer = setTimeout(() => {
-		// 	virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: "smooth" })
-		// }, 50)
-		// return () => clearTimeout(timer)
+		const timer = setTimeout(() => {
+			virtuosoRef.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior: "smooth" })
+		}, 50)
+		return () => clearTimeout(timer)
 	}, [visibleMessages])
 
 	// Handle sending messages

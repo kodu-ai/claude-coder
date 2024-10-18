@@ -364,7 +364,11 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.currentUserContent = [
 				{
 					type: "text",
-					text: "If you have completed the user's task, use the attempt_completion tool. If you require additional information from the user, use the ask_followup_question tool. Otherwise, if you have not completed the task and do not need additional information, then proceed with the next step of the task. (This is an automated message, so do not respond to it conversationally.)",
+					text: `
+					Hey it's seems like you forgot to call a tool, if you have completed the task, you must use the attempt_completion tool with the result.
+					Alternatively, if you want to ask me a question you must use ask_followup_question tool, to ask me a question.
+					Thanks, now please proceed with the task or ask me a question or use the attempt_completion tool.
+					`,
 				},
 			]
 		}

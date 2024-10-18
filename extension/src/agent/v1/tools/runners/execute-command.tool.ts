@@ -39,9 +39,9 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			`
 		}
 		// if (this.koduDev.terminalManager instanceof AdvancedTerminalManager) {
-		// 	return this.executeShellTerminal(command)
+		return this.executeShellTerminal(command)
 		// }
-		return this.executeExeca()
+		// return this.executeExeca()
 	}
 
 	private async executeShellTerminal(command: string): Promise<ToolResponse> {
@@ -105,36 +105,67 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			console.log("Terminal created")
 			terminalInfo.terminal.show() // weird visual bug when creating new terminals (even manually) where there's an empty space at the top.
 			const process = terminalManager.runCommand(terminalInfo, command)
+			await delay(100)
 
 			let userFeedback: { text?: string; images?: string[] } | undefined
 			let didContinue = false
+			const now = Date.now()
 			const sendCommandOutput = async (line: string): Promise<void> => {
 				try {
-					const { response, text, images } = await ask(
+					if (this.alwaysAllowWriteOnly) {
+						/**
+						 * let it run for a bit before ending
+						 */
+						await delay(100)
+					}
+					ask(
 						"tool",
 						{
 							tool: {
 								tool: "execute_command",
 								command,
 								output: line,
-								approvalState: "approved",
+								approvalState: "loading",
 								ts: this.ts,
 								isSubMsg: this.params.isSubMsg,
 							},
 						},
 						this.ts
 					)
-					if (response === "yesButtonTapped") {
-						// proceed while running
-					} else {
-						userFeedback = { text, images }
-					}
-					didContinue = true
-					process.continue() // continue past the await
+					// if (response === "yesButtonTapped") {
+					// 	// proceed while running
+					// } else {
+					// 	userFeedback = { text, images }
+					// }
+					// userFeedback = { text, images }
+					// didContinue = true
+					// process.continue() // continue past the await
 				} catch {
 					// This can only happen if this ask promise was ignored, so ignore this error
 				}
 			}
+			const fireandforgetCmds = [
+				"run dev",
+				"run start",
+				"run serve",
+				"run watch",
+				"dev",
+				"start",
+				"serve",
+				"watch",
+			]
+			if (fireandforgetCmds.includes(command)) {
+				await delay(500) // wait for the command to start
+				didContinue = true
+				setTimeout(() => {
+					process.continue()
+				}, 1000)
+			}
+			// if longer than 30s force continue
+			setTimeout(() => {
+				didContinue = true
+				process.continue()
+			}, 10_000)
 
 			let result = ""
 			process.on("line", (line) => {
@@ -153,7 +184,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 								tool: "execute_command",
 								command,
 								output: result,
-								approvalState: "approved",
+								approvalState: "loading",
 								ts: this.ts,
 								isSubMsg: this.params.isSubMsg,
 							},
@@ -182,6 +213,20 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			await delay(50)
 
 			result = result.trim()
+			ask(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						command,
+						output: result,
+						approvalState: "approved",
+						ts: this.ts,
+						isSubMsg: this.params.isSubMsg,
+					},
+				},
+				this.ts
+			)
 
 			if (userFeedback) {
 				if (result.length > 0) {

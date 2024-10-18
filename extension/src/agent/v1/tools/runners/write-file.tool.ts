@@ -197,7 +197,11 @@ export class WriteFileTool extends BaseAgentTool {
 		if (userEdits) {
 			response = `The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content, which includes both your original modifications and the user's additional edits, has been successfully saved to ${relPath.toPosix()}. (Note this does not mean you need to re-write the file with the user's changes, as they have already been applied to the file.)${newProblemsMessage}`
 		} else {
-			response = `The content was successfully saved to ${relPath.toPosix()}.${newProblemsMessage}`
+			response = `The content was successfully saved to ${relPath.toPosix()}.${
+				newProblemsMessage === ""
+					? `No new problems were detected after saving the file. linting passed. let's move on to the next step.`
+					: `${newProblemsMessage} Please address these problems before moving on to the next step. if you see this message more than twice in a row, please ask for help.`
+			}`
 		}
 
 		return response

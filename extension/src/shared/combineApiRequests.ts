@@ -72,14 +72,14 @@ export function combineApiRequests(messages: ClaudeMessage[]): ClaudeMessage[] {
 		) {
 			console.log(`REPLACE ABORTED MESSAGE`)
 			// add a message that the request was aborted (error)
-			const abortedMessage: ClaudeMessage = {
-				ts: lastMessage.ts,
-				type: "say",
-				say: "error",
-				text: `API request aborted by user`,
-			}
-			// add it before the last message
-			result.splice(result.length - 1, 0, abortedMessage)
+			// const abortedMessage: ClaudeMessage = {
+			// 	ts: lastMessage.ts,
+			// 	type: "say",
+			// 	say: "error",
+			// 	text: `API request aborted by user`,
+			// }
+			// // add it before the last message
+			// result.splice(result.length - 1, 0, abortedMessage)
 		}
 	}
 

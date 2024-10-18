@@ -118,8 +118,8 @@ export class ToolExecutor {
 				return new UrlScreenshotTool(params, this.options)
 			case "ask_consultant":
 				return new AskConsultantTool(params, this.options)
-			// case "upsert_memory":
-			// 	return new UpsertTaskHistoryTool(params, this.options)
+			case "upsert_memory":
+				return new UpsertTaskHistoryTool(params, this.options)
 			default:
 				throw new Error(`Unknown tool: ${params.name}`)
 		}

@@ -84,7 +84,7 @@ The following additional instructions are provided by the user. They should be f
 ${this.customInstructions.trim()}
 `
 		}
-		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), true)
+		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), true, technicalBackground)
 
 		const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
 		// If the last API request's total token usage is close to the context window, truncate the conversation history to free up space for the new request

@@ -150,17 +150,6 @@ export const ExecuteCommandBlock: React.FC<ExecuteCommandTool & ToolAddons> = ({
 	...rest
 }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
-	const [isHidden, setIsHidden] = React.useState(false)
-
-	useEvent("message", (message: any) => {
-		if (message.data.type === "hideCommandBlock" && message.data.identifier === ts) {
-			setIsHidden(true)
-		}
-	})
-
-	if (isHidden) {
-		return null
-	}
 
 	return (
 		<ToolBlock
@@ -591,9 +580,11 @@ export const UpsertMemoryBlock: React.FC<UpsertMemoryTool & ToolAddons> = ({
 				<span className="font-semibold">Milestone:</span> {milestoneName}
 			</p>
 		)}
-		<p className="text-xs">
-			<span className="font-semibold">Summary:</span> {summary}
-		</p>
+		{summary && (
+			<p className="text-xs">
+				<span className="font-semibold">Summary:</span> {summary}
+			</p>
+		)}
 		<div className="bg-muted p-2 rounded font-mono text-xs max-h-20 overflow-y-auto mt-1">{content}</div>
 	</ToolBlock>
 )

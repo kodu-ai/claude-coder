@@ -13,7 +13,7 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 
 	async execute(): Promise<ToolResponse> {
 		const { content, milestoneName, summary } = this.params.input
-		if (!content || !milestoneName || !summary) {
+		if (!content) {
 			return await this.onBadInputReceived()
 		}
 
@@ -33,8 +33,8 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 					tool: {
 						tool: "upsert_memory",
 						approvalState: "approved",
-						milestoneName,
-						summary,
+						milestoneName: "",
+						summary: "",
 						content,
 						ts: this.ts,
 					},
@@ -42,7 +42,7 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 				this.ts
 			)
 
-			return "Successfully updated task history."
+			return "Successfully updated task history, let's move on to the next step."
 		} catch (error) {
 			this.params.ask(
 				"tool",
@@ -50,8 +50,8 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 					tool: {
 						tool: "upsert_memory",
 						approvalState: "error",
-						milestoneName,
-						summary,
+						milestoneName: "",
+						summary: "",
 						content,
 						error: serializeError(error),
 						ts: this.ts,
@@ -60,18 +60,6 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 				this.ts
 			)
 			return `Error writing file: ${JSON.stringify(serializeError(error))}
-						A good example of a upsert_memory tool call is:
-			{
-				"tool": "upsert_memory",
-        "summary" "Landing page accepts user email"
-				"milestoneName": "add-email-to-lp",
-				"content": "## Task
-- [x] Create the package.json file
-- [x] Initialize the App.jsx file
-- [x] Create UserForm.tsx to accept waitlist emails
-- [ ] Store emails to sqlite via prisma"
-			}
-			Please try again with the correct markdown content.
 			`
 		}
 	}

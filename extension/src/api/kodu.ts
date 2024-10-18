@@ -137,15 +137,15 @@ export class KoduHandler implements ApiHandler {
 			system.push({
 				text: customInstructions,
 				type: "text",
-			})
-		}
-		if (environmentDetails) {
-			system.push({
-				text: environmentDetails,
-				type: "text",
 				cache_control: { type: "ephemeral" },
 			})
 		}
+		// if (environmentDetails) {
+		// 	system.push({
+		// 		text: environmentDetails,
+		// 		type: "text",
+		// 	})
+		// }
 		/**
 		 * push it last to not break the cache
 		 */
@@ -172,6 +172,30 @@ export class KoduHandler implements ApiHandler {
 					system,
 					messages: healMessages(messages).map((message, index) => {
 						if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
+							if (index === lastUserMsgIndex && environmentDetails) {
+								if (typeof message.content === "string") {
+									// add environment details to the last user message
+									return {
+										...message,
+										content: [
+											{
+												text: environmentDetails,
+												type: "text",
+											},
+											{
+												text: message.content,
+												type: "text",
+												cache_control: { type: "ephemeral" },
+											},
+										],
+									}
+								} else {
+									message.content.push({
+										text: environmentDetails,
+										type: "text",
+									})
+								}
+							}
 							return {
 								...message,
 								content:

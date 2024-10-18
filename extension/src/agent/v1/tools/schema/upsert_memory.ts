@@ -34,7 +34,6 @@ import { z } from "zod"
  * ```
  */
 const schema = z.object({
-	summary: z.string().describe("The summary of changes made in each update to the task history."),
 	content: z.string().describe("The complete content of the updated task history to be written in markdown."),
 	milestoneName: z.string().optional().describe("The name of the milestone achieved, around 30 characters."),
 })

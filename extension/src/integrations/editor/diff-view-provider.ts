@@ -213,8 +213,11 @@ export class DiffViewProvider {
 				normalizedStreamedContent,
 				normalizedEditedContent
 			)
+			console.log(`newProblemsMessage: ${newProblemsMessage}`)
 			return { newProblemsMessage, userEdits }
 		} else {
+			console.log(`newProblemsMessage: ${newProblemsMessage}`)
+
 			return { newProblemsMessage, userEdits: undefined }
 		}
 	}
