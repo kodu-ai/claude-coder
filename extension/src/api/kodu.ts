@@ -23,10 +23,13 @@ import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } fr
 import { USER_TASK_HISTORY_PROMPT } from "../agent/v1/system-prompt"
 const temperatures = {
 	creative: {
+		top_p: 0.9,
+		tempature: 0.3,
+	},
+	normal: {
 		top_p: 0.8,
 		tempature: 0.2,
 	},
-	normal: {},
 	deterministic: {
 		top_p: 0.9,
 		tempature: 0.1,
@@ -78,7 +81,7 @@ const bugReportSchema = z.object({
 	apiHistory: z.string(),
 	claudeMessage: z.string(),
 })
-
+let previousSystemPrompt = ""
 export class KoduHandler implements ApiHandler {
 	private options: ApiHandlerOptions
 	private cancelTokenSource: CancelTokenSource | null = null
@@ -124,8 +127,15 @@ export class KoduHandler implements ApiHandler {
 			}
 		}
 		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = [
-			{ text: systemPrompt, type: "text", cache_control: { type: "ephemeral" } },
+			{ text: systemPrompt.trim(), type: "text" },
 		]
+		if (previousSystemPrompt !== systemPrompt) {
+			console.error("System prompt changed")
+			console.error("Previous system prompt:", previousSystemPrompt)
+			console.error("Current system prompt:", systemPrompt)
+			console.error(`Length difference: ${previousSystemPrompt.length - systemPrompt.length}`)
+		}
+		previousSystemPrompt = systemPrompt
 		// if (dotKoduFileContent) {
 		// 	system.push({
 		// 		text: dotKoduFileContent,
@@ -139,6 +149,8 @@ export class KoduHandler implements ApiHandler {
 				type: "text",
 				cache_control: { type: "ephemeral" },
 			})
+		} else {
+			system[0].cache_control = { type: "ephemeral" }
 		}
 		// if (environmentDetails) {
 		// 	system.push({
@@ -173,6 +185,20 @@ export class KoduHandler implements ApiHandler {
 					messages: healMessages(messages).map((message, index) => {
 						if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
 							if (index === lastUserMsgIndex && environmentDetails) {
+								// 								environmentDetails = `
+								// <critical_context>
+								// Write to file critical instructions:
+								// <write_to_file>
+								// YOU MUST NEVER TRUNCATE THE CONTENT OF A FILE WHEN USING THE write_to_file TOOL.
+								// ALWAYS PROVIDE THE COMPLETE CONTENT OF THE FILE IN YOUR RESPONSE.
+								// ALWAYS INCLUDE THE FULL CONTENT OF THE FILE, EVEN IF IT HASN'T BEEN MODIFIED.
+								// DOING SOMETHING LIKE THIS BREAKS THE TOOL'S FUNCTIONALITY:
+								// // ... (previous code remains unchanged)
+								// </write_to_file>
+								// environment details:
+								// ${environmentDetails}
+								// </critical_context>
+								// 								`
 								if (typeof message.content === "string") {
 									// add environment details to the last user message
 									return {
@@ -225,8 +251,8 @@ export class KoduHandler implements ApiHandler {
 					max_tokens: this.getModel().info.maxTokens,
 					system: [{ text: systemPrompt, type: "text" }],
 					messages,
-					// ...creativitySettings,
-					temperature: 0,
+					...creativitySettings,
+					// temperature: 0,
 				}
 		}
 		this.cancelTokenSource = axios.CancelToken.source()

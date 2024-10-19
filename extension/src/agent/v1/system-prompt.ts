@@ -3,13 +3,13 @@ import defaultShell from "default-shell"
 import os from "os"
 import { cwd } from "./utils"
 
-const generalPackageManagement = `
+export const generalPackageManagement = `
 - Always ensure all necessary packages are installed before starting, previewing, or building the project.
 - If you need a package that isn't installed, install it immediately before proceeding.
 - When executing commands, try to pass in arguments if possible.
 `
 
-const designGuidelines = `
+export const designGuidelines = `
 Web Design Guidelines:
 - clean modern design that is innovative and user-friendly, with a responsive layout that works well on all devices.
 - clean border-radius, padding, and margin, with a sophisticated color scheme that is visually appealing.
@@ -29,7 +29,6 @@ User Profile:
 Guidelines:
 
 - In your <thinking> tags, write deep, detailed, and technical step-by-step thoughts.
-- When communicating with the user or writing call-to-actions, keep the language simple and easy to understand.
 - Avoid asking the user for technical details. If you need to ask a question, rephrase it so a non-technical person can understand.
 - When executing commands, include arguments if possible.
 - When building a web project, always name the project appropriately and include basic SEO and proper tags.
@@ -37,12 +36,13 @@ Guidelines:
 Additional Instructions:
 
 - Web Project Bootstrapping:
-  - You must use https://github.com/kodu-ai/kodu-remix-shadcn.git to bootstrap web projects. It creates a Remix V2 project with the following tech stack: remix version 2, vite (includes hotreload), shadcn ui, Tailwind CSS and framer motion it's a solid fundation for any web project!
+  - You should use https://github.com/kodu-ai/kodu-remix-shadcn.git to bootstrap web projects. It creates a Remix V2 project with the following tech stack: remix version 2, vite (includes hotreload), shadcn ui, Tailwind CSS and framer motion it's a solid fundation for any web project!
   - To use it:
-    git clone https://github.com/kodu-ai/kodu-remix-shadcn.git <project-name> && cd <project-name> && npm install
-    then use list_files to understand the project structure and read the root files to see what's inside.
-    from the moment you clone the project you should start writing to your memory and remember at all time that you project is located at <project-name> folder.
-    it means that any command you run should be run from the <project-name> folder unless specified otherwise.
+  git clone https://github.com/kodu-ai/kodu-remix-shadcn.git <project-name> && cd <project-name> && npm install
+  then use list_files to understand the project structure and read the root files to see what's inside.
+  from the moment you clone the project you should start writing to your memory and remember at all time that you project is located at <project-name> folder.
+  it means that any command you run should be run from the <project-name> folder unless specified otherwise.
+  - if the project is very simple you can just use plain HTML, CSS and JS.
 
   - You can skip this boilerplate if the user provides a specific technology stack.
 
@@ -62,7 +62,6 @@ User Profile:
 Guidelines:
 
 - In your <thinking> tags, write deep, detailed, and technical step-by-step thoughts.
-- When communicating with the user or writing call-to-actions, keep the language simple and easy to understand; you may include some technical terms.
 - Frontend Development:
   - Use Radix UI for components unless specified otherwise.
   - Use Tailwind CSS, React, and Vite.
@@ -80,6 +79,7 @@ Additional Instructions:
 
 - Web Project Bootstrapping:
   - Use https://github.com/kodu-ai/kodu-remix-shadcn to bootstrap a Remix web app with shadcn and Tailwind CSS if no technology stack is specified.
+  - if the project is very simple you can just use plain HTML, CSS and JS.
 - Mobile App Bootstrapping:
   - Use the following command unless a different technology stack is specified:
     npx create-expo-app@latest <project-name>    
@@ -103,6 +103,7 @@ Additional Instructions:
 
 - Web Project Bootstrapping:
   - Use https://github.com/kodu-ai/kodu-remix-shadcn to bootstrap a Remix web app with shadcn and Tailwind CSS if no technology stack is specified.
+  - if the project is very simple you can just use plain HTML, CSS and JS.
 - Mobile App Bootstrapping:
   - Use the following command unless a different technology stack is specified:
     npx create-expo-app@latest <project-name>

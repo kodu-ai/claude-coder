@@ -10,6 +10,7 @@ import { BaseAgentTool } from "../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { ExecaTerminalManager } from "../../../../integrations/terminal/execa-terminal-manager"
 import { WebviewMessage } from "../../../../shared/WebviewMessage"
+import { ChatTool } from "../../../../shared/new-tools"
 
 export class ExecuteCommandTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -49,7 +50,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		if (!(terminalManager instanceof AdvancedTerminalManager)) {
 			throw new Error("AdvancedTerminalManager is not available")
 		}
-		const { ask, say, returnEmptyStringOnSuccess } = this.params
+		const { ask, updateAsk, say, returnEmptyStringOnSuccess } = this.params
 		const cwd = getCwd()
 
 		const { response, text, images } = await ask(
@@ -66,7 +67,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			this.ts
 		)
 		if (response !== "yesButtonTapped") {
-			ask(
+			updateAsk(
 				"tool",
 				{
 					tool: {
@@ -80,12 +81,14 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				this.ts
 			)
 			if (response === "messageResponse") {
-				await say("user_feedback", text, images)
+				if (!this.alwaysAllowWriteOnly) {
+					await say("user_feedback", text, images)
+				}
 				return this.formatToolResponseWithImages(await this.formatToolDeniedFeedback(text), images)
 			}
 			return await this.formatToolDenied()
 		}
-		ask(
+		updateAsk(
 			"tool",
 			{
 				tool: {
@@ -109,7 +112,8 @@ export class ExecuteCommandTool extends BaseAgentTool {
 
 			let userFeedback: { text?: string; images?: string[] } | undefined
 			let didContinue = false
-			const now = Date.now()
+			let earlyExit: "approved" | "rejected" | "pending" = "pending"
+
 			const sendCommandOutput = async (line: string): Promise<void> => {
 				try {
 					if (this.alwaysAllowWriteOnly) {
@@ -118,7 +122,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 						 */
 						await delay(100)
 					}
-					ask(
+					updateAsk(
 						"tool",
 						{
 							tool: {
@@ -127,45 +131,16 @@ export class ExecuteCommandTool extends BaseAgentTool {
 								output: line,
 								approvalState: "loading",
 								ts: this.ts,
+								earlyExit,
 								isSubMsg: this.params.isSubMsg,
 							},
 						},
 						this.ts
 					)
-					// if (response === "yesButtonTapped") {
-					// 	// proceed while running
-					// } else {
-					// 	userFeedback = { text, images }
-					// }
-					// userFeedback = { text, images }
-					// didContinue = true
-					// process.continue() // continue past the await
 				} catch {
 					// This can only happen if this ask promise was ignored, so ignore this error
 				}
 			}
-			const fireandforgetCmds = [
-				"run dev",
-				"run start",
-				"run serve",
-				"run watch",
-				"dev",
-				"start",
-				"serve",
-				"watch",
-			]
-			if (fireandforgetCmds.includes(command)) {
-				await delay(500) // wait for the command to start
-				didContinue = true
-				setTimeout(() => {
-					process.continue()
-				}, 1000)
-			}
-			// if longer than 30s force continue
-			setTimeout(() => {
-				didContinue = true
-				process.continue()
-			}, 10_000)
 
 			let result = ""
 			process.on("line", (line) => {
@@ -177,7 +152,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				if (!didContinue) {
 					sendCommandOutput(result)
 				} else {
-					ask(
+					updateAsk(
 						"tool",
 						{
 							tool: {
@@ -186,6 +161,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 								output: result,
 								approvalState: "loading",
 								ts: this.ts,
+								earlyExit,
 								isSubMsg: this.params.isSubMsg,
 							},
 						},
@@ -196,14 +172,54 @@ export class ExecuteCommandTool extends BaseAgentTool {
 
 			let completed = false
 			process.once("completed", () => {
+				earlyExit = "approved"
 				completed = true
+				terminalManager.closeTerminal(terminalInfo.id)
 			})
 
 			process.once("no_shell_integration", async () => {
 				await say("shell_integration_warning")
 			})
 
-			await process
+			const earlyExitPromise = ask(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						command,
+						approvalState: "loading",
+						ts: this.ts,
+						earlyExit,
+						isSubMsg: this.params.isSubMsg,
+					},
+				},
+				this.ts
+			)
+				.then((res) => {
+					console.log(`Command contiune result`)
+					const { text, images, response } = res
+
+					if (response === "yesButtonTapped") {
+						didContinue = true
+						earlyExit = "approved"
+						// proceed while running
+					} else {
+						if (response === "messageResponse") {
+							didContinue = true
+							earlyExit = "approved"
+							userFeedback = { text, images }
+						} else {
+							earlyExit = "rejected"
+						}
+					}
+					if (didContinue) {
+						process.continue()
+					}
+					userFeedback = { text, images }
+				})
+				.catch()
+
+			await Promise.race([earlyExitPromise, process])
 
 			// Wait for a short delay to ensure all messages are sent to the webview
 			// This delay allows time for non-awaited promises to be created and
@@ -213,7 +229,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			await delay(50)
 
 			result = result.trim()
-			ask(
+			await updateAsk(
 				"tool",
 				{
 					tool: {
@@ -222,51 +238,20 @@ export class ExecuteCommandTool extends BaseAgentTool {
 						output: result,
 						approvalState: "approved",
 						ts: this.ts,
+						earlyExit,
 						isSubMsg: this.params.isSubMsg,
 					},
 				},
 				this.ts
 			)
-
-			if (userFeedback) {
-				if (result.length > 0) {
-					ask(
-						"tool",
-						{
-							tool: {
-								tool: "execute_command",
-								command,
-								approvalState: "approved",
-								ts: this.ts,
-								isSubMsg: this.params.isSubMsg,
-							},
-						},
-						this.ts
-					)
-				} else {
-					ask(
-						"tool",
-						{
-							tool: {
-								tool: "execute_command",
-								command,
-								approvalState: "rejected",
-								ts: this.ts,
-								isSubMsg: this.params.isSubMsg,
-							},
-						},
-						this.ts
-					)
-				}
+			let toolRes = "The command has been executed."
+			// @ts-expect-error type is broken but it is reachable
+			if (earlyExit === "approved") {
+				toolRes = "User chose to run the command in the background"
+			}
+			if ((userFeedback?.text !== "undefined" && userFeedback?.text?.length) || userFeedback?.images?.length) {
+				toolRes += `\n\nUser feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
 				await say("user_feedback", userFeedback.text, userFeedback.images)
-				return this.formatToolResponseWithImages(
-					await this.formatToolResult(
-						`Command executed.${
-							result.length > 0 ? `\nOutput:\n${result}` : ""
-						}\n\nThe user provided the following feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
-					),
-					userFeedback.images
-				)
 			}
 
 			// for attemptCompletion, we don't want to return the command output
@@ -274,267 +259,32 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				return this.formatToolResponseWithImages(await this.formatToolResult(""), [])
 			}
 			if (completed) {
-				return await this.formatToolResult(
-					`Command executed.${result.length > 0 ? `\nOutput:\n${result}` : ""}`
-				)
+				toolRes += `\n\nOutput:\n<output>\n${result ?? "No output"}\n</output>`
 			} else {
-				return await this.formatToolResult(
-					`Command is still running in the user's terminal.${
-						result.length > 0 ? `\nHere's the output so far:\n${result}` : ""
-					}\n\nYou will be updated on the terminal status and new output in the future.`
-				)
+				toolRes += `\n\nThe command is still running in the user's terminal. You will be updated on the terminal status and new output in the future.
+				\n\nOutput so far:\n<output>\n${result ?? "No output"}\n</output>`
 			}
+			return await this.formatToolResponseWithImages(toolRes, userFeedback?.images)
 		} catch (error) {
+			updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						command,
+						output: error.message || JSON.stringify(serializeError(error), null, 2),
+						approvalState: "error",
+						ts: this.ts,
+						earlyExit: undefined,
+						isSubMsg: this.params.isSubMsg,
+					},
+				},
+				this.ts
+			)
 			let errorMessage = error.message || JSON.stringify(serializeError(error), null, 2)
 			const errorString = `Error executing command:\n${errorMessage}`
-			await say("error", `Error executing command:\n${errorMessage}`)
+			// await say("error", `Error executing command:\n${errorMessage}`)
 			return await this.formatToolError(errorString)
-		}
-	}
-
-	async executeExeca(): Promise<ToolResponse> {
-		const { input, ask, say, returnEmptyStringOnSuccess } = this.params
-		const { command } = input
-
-		if (command === undefined) {
-			await say(
-				"error",
-				"Claude tried to use execute_command without value for required parameter 'command'. Retrying..."
-			)
-			return `Error: Missing value for required parameter 'command'. Please retry with complete response.
-					an example of a good executeCommand tool call is:
-					{
-						"tool": "execute_command",
-						"command": "command to execute"
-					}
-					Please try again with the correct command, you are not allowed to execute commands without a command.
-					`
-		}
-
-		const result = await ask(
-			"tool",
-			{
-				tool: {
-					tool: "execute_command",
-					command,
-					approvalState: "pending",
-					ts: this.ts,
-					isSubMsg: this.params.isSubMsg,
-				},
-			},
-			this.ts
-		)
-		const response = result.response
-		if (response === "messageResponse") {
-			ask(
-				"tool",
-				{
-					tool: {
-						tool: "execute_command",
-						command,
-						approvalState: "rejected",
-						ts: this.ts,
-						isSubMsg: this.params.isSubMsg,
-					},
-				},
-				this.ts
-			)
-			await say("user_feedback", result.text, result.images)
-			return formatToolResponse(formatGenericToolFeedback(result.text), result.images)
-		}
-
-		if (response !== "yesButtonTapped") {
-			ask(
-				"tool",
-				{
-					tool: {
-						tool: "execute_command",
-						command,
-						approvalState: "rejected",
-						ts: this.ts,
-						isSubMsg: this.params.isSubMsg,
-					},
-				},
-				this.ts
-			)
-			return "The user denied this operation."
-		}
-
-		let userFeedback: { text?: string; images?: string[] } | undefined
-
-		await say("show_terminal", command, undefined)
-		this.koduDev.providerRef.deref()!["view"]?.webview.postMessage({
-			type: "hideCommandBlock",
-			identifier: this.ts,
-		})
-
-		try {
-			let result = ""
-			let didError = false
-
-			const webview = this.koduDev.providerRef.deref()!["view"]?.webview!
-			const callbackFunction = (event: "error" | "exit" | "response", commandId: number, data: string) => {
-				if (event === "response") {
-					result += data
-				} else if (event === "error") {
-					didError = true
-				}
-
-				webview.postMessage({
-					type: "commandExecutionResponse",
-					status: event,
-					payload: data,
-					commandId: commandId.toString(),
-				})
-			}
-
-			const commandId = await this.execaTerminalManager.runCommand(command, this.cwd, callbackFunction)
-			webview.onDidReceiveMessage(
-				async (message: WebviewMessage) => {
-					switch (message.type) {
-						case "executeCommand":
-							await this.execaTerminalManager.executeCommand(message, callbackFunction)
-							break
-					}
-				},
-				null,
-				this.koduDev.providerRef.deref()!["disposables"]
-			)
-
-			this.setRunningProcessId(commandId)
-
-			const timeoutPromise = new Promise<string>((_, reject) => {
-				setTimeout(() => {
-					reject(new Error("Command execution timed out after 90 seconds"))
-				}, 90000) // 90 seconds timeout
-			})
-
-			try {
-				await Promise.race([this.execaTerminalManager.awaitCommand(commandId), timeoutPromise])
-				// Check if the output exceeds 15k characters and summarize it if necessary
-				if (result.length > 30_000) {
-					try {
-						say("info", `Command output exceeds 30 000 characters. Making a summary...`)
-						const summary = await this.koduDev
-							.getApiManager()
-							.getApi()
-							?.sendSummarizeRequest?.(result, command)
-						if (!summary || !summary.result) {
-							ask(
-								"tool",
-								{
-									tool: {
-										tool: "execute_command",
-										command,
-										approvalState: "rejected",
-										ts: this.ts,
-										isSubMsg: this.params.isSubMsg,
-									},
-								},
-								this.ts
-							)
-							return "Summarization failed."
-						}
-						return `Summarized command output:\n${response.length}`
-					} catch (err) {
-						ask(
-							"tool",
-							{
-								tool: {
-									tool: "execute_command",
-									command,
-									approvalState: "rejected",
-									ts: this.ts,
-									isSubMsg: this.params.isSubMsg,
-								},
-							},
-							this.ts
-						)
-						return `Failed to summarize the command output: ${err}`
-					}
-				}
-
-				if (didError) {
-					ask(
-						"tool",
-						{
-							tool: {
-								tool: "execute_command",
-								command,
-								approvalState: "rejected",
-								ts: this.ts,
-								isSubMsg: this.params.isSubMsg,
-							},
-						},
-						this.ts
-					)
-					throw new Error(`Command failed`)
-				}
-			} catch (e) {
-				ask(
-					"tool",
-					{
-						tool: {
-							tool: "execute_command",
-							command,
-							approvalState: "rejected",
-							ts: this.ts,
-							isSubMsg: this.params.isSubMsg,
-						},
-					},
-					this.ts
-				)
-				if ((e as ExecaError).signal === "SIGINT") {
-					await say("command_output", `\nUser exited command...`)
-					result += `\n====\nUser terminated command process via SIGINT. This is not an error. Please continue with your task, but keep in mind that the command is no longer running. For example, if this command was used to start a server for a react app, the server is no longer running and you cannot open a browser to view it anymore.`
-				} else if ((e as Error).message.includes("timed out")) {
-					await say("command_output", `\nCommand execution timed out after 90 seconds`)
-					result += `\n====\nCommand execution timed out after 90 seconds. Please review the partial output and consider breaking down the command into smaller steps or optimizing the operation.`
-				} else {
-					throw e
-				}
-			}
-
-			await delay(COMMAND_OUTPUT_DELAY)
-			this.setRunningProcessId(undefined)
-
-			if (userFeedback) {
-				await say("user_feedback", userFeedback.text, userFeedback.images)
-				return formatToolResponse(
-					`Command Output:\n${result}\n\nThe user interrupted the command and provided the following feedback:\n<feedback>\n${
-						userFeedback.text
-					}\n</feedback>\n\n${await getPotentiallyRelevantDetails()}`,
-					userFeedback.images
-				)
-			}
-
-			ask(
-				"tool",
-				{
-					tool: {
-						tool: "execute_command",
-						command,
-						output: result,
-						approvalState: "approved",
-						ts: this.ts,
-					},
-				},
-				this.ts
-			)
-
-			if (returnEmptyStringOnSuccess) {
-				return ""
-			}
-
-			return `Command Output:\n${result}`
-		} catch (e) {
-			const error = e as any
-			let errorMessage = error.message || JSON.stringify(serializeError(error), null, 2)
-			const errorString = `Error executing command:\n${errorMessage}`
-			await say("error", `Error executing command:\n${errorMessage}`)
-
-			this.setRunningProcessId(undefined)
-			return errorString
 		}
 	}
 
