@@ -197,10 +197,13 @@ export class WriteFileTool extends BaseAgentTool {
 		if (userEdits) {
 			response = `The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content, which includes both your original modifications and the user's additional edits, has been successfully saved to ${relPath.toPosix()}. (Note this does not mean you need to re-write the file with the user's changes, as they have already been applied to the file.)${newProblemsMessage}`
 		} else {
-			response = `The content was successfully saved to ${relPath.toPosix()}.${
+			response = `The content was successfully saved to ${relPath.toPosix()}.
+			Do not read the file again unless you forgot the file content, (the current content is the one you sent in <content>...</content>).
+			If you find yourself stuck e.x writing to the file again and again, take a moment to zoom out and think about the problem you are trying to solve, and then attack it from a different angle.
+			${
 				newProblemsMessage === ""
 					? `No new problems were detected after saving the file. linting passed. let's move on to the next step.`
-					: `${newProblemsMessage} Please address these problems before moving on to the next step. if you see this message more than twice in a row, please ask for help.`
+					: `${newProblemsMessage} we found the following linting issues in the file, if you see any mission critical issues that are ABSOLUTELY necessary to fix, please let fix them before moving on, if not we can move on to the next step and fix them if it becomes necessary or becomes a blocker.`
 			}`
 		}
 

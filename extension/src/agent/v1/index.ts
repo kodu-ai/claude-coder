@@ -135,7 +135,7 @@ export class KoduDev {
 			// this is a bug
 		}
 		if (
-			this.taskExecutor.state === TaskState.WAITING_FOR_USER &&
+			(this.taskExecutor.state === TaskState.WAITING_FOR_USER || this.taskExecutor.state === TaskState.IDLE) &&
 			askResponse === "messageResponse" &&
 			!this.pendingAskResponse
 		) {
@@ -382,6 +382,7 @@ export class KoduDev {
 			isLastWriteToFile,
 			ask: this.taskExecutor.ask.bind(this.taskExecutor),
 			say: this.taskExecutor.say.bind(this.taskExecutor),
+			updateAsk: this.taskExecutor.updateAsk.bind(this.taskExecutor),
 		})
 	}
 
@@ -435,7 +436,7 @@ export class KoduDev {
 						),
 					{
 						interval: 100,
-						timeout: 15_000,
+						timeout: 2_500,
 					}
 				).catch(() => {})
 			}
@@ -455,6 +456,8 @@ export class KoduDev {
 						// details += `\n(Still running, no new output)` // don't want to show this right after running the command
 					}
 				}
+			} else {
+				terminalDetails += "\n\n# No Actively Running Terminals all commands have completed"
 			}
 			// only show inactive terminals if there's output to show
 			if (inactiveTerminals.length > 0) {

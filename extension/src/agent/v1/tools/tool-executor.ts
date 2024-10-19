@@ -91,6 +91,7 @@ export class ToolExecutor {
 			isLastWriteToFile: false,
 			ask: this.koduDev.taskExecutor.askWithId.bind(this),
 			say: this.koduDev.taskExecutor.say.bind(this),
+			updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.options.koduDev.taskExecutor),
 		})
 	}
 
@@ -165,6 +166,7 @@ export class ToolExecutor {
 				isLastWriteToFile: false,
 				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
+				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.options.koduDev.taskExecutor),
 			})
 			this.toolInstances[id] = newTool
 			toolInstance = newTool
@@ -221,6 +223,7 @@ export class ToolExecutor {
 				isLastWriteToFile: false,
 				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
+				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.options.koduDev.taskExecutor),
 			})
 			this.toolInstances[id] = newTool
 			this.toolQueue.push(newTool)
@@ -266,6 +269,7 @@ export class ToolExecutor {
 				isLastWriteToFile: false,
 				ask: this.options.koduDev.taskExecutor.askWithId.bind(this.options.koduDev.taskExecutor),
 				say: this.options.koduDev.taskExecutor.say.bind(this.options.koduDev.taskExecutor),
+				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.options.koduDev.taskExecutor),
 			})
 
 			this.toolResults.push({ name: tool.name, result })
