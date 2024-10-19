@@ -112,6 +112,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const task = useMemo(() => (messages.length > 0 ? messages[0] : undefined), [messages])
 	const modifiedMessages = useMemo(() => combineApiRequests(combineCommandSequences(messages.slice(1))), [messages])
 	const apiMetrics = useMemo(() => getApiMetrics(modifiedMessages), [modifiedMessages])
+	// If total API metrics (sum of all is greather than context window we add a message
+	if (apiMetrics.totalTokensIn + apiMetrics.totalTokensOut > 1000) {
+		// Here add the ClaudeSay for 'context_too_long'
+	}
+
 	const selectImages = () => {
 		vscode.postMessage({ type: "selectImages" })
 	}
@@ -393,6 +398,13 @@ const ChatView: React.FC<ChatViewProps> = ({
 					setPrimaryButtonText("Retry")
 					setSecondaryButtonText("Start New Task")
 				}
+				break
+			case "context_too_long":
+				setTextAreaDisabled(false)
+				setClaudeAsk("context_too_long")
+				setEnableButtons(false)
+				setPrimaryButtonText('Summarize task')
+				setSecondaryButtonText('Acknowledge and continue')
 				break
 			case "followup":
 				console.log("followup")

@@ -1,23 +1,19 @@
-import * as path from "path"
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ClaudeAsk, ClaudeMessage, ClaudeSay, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
+import { debounce } from "lodash"
+import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
+import { ClaudeMessage, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
-import { combineApiRequests } from "../../../shared/combineApiRequests"
-import { getApiMetrics } from "../../../shared/getApiMetrics"
 import { KoduError, koduSSEResponse } from "../../../shared/kodu"
-import { amplitudeTracker } from "../../../utils/amplitude"
+import { ChunkProcessor } from "../chunk-proccess"
 import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
-import { ChunkProcessor } from "../chunk-proccess"
-import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
-import { ToolName, ToolResponse, UserContent } from "../types"
-import { debounce } from "lodash"
-import { ToolInput } from "../tools/types"
+import { ToolResponse, UserContent } from "../types"
 import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
 	public toolExecutor: ToolExecutor
+	
 	private currentUserContent: UserContent | null = null
 	private currentApiResponse: Anthropic.Messages.Message | null = null
 	private currentToolResults: { name: string; result: ToolResponse }[] = []
@@ -117,6 +113,16 @@ export class TaskExecutor extends TaskExecutorUtils {
 		// })
 		// Update the provider state
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+	}
+
+	public async handleContextOverflow(): Promise<void> { 
+		const { response } = await this.ask("context_too_long", {
+			question: "The current task has exceeded the context window. Would you like to clear the conversation history?",
+		})
+		if (response === "yesButtonTapped") {
+			alert('User agreed to clear the conversation history')
+			this.summarizeTask();
+		}
 	}
 
 	public async makeClaudeRequest(): Promise<void> {

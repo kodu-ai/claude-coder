@@ -150,6 +150,7 @@ export class KoduDev {
 		}
 		this.taskExecutor.handleAskResponse(askResponse, text, images)
 	}
+	
 	private async startTask(task?: string, images?: string[]): Promise<void> {
 		this.stateManager.state.claudeMessages = []
 		this.stateManager.state.apiConversationHistory = []
@@ -164,6 +165,14 @@ export class KoduDev {
 
 		await this.taskExecutor.say("text", task, images)
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
+	}
+
+	private async handleContextTooLong(tokenCount: number) {
+		const message = `This is getting a bit long (${tokenCount} tokens). In order to save you some money and to make Kodu's answer more reliable, please allow Kodu to create a summary of the conversation and use it in a new task.`
+		await this.taskExecutor.say("context_too_long", message)
+		// You might want to implement a method to ask the user if they want to proceed with a summary
+		// For now, we'll just log the message
+		console.log(message)
 	}
 
 	/**
@@ -374,7 +383,6 @@ export class KoduDev {
 			ask: this.taskExecutor.ask.bind(this.taskExecutor),
 			say: this.taskExecutor.say.bind(this.taskExecutor),
 		})
-		4
 	}
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {

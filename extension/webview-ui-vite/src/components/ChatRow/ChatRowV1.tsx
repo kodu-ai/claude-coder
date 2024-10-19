@@ -372,6 +372,20 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 						} else {
 							return null
 						}
+						case "context_too_long": {
+							const [contextIcon, contextTitle] = IconAndTitle({ type: "context_too_long", isCommandExecuting: false })
+							return (
+								<>
+									<h3 className="flex-line text-warning">
+										{contextIcon}
+										{contextTitle}
+									</h3>
+									<div className="text-warning">
+										<TextMessage message={message} syntaxHighlighterStyle={syntaxHighlighterStyle} />
+									</div>
+								</>
+							)
+						}	
 					case "api_req_failed":
 						return null
 					case "followup":

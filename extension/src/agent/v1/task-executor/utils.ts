@@ -1,9 +1,8 @@
-import { ClaudeAsk, ClaudeSay, ClaudeMessage, ToolStatus, V1ClaudeMessage } from "../../../shared/ExtensionMessage"
-import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
-import { StateManager } from "../state-manager"
 import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
+import { ClaudeAsk, ClaudeMessage, ClaudeSay, V1ClaudeMessage } from "../../../shared/ExtensionMessage"
+import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
 import { ChatTool } from "../../../shared/new-tools"
-import { read } from "fs"
+import { StateManager } from "../state-manager"
 
 export enum TaskState {
 	IDLE = "IDLE",
@@ -51,6 +50,12 @@ export abstract class TaskExecutorUtils {
 		this.stateManager = stateManager
 		this.providerRef = providerRef
 	}
+
+	public async summarizeTask(): Promise<void> {
+		// Popup a message using alert
+		alert("Task is too long !")
+	}
+
 
 	public async ask(type: ClaudeAsk, data?: AskDetails): Promise<AskResponse> {
 		const { question, tool } = data ?? {}
@@ -109,6 +114,7 @@ export abstract class TaskExecutorUtils {
 			const mustRequestApprovalType: ClaudeAsk[] = [
 				"completion_result",
 				"resume_completed_task",
+				"context_too_long",
 				"resume_task",
 				"request_limit_reached",
 				"followup",

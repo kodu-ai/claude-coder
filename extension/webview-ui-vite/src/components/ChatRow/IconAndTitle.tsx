@@ -64,6 +64,11 @@ const IconAndTitle = ({ type, isCommandExecuting, cost, apiRequestFailedMessage 
 				<span className="codicon codicon-question text-alt" />,
 				<h3 className="text-alt">Claude has a question:</h3>,
 			]
+		case "context_too_long":
+			return [
+				<span className="codicon codicon-warning text-warning" />,
+				<h3 className="text-warning">This is getting a bit long</h3>,
+			]
 		default:
 			return [null, null]
 	}

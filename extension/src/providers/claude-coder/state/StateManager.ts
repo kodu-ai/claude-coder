@@ -1,12 +1,10 @@
-import * as vscode from "vscode"
-import { ApiModelId } from "../../../shared/api"
-import { GlobalStateManager } from "./GlobalStateManager"
-import { ApiManager } from "./ApiManager"
-import { HistoryItem } from "../../../shared/HistoryItem"
-import { SecretStateManager } from "./SecretStateManager"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
-import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { ExtensionState } from "../../../shared/ExtensionMessage"
+import { HistoryItem } from "../../../shared/HistoryItem"
+import { ExtensionProvider } from "../ClaudeCoderProvider"
+import { ApiManager } from "./ApiManager"
+import { GlobalStateManager } from "./GlobalStateManager"
+import { SecretStateManager } from "./SecretStateManager"
 export class StateManager {
 	private globalStateManager: GlobalStateManager
 	private secretStateManager: SecretStateManager

@@ -102,6 +102,20 @@ ${this.customInstructions.trim()}
 			const contextWindow = this.api.getModel().info.contextWindow
 			const safetyBuffer = 45_000
 			const maxAllowedSize = Math.max(contextWindow - safetyBuffer, contextWindow * 0.8)
+			console.debug('[DEBUG] Total tokens in last request', totalTokens)
+
+			if (totalTokens > 5) {
+				// Generate claudeAsk() to ask if they want to summarize the conversation. 
+				// await this.providerRef
+				// 	.deref()
+				// 	?.getKoduDev()
+				// 	?.getApiManager()
+				// 	.getApi()
+				// 	?.sendSummarizeRequest?.(
+				// 		apiConversationHistory.map((m) => `[${m.role}: ${m.content}`).join(`\n`),
+				// 		'summarize',
+				// 	)
+			}
 			if (totalTokens >= maxAllowedSize) {
 				const truncatedMessages = truncateHalfConversation(apiConversationHistory)
 				apiConversationHistory = truncatedMessages

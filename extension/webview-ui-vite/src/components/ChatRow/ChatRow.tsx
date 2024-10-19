@@ -276,6 +276,19 @@ const ChatRow: React.FC<ChatRowProps> = ({
 								</div>
 							</>
 						)
+					case "context_too_long":
+						const [contextIcon, contextTitle] = IconAndTitle({ type: "context_too_long", isCommandExecuting: false })
+						return (
+							<>
+								<h3 className="flex-line text-warning">
+									{contextIcon}
+									{contextTitle}
+								</h3>
+								<div className="text-warning">
+									<TextMessage message={message} syntaxHighlighterStyle={syntaxHighlighterStyle} />
+								</div>
+							</>
+						)
 					default:
 						const [defaultIcon, defaultTitle] = IconAndTitle({
 							type: message.say,
