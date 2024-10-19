@@ -10,7 +10,7 @@ All notable changes to the "claude-coder" extension will be documented in this f
 -   [FIX]: execute commands now run properly
 -   [NEW]: execute commands can now be ran easily on the background
 -   [NEW]: automatically close terminal after command finish executing
--   [NEW]: imporved loop detection and diagonstic tools
+-   [NEW]: improved loop detection and diagonstic tools
 
 ## [1.9.9]
 
