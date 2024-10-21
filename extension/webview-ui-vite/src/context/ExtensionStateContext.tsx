@@ -50,8 +50,8 @@ fpjsKeyAtom.debugLabel = "fpjsKey"
 const currentTaskIdAtom = atom<string | undefined>(undefined)
 currentTaskIdAtom.debugLabel = "currentTask"
 
-const experimentalTerminalAtom = atom(false)
-experimentalTerminalAtom.debugLabel = "experimentalTerminal"
+const autoCloseTerminalAtom = atom(false)
+autoCloseTerminalAtom.debugLabel = "autoCloseTerminal"
 
 const useUdiffAtom = atom(false)
 useUdiffAtom.debugLabel = "useUdiff"
@@ -78,7 +78,7 @@ export const extensionStateAtom = atom((get) => ({
 	fingerprint: get(fingerprintAtom),
 	technicalBackground: get(technicalBackgroundAtom),
 	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
-	experimentalTerminal: get(experimentalTerminalAtom),
+	autoCloseTerminal: get(autoCloseTerminalAtom),
 	fpjsKey: get(fpjsKeyAtom),
 	extensionName: get(extensionNameAtom),
 	themeName: get(themeNameAtom),
@@ -108,7 +108,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setCurrentIdTask = useSetAtom(currentTaskIdAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setFingerprint = useSetAtom(fingerprintAtom)
-	const setexperimentalTerminal = useSetAtom(experimentalTerminalAtom)
+	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setUriScheme = useSetAtom(uriSchemeAtom)
 	const setDidHydrateState = useSetAtom(didHydrateStateAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
@@ -133,7 +133,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setMaxRequestsPerTask(message.state.maxRequestsPerTask)
 			setCustomInstructions(message.state.customInstructions)
 			setAlwaysAllowReadOnly(!!message.state.alwaysAllowReadOnly)
-			setexperimentalTerminal(!!message.state.experimentalTerminal)
+			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
 			setUser(message.state.user)
 			setExtensionName(message.state.extensionName)
 			setAlwaysAllowWriteOnly(!!message.state.alwaysAllowWriteOnly)
@@ -174,7 +174,7 @@ export const useExtensionState = () => {
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
-	const setExperimentalTerminal = useSetAtom(experimentalTerminalAtom)
+	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 
@@ -184,7 +184,7 @@ export const useExtensionState = () => {
 		setTechnicalBackground,
 		setMaxRequestsPerTask,
 		setUseUdiff,
-		setExperimentalTerminal,
+		setAutoCloseTerminal,
 		setCustomInstructions,
 		setAlwaysAllowWriteOnly,
 		setCreativeMode,

@@ -21,6 +21,7 @@ export class StateManager {
 	private _customInstructions?: string
 	private _alwaysAllowWriteOnly: boolean
 	private _experimentalTerminal?: boolean
+	private _autoCloseTerminal?: boolean
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -33,6 +34,7 @@ export class StateManager {
 			historyItem,
 			creativeMode,
 			experimentalTerminal,
+			autoCloseTerminal,
 		} = options
 		this._creativeMode = creativeMode ?? "normal"
 		this._providerRef = new WeakRef(provider)
@@ -42,7 +44,7 @@ export class StateManager {
 		this._customInstructions = customInstructions
 		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
 		this._experimentalTerminal = experimentalTerminal
-
+		this._autoCloseTerminal = autoCloseTerminal
 		this._state = {
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
 			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
@@ -66,6 +68,10 @@ export class StateManager {
 	// Getter methods for read-only access
 	get state(): KoduDevState {
 		return this._state
+	}
+
+	get autoCloseTerminal(): boolean | undefined {
+		return this._autoCloseTerminal
 	}
 
 	get customInstructions(): string | undefined {
@@ -119,6 +125,10 @@ export class StateManager {
 
 	public getMessageById(messageId: number): ClaudeMessage | undefined {
 		return this.state.claudeMessages.find((msg) => msg.ts === messageId)
+	}
+
+	public setAutoCloseTerminal(newValue: boolean): void {
+		this._autoCloseTerminal = newValue
 	}
 
 	public setExperimentalTerminal(newValue: boolean): void {

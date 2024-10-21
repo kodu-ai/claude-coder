@@ -115,6 +115,11 @@ export type updateGlobalStateMessage = {
 	state: Partial<GlobalState>
 }
 
+export type autoCloseTerminalMessage = {
+	type: "autoCloseTerminal"
+	bool: boolean
+}
+
 export type WebviewMessage =
 	| updateGlobalStateMessage
 	| ToolFeedbackAllMessage
@@ -125,6 +130,7 @@ export type WebviewMessage =
 	| OpenExternalLink
 	| FreeTrial
 	| technicalBackgroundMessage
+	| autoCloseTerminalMessage
 	| ApiConfigurationMessage
 	| RenameTask
 	| QuickstartMessage

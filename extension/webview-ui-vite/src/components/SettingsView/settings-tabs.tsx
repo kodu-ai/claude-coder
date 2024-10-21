@@ -174,9 +174,9 @@ const SettingsPage: React.FC = () => {
 	const [model, setModel] = useState(extensionState.apiConfiguration?.apiModelId || "claude-3-5-sonnet-20240620")
 	const [technicalLevel, setTechnicalLevel] = useState(extensionState.technicalBackground)
 	const [readOnly, setReadOnly] = useState(extensionState.alwaysAllowReadOnly || false)
+	const [autoCloseTerminal, setAutoCloseTerminal] = useState(extensionState.autoCloseTerminal || false)
 	const [experimentalFeatureStates, setExperimentalFeatureStates] = useState({
 		alwaysAllowWriteOnly: extensionState.alwaysAllowWriteOnly || false,
-		experimentalTerminal: extensionState.experimentalTerminal || false,
 		"one-click-deployment": false,
 		"auto-summarize-chat": false,
 	})
@@ -186,10 +186,6 @@ const SettingsPage: React.FC = () => {
 		(featureId: keyof GlobalState, checked: boolean) => {
 			setExperimentalFeatureStates((prev) => {
 				const newState = { ...prev, [featureId]: checked }
-				if (featureId === "experimentalTerminal") {
-					extensionState.setExperimentalTerminal(checked)
-					vscode.postMessage({ type: "experimentalTerminal", bool: checked })
-				}
 				if (featureId === "alwaysAllowWriteOnly") {
 					extensionState.setAlwaysAllowWriteOnly(checked)
 					vscode.postMessage({ type: "alwaysAllowWriteOnly", bool: checked })
@@ -209,6 +205,16 @@ const SettingsPage: React.FC = () => {
 	const handleModelChange = useCallback((newModel: typeof model) => {
 		setModel(newModel!)
 		vscode.postMessage({ type: "apiConfiguration", apiConfiguration: { apiModelId: newModel } })
+	}, [])
+
+	const handleSetReadOnly = useCallback((checked: boolean) => {
+		setReadOnly(checked)
+		vscode.postMessage({ type: "alwaysAllowReadOnly", bool: checked })
+	}, [])
+
+	const handleSetAutoCloseTerminal = useCallback((checked: boolean) => {
+		setAutoCloseTerminal(checked)
+		vscode.postMessage({ type: "autoCloseTerminal", bool: checked })
 	}, [])
 
 	useDebounce(customInstructions, 250, (val) => {
@@ -326,7 +332,22 @@ const SettingsPage: React.FC = () => {
 								Automatically read files and view directories without requiring permission
 							</p>
 						</div>
-						<Switch id="read-only" checked={readOnly} onCheckedChange={setReadOnly} />
+						<Switch id="read-only" checked={readOnly} onCheckedChange={handleSetReadOnly} />
+					</div>
+					<div className="flex items-center justify-between">
+						<div className="flex-1 pr-2">
+							<Label htmlFor="auto-close" className="text-xs font-medium">
+								Automatically close terminal
+							</Label>
+							<p className="text-[10px] text-muted-foreground">
+								Automatically close the terminal after executing a command
+							</p>
+						</div>
+						<Switch
+							id="auto-close"
+							checked={autoCloseTerminal}
+							onCheckedChange={handleSetAutoCloseTerminal}
+						/>
 					</div>
 					<div className="space-y-1">
 						<Label htmlFor="custom-instructions" className="text-xs font-medium">

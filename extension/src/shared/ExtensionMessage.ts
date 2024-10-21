@@ -101,6 +101,7 @@ export interface ExtensionState {
 	claudeMessages: ClaudeMessage[]
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean
+	autoCloseTerminal: boolean
 	shouldShowKoduPromo: boolean
 	fingerprint?: string
 }

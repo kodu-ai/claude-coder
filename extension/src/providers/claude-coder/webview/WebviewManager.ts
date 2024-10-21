@@ -359,6 +359,10 @@ export class WebviewManager {
 							await this.postStateToWebview()
 						}
 						break
+					case "autoCloseTerminal":
+						await this.provider.getStateManager().setAutoCloseTerminal(message.bool)
+						await this.postStateToWebview()
+						break
 					case "maxRequestsPerTask":
 						await this.provider
 							.getStateManager()
