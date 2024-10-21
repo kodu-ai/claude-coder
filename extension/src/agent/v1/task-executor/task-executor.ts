@@ -1,13 +1,13 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { debounce } from "lodash"
-import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
 import { ClaudeMessage, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
 import { KoduError, koduSSEResponse } from "../../../shared/kodu"
-import { ChunkProcessor } from "../chunk-proccess"
 import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
+import { ChunkProcessor } from "../chunk-proccess"
+import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
 import { ToolResponse, UserContent } from "../types"
+import { debounce } from "lodash"
 import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
 
 export class TaskExecutor extends TaskExecutorUtils {
@@ -127,13 +127,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 			})
 			await this.stateManager.removeEverythingAfterMessage(lastApiRequest.ts)
 		}
-		// await this.ask("tool", {
-		// 	tool: {
-		// 		tool: "ask_followup_question",
-		// 		question: "The current request has been cancelled. Would you like to ask a new question ?",
-		// 		ts: Date.now(),
-		// 	},
-		// })
 		// Update the provider state
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
@@ -157,11 +150,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 				await this.ask("resume_task", {
 					question: "Claude has encountered an error 3 times in a row. Would you like to resume the task?",
 				})
-			}
-
-			if (this.stateManager.state.requestCount >= this.stateManager.maxRequestsPerTask) {
-				await this.handleRequestLimitReached()
-				return
 			}
 
 			this.logState("Making Claude API request")

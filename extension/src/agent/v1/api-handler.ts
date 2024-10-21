@@ -1,8 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
-import { API_RETRY_DELAY } from "./constants"
-import { tools } from "./tools/tools"
 import { UserContent } from "./types"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { truncateHalfConversation } from "../../utils/context-management"
@@ -66,7 +64,6 @@ export function findStringDifferences(str1: string, str2: string): Difference[] 
 	return differences
 }
 
-var systemPromptMsgPrev = ""
 export class ApiManager {
 	private api: ApiHandler
 	private customInstructions?: string
@@ -107,7 +104,6 @@ export class ApiManager {
 		const technicalBackground =
 			(await this.providerRef.deref()?.getStateManager()?.getState())?.technicalBackground ?? "no-technical"
 		let systemPrompt = await SYSTEM_PROMPT()
-		let tools = baseTools
 		systemPrompt += `
 		===
 USER PERSONALIZED INSTRUCTIONS

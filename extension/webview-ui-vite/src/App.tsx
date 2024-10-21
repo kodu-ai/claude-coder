@@ -7,14 +7,8 @@ import { normalizeApiConfiguration } from "./components/ApiOptions/utils"
 import ChatView from "./components/ChatView/ChatView"
 import HistoryView from "./components/HistoryView/HistoryView"
 import SettingsView from "./components/SettingsView/SettingsView"
-import WelcomeView from "./WelcomeView"
-import { DevTools } from "jotai-devtools"
 import "jotai-devtools/styles.css"
 import "./App.css"
-import { Button } from "@/components/ui/button"
-import { FpjsProvider } from "@fingerprintjs/fingerprintjs-pro-react"
-import { Popover } from "./components/ui/popover"
-import { PopoverPortal } from "@radix-ui/react-popover"
 import EndOfTrialAlertDialog from "./components/EndOfTrialAlertDialog/end-of-trial-alert-dialog"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
@@ -72,42 +66,24 @@ const AppContent = () => {
 
 	return (
 		<>
-			{!user ? (
-				<WelcomeView />
-			) : (
-				<>
-					{showSettings && <SettingsView onDone={() => setShowSettings(false)} />}
-					{showHistory && <HistoryView onDone={() => setShowHistory(false)} />}
-					{/* Do not conditionally load ChatView, it's expensive and there's state we don't want to lose (user input, disableInput, askResponse promise, etc.) */}
-					<ChatView
-						showHistoryView={() => {
-							setShowSettings(false)
-							setShowHistory(true)
-						}}
-						isHidden={showSettings || showHistory}
-						showAnnouncement={showAnnouncement}
-						selectedModelSupportsImages={selectedModelInfo.supportsImages}
-						selectedModelSupportsPromptCache={selectedModelInfo.supportsPromptCache}
-						hideAnnouncement={() => {
-							vscode.postMessage({ type: "didCloseAnnouncement" })
-							setShowAnnouncement(false)
-						}}
-					/>
-				</>
-			)}
+			{showSettings && <SettingsView onDone={() => setShowSettings(false)} />}
+			{showHistory && <HistoryView onDone={() => setShowHistory(false)} />}
+			{/* Do not conditionally load ChatView, it's expensive and there's state we don't want to lose (user input, disableInput, askResponse promise, etc.) */}
+			<ChatView
+				showHistoryView={() => {
+					setShowSettings(false)
+					setShowHistory(true)
+				}}
+				isHidden={showSettings || showHistory}
+				showAnnouncement={showAnnouncement}
+				selectedModelSupportsImages={selectedModelInfo.supportsImages}
+				selectedModelSupportsPromptCache={selectedModelInfo.supportsPromptCache}
+				hideAnnouncement={() => {
+					vscode.postMessage({ type: "didCloseAnnouncement" })
+					setShowAnnouncement(false)
+				}}
+			/>
 		</>
-	)
-}
-
-const FPJSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-	const { fpjsKey } = useExtensionState()
-	return (
-		<FpjsProvider
-			loadOptions={{
-				apiKey: fpjsKey ?? "fpjs_key",
-			}}>
-			{children}
-		</FpjsProvider>
 	)
 }
 
@@ -118,12 +94,10 @@ const App = () => {
 
 			<ExtensionStateProvider>
 				<QueryClientProvider client={queryClient}>
-					<FPJSProvider>
-						<TooltipProvider>
-							<AppContent />
-							<OnboardingDialog />
-						</TooltipProvider>
-					</FPJSProvider>
+					<TooltipProvider>
+						<AppContent />
+						<OnboardingDialog />
+					</TooltipProvider>
 				</QueryClientProvider>
 				<OutOfCreditDialog />
 				<EndOfTrialAlertDialog />
