@@ -1,16 +1,14 @@
-import { Anthropic } from '@anthropic-ai/sdk'
-import { debounce } from 'lodash'
-import { ExtensionProvider } from '../../../providers/claude-coder/ClaudeCoderProvider'
-import { ClaudeMessage, isV1ClaudeMessage } from '../../../shared/ExtensionMessage'
-import { ClaudeAskResponse } from '../../../shared/WebviewMessage'
-import { KoduError, koduSSEResponse } from '../../../shared/kodu'
-import { truncateHalfConversation } from '../../../utils/context-management'
-import { ChunkProcessor } from '../chunk-proccess'
-import { StateManager } from '../state-manager'
-import { manageTokensAndConversation } from '../tools/manage-conversation'
-import { ToolExecutor } from '../tools/tool-executor'
-import { ToolResponse, UserContent } from '../types'
-import { TaskError, TaskExecutorUtils, TaskState } from './utils'
+import { Anthropic } from "@anthropic-ai/sdk"
+import { ClaudeMessage, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
+import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
+import { KoduError, koduSSEResponse } from "../../../shared/kodu"
+import { StateManager } from "../state-manager"
+import { ToolExecutor } from "../tools/tool-executor"
+import { ChunkProcessor } from "../chunk-proccess"
+import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
+import { ToolResponse, UserContent } from "../types"
+import { debounce } from "lodash"
+import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -47,12 +45,12 @@ export class TaskExecutor extends TaskExecutorUtils {
 		if (userContent.length === 0) {
 			userContent = [
 				{
-					type: 'text',
+					type: "text",
 					text: "Let's continue with the task, from where we left off.",
 				},
 			]
 		}
-		if (userContent[0] && userContent[0].type === 'text' && userContent[0].text?.trim() === '') {
+		if (userContent[0] && userContent[0].type === "text" && userContent[0].text?.trim() === "") {
 			userContent[0].text = "Let's continue with the task, from where we left off."
 		}
 		this.currentUserContent = userContent
@@ -70,12 +68,12 @@ export class TaskExecutor extends TaskExecutorUtils {
 			if (userContent.length === 0) {
 				userContent = [
 					{
-						type: 'text',
+						type: "text",
 						text: "Let's continue with the task, from where we left off.",
 					},
 				]
 			}
-			if (userContent[0] && userContent[0].type === 'text' && userContent[0].text?.trim() === '') {
+			if (userContent[0] && userContent[0].type === "text" && userContent[0].text?.trim() === "") {
 				userContent[0].text = "Let's continue with the task, from where we left off."
 			}
 			this.currentUserContent = userContent
@@ -144,14 +142,17 @@ export class TaskExecutor extends TaskExecutorUtils {
 			if (this.state !== TaskState.WAITING_FOR_API || !this.currentUserContent || this.isRequestCancelled) {
 				return
 			}
+			// make sure to reset the tool state before making a new request
+			await this.toolExecutor.resetToolState()
 			if (this.consecutiveErrorCount >= 3) {
 				await this.ask('resume_task', {
 					question: 'Claude has encountered an error 3 times in a row. Would you like to resume the task?',
 				})
 			}
 
-			this.logState('Making Claude API request')
+			this.logState("Making Claude API request")
 
+			await this.stateManager.addToApiConversationHistory({ role: "user", content: this.currentUserContent })
 			const startedReqId = await this.say(
 				'api_req_started',
 				JSON.stringify({

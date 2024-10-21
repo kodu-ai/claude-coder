@@ -97,7 +97,6 @@ export class KoduHandler implements ApiHandler {
 		}
 	}
 
-
 	async *createBaseMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
@@ -229,7 +228,6 @@ export class KoduHandler implements ApiHandler {
 		}
 	}
 
-
 	async *createMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
@@ -269,13 +267,6 @@ export class KoduHandler implements ApiHandler {
 			console.error(`Length difference: ${previousSystemPrompt.length - systemPrompt.length}`)
 		}
 		previousSystemPrompt = systemPrompt
-		// if (dotKoduFileContent) {
-		// 	system.push({
-		// 		text: dotKoduFileContent,
-		// 		type: "text",
-		// 		// cache_control: { type: "ephemeral" },
-		// 	})
-		// }
 		if (customInstructions && customInstructions.trim()) {
 			system.push({
 				text: customInstructions,
@@ -285,20 +276,13 @@ export class KoduHandler implements ApiHandler {
 		} else {
 			system[0].cache_control = { type: "ephemeral" }
 		}
-		// if (environmentDetails) {
-		// 	system.push({
-		// 		text: environmentDetails,
-		// 		type: "text",
-		// 	})
-		// }
-		/**
-		 * push it last to not break the cache
-		 */
-		// system.push({
-		// 	text: USER_TASK_HISTORY_PROMPT(userMemory),
-		// 	type: "text",
-		// 	cache_control: { type: "ephemeral" },
-		// })
+		system.push({
+			cache_control: {
+				type: "ephemeral",
+			},
+			text: environmentDetails ?? "No environment details provided",
+			type: "text",
+		})
 
 		switch (modelId) {
 			case "claude-3-5-sonnet-20240620":
@@ -337,10 +321,10 @@ export class KoduHandler implements ApiHandler {
 									return {
 										...message,
 										content: [
-											{
-												text: environmentDetails,
-												type: "text",
-											},
+											// {
+											// 	text: environmentDetails,
+											// 	type: "text",
+											// },
 											{
 												text: message.content,
 												type: "text",
@@ -349,10 +333,10 @@ export class KoduHandler implements ApiHandler {
 										],
 									}
 								} else {
-									message.content.push({
-										text: environmentDetails,
-										type: "text",
-									})
+									// message.content.push({
+									// 	text: environmentDetails,
+									// 	type: "text",
+									// })
 								}
 							}
 							return {

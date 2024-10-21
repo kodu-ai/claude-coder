@@ -1,6 +1,6 @@
 import * as vscode from "vscode"
 import { HistoryItem } from "../../../shared/HistoryItem"
-import { ApiModelId } from "../../../shared/api"
+import { ApiModelId, KoduModelId } from "../../../shared/api"
 
 type User = {
 	email: string
@@ -16,13 +16,14 @@ export type GlobalState = {
 	maxRequestsPerTask: number | undefined
 	lastShownAnnouncementId: string | undefined
 	customInstructions: string | undefined
-	apiModelId: ApiModelId | undefined
+	apiModelId: KoduModelId | undefined
 	useUdiff: boolean | undefined
 	alwaysAllowReadOnly: boolean | undefined
 	alwaysAllowWriteOnly: boolean | undefined
 	taskHistory: HistoryItem[] | undefined
 	shouldShowKoduPromo: boolean | undefined
 	creativeMode: CreativeMode | undefined
+	autoCloseTerminal: boolean | undefined
 	experimentalTerminal: boolean | undefined
 	summarizationThreshold: number | undefined
 	technicalBackground: "no-technical" | "technical" | "developer" | undefined

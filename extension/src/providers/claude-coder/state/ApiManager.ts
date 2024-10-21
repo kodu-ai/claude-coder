@@ -1,5 +1,5 @@
 import * as vscode from "vscode"
-import { ApiModelId, koduDefaultModelId, koduModels } from "../../../shared/api"
+import { ApiModelId, koduDefaultModelId, KoduModelId, koduModels } from "../../../shared/api"
 import { fetchKoduUser as fetchKoduUserAPI, initVisitor } from "../../../api/kodu"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 
@@ -8,7 +8,7 @@ type SecretKey = "koduApiKey"
 export class ApiManager {
 	constructor(private context: ExtensionProvider) {}
 
-	async updateApiConfiguration(apiConfiguration: { apiModelId?: ApiModelId; koduApiKey?: string }) {
+	async updateApiConfiguration(apiConfiguration: { apiModelId?: KoduModelId; koduApiKey?: string }) {
 		const { apiModelId, koduApiKey } = apiConfiguration
 		await this.context.getGlobalStateManager().updateGlobalState("apiModelId", apiModelId)
 		if (koduApiKey) {
