@@ -183,7 +183,7 @@ export class DiffViewProvider {
 		await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
 	}
 
-	public async saveChanges(): Promise<{ newProblemsMessage: string | undefined; userEdits: string | undefined }> {
+	public async saveChanges(): Promise<{ userEdits: string | undefined }> {
 		if (!this.relPath || !this.diffEditor) {
 			throw new Error("No file path set or diff editor not initialized")
 		}
@@ -196,12 +196,14 @@ export class DiffViewProvider {
 		}
 
 		await this.closeAllDiffViews()
+		// check if file is open if not open it
+		const uri = vscode.Uri.file(absolutePath)
+		if (!vscode.window.visibleTextEditors.some((editor) => arePathsEqual(editor.document.uri.fsPath, uri.fsPath))) {
+			const document = await vscode.workspace.openTextDocument(uri)
+			await vscode.window.showTextDocument(document, { preview: false })
+		}
 
 		// Force save without prompting the user
-
-		const newProblems = this.koduDev.diagnosticsHandler.getProblemsString(this.cwd)
-		const newProblemsMessage =
-			newProblems.length > 0 ? `\n\nNew problems detected after saving the file:\n${newProblems}` : ""
 
 		// Check for user edits
 		const normalizedEditedContent = editedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
@@ -213,12 +215,9 @@ export class DiffViewProvider {
 				normalizedStreamedContent,
 				normalizedEditedContent
 			)
-			console.log(`newProblemsMessage: ${newProblemsMessage}`)
-			return { newProblemsMessage, userEdits }
+			return { userEdits }
 		} else {
-			console.log(`newProblemsMessage: ${newProblemsMessage}`)
-
-			return { newProblemsMessage, userEdits: undefined }
+			return { userEdits: undefined }
 		}
 	}
 	private async createPrettyPatch(filename: string, oldStr: string, newStr: string): Promise<string> {

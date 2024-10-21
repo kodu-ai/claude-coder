@@ -207,6 +207,14 @@ export class ToolParser {
 			this.onToolClosingError?.(new Error("Unclosed tool tag at end of input"))
 		}
 	}
+
+	reset(): void {
+		this.currentContext = null
+		this.buffer = ""
+		this.isInTag = false
+		this.isInTool = false
+		this.nonToolBuffer = ""
+	}
 }
 
 export default ToolParser

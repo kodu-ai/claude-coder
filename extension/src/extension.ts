@@ -7,6 +7,8 @@ import * as dotenv from "dotenv"
 import * as path from "path"
 import { extensionName } from "./shared/Constants"
 import "./utils/path-helpers"
+import { TerminalManager } from "./integrations/terminal/terminal-manager"
+import { getCwd } from "./agent/v1/utils"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -234,6 +236,49 @@ export function activate(context: vscode.ExtensionContext) {
 			},
 		})
 	)
+
+	// Test the terminal manager
+	// testTerminalManager()
+}
+
+async function testTerminalManager() {
+	console.log(`Testing terminal manager`)
+	const terminalManager = new TerminalManager()
+
+	// Run a command
+	const terminalInfo = await terminalManager.getOrCreateTerminal(getCwd())
+	const process = terminalManager.runCommand(terminalInfo, "echo 25", { autoClose: false })
+
+	// Wait for the process to complete
+	await process
+	console.log(`CWD: ${terminalInfo.terminal.shellIntegration?.cwd}`)
+
+	// Retrieve all output
+	const fullOutput = terminalManager.getFullOutput(terminalInfo.id)
+
+	// Retrieve unretrieved output without updating the retrieved index
+	const unretrievedOutput = terminalManager.getUnretrievedOutput(terminalInfo.id, false)
+
+	// Retrieve partial output
+	const partialOutput = terminalManager.getPartialOutput(terminalInfo.id, 2, 5)
+
+	// is terminal hot?
+
+	// try sending another 50 + 50 echo to the terminal
+	const terminalInfo2 = await terminalManager.getOrCreateTerminal(getCwd())
+	const process2 = terminalManager.runCommand(terminalInfo2, "echo 50", { autoClose: false })
+	await process2
+	console.log(`CWD2: ${terminalInfo.terminal.shellIntegration?.cwd}`)
+	const fullOutput2 = terminalManager.getFullOutput(terminalInfo.id)
+
+	// Retrieve unretrieved output without updating the retrieved index
+	const unretrievedOutput2 = terminalManager.getUnretrievedOutput(terminalInfo.id, false)
+
+	// Retrieve partial output
+	const partialOutput2 = terminalManager.getPartialOutput(terminalInfo.id, 2, 5)
+
+	// is terminal hot?
+	console.log("Is terminal hot?", terminalInfo.busy)
 }
 
 // This method is called when your extension is deactivated

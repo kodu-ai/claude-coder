@@ -23,6 +23,7 @@ import { tools } from "./schema"
 import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
 import { ChatTool } from "../../../shared/new-tools"
+import { DevServerTool } from "./runners/dev-server.tool"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined
@@ -121,6 +122,8 @@ export class ToolExecutor {
 				return new AskConsultantTool(params, this.options)
 			case "upsert_memory":
 				return new UpsertTaskHistoryTool(params, this.options)
+			case "server_runner_tool":
+				return new DevServerTool(params, this.options)
 			default:
 				throw new Error(`Unknown tool: ${params.name}`)
 		}
@@ -139,6 +142,7 @@ export class ToolExecutor {
 	}
 
 	abortTask() {
+		this.toolParser.reset()
 		const runningProcessId = this.runningProcessId
 		if (runningProcessId) {
 			treeKill(runningProcessId, "SIGTERM")
@@ -301,10 +305,7 @@ export class ToolExecutor {
 	}
 
 	public async resetToolState() {
-		// for (const tool of this.toolQueue) {
-		// 	tool.abortToolExecution()
-		// }
-		// await for
+		this.toolParser.reset()
 		for await (const tool of this.toolQueue) {
 			await tool.abortToolExecution()
 		}

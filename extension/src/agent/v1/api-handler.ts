@@ -1,17 +1,22 @@
-import { Anthropic } from '@anthropic-ai/sdk'
-import { ApiConfiguration, ApiHandler, buildApiHandler } from '../../api'
-import { ExtensionProvider } from '../../providers/claude-coder/ClaudeCoderProvider'
-import { KoduError, koduSSEResponse } from '../../shared/kodu'
-import { amplitudeTracker } from '../../utils/amplitude'
-import { BASE_SYSTEM_PROMPT } from './prompts/base-system'
+import { Anthropic } from "@anthropic-ai/sdk"
+import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
+import { KoduError, koduSSEResponse } from "../../shared/kodu"
+import { UserContent } from "./types"
+import { amplitudeTracker } from "../../utils/amplitude"
+import { truncateHalfConversation } from "../../utils/context-management"
 import {
 	CodingBeginnerSystemPromptSection,
 	ExperiencedDeveloperSystemPromptSection,
 	NonTechnicalSystemPromptSection,
 	SYSTEM_PROMPT,
-} from './system-prompt'
-import { UserContent } from './types'
-import { getCwd } from './utils'
+} from "./system-prompt"
+import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
+import { tools as baseTools } from "./tools/tools"
+import { findLast } from "../../utils"
+import delay from "delay"
+import { BASE_SYSTEM_PROMPT } from "./prompts/base-system"
+import { getCwd } from "./utils"
+import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
 
 /**
  *
@@ -19,15 +24,15 @@ import { getCwd } from './utils'
  * @param message the last message
  * @returns the tokens from the message
  */
-export const anthropicMessageToTokens = (message: Anthropic.MessageParam) => {
+const anthropicMessageToTokens = (message: Anthropic.MessageParam) => {
 	const content = message.content
-	if (typeof content === 'string') {
+	if (typeof content === "string") {
 		return Math.round(content.length / 2)
 	}
-	const textBlocks = content.filter((block) => block.type === 'text')
-	const text = textBlocks.map((block) => block.text).join('')
+	const textBlocks = content.filter((block) => block.type === "text")
+	const text = textBlocks.map((block) => block.text).join("")
 	const textTokens = Math.round(text.length / 3)
-	const imgBlocks = content.filter((block) => block.type === 'image')
+	const imgBlocks = content.filter((block) => block.type === "image")
 	const imgTokens = imgBlocks.length * 2000
 	return Math.round(textTokens + imgTokens)
 }
@@ -97,13 +102,91 @@ export class ApiManager {
 		tempature: number = 0,
 		top_p: number = 0.9,
 	): AsyncGenerator<koduSSEResponse> {
-		console.debug(
-			`[DEBUG] createBaseMessageStream with systemPrompt: ${systemPrompt}, messages: ${JSON.stringify(
-				messages,
-				null,
-				2,
-			)}, abortSignal: ${abortSignal}, tempature: ${tempature}, top_p: ${top_p}`,
-		)
+		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
+		const technicalBackground =
+			(await this.providerRef.deref()?.getStateManager()?.getState())?.technicalBackground ?? "no-technical"
+		let systemPrompt = await SYSTEM_PROMPT()
+		systemPrompt += `
+		===
+USER PERSONALIZED INSTRUCTIONS
+
+${
+	technicalBackground === "no-technical"
+		? NonTechnicalSystemPromptSection
+		: technicalBackground === "technical"
+		? ExperiencedDeveloperSystemPromptSection
+		: CodingBeginnerSystemPromptSection
+}
+		`
+		let customInstructions: string | undefined
+		if (this.customInstructions && this.customInstructions.trim()) {
+			customInstructions += `
+====
+
+USER'S CUSTOM INSTRUCTIONS
+
+The following additional instructions are provided by the user. They should be followed and given precedence in case of conflicts with previous instructions.
+
+${this.customInstructions.trim()}
+`
+		}
+		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), true, technicalBackground)
+
+		const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
+		let apiMetrics: NonNullable<V1ClaudeMessage["apiMetrics"]> = {
+			inputTokens: 0,
+			outputTokens: 0,
+			inputCacheRead: 0,
+			inputCacheWrite: 0,
+			cost: 0,
+		}
+		// If the last API request's total token usage is close to the context window, truncate the conversation history to free up space for the new request
+		const lastApiReqFinished = findLast(claudeMessages!, (m) => m.say === "api_req_finished")
+		if (lastApiReqFinished && lastApiReqFinished.text) {
+			const {
+				tokensIn,
+				tokensOut,
+				cacheWrites,
+				cacheReads,
+			}: { tokensIn?: number; tokensOut?: number; cacheWrites?: number; cacheReads?: number } = JSON.parse(
+				lastApiReqFinished.text
+			)
+			apiMetrics = {
+				inputCacheRead: cacheReads || 0,
+				inputCacheWrite: cacheWrites || 0,
+				inputTokens: tokensIn || 0,
+				outputTokens: tokensOut || 0,
+				cost: 0,
+			}
+		} else {
+			// reverse claude messages to find the last message that is typeof v1 and has apiMetrics
+			const reversedClaudeMessages = claudeMessages?.slice().reverse()
+			const lastV1Message = reversedClaudeMessages?.find((m) => isV1ClaudeMessage(m) && m?.apiMetrics)
+			if (lastV1Message) {
+				apiMetrics = (lastV1Message as V1ClaudeMessage)?.apiMetrics!
+			}
+		}
+
+		const totalTokens =
+			(apiMetrics.inputTokens || 0) +
+			(apiMetrics.outputTokens || 0) +
+			(apiMetrics.inputCacheWrite || 0) +
+			(apiMetrics.inputCacheRead || 0) +
+			anthropicMessageToTokens(apiConversationHistory.at(-1)!)
+		const contextWindow = this.api.getModel().info.contextWindow
+
+		if (totalTokens >= contextWindow * 0.9) {
+			const truncatedMessages = truncateHalfConversation(apiConversationHistory)
+			apiConversationHistory = truncatedMessages
+			this.providerRef.deref()?.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
+		}
+		const isFirstRequest = this.providerRef.deref()?.getKoduDev()?.isFirstMessage ?? false
+		// on first request, we need to get the environment details with details of the current task and folder
+		const environmentDetails = await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
+		if (isFirstRequest && this.providerRef.deref()?.getKoduDev()) {
+			this.providerRef.deref()!.getKoduDev()!.isFirstMessage = false
+		}
+
 		try {
 			const stream = await this.api.createBaseMessageStream(systemPrompt, messages, abortSignal, tempature, top_p)
 

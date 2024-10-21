@@ -75,13 +75,13 @@ export class BrowserManager {
 		})
 
 		try {
-			await this.page.goto(url, { timeout: 25000, waitUntil: "domcontentloaded" })
+			await this.page.goto(url, { timeout: 8000, waitUntil: "domcontentloaded" })
 		} catch (err) {
 			logs.push(`[Navigation Error] ${err}`)
 		}
 
 		// Wait a bit for any remaining logs
-		await new Promise((resolve) => setTimeout(resolve, 2000))
+		await new Promise((resolve) => setTimeout(resolve, 5000))
 
 		const screenshotUInt = await this.page.screenshot({
 			fullPage: true,
