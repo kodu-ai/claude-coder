@@ -105,7 +105,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 						technicalBackground={technicalBackground}
 						setTechnicalBackground={setTechnicalBackground}
 					/>
-					{/* <CreativityModeSelector creativeMode={creativeMode} setCreativeMode={setCreativeMode} /> */}
+					<CreativityModeSelector creativeMode={creativeMode} setCreativeMode={setCreativeMode} />
 
 					<div className="flex items-start space-x-2">
 						<Checkbox
@@ -182,12 +182,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 					</div>
 
 					<CustomInstructions value={customInstructions ?? ""} onChange={setCustomInstructions} />
-
-					<MaxRequestsInput
-						value={maxRequestsPerTaskString}
-						onChange={setMaxRequestsPerTaskString}
-						errorMessage={maxRequestsErrorMessage}
-					/>
 
 					{IS_DEV && (
 						<>
