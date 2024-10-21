@@ -1,53 +1,45 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import {
-	Terminal,
-	FolderTree,
-	Code,
-	Search,
-	FileText,
-	Edit,
-	HelpCircle,
-	CheckCircle,
-	Globe,
-	Image,
-	MessageCircle,
-	BookOpen,
-	AlertCircle,
-	XCircle,
-	ThumbsUp,
-	ThumbsDown,
-	ChevronDown,
-	ChevronUp,
-	LoaderPinwheel,
-	ExternalLink,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { vscode } from "@/utils/vscode"
 import { AnimatePresence, motion } from "framer-motion"
 import {
-	ExecuteCommandTool,
-	ListFilesTool,
-	ListCodeDefinitionNamesTool,
-	SearchFilesTool,
-	ReadFileTool,
-	WriteToFileTool,
+	AlertCircle,
+	BookOpen,
+	CheckCircle,
+	ChevronDown,
+	ChevronUp,
+	Code,
+	Edit,
+	FileText,
+	FolderTree,
+	Globe,
+	HelpCircle,
+	Image,
+	LoaderPinwheel,
+	MessageCircle,
+	Search,
+	Terminal,
+	XCircle
+} from "lucide-react"
+import React, { useEffect, useRef, useState } from "react"
+import {
+	AskConsultantTool,
 	AskFollowupQuestionTool,
 	AttemptCompletionTool,
-	WebSearchTool,
-	UrlScreenshotTool,
-	AskConsultantTool,
-	UpsertMemoryTool,
 	ChatTool,
+	ExecuteCommandTool,
+	ListCodeDefinitionNamesTool,
+	ListFilesTool,
+	ReadFileTool,
+	SearchFilesTool,
+	SummarizeChatTool,
+	UpsertMemoryTool,
+	UrlScreenshotTool,
+	WebSearchTool,
+	WriteToFileTool,
 } from "../../../../src/shared/new-tools"
-import { vscode } from "@/utils/vscode"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
-import SyntaxHighlighter from "react-syntax-highlighter"
-import { useAtomValue } from "jotai"
-import { SyntaxHighlighterAtom } from "../ChatView/ChatView"
-import { syntaxHighlighterCustomStyle } from "../CodeBlock/utils"
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
-import { useEvent } from "react-use"
 
 type ApprovalState = ToolStatus
 type ToolAddons = {
@@ -505,6 +497,7 @@ export const WebSearchBlock: React.FC<WebSearchTool & ToolAddons> = ({
 	</ToolBlock>
 )
 
+
 export const UrlScreenshotBlock: React.FC<UrlScreenshotTool & ToolAddons> = ({
 	url,
 	approvalState,
@@ -535,6 +528,29 @@ export const UrlScreenshotBlock: React.FC<UrlScreenshotTool & ToolAddons> = ({
 		)}
 	</ToolBlock>
 )
+
+export const SummarizeBlock: React.FC<SummarizeChatTool & ToolAddons> = ({
+	approvalState,
+	onApprove,
+	onReject,
+	tool,
+	ts,
+	...rest
+}) => (
+	<ToolBlock
+		{...rest}
+		ts={ts}
+		tool={tool}
+		icon={MessageCircle}
+		title="Summarization"
+		variant="primary"
+		approvalState={approvalState}
+		onApprove={onApprove}
+		onReject={onReject}>
+		<div className="bg-primary/20 text-primary-foreground p-2 rounded text-xs">Do you want to continue the task?</div>
+	</ToolBlock>
+)
+
 
 export const AskConsultantBlock: React.FC<AskConsultantTool & ToolAddons> = ({
 	query,
@@ -638,6 +654,8 @@ export const ToolContentBlock: React.FC<{
 			return <UrlScreenshotBlock {...tool} />
 		case "ask_consultant":
 			return <AskConsultantBlock {...tool} />
+		case 'summarize':
+			return <SummarizeBlock {...tool} />
 		case "upsert_memory":
 			return <UpsertMemoryBlock {...tool} />
 		default:

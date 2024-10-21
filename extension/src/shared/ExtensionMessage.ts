@@ -167,6 +167,7 @@ export type ClaudeAsk =
 	| "resume_completed_task"
 	| "tool"
 	| "context_too_long"
+	| "summarize"
 
 export type ClaudeSay =
 	| "task"

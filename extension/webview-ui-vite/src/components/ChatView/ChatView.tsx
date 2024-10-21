@@ -1,4 +1,3 @@
-import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 import { atom, useAtom, useSetAtom } from "jotai"
 import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
@@ -12,9 +11,11 @@ import {
 	V1ClaudeMessage,
 	isV1ClaudeMessage,
 } from "../../../../src/shared/ExtensionMessage"
+import { Resource } from "../../../../src/shared/WebviewMessage"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
 import { COMMAND_STDIN_STRING, combineCommandSequences } from "../../../../src/shared/combineCommandSequences"
 import { getApiMetrics } from "../../../../src/shared/getApiMetrics"
+import { ChatTool } from "../../../../src/shared/new-tools"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { getSyntaxHighlighterStyleFromTheme } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import { vscode } from "../../utils/vscode"
@@ -22,15 +23,11 @@ import Announcement from "../Announcement/Announcement"
 import HistoryPreview from "../HistoryPreview/HistoryPreview"
 import KoduPromo from "../KoduPromo/KoduPromo"
 import TaskHeader from "../TaskHeader/TaskHeader"
-import ProjectStarterChooser from "../project-starters"
+import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
 import ButtonSection from "./ButtonSection"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
-import { CHAT_BOX_INPUT_ID } from "./InputTextArea"
 import ChatScreen from "./chat-screen"
-import { Resource } from "../../../../src/shared/WebviewMessage"
-import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
-import { ChatTool } from "../../../../src/shared/new-tools"
 
 export const attachementsAtom = atom<Resource[]>([])
 
@@ -458,6 +455,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 							setPrimaryButtonText("Run Command")
 							setSecondaryButtonText("Reject")
 							break
+						case "summarize": 
+						 setPrimaryButtonText("Summarize")
+						 setSecondaryButtonText("Acknowledge and continue")
+						 break
 						case "upsert_memory":
 							setPrimaryButtonText(undefined)
 							setSecondaryButtonText(undefined)

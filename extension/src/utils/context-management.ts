@@ -1,4 +1,6 @@
-import { Anthropic } from "@anthropic-ai/sdk"
+import { Anthropic } from '@anthropic-ai/sdk'
+import axios from 'axios'
+import { getKoduSummarizeUrl } from '../shared/kodu'
 
 /*
 We can't implement a dynamically updating sliding window as it would break prompt cache
@@ -9,7 +11,7 @@ Therefore, this function should only be called when absolutely necessary to fit 
 context limits, not as a continuous process.
 */
 export function truncateHalfConversation(
-	messages: Anthropic.Messages.MessageParam[]
+	messages: Anthropic.Messages.MessageParam[],
 ): Anthropic.Messages.MessageParam[] {
 	// API expects messages to be in user-assistant order, and tool use messages must be followed by tool results. We need to maintain this structure while truncating.
 
@@ -23,4 +25,15 @@ export function truncateHalfConversation(
 	truncatedMessages.push(...remainingMessages)
 
 	return truncatedMessages
+}
+
+export async function summarizeConversation(messages: Anthropic.Messages.MessageParam[]): Promise<string> {
+	const userMessages = messages.filter((m) => m.role === 'user')
+	const assistantMessages = messages.filter((m) => m.role === 'assistant')
+	const result = await axios.post(getKoduSummarizeUrl(), {
+		userMessages: userMessages,
+		assistantMessages: assistantMessages,
+	})
+
+	return `User messages: ${userMessagesCount}\n${userMessagesText}\n\nAssistant messages: ${assistantMessagesCount}\n${assistantMessagesText}`
 }

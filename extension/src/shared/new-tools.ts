@@ -90,6 +90,13 @@ export type UpsertMemoryTool = {
 	content: string
 }
 
+export type SummarizeChatTool = {
+	tool: "summarize"
+	cost?: number
+	output?: string
+	
+}
+
 export type ChatTool = (
 	| ExecuteCommandTool
 	| ListFilesTool
@@ -103,6 +110,7 @@ export type ChatTool = (
 	| UrlScreenshotTool
 	| AskConsultantTool
 	| UpsertMemoryTool
+	| SummarizeChatTool
 ) & {
 	ts: number
 	approvalState?: ToolStatus
