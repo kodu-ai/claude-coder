@@ -3,7 +3,6 @@ import React, { useEffect, useRef, useState } from "react"
 import { useWindowSize } from "react-use"
 import AttachmentsList, { FileItem, UrlItem } from "../ChatRow/FileList"
 import { Button } from "../ui/button"
-import { cn } from "@/lib/utils"
 
 interface TaskTextProps {
 	text?: string
@@ -96,27 +95,25 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 					}}>
 					{isExpanded ? (textLines.length > 0 ? textLines.join("\n") : parts[0]?.trim()) : parts[0]?.trim()}
 
-					{/* last line give it a minor padding-right of 40px */}
-					{textLines.length > 2 && (
-						<>
-							<br />
-							<span className="pr-10">{textLines[textLines.length - 1]}</span>
-						</>
-					)}
+					{/* Remove the last line padding */}
 				</div>
 				<AttachmentsList files={filesCut} urls={urlsCut} />
 
-				<div
-					className={cn(
-						showMoreVis ? "block" : "hidden",
-						"ml-auto mt-auto text-right w-fit mb-2",
-						"absolute bottom-0 right-0 mb-0 bg-background z-10 pl-1"
-					)}>
-					<Button variant="link" size="sm" className="shrink-0" onClick={toggleExpand}>
-						{isExpanded ? "see less" : "see more"}
+				{isExpanded && (
+					<div className="text-right mt-1 mr-2">
+						<Button variant="link" size="lg" className="shrink-0" onClick={toggleExpand}>
+							see less
+						</Button>
+					</div>
+				)}
+			</div>
+			{!isExpanded && showSeeMore && (
+				<div className="text-right mt-1 mr-2">
+					<Button variant="link" size="lg" className="shrink-0" onClick={toggleExpand}>
+						see more
 					</Button>
 				</div>
-			</div>
+			)}
 		</>
 	)
 }
