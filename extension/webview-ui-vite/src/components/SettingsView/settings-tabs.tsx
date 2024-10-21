@@ -16,7 +16,8 @@ import { vscode } from "@/utils/vscode"
 import { GlobalState } from "../../../../src/providers/claude-coder/state/GlobalStateManager"
 import { koduModels, KoduModels } from "../../../../src/shared/api"
 import { formatPrice } from "../ApiOptions/utils"
-import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl } from "../../../../src/shared/kodu"
+import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
+import { SettingsFooter } from "./settings-footer"
 
 interface ExperimentalFeature {
 	id: keyof GlobalState
@@ -122,12 +123,12 @@ const ModelDetails: React.FC<{ model: keyof KoduModels }> = React.memo(({ model 
 				</div>
 				<div className="flex flex-wrap gap-1 mt-2">
 					{details.isRecommended && (
-						<span className="px-1 py-0.5 bg-secondary text-secondary-foreground text-[10px] rounded-full">
+						<span className="px-2 py-1 bg-secondary text-secondary-foreground text-[11px] rounded-full">
 							Recommended
 						</span>
 					)}
 					{details.isHardWorker && (
-						<span className="px-1 py-0.5 bg-secondary text-secondary-foreground text-[10px] rounded-full">
+						<span className="px-2 py-1 bg-secondary text-secondary-foreground text-[11px] rounded-full">
 							Hard Worker
 						</span>
 					)}
@@ -226,49 +227,72 @@ const SettingsPage: React.FC = () => {
 	})
 
 	return (
-		<div className="container mx-auto px-4 max-[280px]:px-2 py-4 max-w-[500px]">
+		<div className="container mx-auto px-4 max-[280px]:px-2 py-4 max-w-[500px] flex flex-col h-full">
 			<h1 className="text-xl font-bold mb-2">Settings</h1>
 			<p className="text-xs text-muted-foreground mb-4">Manage your extension preferences</p>
 
 			<div className="mb-4 space-y-3">
-				<div className="flex max-[280px]:items-start max-[280px]:flex-col max-[280px]:space-y-2 flex-row justify-between items-center">
-					<div>
-						<p className="text-xs font-medium">Signed in as</p>
-						<p className="text-sm font-bold">{extensionState.user?.email}</p>
+				{extensionState.user !== undefined && (
+					<div className="flex max-[280px]:items-start max-[280px]:flex-col max-[280px]:space-y-2 flex-row justify-between items-center">
+						<div>
+							<p className="text-xs font-medium">Signed in as</p>
+							<p className="text-sm font-bold">{extensionState.user?.email}</p>
+							<Button
+								variant="link"
+								size="sm"
+								className="text-sm !text-muted-foreground"
+								onClick={() => vscode.postMessage({ type: "didClickKoduSignOut" })}>
+								sign out
+							</Button>
+						</div>
+						<div className="max-[280px]:mt-2">
+							<p className="text-xs font-medium">Credits remaining</p>
+							<p className="text-lg font-bold">{formatPrice(extensionState.user?.credits || 0)}</p>
+						</div>
 					</div>
-					<div className="max-[280px]:mt-2">
-						<p className="text-xs font-medium">Credits remaining</p>
-						<p className="text-lg font-bold">{formatPrice(extensionState.user?.credits || 0)}</p>
-					</div>
-				</div>
+				)}
 				<div className="flex gap-2 flex-wrap">
-					<Button
-						onClick={() => {
-							vscode.postTrackingEvent("ExtensionCreditAddOpen")
-							vscode.postTrackingEvent("ExtensionCreditAddSelect", "purchase")
-						}}
-						asChild>
-						<a href={getKoduAddCreditsUrl(extensionState.uriScheme)}>Add Credits</a>
-					</Button>
-					<Tooltip>
-						<TooltipTrigger>
+					{extensionState.user !== undefined ? (
+						<>
 							<Button
 								onClick={() => {
-									vscode.postTrackingEvent("OfferwallView")
-									vscode.postTrackingEvent("ExtensionCreditAddSelect", "offerwall")
+									vscode.postTrackingEvent("ExtensionCreditAddOpen")
+									vscode.postTrackingEvent("ExtensionCreditAddSelect", "purchase")
 								}}
-								variant={"outline"}
 								asChild>
-								<a href={getKoduOfferUrl(extensionState.uriScheme)}>Offerwall</a>
+								<a href={getKoduAddCreditsUrl(extensionState.uriScheme)}>Add Credits</a>
 							</Button>
-						</TooltipTrigger>
-						<TooltipContent align="end">Earn up to $10 extra credits for free!</TooltipContent>
-					</Tooltip>
+							<Tooltip>
+								<TooltipTrigger>
+									<Button
+										onClick={() => {
+											vscode.postTrackingEvent("OfferwallView")
+											vscode.postTrackingEvent("ExtensionCreditAddSelect", "offerwall")
+										}}
+										variant={"outline"}
+										asChild>
+										<a href={getKoduOfferUrl(extensionState.uriScheme)}>Offerwall</a>
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent align="end">Earn up to $10 extra credits for free!</TooltipContent>
+							</Tooltip>
+						</>
+					) : (
+						<Button
+							onClick={() => {
+								vscode.postTrackingEvent("AuthStart")
+							}}
+							asChild>
+							<a href={getKoduSignInUrl(extensionState.uriScheme, extensionState.extensionName)}>
+								Sign in to Kodu
+							</a>
+						</Button>
+					)}
 				</div>
 			</div>
 
 			<Tabs defaultValue="preferences" className="space-y-4">
-				<TabsList className="w-full grid grid-cols-3 gap-1 max-[280px]:grid-cols-1 h-full">
+				<TabsList className="w-full grid grid-cols-3 gap-1 max-[280px]:grid-cols-1 h-fit">
 					<TabsTrigger value="preferences" className="text-xs py-1 px-2 h-auto">
 						Preferences
 					</TabsTrigger>
@@ -384,6 +408,10 @@ const SettingsPage: React.FC = () => {
 					</div>
 				</TabsContent>
 			</Tabs>
+
+			<div className="mt-auto mb-2 flex w-full">
+				<SettingsFooter />
+			</div>
 		</div>
 	)
 }
