@@ -107,7 +107,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			const terminalInfo = await terminalManager.getOrCreateTerminal(this.cwd)
 			console.log("Terminal created")
 			terminalInfo.terminal.show() // weird visual bug when creating new terminals (even manually) where there's an empty space at the top.
-			const process = terminalManager.runCommand(terminalInfo, command)
+			const process = terminalManager.runCommand(terminalInfo, command, { autoClose: false })
 			await delay(100)
 
 			let userFeedback: { text?: string; images?: string[] } | undefined

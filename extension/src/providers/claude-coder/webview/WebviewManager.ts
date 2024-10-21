@@ -261,6 +261,15 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "updateGlobalState":
+						for (const [key, value] of Object.entries(message.state)) {
+							await this.provider
+								.getGlobalStateManager()
+								.updateGlobalState(key as keyof typeof message.state, value)
+						}
+						// no need to post state to webview, as the state was received from the webview itself
+						// await this.postStateToWebview()
+						break
 					case "toolFeedback":
 						await this.provider
 							.getTaskManager()

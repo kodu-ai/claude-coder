@@ -183,7 +183,7 @@ export class AmplitudeTracker {
 
 	private ensureInitialized(): void {
 		if (!this.initialized) {
-			throw new Error("AmplitudeTracker is not initialized. Call initialize() first.")
+			// throw new Error("AmplitudeTracker is not initialized. Call initialize() first.")
 		}
 	}
 

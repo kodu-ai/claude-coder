@@ -1,4 +1,4 @@
-import React, { useEffect } from "react"
+import React, { useEffect, useRef } from "react"
 import { useEvent } from "react-use"
 import { atom, useAtom, useSetAtom } from "jotai"
 import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/ExtensionMessage"

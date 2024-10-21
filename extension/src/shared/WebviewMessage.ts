@@ -110,7 +110,13 @@ export type ToolFeedbackAllMessage = {
 	feedback: "approve" | "reject"
 }
 
+export type updateGlobalStateMessage = {
+	type: "updateGlobalState"
+	state: Partial<GlobalState>
+}
+
 export type WebviewMessage =
+	| updateGlobalStateMessage
 	| ToolFeedbackAllMessage
 	| ToolFeedbackMessage
 	| exportBugMessage

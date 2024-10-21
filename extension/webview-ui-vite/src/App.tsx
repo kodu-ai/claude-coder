@@ -14,6 +14,7 @@ import { TooltipProvider } from "./components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import OnboardingDialog from "./components/onboarding"
 import OutOfCreditDialog from "./components/dialogs/out-of-credit-dialog"
+import SettingsPage from "./components/SettingsView/settings-tabs"
 const queryClient = new QueryClient()
 
 const AppContent = () => {
@@ -66,7 +67,8 @@ const AppContent = () => {
 
 	return (
 		<>
-			{showSettings && <SettingsView onDone={() => setShowSettings(false)} />}
+			{showSettings && <SettingsPage />}
+			{/* {showSettings && <SettingsView onDone={() => setShowSettings(false)} />} */}
 			{showHistory && <HistoryView onDone={() => setShowHistory(false)} />}
 			{/* Do not conditionally load ChatView, it's expensive and there's state we don't want to lose (user input, disableInput, askResponse promise, etc.) */}
 			<ChatView

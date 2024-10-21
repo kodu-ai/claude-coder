@@ -37,6 +37,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 		technicalBackground,
 		useUdiff,
 		setUseUdiff,
+		user,
 	} = useExtensionState()
 
 	const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>(undefined)
@@ -211,6 +212,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 					</a>
 				</p>
 				<p className="italic m-0 p-0 mt-2">v{version}</p>
+				{user?.id && <p className="m-0 p-0 mt-2">{user?.id}</p>}
 			</div>
 		</div>
 	)

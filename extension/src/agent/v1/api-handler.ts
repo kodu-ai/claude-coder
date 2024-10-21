@@ -159,9 +159,9 @@ ${this.customInstructions.trim()}
 		} else {
 			// reverse claude messages to find the last message that is typeof v1 and has apiMetrics
 			const reversedClaudeMessages = claudeMessages?.slice().reverse()
-			const lastV1Message = reversedClaudeMessages?.find((m) => isV1ClaudeMessage(m) && m.apiMetrics)
+			const lastV1Message = reversedClaudeMessages?.find((m) => isV1ClaudeMessage(m) && m?.apiMetrics)
 			if (lastV1Message) {
-				apiMetrics = (lastV1Message as V1ClaudeMessage).apiMetrics!
+				apiMetrics = (lastV1Message as V1ClaudeMessage)?.apiMetrics!
 			}
 		}
 
