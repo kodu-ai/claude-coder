@@ -164,7 +164,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 					this.providerRef,
 					this.stateManager.state.apiConversationHistory,
 				)
-				console.log('[TaskExecutor] percentageUsed:', percentageUsed)
 				if (percentageUsed > 0.05) {
 					const response = await this.askWithId(
 						'tool',
@@ -191,7 +190,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 							startedReqId,
 						)
 
-						// Create a custom system prompt for summarization
 						const customSystemPrompt = `This is a summary of a previous conversation between a user and an AI assistant. As the AI assistant, you must continue the task from this point, taking into account every detail provided. Your response should be based on this summary and structured as follows:
 
 1. Task Overview:
@@ -238,15 +236,12 @@ This summary contains all relevant details for seamless continuation of the task
 						if (!stream) {
 							throw new Error('Stream is undefined')
 						}
-						// Process the stream to get the summary
 						let totalCosts = 0
 						let response = ''
 						for await (const chunk of stream) {
 							if (chunk.code === 1) {
-								// End of stream ?
 								const internal = chunk.body.internal
 								const res = chunk.body.anthropic.content.at(0)
-								// Sum of all the objects inside of internal
 
 								response = (res as Anthropic.Messages.TextBlockParam).text
 								totalCosts = internal.cost
@@ -292,6 +287,15 @@ This summary contains all relevant details for seamless continuation of the task
 							startedReqId,
 						)
 						
+					
+						await this.stateManager.addToApiConversationHistory({
+							role: 'user',
+							content: [{ 
+								type: 'text', 
+								text: "The user chose to continue without summarization. Please continue with the task based on the available context." 
+							}],
+						})
+
 						// Continue with the request using truncated messages
 						await this.continueWithTruncatedMessages(truncatedMessages)
 					}

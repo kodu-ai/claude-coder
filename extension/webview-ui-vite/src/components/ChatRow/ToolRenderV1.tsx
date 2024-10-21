@@ -592,6 +592,11 @@ export const SummarizeBlock: React.FC<SummarizeChatTool & ToolAddons> = ({
 					<MarkdownRenderer markdown={output} syntaxHighlighterStyle={{}} />
 				</div>
 			)}
+			{approvalState === 'rejected' && (
+				<div className="bg-warning/20 text-warning-foreground p-2 rounded text-xs flex items-center">
+					<p>Summarization was skipped. The conversation will continue with reduced context.</p>
+				</div>
+			)}
 			{approvalState === 'approved' && output && (
 				<div className="flex justify-end mt-2">
 					<Button variant="default" size="sm" onClick={handleStartNewTask}>
