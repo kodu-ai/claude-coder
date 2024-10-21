@@ -1,4 +1,3 @@
-import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 import { atom, useAtom, useSetAtom } from "jotai"
 import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
@@ -12,9 +11,11 @@ import {
 	V1ClaudeMessage,
 	isV1ClaudeMessage,
 } from "../../../../src/shared/ExtensionMessage"
+import { Resource } from "../../../../src/shared/WebviewMessage"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
 import { COMMAND_STDIN_STRING, combineCommandSequences } from "../../../../src/shared/combineCommandSequences"
 import { getApiMetrics } from "../../../../src/shared/getApiMetrics"
+import { ChatTool } from "../../../../src/shared/new-tools"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { getSyntaxHighlighterStyleFromTheme } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import { vscode } from "../../utils/vscode"
@@ -22,15 +23,12 @@ import Announcement from "../Announcement/Announcement"
 import HistoryPreview from "../HistoryPreview/HistoryPreview"
 import KoduPromo from "../KoduPromo/KoduPromo"
 import TaskHeader from "../TaskHeader/TaskHeader"
-import ProjectStarterChooser from "../project-starters"
+import LoginRequiredDialog, { useDialogClosePromise } from "../dialogs/login-required-dialog"
+import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
 import ButtonSection from "./ButtonSection"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
-import { CHAT_BOX_INPUT_ID } from "./InputTextArea"
 import ChatScreen from "./chat-screen"
-import { Resource } from "../../../../src/shared/WebviewMessage"
-import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
-import { ChatTool } from "../../../../src/shared/new-tools"
 
 export const attachementsAtom = atom<Resource[]>([])
 
@@ -81,6 +79,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
 	const [attachements, setAttachements] = useAtom(attachementsAtom)
 	const setSyntaxHighlighterStyleAtom = useSetAtom(SyntaxHighlighterAtom)
+	const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
 
 	// Refs
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
@@ -195,9 +194,16 @@ const ChatView: React.FC<ChatViewProps> = ({
 		return () => clearTimeout(timer)
 	}, [visibleMessages])
 
+	const { promise: loginDialogClosePromise, resolvePromise: resolveLoginDialogClose } = useDialogClosePromise()
+
 	// Handle sending messages
 	const handleSendMessage = useCallback(
-		(input?: string) => {
+		async (input?: string) => {
+			if (!user) {
+				setIsLoginDialogOpen(true)
+			await	loginDialogClosePromise;
+			
+			}
 			if (shouldOpenOutOfCreditDialog) {
 				openOutOfCreditDialog()
 				return
@@ -701,8 +707,14 @@ const ChatView: React.FC<ChatViewProps> = ({
 					handlePaste={handlePaste}
 				/>
 			</div>
+			<LoginRequiredDialog
+				isOpen={isLoginDialogOpen}
+				onClose={() => {
+setIsLoginDialogOpen(false)
+					resolveLoginDialogClose()
+				}}
+			/>
 		</div>
 	)
 }
-
 export default React.memo(ChatView)

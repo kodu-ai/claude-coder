@@ -134,26 +134,6 @@ export class AmplitudeTracker {
 		this.track("ExtensionCreditAddOpen")
 	}
 
-	public trialOfferView(): void {
-		this.track("TrialOfferView")
-	}
-
-	public trialOfferStart(): void {
-		this.track("TrialOfferStart")
-	}
-
-	public trialUpsellView(): void {
-		this.track("TrialUpsellView")
-	}
-
-	public trialUpsellStart(): void {
-		this.track("TrialUpsellStart")
-	}
-
-	public trialUpsellSuccess(): void {
-		this.track("TrialUpsellSuccess")
-	}
-
 	public extensionCreditAddSelect(key: string): void {
 		this.track("ExtensionCreditAddSelect", {
 			key,

@@ -9,7 +9,6 @@ import HistoryView from "./components/HistoryView/HistoryView"
 import SettingsView from "./components/SettingsView/SettingsView"
 import "jotai-devtools/styles.css"
 import "./App.css"
-import EndOfTrialAlertDialog from "./components/EndOfTrialAlertDialog/end-of-trial-alert-dialog"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import OnboardingDialog from "./components/onboarding"
@@ -100,7 +99,6 @@ const App = () => {
 					</TooltipProvider>
 				</QueryClientProvider>
 				<OutOfCreditDialog />
-				<EndOfTrialAlertDialog />
 				{/* </Popover> */}
 			</ExtensionStateProvider>
 		</>

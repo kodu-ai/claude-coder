@@ -48,7 +48,6 @@ export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 			credits: Number(response.data.credits) ?? 0,
 			id: response.data.id as string,
 			email: response.data.email as string,
-			isVisitor: response.data.isVisitor as boolean,
 		}
 	}
 	return null
