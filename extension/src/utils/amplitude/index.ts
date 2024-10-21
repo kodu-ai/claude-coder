@@ -138,6 +138,10 @@ export class AmplitudeTracker {
 		this.track("TrialOfferView")
 	}
 
+	public offerwallView(): void {
+		this.track("OfferwallView")
+	}
+
 	public trialOfferStart(): void {
 		this.track("TrialOfferStart")
 	}

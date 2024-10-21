@@ -15,6 +15,8 @@ import useDebounce from "@/hooks/use-debounce"
 import { vscode } from "@/utils/vscode"
 import { GlobalState } from "../../../../src/providers/claude-coder/state/GlobalStateManager"
 import { koduModels, KoduModels } from "../../../../src/shared/api"
+import { formatPrice } from "../ApiOptions/utils"
+import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl } from "../../../../src/shared/kodu"
 
 interface ExperimentalFeature {
 	id: keyof GlobalState
@@ -218,7 +220,6 @@ const SettingsPage: React.FC = () => {
 	}, [])
 
 	useDebounce(customInstructions, 250, (val) => {
-		console.log(`Setting custom instructions to: ${val}`)
 		if (val === extensionState.customInstructions) return
 		extensionState.setCustomInstructions(val)
 		vscode.postMessage({ type: "customInstructions", text: val })
@@ -237,14 +238,32 @@ const SettingsPage: React.FC = () => {
 					</div>
 					<div className="max-[280px]:mt-2">
 						<p className="text-xs font-medium">Credits remaining</p>
-						<p className="text-lg font-bold">${extensionState.user?.credits.toFixed(2)}</p>
+						<p className="text-lg font-bold">{formatPrice(extensionState.user?.credits || 0)}</p>
 					</div>
 				</div>
 				<div className="flex gap-2 flex-wrap">
-					<Button className="text-xs py-1 px-2 h-auto">Add Credits</Button>
-					<Button variant="outline" className="text-xs py-1 px-2 h-auto">
-						Referral Program
+					<Button
+						onClick={() => {
+							vscode.postTrackingEvent("ExtensionCreditAddOpen")
+							vscode.postTrackingEvent("ExtensionCreditAddSelect", "purchase")
+						}}
+						asChild>
+						<a href={getKoduAddCreditsUrl(extensionState.uriScheme)}>Add Credits</a>
 					</Button>
+					<Tooltip>
+						<TooltipTrigger>
+							<Button
+								onClick={() => {
+									vscode.postTrackingEvent("OfferwallView")
+									vscode.postTrackingEvent("ExtensionCreditAddSelect", "offerwall")
+								}}
+								variant={"outline"}
+								asChild>
+								<a href={getKoduOfferUrl(extensionState.uriScheme)}>Offerwall</a>
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent align="end">Earn up to $10 extra credits for free!</TooltipContent>
+					</Tooltip>
 				</div>
 			</div>
 

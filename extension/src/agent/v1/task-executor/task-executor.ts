@@ -135,6 +135,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 			if (this.state !== TaskState.WAITING_FOR_API || !this.currentUserContent || this.isRequestCancelled) {
 				return
 			}
+			// make sure to reset the tool state before making a new request
+			await this.toolExecutor.resetToolState()
 			if (this.consecutiveErrorCount >= 3) {
 				await this.ask("resume_task", {
 					question: "Claude has encountered an error 3 times in a row. Would you like to resume the task?",

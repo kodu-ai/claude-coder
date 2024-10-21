@@ -139,6 +139,7 @@ export class ToolExecutor {
 	}
 
 	abortTask() {
+		this.toolParser.reset()
 		const runningProcessId = this.runningProcessId
 		if (runningProcessId) {
 			treeKill(runningProcessId, "SIGTERM")
@@ -301,10 +302,7 @@ export class ToolExecutor {
 	}
 
 	public async resetToolState() {
-		// for (const tool of this.toolQueue) {
-		// 	tool.abortToolExecution()
-		// }
-		// await for
+		this.toolParser.reset()
 		for await (const tool of this.toolQueue) {
 			await tool.abortToolExecution()
 		}

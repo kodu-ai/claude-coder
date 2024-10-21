@@ -16,6 +16,7 @@ export type AmplitudeWebviewMessage = {
 		| "TrialUpsellView"
 		| "TrialUpsellStart"
 		| "ExtensionCreditAddSelect"
+		| "OfferwallView"
 	key?: string
 }
 
