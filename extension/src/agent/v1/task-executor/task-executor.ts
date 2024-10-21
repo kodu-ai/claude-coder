@@ -46,7 +46,19 @@ export class TaskExecutor extends TaskExecutorUtils {
 	public async startTask(userContent: UserContent): Promise<void> {
 		this.logState("Starting task")
 		this.state = TaskState.WAITING_FOR_API
+		if (userContent.length === 0) {
+			userContent = [
+				{
+					type: "text",
+					text: "Let's continue with the task, from where we left off.",
+				},
+			]
+		}
+		if (userContent[0] && userContent[0].type === "text" && userContent[0].text?.trim() === "") {
+			userContent[0].text = "Let's continue with the task, from where we left off."
+		}
 		this.currentUserContent = userContent
+
 		this.isRequestCancelled = false
 		this.abortController = new AbortController()
 		this.consecutiveErrorCount = 0
@@ -57,6 +69,17 @@ export class TaskExecutor extends TaskExecutorUtils {
 		if (this.state === TaskState.WAITING_FOR_USER) {
 			this.logState("Resuming task")
 			this.state = TaskState.WAITING_FOR_API
+			if (userContent.length === 0) {
+				userContent = [
+					{
+						type: "text",
+						text: "Let's continue with the task, from where we left off.",
+					},
+				]
+			}
+			if (userContent[0] && userContent[0].type === "text" && userContent[0].text?.trim() === "") {
+				userContent[0].text = "Let's continue with the task, from where we left off."
+			}
 			this.currentUserContent = userContent
 			this.isRequestCancelled = false
 			this.consecutiveErrorCount = 0
@@ -286,13 +309,13 @@ export class TaskExecutor extends TaskExecutorUtils {
 	}
 
 	private async resetState() {
-		this.state = TaskState.IDLE
 		this.abortController?.abort()
 		this.currentApiResponse = null
 		this.currentToolResults = []
 		this.isRequestCancelled = false
 		this.abortController = null
 		this.consecutiveErrorCount = 0
+		this.state = TaskState.WAITING_FOR_USER
 		await this.toolExecutor.resetToolState()
 
 		this.logState("State reset due to request cancellation")
@@ -400,6 +423,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private async handleApiError(error: TaskError): Promise<void> {
 		this.logError(error)
 		console.log(`[TaskExecutor] Error (State: ${this.state}):`, error)
+		await this.toolExecutor.resetToolState()
 		this.stateManager.popLastApiConversationMessage()
 		this.consecutiveErrorCount++
 		const { response } = await this.ask("api_req_failed", { question: error.message })

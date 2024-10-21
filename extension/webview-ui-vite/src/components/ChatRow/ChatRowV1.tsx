@@ -13,6 +13,7 @@ import ToolRenderer from "./ToolRenderer"
 import MemoryUpdate from "./memory-update"
 import InteractiveTerminal from "./InteractiveTerminal"
 import { cn } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 
 interface ChatRowProps {
 	message: V1ClaudeMessage
@@ -71,7 +72,32 @@ const APIRequestMessage: React.FC<{
 				{icon}
 				{title}
 				{/* hide cost for now - not needed */}
-				{/* {cost && <code className="text-light">${Number(cost)?.toFixed(4)}</code>} */}
+				{cost && (
+					<Tooltip>
+						<TooltipContent className="bg-secondary text-secondary-foreground">
+							<div className="space-y-2">
+								<h3 className="font-medium text-lg">Price Breakdown</h3>
+								{Object.entries(message.apiMetrics!)
+									.reverse()
+									.map(([key, value], index) => (
+										<div
+											key={key}
+											className={`flex justify-between ${
+												index === Object.entries(message.apiMetrics!).length - 1
+													? "pt-2 border-t border-gray-200 font-medium"
+													: ""
+											}`}>
+											<span className="text-secondary-foreground/80">{key}</span>
+											<span className="text-secondary-foreground">{value?.toFixed(2)}</span>
+										</div>
+									))}
+							</div>
+						</TooltipContent>
+						<TooltipTrigger asChild>
+							<code className="text-light">${Number(cost)?.toFixed(4)}</code>
+						</TooltipTrigger>
+					</Tooltip>
+				)}
 				<div className={`ml-2 ${className}`}>{status}</div>
 				<div className="flex-1" />
 				<VSCodeButton appearance="icon" aria-label="Toggle Details" onClick={onToggleExpand}>

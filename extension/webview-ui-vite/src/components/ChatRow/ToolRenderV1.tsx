@@ -139,16 +139,12 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 	)
 }
 
-export const ExecuteCommandBlock: React.FC<ExecuteCommandTool & ToolAddons> = ({
-	command,
-	output,
-	approvalState,
-	onApprove,
-	tool,
-	ts,
-	onReject,
-	...rest
-}) => {
+export const ExecuteCommandBlock: React.FC<
+	ExecuteCommandTool &
+		ToolAddons & {
+			hasNextMessage?: boolean
+		}
+> = ({ command, output, approvalState, onApprove, tool, earlyExit, hasNextMessage, ts, onReject, ...rest }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
 
 	return (
@@ -166,6 +162,15 @@ export const ExecuteCommandBlock: React.FC<ExecuteCommandTool & ToolAddons> = ({
 				<span className="text-success">$</span> {command}
 			</div>
 
+			{approvalState === "loading" && earlyExit === "pending" && (
+				<>
+					<div className="flex justify-end space-x-1 mt-2">
+						<Button variant="outline" size="sm" onClick={onApprove}>
+							Continue while running
+						</Button>
+					</div>
+				</>
+			)}
 			{output && (
 				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
 					<CollapsibleTrigger asChild>
@@ -594,7 +599,8 @@ export const ToolContentBlock: React.FC<{
 		onApprove?: () => void
 		onReject?: () => void
 	}
-}> = ({ tool }) => {
+	hasNextMessage?: boolean
+}> = ({ tool, hasNextMessage }) => {
 	tool.onApprove = () => {
 		vscode.postMessage({
 			feedback: "approve",
@@ -611,7 +617,7 @@ export const ToolContentBlock: React.FC<{
 	}
 	switch (tool.tool) {
 		case "execute_command":
-			return <ExecuteCommandBlock {...tool} />
+			return <ExecuteCommandBlock hasNextMessage {...tool} />
 		case "list_files":
 			return <ListFilesBlock {...tool} />
 		case "list_code_definition_names":

@@ -127,6 +127,21 @@ export class TerminalRegistry {
 		return terminalInfo
 	}
 
+	/**
+	 * Closes the terminal with the given ID.
+	 * @param id The unique ID of the terminal to close.
+	 * @returns True if the terminal was found and closed, false otherwise.
+	 */
+	static closeTerminal(id: number): boolean {
+		const terminalInfo = this.getTerminal(id)
+		if (terminalInfo) {
+			terminalInfo.terminal.dispose()
+			this.removeTerminal(id)
+			return true
+		}
+		return false
+	}
+
 	static updateTerminal(id: number, updates: Partial<TerminalInfo>) {
 		const terminal = this.getTerminal(id)
 		if (terminal) {
@@ -158,15 +173,26 @@ export class TerminalManager {
 		let disposable: vscode.Disposable | undefined
 		try {
 			disposable = (vscode.window as vscode.Window).onDidStartTerminalShellExecution?.(async (e) => {
-				// Creating a read stream here results in a more consistent output. This is most obvious when running the `date` command.
 				e?.execution?.read()
 			})
 		} catch (error) {
-			// console.error("Error setting up onDidEndTerminalShellExecution", error)
+			// Handle error if needed
 		}
 		if (disposable) {
 			this.disposables.push(disposable)
 		}
+
+		// Listen for terminal close events
+		const closeDisposable = vscode.window.onDidCloseTerminal((closedTerminal) => {
+			const terminalInfo = TerminalRegistry.getAllTerminals().find((t) => t.terminal === closedTerminal)
+			if (terminalInfo) {
+				this.terminalIds.delete(terminalInfo.id)
+				this.processes.delete(terminalInfo.id)
+				TerminalRegistry.removeTerminal(terminalInfo.id)
+				console.log(`Terminal with ID ${terminalInfo.id} was closed externally.`)
+			}
+		})
+		this.disposables.push(closeDisposable)
 	}
 
 	runCommand(terminalInfo: TerminalInfo, command: string): TerminalProcessResultPromise {
@@ -257,11 +283,43 @@ export class TerminalManager {
 		const process = this.processes.get(terminalId)
 		return process ? process.isHot : false
 	}
+	/**
+	 * Closes the terminal with the given ID.
+	 * @param id The unique ID of the terminal to close.
+	 * @returns True if the terminal was found and closed, false otherwise.
+	 */
+	closeTerminal(id: number): boolean {
+		if (!this.terminalIds.has(id)) {
+			console.warn(`Terminal with ID ${id} does not exist or is already closed.`)
+			return false
+		}
 
+		const closed = TerminalRegistry.closeTerminal(id)
+		if (closed) {
+			// we don't delete the id so that we can keep track of it in case we need to get unretrieved output
+			// this.terminalIds.delete(id)
+			// this.processes.delete(id)
+			console.log(`Terminal with ID ${id} has been closed.`)
+		} else {
+			console.warn(`Failed to close terminal with ID ${id}. It may have already been disposed.`)
+		}
+
+		return closed
+	}
+
+	/**
+	 * Closes all managed terminals.
+	 */
+	closeAllTerminals(): void {
+		for (const id of Array.from(this.terminalIds)) {
+			this.closeTerminal(id)
+		}
+	}
 	disposeAll() {
 		// for (const info of this.terminals) {
 		// 	//info.terminal.dispose() // dont want to dispose terminals when task is aborted
 		// }
+		this.closeAllTerminals()
 		this.terminalIds.clear()
 		this.processes.clear()
 		this.disposables.forEach((disposable) => disposable.dispose())

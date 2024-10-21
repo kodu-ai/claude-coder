@@ -160,6 +160,22 @@ export abstract class TaskExecutorUtils {
 		})
 	}
 
+	public async updateAsk(type: ClaudeAsk, data: AskDetails, askTs: number): Promise<void> {
+		const { question, tool } = data
+		const askMessage: V1ClaudeMessage = {
+			ts: askTs,
+			type: "ask",
+			ask: type,
+			text: question ? question : tool ? JSON.stringify(tool) : "",
+			v: 1,
+			status: tool?.approvalState,
+			autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
+		}
+
+		await this.stateManager?.updateClaudeMessage(askTs, askMessage)
+		await this.updateWebview()
+	}
+
 	public async sayWithId(sayTs: number, type: ClaudeSay, text?: string, images?: string[]): Promise<number> {
 		const sayMessage: ClaudeMessage = {
 			ts: sayTs,

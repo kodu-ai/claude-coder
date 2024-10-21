@@ -4,6 +4,14 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.9.16]
+
+-   [FIX]: prompt caching is working more effective now
+-   [FIX]: execute commands now run properly
+-   [NEW]: execute commands can now be ran easily on the background
+-   [NEW]: automatically close terminal after command finish executing
+-   [NEW]: improved loop detection and diagonstic tools
+
 ## [1.9.9]
 
 -   [FIX]: tools and chat scroll
