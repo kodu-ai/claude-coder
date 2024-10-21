@@ -204,31 +204,31 @@ export class TaskExecutor extends TaskExecutorUtils {
 						)
 
 						// Create a custom system prompt for summarization
-						const customSystemPrompt = `You are summarizing a previous task conversation between a user and an AI assistant. Provide a concise yet comprehensive summary of this conversation and the actions taken. Structure your response as follows:
+						const customSystemPrompt = `This is a summary of a previous conversation between a user and an AI assistant. As the AI assistant, you must continue the task from this point, taking into account every detail provided. Your response should be based on this summary and structured as follows:
 
 1. Task Overview:
-   - Briefly describe the main task or goal discussed in the conversation.
-   - Mention any key constraints or requirements specified by the user.
+   - Concisely describe the main task or goal from the previous conversation.
+   - List any key constraints or requirements specified by the user.
 
 2. Key Actions and Progress:
-   - List the main actions performed by the AI assistant, using bullet points.
+   - Bullet-point the main actions you (as the AI) performed in the previous conversation.
    - Include file names and brief descriptions of changes made, if applicable.
-   - Highlight any significant progress made towards completing the task.
+   - Highlight significant progress made towards completing the task.
 
 3. Important Information:
-   - Summarize crucial information learned or decisions made during the conversation.
-   - Include any user preferences or specific instructions given.
+   - Summarize crucial information learned or decisions made during the previous conversation.
+   - List any user preferences or specific instructions given.
    - Use bullet points for clarity.
 
 4. Tools Used:
-   - List the tools called by the AI assistant, with a brief description of their purpose and outcome.
+   - List the tools you called, with a brief description of their purpose and outcome.
    - Format as: <tool_name>: brief description of use and result</tool_name>
 
-5. Current Status:
-   - Briefly state the current status of the task (e.g., completed, in progress, awaiting user input).
-   - Mention any pending actions or next steps, if applicable.
+5. Current Status and Next Steps:
+   - State the current status of the task (e.g., completed, in progress, awaiting user input).
+   - Outline any pending actions or next steps to be taken.
 
-Keep the summary focused and to-the-point, emphasizing the most important aspects of the conversation and actions taken. This summary will be used as context for continuing the task, so ensure it captures all relevant details for seamless continuation.`
+This summary contains all relevant details for seamless continuation of the task. You must use this information to inform your next actions and responses. Treat this summary as the definitive context for the ongoing task and build upon it accordingly.`
 						const abortController = new AbortController()
 						const stream = this.stateManager.apiManager.createBaseMessageStream(
 							customSystemPrompt,
