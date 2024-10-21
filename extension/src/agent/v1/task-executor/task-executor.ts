@@ -264,20 +264,14 @@ Keep the summary focused and to-the-point, emphasizing the most important aspect
 								totalCosts = internal.cost
 							}
 						}
-
-						console.debug(
-							`[DEBUG] Past conversation history: ${JSON.stringify(this.stateManager.state.apiConversationHistory, null, 2)}`,
-						)
-						// Clear conversation history and replace content with the summary
-						await this.stateManager.overwriteApiConversationHistory([])
-						await this.stateManager.addToApiConversationHistory({
-							role: 'assistant',
-							content: response,
-						})
-						console.debug(
-							`[DEBUG] New conversation history: ${JSON.stringify(this.stateManager.state.apiConversationHistory, null, 2)}`,
-						)
-
+						const apiConversationHistory = this.stateManager.state.apiConversationHistory
+						let firstUserMessage = apiConversationHistory
+							?.find((message) => message.role === 'user')
+							?.content.at(0)
+						if (firstUserMessage && typeof firstUserMessage !== 'string') {
+							firstUserMessage = (firstUserMessage as Anthropic.Messages.TextBlockParam).text
+						}
+						const summary = `${firstUserMessage}\n${response}`
 						this.updateAsk(
 							'tool',
 							{
@@ -286,7 +280,7 @@ Keep the summary focused and to-the-point, emphasizing the most important aspect
 									ts: startedReqId,
 									approvalState: 'approved',
 									cost: totalCosts, // Cost of the summarization
-									output: response, // Summary of the conversation
+									output: summary, // Summary of the conversation
 								},
 							},
 							startedReqId,
@@ -578,4 +572,3 @@ export type AskResponse = {
 	text?: string
 	images?: string[]
 }
-

@@ -167,14 +167,6 @@ export class KoduDev {
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
 	}
 
-	private async handleContextTooLong(tokenCount: number) {
-		const message = `This is getting a bit long (${tokenCount} tokens). In order to save you some money and to make Kodu's answer more reliable, please allow Kodu to create a summary of the conversation and use it in a new task.`
-		await this.taskExecutor.say("context_too_long", message)
-		// You might want to implement a method to ask the user if they want to proceed with a summary
-		// For now, we'll just log the message
-		console.log(message)
-	}
-
 	/**
 	 * @todo bug fix - sometlogic is not working properly with cancelled tasks or errored tasks
 	 */
