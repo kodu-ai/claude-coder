@@ -174,7 +174,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 					this.providerRef,
 					this.stateManager.state.apiConversationHistory,
 				)
-				if (percentageUsed > 0.01) {
+				console.log('[TaskExecutor] percentageUsed:', percentageUsed)
+				if (percentageUsed > 0.05) {
 					// TODO: Use the percentage form the user settings
 					// TODO: Add if user settings "auto-truncate" is enabled
 					const response = await this.askWithId(
@@ -203,16 +204,36 @@ export class TaskExecutor extends TaskExecutorUtils {
 						)
 
 						// Create a custom system prompt for summarization
-						const customSystemPrompt =
-							'Summarize the following conversation between the user and the assistant, highlight the changes that were made to the project during the conversation and list the changes made for each file and the reason why they were made, use the xml tag of the tool called to summarize what was done. Start with [SUMMARY] and end with [/SUMMARY].'
+						const customSystemPrompt = `Provide a concise yet detailed summary of the conversation and actions taken. Structure your response as follows:
+						
+1. Key Actions:
+   - List the main actions performed, using bullet points.
+   - Include file names and brief descriptions of changes made.
+
+2. Important Information:
+   - Highlight any crucial information learned or decisions made.
+   - Use bullet points for clarity.
+
+3. Tools Used:
+   - List the tools called, with a brief description of their purpose and outcome.
+   - Format as: <tool_name>: brief description of use and result</tool_name>
+
+Keep the summary focused and to-the-point, emphasizing the most important aspects of the conversation and actions taken.`
 						const abortController = new AbortController()
 						const stream = this.stateManager.apiManager.createBaseMessageStream(
 							customSystemPrompt,
-							this.stateManager.state.apiConversationHistory,
+							[
+								...this.stateManager.state.apiConversationHistory,
+								{
+									role: 'user',
+									content: 'The user has asked to summaize the conversation that happened previously',
+								},
+							],
 							abortController.signal,
 							0.2, // temperature
 							0.8, // top_p
 						)
+
 						if (!stream) {
 							throw new Error('Stream is undefined')
 						}
