@@ -132,17 +132,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
-	public async handleContextOverflow(): Promise<void> {
-		const { response } = await this.ask('context_too_long', {
-			question:
-				'The current task has exceeded the context window. Would you like to clear the conversation history?',
-		})
-		if (response === 'yesButtonTapped') {
-			alert('User agreed to clear the conversation history')
-			this.summarizeTask()
-		}
-	}
-
 	public async makeClaudeRequest(): Promise<void> {
 		// Start of MakeClaudeRequest
 		// Check if the context window is about to overflow (auto-truncate) (create a new auto-summarize function)

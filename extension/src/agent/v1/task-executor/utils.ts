@@ -114,7 +114,6 @@ export abstract class TaskExecutorUtils {
 			const mustRequestApprovalType: ClaudeAsk[] = [
 				"completion_result",
 				"resume_completed_task",
-				"context_too_long",
 				"resume_task",
 				"request_limit_reached",
 				"followup",

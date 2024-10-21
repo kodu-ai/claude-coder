@@ -1,9 +1,9 @@
+import { cn } from "@/lib/utils"
 import { extractAdditionalContext, extractFilesFromContext, extractUrlsFromContext } from "@/utils/extractAttachments"
 import React, { useEffect, useRef, useState } from "react"
 import { useWindowSize } from "react-use"
 import AttachmentsList, { FileItem, UrlItem } from "../ChatRow/FileList"
 import { Button } from "../ui/button"
-import { cn } from "@/lib/utils"
 
 interface TaskTextProps {
 	text?: string
