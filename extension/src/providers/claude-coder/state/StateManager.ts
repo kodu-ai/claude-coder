@@ -33,6 +33,7 @@ export class StateManager {
 			useUdiff,
 			experimentalTerminal,
 			technicalBackground,
+			summarizationThreshold,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.secretStateManager.getSecretState("koduApiKey"),
@@ -49,6 +50,7 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("useUdiff"),
 			this.globalStateManager.getGlobalState("experimentalTerminal"),
 			this.globalStateManager.getGlobalState("technicalBackground"),
+			this.globalStateManager.getGlobalState("summarizationThreshold"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -64,10 +66,10 @@ export class StateManager {
 			customInstructions,
 			technicalBackground,
 			experimentalTerminal:
-				experimentalTerminal === undefined || experimentalTerminal === null ? true : experimentalTerminal,
+			experimentalTerminal === undefined || experimentalTerminal === null ? true : experimentalTerminal,
 			currentTaskId,
 			alwaysAllowReadOnly:
-				alwaysAllowReadOnly === undefined || alwaysAllowReadOnly === null ? true : alwaysAllowReadOnly,
+			alwaysAllowReadOnly === undefined || alwaysAllowReadOnly === null ? true : alwaysAllowReadOnly,
 			shouldShowAnnouncement: lastShownAnnouncementId === undefined,
 			claudeMessages: currentClaudeMessage ?? [],
 			version: this.context.context.extension.packageJSON.version,
@@ -75,6 +77,7 @@ export class StateManager {
 			alwaysAllowWriteOnly: alwaysAllowWriteOnly ?? false,
 			taskHistory: taskHistory ?? [],
 			shouldShowKoduPromo: shouldShowKoduPromo ?? true,
+			summarizationThreshold: summarizationThreshold ?? 50,
 			creativeMode: creativeMode ?? "normal",
 			fingerprint: fp,
 			useUdiff: useUdiff ?? false,
@@ -152,4 +155,9 @@ export class StateManager {
 	setCreativeMode(value: "creative" | "normal" | "deterministic") {
 		return this.globalStateManager.updateGlobalState("creativeMode", value)
 	}
+
+	setSummarizationThreshold(value: number | undefined) {
+		return this.globalStateManager.updateGlobalState("summarizationThreshold", value)
+	}
+
 }

@@ -1,22 +1,17 @@
-import os from "os"
 import { readdir } from "fs/promises"
 import path from "path"
 import * as vscode from "vscode"
+import { KoduDevState } from "../../../agent/v1/types"
+// import { GitHandler } from "../../../agent/v1/handlers"
+import { ExecaTerminalManager } from "../../../integrations/terminal/execa-terminal-manager"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
 import {
-	CommandInputMessage,
-	ExecuteCommandMessage,
-	GitCheckoutToMessage,
-	WebviewMessage,
+	WebviewMessage
 } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
-import { KoduDevState } from "../../../agent/v1/types"
-// import { GitHandler } from "../../../agent/v1/handlers"
-import { ExecaTerminalManager } from "../../../integrations/terminal/execa-terminal-manager"
-import { cwd } from "../../../agent/v1/utils"
 
 interface FileTreeItem {
 	id: string
@@ -403,6 +398,10 @@ export class WebviewManager {
 						await this.provider
 							.getStateManager()
 							.setCreativeMode(message.text as "creative" | "normal" | "deterministic")
+						await this.postStateToWebview()
+						break
+					case "setSummarizationThreshold":
+						await this.provider.getStateManager().setSummarizationThreshold(message.value ?? 50)
 						await this.postStateToWebview()
 						break
 					case "exportTaskWithId":

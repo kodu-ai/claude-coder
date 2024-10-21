@@ -1,16 +1,16 @@
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
-import React, { useEffect, useState } from "react"
-import { useExtensionState } from "../../context/ExtensionStateContext"
-import { validateApiConfiguration, validateMaxRequestsPerTask } from "../../utils/validate"
-import { vscode } from "../../utils/vscode"
-import ApiOptions from "../ApiOptions/ApiOptions"
-import SummarizationThresholdSlider from "../SummarizationThresholdSlider"
-import CreativityModeSelector from "./CreativityModeSelector"
-import CustomInstructions from "./CustomInstructions"
-import TechnicalLevelSelector from "./TechnicalLevelSelector"
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
+import React, { useEffect, useState } from 'react'
+import { useExtensionState } from '../../context/ExtensionStateContext'
+import { validateApiConfiguration, validateMaxRequestsPerTask } from '../../utils/validate'
+import { vscode } from '../../utils/vscode'
+import ApiOptions from '../ApiOptions/ApiOptions'
+import SummarizationThresholdSlider from '../SummarizationThresholdSlider'
+import CreativityModeSelector from './CreativityModeSelector'
+import CustomInstructions from './CustomInstructions'
+import TechnicalLevelSelector from './TechnicalLevelSelector'
 
 const IS_DEV = true // FIXME: use flags when packaging
 
@@ -37,12 +37,14 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 		technicalBackground,
 		useUdiff,
 		setUseUdiff,
+		summarizationThreshold,
+		setSummarizationThreshold,
 	} = useExtensionState()
 
 	const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>(undefined)
 	const [maxRequestsErrorMessage, setMaxRequestsErrorMessage] = useState<string | undefined>(undefined)
 	const [maxRequestsPerTaskString, setMaxRequestsPerTaskString] = useState<string>(
-		maxRequestsPerTask?.toString() || ""
+		maxRequestsPerTask?.toString() || '',
 	)
 
 	const switchAutomaticMode = (checked: boolean) => {
@@ -62,15 +64,16 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 		setMaxRequestsErrorMessage(maxRequestsValidationResult)
 
 		if (!apiValidationResult && !maxRequestsValidationResult) {
-			vscode.postMessage({ type: "apiConfiguration", apiConfiguration: apiConfiguration! })
-			vscode.postMessage({ type: "maxRequestsPerTask", text: maxRequestsPerTaskString })
-			vscode.postMessage({ type: "alwaysAllowWriteOnly", bool: alwaysAllowWriteOnly })
-			vscode.postMessage({ type: "customInstructions", text: customInstructions })
-			vscode.postMessage({ type: "alwaysAllowReadOnly", bool: alwaysAllowReadOnly })
-			vscode.postMessage({ type: "setCreativeMode", text: creativeMode })
+			vscode.postMessage({ type: 'apiConfiguration', apiConfiguration: apiConfiguration! })
+			vscode.postMessage({ type: 'maxRequestsPerTask', text: maxRequestsPerTaskString })
+			vscode.postMessage({ type: 'alwaysAllowWriteOnly', bool: alwaysAllowWriteOnly })
+			vscode.postMessage({ type: 'customInstructions', text: customInstructions })
+			vscode.postMessage({ type: 'alwaysAllowReadOnly', bool: alwaysAllowReadOnly })
+			vscode.postMessage({ type: 'setCreativeMode', text: creativeMode })
+			vscode.postMessage({ type: 'setSummarizationThreshold', value: summarizationThreshold })
 			// vscode.postMessage({ type: "useUdiff", bool: useUdiff })
-			vscode.postMessage({ type: "experimentalTerminal", bool: experimentalTerminal })
-			vscode.postMessage({ type: "technicalBackground", value: technicalBackground! })
+			vscode.postMessage({ type: 'experimentalTerminal', bool: experimentalTerminal })
+			vscode.postMessage({ type: 'technicalBackground', value: technicalBackground! })
 			onDone()
 		}
 	}
@@ -84,7 +87,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 	}, [maxRequestsPerTask])
 
 	const handleResetState = () => {
-		vscode.postMessage({ type: "resetState" })
+		vscode.postMessage({ type: 'resetState' })
 	}
 
 	return (
@@ -106,7 +109,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 						setTechnicalBackground={setTechnicalBackground}
 					/>
 					<CreativityModeSelector creativeMode={creativeMode} setCreativeMode={setCreativeMode} />
-					<SummarizationThresholdSlider />
+					<SummarizationThresholdSlider
+						summarizationThreshold={summarizationThreshold}
+						setSummarizationThreshold={setSummarizationThreshold}
+					/>
 					<div className="flex items-start space-x-2">
 						<Checkbox
 							id="always-allow-read-only"
@@ -141,7 +147,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 							</label>
 							<p className="text-xs text-muted-foreground">
 								When enabled, Claude will automatically try to solve the task without asking for your
-								permission. <em>Use with caution, as this may lead to unintended consequences.</em>{" "}
+								permission. <em>Use with caution, as this may lead to unintended consequences.</em>{' '}
 								<em>This feature is highly experimental and may not work as expected.</em>
 							</p>
 						</div>
@@ -181,7 +187,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 						</div>
 					</div>
 
-					<CustomInstructions value={customInstructions ?? ""} onChange={setCustomInstructions} />
+					<CustomInstructions value={customInstructions ?? ''} onChange={setCustomInstructions} />
 
 					{IS_DEV && (
 						<>
@@ -201,12 +207,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 			</ScrollArea>
 			<div className="text-center text-xs text-muted-foreground mt-auto pt-2">
 				<p className="m-0 p-0">
-					If you have any questions or feedback, feel free to open an issue at{" "}
+					If you have any questions or feedback, feel free to open an issue at{' '}
 					<a
 						href="https://github.com/kodu-ai/kodu-coder"
 						className="text-primary hover:underline"
 						target="_blank"
-						rel="noopener noreferrer">
+						rel="noopener noreferrer"
+					>
 						https://github.com/kodu-ai/kodu-coder
 					</a>
 				</p>

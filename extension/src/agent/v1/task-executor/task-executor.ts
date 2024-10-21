@@ -164,13 +164,15 @@ export class TaskExecutor extends TaskExecutorUtils {
 					this.providerRef,
 					this.stateManager.state.apiConversationHistory,
 				)
-				console.log('[TaskExecutor] percentageUsed:', percentageUsed)
-				const threshold = this.stateManager.state.summarizationThreshold / 100;
-				if (percentageUsed > threshold && !this.summarizationRejected) {
+				console.log(
+					`[TaskExecutor] Percentage of tokens used: ${percentageUsed}, user-defined threshold: ${this.stateManager.summarizationThreshold}`,
+				)	
+				const threshold = this.stateManager.summarizationThreshold / 100
+				if (percentageUsed > threshold) {
 					const response = await this.askWithId(
 						'tool',
 						{
-							tool: {
+						tool: {
 								tool: 'summarize',
 								ts: startedReqId,
 								approvalState: 'pending',
@@ -611,4 +613,3 @@ export type AskResponse = {
 	text?: string
 	images?: string[]
 }
-

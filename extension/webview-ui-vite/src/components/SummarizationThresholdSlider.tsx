@@ -1,14 +1,21 @@
 import React from 'react'
-import { useExtensionState } from '../context/ExtensionStateContext'
+import { vscode } from '../utils/vscode'
 import { Label } from './ui/label'
 import { Slider } from './ui/slider'
 
-const SummarizationThresholdSlider: React.FC = () => {
-	const { summarizationThreshold, setSummarizationThreshold } = useExtensionState()
+interface SummarizationThresholdSliderProps {
+	summarizationThreshold: number
+	setSummarizationThreshold: (threshold: number) => void
+}
 
+const SummarizationThresholdSlider: React.FC<SummarizationThresholdSliderProps> = ({
+	summarizationThreshold,
+	setSummarizationThreshold
+}) => {
 	const handleThresholdChange = (value: number[]) => {
 		const newThreshold = value[0]
 		setSummarizationThreshold(newThreshold)
+		vscode.postMessage({ type: 'setSummarizationThreshold', value: newThreshold })
 	}
 
 	return (

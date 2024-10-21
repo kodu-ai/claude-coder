@@ -1,13 +1,13 @@
 import * as vscode from "vscode"
 import { KoduDev } from "../../agent/v1"
-import { StateManager } from "./state/StateManager"
-import { WebviewManager } from "./webview/WebviewManager"
-import { TaskManager } from "./state/TaskManager"
-import { GlobalStateManager } from "./state/GlobalStateManager"
-import { ApiManager } from "./state/ApiManager"
-import { HistoryItem } from "../../shared/HistoryItem"
-import { SecretStateManager } from "./state/SecretStateManager"
 import { extensionName } from "../../shared/Constants"
+import { HistoryItem } from "../../shared/HistoryItem"
+import { ApiManager } from "./state/ApiManager"
+import { GlobalStateManager } from "./state/GlobalStateManager"
+import { SecretStateManager } from "./state/SecretStateManager"
+import { StateManager } from "./state/StateManager"
+import { TaskManager } from "./state/TaskManager"
+import { WebviewManager } from "./webview/WebviewManager"
 
 export class ExtensionProvider implements vscode.WebviewViewProvider {
 	public static readonly sideBarId = `${extensionName}.SidebarProvider`
@@ -95,6 +95,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 			images,
 			experimentalTerminal: state.experimentalTerminal,
 			creativeMode: state.creativeMode,
+			summarizationThreshold: state.summarizationThreshold,
 			isDebug,
 		})
 	}
@@ -110,6 +111,8 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 			alwaysAllowReadOnly: state.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: state.alwaysAllowWriteOnly,
 			experimentalTerminal: state.experimentalTerminal,
+			creativeMode: state.creativeMode,
+			summarizationThreshold: state.summarizationThreshold,
 			historyItem,
 		})
 	}

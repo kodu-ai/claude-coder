@@ -110,6 +110,11 @@ export type ToolFeedbackAllMessage = {
 	feedback: "approve" | "reject"
 }
 
+type SummarizationThresholdMessage = {
+	type: "setSummarizationThreshold"
+	value: NonNullable<GlobalState["summarizationThreshold"]>
+}
+
 export type WebviewMessage =
 	| ToolFeedbackAllMessage
 	| ToolFeedbackMessage
@@ -128,6 +133,7 @@ export type WebviewMessage =
 	| UpdateTaskHistoryMessage
 	| ExecuteCommandMessage
 	| CommandInputMessage
+	| SummarizationThresholdMessage
 	| {
 			type:
 				| "cancelCurrentRequest"
