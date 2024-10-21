@@ -18,6 +18,7 @@ import { koduModels, KoduModels } from "../../../../src/shared/api"
 import { formatPrice } from "../ApiOptions/utils"
 import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
 import { SettingsFooter } from "./settings-footer"
+import SummarizationThresholdSlider from "../SummarizationThresholdSlider"
 
 interface ExperimentalFeature {
 	id: keyof GlobalState
@@ -180,6 +181,7 @@ const SettingsPage: React.FC = () => {
 		"auto-summarize-chat": false,
 	})
 	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
+	const [summarizationThreshold, setSummarizationThreshold] = useState(extensionState.summarizationThreshold)
 
 	const handleExperimentalFeatureChange = useCallback(
 		(featureId: keyof GlobalState, checked: boolean) => {
@@ -194,6 +196,12 @@ const SettingsPage: React.FC = () => {
 		},
 		[extensionState]
 	)
+
+	const handleSummarizationThresholdChange = useCallback((newThreshold: typeof summarizationThreshold) => {
+		setSummarizationThreshold(newThreshold)
+		extensionState.setSummarizationThreshold(newThreshold)
+		vscode.postMessage({ type: "setSummarizationThreshold", value: newThreshold })
+	}, [])
 
 	const handleTechnicalLevelChange = useCallback((setLevel: typeof technicalLevel) => {
 		console.log(`Setting technical level to: ${setLevel}`)
@@ -299,6 +307,11 @@ const SettingsPage: React.FC = () => {
 						Advanced
 					</TabsTrigger>
 				</TabsList>
+
+				<SummarizationThresholdSlider
+					summarizationThreshold={extensionState.summarizationThreshold}
+					setSummarizationThreshold={handleSummarizationThresholdChange}
+				/>
 
 				<TabsContent value="preferences" className="space-y-4">
 					<div className="space-y-2">

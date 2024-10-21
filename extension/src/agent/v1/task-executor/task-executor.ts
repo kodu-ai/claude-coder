@@ -1,13 +1,14 @@
 import { Anthropic } from "@anthropic-ai/sdk"
+import { debounce } from "lodash"
+import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
 import { ClaudeMessage, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
 import { KoduError, koduSSEResponse } from "../../../shared/kodu"
-import { StateManager } from "../state-manager"
-import { ToolExecutor } from "../tools/tool-executor"
 import { ChunkProcessor } from "../chunk-proccess"
-import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
+import { StateManager } from "../state-manager"
+import { manageTokensAndConversation } from "../tools/manage-conversation"
+import { ToolExecutor } from "../tools/tool-executor"
 import { ToolResponse, UserContent } from "../types"
-import { debounce } from "lodash"
 import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
 
 export class TaskExecutor extends TaskExecutorUtils {
