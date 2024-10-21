@@ -36,6 +36,7 @@ export class StateManager {
 			experimentalTerminal,
 			technicalBackground,
 			autoCloseTerminal,
+			skipWriteAnimation,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.secretStateManager.getSecretState("koduApiKey"),
@@ -53,6 +54,7 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("experimentalTerminal"),
 			this.globalStateManager.getGlobalState("technicalBackground"),
 			this.globalStateManager.getGlobalState("autoCloseTerminal"),
+			this.globalStateManager.getGlobalState("skipWriteAnimation"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -83,6 +85,7 @@ export class StateManager {
 			fingerprint: fp,
 			useUdiff: useUdiff ?? false,
 			autoCloseTerminal: autoCloseTerminal ?? false,
+			skipWriteAnimation: skipWriteAnimation ?? false,
 		} satisfies ExtensionState
 	}
 
@@ -131,6 +134,10 @@ export class StateManager {
 		return null
 	}
 
+	async setSkipWriteAnimation(value: boolean) {
+		this.context.getKoduDev()?.getStateManager()?.setSkipWriteAnimation(value)
+		return this.globalStateManager.updateGlobalState("skipWriteAnimation", value)
+	}
 	async updateKoduCredits(credits: number) {
 		const user = await this.globalStateManager.getGlobalState("user")
 		if (user) {

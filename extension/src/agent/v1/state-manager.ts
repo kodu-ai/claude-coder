@@ -22,6 +22,7 @@ export class StateManager {
 	private _alwaysAllowWriteOnly: boolean
 	private _experimentalTerminal?: boolean
 	private _autoCloseTerminal?: boolean
+	private _skipWriteAnimation?: boolean
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -35,6 +36,7 @@ export class StateManager {
 			creativeMode,
 			experimentalTerminal,
 			autoCloseTerminal,
+			skipWriteAnimation,
 		} = options
 		this._creativeMode = creativeMode ?? "normal"
 		this._providerRef = new WeakRef(provider)
@@ -45,6 +47,7 @@ export class StateManager {
 		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
 		this._experimentalTerminal = experimentalTerminal
 		this._autoCloseTerminal = autoCloseTerminal
+		this._skipWriteAnimation = skipWriteAnimation
 		this._state = {
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
 			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
@@ -118,9 +121,17 @@ export class StateManager {
 		return this._alwaysAllowWriteOnly
 	}
 
+	get skipWriteAnimation(): boolean | undefined {
+		return this._skipWriteAnimation
+	}
+
 	// Methods to modify the properties (only accessible within the class)
 	public setState(newState: KoduDevState): void {
 		this._state = newState
+	}
+
+	public setSkipWriteAnimation(newValue: boolean | undefined) {
+		this._skipWriteAnimation = newValue
 	}
 
 	get historyErrors(): KoduDevState["historyErrors"] | undefined {

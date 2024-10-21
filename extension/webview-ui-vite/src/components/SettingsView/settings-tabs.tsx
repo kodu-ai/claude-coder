@@ -180,6 +180,12 @@ const SettingsPage: React.FC = () => {
 		"auto-summarize-chat": false,
 	})
 	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
+	const [autoSkipWrite, setAutoSkipWrite] = useState(extensionState.skipWriteAnimation || false)
+
+	const handleAutoSkipWriteChange = useCallback((checked: boolean) => {
+		setAutoSkipWrite(checked)
+		vscode.postMessage({ type: "skipWriteAnimation", bool: checked })
+	}, [])
 
 	const handleExperimentalFeatureChange = useCallback(
 		(featureId: keyof GlobalState, checked: boolean) => {
@@ -386,6 +392,22 @@ const SettingsPage: React.FC = () => {
 							id="auto-close"
 							checked={autoCloseTerminal}
 							onCheckedChange={handleSetAutoCloseTerminal}
+						/>
+					</div>
+					<div className="flex items-center justify-between">
+						<div className="flex-1 pr-2">
+							<Label htmlFor="auto-skip-write" className="text-xs font-medium">
+								Automatically skip file write animation
+							</Label>
+							<p className="text-[10px] text-muted-foreground">
+								Automatically skip the file write animation when saving files' *good for low-end
+								machines*
+							</p>
+						</div>
+						<Switch
+							id="auto-skip-write"
+							checked={autoSkipWrite}
+							onCheckedChange={handleAutoSkipWriteChange}
 						/>
 					</div>
 					<div className="space-y-1">

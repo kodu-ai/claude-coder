@@ -84,6 +84,7 @@ export interface ExtensionState {
 	version: string
 	maxRequestsPerTask?: number
 	lastShownAnnouncementId?: string
+	skipWriteAnimation?: boolean
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
 	technicalBackground?: "no-technical" | "technical" | "developer"

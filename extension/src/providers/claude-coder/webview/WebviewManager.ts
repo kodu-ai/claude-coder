@@ -261,6 +261,10 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "skipWriteAnimation":
+						await this.provider.getStateManager().setSkipWriteAnimation(!!message.bool)
+						await this.postStateToWebview()
+						break
 					case "updateGlobalState":
 						for (const [key, value] of Object.entries(message.state)) {
 							await this.provider

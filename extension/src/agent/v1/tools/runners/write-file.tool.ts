@@ -16,11 +16,17 @@ export class WriteFileTool extends BaseAgentTool {
 	private lastUpdateLength: number = 0
 	private lastUpdateTime: number = 0
 	private readonly UPDATE_INTERVAL = 33 // Approximately 60 FPS
+	private skipWriteAnimation: boolean = false
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
+		// Initialize DiffViewProvider without opening the diff editor
 		this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev, this.UPDATE_INTERVAL)
+		// Set skipWriteAnimation based on state manager
+		if (!!this.koduDev.getStateManager().skipWriteAnimation) {
+			this.skipWriteAnimation = true
+		}
 	}
 
 	override async execute(): Promise<ToolResponse> {
@@ -53,17 +59,23 @@ export class WriteFileTool extends BaseAgentTool {
 				throw new Error("Missing required parameters 'path' or 'content'")
 			}
 
-			// Handle partial content if not final
-			if (!this.params.isFinal) {
+			// Handle partial content if not final and skipWriteAnimation is false
+			if (!this.params.isFinal && !this.skipWriteAnimation) {
 				await this.handlePartialContent(relPath, content)
+			} else if (!this.params.isFinal && this.skipWriteAnimation) {
+				// Do nothing if skipWriteAnimation is true
 			} else {
+				// Handle final content
+				if (this.skipWriteAnimation) {
+					// Open diff editor only when final content arrives
+					await this.diffViewProvider.open(relPath)
+				}
 				await this.handlePartialContent(relPath, content)
 				await this.handleFinalContentForConfirmation(relPath, content)
 				this.isProcessingFinalContent = true
 			}
 
 			// Ask for user approval and await response
-
 			const { response, text, images } = await this.params.ask(
 				"tool",
 				{
@@ -136,6 +148,11 @@ export class WriteFileTool extends BaseAgentTool {
 			return
 		}
 
+		if (this.skipWriteAnimation) {
+			console.log("Skipping write animation for partial content")
+			return
+		}
+
 		const currentTime = Date.now()
 
 		if (!this.diffViewProvider.isEditing) {
@@ -160,6 +177,9 @@ export class WriteFileTool extends BaseAgentTool {
 
 	private async handleFinalContentForConfirmation(relPath: string, newContent: string): Promise<void> {
 		newContent = this.preprocessContent(newContent)
+		if (!this.diffViewProvider.isEditing) {
+			await this.diffViewProvider.open(relPath)
+		}
 		await this.diffViewProvider.update(newContent, true)
 	}
 

@@ -143,6 +143,7 @@ export type WebviewMessage =
 	| CommandInputMessage
 	| {
 			type:
+				| "skipWriteAnimation"
 				| "cancelCurrentRequest"
 				| "maxRequestsPerTask"
 				| "customInstructions"

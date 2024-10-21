@@ -56,6 +56,9 @@ autoCloseTerminalAtom.debugLabel = "autoCloseTerminal"
 const useUdiffAtom = atom(false)
 useUdiffAtom.debugLabel = "useUdiff"
 
+const skipWriteAnimationAtom = atom(false)
+skipWriteAnimationAtom.debugLabel = "skipWriteAnimation"
+
 const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	const currentTaskId = get(currentTaskIdAtom)
 	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
@@ -76,6 +79,7 @@ export const extensionStateAtom = atom((get) => ({
 	maxRequestsPerTask: get(maxRequestsPerTaskAtom),
 	customInstructions: get(customInstructionsAtom),
 	fingerprint: get(fingerprintAtom),
+	skipWriteAnimation: get(skipWriteAnimationAtom),
 	technicalBackground: get(technicalBackgroundAtom),
 	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
 	autoCloseTerminal: get(autoCloseTerminalAtom),
@@ -103,6 +107,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setCustomInstructions = useSetAtom(customInstructionsAtom)
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setUser = useSetAtom(userAtom)
+	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
 	const setThemeName = useSetAtom(themeNameAtom)
 	const setCurrentIdTask = useSetAtom(currentTaskIdAtom)
@@ -136,6 +141,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
 			setUser(message.state.user)
 			setExtensionName(message.state.extensionName)
+			setSkipWriteAnimation(!!message.state.skipWriteAnimation)
 			setAlwaysAllowWriteOnly(!!message.state.alwaysAllowWriteOnly)
 			setDidHydrateState(true)
 			setUseUdiff(!!message.state.useUdiff)
@@ -173,6 +179,7 @@ export const useExtensionState = () => {
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
+	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
@@ -183,6 +190,7 @@ export const useExtensionState = () => {
 		setApiConfiguration,
 		setTechnicalBackground,
 		setMaxRequestsPerTask,
+		setSkipWriteAnimation,
 		setUseUdiff,
 		setAutoCloseTerminal,
 		setCustomInstructions,
