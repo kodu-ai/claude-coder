@@ -52,7 +52,7 @@ const TokenInfo: React.FC<TokenInfoProps> = ({
 					</code>
 				</div>
 			)}
-			<div className="flex-line nowrap">
+			<div className="flex-line nowrap mt-1">
 				API Cost:
 				<code>
 					<span>$</span>

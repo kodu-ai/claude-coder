@@ -1,5 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ApiModelId, ModelInfo } from "../shared/api"
+import { ApiModelId, KoduModelId, ModelInfo } from "../shared/api"
 import { KoduHandler } from "./kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { z } from "zod"
@@ -14,7 +14,7 @@ export interface ApiHandlerMessageResponse {
 
 export type ApiConfiguration = {
 	koduApiKey?: string
-	apiModelId?: ApiModelId
+	apiModelId?: KoduModelId
 }
 export const bugReportSchema = z.object({
 	description: z.string(),
@@ -23,19 +23,9 @@ export const bugReportSchema = z.object({
 	claudeMessage: z.string(),
 })
 export interface ApiHandler {
-	createMessage(
-		systemPrompt: string,
-		messages: Anthropic.Messages.MessageParam[],
-		tools: Anthropic.Messages.Tool[],
-		creativeMode?: "normal" | "creative" | "deterministic",
-		abortSignal?: AbortSignal | null,
-		customInstructions?: string
-	): Promise<ApiHandlerMessageResponse>
-
 	createMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
-		tools: Anthropic.Messages.Tool[],
 		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null,
 		customInstructions?: string,

@@ -12,7 +12,7 @@ export class TaskManager {
 	constructor(private provider: ExtensionProvider) {}
 
 	async clearTask() {
-		this.provider.getKoduDev()?.abortTask()
+		await this.provider.getKoduDev()?.abortTask()
 		this.provider["koduDev"] = undefined
 	}
 
@@ -132,7 +132,7 @@ export class TaskManager {
 			const { historyItem } = await this.getTaskWithId(id)
 
 			await this.provider.initWithHistoryItem(historyItem)
-			await this.provider.getKoduDev()?.taskExecutor.gitHandler.init(historyItem.dirAbsolutePath!)
+			// await this.provider.getKoduDev()?.taskExecutor.gitHandler.init(historyItem.dirAbsolutePath!)
 		}
 
 		// await this.provider.getTaskExecutor().runTask()

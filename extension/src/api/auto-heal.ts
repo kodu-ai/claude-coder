@@ -36,30 +36,41 @@ function isToolResultBlock(block: ContentBlock): block is PromptCachingBetaToolR
 }
 
 /**
+ * Function to create a placeholder assistant message
+ * @returns Placeholder assistant message
+ */
+function createPlaceholderAssistantMessage(): HealedMessageParam {
+	return {
+		role: "assistant",
+		content: [
+			{
+				type: "text",
+				text: "Placeholder: Assistant was interrupted or did not respond to the last message.",
+			} as PromptCachingBetaTextBlockParam,
+		],
+	}
+}
+
+/**
  * Function to heal messages
  * @param messages Array of PromptCachingBetaMessageParam
  * @returns Healed array of PromptCachingBetaMessageParam
  */
 function healMessages(messages: PromptCachingBetaMessageParam[]): HealedMessageParam[] {
 	const healedMessages: HealedMessageParam[] = []
-	let expectedRole: "user" | "assistant" = "user"
 	let pendingToolUse: { id: string; name: string } | null = null
+	let lastProcessedRole: "user" | "assistant" | null = null
 
 	for (let i = 0; i < messages.length; i++) {
 		const msg = messages[i]
 
-		// Ensure the message has the expected role
-		if (msg.role !== expectedRole) {
-			// If the first message isn't from user, skip it
-			if (i === 0 && msg.role !== "user") {
-				continue
-			}
-			// Otherwise, skip messages that don't follow the expected alternation
-			continue
+		// If we encounter consecutive user messages, insert a placeholder assistant message
+		if (msg.role === "user" && lastProcessedRole === "user") {
+			healedMessages.push(createPlaceholderAssistantMessage())
 		}
 
 		// If there's a pending tool_use, ensure the current user message contains tool_result
-		if (expectedRole === "user" && pendingToolUse?.id) {
+		if (msg.role === "user" && pendingToolUse?.id) {
 			const toolUseId: string = pendingToolUse.id
 			let hasToolResult = false
 
@@ -114,14 +125,23 @@ function healMessages(messages: PromptCachingBetaMessageParam[]): HealedMessageP
 		// Append the healed message
 		healedMessages.push(msg)
 
-		// Toggle expectedRole
-		expectedRole = expectedRole === "user" ? "assistant" : "user"
+		// Update lastProcessedRole
+		lastProcessedRole = msg.role
 	}
 
 	// After processing all messages, ensure the last message is from user
 	if (healedMessages.length > 0 && healedMessages[healedMessages.length - 1].role !== "user") {
-		// Remove the last assistant message
-		healedMessages.pop()
+		// Add a placeholder user message instead of removing the last assistant message
+		const placeholderUserMessage: HealedMessageParam = {
+			role: "user",
+			content: [
+				{
+					type: "text",
+					text: `Placeholder: Assistant was interrupted or did not respond to the last message.`,
+				} as PromptCachingBetaTextBlockParam,
+			],
+		}
+		healedMessages.push(placeholderUserMessage)
 	}
 
 	// If there's a pending tool_use after all messages, append a placeholder tool_result
@@ -140,7 +160,7 @@ function healMessages(messages: PromptCachingBetaMessageParam[]): HealedMessageP
 	}
 
 	// order heal messages that tool_use and tool_result are first
-	return healedMessages.map((msg) => {
+	const orderedHeal = healedMessages.map((msg) => {
 		// array of content blocks must have tool_use or tool_result first
 		const content = msg.content
 		if (Array.isArray(content)) {
@@ -160,6 +180,7 @@ function healMessages(messages: PromptCachingBetaMessageParam[]): HealedMessageP
 		}
 		return msg
 	})
+	return orderedHeal
 }
 
 export { healMessages }

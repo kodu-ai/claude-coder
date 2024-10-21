@@ -54,17 +54,6 @@ const ApiOptions: React.FC<ApiOptionsProps> = ({ showModelOptions, setDidAuthKod
 	return (
 		<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
 			<UserInfo user={user} uriScheme={uriScheme} setDidAuthKodu={setDidAuthKodu} />
-			<div
-				style={{
-					fontSize: 12,
-					marginTop: 0,
-					color: "var(--vscode-descriptionForeground)",
-				}}>
-				Kodu is recommended for its high rate limits and access to the latest features like prompt caching.
-				<VSCodeLink href={getKoduHomepageUrl()} style={{ display: "inline", fontSize: "12px" }}>
-					Learn more about Kodu here.
-				</VSCodeLink>
-			</div>
 
 			{showModelOptions && (
 				<>

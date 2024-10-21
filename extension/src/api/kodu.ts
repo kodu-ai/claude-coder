@@ -23,10 +23,13 @@ import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } fr
 import { USER_TASK_HISTORY_PROMPT } from "../agent/v1/system-prompt"
 const temperatures = {
 	creative: {
+		top_p: 0.9,
+		tempature: 0.3,
+	},
+	normal: {
 		top_p: 0.8,
 		tempature: 0.2,
 	},
-	normal: {},
 	deterministic: {
 		top_p: 0.9,
 		tempature: 0.1,
@@ -34,14 +37,12 @@ const temperatures = {
 } as const
 
 export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
-	console.log(`fetchKoduUser: ${getKoduCurrentUser()}`)
 	const response = await axios.get(getKoduCurrentUser(), {
 		headers: {
 			"x-api-key": apiKey,
 		},
 		timeout: 5000,
 	})
-	console.log("response", response)
 	if (response.data) {
 		return {
 			credits: Number(response.data.credits) ?? 0,
@@ -80,7 +81,7 @@ const bugReportSchema = z.object({
 	apiHistory: z.string(),
 	claudeMessage: z.string(),
 })
-
+let previousSystemPrompt = ""
 export class KoduHandler implements ApiHandler {
 	private options: ApiHandlerOptions
 	private cancelTokenSource: CancelTokenSource | null = null
@@ -96,51 +97,15 @@ export class KoduHandler implements ApiHandler {
 		}
 	}
 
-	async createMessage(
+	async *createBaseMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
-		tools: Anthropic.Messages.Tool[],
-		creativeMode: "normal" | "creative" | "deterministic",
-		abortSignal?: AbortSignal,
-		customInstructions?: string
-	): Promise<ApiHandlerMessageResponse> {
+		abortSignal?: AbortSignal | null,
+		tempature?: number,
+		top_p?: number
+	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
 		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming
-		console.log(`creativeMode: ${creativeMode}`)
-		const creativitySettings = temperatures[creativeMode]
-		// check if the root of the folder has .kodu file if so read the content and use it as the system prompt
-		let dotKoduFileContent = ""
-		const workspaceFolders = vscode.workspace.workspaceFolders
-		if (workspaceFolders) {
-			for (const folder of workspaceFolders) {
-				const dotKoduFile = vscode.Uri.joinPath(folder.uri, ".kodu")
-				try {
-					const fileContent = await vscode.workspace.fs.readFile(dotKoduFile)
-					dotKoduFileContent = Buffer.from(fileContent).toString("utf8")
-					console.log(".kodu file content:", dotKoduFileContent)
-					break // Exit the loop after finding and reading the first .kodu file
-				} catch (error) {
-					console.log(`No .kodu file found in ${folder.uri.fsPath}`)
-				}
-			}
-		}
-		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = [
-			{ text: systemPrompt, type: "text", cache_control: { type: "ephemeral" } },
-		]
-		if (dotKoduFileContent) {
-			system.push({
-				text: dotKoduFileContent,
-				type: "text",
-				// cache_control: { type: "ephemeral" },
-			})
-		}
-		if (customInstructions && customInstructions.trim()) {
-			system.push({
-				text: customInstructions,
-				type: "text",
-				cache_control: { type: "ephemeral" },
-			})
-		}
 
 		switch (modelId) {
 			case "claude-3-5-sonnet-20240620":
@@ -156,8 +121,8 @@ export class KoduHandler implements ApiHandler {
 				requestBody = {
 					model: modelId,
 					max_tokens: this.getModel().info.maxTokens,
-					system,
-					messages: healMessages(messages).map((message, index) => {
+					system: systemPrompt,
+					messages: messages.map((message, index) => {
 						if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
 							return {
 								...message,
@@ -179,8 +144,6 @@ export class KoduHandler implements ApiHandler {
 						}
 						return message
 					}),
-					tools,
-					tool_choice: { type: "auto" },
 				}
 				break
 			default:
@@ -190,9 +153,8 @@ export class KoduHandler implements ApiHandler {
 					max_tokens: this.getModel().info.maxTokens,
 					system: [{ text: systemPrompt, type: "text" }],
 					messages,
-					tools,
-					tool_choice: { type: "auto" },
-					...creativitySettings,
+					temperature: tempature ?? 0.2,
+					top_p: top_p ?? 0.8,
 				}
 		}
 		this.cancelTokenSource = axios.CancelToken.source()
@@ -209,6 +171,7 @@ export class KoduHandler implements ApiHandler {
 				},
 				responseType: "stream",
 				signal: abortSignal ?? undefined,
+				timeout: 60_000,
 			}
 		)
 
@@ -234,26 +197,21 @@ export class KoduHandler implements ApiHandler {
 				buffer += decoder.decode(chunk, { stream: true })
 				const lines = buffer.split("\n\n")
 				buffer = lines.pop() || ""
-
 				for (const line of lines) {
 					if (line.startsWith("data: ")) {
 						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
-
 						if (eventData.code === 2) {
 							// -> Happens to the current message
 							// We have a partial response, so we need to add it to the message shown to the user and refresh the UI
 						}
 						if (eventData.code === 0) {
-							console.log("Health check received")
 						} else if (eventData.code === 1) {
 							finalResponse = eventData
-							console.log("finalResponse", finalResponse)
-							break
 						} else if (eventData.code === -1) {
-							throw new KoduError({
-								code: eventData.body.status ?? KODU_ERROR_CODES.API_ERROR,
-							})
+							console.error("Network / API ERROR")
+							// we should yield the error and not throw it
 						}
+						yield eventData
 					}
 				}
 
@@ -267,20 +225,12 @@ export class KoduHandler implements ApiHandler {
 					code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT,
 				})
 			}
-
-			return {
-				message: finalResponse.body.anthropic,
-				userCredits: finalResponse.body.internal.userCredits,
-			}
-		} else {
-			throw new Error("No response data received")
 		}
 	}
 
 	async *createMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
-		tools: Anthropic.Messages.Tool[],
 		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null,
 		customInstructions?: string,
@@ -308,36 +258,31 @@ export class KoduHandler implements ApiHandler {
 			}
 		}
 		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = [
-			{ text: systemPrompt, type: "text", cache_control: { type: "ephemeral" } },
+			{ text: systemPrompt.trim(), type: "text" },
 		]
-		// if (dotKoduFileContent) {
-		// 	system.push({
-		// 		text: dotKoduFileContent,
-		// 		type: "text",
-		// 		// cache_control: { type: "ephemeral" },
-		// 	})
-		// }
-		// if (customInstructions && customInstructions.trim()) {
-		// 	system.push({
-		// 		text: customInstructions,
-		// 		type: "text",
-		// 	})
-		// }
-		/**
-		 * push it last to not break the cache
-		 */
-		// system.push({
-		// 	text: USER_TASK_HISTORY_PROMPT(userMemory),
-		// 	type: "text",
-		// 	// cache_control: { type: "ephemeral" },
-		// })
-
-		// if (environmentDetails) {
-		// 	system.push({
-		// 		text: environmentDetails,
-		// 		type: "text",
-		// 	})
-		// }
+		if (previousSystemPrompt !== systemPrompt) {
+			console.error("System prompt changed")
+			console.error("Previous system prompt:", previousSystemPrompt)
+			console.error("Current system prompt:", systemPrompt)
+			console.error(`Length difference: ${previousSystemPrompt.length - systemPrompt.length}`)
+		}
+		previousSystemPrompt = systemPrompt
+		if (customInstructions && customInstructions.trim()) {
+			system.push({
+				text: customInstructions,
+				type: "text",
+				cache_control: { type: "ephemeral" },
+			})
+		} else {
+			system[0].cache_control = { type: "ephemeral" }
+		}
+		system.push({
+			cache_control: {
+				type: "ephemeral",
+			},
+			text: environmentDetails ?? "No environment details provided",
+			type: "text",
+		})
 
 		switch (modelId) {
 			case "claude-3-5-sonnet-20240620":
@@ -356,6 +301,44 @@ export class KoduHandler implements ApiHandler {
 					system,
 					messages: healMessages(messages).map((message, index) => {
 						if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
+							if (index === lastUserMsgIndex && environmentDetails) {
+								// 								environmentDetails = `
+								// <critical_context>
+								// Write to file critical instructions:
+								// <write_to_file>
+								// YOU MUST NEVER TRUNCATE THE CONTENT OF A FILE WHEN USING THE write_to_file TOOL.
+								// ALWAYS PROVIDE THE COMPLETE CONTENT OF THE FILE IN YOUR RESPONSE.
+								// ALWAYS INCLUDE THE FULL CONTENT OF THE FILE, EVEN IF IT HASN'T BEEN MODIFIED.
+								// DOING SOMETHING LIKE THIS BREAKS THE TOOL'S FUNCTIONALITY:
+								// // ... (previous code remains unchanged)
+								// </write_to_file>
+								// environment details:
+								// ${environmentDetails}
+								// </critical_context>
+								// 								`
+								if (typeof message.content === "string") {
+									// add environment details to the last user message
+									return {
+										...message,
+										content: [
+											// {
+											// 	text: environmentDetails,
+											// 	type: "text",
+											// },
+											{
+												text: message.content,
+												type: "text",
+												cache_control: { type: "ephemeral" },
+											},
+										],
+									}
+								} else {
+									// message.content.push({
+									// 	text: environmentDetails,
+									// 	type: "text",
+									// })
+								}
+							}
 							return {
 								...message,
 								content:
@@ -376,8 +359,6 @@ export class KoduHandler implements ApiHandler {
 						}
 						return message
 					}),
-					tools,
-					tool_choice: { type: "auto" },
 				}
 				break
 			default:
@@ -387,9 +368,8 @@ export class KoduHandler implements ApiHandler {
 					max_tokens: this.getModel().info.maxTokens,
 					system: [{ text: systemPrompt, type: "text" }],
 					messages,
-					tools,
-					tool_choice: { type: "auto" },
 					...creativitySettings,
+					// temperature: 0,
 				}
 		}
 		this.cancelTokenSource = axios.CancelToken.source()
@@ -406,6 +386,7 @@ export class KoduHandler implements ApiHandler {
 				},
 				responseType: "stream",
 				signal: abortSignal ?? undefined,
+				timeout: 60_000,
 			}
 		)
 
@@ -439,15 +420,12 @@ export class KoduHandler implements ApiHandler {
 							// We have a partial response, so we need to add it to the message shown to the user and refresh the UI
 						}
 						if (eventData.code === 0) {
-							console.log("Health check received")
 						} else if (eventData.code === 1) {
 							finalResponse = eventData
-							console.log("finalResponse", finalResponse)
 						} else if (eventData.code === -1) {
 							console.error("Network / API ERROR")
 							// we should yield the error and not throw it
 						}
-						console.log(eventData)
 						yield eventData
 					}
 				}
@@ -478,7 +456,7 @@ export class KoduHandler implements ApiHandler {
 			max_tokens: this.getModel().info.maxTokens,
 			system: "(see SYSTEM_PROMPT in src/agent/system-prompt.ts)",
 			messages: [{ conversation_history: "..." }, { role: "user", content: withoutImageData(userContent) }],
-			tools: "(see tools in src/agent/tools.ts)",
+			tools: "(see tools in src/agent/v1/tools/schema/index.ts)",
 			tool_choice: { type: "auto" },
 		}
 	}
