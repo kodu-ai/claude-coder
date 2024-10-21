@@ -4,6 +4,7 @@ import { ExtensionProvider } from '../../../providers/claude-coder/ClaudeCoderPr
 import { ClaudeMessage, isV1ClaudeMessage } from '../../../shared/ExtensionMessage'
 import { ClaudeAskResponse } from '../../../shared/WebviewMessage'
 import { KoduError, koduSSEResponse } from '../../../shared/kodu'
+import { truncateHalfConversation } from '../../../utils/context-management'
 import { ChunkProcessor } from '../chunk-proccess'
 import { StateManager } from '../state-manager'
 import { manageTokensAndConversation } from '../tools/manage-conversation'
@@ -165,8 +166,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 				)
 				console.log('[TaskExecutor] percentageUsed:', percentageUsed)
 				if (percentageUsed > 0.05) {
-					// TODO: Use the percentage form the user settings
-					// TODO: Add if user settings "auto-truncate" `is enabled
 					const response = await this.askWithId(
 						'tool',
 						{
@@ -185,8 +184,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 							{
 								tool: {
 									tool: 'summarize',
-									ts: startedReqId,
-									approvalState: 'loading',
+										ts: startedReqId,
+										approvalState: 'loading',
 								},
 							},
 							startedReqId,
@@ -262,7 +261,7 @@ This summary contains all relevant details for seamless continuation of the task
 								.replace('<task>', '')
 								.replace('</task>', '')
 						}
-						const summary = `${firstUserMessage}\n${response}`
+						const summary = `${firstUserMessage}\n${response}`.trim()
 						this.updateAsk(
 							'tool',
 							{
@@ -276,6 +275,25 @@ This summary contains all relevant details for seamless continuation of the task
 							},
 							startedReqId,
 						)
+					} else if (response.response === 'noButtonTapped') {
+						// Handle "Acknowledge and continue" response
+						const truncatedMessages = truncateHalfConversation(this.stateManager.state.apiConversationHistory)
+						await this.stateManager.overwriteApiConversationHistory(truncatedMessages)
+						
+						this.updateAsk(
+							'tool',
+							{
+								tool: {
+									tool: 'summarize',
+									ts: startedReqId,
+									approvalState: 'rejected',
+								},
+							},
+							startedReqId,
+						)
+						
+						// Continue with the request using truncated messages
+						await this.continueWithTruncatedMessages(truncatedMessages)
 					}
 					return
 				}
@@ -556,6 +574,25 @@ This summary contains all relevant details for seamless continuation of the task
 			this.state = TaskState.COMPLETED
 		}
 	}
+
+	private async continueWithTruncatedMessages(truncatedMessages: Anthropic.MessageParam[]): Promise<void> {
+		// Continue with the API request using truncated messages
+		const stream = this.stateManager.apiManager.createApiStreamRequest(
+			truncatedMessages,
+			this.abortController?.signal,
+		)
+
+		if (this.isRequestCancelled) {
+			this.abortController?.abort()
+			this.logState('Request cancelled, ignoring response')
+			return
+		}
+
+		this.stateManager.state.requestCount++
+		this.state = TaskState.PROCESSING_RESPONSE
+
+		await this.processApiResponse(stream, this.stateManager.state.claudeMessages[this.stateManager.state.claudeMessages.length - 1].ts)
+	}
 }
 
 export type AskResponse = {
@@ -563,3 +600,4 @@ export type AskResponse = {
 	text?: string
 	images?: string[]
 }
+

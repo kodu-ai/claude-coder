@@ -3,7 +3,6 @@ import { ApiConfiguration, ApiHandler, buildApiHandler } from '../../api'
 import { ExtensionProvider } from '../../providers/claude-coder/ClaudeCoderProvider'
 import { KoduError, koduSSEResponse } from '../../shared/kodu'
 import { amplitudeTracker } from '../../utils/amplitude'
-import { truncateHalfConversation } from '../../utils/context-management'
 import { BASE_SYSTEM_PROMPT } from './prompts/base-system'
 import {
 	CodingBeginnerSystemPromptSection,
@@ -11,7 +10,6 @@ import {
 	NonTechnicalSystemPromptSection,
 	SYSTEM_PROMPT,
 } from './system-prompt'
-import { manageTokensAndConversation } from './tools/manage-conversation'
 import { UserContent } from './types'
 import { getCwd } from './utils'
 
@@ -191,13 +189,6 @@ ${this.customInstructions.trim()}
 `
 		}
 		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), true, technicalBackground)
-
-		const { percentageUsed } = await manageTokensAndConversation(this.providerRef, apiConversationHistory)
-		if (percentageUsed > 0.9) {
-			const truncatedMessages = truncateHalfConversation(apiConversationHistory)
-			apiConversationHistory = truncatedMessages
-			this.providerRef.deref()?.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
-		}
 		const isFirstRequest = this.providerRef.deref()?.getKoduDev()?.isFirstMessage ?? false
 		// on first request, we need to get the environment details with details of the current task and folder
 		const environmentDetails = await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
