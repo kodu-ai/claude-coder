@@ -138,11 +138,11 @@ export class DiffViewProvider {
 	}
 
 	public async revertChanges(): Promise<void> {
-		if (!this.relPath || !this.diffEditor) {
-			throw new Error("No file path set or diff editor not initialized")
-		}
-
 		// Close the diff view without saving changes
+		if (!this.relPath) {
+			return
+			// throw new Error("No file path set or diff editor not initialized")
+		}
 		await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
 
 		// If it was a new file, we should delete it
