@@ -22,6 +22,7 @@ import {
 	XCircle
 } from "lucide-react"
 import React, { useEffect, useRef, useState } from "react"
+import ReactMarkdown from 'react-markdown'
 import {
 	AskConsultantTool,
 	AskFollowupQuestionTool,
@@ -40,6 +41,7 @@ import {
 } from "../../../../src/shared/new-tools"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
+import MarkdownRenderer from "./MarkdownRenderer"
 
 type ApprovalState = ToolStatus
 type ToolAddons = {
@@ -535,6 +537,7 @@ export const SummarizeBlock: React.FC<SummarizeChatTool & ToolAddons> = ({
 	onReject,
 	tool,
 	ts,
+	output,
 	...rest
 }) => (
 	<ToolBlock
@@ -547,7 +550,32 @@ export const SummarizeBlock: React.FC<SummarizeChatTool & ToolAddons> = ({
 		approvalState={approvalState}
 		onApprove={onApprove}
 		onReject={onReject}>
-		<div className="bg-primary/20 text-primary-foreground p-2 rounded text-xs">Do you want to continue the task?</div>
+		{approvalState === "pending" && (
+			<div className="bg-primary/20 text-primary-foreground p-2 rounded text-xs">
+				<p className="mb-2">Would you like to summarize the conversation to save context and reduce costs?</p>
+				<div className="flex justify-end space-x-2">
+					<Button variant="outline" size="sm" onClick={onReject}>
+						No, continue
+					</Button>
+					<Button variant="default" size="sm" onClick={onApprove}>
+						Yes, summarize
+					</Button>
+				</div>
+			</div>
+		)}
+		{approvalState === "loading" && (
+			<div className="animate-pulse space-y-2">
+				<div className="h-4 bg-primary/20 rounded"></div>
+				<div className="h-4 bg-primary/20 rounded w-5/6"></div>
+				<div className="h-4 bg-primary/20 rounded w-4/6"></div>
+			</div>
+		)}
+		{approvalState === "approved" && output && (
+			<div className="bg-primary/20 text-primary-foreground p-2 rounded text-xs max-h-60 overflow-y-auto">
+				<p className="font-semibold mb-2">Conversation Summary:</p>
+				<MarkdownRenderer markdown={output} syntaxHighlighterStyle={{}} />
+			</div>
+		)}
 	</ToolBlock>
 )
 
@@ -662,3 +690,4 @@ export const ToolContentBlock: React.FC<{
 			return null
 	}
 }
+

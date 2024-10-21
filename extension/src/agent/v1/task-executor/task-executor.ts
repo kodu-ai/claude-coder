@@ -177,7 +177,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				console.log('[TaskExecutor] percentageUsed:', percentageUsed)
 				if (percentageUsed > 0.05) {
 					// TODO: Use the percentage form the user settings
-					// TODO: Add if user settings "auto-truncate" is enabled
+					// TODO: Add if user settings "auto-truncate" `is enabled
 					const response = await this.askWithId(
 						'tool',
 						{
@@ -204,29 +204,42 @@ export class TaskExecutor extends TaskExecutorUtils {
 						)
 
 						// Create a custom system prompt for summarization
-						const customSystemPrompt = `Provide a concise yet detailed summary of the conversation and actions taken. Structure your response as follows:
-						
-1. Key Actions:
-   - List the main actions performed, using bullet points.
-   - Include file names and brief descriptions of changes made.
+						const customSystemPrompt = `You are summarizing a previous task conversation between a user and an AI assistant. Provide a concise yet comprehensive summary of this conversation and the actions taken. Structure your response as follows:
 
-2. Important Information:
-   - Highlight any crucial information learned or decisions made.
+1. Task Overview:
+   - Briefly describe the main task or goal discussed in the conversation.
+   - Mention any key constraints or requirements specified by the user.
+
+2. Key Actions and Progress:
+   - List the main actions performed by the AI assistant, using bullet points.
+   - Include file names and brief descriptions of changes made, if applicable.
+   - Highlight any significant progress made towards completing the task.
+
+3. Important Information:
+   - Summarize crucial information learned or decisions made during the conversation.
+   - Include any user preferences or specific instructions given.
    - Use bullet points for clarity.
 
-3. Tools Used:
-   - List the tools called, with a brief description of their purpose and outcome.
+4. Tools Used:
+   - List the tools called by the AI assistant, with a brief description of their purpose and outcome.
    - Format as: <tool_name>: brief description of use and result</tool_name>
 
-Keep the summary focused and to-the-point, emphasizing the most important aspects of the conversation and actions taken.`
+5. Current Status:
+   - Briefly state the current status of the task (e.g., completed, in progress, awaiting user input).
+   - Mention any pending actions or next steps, if applicable.
+
+Keep the summary focused and to-the-point, emphasizing the most important aspects of the conversation and actions taken. This summary will be used as context for continuing the task, so ensure it captures all relevant details for seamless continuation.`
 						const abortController = new AbortController()
 						const stream = this.stateManager.apiManager.createBaseMessageStream(
 							customSystemPrompt,
 							[
-								...this.stateManager.state.apiConversationHistory,
 								{
 									role: 'user',
-									content: 'The user has asked to summaize the conversation that happened previously',
+									content: `Here is the conversation history: ${JSON.stringify(
+										this.stateManager.state.apiConversationHistory,
+										null,
+										2,
+									)}`,
 								},
 							],
 							abortController.signal,
@@ -244,17 +257,26 @@ Keep the summary focused and to-the-point, emphasizing the most important aspect
 							if (chunk.code === 1) {
 								// End of stream ?
 								const internal = chunk.body.internal
+								const res = chunk.body.anthropic.content.at(0)
 								// Sum of all the objects inside of internal
-								response += chunk.body.anthropic.content
-								totalCosts += internal.cost
+
+								response = (res as Anthropic.Messages.TextBlockParam).text
+								totalCosts = internal.cost
 							}
 						}
+
+						console.debug(
+							`[DEBUG] Past conversation history: ${JSON.stringify(this.stateManager.state.apiConversationHistory, null, 2)}`,
+						)
 						// Clear conversation history and replace content with the summary
 						await this.stateManager.overwriteApiConversationHistory([])
 						await this.stateManager.addToApiConversationHistory({
 							role: 'assistant',
 							content: response,
 						})
+						console.debug(
+							`[DEBUG] New conversation history: ${JSON.stringify(this.stateManager.state.apiConversationHistory, null, 2)}`,
+						)
 
 						this.updateAsk(
 							'tool',
@@ -556,3 +578,4 @@ export type AskResponse = {
 	text?: string
 	images?: string[]
 }
+

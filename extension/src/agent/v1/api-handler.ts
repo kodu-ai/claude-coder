@@ -99,14 +99,15 @@ export class ApiManager {
 		tempature: number = 0,
 		top_p: number = 0.9,
 	): AsyncGenerator<koduSSEResponse> {
-		try {
-			const stream = await this.api.createBaseMessageStream(
-				systemPrompt,
+		console.debug(
+			`[DEBUG] createBaseMessageStream with systemPrompt: ${systemPrompt}, messages: ${JSON.stringify(
 				messages,
-				abortSignal,
-				tempature,
-				top_p,
-			)
+				null,
+				2,
+			)}, abortSignal: ${abortSignal}, tempature: ${tempature}, top_p: ${top_p}`,
+		)
+		try {
+			const stream = await this.api.createBaseMessageStream(systemPrompt, messages, abortSignal, tempature, top_p)
 
 			for await (const chunk of stream) {
 				switch (chunk.code) {

@@ -94,7 +94,6 @@ export type SummarizeChatTool = {
 	tool: "summarize"
 	cost?: number
 	output?: string
-	
 }
 
 export type ChatTool = (
