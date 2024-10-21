@@ -201,26 +201,40 @@ export class DevServerTool extends BaseAgentTool {
 		const serverUrl = devServer?.url
 
 		if (serverUrl) {
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "server_runner_tool",
+						approvalState: "approved",
+						ts: this.ts,
+						commandType: "start",
+						commandToRun: command,
+						serverName,
+						output: result,
+					},
+				},
+				this.ts
+			)
 			return `Dev server "${serverName}" started successfully, check <dev_server_status> and
 <dev_server_running> to find the details. The server is only viable for limited amount of time, don't take it for granted.`
 		} else {
-			// check if the process failed or was stopped
-			if (!TerminalRegistry.isDevServerRunning(terminalInfo.id)) {
-				this.params.updateAsk(
-					"tool",
-					{
-						tool: {
-							tool: "server_runner_tool",
-							approvalState: "error",
-							ts: this.ts,
-							commandType: "start",
-							commandToRun: command,
-							serverName,
-						},
+			// no output was found in the logs to indicate the server started successfully or the URL was found
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "server_runner_tool",
+						approvalState: "error",
+						ts: this.ts,
+						commandType: "start",
+						commandToRun: command,
+						serverName,
 					},
-					this.ts
-				)
-				return `
+				},
+				this.ts
+			)
+			return `
 				ERROR!
 				Failed to start server "${serverName}".
 				Please check the logs for more information.
@@ -230,10 +244,10 @@ export class DevServerTool extends BaseAgentTool {
 				did you forget to write terminal name?
 				did you use cd <folder> & <command>?
 				your current path is ${getCwd()}
+				<thinking> tags to assess the situation.
+				don't forget you're on ${getCwd()} ask yourself did i use correct path?
+				is the server folder located at ${getCwd()} or is it in a nested folder? if so, did you use cd <folder> & <command>?
 				`
-			} else {
-				return `Dev server "${serverName}" started successfully.`
-			}
 		}
 	}
 

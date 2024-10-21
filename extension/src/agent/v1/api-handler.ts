@@ -17,6 +17,7 @@ import delay from "delay"
 import { BASE_SYSTEM_PROMPT } from "./prompts/base-system"
 import { getCwd } from "./utils"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
+import { AxiosError } from "axios"
 
 /**
  *
@@ -241,6 +242,12 @@ ${this.customInstructions.trim()}
 			if (error instanceof KoduError) {
 				console.error("KODU API request failed", error)
 			}
+			if (error instanceof AxiosError) {
+				throw new KoduError({
+					code: error.response?.status || 500,
+				})
+			}
+
 			throw error
 		}
 	}

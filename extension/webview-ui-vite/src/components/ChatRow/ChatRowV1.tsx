@@ -217,7 +217,52 @@ const CommandMessage: React.FC<{
 		</>
 	)
 })
+import { AlertCircle, LogIn, CreditCard } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { loginKodu } from "@/utils/kodu-links"
+import { useExtensionState } from "@/context/ExtensionStateContext"
+import { vscode } from "@/utils/vscode"
+import { getKoduOfferUrl } from "../../../../src/shared/kodu"
 
+function ErrorMsgComponent({ type }: { type: "unauthorized" | "payment_required" }) {
+	const { uriScheme, extensionName } = useExtensionState()
+	return (
+		<div className="border border-destructive/50 rounded-md p-4 max-w-[360px] mx-auto bg-background/5">
+			<div className="flex items-center space-x-2 text-destructive">
+				<AlertCircle className="h-4 w-4" />
+				<h4 className="font-semibold text-sm">
+					{type === "unauthorized" ? "Unauthorized Access" : "Payment Required"}
+				</h4>
+			</div>
+			<p className="text-destructive/90 text-xs mt-2">
+				{type === "unauthorized"
+					? "You are not authorized to run this command. Please log in or contact your administrator."
+					: "You have run out of credits. Please contact your administrator."}
+			</p>
+			<button className="w-full mt-3 py-1 px-2 text-xs border border-destructive/50 rounded hover:bg-destructive/10 transition-colors">
+				{type === "unauthorized" ? (
+					<span
+						onClick={() => loginKodu({ uriScheme: uriScheme!, extensionName: extensionName! })}
+						className="flex items-center justify-center">
+						<LogIn className="mr-2 h-3 w-3" /> Log In
+					</span>
+				) : (
+					<a className="!text-foreground" href={getKoduOfferUrl(uriScheme)}>
+						<span
+							onClick={() => {
+								vscode.postTrackingEvent("OfferwallView")
+								vscode.postTrackingEvent("ExtensionCreditAddSelect", "offerwall")
+							}}
+							className="flex items-center justify-center">
+							<CreditCard className="mr-2 h-3 w-3" /> FREE Credits
+						</span>
+					</a>
+				)}
+			</button>
+		</div>
+	)
+}
 const ChatRowV1: React.FC<ChatRowProps> = ({
 	message,
 	syntaxHighlighterStyle,
@@ -237,6 +282,11 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 		switch (message.type) {
 			case "say":
 				switch (message.say) {
+					case "unauthorized":
+						return <ErrorMsgComponent type="unauthorized" />
+					case "payment_required":
+						return <ErrorMsgComponent type="payment_required" />
+
 					case "api_req_started":
 						return (
 							<APIRequestMessage

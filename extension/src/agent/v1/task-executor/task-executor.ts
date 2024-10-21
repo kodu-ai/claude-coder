@@ -1,7 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeMessage, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
-import { KoduError, koduSSEResponse } from "../../../shared/kodu"
+import { KODU_ERROR_CODES, KoduError, koduSSEResponse } from "../../../shared/kodu"
 import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
 import { ChunkProcessor } from "../chunk-proccess"
@@ -171,6 +171,14 @@ export class TaskExecutor extends TaskExecutorUtils {
 			if (!this.isRequestCancelled) {
 				if (error instanceof KoduError) {
 					console.log("[TaskExecutor] KoduError:", error)
+					if (error.errorCode === KODU_ERROR_CODES.AUTHENTICATION_ERROR) {
+						await this.handleApiError(new TaskError({ type: "UNAUTHORIZED", message: error.message }))
+						return
+					}
+					if (error.errorCode === KODU_ERROR_CODES.PAYMENT_REQUIRED) {
+						await this.handleApiError(new TaskError({ type: "PAYMENT_REQUIRED", message: error.message }))
+						return
+					}
 					await this.handleApiError(new TaskError({ type: "API_ERROR", message: error.message }))
 					return
 				}
@@ -289,6 +297,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 			// Wait for all tool executions to complete
 			await this.toolExecutor.waitForToolProcessing()
 			await this.finishProcessingResponse(assistantResponses, /*inputTokens*/ 0, /*outputTokens*/ 0)
+		} catch (error) {
+			// update the say to error
+			this.sayWithId(startedReqId, "error", "An error occurred. Please try again.")
+			throw error
 		} finally {
 		}
 	}
@@ -411,6 +423,12 @@ export class TaskExecutor extends TaskExecutorUtils {
 		await this.toolExecutor.resetToolState()
 		this.stateManager.popLastApiConversationMessage()
 		this.consecutiveErrorCount++
+		if (error.type === "PAYMENT_REQUIRED" || error.type === "UNAUTHORIZED") {
+			this.state = TaskState.IDLE
+
+			await this.say(error.type === "PAYMENT_REQUIRED" ? "payment_required" : "unauthorized", error.message)
+			return
+		}
 		const { response } = await this.ask("api_req_failed", { question: error.message })
 		if (response === "yesButtonTapped" || response === "messageResponse") {
 			console.log(JSON.stringify(this.stateManager.state.claudeMessages, null, 2))

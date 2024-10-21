@@ -428,11 +428,15 @@ export class KoduDev {
 		this.stateManager.historyErrors = taskErrorsRecord
 
 		// map the diagnostics to the original file path
-		details += "\n\n# VSCode Diagnostics (Linter Errors)"
+		details += "\n\n# CURRENT ERRORS (Linter Errors)"
 		if (newErrors.length === 0) {
 			details += "\n(No diagnostics errors)"
 		} else {
+			details +=
+				"\n (Errors found in the following files) please address these errors before proceeding with the task, this action is critical to the task completion."
+			details += `<linter_errors>\n`
 			details += newErrors.map((diag) => diag.errorString).join("\n")
+			details += `</linter_errors>\n`
 		}
 
 		if (includeFileDetails) {

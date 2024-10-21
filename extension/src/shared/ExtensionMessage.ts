@@ -175,6 +175,8 @@ export type ClaudeSay =
 	| "api_req_started"
 	| "api_req_finished"
 	| "text"
+	| "payment_required"
+	| "unauthorized"
 	| "completion_result"
 	| "user_feedback"
 	| "user_feedback_diff"

@@ -118,12 +118,6 @@ export class ExecuteCommandTool extends BaseAgentTool {
 
 			const sendCommandOutput = async (line: string): Promise<void> => {
 				try {
-					if (this.alwaysAllowWriteOnly) {
-						/**
-						 * let it run for a bit before ending
-						 */
-						await delay(100)
-					}
 					updateAsk(
 						"tool",
 						{
@@ -183,43 +177,46 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				await say("shell_integration_warning")
 			})
 
-			const earlyExitPromise = ask(
-				"tool",
-				{
-					tool: {
-						tool: "execute_command",
-						command,
-						approvalState: "loading",
-						ts: this.ts,
-						earlyExit,
-						isSubMsg: this.params.isSubMsg,
+			let earlyExitPromise = delay(45_000)
+			if (!this.alwaysAllowWriteOnly) {
+				earlyExitPromise = ask(
+					"tool",
+					{
+						tool: {
+							tool: "execute_command",
+							command,
+							approvalState: "loading",
+							ts: this.ts,
+							earlyExit,
+							isSubMsg: this.params.isSubMsg,
+						},
 					},
-				},
-				this.ts
-			)
-				.then((res) => {
-					console.log(`Command contiune result`)
-					const { text, images, response } = res
+					this.ts
+				)
+					.then((res) => {
+						console.log(`Command contiune result`)
+						const { text, images, response } = res
 
-					if (response === "yesButtonTapped") {
-						didContinue = true
-						earlyExit = "approved"
-						// proceed while running
-					} else {
-						if (response === "messageResponse") {
+						if (response === "yesButtonTapped") {
 							didContinue = true
 							earlyExit = "approved"
-							userFeedback = { text, images }
+							// proceed while running
 						} else {
-							earlyExit = "rejected"
+							if (response === "messageResponse") {
+								didContinue = true
+								earlyExit = "approved"
+								userFeedback = { text, images }
+							} else {
+								earlyExit = "rejected"
+							}
 						}
-					}
-					if (didContinue) {
-						process.continue()
-					}
-					userFeedback = { text, images }
-				})
-				.catch()
+						if (didContinue) {
+							process.continue()
+						}
+						userFeedback = { text, images }
+					})
+					.catch()
+			}
 
 			await Promise.race([earlyExitPromise, process])
 
@@ -249,7 +246,8 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			let toolRes = "The command has been executed."
 			// @ts-expect-error type is broken but it is reachable
 			if (earlyExit === "approved") {
-				toolRes = "User chose to run the command in the background"
+				toolRes =
+					"User chose to run the command without waiting for output, you won't be able to see the output. just assume it ran successfully."
 			}
 			if ((userFeedback?.text !== "undefined" && userFeedback?.text?.length) || userFeedback?.images?.length) {
 				toolRes += `\n\nUser feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
@@ -263,7 +261,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			if (completed) {
 				toolRes += `\n\nOutput:\n<output>\n${result ?? "No output"}\n</output>`
 			} else {
-				toolRes += `\n\nThe command is still running in the user's terminal. You will be updated on the terminal status and new output in the future.
+				toolRes += `\n\nThe command ran but didn't provide the full output, this is the only available output we can give you, keep going with the task.
 				\n\nOutput so far:\n<output>\n${result ?? "No output"}\n</output>`
 			}
 			return await this.formatToolResponseWithImages(toolRes, userFeedback?.images)
