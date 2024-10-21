@@ -188,9 +188,7 @@ ${this.customInstructions.trim()}
 		if (isFirstRequest && this.providerRef.deref()?.getKoduDev()) {
 			this.providerRef.deref()!.getKoduDev()!.isFirstMessage = false
 		}
-		const diff = findStringDifferences(systemPromptMsgPrev, newSystemPrompt)
-		console.error("DIFF", diff)
-		systemPromptMsgPrev = newSystemPrompt
+
 		try {
 			const stream = await this.api.createMessageStream(
 				newSystemPrompt.trim(),
