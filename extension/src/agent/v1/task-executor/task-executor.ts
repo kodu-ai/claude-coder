@@ -183,8 +183,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 							{
 								tool: {
 									tool: 'summarize',
-										ts: startedReqId,
-										approvalState: 'loading',
+									ts: startedReqId,
+									approvalState: 'loading',
 								},
 							},
 							startedReqId,
@@ -271,10 +271,6 @@ This summary contains all relevant details for seamless continuation of the task
 							startedReqId,
 						)
 					} else if (response.response === 'noButtonTapped') {
-						// Handle "Acknowledge and continue" response
-						const truncatedMessages = truncateHalfConversation(this.stateManager.state.apiConversationHistory)
-						await this.stateManager.overwriteApiConversationHistory(truncatedMessages)
-						
 						this.updateAsk(
 							'tool',
 							{
@@ -286,15 +282,21 @@ This summary contains all relevant details for seamless continuation of the task
 							},
 							startedReqId,
 						)
-						
-					
-						await this.stateManager.addToApiConversationHistory({
-							role: 'user',
-							content: [{ 
-								type: 'text', 
-								text: "The user chose to continue without summarization. Please continue with the task based on the available context." 
-							}],
-						})
+
+						// await this.stateManager.addToApiConversationHistory({
+						// 	role: 'user',
+						// 	content: [
+						// 		{
+						// 			type: 'text',
+						// 			text: 'The user chose to continue without summarization. Please continue with the task based on the available context.',
+						// 		},
+						// 	],
+						// })
+
+						const truncatedMessages = truncateHalfConversation(
+							this.stateManager.state.apiConversationHistory,
+						)
+						await this.stateManager.overwriteApiConversationHistory(truncatedMessages)
 
 						// Continue with the request using truncated messages
 						await this.continueWithTruncatedMessages(truncatedMessages)
@@ -595,7 +597,10 @@ This summary contains all relevant details for seamless continuation of the task
 		this.stateManager.state.requestCount++
 		this.state = TaskState.PROCESSING_RESPONSE
 
-		await this.processApiResponse(stream, this.stateManager.state.claudeMessages[this.stateManager.state.claudeMessages.length - 1].ts)
+		await this.processApiResponse(
+			stream,
+			this.stateManager.state.claudeMessages[this.stateManager.state.claudeMessages.length - 1].ts,
+		)
 	}
 }
 
@@ -604,4 +609,3 @@ export type AskResponse = {
 	text?: string
 	images?: string[]
 }
-
