@@ -270,6 +270,8 @@ This summary contains all relevant details for seamless continuation of the task
 							?.content.at(0)
 						if (firstUserMessage && typeof firstUserMessage !== 'string') {
 							firstUserMessage = (firstUserMessage as Anthropic.Messages.TextBlockParam).text
+								.replace('<task>', '')
+								.replace('</task>', '')
 						}
 						const summary = `${firstUserMessage}\n${response}`
 						this.updateAsk(

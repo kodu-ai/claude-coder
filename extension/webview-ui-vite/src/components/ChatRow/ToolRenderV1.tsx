@@ -564,6 +564,8 @@ export const SummarizeBlock: React.FC<SummarizeChatTool & ToolAddons> = ({
 			ts={ts}
 			tool={tool}
 			icon={MessageCircle}
+			onApprove={onApprove}
+			onReject={onReject}
 			title="Summarization"
 			variant="primary"
 			approvalState={approvalState}
@@ -571,7 +573,7 @@ export const SummarizeBlock: React.FC<SummarizeChatTool & ToolAddons> = ({
 			{approvalState === 'pending' && (
 				<div className="bg-primary/20 text-primary-foreground p-2 rounded text-xs">
 					<p className="mb-2">
-						The conversation has almost reached your context window threshold. In order to reduce costs, we
+						This conversation has almost reached your context window threshold. In order to reduce costs, we
 						recommend starting over from a summary of the conversation. Would you like to do this or
 						continue with the current task?
 					</p>
