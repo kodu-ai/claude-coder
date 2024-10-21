@@ -60,11 +60,7 @@ const experimentalFeatures: ExperimentalFeature[] = [
 		label: "Automatic Mode",
 		description: "Claude will automatically try to solve tasks without asking for permission",
 	},
-	{
-		id: "experimentalTerminal",
-		label: "Experimental Terminal Shell",
-		description: "Enable Claude to run shell commands in the terminal directly",
-	},
+
 	{
 		id: "lastShownAnnouncementId",
 		label: "One Click Deployment",
@@ -73,7 +69,7 @@ const experimentalFeatures: ExperimentalFeature[] = [
 		comingSoon: true,
 	},
 	{
-		id: "lastShownAnnouncementId",
+		id: "creativeMode",
 		label: "AutoSummarize Chat",
 		description: "Automatically generate summaries of your chat conversations",
 		disabled: true,
@@ -271,7 +267,7 @@ const SettingsPage: React.FC = () => {
 										}}
 										variant={"outline"}
 										asChild>
-										<a href={getKoduOfferUrl(extensionState.uriScheme)}>Offerwall</a>
+										<a href={getKoduOfferUrl(extensionState.uriScheme)}>Get Free Credits</a>
 									</Button>
 								</TooltipTrigger>
 								<TooltipContent align="end">Earn up to $10 extra credits for free!</TooltipContent>

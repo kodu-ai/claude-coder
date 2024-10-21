@@ -123,6 +123,21 @@ export class StateManager {
 		this._state = newState
 	}
 
+	get historyErrors(): KoduDevState["historyErrors"] | undefined {
+		return this.state.historyErrors
+	}
+
+	set historyErrors(newErrors: KoduDevState["historyErrors"]) {
+		this.state.historyErrors = newErrors
+	}
+
+	public setHistoryErrorsEntry(key: string, value: NonNullable<KoduDevState["historyErrors"]>[string]): void {
+		if (!this.state.historyErrors) {
+			this.state.historyErrors = {}
+		}
+		this.state.historyErrors[key] = value
+	}
+
 	public getMessageById(messageId: number): ClaudeMessage | undefined {
 		return this.state.claudeMessages.find((msg) => msg.ts === messageId)
 	}
@@ -236,6 +251,17 @@ export class StateManager {
 		})
 
 		return mappedApiHistory
+	}
+
+	public addErrorPath(errorPath: string): void {
+		// push a new key to the historyErrors object
+		if (!this.state.historyErrors) {
+			this.state.historyErrors = {}
+		}
+		this.state.historyErrors[errorPath] = {
+			lastCheckedAt: -1,
+			error: "",
+		}
 	}
 
 	async addToApiConversationHistory(message: Anthropic.MessageParam) {

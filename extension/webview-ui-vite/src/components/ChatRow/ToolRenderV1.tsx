@@ -20,6 +20,10 @@ import {
 	ChevronUp,
 	LoaderPinwheel,
 	ExternalLink,
+	Play,
+	Square,
+	RefreshCw,
+	Server,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -38,6 +42,7 @@ import {
 	AskConsultantTool,
 	UpsertMemoryTool,
 	ChatTool,
+	ServerRunnerTool,
 } from "../../../../src/shared/new-tools"
 import { vscode } from "@/utils/vscode"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
@@ -136,6 +141,102 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 				</div>
 			)}
 		</div>
+	)
+}
+
+export const DevServerToolBlock: React.FC<ServerRunnerTool & ToolAddons> = ({
+	commandType,
+	commandToRun,
+	approvalState,
+	onApprove,
+	onReject,
+	tool,
+	serverName,
+	ts,
+	output,
+	...rest
+}) => {
+	const [isOpen, setIsOpen] = useState(false)
+
+	const getIcon = () => {
+		switch (commandType) {
+			case "start":
+				return Play
+			case "stop":
+				return Square
+			case "restart":
+				return RefreshCw
+			case "getLogs":
+				return FileText
+			default:
+				return Server
+		}
+	}
+
+	const Icon = getIcon()
+
+	return (
+		<ToolBlock
+			{...rest}
+			ts={ts}
+			tool={tool}
+			icon={Icon}
+			// title={`Dev Server - ${commandType?.charAt(0)?.toUpperCase?.() + commandType?.slice?.(1)}`}
+			title={`Dev Server - ${serverName}`}
+			variant="primary"
+			approvalState={approvalState}
+			onApprove={onApprove}
+			onReject={onReject}>
+			<div className="bg-muted p-2 rounded font-mono text-xs overflow-x-auto">
+				<span className="text-success">$</span> {commandToRun}
+			</div>
+
+			{approvalState === "loading" && (
+				<div className="mt-2 flex items-center">
+					<span className="text-xs mr-2">
+						Server is {commandType === "stop" ? "stopping" : "starting"}...
+					</span>
+					<div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></div>
+				</div>
+			)}
+
+			{output && (
+				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
+					<CollapsibleTrigger asChild>
+						<Button variant="ghost" size="sm" className="flex items-center w-full justify-between">
+							<span>View Output</span>
+							{isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+						</Button>
+					</CollapsibleTrigger>
+					<CollapsibleContent className="mt-2">
+						<ScrollArea className="h-[200px] w-full rounded-md border">
+							<div className="p-4">
+								<pre className="text-sm">{output}</pre>
+							</div>
+							<ScrollBar orientation="vertical" />
+						</ScrollArea>
+					</CollapsibleContent>
+				</Collapsible>
+			)}
+
+			{approvalState === "approved" && commandType === "start" && (
+				<p className="text-xs mt-2 text-success">Server started successfully.</p>
+			)}
+
+			{approvalState === "approved" && commandType === "stop" && (
+				<p className="text-xs mt-2 text-success">Server stopped successfully.</p>
+			)}
+			{approvalState === "approved" && commandType === "restart" && (
+				<p className="text-xs mt-2 text-success">Server restarted successfully.</p>
+			)}
+			{approvalState === "approved" && commandType === "getLogs" && (
+				<p className="text-xs mt-2 text-success">Server logs retrieved successfully.</p>
+			)}
+
+			{approvalState === "error" && (
+				<p className="text-xs mt-2 text-destructive">An error occurred while {commandType}ing the server.</p>
+			)}
+		</ToolBlock>
 	)
 }
 
@@ -640,6 +741,8 @@ export const ToolContentBlock: React.FC<{
 			return <AskConsultantBlock {...tool} />
 		case "upsert_memory":
 			return <UpsertMemoryBlock {...tool} />
+		case "server_runner_tool":
+			return <DevServerToolBlock {...tool} />
 		default:
 			return null
 	}

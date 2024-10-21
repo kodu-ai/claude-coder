@@ -511,11 +511,12 @@ export class WebviewManager {
 			return
 		}
 
-		const problemsString = await agent.diagnosticsHandler?.getProblemsString(rootPath)
-		if (!problemsString) {
-			await agent.taskExecutor.say("info", "No problems detected!")
-			return
-		}
+		// const problemsString = await agent.ha
+		// if (!problemsString) {
+		// 	await agent.taskExecutor.say("info", "No problems detected!")
+		// 	return
+		// }
+		const problemsString = "Check system logs for more information."
 
 		return await agent.taskExecutor.handleAskResponse("messageResponse", problemsString)
 	}

@@ -16,7 +16,7 @@ import { BrowserManager } from "./browser-manager"
 import { DiagnosticsHandler } from "./handlers"
 import vscode from "vscode"
 import path from "path"
-import { TerminalManager } from "../../integrations/terminal/terminal-manager"
+import { TerminalManager, TerminalRegistry } from "../../integrations/terminal/terminal-manager"
 import delay from "delay"
 import pWaitFor from "p-wait-for"
 import os from "os"
@@ -43,7 +43,6 @@ export class KoduDev {
 	public providerRef: WeakRef<ExtensionProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
-	public diagnosticsHandler: DiagnosticsHandler
 	public isFirstMessage: boolean = true
 
 	constructor(options: KoduDevOptions) {
@@ -60,7 +59,6 @@ export class KoduDev {
 		this.terminalManager = new AdvancedTerminalManager()
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this.providerRef)
 		this.browserManager = new BrowserManager(this.providerRef.deref()!.context)
-		this.diagnosticsHandler = new DiagnosticsHandler()
 
 		this.setupTaskExecutor()
 
@@ -76,24 +74,8 @@ export class KoduDev {
 
 		if (historyItem?.dirAbsolutePath) {
 		}
-		if (options.isDebug) {
-			const openFolders = vscode.workspace.workspaceFolders
-			if (!openFolders || !openFolders[0]) {
-				vscode.window.showErrorMessage("Please open only one workspace folder to debug the project.")
-				return
-			}
-
-			const rootPath = openFolders[0].uri.fsPath
-			const problemsString = this.diagnosticsHandler?.getProblemsString(rootPath)
-			if (!problemsString) {
-				vscode.window.showErrorMessage("No problems found in the project.")
-			}
-			this.startTask(`Please debug the project. here are some of the problems:\n ${problemsString}`, [])
-			return
-		}
 
 		if (historyItem) {
-			this.diagnosticsHandler.init(historyItem.dirAbsolutePath ?? "")
 			this.stateManager.state.isHistoryItem = true
 			this.resumeTaskFromHistory()
 		} else if (task || images) {
@@ -334,15 +316,17 @@ export class KoduDev {
 			return "just now"
 		})()
 
-		const combinedText =
+		let combinedText =
 			`Task resumption: This autonomous coding task was interrupted ${agoText}. It may or may not be complete, so please reassess the task context. Be aware that the project state may have changed since then. The current working directory is now ${getCwd()}. If the task has not been completed, retry the last step before interruption and proceed with completing the task.` +
 			(modifiedOldUserContentText
 				? `\n\nLast recorded user input before interruption:\n<previous_message>\n${modifiedOldUserContentText}\n</previous_message>\n`
 				: "") +
 			(newUserContentText
 				? `\n\nNew instructions for task continuation:\n<user_message>\n${newUserContentText}\n</user_message>\n`
-				: "") +
-			`\n\n${getPotentiallyRelevantDetails()}`
+				: "")
+		combinedText += `\n\n`
+		combinedText += await this.getEnvironmentDetails(true)
+		combinedText += `No dev server information is available. Please start the dev server if needed.`
 
 		const newUserContentImages = newUserContent.filter((block) => block.type === "image")
 		const combinedModifiedOldUserContentWithNewUserContent: UserContent = (
@@ -361,6 +345,7 @@ export class KoduDev {
 		await this.taskExecutor.abortTask()
 		this.browserManager.closeBrowser()
 		this.terminalManager.disposeAll()
+		TerminalRegistry.clearAllDevServers()
 	}
 
 	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false): Promise<ToolResponse> {
@@ -380,7 +365,27 @@ export class KoduDev {
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {
 		let details = ""
-
+		const devServers = TerminalRegistry.getAllDevServers()
+		const isDevServerRunning = devServers.length > 0
+		let devServerSection =
+			"# Critical information about the current running development server, when you call the dev_server tool, the dev server information will be updated here. this is the only place where the dev server information will be updated. don't ask the user for information about the dev server, always refer to this section.\n"
+		devServerSection += `\n\n<dev_server_status>\n`
+		devServerSection += `<dev_server_running>${
+			isDevServerRunning ? "SERVER IS RUNNING" : "SERVER IS NOT RUNNING!"
+		}</dev_server_running>\n`
+		if (isDevServerRunning) {
+			for (const server of devServers) {
+				const serverName = server.terminalInfo.name
+				devServerSection += `<dev_server_info>\n`
+				devServerSection += `<server_name>${serverName}</server_name>\n`
+				devServerSection += `<dev_server_url>${server.url}</dev_server_url>\n`
+				devServerSection += `</dev_server_info>\n`
+			}
+		} else {
+			devServerSection += `<dev_server_info>Dev server is not running. Please start the dev server using the dev_server tool if needed.</dev_server_info>\n`
+		}
+		devServerSection += `</dev_server_status>\n`
+		details += devServerSection
 		// It could be useful for cline to know if the user went from one or no file to another between messages, so we always include this context
 		details += "\n\n# VSCode Visible Files"
 		const visibleFiles = vscode.window.visibleTextEditors
@@ -407,73 +412,27 @@ export class KoduDev {
 			details += "\n(No open tabs)"
 		}
 
-		if (this.terminalManager instanceof TerminalManager) {
-			const busyTerminals = this.terminalManager.getTerminals(true)
-			const inactiveTerminals = this.terminalManager.getTerminals(false)
+		// get the diagnostics errors for all files in the current task
 
-			if (busyTerminals.length > 0 && this.isLastMessageFileEdit) {
-				await delay(300) // delay after saving file to let terminals catch up
+		const diagnosticsHandler = DiagnosticsHandler.getInstance()
+		const files = this.stateManager.historyErrors ? Object.keys(this.stateManager.historyErrors) : []
+		const diagnostics = diagnosticsHandler.getDiagnostics(files)
+		const newErrors = diagnostics.filter((diag) => diag.errorString !== null)
+		const taskErrorsRecord = newErrors.reduce((acc, curr) => {
+			acc[curr.key] = {
+				lastCheckedAt: Date.now(),
+				error: curr.errorString!,
 			}
+			return acc
+		}, {} as NonNullable<typeof this.stateManager.historyErrors>)
+		this.stateManager.historyErrors = taskErrorsRecord
 
-			// let terminalWasBusy = false
-			if (busyTerminals.length > 0) {
-				// wait for terminals to cool down
-				// terminalWasBusy = allTerminals.some((t) => this.terminalManager.isProcessHot(t.id))
-				await pWaitFor(
-					() =>
-						busyTerminals.every(
-							(t) =>
-								this.terminalManager instanceof TerminalManager &&
-								!this.terminalManager.isProcessHot(t.id)
-						),
-					{
-						interval: 100,
-						timeout: 2_500,
-					}
-				).catch(() => {})
-			}
-			this.isLastMessageFileEdit = false // reset, this lets us know when to wait for saved files to update terminals
-
-			// waiting for updated diagnostics lets terminal output be the most up-to-date possible
-			let terminalDetails = ""
-			if (busyTerminals.length > 0) {
-				// terminals are cool, let's retrieve their output
-				terminalDetails += "\n\n# Actively Running Terminals"
-				for (const busyTerminal of busyTerminals) {
-					terminalDetails += `\n## Original command: \`${busyTerminal.lastCommand}\``
-					const newOutput = this.terminalManager.getUnretrievedOutput(busyTerminal.id)
-					if (newOutput) {
-						terminalDetails += `\n### New Output\n${newOutput}`
-					} else {
-						// details += `\n(Still running, no new output)` // don't want to show this right after running the command
-					}
-				}
-			} else {
-				terminalDetails += "\n\n# No Actively Running Terminals all commands have completed"
-			}
-			// only show inactive terminals if there's output to show
-			if (inactiveTerminals.length > 0) {
-				const inactiveTerminalOutputs = new Map<number, string>()
-				for (const inactiveTerminal of inactiveTerminals) {
-					const newOutput = this.terminalManager.getUnretrievedOutput(inactiveTerminal.id)
-					if (newOutput) {
-						inactiveTerminalOutputs.set(inactiveTerminal.id, newOutput)
-					}
-				}
-				if (inactiveTerminalOutputs.size > 0) {
-					terminalDetails += "\n\n# Inactive Terminals"
-					for (const [terminalId, newOutput] of inactiveTerminalOutputs) {
-						const inactiveTerminal = inactiveTerminals.find((t) => t.id === terminalId)
-						if (inactiveTerminal) {
-							terminalDetails += `\n## ${inactiveTerminal.lastCommand}`
-							terminalDetails += `\n### New Output\n${newOutput}`
-						}
-					}
-				}
-			}
-			if (terminalDetails) {
-				details += terminalDetails
-			}
+		// map the diagnostics to the original file path
+		details += "\n\n# VSCode Diagnostics (Linter Errors)"
+		if (newErrors.length === 0) {
+			details += "\n(No diagnostics errors)"
+		} else {
+			details += newErrors.map((diag) => diag.errorString).join("\n")
 		}
 
 		if (includeFileDetails) {
