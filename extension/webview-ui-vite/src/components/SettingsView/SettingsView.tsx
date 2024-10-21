@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from "react"
-import { useExtensionState } from "../../context/ExtensionStateContext"
-import { validateApiConfiguration, validateMaxRequestsPerTask } from "../../utils/validate"
-import { vscode } from "../../utils/vscode"
-import ApiOptions from "../ApiOptions/ApiOptions"
-import CreativityModeSelector from "./CreativityModeSelector"
-import CustomInstructions from "./CustomInstructions"
-import MaxRequestsInput from "./MaxRequestsInput"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import React, { useEffect, useState } from "react"
+import { useExtensionState } from "../../context/ExtensionStateContext"
+import { validateApiConfiguration, validateMaxRequestsPerTask } from "../../utils/validate"
+import { vscode } from "../../utils/vscode"
+import ApiOptions from "../ApiOptions/ApiOptions"
+import SummarizationThresholdSlider from "../SummarizationThresholdSlider"
+import CreativityModeSelector from "./CreativityModeSelector"
+import CustomInstructions from "./CustomInstructions"
 import TechnicalLevelSelector from "./TechnicalLevelSelector"
 
 const IS_DEV = true // FIXME: use flags when packaging
@@ -106,7 +106,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onDone }) => {
 						setTechnicalBackground={setTechnicalBackground}
 					/>
 					<CreativityModeSelector creativeMode={creativeMode} setCreativeMode={setCreativeMode} />
-
+					<SummarizationThresholdSlider />
 					<div className="flex items-start space-x-2">
 						<Checkbox
 							id="always-allow-read-only"

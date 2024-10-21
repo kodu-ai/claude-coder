@@ -21,7 +21,7 @@ export class StateManager {
 	private _customInstructions?: string
 	private _alwaysAllowWriteOnly: boolean
 	private _experimentalTerminal?: boolean
-
+	private _summarizationThreshold: number
 	constructor(options: KoduDevOptions) {
 		const {
 			provider,
@@ -33,6 +33,7 @@ export class StateManager {
 			historyItem,
 			creativeMode,
 			experimentalTerminal,
+			summarizationThreshold,
 		} = options
 		this._creativeMode = creativeMode ?? "normal"
 		this._providerRef = new WeakRef(provider)
@@ -42,6 +43,7 @@ export class StateManager {
 		this._customInstructions = customInstructions
 		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
 		this._experimentalTerminal = experimentalTerminal
+		this._summarizationThreshold = summarizationThreshold ?? 50
 
 		this._state = {
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
@@ -90,6 +92,10 @@ export class StateManager {
 
 	get experimentalTerminal(): boolean | undefined {
 		return this._experimentalTerminal
+	}
+
+	get summarizationThreshold(): number {
+		return this._summarizationThreshold
 	}
 
 	get maxRequestsPerTask(): number {
@@ -151,6 +157,11 @@ export class StateManager {
 
 	public setAlwaysAllowWriteOnly(newValue: boolean): void {
 		this._alwaysAllowWriteOnly = newValue
+	}
+
+	public updateSummarizationThreshold(threshold: number) {
+		this._summarizationThreshold = threshold
+		this.saveState()
 	}
 
 	private async ensureTaskDirectoryExists(): Promise<string> {
@@ -347,5 +358,11 @@ export class StateManager {
 		} catch (error) {
 			console.error("Failed to save claude messages:", error)
 		}
+	}
+
+	private saveState() {
+		// Implement the logic to save the state
+		// This could involve writing to a file or updating a database
+		console.log("Saving state...");
 	}
 }

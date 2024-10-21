@@ -20,6 +20,7 @@ export interface KoduDevOptions {
 	alwaysAllowReadOnly?: boolean
 	experimentalTerminal?: boolean
 	alwaysAllowWriteOnly?: boolean
+	summarizationThreshold?: number
 	creativeMode?: "creative" | "normal" | "deterministic"
 	task?: string
 	images?: string[]

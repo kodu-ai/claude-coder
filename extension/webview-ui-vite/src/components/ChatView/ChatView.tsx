@@ -28,6 +28,7 @@ import ButtonSection from "./ButtonSection"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
 import ChatScreen from "./chat-screen"
+import SummarizationThresholdSlider from '../SummarizationThresholdSlider'
 
 export const attachementsAtom = atom<Resource[]>([])
 
@@ -60,6 +61,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 		uriScheme,
 		shouldShowKoduPromo,
 		user,
+		summarizationThreshold,
 	} = useExtensionState()
 
 	// Input-related state
@@ -652,7 +654,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 						{!showAnnouncement && shouldShowKoduPromo && (
 							<KoduPromo style={{ margin: "10px 15px -10px 15px" }} />
 						)}
-
 						<ChatScreen
 							taskHistory={<HistoryPreview showHistoryView={showHistoryView} />}
 							handleClick={(text) => {
