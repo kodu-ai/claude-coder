@@ -53,7 +53,7 @@ export class KoduDev {
 		})
 		this.terminalManager = new AdvancedTerminalManager()
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this.providerRef)
-		this.browserManager = new BrowserManager(this.providerRef.deref()?.context)
+		this.browserManager = new BrowserManager(this.providerRef.deref()!.context)
 
 		this.setupTaskExecutor()
 

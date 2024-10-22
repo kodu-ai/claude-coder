@@ -13,7 +13,8 @@ export class TaskManager {
 
 	async clearTask() {
 		await this.provider.getKoduDev()?.abortTask()
-		this.provider.koduDev = undefined
+		// biome-ignore lint/complexity/useLiteralKeys: It's private
+		this.provider['koduDev'] = undefined
 	}
 
 	async exportBug(description: string, reproduction: string) {

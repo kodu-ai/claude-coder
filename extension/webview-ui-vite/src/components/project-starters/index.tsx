@@ -70,7 +70,7 @@ export default function ProjectStarterChooser() {
 		console.log(`Bootstrapping ${selectedStarter?.title}`)
 		vscode.postMessage({
 			type: 'quickstart',
-			repo: selectedStarter?.repo,
+			repo: selectedStarter!.repo,
 			name: projectName,
 		})
 		setSelectedStarter(null)

@@ -195,7 +195,7 @@ ${this.customInstructions.trim()}
 		// on first request, we need to get the environment details with details of the current task and folder
 		const environmentDetails = await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
 		if (isFirstRequest && this.providerRef.deref()?.getKoduDev()) {
-			this.providerRef.deref()?.getKoduDev()!.isFirstMessage = false
+			this.providerRef.deref()!.getKoduDev()!.isFirstMessage = false
 		}
 
 		try {
