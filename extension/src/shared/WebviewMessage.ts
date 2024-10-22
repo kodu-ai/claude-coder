@@ -16,6 +16,7 @@ export type AmplitudeWebviewMessage = {
 		| "TrialUpsellView"
 		| "TrialUpsellStart"
 		| "ExtensionCreditAddSelect"
+		| "OfferwallView"
 	key?: string
 }
 
@@ -110,7 +111,18 @@ export type ToolFeedbackAllMessage = {
 	feedback: "approve" | "reject"
 }
 
+export type updateGlobalStateMessage = {
+	type: "updateGlobalState"
+	state: Partial<GlobalState>
+}
+
+export type autoCloseTerminalMessage = {
+	type: "autoCloseTerminal"
+	bool: boolean
+}
+
 export type WebviewMessage =
+	| updateGlobalStateMessage
 	| ToolFeedbackAllMessage
 	| ToolFeedbackMessage
 	| exportBugMessage
@@ -119,6 +131,7 @@ export type WebviewMessage =
 	| OpenExternalLink
 	| FreeTrial
 	| technicalBackgroundMessage
+	| autoCloseTerminalMessage
 	| ApiConfigurationMessage
 	| RenameTask
 	| QuickstartMessage
@@ -130,6 +143,7 @@ export type WebviewMessage =
 	| CommandInputMessage
 	| {
 			type:
+				| "skipWriteAnimation"
 				| "cancelCurrentRequest"
 				| "maxRequestsPerTask"
 				| "customInstructions"

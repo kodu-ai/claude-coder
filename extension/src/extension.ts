@@ -7,6 +7,8 @@ import * as dotenv from "dotenv"
 import * as path from "path"
 import { extensionName } from "./shared/Constants"
 import "./utils/path-helpers"
+import { TerminalManager } from "./integrations/terminal/terminal-manager"
+import { getCwd } from "./agent/v1/utils"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -211,7 +213,8 @@ export function activate(context: vscode.ExtensionContext) {
 		const token = query.get("token")
 		const postTrial = query.get("postTrial")
 		const email = query.get("email")
-
+		// toast login success
+		vscode.window.showInformationMessage(`Logged in as ${email} successfully!`)
 		if (token) {
 			amplitudeTracker.authSuccess()
 			console.log(`Received token: ${token}`)

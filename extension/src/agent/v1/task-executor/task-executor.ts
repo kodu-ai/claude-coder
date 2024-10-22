@@ -1,18 +1,13 @@
-import * as path from "path"
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ClaudeAsk, ClaudeMessage, ClaudeSay, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
+import { ClaudeMessage, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
-import { combineApiRequests } from "../../../shared/combineApiRequests"
-import { getApiMetrics } from "../../../shared/getApiMetrics"
-import { KoduError, koduSSEResponse } from "../../../shared/kodu"
-import { amplitudeTracker } from "../../../utils/amplitude"
+import { KODU_ERROR_CODES, KoduError, koduSSEResponse } from "../../../shared/kodu"
 import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
 import { ChunkProcessor } from "../chunk-proccess"
 import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
-import { ToolName, ToolResponse, UserContent } from "../types"
+import { ToolResponse, UserContent } from "../types"
 import { debounce } from "lodash"
-import { ToolInput } from "../tools/types"
 import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
 
 export class TaskExecutor extends TaskExecutorUtils {
@@ -131,13 +126,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 			})
 			await this.stateManager.removeEverythingAfterMessage(lastApiRequest.ts)
 		}
-		// await this.ask("tool", {
-		// 	tool: {
-		// 		tool: "ask_followup_question",
-		// 		question: "The current request has been cancelled. Would you like to ask a new question ?",
-		// 		ts: Date.now(),
-		// 	},
-		// })
 		// Update the provider state
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
@@ -147,15 +135,12 @@ export class TaskExecutor extends TaskExecutorUtils {
 			if (this.state !== TaskState.WAITING_FOR_API || !this.currentUserContent || this.isRequestCancelled) {
 				return
 			}
+			// make sure to reset the tool state before making a new request
+			await this.toolExecutor.resetToolState()
 			if (this.consecutiveErrorCount >= 3) {
 				await this.ask("resume_task", {
 					question: "Claude has encountered an error 3 times in a row. Would you like to resume the task?",
 				})
-			}
-
-			if (this.stateManager.state.requestCount >= this.stateManager.maxRequestsPerTask) {
-				await this.handleRequestLimitReached()
-				return
 			}
 
 			this.logState("Making Claude API request")
@@ -186,6 +171,14 @@ export class TaskExecutor extends TaskExecutorUtils {
 			if (!this.isRequestCancelled) {
 				if (error instanceof KoduError) {
 					console.log("[TaskExecutor] KoduError:", error)
+					if (error.errorCode === KODU_ERROR_CODES.AUTHENTICATION_ERROR) {
+						await this.handleApiError(new TaskError({ type: "UNAUTHORIZED", message: error.message }))
+						return
+					}
+					if (error.errorCode === KODU_ERROR_CODES.PAYMENT_REQUIRED) {
+						await this.handleApiError(new TaskError({ type: "PAYMENT_REQUIRED", message: error.message }))
+						return
+					}
 					await this.handleApiError(new TaskError({ type: "API_ERROR", message: error.message }))
 					return
 				}
@@ -304,6 +297,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 			// Wait for all tool executions to complete
 			await this.toolExecutor.waitForToolProcessing()
 			await this.finishProcessingResponse(assistantResponses, /*inputTokens*/ 0, /*outputTokens*/ 0)
+		} catch (error) {
+			// update the say to error
+			this.sayWithId(startedReqId, "error", "An error occurred. Please try again.")
+			throw error
 		} finally {
 		}
 	}
@@ -426,6 +423,12 @@ export class TaskExecutor extends TaskExecutorUtils {
 		await this.toolExecutor.resetToolState()
 		this.stateManager.popLastApiConversationMessage()
 		this.consecutiveErrorCount++
+		if (error.type === "PAYMENT_REQUIRED" || error.type === "UNAUTHORIZED") {
+			this.state = TaskState.IDLE
+
+			await this.say(error.type === "PAYMENT_REQUIRED" ? "payment_required" : "unauthorized", error.message)
+			return
+		}
 		const { response } = await this.ask("api_req_failed", { question: error.message })
 		if (response === "yesButtonTapped" || response === "messageResponse") {
 			console.log(JSON.stringify(this.stateManager.state.claudeMessages, null, 2))

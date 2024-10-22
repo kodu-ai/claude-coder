@@ -1,4 +1,4 @@
-import React, { useEffect } from "react"
+import React, { useEffect, useRef } from "react"
 import { useEvent } from "react-use"
 import { atom, useAtom, useSetAtom } from "jotai"
 import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/ExtensionMessage"
@@ -50,11 +50,14 @@ fpjsKeyAtom.debugLabel = "fpjsKey"
 const currentTaskIdAtom = atom<string | undefined>(undefined)
 currentTaskIdAtom.debugLabel = "currentTask"
 
-const experimentalTerminalAtom = atom(false)
-experimentalTerminalAtom.debugLabel = "experimentalTerminal"
+const autoCloseTerminalAtom = atom(false)
+autoCloseTerminalAtom.debugLabel = "autoCloseTerminal"
 
 const useUdiffAtom = atom(false)
 useUdiffAtom.debugLabel = "useUdiff"
+
+const skipWriteAnimationAtom = atom(false)
+skipWriteAnimationAtom.debugLabel = "skipWriteAnimation"
 
 const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	const currentTaskId = get(currentTaskIdAtom)
@@ -76,9 +79,10 @@ export const extensionStateAtom = atom((get) => ({
 	maxRequestsPerTask: get(maxRequestsPerTaskAtom),
 	customInstructions: get(customInstructionsAtom),
 	fingerprint: get(fingerprintAtom),
+	skipWriteAnimation: get(skipWriteAnimationAtom),
 	technicalBackground: get(technicalBackgroundAtom),
 	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
-	experimentalTerminal: get(experimentalTerminalAtom),
+	autoCloseTerminal: get(autoCloseTerminalAtom),
 	fpjsKey: get(fpjsKeyAtom),
 	extensionName: get(extensionNameAtom),
 	themeName: get(themeNameAtom),
@@ -103,12 +107,13 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setCustomInstructions = useSetAtom(customInstructionsAtom)
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setUser = useSetAtom(userAtom)
+	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
 	const setThemeName = useSetAtom(themeNameAtom)
 	const setCurrentIdTask = useSetAtom(currentTaskIdAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setFingerprint = useSetAtom(fingerprintAtom)
-	const setexperimentalTerminal = useSetAtom(experimentalTerminalAtom)
+	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setUriScheme = useSetAtom(uriSchemeAtom)
 	const setDidHydrateState = useSetAtom(didHydrateStateAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
@@ -133,9 +138,10 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setMaxRequestsPerTask(message.state.maxRequestsPerTask)
 			setCustomInstructions(message.state.customInstructions)
 			setAlwaysAllowReadOnly(!!message.state.alwaysAllowReadOnly)
-			setexperimentalTerminal(!!message.state.experimentalTerminal)
+			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
 			setUser(message.state.user)
 			setExtensionName(message.state.extensionName)
+			setSkipWriteAnimation(!!message.state.skipWriteAnimation)
 			setAlwaysAllowWriteOnly(!!message.state.alwaysAllowWriteOnly)
 			setDidHydrateState(true)
 			setUseUdiff(!!message.state.useUdiff)
@@ -173,8 +179,9 @@ export const useExtensionState = () => {
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
+	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
-	const setExperimentalTerminal = useSetAtom(experimentalTerminalAtom)
+	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 
@@ -183,8 +190,9 @@ export const useExtensionState = () => {
 		setApiConfiguration,
 		setTechnicalBackground,
 		setMaxRequestsPerTask,
+		setSkipWriteAnimation,
 		setUseUdiff,
-		setExperimentalTerminal,
+		setAutoCloseTerminal,
 		setCustomInstructions,
 		setAlwaysAllowWriteOnly,
 		setCreativeMode,

@@ -138,6 +138,10 @@ export class AmplitudeTracker {
 		this.track("TrialOfferView")
 	}
 
+	public offerwallView(): void {
+		this.track("OfferwallView")
+	}
+
 	public trialOfferStart(): void {
 		this.track("TrialOfferStart")
 	}
@@ -183,7 +187,7 @@ export class AmplitudeTracker {
 
 	private ensureInitialized(): void {
 		if (!this.initialized) {
-			throw new Error("AmplitudeTracker is not initialized. Call initialize() first.")
+			// throw new Error("AmplitudeTracker is not initialized. Call initialize() first.")
 		}
 	}
 

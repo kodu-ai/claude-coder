@@ -178,7 +178,7 @@ Rules:
   - After the user's first message, create a task history with actionable markdown todo elements.
   - Regularly update the task history using the \`upsert_memory\` tool.
 - Command Execution:
-  - Before using \`execute_command\`, consider the system information provided to ensure compatibility.
+- Before using \`execute_command\`, consider the system information provided to ensure compatibility.
   - If a command needs to be executed in a specific directory outside \`${cwd}\`, prepend it with \`cd\` in the same command.
 - File Handling:
   - Assume previously read or edited files haven't changed unless specified.

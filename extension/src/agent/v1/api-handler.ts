@@ -1,8 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
-import { API_RETRY_DELAY } from "./constants"
-import { tools } from "./tools/tools"
 import { UserContent } from "./types"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { truncateHalfConversation } from "../../utils/context-management"
@@ -19,6 +17,7 @@ import delay from "delay"
 import { BASE_SYSTEM_PROMPT } from "./prompts/base-system"
 import { getCwd } from "./utils"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
+import { AxiosError } from "axios"
 
 /**
  *
@@ -66,7 +65,6 @@ export function findStringDifferences(str1: string, str2: string): Difference[] 
 	return differences
 }
 
-var systemPromptMsgPrev = ""
 export class ApiManager {
 	private api: ApiHandler
 	private customInstructions?: string
@@ -107,7 +105,6 @@ export class ApiManager {
 		const technicalBackground =
 			(await this.providerRef.deref()?.getStateManager()?.getState())?.technicalBackground ?? "no-technical"
 		let systemPrompt = await SYSTEM_PROMPT()
-		let tools = baseTools
 		systemPrompt += `
 		===
 USER PERSONALIZED INSTRUCTIONS
@@ -163,9 +160,9 @@ ${this.customInstructions.trim()}
 		} else {
 			// reverse claude messages to find the last message that is typeof v1 and has apiMetrics
 			const reversedClaudeMessages = claudeMessages?.slice().reverse()
-			const lastV1Message = reversedClaudeMessages?.find((m) => isV1ClaudeMessage(m) && m.apiMetrics)
+			const lastV1Message = reversedClaudeMessages?.find((m) => isV1ClaudeMessage(m) && m?.apiMetrics)
 			if (lastV1Message) {
-				apiMetrics = (lastV1Message as V1ClaudeMessage).apiMetrics!
+				apiMetrics = (lastV1Message as V1ClaudeMessage)?.apiMetrics!
 			}
 		}
 
@@ -245,6 +242,12 @@ ${this.customInstructions.trim()}
 			if (error instanceof KoduError) {
 				console.error("KODU API request failed", error)
 			}
+			if (error instanceof AxiosError) {
+				throw new KoduError({
+					code: error.response?.status || 500,
+				})
+			}
+
 			throw error
 		}
 	}

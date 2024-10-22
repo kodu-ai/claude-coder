@@ -3,7 +3,7 @@ export type ApiProvider = "anthropic" | "openrouter" | "bedrock" | "vertex"
 export interface ApiHandlerOptions {
 	koduApiKey?: string
 	koduEmail?: string
-	apiModelId?: ApiModelId
+	apiModelId?: KoduModelId
 	apiKey?: string // anthropic
 	openRouterApiKey?: string
 	awsAccessKey?: string
@@ -30,7 +30,7 @@ export interface ModelInfo {
 	cacheReadsPrice?: number
 }
 
-export type ApiModelId = AnthropicModelId | OpenRouterModelId | BedrockModelId | VertexModelId | KoduModelId
+export type ApiModelId = KoduModelId
 
 // Anthropic
 // https://docs.anthropic.com/en/docs/about-claude/models
@@ -56,14 +56,6 @@ export const anthropicModels = {
 		outputPrice: 75.0,
 		cacheWritesPrice: 18.75,
 		cacheReadsPrice: 1.5,
-	},
-	"claude-3-sonnet-20240229": {
-		maxTokens: 4096,
-		contextWindow: 200_000,
-		supportsImages: true,
-		supportsPromptCache: false,
-		inputPrice: 3.0,
-		outputPrice: 15.0,
 	},
 	"claude-3-haiku-20240307": {
 		maxTokens: 4096,
@@ -299,3 +291,4 @@ export const koduDefaultModelId: KoduModelId = "claude-3-5-sonnet-20240620"
 export const koduModels = {
 	...anthropicModels,
 } as const satisfies Record<string, ModelInfo>
+export type KoduModels = typeof koduModels
