@@ -7,70 +7,26 @@ import { arePathsEqual } from "../../utils/path-helpers"
 /*
 TerminalManager:
 - Creates/reuses terminals
-- Runs commands via runCommand(), returning a TerminalProcess
+- Now supports multiple dev servers
+- Assigns names to terminals for identification
+- Runs commands via runCommand(), returning a TerminalProcessResultPromise
 - Handles shell integration events
 
 TerminalProcess extends EventEmitter and implements Promise:
 - Emits 'line' events with output while promise is pending
 - process.continue() resolves promise and stops event emission
 - Allows real-time output handling or background execution
+- Keeps track of output, supports retrieving outputs, including partial outputs
+- Supports tracking retrieved/unretrieved outputs
+- Remembers terminal output even after retrieval
 
-getUnretrievedOutput() fetches latest output for ongoing commands
-
-Enables flexible command execution:
-- Await for completion
-- Listen to real-time events
-- Continue execution in background
-- Retrieve missed output later
-
-Notes:
-- it turns out some shellIntegration APIs are available on cursor, although not on older versions of vscode
-- "By default, the shell integration script should automatically activate on supported shells launched from VS Code."
-Supported shells:
-Linux/macOS: bash, fish, pwsh, zsh
-Windows: pwsh
-
-
-Example:
-
-const terminalManager = new TerminalManager(context);
-
-// Run a command
-const process = terminalManager.runCommand('npm install', '/path/to/project');
-
-process.on('line', (line) => {
-    console.log(line);
-});
-
-// To wait for the process to complete naturally:
-await process;
-
-// Or to continue execution even if the command is still running:
-process.continue();
-
-// Later, if you need to get the unretrieved output:
-const unretrievedOutput = terminalManager.getUnretrievedOutput(terminalId);
-console.log('Unretrieved output:', unretrievedOutput);
-
-Resources:
-- https://github.com/microsoft/vscode/issues/226655
-- https://code.visualstudio.com/updates/v1_93#_terminal-shell-integration-api
-- https://code.visualstudio.com/docs/terminal/shell-integration
-- https://code.visualstudio.com/api/references/vscode-api#Terminal
-- https://github.com/microsoft/vscode-extension-samples/blob/main/terminal-sample/src/extension.ts
-- https://github.com/microsoft/vscode-extension-samples/blob/main/shell-integration-sample/src/extension.ts
+Enhancements:
+- Improved output parsing to handle different shell prompts and themes
+- Robust handling of multiple terminals
+- Added option to auto-close terminal after command execution
 */
 
-/*
-The new shellIntegration API gives us access to terminal command execution output handling.
-However, we don't update our VSCode type definitions or engine requirements to maintain compatibility
-with older VSCode versions. Users on older versions will automatically fall back to using sendText
-for terminal command execution.
-Interestingly, some environments like Cursor enable these APIs even without the latest VSCode engine.
-This approach allows us to leverage advanced features when available while ensuring broad compatibility.
-*/
 declare module "vscode" {
-	// https://github.com/microsoft/vscode/blob/f0417069c62e20f3667506f4b7e53ca0004b4e3e/src/vscode-dts/vscode.d.ts#L7442
 	interface Terminal {
 		// @ts-expect-error
 		shellIntegration?: {
@@ -80,7 +36,6 @@ declare module "vscode" {
 			}
 		}
 	}
-	// https://github.com/microsoft/vscode/blob/f0417069c62e20f3667506f4b7e53ca0004b4e3e/src/vscode-dts/vscode.d.ts#L10794
 	interface Window {
 		onDidStartTerminalShellExecution?: (
 			listener: (e: any) => any,
@@ -95,24 +50,31 @@ export interface TerminalInfo {
 	busy: boolean
 	lastCommand: string
 	id: number
+	name?: string // Added optional name property
 }
 
-// Although vscode.window.terminals provides a list of all open terminals, there's no way to know whether they're busy or not (exitStatus does not provide useful information for most commands). In order to prevent creating too many terminals, we need to keep track of terminals through the life of the extension, as well as session specific terminals for the life of a task (to get latest unretrieved output).
-// Since we have promises keeping track of terminal processes, we get the added benefit of keep track of busy terminals even after a task is closed.
+export interface DevServerInfo {
+	terminalInfo: TerminalInfo
+	url: string | null
+}
+
+// TerminalRegistry class to manage terminals
 export class TerminalRegistry {
 	private static terminals: TerminalInfo[] = []
 	private static nextTerminalId = 1
+	private static devServers: DevServerInfo[] = [] // Now supports multiple dev servers
 
-	static createTerminal(cwd?: string | vscode.Uri | undefined): TerminalInfo {
+	static createTerminal(cwd?: string | vscode.Uri | undefined, name?: string): TerminalInfo {
 		const terminal = vscode.window.createTerminal({
 			cwd,
-			name: "Kodu.AI",
+			name: name || "Kodu.AI",
 		})
 		const newInfo: TerminalInfo = {
 			terminal,
 			busy: false,
 			lastCommand: "",
 			id: this.nextTerminalId++,
+			name,
 		}
 		this.terminals.push(newInfo)
 		return newInfo
@@ -122,6 +84,16 @@ export class TerminalRegistry {
 		const terminalInfo = this.terminals.find((t) => t.id === id)
 		if (terminalInfo && this.isTerminalClosed(terminalInfo.terminal)) {
 			this.removeTerminal(id)
+			return undefined
+		}
+		return terminalInfo
+	}
+
+	// Added method to get terminal by name
+	static getTerminalByName(name: string): TerminalInfo | undefined {
+		const terminalInfo = this.terminals.find((t) => t.name === name)
+		if (terminalInfo && this.isTerminalClosed(terminalInfo.terminal)) {
+			this.removeTerminal(terminalInfo.id)
 			return undefined
 		}
 		return terminalInfo
@@ -151,6 +123,8 @@ export class TerminalRegistry {
 
 	static removeTerminal(id: number) {
 		this.terminals = this.terminals.filter((t) => t.id !== id)
+		// Remove from devServers if exists
+		this.devServers = this.devServers.filter((ds) => ds.terminalInfo.id !== id)
 	}
 
 	static getAllTerminals(): TerminalInfo[] {
@@ -158,9 +132,65 @@ export class TerminalRegistry {
 		return this.terminals
 	}
 
-	// The exit status of the terminal will be undefined while the terminal is active. (This value is set when onDidCloseTerminal is fired.)
+	// The exit status of the terminal will be undefined while the terminal is active.
 	private static isTerminalClosed(terminal: vscode.Terminal): boolean {
 		return terminal.exitStatus !== undefined
+	}
+
+	// Dev server management methods
+	static addDevServer(terminalInfo: TerminalInfo, url: string | null = null) {
+		this.devServers.push({ terminalInfo, url })
+	}
+
+	static updateDevServerUrl(terminalId: number, url: string) {
+		const devServer = this.devServers.find((ds) => ds.terminalInfo.id === terminalId)
+		if (devServer) {
+			devServer.url = url
+		}
+	}
+
+	static getDevServer(terminalId: number): DevServerInfo | undefined {
+		return this.devServers.find((ds) => ds.terminalInfo.id === terminalId)
+	}
+
+	static getDevServerByName(name: string): DevServerInfo | undefined {
+		const terminalInfo = this.getTerminalByName(name)
+		if (terminalInfo) {
+			return this.getDevServer(terminalInfo.id)
+		}
+		return undefined
+	}
+
+	static getAllDevServers(): DevServerInfo[] {
+		return this.devServers
+	}
+
+	static isDevServerRunning(terminalId: number): boolean {
+		const devServer = this.getDevServer(terminalId)
+		return !!devServer && !this.isTerminalClosed(devServer.terminalInfo.terminal)
+	}
+
+	static isDevServerRunningByName(name: string): boolean {
+		const terminalInfo = this.getTerminalByName(name)
+		if (terminalInfo) {
+			return this.isDevServerRunning(terminalInfo.id)
+		}
+		return false
+	}
+
+	static removeDevServer(terminalId: number) {
+		this.devServers = this.devServers.filter((ds) => ds.terminalInfo.id !== terminalId)
+	}
+
+	static clearDevServer(terminalId: number) {
+		this.closeTerminal(terminalId)
+		this.removeDevServer(terminalId)
+	}
+	static clearAllDevServers() {
+		for (const devServer of this.devServers) {
+			this.closeTerminal(devServer.terminalInfo.id)
+		}
+		this.devServers = []
 	}
 }
 
@@ -195,7 +225,11 @@ export class TerminalManager {
 		this.disposables.push(closeDisposable)
 	}
 
-	runCommand(terminalInfo: TerminalInfo, command: string): TerminalProcessResultPromise {
+	runCommand(
+		terminalInfo: TerminalInfo,
+		command: string,
+		options?: { autoClose?: boolean }
+	): TerminalProcessResultPromise {
 		terminalInfo.busy = true
 		terminalInfo.lastCommand = command
 		const process = new TerminalProcess()
@@ -203,15 +237,13 @@ export class TerminalManager {
 
 		process.once("completed", () => {
 			terminalInfo.busy = false
+			if (options?.autoClose) {
+				this.closeTerminal(terminalInfo.id)
+			}
 		})
 
-		// if shell integration is not available, remove terminal so it does not get reused as it may be running a long-running process
 		process.once("no_shell_integration", () => {
-			console.log(`no_shell_integration received for terminal ${terminalInfo.id}`)
-			// Remove the terminal so we can't reuse it (in case it's running a long-running process)
-			TerminalRegistry.removeTerminal(terminalInfo.id)
-			this.terminalIds.delete(terminalInfo.id)
-			this.processes.delete(terminalInfo.id)
+			console.log(`No shell integration available for terminal ${terminalInfo.id}`)
 		})
 
 		const promise = new Promise<void>((resolve, reject) => {
@@ -224,17 +256,22 @@ export class TerminalManager {
 			})
 		})
 
-		// if shell integration is already active, run the command immediately
 		if (terminalInfo.terminal.shellIntegration) {
 			process.waitForShellIntegration = false
 			process.run(terminalInfo.terminal, command)
 		} else {
-			// docs recommend waiting 3s for shell integration to activate
-			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 4000 }).finally(() => {
+			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 10000 }).finally(() => {
 				const existingProcess = this.processes.get(terminalInfo.id)
 				if (existingProcess && existingProcess.waitForShellIntegration) {
 					existingProcess.waitForShellIntegration = false
-					existingProcess.run(terminalInfo.terminal, command)
+					if (terminalInfo.terminal.shellIntegration) {
+						existingProcess.run(terminalInfo.terminal, command)
+					} else {
+						terminalInfo.terminal.sendText(command, true)
+						existingProcess.emit("completed")
+						existingProcess.emit("continue")
+						existingProcess.emit("no_shell_integration")
+					}
 				}
 			})
 		}
@@ -242,41 +279,60 @@ export class TerminalManager {
 		return mergePromise(process, promise)
 	}
 
-	async getOrCreateTerminal(cwd: string): Promise<TerminalInfo> {
+	async getOrCreateTerminal(cwd: string, name?: string): Promise<TerminalInfo> {
 		// Find available terminal from our pool first (created for this task)
 		const availableTerminal = TerminalRegistry.getAllTerminals().find((t) => {
 			if (t.busy) {
 				return false
 			}
-			const terminalCwd = t.terminal.shellIntegration?.cwd // one of cline's commands could have changed the cwd of the terminal
+			if (name && t.name === name) {
+				return true
+			}
+			let terminalCwd = t.terminal.shellIntegration?.cwd // One of cline's commands could have changed the cwd of the terminal
 			if (!terminalCwd) {
 				return false
 			}
-			return arePathsEqual(vscode.Uri.file(cwd).fsPath, terminalCwd.fsPath)
+			return arePathsEqual(vscode.Uri.file(cwd).fsPath, terminalCwd?.fsPath)
 		})
 		if (availableTerminal) {
 			this.terminalIds.add(availableTerminal.id)
 			return availableTerminal
 		}
 
-		const newTerminalInfo = TerminalRegistry.createTerminal(cwd)
+		const newTerminalInfo = TerminalRegistry.createTerminal(cwd, name)
 		this.terminalIds.add(newTerminalInfo.id)
 		return newTerminalInfo
 	}
 
-	getTerminals(busy: boolean): { id: number; lastCommand: string }[] {
+	getTerminals(busy: boolean): { id: number; name?: string; lastCommand: string }[] {
 		return Array.from(this.terminalIds)
 			.map((id) => TerminalRegistry.getTerminal(id))
 			.filter((t): t is TerminalInfo => t !== undefined && t.busy === busy)
-			.map((t) => ({ id: t.id, lastCommand: t.lastCommand }))
+			.map((t) => ({ id: t.id, name: t.name, lastCommand: t.lastCommand }))
 	}
 
-	getUnretrievedOutput(terminalId: number): string {
+	getUnretrievedOutput(terminalId: number, updateRetrievedIndex: boolean = true): string {
 		if (!this.terminalIds.has(terminalId)) {
 			return ""
 		}
 		const process = this.processes.get(terminalId)
-		return process ? process.getUnretrievedOutput() : ""
+		return process ? process.getUnretrievedOutput(updateRetrievedIndex) : ""
+	}
+
+	getPartialOutput(terminalId: number, fromLineIndex: number, toLineIndex?: number): string {
+		if (!this.terminalIds.has(terminalId)) {
+			return ""
+		}
+		const process = this.processes.get(terminalId)
+		return process ? process.getOutput(fromLineIndex, toLineIndex).join("\n") : ""
+	}
+
+	getFullOutput(terminalId: number): string {
+		if (!this.terminalIds.has(terminalId)) {
+			return ""
+		}
+		const process = this.processes.get(terminalId)
+		return process ? process.getFullOutput().join("\n") : ""
 	}
 
 	isProcessHot(terminalId: number): boolean {
@@ -294,11 +350,22 @@ export class TerminalManager {
 			return false
 		}
 
+	/**
+	 * Closes the terminal with the given ID.
+	 * @param id The unique ID of the terminal to close.
+	 * @returns True if the terminal was found and closed, false otherwise.
+	 */
+	closeTerminal(id: number): boolean {
+		if (!this.terminalIds.has(id)) {
+			console.warn(`Terminal with ID ${id} does not exist or is already closed.`)
+			return false
+		}
+
 		const closed = TerminalRegistry.closeTerminal(id)
 		if (closed) {
-			// we don't delete the id so that we can keep track of it in case we need to get unretrieved output
-			// this.terminalIds.delete(id)
-			// this.processes.delete(id)
+			// Remove the terminal from tracking
+			this.terminalIds.delete(id)
+			this.processes.delete(id)
 			console.log(`Terminal with ID ${id} has been closed.`)
 		} else {
 			console.warn(`Failed to close terminal with ID ${id}. It may have already been disposed.`)
@@ -315,10 +382,8 @@ export class TerminalManager {
 			this.closeTerminal(id)
 		}
 	}
+
 	disposeAll() {
-		// for (const info of this.terminals) {
-		// 	//info.terminal.dispose() // dont want to dispose terminals when task is aborted
-		// }
 		this.closeAllTerminals()
 		this.terminalIds.clear()
 		this.processes.clear()
@@ -335,200 +400,104 @@ interface TerminalProcessEvents {
 	no_shell_integration: []
 }
 
-// how long to wait after a process outputs anything before we consider it "cool" again
-const PROCESS_HOT_TIMEOUT_NORMAL = 2_000
-const PROCESS_HOT_TIMEOUT_COMPILING = 15_000
 export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 	waitForShellIntegration: boolean = true
 	private isListening: boolean = true
 	private buffer: string = ""
-	private fullOutput: string = ""
-	private lastRetrievedIndex: number = 0
+	private fullOutput: string[] = []
+	private lastRetrievedLineIndex: number = 0
 	isHot: boolean = false
-	private hotTimer: NodeJS.Timeout | null = null
-
-	// constructor() {
-	// 	super()
 
 	async run(terminal: vscode.Terminal, command: string) {
-		if (terminal.shellIntegration && terminal.shellIntegration.executeCommand) {
-			const execution = terminal.shellIntegration.executeCommand(command)
-			const stream = execution.read()
-			// todo: need to handle errors
-			let isFirstChunk = true
-			let didOutputNonCommand = false
-			let didEmitEmptyLine = false
-			for await (let data of stream) {
-				// 1. Process chunk and remove artifacts
-				if (isFirstChunk) {
-					/*
-					The first chunk we get from this stream needs to be processed to be more human readable, ie remove vscode's custom escape sequences and identifiers, removing duplicate first char bug, etc.
-					*/
+		this.isHot = true // Process is now running
+		try {
+			if (terminal.shellIntegration && terminal.shellIntegration.executeCommand) {
+				const execution = terminal.shellIntegration.executeCommand(command)
+				const stream = execution.read()
+				let isFirstChunk = true
+				let didEmitEmptyLine = false
 
-					// bug where sometimes the command output makes its way into vscode shell integration metadata
-					/*
-					]633 is a custom sequence number used by VSCode shell integration:
-					- OSC 633 ; A ST - Mark prompt start
-					- OSC 633 ; B ST - Mark prompt end
-					- OSC 633 ; C ST - Mark pre-execution (start of command output)
-					- OSC 633 ; D [; <exitcode>] ST - Mark execution finished with optional exit code
-					- OSC 633 ; E ; <commandline> [; <nonce>] ST - Explicitly set command line with optional nonce
-					*/
-					// if you print this data you might see something like "eecho hello worldo hello world;5ba85d14-e92a-40c4-b2fd-71525581eeb0]633;C" but this is actually just a bunch of escape sequences, ignore up to the first ;C
-					/* ddateb15026-6a64-40db-b21f-2a621a9830f0]633;CTue Sep 17 06:37:04 EDT 2024 % ]633;D;0]633;P;Cwd=/Users/saoud/Repositories/test */
-					// Gets output between ]633;C (command start) and ]633;D (command end)
-					const outputBetweenSequences = this.removeLastLineArtifacts(
-						data.match(/\]633;C([\s\S]*?)\]633;D/)?.[1] || ""
-					).trim()
+				for await (let data of stream) {
+					// Strip ANSI escape codes and VSCode shell integration sequences
+					data = this.cleanDataChunk(data)
 
-					// Once we've retrieved any potential output between sequences, we can remove everything up to end of the last sequence
-					// https://code.visualstudio.com/docs/terminal/shell-integration#_vs-code-custom-sequences-osc-633-st
-					const vscodeSequenceRegex = /\x1b\]633;.[^\x07]*\x07/g
-					const lastMatch = [...data.matchAll(vscodeSequenceRegex)].pop()
-					if (lastMatch && lastMatch.index !== undefined) {
-						data = data.slice(lastMatch.index + lastMatch[0].length)
+					// If after cleaning, data is empty, continue to the next chunk
+					if (!data.trim()) {
+						continue
 					}
-					// Place output back after removing vscode sequences
-					if (outputBetweenSequences) {
-						data = outputBetweenSequences + "\n" + data
-					}
-					// remove ansi
-					data = stripAnsi(data)
-					// Split data by newlines
-					let lines = data ? data.split("\n") : []
-					// Remove non-human readable characters from the first line
-					if (lines.length > 0) {
-						lines[0] = lines[0].replace(/[^\x20-\x7E]/g, "")
-					}
-					// Check if first two characters are the same, if so remove the first character
-					if (lines.length > 0 && lines[0].length >= 2 && lines[0][0] === lines[0][1]) {
-						lines[0] = lines[0].slice(1)
-					}
-					// Remove everything up to the first alphanumeric character for first two lines
-					if (lines.length > 0) {
-						lines[0] = lines[0].replace(/^[^a-zA-Z0-9]*/, "")
-					}
-					if (lines.length > 1) {
-						lines[1] = lines[1].replace(/^[^a-zA-Z0-9]*/, "")
-					}
-					// Join lines back
-					data = lines.join("\n")
+
+					// Process the data chunk
+					this.processDataChunk(data, command, isFirstChunk)
 					isFirstChunk = false
-				} else {
-					data = stripAnsi(data)
-				}
 
-				// first few chunks could be the command being echoed back, so we must ignore
-				// note this means that 'echo' commands wont work
-				if (!didOutputNonCommand) {
-					const lines = data.split("\n")
-					for (let i = 0; i < lines.length; i++) {
-						if (command.includes(lines[i].trim())) {
-							lines.splice(i, 1)
-							i-- // Adjust index after removal
-						} else {
-							didOutputNonCommand = true
-							break
-						}
+					// Emit an empty line to indicate the start of command output
+					if (!didEmitEmptyLine && this.fullOutput.length === 0) {
+						this.emit("line", "")
+						didEmitEmptyLine = true
 					}
-					data = lines.join("\n")
 				}
 
-				// FIXME: right now it seems that data chunks returned to us from the shell integration stream contains random commas, which from what I can tell is not the expected behavior. There has to be a better solution here than just removing all commas.
-				data = data.replace(/,/g, "")
-
-				// 2. Set isHot depending on the command
-				// Set to hot to stall API requests until terminal is cool again
-				this.isHot = true
-				if (this.hotTimer) {
-					clearTimeout(this.hotTimer)
-				}
-				// these markers indicate the command is some kind of local dev server recompiling the app, which we want to wait for output of before sending request to cline
-				const compilingMarkers = ["compiling", "building", "bundling", "transpiling", "generating", "starting"]
-				const markerNullifiers = [
-					"compiled",
-					"success",
-					"finish",
-					"complete",
-					"succeed",
-					"done",
-					"end",
-					"stop",
-					"exit",
-					"terminate",
-					"error",
-					"fail",
-				]
-				const isCompiling =
-					compilingMarkers.some((marker) => data.toLowerCase().includes(marker.toLowerCase())) &&
-					!markerNullifiers.some((nullifier) => data.toLowerCase().includes(nullifier.toLowerCase()))
-				this.hotTimer = setTimeout(
-					() => {
-						this.isHot = false
-					},
-					isCompiling ? PROCESS_HOT_TIMEOUT_COMPILING : PROCESS_HOT_TIMEOUT_NORMAL
-				)
-
-				// For non-immediately returning commands we want to show loading spinner right away but this wouldnt happen until it emits a line break, so as soon as we get any output we emit "" to let webview know to show spinner
-				if (!didEmitEmptyLine && !this.fullOutput && data) {
-					this.emit("line", "") // empty line to indicate start of command output stream
-					didEmitEmptyLine = true
-				}
-
-				this.fullOutput += data
-				if (this.isListening) {
-					this.emitIfEol(data)
-					this.lastRetrievedIndex = this.fullOutput.length - this.buffer.length
-				}
+				this.emitRemainingBufferIfListening()
+			} else {
+				terminal.sendText(command, true)
+				this.emit("no_shell_integration")
 			}
-
+		} catch (error) {
+			this.emit("error", error)
+			console.error(`Error in terminal process:`, error)
+		} finally {
+			this.isHot = false // Process has completed
 			this.emitRemainingBufferIfListening()
-
-			// for now we don't want this delaying requests since we don't send diagnostics automatically anymore (previous: "even though the command is finished, we still want to consider it 'hot' in case so that api request stalls to let diagnostics catch up")
-			if (this.hotTimer) {
-				clearTimeout(this.hotTimer)
-			}
-			this.isHot = false
-
+			this.isListening = false
 			this.emit("completed")
 			this.emit("continue")
-		} else {
-			terminal.sendText(command, true)
-			// For terminals without shell integration, we can't know when the command completes
-			// So we'll just emit the continue event after a delay
-			this.emit("completed")
-			this.emit("continue")
-			this.emit("no_shell_integration")
-			// setTimeout(() => {
-			// 	console.log(`Emitting continue after delay for terminal`)
-			// 	// can't emit completed since we don't if the command actually completed, it could still be running server
-			// }, 500) // Adjust this delay as needed
 		}
 	}
 
-	// Inspired by https://github.com/sindresorhus/execa/blob/main/lib/transform/split.js
+	private cleanDataChunk(data: string): string {
+		// Remove VSCode shell integration sequences
+		data = data.replace(/\x1b\]633;.*?\x07/g, "")
+
+		// Remove any remaining ANSI escape codes
+		data = stripAnsi(data)
+
+		return data
+	}
+
+	private processDataChunk(data: string, command: string, isFirstChunk: boolean) {
+		// Remove echoed command from the output
+		if (isFirstChunk) {
+			const lines = data.split("\n")
+			const commandIndex = lines.findIndex((line) => line.trim() === command.trim())
+			if (commandIndex !== -1) {
+				lines.splice(commandIndex, 1)
+			}
+			data = lines.join("\n")
+		}
+
+		// Emit lines
+		this.emitIfEol(data)
+	}
+
 	private emitIfEol(chunk: string) {
 		this.buffer += chunk
 		let lineEndIndex: number
 		while ((lineEndIndex = this.buffer.indexOf("\n")) !== -1) {
-			let line = this.buffer.slice(0, lineEndIndex).trimEnd() // removes trailing \r
-			// Remove \r if present (for Windows-style line endings)
-			// if (line.endsWith("\r")) {
-			// 	line = line.slice(0, -1)
-			// }
+			let line = this.buffer.slice(0, lineEndIndex).trimEnd() // Removes trailing \r
 			this.emit("line", line)
+			this.fullOutput.push(line)
 			this.buffer = this.buffer.slice(lineEndIndex + 1)
 		}
 	}
 
 	private emitRemainingBufferIfListening() {
 		if (this.buffer && this.isListening) {
-			const remainingBuffer = this.removeLastLineArtifacts(this.buffer)
+			const remainingBuffer = this.buffer
 			if (remainingBuffer) {
 				this.emit("line", remainingBuffer)
+				this.fullOutput.push(remainingBuffer)
 			}
 			this.buffer = ""
-			this.lastRetrievedIndex = this.fullOutput.length
 		}
 	}
 
@@ -539,28 +508,26 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 		this.emit("continue")
 	}
 
-	getUnretrievedOutput(): string {
-		const unretrieved = this.fullOutput.slice(this.lastRetrievedIndex)
-		this.lastRetrievedIndex = this.fullOutput.length
-		return this.removeLastLineArtifacts(unretrieved)
+	getUnretrievedOutput(updateRetrievedIndex: boolean = true): string {
+		const unretrievedLines = this.fullOutput.slice(this.lastRetrievedLineIndex)
+		if (updateRetrievedIndex) {
+			this.lastRetrievedLineIndex = this.fullOutput.length
+		}
+		return unretrievedLines.join("\n")
 	}
 
-	// some processing to remove artifacts like '%' at the end of the buffer (it seems that since vsode uses % at the beginning of newlines in terminal, it makes its way into the stream)
-	// This modification will remove '%', '$', '#', or '>' followed by optional whitespace
-	removeLastLineArtifacts(output: string) {
-		const lines = output.trimEnd().split("\n")
-		if (lines.length > 0) {
-			const lastLine = lines[lines.length - 1]
-			// Remove prompt characters and trailing whitespace from the last line
-			lines[lines.length - 1] = lastLine.replace(/[%$#>]\s*$/, "")
-		}
-		return lines.join("\n").trimEnd()
+	getOutput(fromLineIndex: number = 0, toLineIndex?: number): string[] {
+		return this.fullOutput.slice(fromLineIndex, toLineIndex)
+	}
+
+	getFullOutput(): string[] {
+		return this.fullOutput.slice()
 	}
 }
 
 export type TerminalProcessResultPromise = TerminalProcess & Promise<void>
 
-// Similar to execa's ResultPromise, this lets us create a mixin of both a TerminalProcess and a Promise: https://github.com/sindresorhus/execa/blob/main/lib/methods/promise.js
+// Merge TerminalProcess and Promise into a single object
 export function mergePromise(process: TerminalProcess, promise: Promise<void>): TerminalProcessResultPromise {
 	const nativePromisePrototype = (async () => {})().constructor.prototype
 	const descriptors = ["then", "catch", "finally"].map(
@@ -574,18 +541,3 @@ export function mergePromise(process: TerminalProcess, promise: Promise<void>): 
 	}
 	return process as TerminalProcessResultPromise
 }
-
-// // Similar to execa's ResultPromise, this lets us create a mixin of both a TerminalProcess and a Promise: https://github.com/sindresorhus/execa/blob/main/lib/methods/promise.js
-// function mergePromise(process: TerminalProcess, promise: Promise<void>): TerminalProcessResultPromise {
-// 	const nativePromisePrototype = (async () => {})().constructor.prototype
-// 	const descriptors = ["then", "catch", "finally"].map(
-// 		(property) => [property, Reflect.getOwnPropertyDescriptor(nativePromisePrototype, property)] as const
-// 	)
-// 	for (const [property, descriptor] of descriptors) {
-// 		if (descriptor) {
-// 			const value = descriptor.value.bind(promise)
-// 			Reflect.defineProperty(process, property, { ...descriptor, value })
-// 		}
-// 	}
-// 	return process as TerminalProcessResultPromise
-// }

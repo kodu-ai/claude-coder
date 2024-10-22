@@ -84,6 +84,7 @@ export interface ExtensionState {
 	version: string
 	maxRequestsPerTask?: number
 	lastShownAnnouncementId?: string
+	skipWriteAnimation?: boolean
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
 	technicalBackground?: "no-technical" | "technical" | "developer"
@@ -101,6 +102,7 @@ export interface ExtensionState {
 	claudeMessages: ClaudeMessage[]
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean
+	autoCloseTerminal: boolean
 	shouldShowKoduPromo: boolean
 	fingerprint?: string
 	summarizationThreshold?: number
@@ -175,6 +177,8 @@ export type ClaudeSay =
 	| "api_req_started"
 	| "api_req_finished"
 	| "text"
+	| "payment_required"
+	| "unauthorized"
 	| "completion_result"
 	| "user_feedback"
 	| "user_feedback_diff"

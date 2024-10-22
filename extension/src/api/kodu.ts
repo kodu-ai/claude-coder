@@ -97,7 +97,6 @@ export class KoduHandler implements ApiHandler {
 		}
 	}
 
-
 	async *createBaseMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
@@ -229,7 +228,6 @@ export class KoduHandler implements ApiHandler {
 		}
 	}
 
-
 	async *createMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
@@ -269,13 +267,6 @@ export class KoduHandler implements ApiHandler {
 			console.error(`Length difference: ${previousSystemPrompt.length - systemPrompt.length}`)
 		}
 		previousSystemPrompt = systemPrompt
-		// if (dotKoduFileContent) {
-		// 	system.push({
-		// 		text: dotKoduFileContent,
-		// 		type: "text",
-		// 		// cache_control: { type: "ephemeral" },
-		// 	})
-		// }
 		if (customInstructions && customInstructions.trim()) {
 			system.push({
 				text: customInstructions,
@@ -285,20 +276,16 @@ export class KoduHandler implements ApiHandler {
 		} else {
 			system[0].cache_control = { type: "ephemeral" }
 		}
-		// if (environmentDetails) {
-		// 	system.push({
-		// 		text: environmentDetails,
-		// 		type: "text",
-		// 	})
-		// }
-		/**
-		 * push it last to not break the cache
-		 */
-		// system.push({
-		// 	text: USER_TASK_HISTORY_PROMPT(userMemory),
-		// 	type: "text",
-		// 	cache_control: { type: "ephemeral" },
-		// })
+		system.push({
+			cache_control: {
+				type: "ephemeral",
+			},
+			text: environmentDetails ?? "No environment details provided",
+			type: "text",
+		})
+
+		// every 4 messages, we should add a critical message to the last user message and on the first user message
+		const lengthDivdedByFour = messages.length % 4 === 0 || messages.length === 1
 
 		switch (modelId) {
 			case "claude-3-5-sonnet-20240620":
@@ -317,28 +304,28 @@ export class KoduHandler implements ApiHandler {
 					system,
 					messages: healMessages(messages).map((message, index) => {
 						if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
-							if (index === lastUserMsgIndex && environmentDetails) {
-								// 								environmentDetails = `
-								// <critical_context>
-								// Write to file critical instructions:
-								// <write_to_file>
-								// YOU MUST NEVER TRUNCATE THE CONTENT OF A FILE WHEN USING THE write_to_file TOOL.
-								// ALWAYS PROVIDE THE COMPLETE CONTENT OF THE FILE IN YOUR RESPONSE.
-								// ALWAYS INCLUDE THE FULL CONTENT OF THE FILE, EVEN IF IT HASN'T BEEN MODIFIED.
-								// DOING SOMETHING LIKE THIS BREAKS THE TOOL'S FUNCTIONALITY:
-								// // ... (previous code remains unchanged)
-								// </write_to_file>
-								// environment details:
-								// ${environmentDetails}
-								// </critical_context>
-								// 								`
+							if (index === lastUserMsgIndex && lengthDivdedByFour) {
+								const criticalMsg = `<most_important_context>
+								If you want to run a server, you must use the server_runner_tool tool, do not use the execute_command tool to start a server.
+								SUPER CRITICAL YOU MUST NEVER FORGET THIS:
+								You shouldn't never call read_file again, unless you don't have the content of the file in the conversation history, if you called write_to_file, the content you sent in <write_to_file> is the latest, you should never call read_file again unless the content is gone from the conversation history.
+								- Before writing to a file you must first write the following questions and answers:
+								- Did i read the file before writing to it? (yes/no)
+								- Did i write to the file before? (yes/no)
+								- Did the user provide the content of the file? (yes/no)
+								- Do i have the last content of the file either from the user or from a previous read_file tool use or from write_to_file tool? Yes write_to_file | Yes read_file | Yes user provided | No i don't have the last content of the file
+								
+								Think about in your <thinking> tags and ask yourself the question: "Do I really need to read the file again?".
+								SUPER SUPER CRITICAL:
+								You should never truncate the content of a file, always return the complete content of the file in your, even if you didn't modify it.
+								</most_important_context>`
 								if (typeof message.content === "string") {
 									// add environment details to the last user message
 									return {
 										...message,
 										content: [
 											{
-												text: environmentDetails,
+												text: criticalMsg,
 												type: "text",
 											},
 											{
@@ -350,7 +337,7 @@ export class KoduHandler implements ApiHandler {
 									}
 								} else {
 									message.content.push({
-										text: environmentDetails,
+										text: criticalMsg,
 										type: "text",
 									})
 								}

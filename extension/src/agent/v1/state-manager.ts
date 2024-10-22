@@ -22,6 +22,9 @@ export class StateManager {
 	private _alwaysAllowWriteOnly: boolean
 	private _experimentalTerminal?: boolean
 	private _summarizationThreshold: number
+	private _autoCloseTerminal?: boolean
+	private _skipWriteAnimation?: boolean
+
 	constructor(options: KoduDevOptions) {
 		const {
 			provider,
@@ -34,6 +37,8 @@ export class StateManager {
 			creativeMode,
 			experimentalTerminal,
 			summarizationThreshold,
+			autoCloseTerminal,
+			skipWriteAnimation,
 		} = options
 		this._creativeMode = creativeMode ?? "normal"
 		this._providerRef = new WeakRef(provider)
@@ -45,6 +50,8 @@ export class StateManager {
 		this._experimentalTerminal = experimentalTerminal
 		this._summarizationThreshold = summarizationThreshold ?? 50
 
+		this._autoCloseTerminal = autoCloseTerminal
+		this._skipWriteAnimation = skipWriteAnimation
 		this._state = {
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
 			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
@@ -68,6 +75,10 @@ export class StateManager {
 	// Getter methods for read-only access
 	get state(): KoduDevState {
 		return this._state
+	}
+
+	get autoCloseTerminal(): boolean | undefined {
+		return this._autoCloseTerminal
 	}
 
 	get customInstructions(): string | undefined {
@@ -118,13 +129,40 @@ export class StateManager {
 		return this._alwaysAllowWriteOnly
 	}
 
+	get skipWriteAnimation(): boolean | undefined {
+		return this._skipWriteAnimation
+	}
+
 	// Methods to modify the properties (only accessible within the class)
 	public setState(newState: KoduDevState): void {
 		this._state = newState
 	}
 
+	public setSkipWriteAnimation(newValue: boolean | undefined) {
+		this._skipWriteAnimation = newValue
+	}
+
+	get historyErrors(): KoduDevState["historyErrors"] | undefined {
+		return this.state.historyErrors
+	}
+
+	set historyErrors(newErrors: KoduDevState["historyErrors"]) {
+		this.state.historyErrors = newErrors
+	}
+
+	public setHistoryErrorsEntry(key: string, value: NonNullable<KoduDevState["historyErrors"]>[string]): void {
+		if (!this.state.historyErrors) {
+			this.state.historyErrors = {}
+		}
+		this.state.historyErrors[key] = value
+	}
+
 	public getMessageById(messageId: number): ClaudeMessage | undefined {
 		return this.state.claudeMessages.find((msg) => msg.ts === messageId)
+	}
+
+	public setAutoCloseTerminal(newValue: boolean): void {
+		this._autoCloseTerminal = newValue
 	}
 
 	public setExperimentalTerminal(newValue: boolean): void {
@@ -237,6 +275,17 @@ export class StateManager {
 		})
 
 		return mappedApiHistory
+	}
+
+	public addErrorPath(errorPath: string): void {
+		// push a new key to the historyErrors object
+		if (!this.state.historyErrors) {
+			this.state.historyErrors = {}
+		}
+		this.state.historyErrors[errorPath] = {
+			lastCheckedAt: -1,
+			error: "",
+		}
 	}
 
 	async addToApiConversationHistory(message: Anthropic.MessageParam) {

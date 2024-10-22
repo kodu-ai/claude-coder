@@ -89,6 +89,16 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const isMessageRunning = useMemo(() => {
 		const lastMessage = messages.at(-1)
 		if (lastMessage && isV1ClaudeMessage(lastMessage)) {
+			const lastAsk = messages
+				.slice()
+				.reverse()
+				.find((message) => message.type === "ask") as V1ClaudeMessage | undefined
+			if (lastAsk && lastAsk.type === "ask" && lastAsk.ask === "tool") {
+				const tool = JSON.parse(lastAsk.text || "{}") as ChatTool
+				if (tool.approvalState === "pending" || tool.approvalState === "loading") {
+					return true
+				}
+			}
 			// find last say with api_req_started
 			const lastSay = messages
 				.slice()

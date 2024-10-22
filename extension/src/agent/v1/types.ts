@@ -21,6 +21,8 @@ export interface KoduDevOptions {
 	experimentalTerminal?: boolean
 	alwaysAllowWriteOnly?: boolean
 	summarizationThreshold?: number
+	skipWriteAnimation?: boolean
+	autoCloseTerminal?: boolean
 	creativeMode?: "creative" | "normal" | "deterministic"
 	task?: string
 	images?: string[]
@@ -40,6 +42,19 @@ export interface KoduDevState {
 	askResponseText?: string
 	isHistoryItem?: boolean
 	isHistoryItemResumed?: boolean
+	/**
+	 * the list of diagnostics errors for the current task
+	 */
+	historyErrors?: Record<
+		/**
+		 * the file path
+		 */
+		string,
+		{
+			lastCheckedAt: number
+			error: string
+		}
+	>
 	askResponseImages?: string[]
 	lastMessageTs?: number
 	executeCommandRunningProcess?: ResultPromise

@@ -1,17 +1,18 @@
-import { Anthropic } from '@anthropic-ai/sdk'
-import { ApiConfiguration, ApiHandler, buildApiHandler } from '../../api'
-import { ExtensionProvider } from '../../providers/claude-coder/ClaudeCoderProvider'
-import { KoduError, koduSSEResponse } from '../../shared/kodu'
-import { amplitudeTracker } from '../../utils/amplitude'
-import { BASE_SYSTEM_PROMPT } from './prompts/base-system'
+import { Anthropic } from "@anthropic-ai/sdk"
+import { AxiosError } from "axios"
+import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
+import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
+import { KoduError, koduSSEResponse } from "../../shared/kodu"
+import { amplitudeTracker } from "../../utils/amplitude"
+import { BASE_SYSTEM_PROMPT } from "./prompts/base-system"
 import {
 	CodingBeginnerSystemPromptSection,
 	ExperiencedDeveloperSystemPromptSection,
 	NonTechnicalSystemPromptSection,
 	SYSTEM_PROMPT,
-} from './system-prompt'
-import { UserContent } from './types'
-import { getCwd } from './utils'
+} from "./system-prompt"
+import { UserContent } from "./types"
+import { getCwd } from "./utils"
 
 /**
  *
@@ -21,13 +22,13 @@ import { getCwd } from './utils'
  */
 export const anthropicMessageToTokens = (message: Anthropic.MessageParam) => {
 	const content = message.content
-	if (typeof content === 'string') {
+	if (typeof content === "string") {
 		return Math.round(content.length / 2)
 	}
-	const textBlocks = content.filter((block) => block.type === 'text')
-	const text = textBlocks.map((block) => block.text).join('')
+	const textBlocks = content.filter((block) => block.type === "text")
+	const text = textBlocks.map((block) => block.text).join("")
 	const textTokens = Math.round(text.length / 3)
-	const imgBlocks = content.filter((block) => block.type === 'image')
+	const imgBlocks = content.filter((block) => block.type === "image")
 	const imgTokens = imgBlocks.length * 2000
 	return Math.round(textTokens + imgTokens)
 }
@@ -252,6 +253,12 @@ ${this.customInstructions.trim()}
 			if (error instanceof KoduError) {
 				console.error('KODU API request failed', error)
 			}
+			if (error instanceof AxiosError) {
+				throw new KoduError({
+					code: error.response?.status || 500,
+				})
+			}
+
 			throw error
 		}
 	}
