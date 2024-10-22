@@ -21,6 +21,7 @@ import {
 import { healMessages } from "./auto-heal"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { USER_TASK_HISTORY_PROMPT } from "../agent/v1/system-prompt"
+import { getCwd } from "../agent/v1/utils"
 const temperatures = {
 	creative: {
 		top_p: 0.9,
@@ -163,6 +164,8 @@ export class KoduHandler implements ApiHandler {
 			getKoduInferenceUrl(),
 			{
 				...requestBody,
+				temperature: 0.1,
+				top_p: 0.9,
 			},
 			{
 				headers: {
@@ -242,21 +245,21 @@ export class KoduHandler implements ApiHandler {
 		console.log(`creativeMode: ${creativeMode}`)
 		const creativitySettings = temperatures[creativeMode ?? "normal"]
 		// check if the root of the folder has .kodu file if so read the content and use it as the system prompt
-		let dotKoduFileContent = ""
-		const workspaceFolders = vscode.workspace.workspaceFolders
-		if (workspaceFolders) {
-			for (const folder of workspaceFolders) {
-				const dotKoduFile = vscode.Uri.joinPath(folder.uri, ".kodu")
-				try {
-					const fileContent = await vscode.workspace.fs.readFile(dotKoduFile)
-					dotKoduFileContent = Buffer.from(fileContent).toString("utf8")
-					console.log(".kodu file content:", dotKoduFileContent)
-					break // Exit the loop after finding and reading the first .kodu file
-				} catch (error) {
-					console.log(`No .kodu file found in ${folder.uri.fsPath}`)
-				}
-			}
-		}
+		// let dotKoduFileContent = ""
+		// const workspaceFolders = vscode.workspace.workspaceFolders
+		// if (workspaceFolders) {
+		// 	for (const folder of workspaceFolders) {
+		// 		const dotKoduFile = vscode.Uri.joinPath(folder.uri, ".kodu")
+		// 		try {
+		// 			const fileContent = await vscode.workspace.fs.readFile(dotKoduFile)
+		// 			dotKoduFileContent = Buffer.from(fileContent).toString("utf8")
+		// 			console.log(".kodu file content:", dotKoduFileContent)
+		// 			break // Exit the loop after finding and reading the first .kodu file
+		// 		} catch (error) {
+		// 			console.log(`No .kodu file found in ${folder.uri.fsPath}`)
+		// 		}
+		// 	}
+		// }
 		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = [
 			{ text: systemPrompt.trim(), type: "text" },
 		]
@@ -318,6 +321,24 @@ export class KoduHandler implements ApiHandler {
 								Think about in your <thinking> tags and ask yourself the question: "Do I really need to read the file again?".
 								SUPER SUPER CRITICAL:
 								You should never truncate the content of a file, always return the complete content of the file in your, even if you didn't modify it.
+								- think about the following questions before writing to a file:
+								- What is the file path relative to my current path \`current path: ${getCwd()}\`?
+								- what are the current ERRORS in the file that I should be aware of?
+								- is the project on /frontend/[...path] or something like this ? if so remember to use the correct path ${getCwd()}/frontend/[...path]
+
+								IMPORTANT LINTING/ERRORS RULES:
+								you should ask yourself the following questions:
+								- Do i have any present errors in my code? (yes/no)
+								- If yes, what are the mission critical errors that I must fix? (list of errors)
+								- Is there any dependencies that I need to install? (yes/no)
+								- Is there any errors that are dependent on other files / errors? (yes/no)
+								- Is there any meaningful information from the browser logs (gotten from screenshot tool) that I should be aware of? (yes/no)
+								- Is this a package error ? (yes/no)
+								- If this is a package error, what is the package name and version that is causing the error?
+								- Can i fix this error by reading the latest documentation of the package? (yes/no) -> If yes, read the documentation using web_search tool.
+								By asking yourself these questions you will be able to fix the most critical errors in your code and make sure that you are not missing any dependencies or any other errors that are dependent on other files or errors.
+								It will make you more efficient and better at debugging your code and writing high quality code.
+								Also make sure to write code that is relvant to 2024 and not outdated code.
 								</most_important_context>`
 								if (typeof message.content === "string") {
 									// add environment details to the last user message

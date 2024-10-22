@@ -8,7 +8,6 @@ import {
 	CodingBeginnerSystemPromptSection,
 	ExperiencedDeveloperSystemPromptSection,
 	NonTechnicalSystemPromptSection,
-	SYSTEM_PROMPT,
 } from "./system-prompt"
 import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { tools as baseTools } from "./tools/tools"
@@ -18,6 +17,7 @@ import { BASE_SYSTEM_PROMPT } from "./prompts/base-system"
 import { getCwd } from "./utils"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { AxiosError } from "axios"
+import { koduModels } from "../../shared/api"
 
 /**
  *
@@ -104,19 +104,8 @@ export class ApiManager {
 		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
 		const technicalBackground =
 			(await this.providerRef.deref()?.getStateManager()?.getState())?.technicalBackground ?? "no-technical"
-		let systemPrompt = await SYSTEM_PROMPT()
-		systemPrompt += `
-		===
-USER PERSONALIZED INSTRUCTIONS
+		const isImageSupported = koduModels[this.getModelId()].supportsImages
 
-${
-	technicalBackground === "no-technical"
-		? NonTechnicalSystemPromptSection
-		: technicalBackground === "technical"
-		? ExperiencedDeveloperSystemPromptSection
-		: CodingBeginnerSystemPromptSection
-}
-		`
 		let customInstructions: string | undefined
 		if (this.customInstructions && this.customInstructions.trim()) {
 			customInstructions += `
@@ -129,7 +118,7 @@ The following additional instructions are provided by the user. They should be f
 ${this.customInstructions.trim()}
 `
 		}
-		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), true, technicalBackground)
+		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), !!isImageSupported, technicalBackground)
 
 		const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
 		let apiMetrics: NonNullable<V1ClaudeMessage["apiMetrics"]> = {
@@ -177,7 +166,11 @@ ${this.customInstructions.trim()}
 		if (totalTokens >= contextWindow * 0.9) {
 			const truncatedMessages = truncateHalfConversation(apiConversationHistory)
 			apiConversationHistory = truncatedMessages
-			this.providerRef.deref()?.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
+			await this.providerRef
+				.deref()
+				?.getKoduDev()
+				?.getStateManager()
+				.overwriteApiConversationHistory(truncatedMessages)
 		}
 		const isFirstRequest = this.providerRef.deref()?.getKoduDev()?.isFirstMessage ?? false
 		// on first request, we need to get the environment details with details of the current task and folder

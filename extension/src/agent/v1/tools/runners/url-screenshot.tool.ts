@@ -48,7 +48,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			)
 			const browserManager = this.koduDev.browserManager
 			await browserManager.launchBrowser()
-			const { buffer } = await browserManager.urlToScreenshotAndLogs(url)
+			const { buffer, logs } = await browserManager.urlToScreenshotAndLogs(url)
 			await browserManager.closeBrowser()
 
 			const relPath = `${url.replace(/[^a-zA-Z0-9]/g, "_")}-${Date.now()}.jpeg`
@@ -59,12 +59,16 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			await fs.writeFile(absolutePath, buffer)
 
 			await this.relaySuccessfulResponse({ absolutePath, imageToBase64 })
-			const uri = vscode.Uri.file(absolutePath)
-			// await vscode.commands.executeCommand("vscode.open", uri)
 
 			const textBlock: Anthropic.TextBlockParam = {
 				type: "text",
-				text: `The screenshot was saved to file path: ${absolutePath}.`,
+				text: `
+				The screenshot was saved to file path: ${absolutePath}.
+				Here is the browser logs:
+				<browser_logs>
+				${logs}
+				</browser_logs>
+				`,
 			}
 			const imageBlock: Anthropic.ImageBlockParam = {
 				type: "image",
@@ -87,7 +91,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			return [textBlock, imageBlock]
+			return [imageBlock, textBlock]
 		} catch (err) {
 			this.params.ask(
 				"tool",

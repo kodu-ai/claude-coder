@@ -97,6 +97,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 			if (lastAsk && lastAsk.type === "ask" && lastAsk.ask === "tool") {
 				const tool = JSON.parse(lastAsk.text || "{}") as ChatTool
 				if (tool.approvalState === "pending" || tool.approvalState === "loading") {
+					if (tool.tool === "ask_followup_question") return false
 					return true
 				}
 			}
@@ -260,17 +261,17 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Handle paste
 
 	const handlePaste = async (e: React.ClipboardEvent) => {
-		if (shouldDisableImages) {
-			e.preventDefault()
-			return
-		}
-
 		const items = e.clipboardData.items
 		const acceptedTypes = ["png", "jpeg", "webp"] // supported by anthropic and openrouter (jpg is just a file extension but the image will be recognized as jpeg)
 		const imageItems = Array.from(items).filter((item) => {
 			const [type, subtype] = item.type.split("/")
 			return type === "image" && acceptedTypes.includes(subtype)
 		})
+		if (shouldDisableImages && imageItems.length > 0) {
+			e.preventDefault()
+			return
+		}
+
 		if (imageItems.length > 0) {
 			e.preventDefault()
 			const imagePromises = imageItems.map((item) => {

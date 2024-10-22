@@ -1,10 +1,11 @@
 import { koduModels, KoduModels } from "../../../../src/shared/api"
+import { Badge } from "../ui/badge"
 import { ExperimentalFeature } from "./types"
 
 export const models: Record<
 	keyof KoduModels,
 	KoduModels[keyof KoduModels] & {
-		label: string
+		label: string | React.ReactNode
 		disabled?: boolean
 		comingSoon?: boolean
 		isRecommended?: boolean

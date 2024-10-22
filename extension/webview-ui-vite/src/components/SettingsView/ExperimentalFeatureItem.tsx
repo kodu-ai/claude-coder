@@ -1,9 +1,16 @@
-// @ts-nocheck
 import React from "react"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { ExperimentalFeature } from "./types"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
+import { GlobalState } from "../../../../src/providers/claude-coder/state/GlobalStateManager"
+
+interface ExperimentalFeature {
+	id: keyof GlobalState
+	label: string
+	description: string
+	disabled?: boolean
+	comingSoon?: boolean
+}
 
 interface ExperimentalFeatureItemProps {
 	feature: ExperimentalFeature
@@ -11,7 +18,7 @@ interface ExperimentalFeatureItemProps {
 	onCheckedChange: (checked: boolean) => void
 }
 
-const ExperimentalFeatureItem: React.FC<ExperimentalFeatureItemProps> = React.memo(
+export const ExperimentalFeatureItem: React.FC<ExperimentalFeatureItemProps> = React.memo(
 	({ feature, checked, onCheckedChange }) => (
 		<div className="flex items-center justify-between">
 			<div className="flex-1 pr-2">
@@ -47,5 +54,3 @@ const ExperimentalFeatureItem: React.FC<ExperimentalFeatureItemProps> = React.me
 		</div>
 	)
 )
-
-export default ExperimentalFeatureItem
