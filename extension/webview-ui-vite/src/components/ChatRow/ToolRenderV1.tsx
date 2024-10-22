@@ -16,31 +16,37 @@ import {
 	HelpCircle,
 	Image,
 	LoaderPinwheel,
-	ExternalLink,
+	MessageCircle,
 	Play,
-	Square,
 	RefreshCw,
+	Search,
 	Server,
+	Square,
+	Terminal,
+	XCircle
 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { AnimatePresence, motion } from "framer-motion"
 import {
 	AskConsultantTool,
 	AskFollowupQuestionTool,
 	AttemptCompletionTool,
 	ChatTool,
+	ExecuteCommandTool,
+	ListCodeDefinitionNamesTool,
+	ListFilesTool,
+	ReadFileTool,
+	SearchFilesTool,
 	ServerRunnerTool,
+	SummarizeChatTool,
+	UpsertMemoryTool,
+	UrlScreenshotTool,
+	WebSearchTool,
+	WriteToFileTool,
 } from "../../../../src/shared/new-tools"
-import { vscode } from "@/utils/vscode"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
-import SyntaxHighlighter from "react-syntax-highlighter"
-import { useAtomValue } from "jotai"
-import { SyntaxHighlighterAtom } from "../ChatView/ChatView"
-import { syntaxHighlighterCustomStyle } from "../CodeBlock/utils"
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
-import { useEvent } from "react-use"
+import { useEffect, useRef, useState } from 'react'
+import React from 'react'
+import MarkdownRenderer from './MarkdownRenderer'
 
 type ApprovalState = ToolStatus
 type ToolAddons = {

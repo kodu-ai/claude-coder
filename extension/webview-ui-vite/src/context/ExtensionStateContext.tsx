@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from "react"
+import { atom, useAtom, useSetAtom } from "jotai"
+import React, { useEffect } from "react"
 import { useEvent } from "react-use"
 import { ApiConfiguration } from "../../../src/api/index"
 import type { GlobalState } from "../../../src/providers/claude-coder/state/GlobalStateManager"

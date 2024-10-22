@@ -1,22 +1,22 @@
-import React, { useState, useCallback } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Check, X, ChevronDown } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
-import { useExtensionState } from "../../context/ExtensionStateContext"
-import { debounce } from "lodash"
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import useDebounce from "@/hooks/use-debounce"
 import { vscode } from "@/utils/vscode"
+import { Check, ChevronDown, X } from "lucide-react"
+import React, { useCallback, useState } from "react"
 import { GlobalState } from "../../../../src/providers/claude-coder/state/GlobalStateManager"
-import { koduModels, KoduModels } from "../../../../src/shared/api"
+import { KoduModels, koduModels } from "../../../../src/shared/api"
+import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
+import { useExtensionState } from "../../context/ExtensionStateContext"
 import { formatPrice } from "../ApiOptions/utils"
-import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
+import SummarizationThresholdSlider from "../SummarizationThresholdSlider"
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { SettingsFooter } from "./settings-footer"
 
 interface ExperimentalFeature {
@@ -307,6 +307,7 @@ const SettingsPage: React.FC = () => {
 				</TabsList>
 
 				<TabsContent value="preferences" className="space-y-4">
+					<SummarizationThresholdSlider summarizationThreshold={extensionState.summarizationThreshold} setSummarizationThreshold={extensionState.setSummarizationThreshold} />
 					<div className="space-y-2">
 						<Label className="text-sm">Technical Level</Label>
 						<RadioGroup
