@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk"
+import type Anthropic from '@anthropic-ai/sdk'
 
 // const KODU_BASE_URL = "http://localhost:3000"
-const KODU_BASE_URL = "https://www.kodu.ai"
+const KODU_BASE_URL = 'https://www.kodu.ai'
 
 export function getKoduSignInUrl(uriScheme?: string, extensionName?: string) {
 	return `${KODU_BASE_URL}/auth/login?redirectTo=${uriScheme}://kodu-ai.${extensionName}&ext=1`
@@ -106,17 +106,17 @@ export const koduErrorMessages: Record<KODU_ERROR_CODES, string> = {
 	// 429 - rate_limit_error: Your account has hit a rate limit.
 	// 500 - api_error: An unexpected error has occurred internal to Anthropic’s systems.
 	// 529 - overloaded_error: Anthropic’s API is temporarily overloaded.
-	400: "There was an issue with the format or content of your request.",
-	401: "Unauthorized. please login again.",
-	402: "Payment Required. Please add credits to your account.",
-	403: "Your API key does not have permission to use the specified resource.",
-	404: "The requested resource was not found.",
-	413: "Request exceeds the maximum allowed number of bytes.",
-	429: "Your account has hit a rate limit.",
-	500: "An unexpected error has occurred internal to Anthropic’s systems.",
-	529: "Anthropic’s API is temporarily overloaded.",
+	400: 'There was an issue with the format or content of your request.',
+	401: 'Unauthorized. please login again.',
+	402: 'Payment Required. Please add credits to your account.',
+	403: 'Your API key does not have permission to use the specified resource.',
+	404: 'The requested resource was not found.',
+	413: 'Request exceeds the maximum allowed number of bytes.',
+	429: 'Your account has hit a rate limit.',
+	500: 'An unexpected error has occurred internal to Anthropic’s systems.',
+	529: 'Anthropic’s API is temporarily overloaded.',
 	// network refused to connect
-	1: "Network refused to connect",
+	1: 'Network refused to connect',
 }
 
 export class KoduError extends Error {
@@ -125,9 +125,9 @@ export class KoduError extends Error {
 		if (code in KODU_ERROR_CODES) {
 			super(koduErrorMessages[code as KODU_ERROR_CODES])
 		} else {
-			super("Unknown error")
+			super('Unknown error')
 		}
-		this.name = "KoduError"
+		this.name = 'KoduError'
 		this.errorCode = code
 	}
 }

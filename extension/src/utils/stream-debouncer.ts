@@ -1,6 +1,6 @@
-import { koduSSEResponse } from "../shared/kodu"
+import type { koduSSEResponse } from '../shared/kodu'
 
-export function createStreamDebouncer(callback: (chunks: koduSSEResponse[]) => Promise<void>, delay: number = 25) {
+export function createStreamDebouncer(callback: (chunks: koduSSEResponse[]) => Promise<void>, delay = 25) {
 	let timeoutId: NodeJS.Timeout | null = null
 	let chunks: koduSSEResponse[] = []
 	let isProcessing = false
@@ -15,8 +15,8 @@ export function createStreamDebouncer(callback: (chunks: koduSSEResponse[]) => P
 		try {
 			await callback(chunksToProcess)
 		} catch (error) {
-			console.error("Error processing chunks:", error)
-			console.error("Problematic chunks:", JSON.stringify(chunksToProcess, null, 2))
+			console.error('Error processing chunks:', error)
+			console.error('Problematic chunks:', JSON.stringify(chunksToProcess, null, 2))
 		} finally {
 			isProcessing = false
 			// If new chunks arrived during processing, schedule another processing

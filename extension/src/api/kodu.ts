@@ -1,9 +1,9 @@
-import { Anthropic } from "@anthropic-ai/sdk"
-import axios, { CancelTokenSource } from "axios"
-import * as vscode from "vscode"
-import { z } from "zod"
-import { ApiHandler, ApiHandlerMessageResponse, withoutImageData } from "."
-import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduModels } from "../shared/api"
+import type { Anthropic } from '@anthropic-ai/sdk'
+import axios, { type CancelTokenSource } from 'axios'
+import * as vscode from 'vscode'
+import { z } from 'zod'
+import { type ApiHandler, withoutImageData } from '.'
+import { type ApiHandlerOptions, type KoduModelId, type ModelInfo, koduDefaultModelId, koduModels } from '../shared/api'
 import {
 	KODU_ERROR_CODES,
 	KoduError,
@@ -16,11 +16,10 @@ import {
 	getKoduVisitorUrl,
 	getKoduWebSearchUrl,
 	koduErrorMessages,
-	koduSSEResponse,
-} from "../shared/kodu"
-import { healMessages } from "./auto-heal"
-import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
-import { USER_TASK_HISTORY_PROMPT } from "../agent/v1/system-prompt"
+	type koduSSEResponse,
+} from '../shared/kodu'
+import { healMessages } from './auto-heal'
+import type { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from './interfaces'
 const temperatures = {
 	creative: {
 		top_p: 0.9,
@@ -39,7 +38,7 @@ const temperatures = {
 export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 	const response = await axios.get(getKoduCurrentUser(), {
 		headers: {
-			"x-api-key": apiKey,
+			'x-api-key': apiKey,
 		},
 		timeout: 5000,
 	})
@@ -68,7 +67,7 @@ export async function initVisitor({ visitorId: vistorId }: { visitorId: string }
 		vistorId: vistorId,
 	})
 	if (response.data) {
-		console.log("response.data", response.data)
+		console.log('response.data', response.data)
 		const result = outputSchema.parse(response.data)
 		return result
 	}
@@ -81,7 +80,7 @@ const bugReportSchema = z.object({
 	apiHistory: z.string(),
 	claudeMessage: z.string(),
 })
-let previousSystemPrompt = ""
+let previousSystemPrompt = ''
 export class KoduHandler implements ApiHandler {
 	private options: ApiHandlerOptions
 	private cancelTokenSource: CancelTokenSource | null = null
@@ -92,7 +91,7 @@ export class KoduHandler implements ApiHandler {
 
 	async abortRequest(): Promise<void> {
 		if (this.cancelTokenSource) {
-			this.cancelTokenSource.cancel("Request aborted by user")
+			this.cancelTokenSource.cancel('Request aborted by user')
 			this.cancelTokenSource = null
 		}
 	}
@@ -102,20 +101,22 @@ export class KoduHandler implements ApiHandler {
 		messages: Anthropic.Messages.MessageParam[],
 		abortSignal?: AbortSignal | null,
 		tempature?: number,
-		top_p?: number
+		topP?: number,
 	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
 		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming
 
 		switch (modelId) {
-			case "claude-3-5-sonnet-20240620":
-			case "claude-3-opus-20240229":
-			case "claude-3-haiku-20240307":
-				console.log("Matched anthropic cache model")
-				const userMsgIndices = messages.reduce(
-					(acc, msg, index) => (msg.role === "user" ? [...acc, index] : acc),
-					[] as number[]
-				)
+			case 'claude-3-5-sonnet-20240620':
+			case 'claude-3-opus-20240229':
+			case 'claude-3-haiku-20240307': {
+				console.log('Matched anthropic cache model')
+				const userMsgIndices = messages.reduce((acc, msg, index) => {
+					if (msg.role === 'user') {
+						acc.push(index)
+					}
+					return acc
+				}, [] as number[])
 				const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
 				const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 				requestBody = {
@@ -127,34 +128,35 @@ export class KoduHandler implements ApiHandler {
 							return {
 								...message,
 								content:
-									typeof message.content === "string"
+									typeof message.content === 'string'
 										? [
 												{
-													type: "text",
+													type: 'text',
 													text: message.content,
-													cache_control: { type: "ephemeral" },
+													cache_control: { type: 'ephemeral' },
 												},
-										  ]
+											]
 										: message.content.map((content, contentIndex) =>
 												contentIndex === message.content.length - 1
-													? { ...content, cache_control: { type: "ephemeral" } }
-													: content
-										  ),
+													? { ...content, cache_control: { type: 'ephemeral' } }
+													: content,
+											),
 							}
 						}
 						return message
 					}),
 				}
 				break
+			}
 			default:
-				console.log("Matched default model")
+				console.log('Matched default model')
 				requestBody = {
 					model: modelId,
 					max_tokens: this.getModel().info.maxTokens,
-					system: [{ text: systemPrompt, type: "text" }],
+					system: [{ text: systemPrompt, type: 'text' }],
 					messages,
 					temperature: tempature ?? 0.2,
-					top_p: top_p ?? 0.8,
+					top_p: topP ?? 0.8,
 				}
 		}
 		this.cancelTokenSource = axios.CancelToken.source()
@@ -166,13 +168,13 @@ export class KoduHandler implements ApiHandler {
 			},
 			{
 				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
+					'Content-Type': 'application/json',
+					'x-api-key': this.options.koduApiKey || '',
 				},
-				responseType: "stream",
+				responseType: 'stream',
 				signal: abortSignal ?? undefined,
 				timeout: 60_000,
-			}
+			},
 		)
 
 		if (response.status !== 200) {
@@ -188,17 +190,17 @@ export class KoduHandler implements ApiHandler {
 
 		if (response.data) {
 			const reader = response.data
-			const decoder = new TextDecoder("utf-8")
+			const decoder = new TextDecoder('utf-8')
 			let finalResponse: Extract<koduSSEResponse, { code: 1 }> | null = null
-			let partialResponse: Extract<koduSSEResponse, { code: 2 }> | null = null
-			let buffer = ""
+			const partialResponse: Extract<koduSSEResponse, { code: 2 }> | null = null
+			let buffer = ''
 
 			for await (const chunk of reader) {
 				buffer += decoder.decode(chunk, { stream: true })
-				const lines = buffer.split("\n\n")
-				buffer = lines.pop() || ""
+				const lines = buffer.split('\n\n')
+				buffer = lines.pop() || ''
 				for (const line of lines) {
-					if (line.startsWith("data: ")) {
+					if (line.startsWith('data: ')) {
 						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
 						if (eventData.code === 2) {
 							// -> Happens to the current message
@@ -208,7 +210,7 @@ export class KoduHandler implements ApiHandler {
 						} else if (eventData.code === 1) {
 							finalResponse = eventData
 						} else if (eventData.code === -1) {
-							console.error("Network / API ERROR")
+							console.error('Network / API ERROR')
 							// we should yield the error and not throw it
 						}
 						yield eventData
@@ -231,26 +233,26 @@ export class KoduHandler implements ApiHandler {
 	async *createMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
-		creativeMode?: "normal" | "creative" | "deterministic",
+		creativeMode?: 'normal' | 'creative' | 'deterministic',
 		abortSignal?: AbortSignal | null,
 		customInstructions?: string,
 		userMemory?: string,
-		environmentDetails?: string
+		environmentDetails?: string,
 	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
 		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming
 		console.log(`creativeMode: ${creativeMode}`)
-		const creativitySettings = temperatures[creativeMode ?? "normal"]
+		const creativitySettings = temperatures[creativeMode ?? 'normal']
 		// check if the root of the folder has .kodu file if so read the content and use it as the system prompt
-		let dotKoduFileContent = ""
+		let dotKoduFileContent = ''
 		const workspaceFolders = vscode.workspace.workspaceFolders
 		if (workspaceFolders) {
 			for (const folder of workspaceFolders) {
-				const dotKoduFile = vscode.Uri.joinPath(folder.uri, ".kodu")
+				const dotKoduFile = vscode.Uri.joinPath(folder.uri, '.kodu')
 				try {
 					const fileContent = await vscode.workspace.fs.readFile(dotKoduFile)
-					dotKoduFileContent = Buffer.from(fileContent).toString("utf8")
-					console.log(".kodu file content:", dotKoduFileContent)
+					dotKoduFileContent = Buffer.from(fileContent).toString('utf8')
+					console.log('.kodu file content:', dotKoduFileContent)
 					break // Exit the loop after finding and reading the first .kodu file
 				} catch (error) {
 					console.log(`No .kodu file found in ${folder.uri.fsPath}`)
@@ -258,44 +260,46 @@ export class KoduHandler implements ApiHandler {
 			}
 		}
 		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = [
-			{ text: systemPrompt.trim(), type: "text" },
+			{ text: systemPrompt.trim(), type: 'text' },
 		]
 		if (previousSystemPrompt !== systemPrompt) {
-			console.error("System prompt changed")
-			console.error("Previous system prompt:", previousSystemPrompt)
-			console.error("Current system prompt:", systemPrompt)
+			console.error('System prompt changed')
+			console.error('Previous system prompt:', previousSystemPrompt)
+			console.error('Current system prompt:', systemPrompt)
 			console.error(`Length difference: ${previousSystemPrompt.length - systemPrompt.length}`)
 		}
 		previousSystemPrompt = systemPrompt
-		if (customInstructions && customInstructions.trim()) {
+		if (customInstructions?.trim()) {
 			system.push({
 				text: customInstructions,
-				type: "text",
-				cache_control: { type: "ephemeral" },
+				type: 'text',
+				cache_control: { type: 'ephemeral' },
 			})
 		} else {
-			system[0].cache_control = { type: "ephemeral" }
+			system[0].cache_control = { type: 'ephemeral' }
 		}
 		system.push({
 			cache_control: {
-				type: "ephemeral",
+				type: 'ephemeral',
 			},
-			text: environmentDetails ?? "No environment details provided",
-			type: "text",
+			text: environmentDetails ?? 'No environment details provided',
+			type: 'text',
 		})
 
 		// every 4 messages, we should add a critical message to the last user message and on the first user message
 		const lengthDivdedByFour = messages.length % 4 === 0 || messages.length === 1
 
 		switch (modelId) {
-			case "claude-3-5-sonnet-20240620":
-			case "claude-3-opus-20240229":
-			case "claude-3-haiku-20240307":
-				console.log("Matched anthropic cache model")
-				const userMsgIndices = messages.reduce(
-					(acc, msg, index) => (msg.role === "user" ? [...acc, index] : acc),
-					[] as number[]
-				)
+			case 'claude-3-5-sonnet-20240620':
+			case 'claude-3-opus-20240229':
+			case 'claude-3-haiku-20240307': {
+				console.log('Matched anthropic cache model')
+				const userMsgIndices = messages.reduce((acc, msg, index) => {
+					if (msg.role === 'user') {
+						acc.push(index)
+					}
+					return acc
+				}, [] as number[])
 				const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
 				const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 				requestBody = {
@@ -319,57 +323,57 @@ export class KoduHandler implements ApiHandler {
 								SUPER SUPER CRITICAL:
 								You should never truncate the content of a file, always return the complete content of the file in your, even if you didn't modify it.
 								</most_important_context>`
-								if (typeof message.content === "string") {
+								if (typeof message.content === 'string') {
 									// add environment details to the last user message
 									return {
 										...message,
 										content: [
 											{
 												text: criticalMsg,
-												type: "text",
+												type: 'text',
 											},
 											{
 												text: message.content,
-												type: "text",
-												cache_control: { type: "ephemeral" },
+												type: 'text',
+												cache_control: { type: 'ephemeral' },
 											},
 										],
 									}
-								} else {
-									message.content.push({
-										text: criticalMsg,
-										type: "text",
-									})
 								}
+								message.content.push({
+									text: criticalMsg,
+									type: 'text',
+								})
 							}
 							return {
 								...message,
 								content:
-									typeof message.content === "string"
+									typeof message.content === 'string'
 										? [
 												{
-													type: "text",
+													type: 'text',
 													text: message.content,
-													cache_control: { type: "ephemeral" },
+													cache_control: { type: 'ephemeral' },
 												},
-										  ]
+											]
 										: message.content.map((content, contentIndex) =>
 												contentIndex === message.content.length - 1
-													? { ...content, cache_control: { type: "ephemeral" } }
-													: content
-										  ),
+													? { ...content, cache_control: { type: 'ephemeral' } }
+													: content,
+											),
 							}
 						}
 						return message
 					}),
 				}
 				break
+			}
 			default:
-				console.log("Matched default model")
+				console.log('Matched default model')
 				requestBody = {
 					model: modelId,
 					max_tokens: this.getModel().info.maxTokens,
-					system: [{ text: systemPrompt, type: "text" }],
+					system: [{ text: systemPrompt, type: 'text' }],
 					messages,
 					...creativitySettings,
 					// temperature: 0,
@@ -384,13 +388,13 @@ export class KoduHandler implements ApiHandler {
 			},
 			{
 				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
+					'Content-Type': 'application/json',
+					'x-api-key': this.options.koduApiKey || '',
 				},
-				responseType: "stream",
+				responseType: 'stream',
 				signal: abortSignal ?? undefined,
 				timeout: 60_000,
-			}
+			},
 		)
 
 		if (response.status !== 200) {
@@ -406,17 +410,17 @@ export class KoduHandler implements ApiHandler {
 
 		if (response.data) {
 			const reader = response.data
-			const decoder = new TextDecoder("utf-8")
+			const decoder = new TextDecoder('utf-8')
 			let finalResponse: Extract<koduSSEResponse, { code: 1 }> | null = null
-			let partialResponse: Extract<koduSSEResponse, { code: 2 }> | null = null
-			let buffer = ""
+			const partialResponse: Extract<koduSSEResponse, { code: 2 }> | null = null
+			let buffer = ''
 
 			for await (const chunk of reader) {
 				buffer += decoder.decode(chunk, { stream: true })
-				const lines = buffer.split("\n\n")
-				buffer = lines.pop() || ""
+				const lines = buffer.split('\n\n')
+				buffer = lines.pop() || ''
 				for (const line of lines) {
-					if (line.startsWith("data: ")) {
+					if (line.startsWith('data: ')) {
 						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
 						if (eventData.code === 2) {
 							// -> Happens to the current message
@@ -426,7 +430,7 @@ export class KoduHandler implements ApiHandler {
 						} else if (eventData.code === 1) {
 							finalResponse = eventData
 						} else if (eventData.code === -1) {
-							console.error("Network / API ERROR")
+							console.error('Network / API ERROR')
 							// we should yield the error and not throw it
 						}
 						yield eventData
@@ -451,16 +455,16 @@ export class KoduHandler implements ApiHandler {
 			| Anthropic.ImageBlockParam
 			| Anthropic.ToolUseBlockParam
 			| Anthropic.ToolResultBlockParam
-		>
+		>,
 	): any {
 		// if use udf
 		return {
 			model: this.getModel().id,
 			max_tokens: this.getModel().info.maxTokens,
-			system: "(see SYSTEM_PROMPT in src/agent/system-prompt.ts)",
-			messages: [{ conversation_history: "..." }, { role: "user", content: withoutImageData(userContent) }],
-			tools: "(see tools in src/agent/v1/tools/schema/index.ts)",
-			tool_choice: { type: "auto" },
+			system: '(see SYSTEM_PROMPT in src/agent/system-prompt.ts)',
+			messages: [{ conversation_history: '...' }, { role: 'user', content: withoutImageData(userContent) }],
+			tools: '(see tools in src/agent/v1/tools/schema/index.ts)',
+			tool_choice: { type: 'auto' },
 		}
 	}
 
@@ -484,12 +488,12 @@ export class KoduHandler implements ApiHandler {
 			},
 			{
 				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
+					'Content-Type': 'application/json',
+					'x-api-key': this.options.koduApiKey || '',
 				},
 				timeout: 60_000,
 				cancelToken: this.cancelTokenSource?.token,
-			}
+			},
 		)
 
 		return response.data
@@ -504,17 +508,17 @@ export class KoduHandler implements ApiHandler {
 				url,
 			},
 			{
-				responseType: "arraybuffer",
+				responseType: 'arraybuffer',
 				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
+					'Content-Type': 'application/json',
+					'x-api-key': this.options.koduApiKey || '',
 				},
 				timeout: 60_000,
 				cancelToken: this.cancelTokenSource?.token,
-			}
+			},
 		)
 
-		return new Blob([response.data], { type: "image/jpeg" })
+		return new Blob([response.data], { type: 'image/jpeg' })
 	}
 
 	async sendAskConsultantRequest(query: string): Promise<AskConsultantResponseDto> {
@@ -527,12 +531,12 @@ export class KoduHandler implements ApiHandler {
 			},
 			{
 				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
+					'Content-Type': 'application/json',
+					'x-api-key': this.options.koduApiKey || '',
 				},
 				timeout: 60_000,
 				cancelToken: this.cancelTokenSource?.token,
-			}
+			},
 		)
 
 		return response.data
@@ -541,8 +545,8 @@ export class KoduHandler implements ApiHandler {
 	async sendBugReportRequest(bugReport: z.infer<typeof bugReportSchema>) {
 		await axios.post(getKoduBugReportUrl(), bugReport, {
 			headers: {
-				"Content-Type": "application/json",
-				"x-api-key": this.options.koduApiKey || "",
+				'Content-Type': 'application/json',
+				'x-api-key': this.options.koduApiKey || '',
 			},
 		})
 	}
@@ -557,15 +561,15 @@ export class KoduHandler implements ApiHandler {
 			},
 			{
 				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
+					'Content-Type': 'application/json',
+					'x-api-key': this.options.koduApiKey || '',
 				},
 				timeout: 60_000,
 				cancelToken: this.cancelTokenSource?.token,
-			}
+			},
 		)
 
-		return response.data;
+		return response.data
 	}
 
 	async sendSummarizeRequest(output: string, command: string): Promise<SummaryResponseDto> {
@@ -579,12 +583,12 @@ export class KoduHandler implements ApiHandler {
 			},
 			{
 				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
+					'Content-Type': 'application/json',
+					'x-api-key': this.options.koduApiKey || '',
 				},
 				timeout: 60_000,
 				cancelToken: this.cancelTokenSource?.token,
-			}
+			},
 		)
 
 		return response.data

@@ -1,11 +1,11 @@
-import * as vscode from "vscode"
-import { Anthropic } from "@anthropic-ai/sdk"
-import { ResultPromise } from "execa"
-import { ApiConfiguration } from "../../api"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { ClaudeAskResponse } from "../../shared/WebviewMessage"
-import { HistoryItem } from "../../shared/HistoryItem"
-import { ClaudeMessage } from "../../shared/ExtensionMessage"
+import type { Anthropic } from '@anthropic-ai/sdk'
+import type { ResultPromise } from 'execa'
+import type * as vscode from 'vscode'
+import type { ApiConfiguration } from '../../api'
+import type { ExtensionProvider } from '../../providers/claude-coder/ClaudeCoderProvider'
+import type { ClaudeMessage } from '../../shared/ExtensionMessage'
+import type { HistoryItem } from '../../shared/HistoryItem'
+import type { ClaudeAskResponse } from '../../shared/WebviewMessage'
 
 export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>
 export type UserContent = Array<
@@ -23,7 +23,7 @@ export interface KoduDevOptions {
 	summarizationThreshold?: number
 	skipWriteAnimation?: boolean
 	autoCloseTerminal?: boolean
-	creativeMode?: "creative" | "normal" | "deterministic"
+	creativeMode?: 'creative' | 'normal' | 'deterministic'
 	task?: string
 	images?: string[]
 	historyItem?: HistoryItem
@@ -71,7 +71,7 @@ export interface ClaudeRequestResult {
 }
 
 // Re-export types from other files to centralize type definitions
-export type { ClaudeMessage } from "../../shared/ExtensionMessage"
-export type { ToolName } from "../../shared/Tool"
+export type { ClaudeMessage } from '../../shared/ExtensionMessage'
+export type { ToolName } from '../../shared/Tool'
 
 export type VsCodeDiagnostics = [vscode.Uri, vscode.Diagnostic[]][]

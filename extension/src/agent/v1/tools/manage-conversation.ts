@@ -1,7 +1,7 @@
-import { Anthropic } from '@anthropic-ai/sdk'
+import type { Anthropic } from '@anthropic-ai/sdk'
 import { findLast } from 'lodash'
-import { ExtensionProvider } from '../../../providers/claude-coder/ClaudeCoderProvider'
-import { V1ClaudeMessage, isV1ClaudeMessage } from '../../../shared/ExtensionMessage'
+import type { ExtensionProvider } from '../../../providers/claude-coder/ClaudeCoderProvider'
+import { type V1ClaudeMessage, isV1ClaudeMessage } from '../../../shared/ExtensionMessage'
 import { anthropicMessageToTokens } from '../api-handler'
 
 interface TokenManagementResult {

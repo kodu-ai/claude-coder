@@ -1,4 +1,4 @@
-import { ClaudeMessage } from "./ExtensionMessage"
+import type { ClaudeMessage } from './ExtensionMessage'
 
 /**
  * Combines API request start and finish messages in an array of ClaudeMessages.
@@ -23,18 +23,18 @@ export function combineApiRequests(messages: ClaudeMessage[]): ClaudeMessage[] {
 	let currentApiRequest: ClaudeMessage | null = null
 
 	for (const message of messages) {
-		if (message.type === "say") {
-			if (message.say === "api_req_started") {
+		if (message.type === 'say') {
+			if (message.say === 'api_req_started') {
 				currentApiRequest = { ...message }
-			} else if (message.say === "api_req_finished" && currentApiRequest) {
+			} else if (message.say === 'api_req_finished' && currentApiRequest) {
 				try {
-					const startData = JSON.parse(currentApiRequest.text || "{}")
-					const finishData = JSON.parse(message.text || "{}")
+					const startData = JSON.parse(currentApiRequest.text || '{}')
+					const finishData = JSON.parse(message.text || '{}')
 					currentApiRequest.text = JSON.stringify({ ...startData, ...finishData })
 					result.push(currentApiRequest)
 					currentApiRequest = null
 				} catch (error) {
-					console.error("Error parsing JSON:", error)
+					console.error('Error parsing JSON:', error)
 					if (currentApiRequest) {
 						result.push(currentApiRequest)
 					}
@@ -67,10 +67,10 @@ export function combineApiRequests(messages: ClaudeMessage[]): ClaudeMessage[] {
 		if (
 			lastMessage &&
 			secondLastMessage &&
-			(lastMessage.ask === "resume_task" || lastMessage.ask === "resume_completed_task") &&
-			secondLastMessage.say === "api_req_started"
+			(lastMessage.ask === 'resume_task' || lastMessage.ask === 'resume_completed_task') &&
+			secondLastMessage.say === 'api_req_started'
 		) {
-			console.log(`REPLACE ABORTED MESSAGE`)
+			console.log('REPLACE ABORTED MESSAGE')
 			// add a message that the request was aborted (error)
 			// const abortedMessage: ClaudeMessage = {
 			// 	ts: lastMessage.ts,

@@ -1,9 +1,9 @@
-import { execa, ExecaError, ResultPromise } from "execa"
-import { EventEmitter } from "events"
-import treeKill from "tree-kill"
-import pWaitFor from "p-wait-for"
-import { ExecuteCommandMessage } from "../../shared/WebviewMessage"
-import { cwd } from "../../agent/v1/utils"
+import { EventEmitter } from 'node:events'
+import { type ExecaError, type ResultPromise, execa } from 'execa'
+import pWaitFor from 'p-wait-for'
+import treeKill from 'tree-kill'
+import { cwd } from '../../agent/v1/utils'
+import type { ExecuteCommandMessage } from '../../shared/WebviewMessage'
 
 type CommandId = number
 
@@ -24,7 +24,7 @@ export class ExecaTerminalManager {
 	async runCommand(
 		command: string,
 		cwd: string,
-		callbackFunction: (event: "error" | "exit" | "response", commandId: CommandId, data: string) => void
+		callbackFunction: (event: 'error' | 'exit' | 'response', commandId: CommandId, data: string) => void,
 	): Promise<CommandId> {
 		const subprocess = execa(command, {
 			shell: true,
@@ -33,37 +33,37 @@ export class ExecaTerminalManager {
 
 		const commandId = subprocess.pid
 		if (!commandId) {
-			callbackFunction("error", 0, "Could not run command")
+			callbackFunction('error', 0, 'Could not run command')
 			return 0
 		}
 
 		const runningCommand: RunningCommand = {
 			process: subprocess,
-			output: { stdout: "", stderr: "" },
+			output: { stdout: '', stderr: '' },
 		}
 
 		this.runningCommands.set(commandId, runningCommand)
 
 		pWaitFor(async () => !(await this.isProcessRunning(commandId)), { interval: 200 }).finally(() => {
-			callbackFunction("exit", commandId, "")
+			callbackFunction('exit', commandId, '')
 		})
 
-		subprocess.stdout?.on("data", (data) => {
+		subprocess.stdout?.on('data', (data) => {
 			runningCommand.output.stdout += data.toString()
-			callbackFunction("response", commandId, data.toString())
+			callbackFunction('response', commandId, data.toString())
 		})
 
-		subprocess.stderr?.on("data", (data) => {
+		subprocess.stderr?.on('data', (data) => {
 			runningCommand.output.stderr += data.toString()
-			callbackFunction("response", commandId, data.toString())
+			callbackFunction('response', commandId, data.toString())
 		})
 
-		subprocess.on("error", (error) => {
-			callbackFunction("error", commandId, error.message)
+		subprocess.on('error', (error) => {
+			callbackFunction('error', commandId, error.message)
 		})
 
-		subprocess.on("exit", (code, signal) => {
-			callbackFunction("exit", commandId, "")
+		subprocess.on('exit', (code, signal) => {
+			callbackFunction('exit', commandId, '')
 			this.runningCommands.delete(commandId)
 		})
 
@@ -79,16 +79,15 @@ export class ExecaTerminalManager {
 		const psCommand = `ps -p ${process.pid} -o pid=`
 		const psResult = await execa(psCommand, { shell: true })
 
-		return psResult.stdout.trim() !== ""
+		return psResult.stdout.trim() !== ''
 	}
 
 	async awaitCommand(commandId: CommandId) {
 		const runningCommand = this.runningCommands.get(commandId)
 		if (runningCommand) {
 			return await runningCommand.process
-		} else {
-			throw new Error(`No running command found with id ${commandId}`)
 		}
+		throw new Error(`No running command found with id ${commandId}`)
 	}
 
 	sendInput(commandId: CommandId, input: string): void {
@@ -102,8 +101,8 @@ export class ExecaTerminalManager {
 
 	terminateCommand(commandId: CommandId): void {
 		const runningCommand = this.runningCommands.get(commandId)
-		if (runningCommand && runningCommand.process.pid) {
-			treeKill(runningCommand.process.pid, "SIGINT")
+		if (runningCommand?.process.pid) {
+			treeKill(runningCommand.process.pid, 'SIGINT')
 		} else {
 			throw new Error(`No running command found with id ${commandId}`)
 		}
@@ -124,17 +123,17 @@ export class ExecaTerminalManager {
 	disposeAll(): void {
 		for (const [commandId, runningCommand] of this.runningCommands) {
 			if (runningCommand.process.pid) {
-				treeKill(runningCommand.process.pid, "SIGINT")
+				treeKill(runningCommand.process.pid, 'SIGINT')
 			}
 			this.runningCommands.delete(commandId)
 		}
 	}
 
-	on(event: "output", listener: (commandId: CommandId, type: "stdout" | "stderr", data: string) => void): void
-	on(event: "error", listener: (commandId: CommandId, error: ExecaError) => void): void
+	on(event: 'output', listener: (commandId: CommandId, type: 'stdout' | 'stderr', data: string) => void): void
+	on(event: 'error', listener: (commandId: CommandId, error: ExecaError) => void): void
 	on(
-		event: "exit",
-		listener: (commandId: CommandId, code: number | null, signal: NodeJS.Signals | null) => void
+		event: 'exit',
+		listener: (commandId: CommandId, code: number | null, signal: NodeJS.Signals | null) => void,
 	): void
 	on(event: string, listener: (...args: any[]) => void): void {
 		EventEmitter.prototype.on.call(this, event, listener)
@@ -146,7 +145,7 @@ export class ExecaTerminalManager {
 
 	public async executeCommand(
 		message: ExecuteCommandMessage,
-		callbackFunction: (event: "error" | "exit" | "response", commandId: number, data: string) => void
+		callbackFunction: (event: 'error' | 'exit' | 'response', commandId: number, data: string) => void,
 	): Promise<void> {
 		if (message.commandId) {
 			await this.handleCommandInput(message)
@@ -158,14 +157,14 @@ export class ExecaTerminalManager {
 		try {
 			await this.awaitCommand(commandId)
 		} catch (error) {
-			console.error("Error executing command:", error)
+			console.error('Error executing command:', error)
 		}
 	}
 
 	private async handleCommandInput(message: ExecuteCommandMessage): Promise<void> {
 		let input = message.command
 		if (message.isEnter) {
-			input = input + "\n"
+			input = `${input}\n`
 		}
 
 		await this.sendInput(Number(message.commandId!), input)

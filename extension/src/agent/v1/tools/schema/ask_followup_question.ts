@@ -1,5 +1,5 @@
 // schema/ask_followup_question.ts
-import { z } from "zod"
+import { z } from 'zod'
 
 /**
  * @tool ask_followup_question
@@ -31,7 +31,7 @@ const schema = z.object({
 	question: z
 		.string()
 		.describe(
-			"The question to ask the user. This should be a clear, specific question that addresses the information you need."
+			'The question to ask the user. This should be a clear, specific question that addresses the information you need.',
 		),
 })
 
@@ -51,7 +51,7 @@ const examples = [
 
 export const askFollowupQuestionTool = {
 	schema: {
-		name: "ask_followup_question",
+		name: 'ask_followup_question',
 		schema,
 	},
 	examples,

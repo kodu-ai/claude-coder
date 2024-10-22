@@ -1,18 +1,18 @@
-import { Anthropic } from "@anthropic-ai/sdk"
-import { AxiosError } from "axios"
-import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { KoduError, koduSSEResponse } from "../../shared/kodu"
-import { amplitudeTracker } from "../../utils/amplitude"
-import { BASE_SYSTEM_PROMPT } from "./prompts/base-system"
+import type { Anthropic } from '@anthropic-ai/sdk'
+import { AxiosError } from 'axios'
+import { type ApiConfiguration, type ApiHandler, buildApiHandler } from '../../api'
+import type { ExtensionProvider } from '../../providers/claude-coder/ClaudeCoderProvider'
+import { KoduError, type koduSSEResponse } from '../../shared/kodu'
+import { amplitudeTracker } from '../../utils/amplitude'
+import { BASE_SYSTEM_PROMPT } from './prompts/base-system'
 import {
 	CodingBeginnerSystemPromptSection,
 	ExperiencedDeveloperSystemPromptSection,
 	NonTechnicalSystemPromptSection,
 	SYSTEM_PROMPT,
-} from "./system-prompt"
-import { UserContent } from "./types"
-import { getCwd } from "./utils"
+} from './system-prompt'
+import type { UserContent } from './types'
+import { getCwd } from './utils'
 
 /**
  *
@@ -22,13 +22,13 @@ import { getCwd } from "./utils"
  */
 export const anthropicMessageToTokens = (message: Anthropic.MessageParam) => {
 	const content = message.content
-	if (typeof content === "string") {
+	if (typeof content === 'string') {
 		return Math.round(content.length / 2)
 	}
-	const textBlocks = content.filter((block) => block.type === "text")
-	const text = textBlocks.map((block) => block.text).join("")
+	const textBlocks = content.filter((block) => block.type === 'text')
+	const text = textBlocks.map((block) => block.text).join('')
 	const textTokens = Math.round(text.length / 3)
-	const imgBlocks = content.filter((block) => block.type === "image")
+	const imgBlocks = content.filter((block) => block.type === 'image')
 	const imgTokens = imgBlocks.length * 2000
 	return Math.round(textTokens + imgTokens)
 }
@@ -95,25 +95,25 @@ export class ApiManager {
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
 		abortSignal?: AbortSignal | null,
-		tempature: number = 0,
-		top_p: number = 0.9,
+		tempature = 0,
+		topP = 0.9,
 	): AsyncGenerator<koduSSEResponse> {
 		console.debug(
 			`[DEBUG] createBaseMessageStream with systemPrompt: ${systemPrompt}, messages: ${JSON.stringify(
 				messages,
 				null,
 				2,
-			)}, abortSignal: ${abortSignal}, tempature: ${tempature}, top_p: ${top_p}`,
+			)}, abortSignal: ${abortSignal}, tempature: ${tempature}, top_p: ${topP}`,
 		)
 		try {
-			const stream = await this.api.createBaseMessageStream(systemPrompt, messages, abortSignal, tempature, top_p)
+			const stream = await this.api.createBaseMessageStream(systemPrompt, messages, abortSignal, tempature, topP)
 
 			for await (const chunk of stream) {
 				switch (chunk.code) {
 					case 0:
 						console.log('Health check received')
 						break
-					case 1:
+					case 1: {
 						console.log('finalResponse', chunk)
 						// we always reach here
 						const response = chunk.body.anthropic
@@ -146,6 +146,7 @@ export class ApiManager {
 							outputTokens,
 						})
 						break
+					}
 				}
 				yield chunk
 			}
@@ -178,7 +179,7 @@ ${
 }
 		`
 		let customInstructions: string | undefined
-		if (this.customInstructions && this.customInstructions.trim()) {
+		if (this.customInstructions?.trim()) {
 			customInstructions += `
 ====
 
@@ -194,7 +195,7 @@ ${this.customInstructions.trim()}
 		// on first request, we need to get the environment details with details of the current task and folder
 		const environmentDetails = await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
 		if (isFirstRequest && this.providerRef.deref()?.getKoduDev()) {
-			this.providerRef.deref()!.getKoduDev()!.isFirstMessage = false
+			this.providerRef.deref()?.getKoduDev()!.isFirstMessage = false
 		}
 
 		try {
@@ -213,7 +214,7 @@ ${this.customInstructions.trim()}
 					case 0:
 						console.log('Health check received')
 						break
-					case 1:
+					case 1: {
 						console.log('finalResponse', chunk)
 						// we always reach here
 						const response = chunk.body.anthropic
@@ -246,6 +247,7 @@ ${this.customInstructions.trim()}
 							outputTokens,
 						})
 						break
+					}
 				}
 				yield chunk
 			}

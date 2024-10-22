@@ -1,15 +1,15 @@
-import React, { useRef, useState, useCallback, useEffect } from "react"
-import { useEvent } from "react-use"
-import { vscode } from "@/utils/vscode"
+import { vscode } from '@/utils/vscode'
+import React, { useRef, useState, useCallback, useEffect } from 'react'
+import { useEvent } from 'react-use'
 
-import { FitAddon } from "@xterm/addon-fit"
-import { WebLinksAddon } from "@xterm/addon-web-links"
-import { Terminal as XTerm } from "@xterm/xterm"
+import { FitAddon } from '@xterm/addon-fit'
+import { WebLinksAddon } from '@xterm/addon-web-links'
+import { Terminal as XTerm } from '@xterm/xterm'
 
-import "xterm/css/xterm.css"
-import { CommandExecutionResponse } from "../../../../src/shared/ExtensionMessage"
-import { Button } from "../ui/button"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
+import 'xterm/css/xterm.css'
+import type { CommandExecutionResponse } from '../../../../src/shared/ExtensionMessage'
+import { Button } from '../ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
 
 interface HistoryEntry {
 	command: string
@@ -25,10 +25,10 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 	const terminalRef = useRef<XTerm>()
 	const [isExecuting, setIsExecuting] = useState(false)
 	const commandIdRef = useRef<string | undefined>(undefined)
-	const commandInputRef = useRef<string>("")
+	const commandInputRef = useRef<string>('')
 	const terminalHistoryRef = useRef<HistoryEntry[]>([])
 	const currentHistoryIndexRef = useRef<number>(-1)
-	const preservedInputRef = useRef<string>("")
+	const preservedInputRef = useRef<string>('')
 	const isLongRunningCommandRef = useRef<boolean>(false)
 
 	const addToHistory = useCallback((entry: HistoryEntry) => {
@@ -40,13 +40,13 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 		(command: string, isEnter = false) => {
 			if (terminalRef.current) {
 				setIsExecuting(true)
-				vscode.postMessage({ type: "executeCommand", commandId: commandIdRef.current, command, isEnter })
+				vscode.postMessage({ type: 'executeCommand', commandId: commandIdRef.current, command, isEnter })
 
 				if (!commandIdRef.current) {
-					addToHistory({ command, output: "" })
+					addToHistory({ command, output: '' })
 					// Determine if it's likely a long-running command
 					isLongRunningCommandRef.current =
-						command.startsWith("npx") || command.includes("install") || command.includes("build")
+						command.startsWith('npx') || command.includes('install') || command.includes('build')
 
 					if (isLongRunningCommandRef.current) {
 						terminalRef.current.clear()
@@ -55,7 +55,7 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 				}
 			}
 		},
-		[addToHistory]
+		[addToHistory],
 	)
 
 	const updateCommandId = useCallback((newCommandId: string | null) => {
@@ -65,32 +65,32 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 	const handleCommandResponse = useCallback(
 		(event: MessageEvent) => {
 			const response = event.data as CommandExecutionResponse
-			if (response.type === "commandExecutionResponse" && terminalRef.current) {
+			if (response.type === 'commandExecutionResponse' && terminalRef.current) {
 				switch (response.status) {
-					case "response":
+					case 'response':
 						if (isLongRunningCommandRef.current) {
 							terminalRef.current.clear()
 						}
 						terminalRef.current.write(response.payload)
 						updateCommandId(response.commandId!)
 						break
-					case "error":
+					case 'error':
 						if (isLongRunningCommandRef.current) {
 							terminalRef.current.clear()
 						}
 						terminalRef.current.writeln(`Error: ${response.payload}`)
 						updateCommandId(null)
 						setIsExecuting(false)
-						terminalRef.current.write("$ ")
+						terminalRef.current.write('$ ')
 						break
-					case "exit":
+					case 'exit':
 						if (isLongRunningCommandRef.current) {
 							terminalRef.current.clear()
 							terminalRef.current.writeln(response.payload)
 						}
 						setIsExecuting(false)
 						if (commandIdRef.current) {
-							terminalRef.current.write("$ ")
+							terminalRef.current.write('$ ')
 						}
 						updateCommandId(null)
 						isLongRunningCommandRef.current = false
@@ -98,7 +98,7 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 				}
 			}
 		},
-		[updateCommandId]
+		[updateCommandId],
 	)
 
 	useEffect(() => {
@@ -114,8 +114,8 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 			fontSize: 12,
 			fontFamily: '"Cascadia Code", Menlo, courier-new, courier, monospace',
 			theme: {
-				background: createColor("--vscode-editor-background"), // Gets button background color
-				foreground: createColor("--vscode-terminal-foreground"), // Gets terminal foreground color
+				background: createColor('--vscode-editor-background'), // Gets button background color
+				foreground: createColor('--vscode-terminal-foreground'), // Gets terminal foreground color
 			},
 		})
 
@@ -125,14 +125,14 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 		terminal.loadAddon(webLinksAddon)
 		terminal.open(element)
 
-		terminal.write("$ ")
+		terminal.write('$ ')
 
 		if (initialCommand) {
 			terminal.write(initialCommand)
-			terminal.write("\r\n")
+			terminal.write('\r\n')
 		}
 
-		let currentLine = ""
+		let currentLine = ''
 
 		terminal.onKey(({ key, domEvent }) => {
 			const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey
@@ -144,30 +144,30 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 					terminal.write(key)
 				} else if (domEvent.keyCode === 8) {
 					// Backspace
-					terminal.write("\b \b")
+					terminal.write('\b \b')
 				}
 			} else {
 				// Single execution command mode
 				if (domEvent.keyCode === 13) {
 					// Enter key
-					terminal.write("\r\n")
+					terminal.write('\r\n')
 					if (currentLine.trim()) {
-						if (currentLine === "clear") {
+						if (currentLine === 'clear') {
 							terminal.clear()
-							terminal.write("$ ")
+							terminal.write('$ ')
 						} else {
 							executeCommand(currentLine, true)
 						}
-						preservedInputRef.current = ""
+						preservedInputRef.current = ''
 					} else if (!isExecuting) {
-						terminal.write("$ ")
+						terminal.write('$ ')
 					}
-					currentLine = ""
+					currentLine = ''
 				} else if (domEvent.keyCode === 8) {
 					// Backspace
 					if (currentLine.length > 0) {
 						currentLine = currentLine.slice(0, -1)
-						terminal.write("\b \b")
+						terminal.write('\b \b')
 					}
 				} else if (domEvent.keyCode === 38) {
 					// Up arrow
@@ -177,7 +177,7 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 					if (currentHistoryIndexRef.current > 0) {
 						currentHistoryIndexRef.current--
 						const prevCommand = terminalHistoryRef.current[currentHistoryIndexRef.current].command
-						terminal.write("\x1b[2K\r$ " + prevCommand)
+						terminal.write(`\x1b[2K\r$ ${prevCommand}`)
 						currentLine = prevCommand
 					}
 				} else if (domEvent.keyCode === 40) {
@@ -185,11 +185,11 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 					if (currentHistoryIndexRef.current < terminalHistoryRef.current.length - 1) {
 						currentHistoryIndexRef.current++
 						const nextCommand = terminalHistoryRef.current[currentHistoryIndexRef.current].command
-						terminal.write("\x1b[2K\r$ " + nextCommand)
+						terminal.write(`\x1b[2K\r$ ${nextCommand}`)
 						currentLine = nextCommand
 					} else if (currentHistoryIndexRef.current === terminalHistoryRef.current.length - 1) {
 						currentHistoryIndexRef.current++
-						terminal.write("\x1b[2K\r$ " + preservedInputRef.current)
+						terminal.write(`\x1b[2K\r$ ${preservedInputRef.current}`)
 						currentLine = preservedInputRef.current
 					}
 				} else if (printable) {
@@ -213,16 +213,16 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 		}
 	}, [executeCommand])
 
-	useEvent("message", handleCommandResponse)
+	useEvent('message', handleCommandResponse)
 
 	return (
 		<div className="relative bg-card p-2 rounded-md">
 			<div
 				ref={terminalElementRef}
 				style={{
-					height: "150px",
+					height: '150px',
 					// padding: "4px",
-					borderRadius: "4px",
+					borderRadius: '4px',
 					// border: "1px solid var(--vscode-panel-border)",
 				}}
 			/>
@@ -232,7 +232,8 @@ const InteractiveTerminal = ({ initialCommand }: { initialCommand?: string }) =>
 				size="icon"
 				onClick={() => {
 					terminalRef.current?.clear()
-				}}>
+				}}
+			>
 				<span className="codicon codicon-clear-all text-primary-foreground" />
 			</Button>
 

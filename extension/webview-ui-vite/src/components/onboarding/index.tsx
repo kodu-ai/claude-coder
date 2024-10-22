@@ -1,8 +1,6 @@
-"use client"
+'use client'
 
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Button } from "@/components/ui/button"
+import { Button } from '@/components/ui/button'
 import {
 	Dialog,
 	DialogContent,
@@ -10,45 +8,47 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
-import { Sparkles, Code, Brain } from "lucide-react"
-import { useExtensionState } from "@/context/ExtensionStateContext"
-import { vscode } from "@/utils/vscode"
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Progress } from '@/components/ui/progress'
+import { useExtensionState } from '@/context/ExtensionStateContext'
+import { vscode } from '@/utils/vscode'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Brain, Code, Sparkles } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
-type CodingLevel = "no-technical" | "technical" | "developer"
+type CodingLevel = 'no-technical' | 'technical' | 'developer'
 
 export const technicalLevels = {
-	"no-technical": {
+	'no-technical': {
 		icon: Sparkles,
-		title: "Non Technical",
+		title: 'Non Technical',
 		description: "Don't have many ideas about coding or how technology works",
-		explanation: "This will give Kodu a complete freedom to choose the technology stack and tools.",
-		color: "from-purple-500 to-pink-500",
+		explanation: 'This will give Kodu a complete freedom to choose the technology stack and tools.',
+		color: 'from-purple-500 to-pink-500',
 	},
 	technical: {
 		icon: Code,
-		title: "Coding Beginner",
+		title: 'Coding Beginner',
 		description: "Technical, but don't know how to code or just learning how to code",
 		explanation:
-			"This will give Kodu a complete freedom to choose the technology stack and tools unless you explicitly say which tools you want to use.",
-		color: "from-blue-500 to-teal-500",
+			'This will give Kodu a complete freedom to choose the technology stack and tools unless you explicitly say which tools you want to use.',
+		color: 'from-blue-500 to-teal-500',
 	},
 	developer: {
 		icon: Brain,
-		title: "Experienced Developer",
-		description: "Have enough experience to call myself a software developer",
+		title: 'Experienced Developer',
+		description: 'Have enough experience to call myself a software developer',
 		explanation:
-			"Kodu will trust your intuition, and will expect you to understand the code to some extent, and give you complete freedom to choose technology stack and tooling.",
-		color: "from-orange-500 to-red-500",
+			'Kodu will trust your intuition, and will expect you to understand the code to some extent, and give you complete freedom to choose technology stack and tooling.',
+		color: 'from-orange-500 to-red-500',
 	},
 }
 
 export default function OnboardingDialog() {
 	const { setTechnicalBackground, technicalBackground } = useExtensionState()
 	const open = !technicalBackground
-	const [selectedLevel, setSelectedLevel] = useState<typeof technicalBackground>("no-technical")
+	const [selectedLevel, setSelectedLevel] = useState<typeof technicalBackground>('no-technical')
 	const [progress, setProgress] = useState(0)
 
 	useEffect(() => {
@@ -61,7 +61,7 @@ export default function OnboardingDialog() {
 			setProgress(100)
 			setTimeout(() => {
 				console.log(`User selected level: ${selectedLevel}`)
-				vscode.postMessage({ type: "technicalBackground", value: selectedLevel })
+				vscode.postMessage({ type: 'technicalBackground', value: selectedLevel })
 			}, 100)
 		}
 	}
@@ -75,9 +75,10 @@ export default function OnboardingDialog() {
 			open={open}
 			onOpenChange={(e) => {
 				if (!e) {
-					setTechnicalBackground(selectedLevel ?? "no-technical")
+					setTechnicalBackground(selectedLevel ?? 'no-technical')
 				}
-			}}>
+			}}
+		>
 			<DialogContent className="sm:max-w-[425px] overflow-hidden">
 				<DialogHeader>
 					<DialogTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
@@ -97,19 +98,21 @@ export default function OnboardingDialog() {
 								animate={{ opacity: 1, y: 0 }}
 								exit={{ opacity: 0, y: -20 }}
 								transition={{ duration: 0.3 }}
-								className="mb-4">
+								className="mb-4"
+							>
 								<div
 									onClick={() => handleCardClick(level as CodingLevel)}
 									className={`flex shadow-sm items-start space-x-2 p-4 rounded-lg transition-all duration-300 cursor-pointer
                     ${
 						selectedLevel === level
 							? `bg-gradient-to-r ${info.color} text-white`
-							: "bg-card text-foreground"
-					}`}>
+							: 'bg-card text-foreground'
+					}`}
+								>
 									<div className="flex-shrink-0 mt-1">
 										<div
 											className={`w-4 h-4 rounded-full border-2 ${
-												selectedLevel === level ? "border-white bg-white" : "border-foreground"
+												selectedLevel === level ? 'border-white bg-white' : 'border-foreground'
 											}`}
 										/>
 									</div>
@@ -132,10 +135,11 @@ export default function OnboardingDialog() {
 						// disabled={!selectedLevel}
 						className={`w-full transition-all duration-300 border-0 border-none ${
 							selectedLevel
-								? "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
-								: ""
-						}`}>
-						{selectedLevel ? "Start my awesome journey!" : "Choose your level"}
+								? 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700'
+								: ''
+						}`}
+					>
+						{selectedLevel ? 'Start my awesome journey!' : 'Choose your level'}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

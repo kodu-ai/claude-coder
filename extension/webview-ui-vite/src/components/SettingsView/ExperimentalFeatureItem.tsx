@@ -1,9 +1,9 @@
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 // @ts-nocheck
-import React from "react"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { ExperimentalFeature } from "./types"
+import React from 'react'
+import type { ExperimentalFeature } from './types'
 
 interface ExperimentalFeatureItemProps {
 	feature: ExperimentalFeature
@@ -45,7 +45,7 @@ const ExperimentalFeatureItem: React.FC<ExperimentalFeatureItemProps> = React.me
 				/>
 			)}
 		</div>
-	)
+	),
 )
 
 export default ExperimentalFeatureItem

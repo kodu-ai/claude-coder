@@ -1,19 +1,19 @@
-import * as vscode from "vscode"
-import { KoduDev } from "../../agent/v1"
-import { extensionName } from "../../shared/Constants"
-import { HistoryItem } from "../../shared/HistoryItem"
-import { ApiManager } from "./state/ApiManager"
-import { GlobalStateManager } from "./state/GlobalStateManager"
-import { SecretStateManager } from "./state/SecretStateManager"
-import { StateManager } from "./state/StateManager"
-import { TaskManager } from "./state/TaskManager"
-import { WebviewManager } from "./webview/WebviewManager"
+import * as vscode from 'vscode'
+import { KoduDev } from '../../agent/v1'
+import { extensionName } from '../../shared/Constants'
+import type { HistoryItem } from '../../shared/HistoryItem'
+import { ApiManager } from './state/ApiManager'
+import { GlobalStateManager } from './state/GlobalStateManager'
+import { SecretStateManager } from './state/SecretStateManager'
+import { StateManager } from './state/StateManager'
+import { TaskManager } from './state/TaskManager'
+import { WebviewManager } from './webview/WebviewManager'
 
 export class ExtensionProvider implements vscode.WebviewViewProvider {
 	public static readonly sideBarId = `${extensionName}.SidebarProvider`
 	public static readonly tabPanelId = `${extensionName}.TabPanelProvider`
-	private disposables: vscode.Disposable[] = []
-	private view?: vscode.WebviewView | vscode.WebviewPanel
+	public disposables: vscode.Disposable[] = []
+	public view?: vscode.WebviewView | vscode.WebviewPanel
 	private koduDev?: KoduDev
 	private stateManager: StateManager
 	private webviewManager: WebviewManager
@@ -22,8 +22,11 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 	private globalStateManager: GlobalStateManager
 	private apiManager: ApiManager
 
-	constructor(readonly context: vscode.ExtensionContext, private readonly outputChannel: vscode.OutputChannel) {
-		this.outputChannel.appendLine("ExtensionProvider instantiated")
+	constructor(
+		readonly context: vscode.ExtensionContext,
+		private readonly outputChannel: vscode.OutputChannel,
+	) {
+		this.outputChannel.appendLine('ExtensionProvider instantiated')
 		this.globalStateManager = new GlobalStateManager(context)
 		this.secretStateManager = new SecretStateManager(context)
 		this.stateManager = new StateManager(this)
@@ -33,12 +36,12 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 	}
 
 	async dispose() {
-		this.outputChannel.appendLine("Disposing ExtensionProvider...")
+		this.outputChannel.appendLine('Disposing ExtensionProvider...')
 		await this.taskManager.clearTask()
-		this.outputChannel.appendLine("Cleared task")
-		if (this.view && "dispose" in this.view) {
+		this.outputChannel.appendLine('Cleared task')
+		if (this.view && 'dispose' in this.view) {
 			this.view.dispose()
-			this.outputChannel.appendLine("Disposed webview")
+			this.outputChannel.appendLine('Disposed webview')
 		}
 		while (this.disposables.length) {
 			const x = this.disposables.pop()
@@ -46,11 +49,11 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 				x.dispose()
 			}
 		}
-		this.outputChannel.appendLine("Disposed all disposables")
+		this.outputChannel.appendLine('Disposed all disposables')
 	}
 
 	resolveWebviewView(webviewView: vscode.WebviewView | vscode.WebviewPanel): void | Thenable<void> {
-		this.outputChannel.appendLine("Resolving webview view")
+		this.outputChannel.appendLine('Resolving webview view')
 		this.view = webviewView
 
 		this.webviewManager.setupWebview(webviewView)
@@ -61,24 +64,24 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 				await this.dispose()
 			},
 			null,
-			this.disposables
+			this.disposables,
 		)
 
 		// Listen for when color changes
 		vscode.workspace.onDidChangeConfiguration(
 			(e) => {
-				if (e && e.affectsConfiguration("workbench.colorTheme")) {
+				if (e?.affectsConfiguration('workbench.colorTheme')) {
 					// Sends latest theme name to webview
 					this.webviewManager.postStateToWebview()
 				}
 			},
 			null,
-			this.disposables
+			this.disposables,
 		)
 
 		// if the extension is starting a new session, clear previous task state
 		this.taskManager.clearTask()
-		this.outputChannel.appendLine("Webview view resolved")
+		this.outputChannel.appendLine('Webview view resolved')
 	}
 
 	async initWithTask(task?: string, images?: string[], isDebug?: boolean) {

@@ -1,4 +1,4 @@
-import React from "react"
+import type React from 'react'
 
 const AnnouncementContent: React.FC = () => (
 	<div className="p-4 bg-gray-100 rounded-lg">

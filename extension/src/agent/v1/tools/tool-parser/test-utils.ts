@@ -1,6 +1,6 @@
 export const jsWriteToFileTool = {
-	toolName: "writeFile",
-	path: "script.js",
+	toolName: 'writeFile',
+	path: 'script.js',
 	value: `let currentOperand = '';
 let previousOperand = '';
 let operation = undefined;

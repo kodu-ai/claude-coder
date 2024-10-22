@@ -1,8 +1,8 @@
-import * as path from "path"
-import * as os from "os"
-import * as vscode from "vscode"
-import { Anthropic } from "@anthropic-ai/sdk"
-import { ClaudeMessage, ClaudeSayTool } from "../../shared/ExtensionMessage"
+import * as os from 'node:os'
+import * as path from 'node:path'
+import type { Anthropic } from '@anthropic-ai/sdk'
+import * as vscode from 'vscode'
+import { ClaudeMessage, type ClaudeSayTool } from '../../shared/ExtensionMessage'
 
 declare global {
 	interface String {
@@ -11,10 +11,10 @@ declare global {
 }
 
 export const getCwd = (): string =>
-	vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), "Desktop")
+	vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), 'Desktop')
 
 export const cwd =
-	vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), "Desktop")
+	vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), 'Desktop')
 /**
  * Get a readable path for display purposes
  * @param relPath - The relative path to convert
@@ -23,19 +23,17 @@ export const cwd =
  */
 export function getReadablePath(relPath: string, customCwd: string = cwd): string {
 	const absolutePath = path.resolve(customCwd, relPath)
-	if (customCwd === path.join(os.homedir(), "Desktop")) {
+	if (customCwd === path.join(os.homedir(), 'Desktop')) {
 		return absolutePath
 	}
 	if (path.normalize(absolutePath) === path.normalize(customCwd)) {
 		return path.basename(absolutePath)
-	} else {
-		const normalizedRelPath = path.relative(customCwd, absolutePath)
-		if (absolutePath.includes(customCwd)) {
-			return normalizedRelPath
-		} else {
-			return absolutePath
-		}
 	}
+	const normalizedRelPath = path.relative(customCwd, absolutePath)
+	if (absolutePath.includes(customCwd)) {
+		return normalizedRelPath
+	}
+	return absolutePath
 }
 
 /**
@@ -49,12 +47,12 @@ export function formatFilesList(absolutePath: string, files: string[], didHitLim
 		.map((file) => {
 			// convert absolute path to relative path
 			const relativePath = path.relative(absolutePath, file).toPosix()
-			return file.endsWith("/") ? relativePath + "/" : relativePath
+			return file.endsWith('/') ? `${relativePath}/` : relativePath
 		})
 		// Sort so files are listed under their respective directories to make it clear what files are children of what directories. Since we build file list top down, even if file list is truncated it will show directories that cline can then explore further.
 		.sort((a, b) => {
-			const aParts = a.split("/") // only works if we use toPosix first
-			const bParts = b.split("/")
+			const aParts = a.split('/') // only works if we use toPosix first
+			const bParts = b.split('/')
 			for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
 				if (aParts[i] !== bParts[i]) {
 					// If one is a directory and the other isn't at this level, sort the directory first
@@ -65,7 +63,7 @@ export function formatFilesList(absolutePath: string, files: string[], didHitLim
 						return 1
 					}
 					// Otherwise, sort alphabetically
-					return aParts[i].localeCompare(bParts[i], undefined, { numeric: true, sensitivity: "base" })
+					return aParts[i].localeCompare(bParts[i], undefined, { numeric: true, sensitivity: 'base' })
 				}
 			}
 			// If all parts are the same up to the length of the shorter path,
@@ -74,13 +72,13 @@ export function formatFilesList(absolutePath: string, files: string[], didHitLim
 		})
 	if (didHitLimit) {
 		return `${sorted.join(
-			"\n"
+			'\n',
 		)}\n\n(File list truncated. Use list_files on specific subdirectories if you need to explore further.)`
-	} else if (sorted.length === 0 || (sorted.length === 1 && sorted[0] === "")) {
-		return "No files found."
-	} else {
-		return sorted.join("\n")
 	}
+	if (sorted.length === 0 || (sorted.length === 1 && sorted[0] === '')) {
+		return 'No files found.'
+	}
+	return sorted.join('\n')
 }
 
 /**
@@ -93,14 +91,14 @@ VSCode Visible Files: ${
 		vscode.window.visibleTextEditors
 			?.map((editor) => editor.document?.uri?.fsPath)
 			.filter(Boolean)
-			.join(", ") || "(No files open)"
+			.join(', ') || '(No files open)'
 	}
 VSCode Opened Tabs: ${
 		vscode.window.tabGroups.all
 			.flatMap((group) => group.tabs)
 			.map((tab) => (tab.input as vscode.TabInputText)?.uri?.fsPath)
 			.filter(Boolean)
-			.join(", ") || "(No tabs open)"
+			.join(', ') || '(No tabs open)'
 	}
 </potentially_relevant_details>`
 }
@@ -113,13 +111,13 @@ VSCode Opened Tabs: ${
 export function formatImagesIntoBlocks(images?: string[]): Anthropic.ImageBlockParam[] {
 	return images
 		? images.map((dataUrl) => {
-				const [rest, base64] = dataUrl.split(",")
-				const mimeType = rest.split(":")[1].split(";")[0]
+				const [rest, base64] = dataUrl.split(',')
+				const mimeType = rest.split(':')[1].split(';')[0]
 				return {
-					type: "image",
-					source: { type: "base64", media_type: mimeType, data: base64 },
+					type: 'image',
+					source: { type: 'base64', media_type: mimeType, data: base64 },
 				} as Anthropic.ImageBlockParam
-		  })
+			})
 		: []
 }
 
@@ -131,15 +129,14 @@ export function formatImagesIntoBlocks(images?: string[]): Anthropic.ImageBlockP
  */
 export function formatToolResponse(
 	text: string,
-	images?: string[]
+	images?: string[],
 ): string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam> {
 	if (images && images.length > 0) {
-		const textBlock: Anthropic.TextBlockParam = { type: "text", text }
+		const textBlock: Anthropic.TextBlockParam = { type: 'text', text }
 		const imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
 		return [textBlock, ...imageBlocks]
-	} else {
-		return text
 	}
+	return text
 }
 
 /**
@@ -168,8 +165,8 @@ export function createToolMessage(tool: string, path: string, content: string, c
 }
 
 export const isTextBlock = (block: any): block is Anthropic.TextBlockParam => {
-	if (typeof block === "object") {
-		return block.type === "text"
+	if (typeof block === 'object') {
+		return block.type === 'text'
 	}
 	return false
 }

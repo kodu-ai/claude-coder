@@ -1,8 +1,8 @@
-import React from "react"
-import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
-import { useExtensionState } from "../../context/ExtensionStateContext"
-import { vscode } from "../../utils/vscode"
-import TaskCard from "./TaskCard"
+import { VSCodeButton } from '@vscode/webview-ui-toolkit/react'
+import type React from 'react'
+import { useExtensionState } from '../../context/ExtensionStateContext'
+import { vscode } from '../../utils/vscode'
+import TaskCard from './TaskCard'
 
 interface HistoryPreviewProps {
 	showHistoryView: () => void
@@ -12,7 +12,7 @@ const HistoryPreview: React.FC<HistoryPreviewProps> = ({ showHistoryView }) => {
 	const { taskHistory } = useExtensionState()
 
 	const handleHistorySelect = (id: string) => {
-		vscode.postMessage({ type: "showTaskWithId", text: id })
+		vscode.postMessage({ type: 'showTaskWithId', text: id })
 	}
 
 	return (

@@ -1,51 +1,37 @@
 {
 	"$schema": "https://biomejs.dev/schemas/1.9.1/schema.json",
 	"vcs": { "enabled": false, "clientKind": "git", "useIgnoreFile": false },
-	"files": { "ignoreUnknown": false, "ignore": [] },
+	"files": {
+		"ignoreUnknown": false,
+		"ignore": ["node_modules", "webview-ui-vite/build", "webview-ui-vite/node_modules"],
+		"include": ["**/*.ts", "**/*.tsx"]
+	},
 	"formatter": {
 		"enabled": true,
 		"useEditorconfig": true,
-		"formatWithErrors": false,
+		"formatWithErrors": true,
 		"indentStyle": "tab",
 		"indentWidth": 4,
 		"lineEnding": "lf",
 		"lineWidth": 120,
 		"attributePosition": "auto",
 		"bracketSpacing": true,
-		"ignore": [
-			"**/dist/",
-			"**/node_modules",
-			"webview-ui/build/",
-			"**/CHANGELOG.md"
-		]
+		"ignore": ["**/dist/", "**/node_modules", "webview-ui/build/", "**/CHANGELOG.md"]
 	},
 	"organizeImports": { "enabled": true },
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": false,
+			"recommended": true,
 			"correctness": { "useExhaustiveDependencies": "off" },
 			"style": {
+				"noParameterAssign": "warn",
+				"noNonNullAssertion": "warn",
 				"useBlockStatements": "warn",
-				"useNamingConvention": {
-					"level": "warn",
-					"options": {
-						"strictCase": false,
-						"conventions": [
-							{
-								"selector": { "kind": "importNamespace" },
-								"formats": ["camelCase", "PascalCase"]
-							},
-							{
-								"selector": { "kind": "importAlias" },
-								"formats": ["camelCase", "PascalCase"]
-							}
-						]
-					}
-				},
 				"useThrowOnlyError": "warn"
 			},
-			"suspicious": { "noDoubleEquals": "warn" }
+			"suspicious": { "noDoubleEquals": "warn", "noExplicitAny": "warn" },
+			"complexity": { "noStaticOnlyClass": "warn" }
 		},
 		"ignore": ["**/out", "**/dist", "**/*.d.ts"]
 	},

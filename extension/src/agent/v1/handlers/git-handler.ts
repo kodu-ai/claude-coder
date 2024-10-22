@@ -1,16 +1,14 @@
-import * as path from "path"
-import { exec } from "child_process"
-import { promises as fs } from "fs"
-import { ClaudeMessage, GitBranchItem, GitLogItem } from "../../../shared/ExtensionMessage"
-import { ToolName } from "../types"
-import { has } from "lodash"
+import { exec } from 'node:child_process'
+import { promises as fs } from 'node:fs'
+import * as path from 'node:path'
+import { has } from 'lodash'
+import { ClaudeMessage, type GitBranchItem, type GitLogItem } from '../../../shared/ExtensionMessage'
+import { ToolName } from '../types'
 
 export class GitHandler {
 	private repoPath: string | undefined
-	private DEFAULT_USER_NAME = "kodu-ai"
-	private DEFAULT_USER_EMAIL = "bot@kodu.ai"
-
-	constructor() {}
+	private DEFAULT_USER_NAME = 'kodu-ai'
+	private DEFAULT_USER_EMAIL = 'bot@kodu.ai'
 
 	async init(dirAbsolutePath: string): Promise<boolean> {
 		if (!dirAbsolutePath) {
@@ -28,7 +26,7 @@ export class GitHandler {
 
 		try {
 			if (!(await this.isGitInstalled())) {
-				console.log("Git is not installed")
+				console.log('Git is not installed')
 				return false
 			}
 
@@ -38,10 +36,10 @@ export class GitHandler {
 				return false
 			}
 
-			const userName = (await this.getGlobalConfigValue("user.name")) ?? this.DEFAULT_USER_NAME
-			const userEmail = (await this.getGlobalConfigValue("user.email")) ?? this.DEFAULT_USER_EMAIL
-			await this.setGitConfig("user.name", userName)
-			await this.setGitConfig("user.email", userEmail)
+			const userName = (await this.getGlobalConfigValue('user.name')) ?? this.DEFAULT_USER_NAME
+			const userEmail = (await this.getGlobalConfigValue('user.email')) ?? this.DEFAULT_USER_EMAIL
+			await this.setGitConfig('user.name', userName)
+			await this.setGitConfig('user.email', userEmail)
 
 			return true
 		} catch (error) {
@@ -53,21 +51,21 @@ export class GitHandler {
 	async commitChanges(branchName: string, message: string): Promise<boolean> {
 		try {
 			if (!(await this.isGitInstalled())) {
-				throw new Error("Git is not installed")
+				throw new Error('Git is not installed')
 			}
 
 			if (!(await this.isRepositorySetup())) {
 				const isSetup = await this.setupRepository()
 
 				if (!isSetup) {
-					throw new Error("Failed to setup repository")
+					throw new Error('Failed to setup repository')
 				}
 			}
 
 			if (!message || !branchName) {
-				throw new Error("Message and branch name are required")
+				throw new Error('Message and branch name are required')
 			}
-			branchName = branchName.replace(/ /g, "-")
+			branchName = branchName.replace(/ /g, '-')
 
 			return new Promise((resolve) => {
 				exec(
@@ -76,10 +74,9 @@ export class GitHandler {
 					(error, stdout, stderr) => {
 						if (error) {
 							throw new Error(`Error committing changes: ${error} \n ${stderr}`)
-						} else {
-							resolve(true)
 						}
-					}
+						resolve(true)
+					},
 				)
 			})
 		} catch (error) {
@@ -104,8 +101,8 @@ export class GitHandler {
 								resolve([])
 							}
 
-							resolve(this.parseGitLogs(stdout))
-						}
+							resolve(GitHandler.parseGitLogs(stdout))
+						},
 					)
 				}) ?? []
 			)
@@ -122,7 +119,7 @@ export class GitHandler {
 
 		return stdout
 			.trim()
-			.split("\n")
+			.split('\n')
 			.map((line) => {
 				const [hash, date, time, ...messageParts] = line.split(/\s+/)
 				if (!hash || !date) {
@@ -132,7 +129,7 @@ export class GitHandler {
 				return {
 					hash,
 					datetime: `${date} ${time}`,
-					message: messageParts.join(" "),
+					message: messageParts.join(' '),
 				}
 			})
 			.filter((x) => !!x)
@@ -154,13 +151,13 @@ export class GitHandler {
 						resolve([])
 					} else {
 						try {
-							resolve(this.parseGitBranches(stdout))
+							resolve(GitHandler.parseGitBranches(stdout))
 						} catch (parseError) {
 							console.error(`Error parsing branches: ${parseError}`)
 							resolve([])
 						}
 					}
-				}
+				},
 			)
 		})
 	}
@@ -170,11 +167,11 @@ export class GitHandler {
 			return []
 		}
 
-		const lines = stdout.trim().split("\n")
+		const lines = stdout.trim().split('\n')
 		const branches: GitBranchItem[] = []
 
-		for (let line of lines) {
-			const parts = line.split("|")
+		for (const line of lines) {
+			const parts = line.split('|')
 			if (parts.length < 4) {
 				continue
 			}
@@ -182,9 +179,9 @@ export class GitHandler {
 			const isCheckedOutIndicator = parts[0]
 			const name = parts[1]
 			const lastCommitRelativeTime = parts[2]
-			const lastCommitMessage = parts.slice(3).join("|")
+			const lastCommitMessage = parts.slice(3).join('|')
 
-			const isCheckedOut = isCheckedOutIndicator === "*"
+			const isCheckedOut = isCheckedOutIndicator === '*'
 
 			branches.push({
 				name,
@@ -216,8 +213,8 @@ export class GitHandler {
 
 	private isGitInstalled(): Promise<boolean> {
 		return new Promise((resolve) => {
-			exec("git --version", (error, stdout) => {
-				if (error || !stdout.startsWith("git version")) {
+			exec('git --version', (error, stdout) => {
+				if (error || !stdout.startsWith('git version')) {
 					resolve(false)
 				} else {
 					resolve(true)
@@ -236,7 +233,7 @@ export class GitHandler {
 
 	private async initializeRepository(): Promise<boolean> {
 		return new Promise<boolean>((resolve) => {
-			exec("git init", { cwd: this.repoPath, shell: process.env.SHELL }, (error, stdout, stderr) => {
+			exec('git init', { cwd: this.repoPath, shell: process.env.SHELL }, (error, stdout, stderr) => {
 				if (error) {
 					console.error(error)
 					console.log(`Error initializing git repository: ${stderr}`)
@@ -279,16 +276,16 @@ export class GitHandler {
 
 	private async isRepositorySetup(): Promise<boolean> {
 		const initPromise = new Promise<boolean>((resolve, reject) => {
-			exec("git rev-parse --is-inside-work-tree", { cwd: this.repoPath }, (error, stdout, stderr) => {
+			exec('git rev-parse --is-inside-work-tree', { cwd: this.repoPath }, (error, stdout, stderr) => {
 				if (error) {
 					resolve(false)
 				} else {
-					resolve(stdout.trim() === "true")
+					resolve(stdout.trim() === 'true')
 				}
 			})
 		})
-		const userEmailConfigPromise = this.getLocalConfigValue("user.email")
-		const userNameConfigPromise = this.getLocalConfigValue("user.name")
+		const userEmailConfigPromise = this.getLocalConfigValue('user.email')
+		const userNameConfigPromise = this.getLocalConfigValue('user.name')
 
 		const [isInit, userEmail, userName] = await Promise.all([
 			initPromise,

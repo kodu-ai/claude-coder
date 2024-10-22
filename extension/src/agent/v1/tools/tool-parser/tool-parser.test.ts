@@ -1,9 +1,9 @@
-import { z } from "zod"
-import { nanoid } from "nanoid"
-import ToolParser from "./tool-parser"
-import { jsWriteToFileTool } from "./test-utils"
+import { nanoid } from 'nanoid'
+import { z } from 'zod'
+import { jsWriteToFileTool } from './test-utils'
+import ToolParser from './tool-parser'
 
-describe("ToolParser", () => {
+describe('ToolParser', () => {
 	const writeFileSchema = z.object({
 		path: z.string(),
 		value: z.string(),
@@ -27,11 +27,11 @@ describe("ToolParser", () => {
 		toolParser = new ToolParser(
 			[
 				{
-					name: "writeFile",
+					name: 'writeFile',
 					schema: writeFileSchema,
 				},
 				{
-					name: "readFile",
+					name: 'readFile',
 					schema: readFileSchema,
 				},
 			],
@@ -40,10 +40,10 @@ describe("ToolParser", () => {
 				onToolUpdate: onToolUpdateMock,
 				onToolError: onToolErrorMock,
 				onToolClosingError: onToolClosingErrorMock,
-			}
+			},
 		)
 		jest.useFakeTimers()
-		jest.setSystemTime(new Date("2023-01-01"))
+		jest.setSystemTime(new Date('2023-01-01'))
 	})
 
 	afterEach(() => {
@@ -68,21 +68,21 @@ describe("ToolParser", () => {
 
 	const countExpectedUpdates = (obj: Record<string, any>): number => {
 		return Object.entries(obj).reduce((count, [key, value]) => {
-			if (key === "toolName") {
+			if (key === 'toolName') {
 				return count
-			} else if (key === "value") {
-				return count + value.length // One update per character in 'value'
-			} else {
-				return count + 1 // One update per other parameter
 			}
+			if (key === 'value') {
+				return count + value.length // One update per character in 'value'
+			}
+			return count + 1 // One update per other parameter
 		}, 0)
 	}
 
-	test("should process a valid writeFile tool", () => {
+	test('should process a valid writeFile tool', () => {
 		const toolObj = {
-			toolName: "writeFile",
-			path: "/tmp/test.txt",
-			value: "Hello, World!",
+			toolName: 'writeFile',
+			path: '/tmp/test.txt',
+			value: 'Hello, World!',
 		}
 		const toolXml = objectToXml(toolObj)
 
@@ -93,49 +93,49 @@ describe("ToolParser", () => {
 
 		// Verify that updates for 'value' are called with the content growing character by character
 		const value = toolObj.value
-		let accumulatedValue = ""
+		let accumulatedValue = ''
 		let callIndex = 0
 
 		// First, the 'path' parameter update
-		expect(onToolUpdateMock.mock.calls[callIndex][0]).toBe("mocked-nanoid")
-		expect(onToolUpdateMock.mock.calls[callIndex][1]).toBe("writeFile")
+		expect(onToolUpdateMock.mock.calls[callIndex][0]).toBe('mocked-nanoid')
+		expect(onToolUpdateMock.mock.calls[callIndex][1]).toBe('writeFile')
 		expect(onToolUpdateMock.mock.calls[callIndex][2]).toEqual({
 			path: toolObj.path,
 		})
-		expect(onToolUpdateMock.mock.calls[callIndex][3]).toBe(new Date("2023-01-01").getTime())
+		expect(onToolUpdateMock.mock.calls[callIndex][3]).toBe(new Date('2023-01-01').getTime())
 		callIndex++
 
 		// Then, updates for each character in 'value'
 		for (let i = 0; i < value.length; i++) {
 			accumulatedValue += value[i]
-			expect(onToolUpdateMock.mock.calls[callIndex][0]).toBe("mocked-nanoid")
-			expect(onToolUpdateMock.mock.calls[callIndex][1]).toBe("writeFile")
+			expect(onToolUpdateMock.mock.calls[callIndex][0]).toBe('mocked-nanoid')
+			expect(onToolUpdateMock.mock.calls[callIndex][1]).toBe('writeFile')
 			expect(onToolUpdateMock.mock.calls[callIndex][2]).toEqual({
 				path: toolObj.path,
 				value: accumulatedValue,
 			})
-			expect(onToolUpdateMock.mock.calls[callIndex][3]).toBe(new Date("2023-01-01").getTime())
+			expect(onToolUpdateMock.mock.calls[callIndex][3]).toBe(new Date('2023-01-01').getTime())
 			callIndex++
 		}
 
 		expect(onToolEndMock).toHaveBeenCalledTimes(1)
 		expect(onToolEndMock).toHaveBeenCalledWith(
-			"mocked-nanoid",
-			"writeFile",
+			'mocked-nanoid',
+			'writeFile',
 			{
 				path: toolObj.path,
 				value: toolObj.value,
 			},
-			new Date("2023-01-01").getTime()
+			new Date('2023-01-01').getTime(),
 		)
 		expect(onToolErrorMock).not.toHaveBeenCalled()
 		expect(onToolClosingErrorMock).not.toHaveBeenCalled()
 	})
 
-	test("should process a valid readFile tool", () => {
+	test('should process a valid readFile tool', () => {
 		const toolObj = {
-			toolName: "readFile",
-			path: "/tmp/test.txt",
+			toolName: 'readFile',
+			path: '/tmp/test.txt',
 		}
 		const toolXml = objectToXml(toolObj)
 
@@ -146,33 +146,33 @@ describe("ToolParser", () => {
 
 		// Verify that 'path' parameter update is correct
 		expect(onToolUpdateMock).toHaveBeenCalledWith(
-			"mocked-nanoid",
-			"readFile",
+			'mocked-nanoid',
+			'readFile',
 			{
 				path: toolObj.path,
 			},
-			new Date("2023-01-01").getTime()
+			new Date('2023-01-01').getTime(),
 		)
 
 		expect(onToolEndMock).toHaveBeenCalledTimes(1)
 		expect(onToolEndMock).toHaveBeenCalledWith(
-			"mocked-nanoid",
-			"readFile",
+			'mocked-nanoid',
+			'readFile',
 			{
 				path: toolObj.path,
 			},
-			new Date("2023-01-01").getTime()
+			new Date('2023-01-01').getTime(),
 		)
 		expect(onToolErrorMock).not.toHaveBeenCalled()
 		expect(onToolClosingErrorMock).not.toHaveBeenCalled()
 	})
 
-	test("should handle multiple tools in a single input", () => {
+	test('should handle multiple tools in a single input', () => {
 		const toolObjs = [
-			{ toolName: "writeFile", path: "/tmp/test1.txt", value: "Hello" },
-			{ toolName: "readFile", path: "/tmp/test2.txt" },
+			{ toolName: 'writeFile', path: '/tmp/test1.txt', value: 'Hello' },
+			{ toolName: 'readFile', path: '/tmp/test2.txt' },
 		]
-		const toolXml = toolObjs.map(objectToXml).join("\n")
+		const toolXml = toolObjs.map(objectToXml).join('\n')
 
 		simulateStream(toolXml)
 
@@ -183,10 +183,10 @@ describe("ToolParser", () => {
 		expect(onToolClosingErrorMock).not.toHaveBeenCalled()
 	})
 
-	test("should handle invalid tools", () => {
+	test('should handle invalid tools', () => {
 		const toolObj = {
-			toolName: "invalidTool",
-			param: "value",
+			toolName: 'invalidTool',
+			param: 'value',
 		}
 		const toolXml = objectToXml(toolObj)
 
@@ -198,11 +198,11 @@ describe("ToolParser", () => {
 		expect(onToolClosingErrorMock).not.toHaveBeenCalled()
 	})
 
-	test("should handle interrupted stream", () => {
+	test('should handle interrupted stream', () => {
 		const toolObj = {
-			toolName: "writeFile",
-			path: "/tmp/test.txt",
-			value: "Test content",
+			toolName: 'writeFile',
+			path: '/tmp/test.txt',
+			value: 'Test content',
 		}
 		const toolXml = objectToXml(toolObj)
 		const interruptIndex = Math.floor(toolXml.length / 2)
@@ -223,14 +223,14 @@ describe("ToolParser", () => {
 		expect(onToolClosingErrorMock).not.toHaveBeenCalled()
 	})
 
-	test("should handle incomplete tool input", () => {
+	test('should handle incomplete tool input', () => {
 		const toolObj = {
-			toolName: "writeFile",
-			path: "/tmp/test.txt",
-			value: "Hello, World!",
+			toolName: 'writeFile',
+			path: '/tmp/test.txt',
+			value: 'Hello, World!',
 		}
 		const toolXml = objectToXml(toolObj)
-		const incompleteXml = toolXml.slice(0, toolXml.indexOf("</writeFile>") - 1)
+		const incompleteXml = toolXml.slice(0, toolXml.indexOf('</writeFile>') - 1)
 
 		simulateStream(incompleteXml)
 		toolParser.endParsing()
@@ -242,12 +242,12 @@ describe("ToolParser", () => {
 		expect(onToolClosingErrorMock).toHaveBeenCalledWith(expect.any(Error))
 	})
 
-	test("should handle streaming input with multiple tools", () => {
+	test('should handle streaming input with multiple tools', () => {
 		const toolObjs = [
-			{ toolName: "writeFile", path: "/tmp/file1.txt", value: "Content 1" },
-			{ toolName: "readFile", path: "/tmp/file2.txt" },
+			{ toolName: 'writeFile', path: '/tmp/file1.txt', value: 'Content 1' },
+			{ toolName: 'readFile', path: '/tmp/file2.txt' },
 		]
-		const toolXml = toolObjs.map(objectToXml).join("\n")
+		const toolXml = toolObjs.map(objectToXml).join('\n')
 
 		simulateStream(toolXml)
 
@@ -258,13 +258,13 @@ describe("ToolParser", () => {
 		expect(onToolClosingErrorMock).not.toHaveBeenCalled()
 	})
 
-	test("should handle streaming input with incomplete tool at the end", () => {
+	test('should handle streaming input with incomplete tool at the end', () => {
 		const toolObjs = [
-			{ toolName: "writeFile", path: "/tmp/complete.txt", value: "Complete content" },
-			{ toolName: "readFile", path: "/tmp/incomplete.txt" },
+			{ toolName: 'writeFile', path: '/tmp/complete.txt', value: 'Complete content' },
+			{ toolName: 'readFile', path: '/tmp/incomplete.txt' },
 		]
-		const toolXml = toolObjs.map(objectToXml).join("\n")
-		const incompleteXml = toolXml.slice(0, toolXml.lastIndexOf("</readFile>") - 1)
+		const toolXml = toolObjs.map(objectToXml).join('\n')
+		const incompleteXml = toolXml.slice(0, toolXml.lastIndexOf('</readFile>') - 1)
 
 		simulateStream(incompleteXml)
 		toolParser.endParsing()
@@ -274,21 +274,21 @@ describe("ToolParser", () => {
 		expect(onToolUpdateMock).toHaveBeenCalledTimes(expectedUpdatesFirstTool + 1) // +1 for the incomplete readFile
 		expect(onToolEndMock).toHaveBeenCalledTimes(1)
 		expect(onToolEndMock).toHaveBeenCalledWith(
-			"mocked-nanoid",
-			"writeFile",
+			'mocked-nanoid',
+			'writeFile',
 			{
-				path: "/tmp/complete.txt",
-				value: "Complete content",
+				path: '/tmp/complete.txt',
+				value: 'Complete content',
 			},
-			new Date("2023-01-01").getTime()
+			new Date('2023-01-01').getTime(),
 		)
 		expect(onToolErrorMock).not.toHaveBeenCalled()
 		expect(onToolClosingErrorMock).toHaveBeenCalledTimes(1)
 		expect(onToolClosingErrorMock).toHaveBeenCalledWith(expect.any(Error))
 	})
 
-	test("should call onToolClosingError when interrupted in the middle of wrong tool tags", () => {
-		const toolXml = "<invalidTool><param>value</param>" // Missing closing </invalidTool>
+	test('should call onToolClosingError when interrupted in the middle of wrong tool tags', () => {
+		const toolXml = '<invalidTool><param>value</param>' // Missing closing </invalidTool>
 		simulateStream(toolXml)
 		toolParser.endParsing()
 
@@ -299,7 +299,7 @@ describe("ToolParser", () => {
 		expect(onToolClosingErrorMock).toHaveBeenCalledWith(expect.any(Error))
 	})
 
-	test("should handle complicated write_to_file", () => {
+	test('should handle complicated write_to_file', () => {
 		const toolObj = jsWriteToFileTool
 		const toolXml = objectToXml(toolObj)
 
@@ -310,7 +310,7 @@ describe("ToolParser", () => {
 
 		// Verify final update
 		const lastCall = onToolUpdateMock.mock.calls[onToolUpdateMock.mock.calls.length - 1]
-		expect(lastCall[1]).toBe("writeFile")
+		expect(lastCall[1]).toBe('writeFile')
 		// expect(lastCall[2]).toEqual(toolParser)
 		// expect(lastCall[3]).toBe(new Date("2023-01-01").getTime())
 	})

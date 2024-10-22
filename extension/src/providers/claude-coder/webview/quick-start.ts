@@ -1,13 +1,13 @@
-import * as vscode from "vscode"
-import * as fs from "fs"
-import * as path from "path"
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import * as vscode from 'vscode'
 
-type newTaskCallback = (description: string) => void
+type NewTaskCallback = (description: string) => void
 
-export async function quickStart(repoUrl: string, name: string, newTask: newTaskCallback): Promise<void> {
-	console.log("Quickstart", repoUrl, name)
+export async function quickStart(repoUrl: string, name: string, newTask: NewTaskCallback): Promise<void> {
+	console.log('Quickstart', repoUrl, name)
 
-	let workspaceFolder = await getWorkspaceFolder()
+	const workspaceFolder = await getWorkspaceFolder()
 	if (!workspaceFolder) {
 		return
 	}
@@ -19,7 +19,7 @@ export async function quickStart(repoUrl: string, name: string, newTask: newTask
 
 	const { repoFullName, branch, subdir } = parseGitHubUrl(repoUrl)
 	if (!repoFullName) {
-		vscode.window.showErrorMessage("Invalid GitHub URL")
+		vscode.window.showErrorMessage('Invalid GitHub URL')
 		return
 	}
 
@@ -38,13 +38,13 @@ export async function quickStart(repoUrl: string, name: string, newTask: newTask
 		await newTask(`Let's build project ${name}!`)
 
 		// Open the cloned repository in current window
-		await vscode.commands.executeCommand("vscode.openFolder", uri, {
+		await vscode.commands.executeCommand('vscode.openFolder', uri, {
 			forceNewWindow: false,
 			forceReuseWindow: true,
 		})
 
 		vscode.window.showInformationMessage(
-			"Repository cloned successfully. The extension's webview should open shortly."
+			"Repository cloned successfully. The extension's webview should open shortly.",
 		)
 	} catch (err) {
 		vscode.window.showErrorMessage(`Error cloning repository: ${(err as Error).message}`)
@@ -54,10 +54,10 @@ export async function quickStart(repoUrl: string, name: string, newTask: newTask
 async function getWorkspaceFolder(): Promise<vscode.WorkspaceFolder | undefined> {
 	let workspaceFolder = vscode.workspace.workspaceFolders?.[0]
 	if (!workspaceFolder) {
-		vscode.window.showWarningMessage("No workspace folder selected. Please choose a folder to clone into.")
+		vscode.window.showWarningMessage('No workspace folder selected. Please choose a folder to clone into.')
 		workspaceFolder = await vscode.window.showWorkspaceFolderPick()
 		if (!workspaceFolder) {
-			vscode.window.showErrorMessage("No workspace folder selected. Operation cancelled.")
+			vscode.window.showErrorMessage('No workspace folder selected. Operation cancelled.')
 			return undefined
 		}
 	}
@@ -66,7 +66,7 @@ async function getWorkspaceFolder(): Promise<vscode.WorkspaceFolder | undefined>
 
 async function ensureUniqueFolderName(
 	workspaceFolder: vscode.WorkspaceFolder,
-	initialName: string
+	initialName: string,
 ): Promise<string | undefined> {
 	let name = initialName
 	const folderPath = path.join(workspaceFolder.uri.fsPath, name)
@@ -78,7 +78,7 @@ async function ensureUniqueFolderName(
 		})
 
 		if (!response) {
-			vscode.window.showInformationMessage("Operation cancelled by user.")
+			vscode.window.showInformationMessage('Operation cancelled by user.')
 			return undefined
 		}
 
@@ -94,27 +94,27 @@ function parseGitHubUrl(url: string): { repoFullName: string | null; branch: str
 	if (match) {
 		return {
 			repoFullName: match[1],
-			branch: match[3] || "main",
+			branch: match[3] || 'main',
 			subdir: match[5] || null,
 		}
 	}
-	return { repoFullName: null, branch: "main", subdir: null }
+	return { repoFullName: null, branch: 'main', subdir: null }
 }
 
 function createCloneTask(
 	workspaceFolder: vscode.WorkspaceFolder,
 	repoFullName: string,
 	branch: string,
-	name: string
+	name: string,
 ): vscode.Task {
 	const cloneUrl = `https://github.com/${repoFullName}.git`
 	return new vscode.Task(
-		{ type: "shell" },
+		{ type: 'shell' },
 		workspaceFolder,
-		"Clone Repository",
-		"git",
+		'Clone Repository',
+		'git',
 		new vscode.ShellExecution(`git clone -b ${branch} "${cloneUrl}" "${name}"`),
-		[]
+		[],
 	)
 }
 
@@ -140,16 +140,16 @@ async function executeTaskWithFeedback(task: vscode.Task): Promise<void> {
 async function moveSubdirContents(
 	workspaceFolder: vscode.WorkspaceFolder,
 	name: string,
-	subdir: string
+	subdir: string,
 ): Promise<void> {
 	const repoPath = path.join(workspaceFolder.uri.fsPath, name)
 	const subdirPath = path.join(repoPath, subdir)
-	const tempPath = path.join(repoPath, "_temp_move")
+	const tempPath = path.join(repoPath, '_temp_move')
 
 	await vscode.workspace.fs.rename(vscode.Uri.file(subdirPath), vscode.Uri.file(tempPath))
 
 	for (const entry of await vscode.workspace.fs.readDirectory(vscode.Uri.file(repoPath))) {
-		if (entry[0] !== ".git" && entry[0] !== "_temp_move") {
+		if (entry[0] !== '.git' && entry[0] !== '_temp_move') {
 			await vscode.workspace.fs.delete(vscode.Uri.joinPath(vscode.Uri.file(repoPath), entry[0]), {
 				recursive: true,
 			})
@@ -159,7 +159,7 @@ async function moveSubdirContents(
 	for (const entry of await vscode.workspace.fs.readDirectory(vscode.Uri.file(tempPath))) {
 		await vscode.workspace.fs.rename(
 			vscode.Uri.joinPath(vscode.Uri.file(tempPath), entry[0]),
-			vscode.Uri.joinPath(vscode.Uri.file(repoPath), entry[0])
+			vscode.Uri.joinPath(vscode.Uri.file(repoPath), entry[0]),
 		)
 	}
 

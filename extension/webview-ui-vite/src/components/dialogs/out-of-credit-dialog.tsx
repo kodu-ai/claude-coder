@@ -1,22 +1,22 @@
-"use client"
+'use client'
 
-import React from "react"
-import { motion } from "framer-motion"
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import {
 	Dialog,
 	DialogContent,
-	DialogHeader,
-	DialogTitle,
 	DialogDescription,
 	DialogFooter,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Users, Gift, CreditCard, Zap, Coins, TrendingUp } from "lucide-react"
-import { useExtensionState } from "@/context/ExtensionStateContext"
-import { atom, useAtom, useSetAtom } from "jotai"
-import { vscode } from "@/utils/vscode"
-import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl } from "../../../../src/shared/kodu"
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
+import { useExtensionState } from '@/context/ExtensionStateContext'
+import { vscode } from '@/utils/vscode'
+import { motion } from 'framer-motion'
+import { atom, useAtom, useSetAtom } from 'jotai'
+import { Coins, CreditCard, Gift, TrendingUp, Users, Zap } from 'lucide-react'
+import type React from 'react'
+import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl } from '../../../../src/shared/kodu'
 
 const isOpenAtom = atom(false)
 
@@ -59,7 +59,7 @@ export default function OutOfCreditDialog() {
 							description="Earn up to $500 in credits"
 							onClick={() => {
 								vscode.postMessage({
-									type: "openExternalLink",
+									type: 'openExternalLink',
 									url: getKoduReferUrl(),
 								})
 								setIsOpen(false)
@@ -71,7 +71,7 @@ export default function OutOfCreditDialog() {
 							description="Get up to $10 in free credits"
 							onClick={() => {
 								vscode.postMessage({
-									type: "openExternalLink",
+									type: 'openExternalLink',
 									url: getKoduOfferUrl(),
 								})
 								setIsOpen(false)
@@ -83,7 +83,7 @@ export default function OutOfCreditDialog() {
 							description="Instant top-up, start from $5"
 							onClick={() => {
 								vscode.postMessage({
-									type: "openExternalLink",
+									type: 'openExternalLink',
 									url: getKoduAddCreditsUrl(),
 								})
 								setIsOpen(false)
@@ -109,12 +109,13 @@ export default function OutOfCreditDialog() {
 					<Button
 						onClick={() => {
 							vscode.postMessage({
-								type: "openExternalLink",
+								type: 'openExternalLink',
 								url: getKoduAddCreditsUrl(),
 							})
 							setIsOpen(false)
 						}}
-						className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 transition-all duration-300">
+						className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+					>
 						Add Credits Now
 					</Button>
 				</DialogFooter>

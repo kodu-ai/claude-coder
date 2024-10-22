@@ -1,5 +1,5 @@
-import { AmplitudeWebviewMessage, WebviewMessage } from "../../../src/shared/WebviewMessage"
-import type { WebviewApi } from "vscode-webview"
+import type { WebviewApi } from 'vscode-webview'
+import type { AmplitudeWebviewMessage, WebviewMessage } from '../../../src/shared/WebviewMessage'
 
 /**
  * A utility wrapper around the acquireVsCodeApi() function, which enables
@@ -16,7 +16,7 @@ class VSCodeAPIWrapper {
 	constructor() {
 		// Check if the acquireVsCodeApi function exists in the current development
 		// context (i.e. VS Code development window or web browser)
-		if (typeof acquireVsCodeApi === "function") {
+		if (typeof acquireVsCodeApi === 'function') {
 			this.vsCodeApi = acquireVsCodeApi()
 		}
 	}
@@ -37,8 +37,8 @@ class VSCodeAPIWrapper {
 		}
 	}
 
-	public postTrackingEvent(event: AmplitudeWebviewMessage["event_type"], key?: string) {
-		this.vsCodeApi?.postMessage({ type: "amplitude", event_type: event, key })
+	public postTrackingEvent(event: AmplitudeWebviewMessage['event_type'], key?: string) {
+		this.vsCodeApi?.postMessage({ type: 'amplitude', event_type: event, key })
 	}
 
 	/**
@@ -52,10 +52,9 @@ class VSCodeAPIWrapper {
 	public getState(): unknown | undefined {
 		if (this.vsCodeApi) {
 			return this.vsCodeApi.getState()
-		} else {
-			const state = localStorage.getItem("vscodeState")
-			return state ? JSON.parse(state) : undefined
 		}
+		const state = localStorage.getItem('vscodeState')
+		return state ? JSON.parse(state) : undefined
 	}
 
 	/**
@@ -72,10 +71,9 @@ class VSCodeAPIWrapper {
 	public setState<T extends unknown | undefined>(newState: T): T {
 		if (this.vsCodeApi) {
 			return this.vsCodeApi.setState(newState)
-		} else {
-			localStorage.setItem("vscodeState", JSON.stringify(newState))
-			return newState
 		}
+		localStorage.setItem('vscodeState', JSON.stringify(newState))
+		return newState
 	}
 }
 

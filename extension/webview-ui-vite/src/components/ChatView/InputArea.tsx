@@ -1,12 +1,13 @@
-import React, { KeyboardEvent, useRef, useState } from "react"
-import Thumbnails from "../Thumbnails/Thumbnails"
-import { Button } from "../ui/button"
-import { vscode } from "@/utils/vscode"
-import InputV1 from "./InputV1"
+import { vscode } from '@/utils/vscode'
+import type React from 'react'
+import { type KeyboardEvent, useRef, useState } from 'react'
+import Thumbnails from '../Thumbnails/Thumbnails'
+import { Button } from '../ui/button'
+import InputV1 from './InputV1'
 
-import GitDialog from "./GitDialog"
-import TaskHistoryModal from "./TaskHistoryDialog"
-import InteractiveTerminal from "../ChatRow/InteractiveTerminal"
+import InteractiveTerminal from '../ChatRow/InteractiveTerminal'
+import GitDialog from './GitDialog'
+import TaskHistoryModal from './TaskHistoryDialog'
 
 interface InputAreaProps {
 	inputValue: string
@@ -51,20 +52,22 @@ const InputArea: React.FC<InputAreaProps> = ({
 			<div
 				className="flex flex-col gap-2"
 				style={{
-					padding: "8px 16px",
+					padding: '8px 16px',
 					opacity: textAreaDisabled ? 0.5 : 1,
-					position: "relative",
-					display: "flex",
+					position: 'relative',
+					display: 'flex',
 					marginTop: 0,
-				}}>
+				}}
+			>
 				{isInTask && (
 					<div className="flex justify-between">
 						<Button
-							onClick={() => vscode.postMessage({ type: "cancelCurrentRequest" })}
+							onClick={() => vscode.postMessage({ type: 'cancelCurrentRequest' })}
 							disabled={!isRequestRunning}
 							size="sm"
 							variant="destructive"
-							className="w-fit">
+							className="w-fit"
+						>
 							Abort Request
 						</Button>
 
@@ -109,7 +112,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 						setImages={setSelectedImages}
 						onHeightChange={handleThumbnailsHeightChange}
 						style={{
-							position: "absolute",
+							position: 'absolute',
 							paddingTop: 4,
 							bottom: 14,
 							left: 22,
@@ -119,16 +122,17 @@ const InputArea: React.FC<InputAreaProps> = ({
 				)}
 				<div
 					style={{
-						position: "absolute",
+						position: 'absolute',
 						right: 20,
-						display: "flex",
-						alignItems: "flex-center",
-						height: "calc(100% - 80px)",
+						display: 'flex',
+						alignItems: 'flex-center',
+						height: 'calc(100% - 80px)',
 						marginTop: 30,
 						marginBottom: 30,
 						bottom: 10,
-					}}>
-					<div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2 }}>
+					}}
+				>
+					<div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
 						<Button
 							tabIndex={0}
 							disabled={shouldDisableImages}
@@ -137,8 +141,9 @@ const InputArea: React.FC<InputAreaProps> = ({
 							size="icon"
 							aria-label="Attach Images"
 							onClick={selectImages}
-							style={{ marginRight: "2px" }}>
-							<span className="codicon codicon-device-camera" style={{ fontSize: 16 }}></span>
+							style={{ marginRight: '2px' }}
+						>
+							<span className="codicon codicon-device-camera" style={{ fontSize: 16 }} />
 						</Button>
 						<Button
 							tabIndex={0}
@@ -147,8 +152,9 @@ const InputArea: React.FC<InputAreaProps> = ({
 							className="!p-1 h-6 w-6"
 							size="icon"
 							aria-label="Send Message"
-							onClick={handleSendMessage}>
-							<span className="codicon codicon-send" style={{ fontSize: 16 }}></span>
+							onClick={handleSendMessage}
+						>
+							<span className="codicon codicon-send" style={{ fontSize: 16 }} />
 						</Button>
 					</div>
 				</div>

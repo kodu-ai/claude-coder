@@ -1,14 +1,14 @@
-import Anthropic from "@anthropic-ai/sdk"
-import fs from "fs/promises"
-import path from "path"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { combineApiRequests } from "../../shared/combineApiRequests"
-import { combineCommandSequences } from "../../shared/combineCommandSequences"
-import { getApiMetrics } from "../../shared/getApiMetrics"
-import { findLastIndex } from "../../utils"
-import { ApiManager } from "./api-handler"
-import { DEFAULT_MAX_REQUESTS_PER_TASK } from "./constants"
-import { ClaudeMessage, KoduDevOptions, KoduDevState } from "./types"
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import type Anthropic from '@anthropic-ai/sdk'
+import type { ExtensionProvider } from '../../providers/claude-coder/ClaudeCoderProvider'
+import { combineApiRequests } from '../../shared/combineApiRequests'
+import { combineCommandSequences } from '../../shared/combineCommandSequences'
+import { getApiMetrics } from '../../shared/getApiMetrics'
+import { findLastIndex } from '../../utils'
+import { ApiManager } from './api-handler'
+import { DEFAULT_MAX_REQUESTS_PER_TASK } from './constants'
+import type { ClaudeMessage, KoduDevOptions, KoduDevState } from './types'
 
 // new State Manager class
 export class StateManager {
@@ -17,7 +17,7 @@ export class StateManager {
 	private _maxRequestsPerTask: number
 	private _providerRef: WeakRef<ExtensionProvider>
 	private _alwaysAllowReadOnly: boolean
-	private _creativeMode: "creative" | "normal" | "deterministic"
+	private _creativeMode: 'creative' | 'normal' | 'deterministic'
 	private _customInstructions?: string
 	private _alwaysAllowWriteOnly: boolean
 	private _experimentalTerminal?: boolean
@@ -40,7 +40,7 @@ export class StateManager {
 			autoCloseTerminal,
 			skipWriteAnimation,
 		} = options
-		this._creativeMode = creativeMode ?? "normal"
+		this._creativeMode = creativeMode ?? 'normal'
 		this._providerRef = new WeakRef(provider)
 		this._apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
 		this._alwaysAllowReadOnly = alwaysAllowReadOnly ?? false
@@ -54,7 +54,7 @@ export class StateManager {
 		this._skipWriteAnimation = skipWriteAnimation
 		this._state = {
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
-			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
+			dirAbsolutePath: historyItem?.dirAbsolutePath ?? '',
 			isRepoInitialized: historyItem?.isRepoInitialized ?? false,
 			requestCount: 0,
 			memory: historyItem?.memory,
@@ -121,7 +121,7 @@ export class StateManager {
 		return this._alwaysAllowReadOnly
 	}
 
-	get creativeMode(): "creative" | "normal" | "deterministic" {
+	get creativeMode(): 'creative' | 'normal' | 'deterministic' {
 		return this._creativeMode
 	}
 
@@ -142,15 +142,15 @@ export class StateManager {
 		this._skipWriteAnimation = newValue
 	}
 
-	get historyErrors(): KoduDevState["historyErrors"] | undefined {
+	get historyErrors(): KoduDevState['historyErrors'] | undefined {
 		return this.state.historyErrors
 	}
 
-	set historyErrors(newErrors: KoduDevState["historyErrors"]) {
+	set historyErrors(newErrors: KoduDevState['historyErrors']) {
 		this.state.historyErrors = newErrors
 	}
 
-	public setHistoryErrorsEntry(key: string, value: NonNullable<KoduDevState["historyErrors"]>[string]): void {
+	public setHistoryErrorsEntry(key: string, value: NonNullable<KoduDevState['historyErrors']>[string]): void {
 		if (!this.state.historyErrors) {
 			this.state.historyErrors = {}
 		}
@@ -189,7 +189,7 @@ export class StateManager {
 		this._alwaysAllowReadOnly = newValue
 	}
 
-	public setCreativeMode(newMode: "creative" | "normal" | "deterministic"): void {
+	public setCreativeMode(newMode: 'creative' | 'normal' | 'deterministic'): void {
 		this._creativeMode = newMode
 	}
 
@@ -205,21 +205,21 @@ export class StateManager {
 	private async ensureTaskDirectoryExists(): Promise<string> {
 		const globalStoragePath = this.providerRef.deref()?.context.globalStorageUri.fsPath
 		if (!globalStoragePath) {
-			throw new Error("Global storage uri is invalid")
+			throw new Error('Global storage uri is invalid')
 		}
-		const taskDir = path.join(globalStoragePath, "tasks", this.state.taskId)
+		const taskDir = path.join(globalStoragePath, 'tasks', this.state.taskId)
 		await fs.mkdir(taskDir, { recursive: true })
 		return taskDir
 	}
 
 	async getSavedApiConversationHistory(): Promise<Anthropic.MessageParam[]> {
-		const filePath = path.join(await this.ensureTaskDirectoryExists(), "api_conversation_history.json")
+		const filePath = path.join(await this.ensureTaskDirectoryExists(), 'api_conversation_history.json')
 		const fileExists = await fs
 			.access(filePath)
 			.then(() => true)
 			.catch(() => false)
 		if (fileExists) {
-			return JSON.parse(await fs.readFile(filePath, "utf8"))
+			return JSON.parse(await fs.readFile(filePath, 'utf8'))
 		}
 		return []
 	}
@@ -231,7 +231,7 @@ export class StateManager {
 		const mappedClaudeMessages = claudeMessages.map((message) => {
 			const sanitizedMessage: ClaudeMessage = {
 				...message,
-				text: "[REDACTED]",
+				text: '[REDACTED]',
 			}
 
 			return sanitizedMessage
@@ -243,19 +243,22 @@ export class StateManager {
 		// apiHistory = Anthropic.Messages.MessageParam[]
 		const apiHistory = await this.getSavedApiConversationHistory()
 		// remove any content text from tool_result or user message or assistant message
-		const sanitizeContent = (content: Anthropic.MessageParam["content"]): string | Array<any> => {
-			if (typeof content === "string") {
-				return "[REDACTED]"
-			} else if (Array.isArray(content)) {
+		const sanitizeContent = (content: Anthropic.MessageParam['content']): string | Array<any> => {
+			if (typeof content === 'string') {
+				return '[REDACTED]'
+			}
+			if (Array.isArray(content)) {
 				return content.map((item) => {
-					if (item.type === "tool_use") {
-						return { ...item, content: "[REDACTED]", input: "[REDACTED]" }
+					if (item.type === 'tool_use') {
+						return { ...item, content: '[REDACTED]', input: '[REDACTED]' }
 					}
-					if (item.type === "text") {
-						return { ...item, text: "[REDACTED]" }
-					} else if (item.type === "tool_result") {
-						return { ...item, content: "[REDACTED]" }
-					} else if (item.type === "image") {
+					if (item.type === 'text') {
+						return { ...item, text: '[REDACTED]' }
+					}
+					if (item.type === 'tool_result') {
+						return { ...item, content: '[REDACTED]' }
+					}
+					if (item.type === 'image') {
 						// Preserve image blocks without modification
 						return item
 					}
@@ -284,7 +287,7 @@ export class StateManager {
 		}
 		this.state.historyErrors[errorPath] = {
 			lastCheckedAt: -1,
-			error: "",
+			error: '',
 		}
 	}
 
@@ -300,21 +303,21 @@ export class StateManager {
 
 	async saveApiConversationHistory() {
 		try {
-			const filePath = path.join(await this.ensureTaskDirectoryExists(), "api_conversation_history.json")
+			const filePath = path.join(await this.ensureTaskDirectoryExists(), 'api_conversation_history.json')
 			await fs.writeFile(filePath, JSON.stringify(this.state.apiConversationHistory))
 		} catch (error) {
-			console.error("Failed to save API conversation history:", error)
+			console.error('Failed to save API conversation history:', error)
 		}
 	}
 
 	async getSavedClaudeMessages(): Promise<ClaudeMessage[]> {
-		const filePath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json")
+		const filePath = path.join(await this.ensureTaskDirectoryExists(), 'claude_messages.json')
 		const fileExists = await fs
 			.access(filePath)
 			.then(() => true)
 			.catch(() => false)
 		if (fileExists) {
-			return JSON.parse(await fs.readFile(filePath, "utf8"))
+			return JSON.parse(await fs.readFile(filePath, 'utf8'))
 		}
 		return []
 	}
@@ -326,7 +329,7 @@ export class StateManager {
 			return
 		}
 		console.log(
-			`[StateManager] removeEverythingAfterMessage: Removing everything after message with id ${messageId}`
+			`[StateManager] removeEverythingAfterMessage: Removing everything after message with id ${messageId}`,
 		)
 		this.state.claudeMessages = this.state.claudeMessages.slice(0, index + 1)
 		await this.saveClaudeMessages()
@@ -344,7 +347,7 @@ export class StateManager {
 
 	async appendToClaudeMessage(messageId: number, text: string) {
 		const lastMessage = this.state.claudeMessages.find((msg) => msg.ts === messageId)
-		if (lastMessage && lastMessage.type === "say") {
+		if (lastMessage && lastMessage.type === 'say') {
 			lastMessage.text += text
 		}
 		// too heavy to save every chunk we should save the whole message at the end
@@ -378,17 +381,17 @@ export class StateManager {
 	 */
 	async saveClaudeMessages() {
 		try {
-			const filePath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json")
+			const filePath = path.join(await this.ensureTaskDirectoryExists(), 'claude_messages.json')
 			await fs.writeFile(filePath, JSON.stringify(this.state.claudeMessages))
 			const apiMetrics = getApiMetrics(
-				combineApiRequests(combineCommandSequences(this.state.claudeMessages.slice(1)))
+				combineApiRequests(combineCommandSequences(this.state.claudeMessages.slice(1))),
 			)
 			const taskMessage = this.state.claudeMessages[0]
 			const lastRelevantMessage =
 				this.state.claudeMessages[
 					findLastIndex(
 						this.state.claudeMessages,
-						(m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task")
+						(m) => !(m.ask === 'resume_task' || m.ask === 'resume_completed_task'),
 					)
 				]
 			await this.providerRef
@@ -397,7 +400,7 @@ export class StateManager {
 				.updateTaskHistory({
 					id: this.state.taskId,
 					ts: lastRelevantMessage.ts,
-					task: taskMessage.text ?? "",
+					task: taskMessage.text ?? '',
 					tokensIn: apiMetrics.totalTokensIn,
 					tokensOut: apiMetrics.totalTokensOut,
 					cacheWrites: apiMetrics.totalCacheWrites,
@@ -405,13 +408,13 @@ export class StateManager {
 					totalCost: apiMetrics.totalCost,
 				})
 		} catch (error) {
-			console.error("Failed to save claude messages:", error)
+			console.error('Failed to save claude messages:', error)
 		}
 	}
 
 	private saveState() {
 		// Implement the logic to save the state
 		// This could involve writing to a file or updating a database
-		console.log("Saving state...");
+		console.log('Saving state...')
 	}
 }

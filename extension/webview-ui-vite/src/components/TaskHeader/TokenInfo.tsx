@@ -1,5 +1,5 @@
-import { ArrowRightCircle, DatabaseBackup, FileInput, FileOutput, FilePen, PlusCircle } from "lucide-react"
-import React from "react"
+import { ArrowRightCircle, DatabaseBackup, FileInput, FileOutput, FilePen, PlusCircle } from 'lucide-react'
+import type React from 'react'
 
 interface TokenInfoProps {
 	tokensIn: number
@@ -19,7 +19,7 @@ const TokenInfo: React.FC<TokenInfoProps> = ({
 	totalCost,
 }) => {
 	return (
-		<div className="text-light flex-line wrap" style={{ justifyContent: "space-between" }}>
+		<div className="text-light flex-line wrap" style={{ justifyContent: 'space-between' }}>
 			<div className="flex-line nowrap">
 				Tokens:
 				<code>

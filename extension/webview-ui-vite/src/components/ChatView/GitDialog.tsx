@@ -1,44 +1,45 @@
-import React, { useCallback, useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { useEvent } from "react-use"
-import { ExtensionMessage, GitBranchItem } from "../../../../src/shared/ExtensionMessage"
-import { vscode } from "@/utils/vscode"
-import { FlagTriangleRight, Goal, Info } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
-import { ScrollArea } from "../ui/scroll-area"
-import { Separator } from "../ui/separator"
-import { Input } from "@/components/ui/input"
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { vscode } from '@/utils/vscode'
+import { FlagTriangleRight, Goal, Info } from 'lucide-react'
+import type React from 'react'
+import { useCallback, useState } from 'react'
+import { useEvent } from 'react-use'
+import type { ExtensionMessage, GitBranchItem } from '../../../../src/shared/ExtensionMessage'
+import { ScrollArea } from '../ui/scroll-area'
+import { Separator } from '../ui/separator'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
 
 const GitDialog: React.FC = () => {
 	const [open, setOpen] = useState(false)
 	const [gitBranches, setGitBranches] = useState<GitBranchItem[]>([])
-	const [checkoutToBranchName, setCheckoutToBranchName] = useState("")
+	const [checkoutToBranchName, setCheckoutToBranchName] = useState('')
 
 	const handleMessage = useCallback((e: MessageEvent) => {
 		const message: ExtensionMessage = e.data
-		if (message.type === "gitBranches") {
+		if (message.type === 'gitBranches') {
 			console.log({ message })
 			setGitBranches(message.branches)
 		}
 	}, [])
 
-	useEvent("message", handleMessage)
+	useEvent('message', handleMessage)
 
 	const onOpen = () => {
-		vscode.postMessage({ type: "gitBranches" })
+		vscode.postMessage({ type: 'gitBranches' })
 		setOpen(true)
-		setCheckoutToBranchName("")
+		setCheckoutToBranchName('')
 	}
 
 	const checkout = () => {
 		const isCurrentBranch = gitBranches.find((branch) => branch.isCheckedOut)?.name === checkoutToBranchName
 		if (!isCurrentBranch) {
-			vscode.postMessage({ type: "gitCheckoutTo", branchName: checkoutToBranchName })
+			vscode.postMessage({ type: 'gitCheckoutTo', branchName: checkoutToBranchName })
 		}
 
 		setOpen(false)
-		setCheckoutToBranchName("")
+		setCheckoutToBranchName('')
 	}
 
 	return (
@@ -70,11 +71,13 @@ const GitDialog: React.FC = () => {
 									<div
 										key={branch.name}
 										onClick={() => setCheckoutToBranchName(branch.name)}
-										className="flex items-center space-x-2 py-1 cursor-pointer rounded-sm bg-accent-light hover:bg-muted px-2">
+										className="flex items-center space-x-2 py-1 cursor-pointer rounded-sm bg-accent-light hover:bg-muted px-2"
+									>
 										<div
 											className={`w-4 h-4 rounded-full flex items-center justify-center ${
-												branch.isCheckedOut ? "bg-primary" : "bg-secondary"
-											}`}>
+												branch.isCheckedOut ? 'bg-primary' : 'bg-secondary'
+											}`}
+										>
 											<Goal className="h-3 w-3 text-secondary-foreground" />
 										</div>
 
@@ -92,7 +95,7 @@ const GitDialog: React.FC = () => {
 									</div>
 								))}
 							</div>
-							<div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent pointer-events-none"></div>
+							<div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent pointer-events-none" />
 						</ScrollArea>
 					</div>
 				) : (

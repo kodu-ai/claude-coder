@@ -1,12 +1,12 @@
-import * as path from "path"
-import { serializeError } from "serialize-error"
+import * as path from 'node:path'
+import { serializeError } from 'serialize-error'
 
-import { parseSourceCodeForDefinitionsTopLevel } from "../../../../parse-source-code"
-import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
-import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
-import { BaseAgentTool } from "../base-agent.tool"
+import { parseSourceCodeForDefinitionsTopLevel } from '../../../../parse-source-code'
+import { ClaudeSayTool } from '../../../../shared/ExtensionMessage'
+import type { ToolResponse } from '../../types'
+import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from '../../utils'
+import { BaseAgentTool } from '../base-agent.tool'
+import type { AgentToolOptions, AgentToolParams } from '../types'
 
 export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -22,8 +22,8 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 
 		if (relDirPath === undefined) {
 			await say(
-				"error",
-				"Claude tried to use list_code_definition_names without value for required parameter 'path'. Retrying..."
+				'error',
+				"Claude tried to use list_code_definition_names without value for required parameter 'path'. Retrying...",
 			)
 			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
 			an example of a good listCodeDefinitionNames tool call is:
@@ -40,66 +40,66 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 			const result = await parseSourceCodeForDefinitionsTopLevel(absolutePath)
 
 			const { response, text, images } = await ask(
-				"tool",
+				'tool',
 				{
 					tool: {
-						tool: "list_code_definition_names",
+						tool: 'list_code_definition_names',
 						path: getReadablePath(relDirPath),
-						approvalState: "pending",
+						approvalState: 'pending',
 						content: result,
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
-			if (response !== "yesButtonTapped") {
+			if (response !== 'yesButtonTapped') {
 				ask(
-					"tool",
+					'tool',
 					{
 						tool: {
-							tool: "list_code_definition_names",
+							tool: 'list_code_definition_names',
 							path: getReadablePath(relDirPath),
-							approvalState: "rejected",
+							approvalState: 'rejected',
 							content: result,
 							ts: this.ts,
 						},
 					},
-					this.ts
+					this.ts,
 				)
-				if (response === "messageResponse") {
-					await say("user_feedback", text, images)
+				if (response === 'messageResponse') {
+					await say('user_feedback', text, images)
 					return formatToolResponse(await formatGenericToolFeedback(text), images)
 				}
-				return "The user denied this operation."
+				return 'The user denied this operation.'
 			}
 			ask(
-				"tool",
+				'tool',
 				{
 					tool: {
-						tool: "list_code_definition_names",
+						tool: 'list_code_definition_names',
 						path: getReadablePath(relDirPath),
-						approvalState: "approved",
+						approvalState: 'approved',
 						content: result,
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
 			return result
 		} catch (error) {
 			const errorString = `Error parsing source code definitions: ${JSON.stringify(serializeError(error))}`
 			ask(
-				"tool",
+				'tool',
 				{
 					tool: {
-						tool: "list_code_definition_names",
-						approvalState: "rejected",
+						tool: 'list_code_definition_names',
+						approvalState: 'rejected',
 						path: getReadablePath(relDirPath),
 						error: errorString,
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
 
 			return errorString

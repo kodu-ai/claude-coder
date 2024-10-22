@@ -1,7 +1,6 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { Button } from '@/components/ui/button'
 import {
 	Dialog,
 	DialogContent,
@@ -10,26 +9,27 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
-import { vscode } from "@/utils/vscode"
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { vscode } from '@/utils/vscode'
+import { VSCodeButton } from '@vscode/webview-ui-toolkit/react'
+import { useState } from 'react'
 
 export default function BugReportDialog() {
-	const [description, setDescription] = useState("")
-	const [steps, setSteps] = useState("")
+	const [description, setDescription] = useState('')
+	const [steps, setSteps] = useState('')
 	const [open, setOpen] = useState(false)
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault()
-		vscode.postMessage({ type: "exportBug", description, reproduction: steps })
+		vscode.postMessage({ type: 'exportBug', description, reproduction: steps })
 		// Here you would handle the submission of the bug report
-		console.log("Bug report submitted:", { description, steps })
+		console.log('Bug report submitted:', { description, steps })
 		// Reset form and close dialog
-		setDescription("")
-		setSteps("")
+		setDescription('')
+		setSteps('')
 		setOpen(false)
 	}
 

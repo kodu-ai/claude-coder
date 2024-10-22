@@ -1,9 +1,9 @@
-import React from "react"
-import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { formatPrice } from "../ApiOptions/utils"
-import { getKoduAddCreditsUrl, getKoduOfferUrl } from "../../../../src/shared/kodu"
-import { vscode } from "@/utils/vscode"
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { vscode } from '@/utils/vscode'
+import type React from 'react'
+import { getKoduAddCreditsUrl, getKoduOfferUrl } from '../../../../src/shared/kodu'
+import { formatPrice } from '../ApiOptions/utils'
 
 interface UserInfoSectionProps {
 	email: string | undefined
@@ -27,21 +27,23 @@ const UserInfoSection: React.FC<UserInfoSectionProps> = ({ email, credits, uriSc
 			<div className="flex gap-2 flex-wrap">
 				<Button
 					onClick={() => {
-						vscode.postTrackingEvent("ExtensionCreditAddOpen")
-						vscode.postTrackingEvent("ExtensionCreditAddSelect", "purchase")
+						vscode.postTrackingEvent('ExtensionCreditAddOpen')
+						vscode.postTrackingEvent('ExtensionCreditAddSelect', 'purchase')
 					}}
-					asChild>
+					asChild
+				>
 					<a href={getKoduAddCreditsUrl(uriScheme)}>Add Credits</a>
 				</Button>
 				<Tooltip>
 					<TooltipTrigger>
 						<Button
 							onClick={() => {
-								vscode.postTrackingEvent("OfferwallView")
-								vscode.postTrackingEvent("ExtensionCreditAddSelect", "offerwall")
+								vscode.postTrackingEvent('OfferwallView')
+								vscode.postTrackingEvent('ExtensionCreditAddSelect', 'offerwall')
 							}}
-							variant={"outline"}
-							asChild>
+							variant={'outline'}
+							asChild
+						>
 							<a href={getKoduOfferUrl(uriScheme)}>Offerwall</a>
 						</Button>
 					</TooltipTrigger>

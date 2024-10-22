@@ -1,7 +1,7 @@
-import * as vscode from "vscode"
-import { HistoryItem } from "../../../shared/HistoryItem"
+import type * as vscode from 'vscode'
+import { HistoryItem } from '../../../shared/HistoryItem'
 
-const secretKeys = ["koduApiKey"] as const
+const secretKeys = ['koduApiKey'] as const
 
 type SecretState = {
 	koduApiKey: string

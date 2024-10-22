@@ -1,5 +1,5 @@
 // schema/write_to_file.ts
-import { z } from "zod"
+import { z } from 'zod'
 
 /**
  * @tool write_to_file
@@ -32,11 +32,11 @@ import { z } from "zod"
  * ```
  */
 const schema = z.object({
-	path: z.string().describe("The path of the file to write to (relative to the current working directory)."),
+	path: z.string().describe('The path of the file to write to (relative to the current working directory).'),
 	content: z
 		.string()
 		.describe(
-			"The full content to write to the file this is critical any you should never truncate the content!. never write // the result of the file or any other variants of this for example // code goes here ... this will hurt the user and make you break the code."
+			'The full content to write to the file this is critical any you should never truncate the content!. never write // the result of the file or any other variants of this for example // code goes here ... this will hurt the user and make you break the code.',
 		),
 })
 
@@ -59,7 +59,7 @@ const examples = [
 
 export const writeToFileTool = {
 	schema: {
-		name: "write_to_file",
+		name: 'write_to_file',
 		schema,
 	},
 	examples,

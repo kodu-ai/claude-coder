@@ -1,5 +1,5 @@
 // schema/attempt_completion.ts
-import { z } from "zod"
+import { z } from 'zod'
 
 /**
  * @tool attempt_completion
@@ -33,13 +33,13 @@ const schema = z.object({
 	result: z
 		.string()
 		.describe(
-			"The result of the task. Formulate this result in a way that is final and does not require further input from the user. Don't end your result with questions or offers for further assistance."
+			"The result of the task. Formulate this result in a way that is final and does not require further input from the user. Don't end your result with questions or offers for further assistance.",
 		),
 	command: z
 		.string()
 		.optional()
 		.describe(
-			'The CLI command to execute to show a live demo of the result to the user. For example, use "open index.html" to display a created website. This should be valid for the current operating system. Ensure the command is properly formatted and does not contain any harmful instructions.'
+			'The CLI command to execute to show a live demo of the result to the user. For example, use "open index.html" to display a created website. This should be valid for the current operating system. Ensure the command is properly formatted and does not contain any harmful instructions.',
 		),
 })
 
@@ -60,7 +60,7 @@ const examples = [
 
 export const attemptCompletionTool = {
 	schema: {
-		name: "attempt_completion",
+		name: 'attempt_completion',
 		schema,
 	},
 	examples,

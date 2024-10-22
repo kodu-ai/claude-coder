@@ -1,29 +1,29 @@
-import treeKill from "tree-kill"
-import { ToolName, ToolResponse } from "../types"
-import { KoduDev } from ".."
-import { AgentToolOptions, AgentToolParams } from "./types"
+import PQueue from 'p-queue'
+import pWaitFor from 'p-wait-for'
+import treeKill from 'tree-kill'
 import {
-	SearchFilesTool,
-	ListFilesTool,
-	ListCodeDefinitionNamesTool,
-	ExecuteCommandTool,
-	AttemptCompletionTool,
-	AskFollowupQuestionTool,
-	ReadFileTool,
-	WriteFileTool,
-	UrlScreenshotTool,
 	AskConsultantTool,
+	AskFollowupQuestionTool,
+	AttemptCompletionTool,
+	ExecuteCommandTool,
+	ListCodeDefinitionNamesTool,
+	ListFilesTool,
+	ReadFileTool,
+	SearchFilesTool,
 	UpsertTaskHistoryTool,
-} from "."
-import { WebSearchTool } from "./runners/web-search-tool"
-import { TerminalManager } from "../../../integrations/terminal/terminal-manager"
-import { BaseAgentTool } from "./base-agent.tool"
-import ToolParser from "./tool-parser/tool-parser"
-import { tools } from "./schema"
-import pWaitFor from "p-wait-for"
-import PQueue from "p-queue"
-import { ChatTool } from "../../../shared/new-tools"
-import { DevServerTool } from "./runners/dev-server.tool"
+	UrlScreenshotTool,
+	WriteFileTool,
+} from '.'
+import type { KoduDev } from '..'
+import { TerminalManager } from '../../../integrations/terminal/terminal-manager'
+import type { ChatTool } from '../../../shared/new-tools'
+import type { ToolName, ToolResponse } from '../types'
+import type { BaseAgentTool } from './base-agent.tool'
+import { DevServerTool } from './runners/dev-server.tool'
+import { WebSearchTool } from './runners/web-search-tool'
+import { tools } from './schema'
+import ToolParser from './tool-parser/tool-parser'
+import type { AgentToolOptions, AgentToolParams } from './types'
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined
@@ -54,20 +54,20 @@ export class ToolExecutor {
 				onToolError: (id, toolName, error, ts) => {
 					console.error(`Error processing tool: ${id}`, error)
 					this.koduDev.taskExecutor.askWithId(
-						"tool",
+						'tool',
 						{
 							// @ts-expect-error - missing body
 							tool: {
-								tool: toolName as ChatTool["tool"],
+								tool: toolName as ChatTool['tool'],
 								ts,
-								approvalState: "error",
+								approvalState: 'error',
 								error: error.message,
 							},
 						},
-						ts
+						ts,
 					)
 				},
-			}
+			},
 		)
 	}
 
@@ -98,31 +98,31 @@ export class ToolExecutor {
 
 	public getTool(params: AgentToolParams): BaseAgentTool {
 		switch (params.name) {
-			case "read_file":
+			case 'read_file':
 				return new ReadFileTool(params, this.options)
-			case "list_files":
+			case 'list_files':
 				return new ListFilesTool(params, this.options)
-			case "search_files":
+			case 'search_files':
 				return new SearchFilesTool(params, this.options)
-			case "write_to_file":
+			case 'write_to_file':
 				return new WriteFileTool(params, this.options)
-			case "list_code_definition_names":
+			case 'list_code_definition_names':
 				return new ListCodeDefinitionNamesTool(params, this.options)
-			case "execute_command":
+			case 'execute_command':
 				return new ExecuteCommandTool(params, this.options)
-			case "ask_followup_question":
+			case 'ask_followup_question':
 				return new AskFollowupQuestionTool(params, this.options)
-			case "attempt_completion":
+			case 'attempt_completion':
 				return new AttemptCompletionTool(params, this.options)
-			case "web_search":
+			case 'web_search':
 				return new WebSearchTool(params, this.options)
-			case "url_screenshot":
+			case 'url_screenshot':
 				return new UrlScreenshotTool(params, this.options)
-			case "ask_consultant":
+			case 'ask_consultant':
 				return new AskConsultantTool(params, this.options)
-			case "upsert_memory":
+			case 'upsert_memory':
 				return new UpsertTaskHistoryTool(params, this.options)
-			case "server_runner_tool":
+			case 'server_runner_tool':
 				return new DevServerTool(params, this.options)
 			default:
 				throw new Error(`Unknown tool: ${params.name}`)
@@ -145,7 +145,7 @@ export class ToolExecutor {
 		this.toolParser.reset()
 		const runningProcessId = this.runningProcessId
 		if (runningProcessId) {
-			treeKill(runningProcessId, "SIGTERM")
+			treeKill(runningProcessId, 'SIGTERM')
 		}
 	}
 
@@ -181,19 +181,19 @@ export class ToolExecutor {
 		}
 		// if the tool is the first in the queue, we should update his askContent
 		if (this.toolQueue[0].id === id) {
-			if (toolInstance.toolParams.name === "write_to_file") {
+			if (toolInstance.toolParams.name === 'write_to_file') {
 				if (!(toolInstance as WriteFileTool).diffViewProvider.isEditing) {
 					this.koduDev.taskExecutor.askWithId(
-						"tool",
+						'tool',
 						{
 							tool: {
 								tool: toolInstance.name,
 								...params,
 								ts,
-								approvalState: "loading",
+								approvalState: 'loading',
 							},
 						},
-						ts
+						ts,
 					)
 				}
 				this.handlePartialWriteToFile(toolInstance as WriteFileTool)
@@ -201,22 +201,22 @@ export class ToolExecutor {
 				return
 			}
 			this.koduDev.taskExecutor.askWithId(
-				"tool",
+				'tool',
 				{
 					tool: {
 						tool: toolInstance.name,
 						...params,
 						ts,
-						approvalState: "loading",
+						approvalState: 'loading',
 					},
 				},
-				ts
+				ts,
 			)
 		}
 	}
 
 	private async handleToolEnd(id: string, toolName: string, input: any): Promise<void> {
-		let toolInstance = this.toolInstances[id]
+		const toolInstance = this.toolInstances[id]
 		if (!toolInstance) {
 			const newTool = this.getTool({
 				name: toolName as ToolName,
@@ -241,16 +241,16 @@ export class ToolExecutor {
 
 		if (this.toolQueue[0]?.id === id) {
 			this.koduDev.taskExecutor.askWithId(
-				"tool",
+				'tool',
 				{
 					tool: {
 						tool: toolInstance.name,
 						...input,
 						ts: toolInstance.ts,
-						approvalState: "loading",
+						approvalState: 'loading',
 					},
 				},
-				toolInstance.ts
+				toolInstance.ts,
 			)
 		}
 	}

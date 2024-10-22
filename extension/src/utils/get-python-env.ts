@@ -1,7 +1,7 @@
-import * as vscode from "vscode"
+import * as vscode from 'vscode'
 
 export async function getPythonEnvPath(): Promise<string | undefined> {
-	const pythonExtension = vscode.extensions.getExtension("ms-python.python")
+	const pythonExtension = vscode.extensions.getExtension('ms-python.python')
 
 	if (!pythonExtension) {
 		return undefined
@@ -22,9 +22,8 @@ export async function getPythonEnvPath(): Promise<string | undefined> {
 	}
 	// Get the active python environment path for the current workspace
 	const pythonEnv = await pythonApi?.environments?.getActiveEnvironmentPath(workspaceFolder.uri)
-	if (pythonEnv && pythonEnv.path) {
+	if (pythonEnv?.path) {
 		return pythonEnv.path
-	} else {
-		return undefined
 	}
+	return undefined
 }

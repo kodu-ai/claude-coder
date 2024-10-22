@@ -1,22 +1,22 @@
-import * as path from "path"
-import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
-import { ToolResponse } from "../../types"
-import { formatToolResponse, getCwd, getReadablePath } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
-import { BaseAgentTool } from "../base-agent.tool"
-import { DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
-import { fileExistsAtPath } from "../../../../utils/path-helpers"
-import delay from "delay"
-import pWaitFor from "p-wait-for"
+import * as path from 'node:path'
+import delay from 'delay'
+import pWaitFor from 'p-wait-for'
+import { DiffViewProvider } from '../../../../integrations/editor/diff-view-provider'
+import type { ClaudeSayTool } from '../../../../shared/ExtensionMessage'
+import { fileExistsAtPath } from '../../../../utils/path-helpers'
+import type { ToolResponse } from '../../types'
+import { formatToolResponse, getCwd, getReadablePath } from '../../utils'
+import { BaseAgentTool } from '../base-agent.tool'
+import type { AgentToolOptions, AgentToolParams } from '../types'
 
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
 	public diffViewProvider: DiffViewProvider
-	private isProcessingFinalContent: boolean = false
-	private lastUpdateLength: number = 0
-	private lastUpdateTime: number = 0
+	private isProcessingFinalContent = false
+	private lastUpdateLength = 0
+	private lastUpdateTime = 0
 	private readonly UPDATE_INTERVAL = 33 // Approximately 60 FPS
-	private skipWriteAnimation: boolean = false
+	private skipWriteAnimation = false
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
@@ -24,7 +24,7 @@ export class WriteFileTool extends BaseAgentTool {
 		// Initialize DiffViewProvider without opening the diff editor
 		this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev, this.UPDATE_INTERVAL)
 		// Set skipWriteAnimation based on state manager
-		if (!!this.koduDev.getStateManager().skipWriteAnimation) {
+		if (this.koduDev.getStateManager().skipWriteAnimation) {
 			this.skipWriteAnimation = true
 		}
 	}
@@ -32,17 +32,17 @@ export class WriteFileTool extends BaseAgentTool {
 	override async execute(): Promise<ToolResponse> {
 		// Perform initial ask without awaiting
 		this.params.ask(
-			"tool",
+			'tool',
 			{
 				tool: {
-					tool: "write_to_file",
-					content: this.params.input.content ?? "",
-					approvalState: "loading",
-					path: this.params.input.path ?? "",
+					tool: 'write_to_file',
+					content: this.params.input.content ?? '',
+					approvalState: 'loading',
+					path: this.params.input.path ?? '',
 					ts: this.ts,
 				},
 			},
-			this.ts
+			this.ts,
 		)
 		await pWaitFor(() => this.isFinal, { interval: 20 })
 
@@ -77,40 +77,40 @@ export class WriteFileTool extends BaseAgentTool {
 
 			// Ask for user approval and await response
 			const { response, text, images } = await this.params.ask(
-				"tool",
+				'tool',
 				{
 					tool: {
-						tool: "write_to_file",
+						tool: 'write_to_file',
 						content: content,
-						approvalState: "pending",
+						approvalState: 'pending',
 						path: relPath,
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
-			console.log("User responded at:", Date.now())
+			console.log('User responded at:', Date.now())
 
-			if (response !== "yesButtonTapped") {
+			if (response !== 'yesButtonTapped') {
 				// Revert changes if user declines
 				await this.diffViewProvider.revertChanges()
 				this.params.ask(
-					"tool",
+					'tool',
 					{
 						tool: {
-							tool: "write_to_file",
-							content: this.params.input.content ?? "No content provided",
-							approvalState: "rejected",
+							tool: 'write_to_file',
+							content: this.params.input.content ?? 'No content provided',
+							approvalState: 'rejected',
 							path: relPath,
 							ts: this.ts,
 						},
 					},
-					this.ts
+					this.ts,
 				)
-				if (response === "noButtonTapped") {
-					return formatToolResponse("Write operation cancelled by user.")
+				if (response === 'noButtonTapped') {
+					return formatToolResponse('Write operation cancelled by user.')
 				}
-				return formatToolResponse(text ?? "Write operation cancelled by user.", images)
+				return formatToolResponse(text ?? 'Write operation cancelled by user.', images)
 			}
 
 			// Proceed with final content handling
@@ -118,23 +118,23 @@ export class WriteFileTool extends BaseAgentTool {
 
 			// Notify approval
 			this.params.ask(
-				"tool",
+				'tool',
 				{
 					tool: {
-						tool: "write_to_file",
+						tool: 'write_to_file',
 						content: content,
-						approvalState: "approved",
+						approvalState: 'approved',
 						path: relPath,
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
 
 			// Return success message
 			return formatToolResponse(fileContent)
 		} catch (error) {
-			console.error("Error in processFileWrite:", error)
+			console.error('Error in processFileWrite:', error)
 			return formatToolResponse(`Error: ${error.message}`)
 		} finally {
 			this.isProcessingFinalContent = false
@@ -144,12 +144,12 @@ export class WriteFileTool extends BaseAgentTool {
 
 	public async handlePartialContent(relPath: string, newContent: string): Promise<void> {
 		if (this.isProcessingFinalContent) {
-			console.log("Skipping partial update as final content is being processed")
+			console.log('Skipping partial update as final content is being processed')
 			return
 		}
 
 		if (this.skipWriteAnimation) {
-			console.log("Skipping write animation for partial content")
+			console.log('Skipping write animation for partial content')
 			return
 		}
 
@@ -161,7 +161,7 @@ export class WriteFileTool extends BaseAgentTool {
 				this.lastUpdateLength = 0
 				this.lastUpdateTime = currentTime
 			} catch (e) {
-				console.error("Error opening file: ", e)
+				console.error('Error opening file: ', e)
 			}
 		}
 
@@ -189,27 +189,27 @@ export class WriteFileTool extends BaseAgentTool {
 		const { userEdits } = await this.diffViewProvider.saveChanges()
 		await delay(300)
 		this.params.ask(
-			"tool",
+			'tool',
 			{
 				tool: {
-					tool: "write_to_file",
+					tool: 'write_to_file',
 					content: newContent,
-					approvalState: "approved",
+					approvalState: 'approved',
 					ts: this.ts,
 					path: relPath,
 				},
 			},
-			this.ts
+			this.ts,
 		)
 
 		if (userEdits) {
 			await this.params.say(
-				"user_feedback_diff",
+				'user_feedback_diff',
 				JSON.stringify({
-					tool: fileExists ? "editedExistingFile" : "newFileCreated",
+					tool: fileExists ? 'editedExistingFile' : 'newFileCreated',
 					path: getReadablePath(getCwd(), relPath),
 					diff: userEdits,
-				} as ClaudeSayTool)
+				} as ClaudeSayTool),
 			)
 			console.log(`User edits detected: ${userEdits}`)
 		}
@@ -232,19 +232,19 @@ export class WriteFileTool extends BaseAgentTool {
 	}
 
 	override async abortToolExecution(): Promise<void> {
-		console.log("Aborting WriteFileTool execution")
+		console.log('Aborting WriteFileTool execution')
 		await this.diffViewProvider.revertChanges()
 	}
 
 	private preprocessContent(content: string): string {
 		content = content.trim()
-		if (content.startsWith("```")) {
-			content = content.split("\n").slice(1).join("\n").trim()
+		if (content.startsWith('```')) {
+			content = content.split('\n').slice(1).join('\n').trim()
 		}
-		if (content.endsWith("```")) {
-			content = content.split("\n").slice(0, -1).join("\n").trim()
+		if (content.endsWith('```')) {
+			content = content.split('\n').slice(0, -1).join('\n').trim()
 		}
 
-		return content.replace(/>/g, ">").replace(/</g, "<").replace(/"/g, '"')
+		return content.replace(/>/g, '>').replace(/</g, '<').replace(/"/g, '"')
 	}
 }

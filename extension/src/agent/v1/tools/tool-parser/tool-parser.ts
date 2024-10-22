@@ -1,5 +1,5 @@
-import { z } from "zod"
-import { nanoid } from "nanoid"
+import { nanoid } from 'nanoid'
+import { z } from 'zod'
 
 type ToolSchema = {
 	name: string
@@ -30,10 +30,10 @@ interface ToolParserConstructor {
 export class ToolParser {
 	private toolSchemas: ToolSchema[]
 	private currentContext: Context | null = null
-	private buffer: string = ""
-	private isInTag: boolean = false
-	private isInTool: boolean = false
-	private nonToolBuffer: string = ""
+	private buffer = ''
+	private isInTag = false
+	private isInTool = false
+	private nonToolBuffer = ''
 	public onToolUpdate?: ToolUpdateCallback
 	public onToolEnd?: ToolEndCallback
 	public onToolError?: ToolErrorCallback
@@ -41,7 +41,7 @@ export class ToolParser {
 
 	constructor(
 		toolSchemas: ToolSchema[],
-		{ onToolUpdate, onToolEnd, onToolError, onToolClosingError }: ToolParserConstructor
+		{ onToolUpdate, onToolEnd, onToolError, onToolClosingError }: ToolParserConstructor,
 	) {
 		this.toolSchemas = toolSchemas
 		this.onToolUpdate = onToolUpdate
@@ -55,7 +55,7 @@ export class ToolParser {
 			this.processChar(char)
 		}
 		const output = this.nonToolBuffer
-		this.nonToolBuffer = ""
+		this.nonToolBuffer = ''
 		return output
 	}
 
@@ -68,14 +68,14 @@ export class ToolParser {
 	}
 
 	private processNonToolChar(char: string): void {
-		if (char === "<") {
+		if (char === '<') {
 			this.isInTag = true
 			this.buffer = char
-		} else if (char === ">" && this.isInTag) {
+		} else if (char === '>' && this.isInTag) {
 			this.buffer += char
 			this.checkForToolStart(this.buffer)
 			this.isInTag = false
-			this.buffer = ""
+			this.buffer = ''
 		} else {
 			if (this.isInTag) {
 				this.buffer += char
@@ -86,15 +86,15 @@ export class ToolParser {
 	}
 
 	private processToolChar(char: string): void {
-		if (char === "<") {
+		if (char === '<') {
 			this.handleBufferContent()
 			this.isInTag = true
 			this.buffer = char
-		} else if (char === ">" && this.isInTag) {
+		} else if (char === '>' && this.isInTag) {
 			this.buffer += char
 			this.handleTag(this.buffer)
 			this.isInTag = false
-			this.buffer = ""
+			this.buffer = ''
 		} else {
 			this.buffer += char
 			if (!this.isInTag) {
@@ -104,7 +104,7 @@ export class ToolParser {
 	}
 
 	private checkForToolStart(tag: string): void {
-		const tagName = tag.slice(1, -1).split(" ")[0]
+		const tagName = tag.slice(1, -1).split(' ')[0]
 		if (this.toolSchemas.some((schema) => schema.name === tagName)) {
 			this.isInTool = true
 			const id = nanoid()
@@ -114,8 +114,8 @@ export class ToolParser {
 				ts,
 				toolName: tagName,
 				params: {},
-				currentParam: "",
-				content: "",
+				currentParam: '',
+				content: '',
 			}
 			this.onToolUpdate?.(id, tagName, {}, ts)
 		} else {
@@ -131,17 +131,17 @@ export class ToolParser {
 					this.currentContext.id,
 					this.currentContext.toolName,
 					{ ...this.currentContext.params },
-					this.currentContext.ts
+					this.currentContext.ts,
 				)
 			} else {
 				this.currentContext.content += this.buffer
 			}
-			this.buffer = ""
+			this.buffer = ''
 		}
 	}
 
 	private handleTag(tag: string): void {
-		if (tag.startsWith("</")) {
+		if (tag.startsWith('</')) {
 			this.handleClosingTag(tag)
 		} else {
 			this.handleOpeningTag(tag)
@@ -150,13 +150,13 @@ export class ToolParser {
 
 	private handleOpeningTag(tag: string): void {
 		if (this.currentContext) {
-			const tagName = tag.slice(1, -1).split(" ")[0]
+			const tagName = tag.slice(1, -1).split(' ')[0]
 			if (this.currentContext.currentParam) {
 				// We're inside a parameter, treat this as content
 				this.currentContext.params[this.currentContext.currentParam] += tag
 			} else {
 				this.currentContext.currentParam = tagName
-				this.currentContext.params[tagName] = ""
+				this.currentContext.params[tagName] = ''
 			}
 		}
 	}
@@ -170,7 +170,7 @@ export class ToolParser {
 				this.currentContext = null
 			} else if (tagName === this.currentContext.currentParam) {
 				// End of parameter
-				this.currentContext.currentParam = ""
+				this.currentContext.currentParam = ''
 			} else if (this.currentContext.currentParam) {
 				// Closing tag inside parameter content
 				this.currentContext.params[this.currentContext.currentParam] += tag
@@ -194,7 +194,7 @@ export class ToolParser {
 					context.id,
 					context.toolName,
 					new Error(`Validation error: ${error.message}`),
-					context.ts
+					context.ts,
 				)
 			} else {
 				this.onToolError?.(context.id, context.toolName, error as Error, context.ts)
@@ -204,16 +204,16 @@ export class ToolParser {
 
 	endParsing(): void {
 		if (this.currentContext) {
-			this.onToolClosingError?.(new Error("Unclosed tool tag at end of input"))
+			this.onToolClosingError?.(new Error('Unclosed tool tag at end of input'))
 		}
 	}
 
 	reset(): void {
 		this.currentContext = null
-		this.buffer = ""
+		this.buffer = ''
 		this.isInTag = false
 		this.isInTool = false
-		this.nonToolBuffer = ""
+		this.nonToolBuffer = ''
 	}
 }
 

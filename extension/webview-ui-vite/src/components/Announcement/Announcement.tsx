@@ -1,7 +1,7 @@
-import React from "react"
-import { ApiConfiguration } from "../../../../src/api"
-import AnnouncementHeader from "./AnnouncementHeader"
-import AnnouncementContent from "./AnnouncementContent"
+import type React from 'react'
+import type { ApiConfiguration } from '../../../../src/api'
+import AnnouncementContent from './AnnouncementContent'
+import AnnouncementHeader from './AnnouncementHeader'
 
 interface AnnouncementProps {
 	version: string

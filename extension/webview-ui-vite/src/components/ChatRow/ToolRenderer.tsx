@@ -1,9 +1,9 @@
-import React from "react"
-import { ClaudeSayTool, V1ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
-import { ChatTool } from "../../../../src/shared/new-tools"
-import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
-import CodeBlock from "../CodeBlock/CodeBlock"
-import { ToolContentBlock } from "./ToolRenderV1"
+import type React from 'react'
+import type { ClaudeSayTool, V1ClaudeMessage } from '../../../../src/shared/ExtensionMessage'
+import type { ChatTool } from '../../../../src/shared/new-tools'
+import type { SyntaxHighlighterStyle } from '../../utils/getSyntaxHighlighterStyleFromTheme'
+import CodeBlock from '../CodeBlock/CodeBlock'
+import { ToolContentBlock } from './ToolRenderV1'
 
 export interface ToolRendererProps {
 	message: V1ClaudeMessage
@@ -20,15 +20,15 @@ const ToolRenderer: React.FC<ToolRendererProps> = ({
 	onToggleExpand,
 	nextMessage,
 }) => {
-	const tool = JSON.parse(message.text || "{}") as ClaudeSayTool | ChatTool
+	const tool = JSON.parse(message.text || '{}') as ClaudeSayTool | ChatTool
 	const toolIcon = (name: string) => <span className={`codicon codicon-${name} text-alt`} />
 
 	switch (tool.tool) {
-		case "editedExistingFile":
+		case 'editedExistingFile':
 			return (
 				<>
 					<div className="flex-line">
-						{toolIcon("edit")}
+						{toolIcon('edit')}
 						<h3 className="text-alt">Claude wants to edit this file:</h3>
 					</div>
 					<CodeBlock
@@ -40,10 +40,10 @@ const ToolRenderer: React.FC<ToolRendererProps> = ({
 					/>
 				</>
 			)
-		case "newFileCreated":
+		case 'newFileCreated':
 			return (
 				<>
-					<h3 className="flex-line text-alt">{toolIcon("new-file")}Claude wants to create a new file:</h3>
+					<h3 className="flex-line text-alt">{toolIcon('new-file')}Claude wants to create a new file:</h3>
 					<CodeBlock
 						code={tool.content!}
 						path={tool.path!}
@@ -53,12 +53,12 @@ const ToolRenderer: React.FC<ToolRendererProps> = ({
 					/>
 				</>
 			)
-		case "readFile":
+		case 'readFile':
 			return (
 				<>
 					<h3 className="flex-line text-alt">
-						{toolIcon("file-code")}
-						{message.type === "ask" ? "Claude wants to read this file:" : "Claude read this file:"}
+						{toolIcon('file-code')}
+						{message.type === 'ask' ? 'Claude wants to read this file:' : 'Claude read this file:'}
 					</h3>
 					<CodeBlock
 						code={tool.content!}
@@ -69,33 +69,14 @@ const ToolRenderer: React.FC<ToolRendererProps> = ({
 					/>
 				</>
 			)
-		case "listFilesTopLevel":
+		case 'listFilesTopLevel':
 			return (
 				<>
 					<h3 className="flex-line text-alt">
-						{toolIcon("folder-opened")}
-						{message.type === "ask"
-							? "Claude wants to view the top level files in this directory:"
-							: "Claude viewed the top level files in this directory:"}
-					</h3>
-					<CodeBlock
-						code={tool.content!}
-						path={tool.path!}
-						language="shell-session"
-						syntaxHighlighterStyle={syntaxHighlighterStyle}
-						isExpanded={isExpanded}
-						onToggleExpand={onToggleExpand}
-					/>
-				</>
-			)
-		case "listFilesRecursive":
-			return (
-				<>
-					<h3 className="flex-line text-alt">
-						{toolIcon("folder-opened")}
-						{message.type === "ask"
-							? "Claude wants to recursively view all files in this directory:"
-							: "Claude recursively viewed all files in this directory:"}
+						{toolIcon('folder-opened')}
+						{message.type === 'ask'
+							? 'Claude wants to view the top level files in this directory:'
+							: 'Claude viewed the top level files in this directory:'}
 					</h3>
 					<CodeBlock
 						code={tool.content!}
@@ -107,14 +88,33 @@ const ToolRenderer: React.FC<ToolRendererProps> = ({
 					/>
 				</>
 			)
-		case "listCodeDefinitionNames":
+		case 'listFilesRecursive':
 			return (
 				<>
 					<h3 className="flex-line text-alt">
-						{toolIcon("file-code")}
-						{message.type === "ask"
-							? "Claude wants to view source code definition names used in this directory:"
-							: "Claude viewed source code definition names used in this directory:"}
+						{toolIcon('folder-opened')}
+						{message.type === 'ask'
+							? 'Claude wants to recursively view all files in this directory:'
+							: 'Claude recursively viewed all files in this directory:'}
+					</h3>
+					<CodeBlock
+						code={tool.content!}
+						path={tool.path!}
+						language="shell-session"
+						syntaxHighlighterStyle={syntaxHighlighterStyle}
+						isExpanded={isExpanded}
+						onToggleExpand={onToggleExpand}
+					/>
+				</>
+			)
+		case 'listCodeDefinitionNames':
+			return (
+				<>
+					<h3 className="flex-line text-alt">
+						{toolIcon('file-code')}
+						{message.type === 'ask'
+							? 'Claude wants to view source code definition names used in this directory:'
+							: 'Claude viewed source code definition names used in this directory:'}
 					</h3>
 					{/* <CodeBlock
 						code={tool.content!}
@@ -126,12 +126,12 @@ const ToolRenderer: React.FC<ToolRendererProps> = ({
 				</>
 			)
 
-		case "searchFiles":
+		case 'searchFiles':
 			return (
 				<>
 					<h3 className="text-alt">
-						{toolIcon("search")}
-						{message.type === "ask" ? (
+						{toolIcon('search')}
+						{message.type === 'ask' ? (
 							<>
 								Claude wants to search this directory for <code>{tool.regex}</code>:
 							</>
@@ -143,7 +143,7 @@ const ToolRenderer: React.FC<ToolRendererProps> = ({
 					</h3>
 					<CodeBlock
 						code={tool.content!}
-						path={tool.path! + (tool.filePattern ? `/(${tool.filePattern})` : "")}
+						path={tool.path! + (tool.filePattern ? `/(${tool.filePattern})` : '')}
 						language="plaintext"
 						syntaxHighlighterStyle={syntaxHighlighterStyle}
 						isExpanded={isExpanded}

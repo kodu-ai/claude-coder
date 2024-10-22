@@ -18,5 +18,5 @@ export type TaskRequestEventParams = {
 }
 
 export enum AmplitudeMetrics {
-	GLOBAL_TASK_REQUEST_COUNT = "metrics.global_task_request_count",
+	GLOBAL_TASK_REQUEST_COUNT = 'metrics.global_task_request_count',
 }

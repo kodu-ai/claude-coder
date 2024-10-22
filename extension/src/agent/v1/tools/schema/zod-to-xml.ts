@@ -1,5 +1,5 @@
 // schema/zod-to-xml.ts
-import { ZodSchema, ZodObject, ZodTypeAny } from "zod"
+import { ZodObject, type ZodSchema, ZodTypeAny } from 'zod'
 
 export function zodToXMLSchema(schema: ZodSchema): string {
 	if (schema instanceof ZodObject) {
@@ -8,8 +8,8 @@ export function zodToXMLSchema(schema: ZodSchema): string {
 		for (const key in shape) {
 			xmlSchema += `<xs:element name="${key}" type="xs:string" minOccurs="1" />\n`
 		}
-		xmlSchema += "</xs:sequence>\n</xs:complexType>\n</xs:element>"
+		xmlSchema += '</xs:sequence>\n</xs:complexType>\n</xs:element>'
 		return xmlSchema
 	}
-	throw new Error("Unsupported schema type for XML conversion.")
+	throw new Error('Unsupported schema type for XML conversion.')
 }

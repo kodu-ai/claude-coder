@@ -1,19 +1,19 @@
-import * as vscode from "vscode"
-import * as path from "path"
-import * as fs from "fs/promises"
-import { createDirectoriesForFile } from "../../utils/fs"
-import * as diff from "diff"
-import { arePathsEqual } from "../../utils/path-helpers"
-import { KoduDev } from "../../agent/v1"
-import delay from "delay"
+import * as fs from 'node:fs/promises'
+import * as path from 'node:path'
+import delay from 'delay'
+import * as diff from 'diff'
+import * as vscode from 'vscode'
+import type { KoduDev } from '../../agent/v1'
+import { createDirectoriesForFile } from '../../utils/fs'
+import { arePathsEqual } from '../../utils/path-helpers'
 
-export const DIFF_VIEW_URI_SCHEME = "claude-coder-diff"
+export const DIFF_VIEW_URI_SCHEME = 'claude-coder-diff'
 
 export class DiffViewProvider {
 	private diffEditor?: vscode.TextEditor
-	public originalContent: string = ""
-	public streamedContent: string = ""
-	public isEditing: boolean = false
+	public originalContent = ''
+	public streamedContent = ''
+	public isEditing = false
 	public relPath?: string
 	private originalUri?: vscode.Uri
 	private modifiedUri?: vscode.Uri
@@ -23,7 +23,11 @@ export class DiffViewProvider {
 	private preDiagnostics: [vscode.Uri, vscode.Diagnostic[]][] = []
 	private updateInterval: number
 
-	constructor(private cwd: string, koduDev: KoduDev, updateInterval: number = 8) {
+	constructor(
+		private cwd: string,
+		koduDev: KoduDev,
+		updateInterval = 8,
+	) {
 		this.koduDev = koduDev
 		this.updateInterval = updateInterval
 	}
@@ -35,9 +39,9 @@ export class DiffViewProvider {
 
 		// Check if file exists, if not, use empty content
 		try {
-			this.originalContent = await fs.readFile(absolutePath, "utf-8")
+			this.originalContent = await fs.readFile(absolutePath, 'utf-8')
 		} catch (error) {
-			this.originalContent = ""
+			this.originalContent = ''
 		}
 
 		// Open diff editor
@@ -48,7 +52,7 @@ export class DiffViewProvider {
 		await this.closeAllDiffViews()
 		const fileName = path.basename(relPath)
 		this.originalUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${fileName}`).with({
-			query: Buffer.from(this.originalContent).toString("base64"),
+			query: Buffer.from(this.originalContent).toString('base64'),
 		})
 		this.modifiedUri = vscode.Uri.file(path.resolve(this.cwd, relPath))
 
@@ -57,23 +61,23 @@ export class DiffViewProvider {
 		await vscode.workspace.fs.writeFile(this.modifiedUri, new Uint8Array())
 
 		await vscode.commands.executeCommand(
-			"vscode.diff",
+			'vscode.diff',
 			this.originalUri,
 			this.modifiedUri,
-			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Editable)`
+			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : 'New File'} (Editable)`,
 		)
 
 		const editor = vscode.window.activeTextEditor
 		if (editor && editor.document.uri.toString() === this.modifiedUri.toString()) {
 			this.diffEditor = editor
 		} else {
-			throw new Error("Failed to open diff editor")
+			throw new Error('Failed to open diff editor')
 		}
 	}
 
 	public async update(accumulatedContent: string, isFinal: boolean): Promise<void> {
 		if (!this.diffEditor) {
-			throw new Error("Diff editor not initialized")
+			throw new Error('Diff editor not initialized')
 		}
 		if (isFinal) {
 			if (this.updateTimeout) {
@@ -143,15 +147,15 @@ export class DiffViewProvider {
 			return
 			// throw new Error("No file path set or diff editor not initialized")
 		}
-		await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
+		await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor')
 
 		// If it was a new file, we should delete it
-		if (this.originalContent === "") {
+		if (this.originalContent === '') {
 			const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
 			try {
 				await vscode.workspace.fs.delete(uri)
 			} catch (error) {
-				console.error("Failed to delete new file:", error)
+				console.error('Failed to delete new file:', error)
 			}
 		} else {
 			// For existing files, restore the original content
@@ -165,25 +169,25 @@ export class DiffViewProvider {
 
 	private async reset(): Promise<void> {
 		this.diffEditor = undefined
-		this.streamedContent = ""
+		this.streamedContent = ''
 		this.lastEditPosition = undefined
 	}
 
 	public async acceptChanges(): Promise<void> {
 		if (!this.relPath || !this.diffEditor) {
-			throw new Error("No file path set or diff editor not initialized")
+			throw new Error('No file path set or diff editor not initialized')
 		}
 		const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
 		await vscode.workspace.fs.writeFile(uri, Buffer.from(this.streamedContent))
 		this.isEditing = false
 
 		// Close the diff view
-		await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
+		await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor')
 	}
 
 	public async saveChanges(): Promise<{ userEdits: string | undefined }> {
 		if (!this.relPath || !this.diffEditor) {
-			throw new Error("No file path set or diff editor not initialized")
+			throw new Error('No file path set or diff editor not initialized')
 		}
 
 		const absolutePath = path.resolve(this.cwd, this.relPath)
@@ -202,25 +206,24 @@ export class DiffViewProvider {
 		}
 
 		// Check for user edits
-		const normalizedEditedContent = editedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
-		const normalizedStreamedContent = this.streamedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+		const normalizedEditedContent = `${editedContent.replace(/\r\n|\n/g, '\n').trimEnd()}\n`
+		const normalizedStreamedContent = `${this.streamedContent.replace(/\r\n|\n/g, '\n').trimEnd()}\n`
 
 		if (normalizedEditedContent !== normalizedStreamedContent) {
 			const userEdits = await this.createPrettyPatch(
 				this.relPath.toPosix(),
 				normalizedStreamedContent,
-				normalizedEditedContent
+				normalizedEditedContent,
 			)
 			return { userEdits }
-		} else {
-			return { userEdits: undefined }
 		}
+		return { userEdits: undefined }
 	}
 
 	private async createPrettyPatch(filename: string, oldStr: string, newStr: string): Promise<string> {
 		const patch = diff.createPatch(filename, oldStr, newStr)
-		const lines = patch.split("\n")
-		return lines.slice(4).join("\n")
+		const lines = patch.split('\n')
+		return lines.slice(4).join('\n')
 	}
 
 	public isDiffViewOpen(): boolean {
@@ -232,7 +235,8 @@ export class DiffViewProvider {
 			.flatMap((tg) => tg.tabs)
 			.filter(
 				(tab) =>
-					tab.input instanceof vscode.TabInputTextDiff && tab.input?.original?.scheme === DIFF_VIEW_URI_SCHEME
+					tab.input instanceof vscode.TabInputTextDiff &&
+					tab.input?.original?.scheme === DIFF_VIEW_URI_SCHEME,
 			)
 		for (const tab of tabs) {
 			// Trying to close dirty views results in save popup

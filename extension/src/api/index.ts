@@ -1,9 +1,9 @@
-import { Anthropic } from "@anthropic-ai/sdk"
-import { ApiModelId, KoduModelId, ModelInfo } from "../shared/api"
-import { KoduHandler } from "./kodu"
-import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
-import { z } from "zod"
-import { koduSSEResponse } from "../shared/kodu"
+import type { Anthropic } from '@anthropic-ai/sdk'
+import { z } from 'zod'
+import type { ApiModelId, KoduModelId, ModelInfo } from '../shared/api'
+import type { koduSSEResponse } from '../shared/kodu'
+import type { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from './interfaces'
+import { KoduHandler } from './kodu'
 
 export interface ApiHandlerMessageResponse {
 	message: Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage
@@ -26,11 +26,11 @@ export interface ApiHandler {
 	createMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
-		creativeMode?: "normal" | "creative" | "deterministic",
+		creativeMode?: 'normal' | 'creative' | 'deterministic',
 		abortSignal?: AbortSignal | null,
 		customInstructions?: string,
 		userMemory?: string,
-		EnvironmentDetails?: string
+		EnvironmentDetails?: string,
 	): AsyncIterableIterator<koduSSEResponse>
 
 	createBaseMessageStream(
@@ -38,7 +38,7 @@ export interface ApiHandler {
 		messages: Anthropic.Messages.MessageParam[],
 		abortSignal?: AbortSignal | null,
 		tempature?: number,
-		top_p?: number
+		topP?: number,
 	): AsyncIterableIterator<koduSSEResponse>
 
 	createUserReadableRequest(
@@ -47,7 +47,7 @@ export interface ApiHandler {
 			| Anthropic.ImageBlockParam
 			| Anthropic.ToolUseBlockParam
 			| Anthropic.ToolResultBlockParam
-		>
+		>,
 	): any
 
 	getModel(): { id: ApiModelId; info: ModelInfo }
@@ -75,19 +75,20 @@ export function withoutImageData(
 		| Anthropic.ImageBlockParam
 		| Anthropic.ToolUseBlockParam
 		| Anthropic.ToolResultBlockParam
-	>
+	>,
 ): Array<
 	Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam
 > {
 	return userContent.map((part) => {
-		if (part.type === "image") {
-			return { ...part, source: { ...part.source, data: "..." } }
-		} else if (part.type === "tool_result" && typeof part.content !== "string") {
+		if (part.type === 'image') {
+			return { ...part, source: { ...part.source, data: '...' } }
+		}
+		if (part.type === 'tool_result' && typeof part.content !== 'string') {
 			return {
 				...part,
 				content: part.content?.map((contentPart) => {
-					if (contentPart.type === "image") {
-						return { ...contentPart, source: { ...contentPart.source, data: "..." } }
+					if (contentPart.type === 'image') {
+						return { ...contentPart, source: { ...contentPart.source, data: '...' } }
 					}
 					return contentPart
 				}),

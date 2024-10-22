@@ -1,13 +1,13 @@
-import * as path from "path"
-import { serializeError } from "serialize-error"
-import { LIST_FILES_LIMIT, listFiles } from "../../../../parse-source-code"
-import { ClaudeAsk, ClaudeSay, ClaudeSayTool } from "../../../../shared/ExtensionMessage"
-import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
-import { BaseAgentTool } from "../base-agent.tool"
-import { AskDetails, AskForConfirmation } from "../../task-executor/utils"
-import { AskResponse } from "../../task-executor/task-executor"
+import * as path from 'node:path'
+import { serializeError } from 'serialize-error'
+import { LIST_FILES_LIMIT, listFiles } from '../../../../parse-source-code'
+import { ClaudeAsk, ClaudeSay, ClaudeSayTool } from '../../../../shared/ExtensionMessage'
+import { AskResponse } from '../../task-executor/task-executor'
+import { AskDetails, AskForConfirmation } from '../../task-executor/utils'
+import type { ToolResponse } from '../../types'
+import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from '../../utils'
+import { BaseAgentTool } from '../base-agent.tool'
+import type { AgentToolOptions, AgentToolParams } from '../types'
 
 export class ListFilesTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -23,8 +23,8 @@ export class ListFilesTool extends BaseAgentTool {
 
 		if (relDirPath === undefined) {
 			await say(
-				"error",
-				"Claude tried to use list_files without value for required parameter 'path'. Retrying..."
+				'error',
+				"Claude tried to use list_files without value for required parameter 'path'. Retrying...",
 			)
 			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
 						A good example of a listFiles tool call is:
@@ -37,84 +37,84 @@ export class ListFilesTool extends BaseAgentTool {
 		}
 
 		try {
-			const recursive = recursiveRaw?.toLowerCase() === "true"
+			const recursive = recursiveRaw?.toLowerCase() === 'true'
 			const absolutePath = path.resolve(this.cwd, relDirPath)
 			const files = await listFiles(absolutePath, recursive, 200)
 			const result = this.formatFilesList(absolutePath, files[0])
 
 			const { response, text, images } = await ask(
-				"tool",
+				'tool',
 				{
 					tool: {
-						tool: "list_files",
+						tool: 'list_files',
 						path: getReadablePath(relDirPath, this.cwd),
-						approvalState: "pending",
+						approvalState: 'pending',
 						content: result,
-						recursive: recursive ? "true" : "false",
+						recursive: recursive ? 'true' : 'false',
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
 
-			if (response !== "yesButtonTapped") {
+			if (response !== 'yesButtonTapped') {
 				ask(
-					"tool",
+					'tool',
 					{
 						tool: {
-							tool: "list_files",
+							tool: 'list_files',
 							path: getReadablePath(relDirPath, this.cwd),
-							approvalState: "rejected",
-							recursive: recursive ? "true" : "false",
+							approvalState: 'rejected',
+							recursive: recursive ? 'true' : 'false',
 							ts: this.ts,
 						},
 					},
-					this.ts
+					this.ts,
 				)
-				if (response === "messageResponse") {
-					await say("user_feedback", text, images)
+				if (response === 'messageResponse') {
+					await say('user_feedback', text, images)
 					return formatToolResponse(formatGenericToolFeedback(text), images)
 				}
 
-				return "The user denied this operation."
+				return 'The user denied this operation.'
 			}
 
 			ask(
-				"tool",
+				'tool',
 				{
 					tool: {
-						tool: "list_files",
+						tool: 'list_files',
 						path: getReadablePath(relDirPath, this.cwd),
-						approvalState: "approved",
+						approvalState: 'approved',
 						content: result,
-						recursive: recursive ? "true" : "false",
+						recursive: recursive ? 'true' : 'false',
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
 
 			return result
 		} catch (error) {
 			ask(
-				"tool",
+				'tool',
 				{
 					tool: {
-						tool: "list_files",
+						tool: 'list_files',
 						path: getReadablePath(relDirPath, this.cwd),
-						approvalState: "error",
+						approvalState: 'error',
 						error: serializeError(error),
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
 			const errorString = `Error listing files and directories: ${JSON.stringify(serializeError(error))}`
 			await say(
-				"error",
+				'error',
 				`Error listing files and directories:\n${
 					(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)
-				}`
+				}`,
 			)
 
 			return errorString
@@ -126,12 +126,12 @@ export class ListFilesTool extends BaseAgentTool {
 			.map((file) => {
 				// convert absolute path to relative path
 				const relativePath = path.relative(absolutePath, file)
-				return file.endsWith("/") ? relativePath + "/" : relativePath
+				return file.endsWith('/') ? `${relativePath}/` : relativePath
 			})
 			// Sort so files are listed under their respective directories to make it clear what files are children of what directories. Since we build file list top down, even if file list is truncated it will show directories that claude can then explore further.
 			.sort((a, b) => {
-				const aParts = a.split("/")
-				const bParts = b.split("/")
+				const aParts = a.split('/')
+				const bParts = b.split('/')
 				for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
 					if (aParts[i] !== bParts[i]) {
 						// If one is a directory and the other isn't at this level, sort the directory first
@@ -142,7 +142,7 @@ export class ListFilesTool extends BaseAgentTool {
 							return 1
 						}
 						// Otherwise, sort alphabetically
-						return aParts[i].localeCompare(bParts[i], undefined, { numeric: true, sensitivity: "base" })
+						return aParts[i].localeCompare(bParts[i], undefined, { numeric: true, sensitivity: 'base' })
 					}
 				}
 				// If all parts are the same up to the length of the shorter path,
@@ -150,12 +150,12 @@ export class ListFilesTool extends BaseAgentTool {
 				return aParts.length - bParts.length
 			})
 		if (sorted.length >= LIST_FILES_LIMIT) {
-			const truncatedList = sorted.slice(0, LIST_FILES_LIMIT).join("\n")
+			const truncatedList = sorted.slice(0, LIST_FILES_LIMIT).join('\n')
 			return `${truncatedList}\n\n(Truncated at ${LIST_FILES_LIMIT} results. Try listing files in subdirectories if you need to explore further.)`
-		} else if (sorted.length === 0 || (sorted.length === 1 && sorted[0] === "")) {
-			return "No files found or you do not have permission to view this directory."
-		} else {
-			return sorted.join("\n")
 		}
+		if (sorted.length === 0 || (sorted.length === 1 && sorted[0] === '')) {
+			return 'No files found or you do not have permission to view this directory.'
+		}
+		return sorted.join('\n')
 	}
 }

@@ -1,4 +1,4 @@
-import { TextareaAutosizeProps } from "react-textarea-autosize"
+import type { TextareaAutosizeProps } from 'react-textarea-autosize'
 
 export const terminalContainerStyle = `
   .terminal-container {
@@ -47,18 +47,18 @@ export const terminalContainerStyle = `
   }
 `
 
-export const textAreaStyle: TextareaAutosizeProps["style"] = {
-	fontFamily: "var(--vscode-editor-font-family)",
-	fontSize: "var(--vscode-editor-font-size)",
-	padding: "10px",
-	border: "1px solid var(--vscode-editorGroup-border)",
-	outline: "none",
-	whiteSpace: "pre-wrap",
-	overflow: "hidden",
-	width: "100%",
-	boxSizing: "border-box",
-	resize: "none",
-	caretColor: "transparent",
-	color: "var(--vscode-terminal-foreground)",
-	borderRadius: "3px",
+export const textAreaStyle: TextareaAutosizeProps['style'] = {
+	fontFamily: 'var(--vscode-editor-font-family)',
+	fontSize: 'var(--vscode-editor-font-size)',
+	padding: '10px',
+	border: '1px solid var(--vscode-editorGroup-border)',
+	outline: 'none',
+	whiteSpace: 'pre-wrap',
+	overflow: 'hidden',
+	width: '100%',
+	boxSizing: 'border-box',
+	resize: 'none',
+	caretColor: 'transparent',
+	color: 'var(--vscode-terminal-foreground)',
+	borderRadius: '3px',
 }

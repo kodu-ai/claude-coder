@@ -1,15 +1,16 @@
-import React, { useMemo } from "react"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import { getLanguageFromPath } from "../../utils/getLanguageFromPath"
-import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
+import type React from 'react'
+import { useMemo } from 'react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { getLanguageFromPath } from '../../utils/getLanguageFromPath'
+import type { SyntaxHighlighterStyle } from '../../utils/getSyntaxHighlighterStyleFromTheme'
 import {
-	removeLeadingNonAlphanumeric,
+	codeContainerStyle,
 	containerStyle,
 	pathHeaderStyle,
 	pathTextStyle,
-	codeContainerStyle,
+	removeLeadingNonAlphanumeric,
 	syntaxHighlighterCustomStyle,
-} from "./utils"
+} from './utils'
 
 interface CodeBlockProps {
 	code?: string
@@ -32,33 +33,34 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
 }) => {
 	const inferredLanguage = useMemo(
 		() => code && (language ?? (path ? getLanguageFromPath(path) : undefined)),
-		[path, language, code]
+		[path, language, code],
 	)
 
 	return (
 		<div style={containerStyle}>
 			{path && (
 				<div style={pathHeaderStyle} onClick={onToggleExpand}>
-					<span style={pathTextStyle}>{removeLeadingNonAlphanumeric(path) + "\u200E"}</span>
-					<span className={`codicon codicon-chevron-${isExpanded ? "up" : "down"}`}></span>
+					<span style={pathTextStyle}>{`${removeLeadingNonAlphanumeric(path)}\u200E`}</span>
+					<span className={`codicon codicon-chevron-${isExpanded ? 'up' : 'down'}`} />
 				</div>
 			)}
 			{(!path || isExpanded) && (
 				<div style={codeContainerStyle}>
 					<SyntaxHighlighter
 						wrapLines={false}
-						language={diff ? "diff" : inferredLanguage}
+						language={diff ? 'diff' : inferredLanguage}
 						style={{
 							...syntaxHighlighterStyle,
 							'code[class*="language-"]': {
-								background: "var(--vscode-editor-background)",
+								background: 'var(--vscode-editor-background)',
 							},
 							'pre[class*="language-"]': {
-								background: "var(--vscode-editor-background)",
+								background: 'var(--vscode-editor-background)',
 							},
 						}}
-						customStyle={syntaxHighlighterCustomStyle}>
-						{code ?? diff ?? ""}
+						customStyle={syntaxHighlighterCustomStyle}
+					>
+						{code ?? diff ?? ''}
 					</SyntaxHighlighter>
 				</div>
 			)}

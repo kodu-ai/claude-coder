@@ -1,9 +1,9 @@
-import { ToolResponse } from "../../types"
-import { formatToolResponse, getCwd } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
-import { BaseAgentTool } from "../base-agent.tool"
-import { TerminalManager, TerminalRegistry } from "../../../../integrations/terminal/terminal-manager"
-import pWaitFor from "p-wait-for"
+import pWaitFor from 'p-wait-for'
+import { type TerminalManager, TerminalRegistry } from '../../../../integrations/terminal/terminal-manager'
+import type { ToolResponse } from '../../types'
+import { formatToolResponse, getCwd } from '../../utils'
+import { BaseAgentTool } from '../base-agent.tool'
+import type { AgentToolOptions, AgentToolParams } from '../types'
 
 export class DevServerTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -20,8 +20,8 @@ export class DevServerTool extends BaseAgentTool {
 
 		if (!commandType || !commandToRun || !serverName) {
 			await say(
-				"error",
-				"Missing values for required parameters 'commandType', 'commandToRun', or 'serverName'. Retrying..."
+				'error',
+				"Missing values for required parameters 'commandType', 'commandToRun', or 'serverName'. Retrying...",
 			)
 			return `Error: Missing values for required parameters 'commandType', 'commandToRun', or 'serverName'. Please retry with complete response.
             An example of a good devServer tool call is:
@@ -36,49 +36,49 @@ export class DevServerTool extends BaseAgentTool {
 		}
 
 		const { response, text, images } = await ask(
-			"tool",
+			'tool',
 			{
 				tool: {
-					tool: "server_runner_tool",
-					approvalState: "pending",
+					tool: 'server_runner_tool',
+					approvalState: 'pending',
 					ts: this.ts,
 					commandType,
 					commandToRun,
 					serverName,
 				},
 			},
-			this.ts
+			this.ts,
 		)
 
 		try {
-			if (response === "yesButtonTapped") {
+			if (response === 'yesButtonTapped') {
 				await this.params.updateAsk(
-					"tool",
+					'tool',
 					{
 						tool: {
-							tool: "server_runner_tool",
-							approvalState: "approved",
+							tool: 'server_runner_tool',
+							approvalState: 'approved',
 							ts: this.ts,
 							commandType,
 							commandToRun,
 							serverName,
 						},
 					},
-					this.ts
+					this.ts,
 				)
 
 				let result: string
 				switch (commandType) {
-					case "start":
+					case 'start':
 						result = await this.startServer(terminalManager, commandToRun, serverName)
 						break
-					case "stop":
+					case 'stop':
 						result = await this.stopServer(terminalManager, serverName)
 						break
-					case "restart":
+					case 'restart':
 						result = await this.restartServer(terminalManager, commandToRun, serverName)
 						break
-					case "getLogs":
+					case 'getLogs':
 						result = await this.getLogs(terminalManager, serverName)
 						break
 					default:
@@ -86,44 +86,43 @@ export class DevServerTool extends BaseAgentTool {
 				}
 
 				return formatToolResponse(result, images)
-			} else {
-				await this.params.updateAsk(
-					"tool",
-					{
-						tool: {
-							tool: "server_runner_tool",
-							approvalState: "rejected",
-							ts: this.ts,
-							commandType,
-							commandToRun,
-							serverName,
-						},
-					},
-					this.ts
-				)
-				let errorMsg = `The user declined the request to run the dev server command: ${commandType} (${commandToRun})`
-				if (text?.length || images?.length) {
-					await say("user_feedback", text ?? "", images)
-					if (text?.length && text.length > 1) {
-						errorMsg += `\n<user_feedback>${text}</user_feedback>`
-					}
-				}
-				return formatToolResponse(errorMsg, images)
 			}
-		} catch (err) {
-			this.params.updateAsk(
-				"tool",
+			await this.params.updateAsk(
+				'tool',
 				{
 					tool: {
-						tool: "server_runner_tool",
-						approvalState: "error",
+						tool: 'server_runner_tool',
+						approvalState: 'rejected',
 						ts: this.ts,
 						commandType,
 						commandToRun,
 						serverName,
 					},
 				},
-				this.ts
+				this.ts,
+			)
+			let errorMsg = `The user declined the request to run the dev server command: ${commandType} (${commandToRun})`
+			if (text?.length || images?.length) {
+				await say('user_feedback', text ?? '', images)
+				if (text?.length && text.length > 1) {
+					errorMsg += `\n<user_feedback>${text}</user_feedback>`
+				}
+			}
+			return formatToolResponse(errorMsg, images)
+		} catch (err) {
+			this.params.updateAsk(
+				'tool',
+				{
+					tool: {
+						tool: 'server_runner_tool',
+						approvalState: 'error',
+						ts: this.ts,
+						commandType,
+						commandToRun,
+						serverName,
+					},
+				},
+				this.ts,
 			)
 			return formatToolResponse(
 				`Error Running Command!
@@ -134,7 +133,7 @@ export class DevServerTool extends BaseAgentTool {
 				This might help you to solve the issue.
 				your current path is ${getCwd()}
 				`,
-				images
+				images,
 			)
 		}
 	}
@@ -144,18 +143,18 @@ export class DevServerTool extends BaseAgentTool {
 			return `Server "${serverName}" is already running.`
 		}
 		this.params.updateAsk(
-			"tool",
+			'tool',
 			{
 				tool: {
-					tool: "server_runner_tool",
-					approvalState: "loading",
+					tool: 'server_runner_tool',
+					approvalState: 'loading',
 					ts: this.ts,
-					commandType: "start",
+					commandType: 'start',
 					commandToRun: command,
 					serverName,
 				},
 			},
-			this.ts
+			this.ts,
 		)
 
 		const terminalInfo = await terminalManager.getOrCreateTerminal(this.cwd, serverName)
@@ -167,15 +166,15 @@ export class DevServerTool extends BaseAgentTool {
 			autoClose: false,
 		})
 
-		let result = ""
+		let result = ''
 		let urlFound = false
 
 		// Flexible regex patterns to match URLs and ports
 		const urlPattern = /(https?:\/\/[^\s]+)/i
 		const portPattern = /port\s*[:=]\s*(\d+)/i
 
-		serverProcess.on("line", (line) => {
-			result += line + "\n"
+		serverProcess.on('line', (line) => {
+			result += `${line}\n`
 			if (!urlFound) {
 				let match
 				if ((match = line.match(urlPattern))) {
@@ -202,39 +201,39 @@ export class DevServerTool extends BaseAgentTool {
 
 		if (serverUrl) {
 			this.params.updateAsk(
-				"tool",
+				'tool',
 				{
 					tool: {
-						tool: "server_runner_tool",
-						approvalState: "approved",
+						tool: 'server_runner_tool',
+						approvalState: 'approved',
 						ts: this.ts,
-						commandType: "start",
+						commandType: 'start',
 						commandToRun: command,
 						serverName,
 						output: result,
 					},
 				},
-				this.ts
+				this.ts,
 			)
 			return `Dev server "${serverName}" started successfully, check <dev_server_status> and
 <dev_server_running> to find the details. The server is only viable for limited amount of time, don't take it for granted.`
-		} else {
-			// no output was found in the logs to indicate the server started successfully or the URL was found
-			this.params.updateAsk(
-				"tool",
-				{
-					tool: {
-						tool: "server_runner_tool",
-						approvalState: "error",
-						ts: this.ts,
-						commandType: "start",
-						commandToRun: command,
-						serverName,
-					},
+		}
+		// no output was found in the logs to indicate the server started successfully or the URL was found
+		this.params.updateAsk(
+			'tool',
+			{
+				tool: {
+					tool: 'server_runner_tool',
+					approvalState: 'error',
+					ts: this.ts,
+					commandType: 'start',
+					commandToRun: command,
+					serverName,
 				},
-				this.ts
-			)
-			return `
+			},
+			this.ts,
+		)
+		return `
 				ERROR!
 				Failed to start server "${serverName}".
 				Please check the logs for more information.
@@ -248,7 +247,6 @@ export class DevServerTool extends BaseAgentTool {
 				don't forget you're on ${getCwd()} ask yourself did i use correct path?
 				is the server folder located at ${getCwd()} or is it in a nested folder? if so, did you use cd <folder> & <command>?
 				`
-		}
 	}
 
 	private async stopServer(terminalManager: TerminalManager, serverName: string): Promise<string> {
@@ -269,37 +267,37 @@ export class DevServerTool extends BaseAgentTool {
 	private async restartServer(
 		terminalManager: TerminalManager,
 		command: string,
-		serverName: string
+		serverName: string,
 	): Promise<string> {
 		this.params.updateAsk(
-			"tool",
+			'tool',
 			{
 				tool: {
-					tool: "server_runner_tool",
-					approvalState: "loading",
+					tool: 'server_runner_tool',
+					approvalState: 'loading',
 					ts: this.ts,
-					commandType: "restart",
+					commandType: 'restart',
 					commandToRun: command,
 					serverName,
 				},
 			},
-			this.ts
+			this.ts,
 		)
 		const stopResult = await this.stopServer(terminalManager, serverName)
 		const startResult = await this.startServer(terminalManager, command, serverName)
 		this.params.updateAsk(
-			"tool",
+			'tool',
 			{
 				tool: {
-					tool: "server_runner_tool",
-					approvalState: "approved",
+					tool: 'server_runner_tool',
+					approvalState: 'approved',
 					ts: this.ts,
-					commandType: "restart",
+					commandType: 'restart',
 					commandToRun: command,
 					serverName,
 				},
 			},
-			this.ts
+			this.ts,
 		)
 		return `${stopResult}\n${startResult}`
 	}
@@ -313,19 +311,19 @@ export class DevServerTool extends BaseAgentTool {
 		const logs = terminalManager.getFullOutput(devServer.terminalInfo.id)
 
 		this.params.updateAsk(
-			"tool",
+			'tool',
 			{
 				tool: {
-					tool: "server_runner_tool",
-					approvalState: "approved",
+					tool: 'server_runner_tool',
+					approvalState: 'approved',
 					ts: this.ts,
-					commandType: "getLogs",
-					commandToRun: this.paramsInput.commandToRun ?? "",
+					commandType: 'getLogs',
+					commandToRun: this.paramsInput.commandToRun ?? '',
 					serverName,
 					output: logs,
 				},
 			},
-			this.ts
+			this.ts,
 		)
 
 		return `Server Logs for "${serverName}":\n${logs}`

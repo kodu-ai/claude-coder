@@ -1,5 +1,5 @@
 // schema/web_search.ts
-import { z } from "zod"
+import { z } from 'zod'
 
 /**
  * @tool web_search
@@ -30,11 +30,11 @@ import { z } from "zod"
  * ```
  */
 const schema = z.object({
-	searchQuery: z.string().describe("The question you want to search for on the web."),
+	searchQuery: z.string().describe('The question you want to search for on the web.'),
 	baseLink: z
 		.string()
 		.optional()
-		.describe("The base link provided by the user. If it is provided, you can start your search from here."),
+		.describe('The base link provided by the user. If it is provided, you can start your search from here.'),
 })
 
 const examples = [
@@ -54,7 +54,7 @@ const examples = [
 
 export const webSearchTool = {
 	schema: {
-		name: "web_search",
+		name: 'web_search',
 		schema,
 	},
 	examples,

@@ -1,5 +1,5 @@
 // schema/upsert_memory.ts
-import { z } from "zod"
+import { z } from 'zod'
 
 /**
  * @tool upsert_memory
@@ -34,8 +34,8 @@ import { z } from "zod"
  * ```
  */
 const schema = z.object({
-	content: z.string().describe("The complete content of the updated task history to be written in markdown."),
-	milestoneName: z.string().optional().describe("The name of the milestone achieved, around 30 characters."),
+	content: z.string().describe('The complete content of the updated task history to be written in markdown.'),
+	milestoneName: z.string().optional().describe('The name of the milestone achieved, around 30 characters.'),
 })
 
 const examples = [
@@ -58,7 +58,7 @@ const examples = [
 
 export const upsertMemoryTool = {
 	schema: {
-		name: "upsert_memory",
+		name: 'upsert_memory',
 		schema,
 	},
 	examples,

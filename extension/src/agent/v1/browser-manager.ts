@@ -1,11 +1,11 @@
-import { mkdir, mkdirSync } from "fs"
-import { join } from "path"
+import { mkdir, mkdirSync } from 'node:fs'
+import { join } from 'node:path'
 // @ts-expect-error - not typed
-import PCR from "puppeteer-chromium-resolver"
+import pcr from 'puppeteer-chromium-resolver'
 
-import puppeteer, { Browser, launch, Page } from "puppeteer-core"
-import * as vscode from "vscode"
-import { fileExistsAtPath } from "../../utils/path-helpers"
+import puppeteer, { type Browser, type launch, type Page } from 'puppeteer-core'
+import type * as vscode from 'vscode'
+import { fileExistsAtPath } from '../../utils/path-helpers'
 interface PCRStats {
 	puppeteer: { launch: typeof launch }
 	executablePath: string
@@ -22,10 +22,10 @@ export class BrowserManager {
 	private async ensureChromiumExists(): Promise<PCRStats> {
 		const globalStoragePath = this.context?.globalStorageUri?.fsPath
 		if (!globalStoragePath) {
-			throw new Error("Global storage uri is invalid")
+			throw new Error('Global storage uri is invalid')
 		}
 
-		const puppeteerDir = join(globalStoragePath, "puppeteer")
+		const puppeteerDir = join(globalStoragePath, 'puppeteer')
 		const dirExists = await fileExistsAtPath(puppeteerDir)
 		if (!dirExists) {
 			await mkdirSync(puppeteerDir, { recursive: true })
@@ -33,7 +33,7 @@ export class BrowserManager {
 
 		// if chromium doesn't exist, this will download it to path.join(puppeteerDir, ".chromium-browser-snapshots")
 		// if it does exist it will return the path to existing chromium
-		const stats: PCRStats = await PCR({
+		const stats: PCRStats = await pcr({
 			downloadPath: puppeteerDir,
 		})
 
@@ -46,14 +46,14 @@ export class BrowserManager {
 		}
 		const stats = await this.ensureChromiumExists()
 		this.browser = await puppeteer.launch({
-			args: ["--no-sandbox", "--disable-setuid-sandbox"],
+			args: ['--no-sandbox', '--disable-setuid-sandbox'],
 			executablePath: stats.executablePath,
 			headless: true,
 		})
 
 		this.page = await this.browser.newPage()
 		await this.page.setUserAgent(
-			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+			'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
 		)
 	}
 
@@ -65,17 +65,17 @@ export class BrowserManager {
 
 	async urlToScreenshotAndLogs(url: string): Promise<{ buffer: Buffer; logs: string[] }> {
 		if (!this.page) {
-			throw new Error("Browser not initialized")
+			throw new Error('Browser not initialized')
 		}
 
 		const logs: string[] = []
 
-		this.page.on("console", (msg) => {
+		this.page.on('console', (msg) => {
 			logs.push(`[${msg.type()}] ${msg.text()}`)
 		})
 
 		try {
-			await this.page.goto(url, { timeout: 8000, waitUntil: "domcontentloaded" })
+			await this.page.goto(url, { timeout: 8000, waitUntil: 'domcontentloaded' })
 		} catch (err) {
 			logs.push(`[Navigation Error] ${err}`)
 		}
@@ -85,7 +85,7 @@ export class BrowserManager {
 
 		const screenshotUInt = await this.page.screenshot({
 			fullPage: true,
-			type: "jpeg",
+			type: 'jpeg',
 		})
 		const screenshotBuffer = Buffer.from(screenshotUInt)
 

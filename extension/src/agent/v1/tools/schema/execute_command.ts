@@ -1,5 +1,5 @@
 // schema/execute_command.ts
-import { z } from "zod"
+import { z } from 'zod'
 
 /**
  * @tool execute_command
@@ -31,7 +31,7 @@ const schema = z.object({
 	command: z
 		.string()
 		.describe(
-			"The CLI command to execute. This should be valid for the current operating system. Ensure the command is properly formatted and does not contain any harmful instructions."
+			'The CLI command to execute. This should be valid for the current operating system. Ensure the command is properly formatted and does not contain any harmful instructions.',
 		),
 })
 
@@ -51,7 +51,7 @@ const examples = [
 
 export const executeCommandTool = {
 	schema: {
-		name: "execute_command",
+		name: 'execute_command',
 		schema,
 	},
 	examples,

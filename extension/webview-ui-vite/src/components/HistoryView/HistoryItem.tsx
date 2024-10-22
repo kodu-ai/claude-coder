@@ -1,8 +1,8 @@
-import { Button } from "@/components/ui/button"
-import { formatDate } from "@/utils/dateFormatter"
-import { type HistoryItem } from "../../../../src/shared/HistoryItem"
-import { Loader2, Trash2 } from "lucide-react"
-import { useState } from "react"
+import { Button } from '@/components/ui/button'
+import { formatDate } from '@/utils/dateFormatter'
+import { Loader2, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import type { HistoryItem } from '../../../../src/shared/HistoryItem'
 
 type HistoryItemProps = {
 	item: HistoryItem
@@ -16,7 +16,8 @@ const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) =
 	return (
 		<div
 			className="cursor-pointer text-foreground border-b border-border hover:bg-secondary hover:text-secondary-foreground transition-colors"
-			onClick={() => onSelect(item.id)}>
+			onClick={() => onSelect(item.id)}
+		>
 			<div className="flex flex-col gap-2 p-4 relative group">
 				<div className="flex justify-between items-center">
 					<span className="text-sm font-medium uppercase">{formatDate(item.ts)}</span>
@@ -30,7 +31,8 @@ const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) =
 							e.stopPropagation()
 							setIsLoading((prev) => ({ ...prev, [item.id]: true }))
 							onDelete(item.id)
-						}}>
+						}}
+					>
 						<span className="sr-only">Delete</span>
 						{isLoading[item.id] ? (
 							<Loader2 className="animate-spin" size={16} />
@@ -41,7 +43,8 @@ const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) =
 				</div>
 				<div
 					className="text-sm line-clamp-3 whitespace-pre-wrap break-words overflow-wrap-anywhere"
-					dangerouslySetInnerHTML={{ __html: item.name ?? item.task }}></div>
+					dangerouslySetInnerHTML={{ __html: item.name ?? item.task }}
+				/>
 
 				<div className="flex flex-col gap-1 text-xs">
 					<div className="flex justify-between items-center">
@@ -58,8 +61,9 @@ const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) =
 									strokeWidth="2"
 									strokeLinecap="round"
 									strokeLinejoin="round"
-									className="w-3 h-3">
-									<path d="m6 9 6 6 6-6"></path>
+									className="w-3 h-3"
+								>
+									<path d="m6 9 6 6 6-6" />
 								</svg>
 								{item.tokensIn?.toLocaleString()}
 							</span>
@@ -74,8 +78,9 @@ const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) =
 									strokeWidth="2"
 									strokeLinecap="round"
 									strokeLinejoin="round"
-									className="w-3 h-3">
-									<path d="m18 15-6-6-6 6"></path>
+									className="w-3 h-3"
+								>
+									<path d="m18 15-6-6-6 6" />
 								</svg>
 								{item.tokensOut?.toLocaleString()}
 							</span>
@@ -88,7 +93,8 @@ const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) =
 								onClick={(e) => {
 									e.stopPropagation()
 									onExport(item.id)
-								}}>
+								}}
+							>
 								EXPORT
 							</Button>
 						)}
@@ -107,10 +113,11 @@ const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) =
 									strokeWidth="2"
 									strokeLinecap="round"
 									strokeLinejoin="round"
-									className="w-3 h-3">
-									<ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-									<path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-									<path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+									className="w-3 h-3"
+								>
+									<ellipse cx="12" cy="5" rx="9" ry="3" />
+									<path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+									<path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
 								</svg>
 								+{item.cacheWrites?.toLocaleString()}
 							</span>
@@ -125,9 +132,10 @@ const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) =
 									strokeWidth="2"
 									strokeLinecap="round"
 									strokeLinejoin="round"
-									className="w-3 h-3">
-									<path d="M5 12h14"></path>
-									<path d="m12 5 7 7-7 7"></path>
+									className="w-3 h-3"
+								>
+									<path d="M5 12h14" />
+									<path d="m12 5 7 7-7 7" />
 								</svg>
 								{item.cacheReads?.toLocaleString()}
 							</span>
@@ -146,7 +154,8 @@ const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) =
 								onClick={(e) => {
 									e.stopPropagation()
 									onExport(item.id)
-								}}>
+								}}
+							>
 								EXPORT
 							</Button>
 						</div>

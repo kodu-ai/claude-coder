@@ -1,11 +1,12 @@
-import React, { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { X, File, Folder, Link, ChevronRight, Trash2 } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Resource } from "../../../../src/shared/WebviewMessage"
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { ChevronRight, File, Folder, Link, Trash2, X } from 'lucide-react'
+import type React from 'react'
+import { useState } from 'react'
+import type { Resource } from '../../../../src/shared/WebviewMessage'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 
 type AttachedResourcesProps = {
 	resources: Resource[]
@@ -17,15 +18,17 @@ const AttachedResources: React.FC<AttachedResourcesProps> = ({ resources, onRemo
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
 	const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
 
-	if (resources.length === 0) return null
+	if (resources.length === 0) {
+		return null
+	}
 
-	const getIcon = (type: Resource["type"]) => {
+	const getIcon = (type: Resource['type']) => {
 		switch (type) {
-			case "file":
+			case 'file':
 				return <File className="w-4 h-4 mr-2" />
-			case "folder":
+			case 'folder':
 				return <Folder className="w-4 h-4 mr-2" />
-			case "url":
+			case 'url':
 				return <Link className="w-4 h-4 mr-2" />
 		}
 	}
@@ -39,8 +42,8 @@ const AttachedResources: React.FC<AttachedResourcesProps> = ({ resources, onRemo
 						{showFullName
 							? resource.name
 							: resource.name.length > 5
-							? resource.name.substring(0, 5) + "..."
-							: resource.name}
+								? `${resource.name.substring(0, 5)}...`
+								: resource.name}
 					</span>
 					<Button variant="ghost" size="sm" className="p-0 h-auto" onClick={() => onRemove(resource.id)}>
 						<X className="w-4 h-4" />
@@ -69,7 +72,8 @@ const AttachedResources: React.FC<AttachedResourcesProps> = ({ resources, onRemo
 							variant="outline"
 							size="sm"
 							onClick={() => setIsDialogOpen(true)}
-							className="flex items-center">
+							className="flex items-center"
+						>
 							<span className="mr-1">See All ({resources.length})</span>
 							<ChevronRight className="w-4 h-4" />
 						</Button>
@@ -93,7 +97,8 @@ const AttachedResources: React.FC<AttachedResourcesProps> = ({ resources, onRemo
 						<Button
 							variant="destructive"
 							onClick={() => setShowDeleteConfirmation(true)}
-							className="w-full sm:w-auto">
+							className="w-full sm:w-auto"
+						>
 							<Trash2 className="w-4 h-4 mr-2" />
 							Delete All
 						</Button>

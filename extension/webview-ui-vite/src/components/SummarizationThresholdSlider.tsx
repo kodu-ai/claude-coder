@@ -1,4 +1,4 @@
-import React from 'react'
+import type React from 'react'
 import { vscode } from '../utils/vscode'
 import { Label } from './ui/label'
 import { Slider } from './ui/slider'
@@ -10,7 +10,7 @@ interface SummarizationThresholdSliderProps {
 
 const SummarizationThresholdSlider: React.FC<SummarizationThresholdSliderProps> = ({
 	summarizationThreshold,
-	setSummarizationThreshold
+	setSummarizationThreshold,
 }) => {
 	const handleThresholdChange = (value: number[]) => {
 		const newThreshold = value[0]

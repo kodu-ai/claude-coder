@@ -1,8 +1,8 @@
-import React from "react"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Check, X, ChevronDown } from "lucide-react"
-import { KoduModels } from "../../../../src/shared/api"
-import { models } from "./constants"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Check, ChevronDown, X } from 'lucide-react'
+import React from 'react'
+import type { KoduModels } from '../../../../src/shared/api'
+import { models } from './constants'
 
 interface ModelDetailsProps {
 	model: keyof KoduModels
@@ -10,7 +10,9 @@ interface ModelDetailsProps {
 
 const ModelDetails: React.FC<ModelDetailsProps> = React.memo(({ model }) => {
 	const details = models[model]
-	if (!details || details.comingSoon) return null
+	if (!details || details.comingSoon) {
+		return null
+	}
 
 	return (
 		<Collapsible defaultOpen className="w-full">
@@ -23,7 +25,7 @@ const ModelDetails: React.FC<ModelDetailsProps> = React.memo(({ model }) => {
 					<div>Max Tokens: {details.maxTokens?.toLocaleString()}</div>
 					<div>Context Window: {details.contextWindow?.toLocaleString()}</div>
 					<div>
-						Supports Images:{" "}
+						Supports Images:{' '}
 						{details.supportsImages ? (
 							<Check className="inline text-green-500 h-3 w-3" />
 						) : (
@@ -31,7 +33,7 @@ const ModelDetails: React.FC<ModelDetailsProps> = React.memo(({ model }) => {
 						)}
 					</div>
 					<div>
-						Supports Prompt Cache:{" "}
+						Supports Prompt Cache:{' '}
 						{details.supportsPromptCache ? (
 							<Check className="inline text-green-500 h-3 w-3" />
 						) : (

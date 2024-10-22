@@ -1,5 +1,5 @@
 // schema/list_files.ts
-import { z } from "zod"
+import { z } from 'zod'
 
 /**
  * @tool list_files
@@ -32,12 +32,12 @@ import { z } from "zod"
 const schema = z.object({
 	path: z
 		.string()
-		.describe("The path of the directory to list contents for (relative to the current working directory)."),
+		.describe('The path of the directory to list contents for (relative to the current working directory).'),
 	recursive: z
-		.enum(["true", "false"])
+		.enum(['true', 'false'])
 		.optional()
 		.describe(
-			"Whether to list files recursively. Use 'true' for recursive listing, 'false' or omit for top-level only."
+			"Whether to list files recursively. Use 'true' for recursive listing, 'false' or omit for top-level only.",
 		),
 })
 
@@ -58,7 +58,7 @@ const examples = [
 
 export const listFilesTool = {
 	schema: {
-		name: "list_files",
+		name: 'list_files',
 		schema,
 	},
 	examples,

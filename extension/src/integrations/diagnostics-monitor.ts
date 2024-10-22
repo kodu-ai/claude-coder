@@ -1,5 +1,5 @@
-import * as vscode from "vscode"
-import deepEqual from "fast-deep-equal"
+import deepEqual from 'fast-deep-equal'
+import * as vscode from 'vscode'
 
 type FileDiagnostics = [vscode.Uri, vscode.Diagnostic[]][]
 
@@ -43,7 +43,7 @@ class DiagnosticsMonitor {
 		this.disposables.push(
 			vscode.languages.onDidChangeDiagnostics(() => {
 				this.diagnosticsChangeEmitter.fire()
-			})
+			}),
 		)
 	}
 
@@ -64,10 +64,10 @@ class DiagnosticsMonitor {
 
 		// if diagnostics contain existing errors (since the check above didn't trigger) then it's likely claude just did something that should have fixed the error, so we'll give a longer grace period for diagnostics to catch up
 		const hasErrors = currentDiagnostics.some(([_, diagnostics]) =>
-			diagnostics.some((d) => d.severity === vscode.DiagnosticSeverity.Error)
+			diagnostics.some((d) => d.severity === vscode.DiagnosticSeverity.Error),
 		)
 		if (hasErrors) {
-			console.log("Existing errors detected, extending timeout", currentDiagnostics)
+			console.log('Existing errors detected, extending timeout', currentDiagnostics)
 			timeout = 5_000
 		}
 

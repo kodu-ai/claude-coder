@@ -1,7 +1,7 @@
-import { ToolResponse } from "../../types"
-import { formatToolResponse } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
-import { BaseAgentTool } from "../base-agent.tool"
+import type { ToolResponse } from '../../types'
+import { formatToolResponse } from '../../utils'
+import { BaseAgentTool } from '../base-agent.tool'
+import type { AgentToolOptions, AgentToolParams } from '../types'
 
 export class AskFollowupQuestionTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -17,8 +17,8 @@ export class AskFollowupQuestionTool extends BaseAgentTool {
 
 		if (question === undefined) {
 			await say(
-				"error",
-				"Claude tried to use ask_followup_question without value for required parameter 'question'. Retrying..."
+				'error',
+				"Claude tried to use ask_followup_question without value for required parameter 'question'. Retrying...",
 			)
 			return `Error: Missing value for required parameter 'question'. Please retry with complete response.
 			An example of a good askFollowupQuestion tool call is:
@@ -31,18 +31,18 @@ export class AskFollowupQuestionTool extends BaseAgentTool {
 		}
 
 		const { text, images } = await ask(
-			"tool",
+			'tool',
 			{
-				tool: { tool: "ask_followup_question", question, approvalState: "pending", ts: this.ts },
+				tool: { tool: 'ask_followup_question', question, approvalState: 'pending', ts: this.ts },
 			},
-			this.ts
+			this.ts,
 		)
 		ask(
-			"tool",
-			{ tool: { tool: "ask_followup_question", question, approvalState: "approved", ts: this.ts } },
-			this.ts
+			'tool',
+			{ tool: { tool: 'ask_followup_question', question, approvalState: 'approved', ts: this.ts } },
+			this.ts,
 		)
-		await say("user_feedback", text ?? "", images)
+		await say('user_feedback', text ?? '', images)
 
 		return formatToolResponse(`<answer>\n${text}\n</answer>`, images)
 	}

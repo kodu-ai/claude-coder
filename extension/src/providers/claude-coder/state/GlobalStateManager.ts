@@ -1,6 +1,6 @@
-import * as vscode from "vscode"
-import { HistoryItem } from "../../../shared/HistoryItem"
-import { ApiModelId, KoduModelId } from "../../../shared/api"
+import type * as vscode from 'vscode'
+import type { HistoryItem } from '../../../shared/HistoryItem'
+import { ApiModelId, type KoduModelId } from '../../../shared/api'
 
 type User = {
 	email: string
@@ -9,7 +9,7 @@ type User = {
 	isVisitor: boolean
 }
 
-type CreativeMode = "creative" | "normal" | "deterministic"
+type CreativeMode = 'creative' | 'normal' | 'deterministic'
 
 export type GlobalState = {
 	user: User | undefined | null
@@ -27,7 +27,7 @@ export type GlobalState = {
 	experimentalTerminal: boolean | undefined
 	summarizationThreshold: number | undefined
 	skipWriteAnimation: boolean | undefined
-	technicalBackground: "no-technical" | "technical" | "developer" | undefined
+	technicalBackground: 'no-technical' | 'technical' | 'developer' | undefined
 }
 
 export class GlobalStateManager {

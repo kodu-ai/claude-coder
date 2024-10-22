@@ -1,73 +1,73 @@
 // type that represents json data that is sent from extension to webview, called ExtensionMessage and has 'type' enum which can be 'plusButtonTapped' or 'settingsButtonTapped' or 'hello'
 
-import type { GlobalState } from "../providers/claude-coder/state/GlobalStateManager"
-import { ApiConfiguration } from "./api"
-import { HistoryItem } from "./HistoryItem"
-import { ChatTool } from "./new-tools"
+import type { GlobalState } from '../providers/claude-coder/state/GlobalStateManager'
+import type { HistoryItem } from './HistoryItem'
+import type { ApiConfiguration } from './api'
+import type { ChatTool } from './new-tools'
 interface FileTreeItem {
 	id: string
 	depth: number
 	name: string
 	children?: FileTreeItem[]
-	type: "file" | "folder"
+	type: 'file' | 'folder'
 }
 type PostFoldersAndItems = {
-	type: "fileTree"
+	type: 'fileTree'
 	tree: FileTreeItem[]
 }
 
 type PostGitLog = {
-	type: "gitLog"
+	type: 'gitLog'
 	history: GitLogItem[]
 }
 
 type PostGitBranches = {
-	type: "gitBranches"
+	type: 'gitBranches'
 	branches: GitBranchItem[]
 }
 
 type PostGitCheckoutSuccess = {
-	type: "gitCheckoutTo"
+	type: 'gitCheckoutTo'
 	isSuccess: boolean
 }
 
 type PostClaudeMessages = {
-	type: "claudeMessages"
-	claudeMessages: ExtensionState["claudeMessages"]
+	type: 'claudeMessages'
+	claudeMessages: ExtensionState['claudeMessages']
 }
 
 type PostTaskHistory = {
-	type: "taskHistory"
+	type: 'taskHistory'
 	history: string
 	isInitialized: boolean
 }
 
 export type CommandExecutionResponse = {
-	type: "commandExecutionResponse"
-	status: "response" | "error" | "exit"
+	type: 'commandExecutionResponse'
+	status: 'response' | 'error' | 'exit'
 	payload: string
 	commandId?: string
 }
 
 export type HideCommandBlockMessage = {
-	type: "hideCommandBlock"
+	type: 'hideCommandBlock'
 	identifier?: string
 }
 
 // webview will hold state
 export type ExtensionMessage =
 	| {
-			type: "action" | "state" | "selectedImages"
+			type: 'action' | 'state' | 'selectedImages'
 			text?: string
-			user?: ExtensionState["user"]
+			user?: ExtensionState['user']
 			action?:
-				| "chatButtonTapped"
-				| "settingsButtonTapped"
-				| "historyButtonTapped"
-				| "didBecomeVisible"
-				| "koduAuthenticated"
-				| "koduCreditsFetched"
-				| "updateSummarizationThreshold"
+				| 'chatButtonTapped'
+				| 'settingsButtonTapped'
+				| 'historyButtonTapped'
+				| 'didBecomeVisible'
+				| 'koduAuthenticated'
+				| 'koduCreditsFetched'
+				| 'updateSummarizationThreshold'
 			state?: ExtensionState
 			images?: string[]
 	  }
@@ -87,13 +87,13 @@ export interface ExtensionState {
 	skipWriteAnimation?: boolean
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
-	technicalBackground?: "no-technical" | "technical" | "developer"
+	technicalBackground?: 'no-technical' | 'technical' | 'developer'
 	useUdiff?: boolean
 	experimentalTerminal?: boolean
 	alwaysAllowWriteOnly?: boolean
-	creativeMode?: "creative" | "normal" | "deterministic"
+	creativeMode?: 'creative' | 'normal' | 'deterministic'
 	fpjsKey?: string
-	user: GlobalState["user"]
+	user: GlobalState['user']
 	apiConfiguration?: ApiConfiguration
 	themeName?: string
 	uriScheme?: string
@@ -110,7 +110,7 @@ export interface ExtensionState {
 
 type V0ClaudeMessage = {
 	ts: number
-	type: "ask" | "say"
+	type: 'ask' | 'say'
 	ask?: ClaudeAsk
 	say?: ClaudeSay
 	text?: string
@@ -124,7 +124,7 @@ type V0ClaudeMessage = {
 /**
  * The status of the tool
  */
-export type ToolStatus = "pending" | "rejected" | "approved" | "error" | "loading" | undefined
+export type ToolStatus = 'pending' | 'rejected' | 'approved' | 'error' | 'loading' | undefined
 
 export type V1ClaudeMessage = {
 	/**
@@ -134,7 +134,7 @@ export type V1ClaudeMessage = {
 	/**
 	 *
 	 */
-	isAborted?: "user" | "timeout"
+	isAborted?: 'user' | 'timeout'
 	isError?: boolean
 	isFetching?: boolean
 	isExecutingCommand?: boolean
@@ -160,51 +160,51 @@ export const isV1ClaudeMessage = (message: ClaudeMessage): message is V1ClaudeMe
 }
 
 export type ClaudeAsk =
-	| "request_limit_reached"
-	| "followup"
-	| "command"
-	| "command_output"
-	| "completion_result"
-	| "api_req_failed"
-	| "resume_task"
-	| "resume_completed_task"
-	| "tool"
-	| "summarize"
+	| 'request_limit_reached'
+	| 'followup'
+	| 'command'
+	| 'command_output'
+	| 'completion_result'
+	| 'api_req_failed'
+	| 'resume_task'
+	| 'resume_completed_task'
+	| 'tool'
+	| 'summarize'
 
 export type ClaudeSay =
-	| "task"
-	| "error"
-	| "api_req_started"
-	| "api_req_finished"
-	| "text"
-	| "payment_required"
-	| "unauthorized"
-	| "completion_result"
-	| "user_feedback"
-	| "user_feedback_diff"
-	| "api_req_retried"
-	| "command_output"
-	| "tool"
-	| "memory_updated"
-	| "info"
-	| "abort_automode"
-	| "shell_integration_warning"
-	| "show_terminal"
+	| 'task'
+	| 'error'
+	| 'api_req_started'
+	| 'api_req_finished'
+	| 'text'
+	| 'payment_required'
+	| 'unauthorized'
+	| 'completion_result'
+	| 'user_feedback'
+	| 'user_feedback_diff'
+	| 'api_req_retried'
+	| 'command_output'
+	| 'tool'
+	| 'memory_updated'
+	| 'info'
+	| 'abort_automode'
+	| 'shell_integration_warning'
+	| 'show_terminal'
 
 type WebSearchTool = {
-	tool: "web_search"
+	tool: 'web_search'
 	query: string
 	baseLink: string
 }
 
 export type UrlScreenshotTool = {
-	tool: "url_screenshot"
+	tool: 'url_screenshot'
 	url: string
 	base64Image?: string
 }
 
 export type AskConsultantTool = {
-	tool: "ask_consultant"
+	tool: 'ask_consultant'
 	context: string
 }
 
@@ -212,13 +212,13 @@ export type ClaudeSayTool =
 	| ChatTool
 	| {
 			tool:
-				| "editedExistingFile"
-				| "newFileCreated"
-				| "readFile"
-				| "listFilesTopLevel"
-				| "listFilesRecursive"
-				| "listCodeDefinitionNames"
-				| "searchFiles"
+				| 'editedExistingFile'
+				| 'newFileCreated'
+				| 'readFile'
+				| 'listFilesTopLevel'
+				| 'listFilesRecursive'
+				| 'listCodeDefinitionNames'
+				| 'searchFiles'
 			path?: string
 			diff?: string
 			content?: string

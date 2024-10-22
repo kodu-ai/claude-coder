@@ -1,8 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk"
-import { KoduDev } from ".."
-import { ToolResponse } from "../types"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "../utils"
+import type Anthropic from '@anthropic-ai/sdk'
+import type { KoduDev } from '..'
+import type { ToolResponse } from '../types'
+import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from '../utils'
+import type { AgentToolOptions, AgentToolParams } from './types'
 
 export abstract class BaseAgentTool {
 	protected cwd: string
@@ -31,7 +31,7 @@ export abstract class BaseAgentTool {
 		return this.params.ts
 	}
 
-	get paramsInput(): AgentToolParams["input"] {
+	get paramsInput(): AgentToolParams['input'] {
 		return this.params.input
 	}
 
@@ -45,7 +45,7 @@ export abstract class BaseAgentTool {
 
 	abstract execute(params: AgentToolParams): Promise<ToolResponse>
 
-	public updateParams(input: AgentToolParams["input"]) {
+	public updateParams(input: AgentToolParams['input']) {
 		this.params.input = input
 	}
 
@@ -61,7 +61,7 @@ export abstract class BaseAgentTool {
 	}
 
 	public async formatToolDenied() {
-		return `The user denied this operation.`
+		return 'The user denied this operation.'
 	}
 
 	public async formatToolResult(result: string) {
@@ -73,13 +73,12 @@ export abstract class BaseAgentTool {
 	}
 	public formatToolResponseWithImages(text: string, images?: string[]): ToolResponse {
 		if (images && images.length > 0) {
-			const textBlock: Anthropic.TextBlockParam = { type: "text", text }
+			const textBlock: Anthropic.TextBlockParam = { type: 'text', text }
 			const imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
 			// Placing images after text leads to better results
 			return [textBlock, ...imageBlocks]
-		} else {
-			return text
 		}
+		return text
 	}
 
 	public async abortToolExecution() {

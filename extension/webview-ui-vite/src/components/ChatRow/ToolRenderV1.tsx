@@ -23,9 +23,11 @@ import {
 	Server,
 	Square,
 	Terminal,
-	XCircle
-} from "lucide-react"
-import {
+	XCircle,
+} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import React from 'react'
+import type {
 	AskConsultantTool,
 	AskFollowupQuestionTool,
 	AttemptCompletionTool,
@@ -41,11 +43,9 @@ import {
 	UrlScreenshotTool,
 	WebSearchTool,
 	WriteToFileTool,
-} from "../../../../src/shared/new-tools"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
-import { ScrollArea, ScrollBar } from "../ui/scroll-area"
-import { useEffect, useRef, useState } from 'react'
-import React from 'react'
+} from '../../../../src/shared/new-tools'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible'
+import { ScrollArea, ScrollBar } from '../ui/scroll-area'
 import MarkdownRenderer from './MarkdownRenderer'
 
 type ApprovalState = ToolStatus
@@ -155,13 +155,13 @@ export const DevServerToolBlock: React.FC<ServerRunnerTool & ToolAddons> = ({
 
 	const getIcon = () => {
 		switch (commandType) {
-			case "start":
+			case 'start':
 				return Play
-			case "stop":
+			case 'stop':
 				return Square
-			case "restart":
+			case 'restart':
 				return RefreshCw
-			case "getLogs":
+			case 'getLogs':
 				return FileText
 			default:
 				return Server
@@ -181,17 +181,18 @@ export const DevServerToolBlock: React.FC<ServerRunnerTool & ToolAddons> = ({
 			variant="primary"
 			approvalState={approvalState}
 			onApprove={onApprove}
-			onReject={onReject}>
+			onReject={onReject}
+		>
 			<div className="bg-muted p-2 rounded font-mono text-xs overflow-x-auto">
 				<span className="text-success">$</span> {commandToRun}
 			</div>
 
-			{approvalState === "loading" && (
+			{approvalState === 'loading' && (
 				<div className="mt-2 flex items-center">
 					<span className="text-xs mr-2">
-						Server is {commandType === "stop" ? "stopping" : "starting"}...
+						Server is {commandType === 'stop' ? 'stopping' : 'starting'}...
 					</span>
-					<div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></div>
+					<div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary" />
 				</div>
 			)}
 
@@ -214,21 +215,21 @@ export const DevServerToolBlock: React.FC<ServerRunnerTool & ToolAddons> = ({
 				</Collapsible>
 			)}
 
-			{approvalState === "approved" && commandType === "start" && (
+			{approvalState === 'approved' && commandType === 'start' && (
 				<p className="text-xs mt-2 text-success">Server started successfully.</p>
 			)}
 
-			{approvalState === "approved" && commandType === "stop" && (
+			{approvalState === 'approved' && commandType === 'stop' && (
 				<p className="text-xs mt-2 text-success">Server stopped successfully.</p>
 			)}
-			{approvalState === "approved" && commandType === "restart" && (
+			{approvalState === 'approved' && commandType === 'restart' && (
 				<p className="text-xs mt-2 text-success">Server restarted successfully.</p>
 			)}
-			{approvalState === "approved" && commandType === "getLogs" && (
+			{approvalState === 'approved' && commandType === 'getLogs' && (
 				<p className="text-xs mt-2 text-success">Server logs retrieved successfully.</p>
 			)}
 
-			{approvalState === "error" && (
+			{approvalState === 'error' && (
 				<p className="text-xs mt-2 text-destructive">An error occurred while {commandType}ing the server.</p>
 			)}
 		</ToolBlock>
@@ -259,14 +260,12 @@ export const ExecuteCommandBlock: React.FC<
 				<span className="text-success">$</span> {command}
 			</div>
 
-			{approvalState === "loading" && earlyExit === "pending" && (
-				<>
-					<div className="flex justify-end space-x-1 mt-2">
-						<Button variant="outline" size="sm" onClick={onApprove}>
-							Continue while running
-						</Button>
-					</div>
-				</>
+			{approvalState === 'loading' && earlyExit === 'pending' && (
+				<div className="flex justify-end space-x-1 mt-2">
+					<Button variant="outline" size="sm" onClick={onApprove}>
+						Continue while running
+					</Button>
+				</div>
 			)}
 			{output && (
 				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
@@ -492,7 +491,7 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 							initial={{ scaleX: 0 }}
 							animate={{ scaleX: 1 }}
 							transition={{
-								repeat: Infinity,
+								repeat: Number.POSITIVE_INFINITY,
 								duration: 2,
 								ease: 'linear',
 							}}
@@ -683,9 +682,9 @@ export const SummarizeBlock: React.FC<SummarizeChatTool & ToolAddons> = ({
 			)}
 			{approvalState === 'loading' && (
 				<div className="animate-pulse space-y-2">
-					<div className="h-4 bg-primary/20 rounded"></div>
-					<div className="h-4 bg-primary/20 rounded"></div>
-					<div className="h-4 bg-primary/20 rounded"></div>
+					<div className="h-4 bg-primary/20 rounded" />
+					<div className="h-4 bg-primary/20 rounded" />
+					<div className="h-4 bg-primary/20 rounded" />
 				</div>
 			)}
 			{approvalState === 'approved' && output && (
@@ -792,9 +791,9 @@ export const ToolContentBlock: React.FC<{
 		})
 	}
 	switch (tool.tool) {
-		case "execute_command":
+		case 'execute_command':
 			return <ExecuteCommandBlock hasNextMessage {...tool} />
-		case "list_files":
+		case 'list_files':
 			return <ListFilesBlock {...tool} />
 		case 'list_code_definition_names':
 			return <ListCodeDefinitionNamesBlock {...tool} />
@@ -818,7 +817,7 @@ export const ToolContentBlock: React.FC<{
 			return <SummarizeBlock {...tool} />
 		case 'upsert_memory':
 			return <UpsertMemoryBlock {...tool} />
-		case "server_runner_tool":
+		case 'server_runner_tool':
 			return <DevServerToolBlock {...tool} />
 		default:
 			return null

@@ -1,7 +1,7 @@
-import { ToolResponse } from "../../types"
-import { BaseAgentTool } from "../base-agent.tool"
-import type { AgentToolOptions, AgentToolParams } from "../types"
-import { serializeError } from "serialize-error"
+import { serializeError } from 'serialize-error'
+import type { ToolResponse } from '../../types'
+import { BaseAgentTool } from '../base-agent.tool'
+import type { AgentToolOptions, AgentToolParams } from '../types'
 
 export class UpsertTaskHistoryTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -28,36 +28,36 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 			await this.koduDev.providerRef.deref()?.getStateManager().updateTaskHistory(historyItem)
 			await this.koduDev.getStateManager().setState(state)
 			this.params.ask(
-				"tool",
+				'tool',
 				{
 					tool: {
-						tool: "upsert_memory",
-						approvalState: "approved",
-						milestoneName: "",
-						summary: "",
+						tool: 'upsert_memory',
+						approvalState: 'approved',
+						milestoneName: '',
+						summary: '',
 						content,
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
 
 			return "Successfully updated task history, let's move on to the next step."
 		} catch (error) {
 			this.params.ask(
-				"tool",
+				'tool',
 				{
 					tool: {
-						tool: "upsert_memory",
-						approvalState: "error",
-						milestoneName: "",
-						summary: "",
+						tool: 'upsert_memory',
+						approvalState: 'error',
+						milestoneName: '',
+						summary: '',
 						content,
 						error: serializeError(error),
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
 			return `Error writing file: ${JSON.stringify(serializeError(error))}
 			`
@@ -66,11 +66,11 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 
 	private async onBadInputReceived(): Promise<ToolResponse> {
 		const { summary, content } = this.params.input
-		const missingParam = !summary ? "summary" : !content ? "content" : "milestoneName"
+		const missingParam = !summary ? 'summary' : !content ? 'content' : 'milestoneName'
 
 		await this.params.say(
-			"error",
-			`Error: Missing value for required parameter '${missingParam}'. Please provide all values: 'summary' and 'content' for the task history update.`
+			'error',
+			`Error: Missing value for required parameter '${missingParam}'. Please provide all values: 'summary' and 'content' for the task history update.`,
 		)
 
 		return `Error: Missing value for required parameter ${missingParam}. Please retry with complete response.

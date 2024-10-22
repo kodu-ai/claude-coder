@@ -1,9 +1,9 @@
-import React from "react"
-import { ClaudeSayTool } from "../../../../../src/shared/ExtensionMessage"
-import CodeBlock from "../../CodeBlock/CodeBlock"
-import { ToolRendererProps } from "../ToolRenderer"
-import { Loader2 } from "lucide-react"
-import { useExtensionState } from "@/context/ExtensionStateContext"
+import { useExtensionState } from '@/context/ExtensionStateContext'
+import { Loader2 } from 'lucide-react'
+import type React from 'react'
+import type { ClaudeSayTool } from '../../../../../src/shared/ExtensionMessage'
+import CodeBlock from '../../CodeBlock/CodeBlock'
+import type { ToolRendererProps } from '../ToolRenderer'
 
 export const AskConsultantTool: React.FC<ToolRendererProps> = ({
 	message,
@@ -12,10 +12,12 @@ export const AskConsultantTool: React.FC<ToolRendererProps> = ({
 	onToggleExpand,
 }) => {
 	const { claudeMessages } = useExtensionState()
-	const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
+	const tool = JSON.parse(message.text || '{}') as ClaudeSayTool
 	const toolIcon = (name: string) => <span className={`codicon codicon-${name} text-alt`} />
 	const lastMessage = claudeMessages[claudeMessages.length - 1]
-	if (tool.tool !== "ask_consultant") return null
+	if (tool.tool !== 'ask_consultant') {
+		return null
+	}
 
 	return (
 		<>
@@ -23,9 +25,9 @@ export const AskConsultantTool: React.FC<ToolRendererProps> = ({
 				{lastMessage.text === message.text ? (
 					<Loader2 className="animate-spin size-4" />
 				) : (
-					toolIcon("comment-discussion")
+					toolIcon('comment-discussion')
 				)}
-				{message.type === "ask" ? (
+				{message.type === 'ask' ? (
 					<>Claude wants to ask consultant with the query </>
 				) : (
 					<>Claude's consultant replied </>

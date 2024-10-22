@@ -1,4 +1,4 @@
-import { koduSSEResponse } from "../../shared/kodu"
+import type { koduSSEResponse } from '../../shared/kodu'
 
 type ChunkCallback = (chunk: koduSSEResponse) => Promise<void>
 
@@ -51,7 +51,7 @@ export class ChunkProcessor {
 		try {
 			await this.callbacks.onChunk(chunk)
 		} catch (error) {
-			console.error("Error processing chunk:", error)
+			console.error('Error processing chunk:', error)
 		} finally {
 			this.isProcessing = false
 			this.processNextChunk()

@@ -1,8 +1,8 @@
-import React from "react"
-import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { DiscordLogoIcon, GitHubLogoIcon, StarIcon } from "@radix-ui/react-icons"
-import { useExtensionState } from "@/context/ExtensionStateContext"
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useExtensionState } from '@/context/ExtensionStateContext'
+import { DiscordLogoIcon, GitHubLogoIcon, StarIcon } from '@radix-ui/react-icons'
+import React from 'react'
 
 export const SettingsFooter = () => {
 	const { version, user } = useExtensionState()
@@ -22,7 +22,8 @@ export const SettingsFooter = () => {
 										<a
 											href="https://github.com/kodu-ai/claude-coder"
 											target="_blank"
-											rel="noopener noreferrer">
+											rel="noopener noreferrer"
+										>
 											<GitHubLogoIcon className="h-4 w-4" />
 										</a>
 									</Button>
@@ -39,7 +40,8 @@ export const SettingsFooter = () => {
 										<a
 											href="https://discord.gg/Fn97SD34qk"
 											target="_blank"
-											rel="noopener noreferrer">
+											rel="noopener noreferrer"
+										>
 											<DiscordLogoIcon className="h-4 w-4" />
 										</a>
 									</Button>

@@ -1,4 +1,4 @@
-import { ClaudeMessage, isV1ClaudeMessage } from "./ExtensionMessage"
+import { type ClaudeMessage, isV1ClaudeMessage } from './ExtensionMessage'
 
 interface ApiMetrics {
 	totalTokensIn: number
@@ -35,7 +35,7 @@ export function getApiMetrics(messages: ClaudeMessage[]): ApiMetrics {
 	}
 
 	messages.forEach((message) => {
-		if (message.type === "say" && message.say === "api_req_started" && message.text) {
+		if (message.type === 'say' && message.say === 'api_req_started' && message.text) {
 			if (isV1ClaudeMessage(message)) {
 				result.totalTokensIn += message.apiMetrics?.inputTokens ?? 0
 				result.totalTokensOut += message.apiMetrics?.outputTokens ?? 0
@@ -48,23 +48,23 @@ export function getApiMetrics(messages: ClaudeMessage[]): ApiMetrics {
 				const parsedData = JSON.parse(message.text)
 				const { tokensIn, tokensOut, cacheWrites, cacheReads, cost } = parsedData
 
-				if (typeof tokensIn === "number") {
+				if (typeof tokensIn === 'number') {
 					result.totalTokensIn += tokensIn
 				}
-				if (typeof tokensOut === "number") {
+				if (typeof tokensOut === 'number') {
 					result.totalTokensOut += tokensOut
 				}
-				if (typeof cacheWrites === "number") {
+				if (typeof cacheWrites === 'number') {
 					result.totalCacheWrites = (result.totalCacheWrites ?? 0) + cacheWrites
 				}
-				if (typeof cacheReads === "number") {
+				if (typeof cacheReads === 'number') {
 					result.totalCacheReads = (result.totalCacheReads ?? 0) + cacheReads
 				}
-				if (typeof cost === "number") {
+				if (typeof cost === 'number') {
 					result.totalCost += cost
 				}
 			} catch (error) {
-				console.error("Error parsing JSON:", error)
+				console.error('Error parsing JSON:', error)
 			}
 		}
 	})

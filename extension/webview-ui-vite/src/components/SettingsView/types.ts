@@ -1,4 +1,4 @@
-import { GlobalState } from "../../../../src/providers/claude-coder/state/GlobalStateManager"
+import type { GlobalState } from '../../../../src/providers/claude-coder/state/GlobalStateManager'
 
 export interface ExperimentalFeature {
 	id: keyof GlobalState

@@ -1,9 +1,10 @@
-import { cn } from "@/lib/utils"
-import { extractAdditionalContext, extractFilesFromContext, extractUrlsFromContext } from "@/utils/extractAttachments"
-import React, { useEffect, useRef, useState } from "react"
-import { useWindowSize } from "react-use"
-import AttachmentsList, { FileItem, UrlItem } from "../ChatRow/FileList"
-import { Button } from "../ui/button"
+import { cn } from '@/lib/utils'
+import { extractAdditionalContext, extractFilesFromContext, extractUrlsFromContext } from '@/utils/extractAttachments'
+import type React from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useWindowSize } from 'react-use'
+import AttachmentsList, { type FileItem, type UrlItem } from '../ChatRow/FileList'
+import { Button } from '../ui/button'
 
 interface TaskTextProps {
 	text?: string
@@ -15,17 +16,16 @@ function splitString(input: string) {
 
 	if (match) {
 		const additionalContent = match[1]
-		const mainContent = input.replace(match[0], "").trim()
+		const mainContent = input.replace(match[0], '').trim()
 
 		return {
 			mainContent,
 			additionalContent,
 		}
-	} else {
-		return {
-			mainContent: input,
-			additionalContent: null,
-		}
+	}
+	return {
+		mainContent: input,
+		additionalContent: null,
 	}
 }
 
@@ -59,7 +59,7 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 	}, [text, windowWidth])
 
 	const toggleExpand = () => setIsExpanded(!isExpanded)
-	const parts = extractAdditionalContext(text || "")
+	const parts = extractAdditionalContext(text || '')
 	let filesCut: FileItem[] = []
 	// split by new line or end of line this can all be one long line so we need to account for that
 	const textLines = parts[0]?.split(/\n|\r/)
@@ -77,24 +77,26 @@ const TaskText: React.FC<TaskTextProps> = ({ text }) => {
 				ref={textContainerRef}
 				className="w-full relative"
 				style={{
-					fontSize: "var(--vscode-font-size)",
-					overflowY: isExpanded ? "auto" : "hidden",
-					wordBreak: "break-word",
-					overflowWrap: "anywhere",
-					position: "relative",
-				}}>
+					fontSize: 'var(--vscode-font-size)',
+					overflowY: isExpanded ? 'auto' : 'hidden',
+					wordBreak: 'break-word',
+					overflowWrap: 'anywhere',
+					position: 'relative',
+				}}
+			>
 				<div
 					ref={textRef}
 					style={{
-						display: "-webkit-box",
-						WebkitLineClamp: isExpanded ? "unset" : 3,
-						WebkitBoxOrient: "vertical",
-						overflow: "hidden",
-						whiteSpace: "pre-wrap",
-						wordBreak: "break-word",
-						overflowWrap: "anywhere",
-					}}>
-					{isExpanded ? (textLines.length > 0 ? textLines.join("\n") : parts[0]?.trim()) : parts[0]?.trim()}
+						display: '-webkit-box',
+						WebkitLineClamp: isExpanded ? 'unset' : 3,
+						WebkitBoxOrient: 'vertical',
+						overflow: 'hidden',
+						whiteSpace: 'pre-wrap',
+						wordBreak: 'break-word',
+						overflowWrap: 'anywhere',
+					}}
+				>
+					{isExpanded ? (textLines.length > 0 ? textLines.join('\n') : parts[0]?.trim()) : parts[0]?.trim()}
 
 					{/* Remove the last line padding */}
 				</div>

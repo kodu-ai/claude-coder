@@ -1,6 +1,6 @@
-import React from "react"
-import { X } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button } from '@/components/ui/button'
+import { X } from 'lucide-react'
+import type React from 'react'
 
 interface ThumbnailItemProps {
 	image: string
@@ -16,7 +16,8 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({ image, onDelete }) => {
 					variant="ghost"
 					size="sm"
 					className="p-1 h-auto text-white hover:text-red-500"
-					onClick={onDelete}>
+					onClick={onDelete}
+				>
 					<X className="w-4 h-4" />
 				</Button>
 			</div>

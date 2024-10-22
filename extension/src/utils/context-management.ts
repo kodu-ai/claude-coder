@@ -1,4 +1,4 @@
-import { Anthropic } from '@anthropic-ai/sdk'
+import type { Anthropic } from '@anthropic-ai/sdk'
 import axios from 'axios'
 import { getKoduSummarizeUrl } from '../shared/kodu'
 

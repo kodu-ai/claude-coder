@@ -1,9 +1,10 @@
-import React, { useEffect, useRef } from "react"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Button } from "@/components/ui/button"
-import { Link, Folder as FolderIcon, ShieldAlert } from "lucide-react"
-import { vscode } from "@/utils/vscode"
-import { useExtensionState } from "@/context/ExtensionStateContext"
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useExtensionState } from '@/context/ExtensionStateContext'
+import { vscode } from '@/utils/vscode'
+import { Folder as FolderIcon, Link, ShieldAlert } from 'lucide-react'
+import type React from 'react'
+import { useEffect, useRef } from 'react'
 
 type MentionPopoverProps = {
 	showPopover: boolean
@@ -14,9 +15,9 @@ type MentionPopoverProps = {
 	handleKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void
 }
 export const popoverOptions = [
-	{ name: "fileFolder", icon: FolderIcon, label: "Select Files/Folders" },
-	{ name: "scrape", icon: Link, label: "Paste URL to scrape" },
-	{ name: "debug", icon: ShieldAlert, label: "Debug" },
+	{ name: 'fileFolder', icon: FolderIcon, label: 'Select Files/Folders' },
+	{ name: 'scrape', icon: Link, label: 'Paste URL to scrape' },
+	{ name: 'debug', icon: ShieldAlert, label: 'Debug' },
 ]
 const MentionPopover: React.FC<MentionPopoverProps> = ({
 	showPopover,
@@ -35,13 +36,14 @@ const MentionPopover: React.FC<MentionPopoverProps> = ({
 	return (
 		<Popover open={showPopover} onOpenChange={setShowPopover}>
 			<PopoverTrigger asChild>
-				<div></div>
+				<div />
 			</PopoverTrigger>
 			<PopoverContent
 				className="w-56 p-0 bg-background border-border"
 				align="start"
 				side="top"
-				onKeyDown={handleKeyDown}>
+				onKeyDown={handleKeyDown}
+			>
 				<div className="grid gap-1" role="menu" aria-label="Options menu">
 					{popoverOptions.map((option, index) => (
 						<Button
@@ -49,12 +51,13 @@ const MentionPopover: React.FC<MentionPopoverProps> = ({
 							ref={(el) => (popoverButtonsRef.current[index] = el)}
 							variant="ghost"
 							className={`w-full justify-start text-left ${
-								focusedIndex === index ? "bg-secondary text-secondary-foreground" : ""
+								focusedIndex === index ? 'bg-secondary text-secondary-foreground' : ''
 							}`}
 							onClick={() => handleOptionClick(option.name)}
 							onFocus={() => setFocusedIndex(index)}
 							onMouseEnter={() => setFocusedIndex(index)}
-							role="menuitem">
+							role="menuitem"
+						>
 							<option.icon className="mr-2 h-4 w-4" />
 							{option.label}
 						</Button>

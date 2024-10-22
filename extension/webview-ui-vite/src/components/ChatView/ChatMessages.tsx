@@ -1,9 +1,9 @@
-import React, { useRef, useEffect, useState, useCallback } from "react"
-import { Virtuoso, VirtuosoHandle } from "react-virtuoso"
-import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
-import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
-import ChatRow from "../ChatRow/ChatRow"
-import ChatRowV1 from "../ChatRow/ChatRowV1"
+import React, { useRef, useEffect, useState, useCallback } from 'react'
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
+import { type ClaudeMessage, type V1ClaudeMessage, isV1ClaudeMessage } from '../../../../src/shared/ExtensionMessage'
+import type { SyntaxHighlighterStyle } from '../../utils/getSyntaxHighlighterStyleFromTheme'
+import ChatRow from '../ChatRow/ChatRow'
+import ChatRowV1 from '../ChatRow/ChatRowV1'
 
 interface ChatMessagesProps {
 	visibleMessages: ClaudeMessage[]
@@ -27,7 +27,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 
 	const followOutput = useCallback((isAtBottom: boolean) => {
 		if (isAtBottom) {
-			return "smooth"
+			return 'smooth'
 		}
 		return false
 	}, [])
@@ -40,8 +40,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 		if (atBottom) {
 			virtuosoRef.current?.scrollToIndex({
 				index: visibleMessages.length - 1,
-				behavior: "smooth",
-				align: "end",
+				behavior: 'smooth',
+				align: 'end',
 			})
 		}
 	}, [visibleMessages, atBottom])

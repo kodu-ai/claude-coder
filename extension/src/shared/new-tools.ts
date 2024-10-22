@@ -1,10 +1,10 @@
-import { ToolStatus } from "./ExtensionMessage"
+import type { ToolStatus } from './ExtensionMessage'
 
 /**
  * This is the input and output for execute_command tool
  */
 export type ExecuteCommandTool = {
-	tool: "execute_command"
+	tool: 'execute_command'
 	/**
 	 * the command to execute
 	 */
@@ -16,24 +16,24 @@ export type ExecuteCommandTool = {
 	/**
 	 * this is a long running command so ask user if they want to continue
 	 */
-	earlyExit?: "pending" | "approved" | "rejected"
+	earlyExit?: 'pending' | 'approved' | 'rejected'
 }
 
 export type ListFilesTool = {
-	tool: "list_files"
+	tool: 'list_files'
 	path: string
-	recursive?: "true" | "false"
+	recursive?: 'true' | 'false'
 	content?: string
 }
 
 export type ListCodeDefinitionNamesTool = {
-	tool: "list_code_definition_names"
+	tool: 'list_code_definition_names'
 	path: string
 	content?: string
 }
 
 export type SearchFilesTool = {
-	tool: "search_files"
+	tool: 'search_files'
 	path: string
 	regex: string
 	filePattern?: string
@@ -41,66 +41,66 @@ export type SearchFilesTool = {
 }
 
 export type ReadFileTool = {
-	tool: "read_file"
+	tool: 'read_file'
 	path: string
 	content: string
 }
 
 export type WriteToFileTool = {
-	tool: "write_to_file"
+	tool: 'write_to_file'
 	path: string
 	content: string
 }
 
 export type AskFollowupQuestionTool = {
-	tool: "ask_followup_question"
+	tool: 'ask_followup_question'
 	question: string
 }
 
 export type AttemptCompletionTool = {
-	tool: "attempt_completion"
+	tool: 'attempt_completion'
 	command?: string
 	commandResult?: string
 	result: string
 }
 
 export type WebSearchTool = {
-	tool: "web_search"
+	tool: 'web_search'
 	searchQuery: string
 	baseLink?: string
 	content?: string
 }
 
 export type ServerRunnerTool = {
-	tool: "server_runner_tool"
+	tool: 'server_runner_tool'
 	port?: number
 	serverName?: string
-	commandType?: "start" | "stop" | "restart" | "getLogs"
+	commandType?: 'start' | 'stop' | 'restart' | 'getLogs'
 	output?: string
 	commandToRun?: string
 }
 
 export type UrlScreenshotTool = {
-	tool: "url_screenshot"
+	tool: 'url_screenshot'
 	url: string
 	base64Image?: string
 }
 
 export type AskConsultantTool = {
-	tool: "ask_consultant"
+	tool: 'ask_consultant'
 	query: string
 	result?: string
 }
 
 export type UpsertMemoryTool = {
-	tool: "upsert_memory"
+	tool: 'upsert_memory'
 	milestoneName?: string
 	summary: string
 	content: string
 }
 
 export type SummarizeChatTool = {
-	tool: "summarize"
+	tool: 'summarize'
 	cost?: number
 	output?: string
 }

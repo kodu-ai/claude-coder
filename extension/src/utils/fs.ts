@@ -1,5 +1,5 @@
-import fs from "fs/promises"
-import * as path from "path"
+import fs from 'node:fs/promises'
+import * as path from 'node:path'
 
 /**
  * Asynchronously creates all non-existing subdirectories for a given file path
@@ -21,7 +21,7 @@ export async function createDirectoriesForFile(filePath: string): Promise<string
 		dirsToCreate.push(currentPath)
 		currentPath = path.dirname(currentPath)
 	}
-	console.log("dirsToCreate: ", dirsToCreate)
+	console.log('dirsToCreate: ', dirsToCreate)
 
 	// Create directories from the topmost missing one down to the target directory
 	for (let i = dirsToCreate.length - 1; i >= 0; i--) {

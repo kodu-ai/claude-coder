@@ -1,4 +1,4 @@
-import AttachmentsList, { FileItem, UrlItem } from "@/components/ChatRow/FileList"
+import AttachmentsList, { type FileItem, type UrlItem } from '@/components/ChatRow/FileList'
 
 export function extractAdditionalContext(input: string): [string, string | null] {
 	const regex = /<additional-context(?:\s+[^>]*)?>[\s\S]*?<\/additional-context>/
@@ -23,7 +23,7 @@ export function extractFilesFromContext(input: string): FileItem[] {
 	while ((match = fileRegex.exec(input)) !== null) {
 		const path = match[1] // Extract the path from the first capturing group
 		const content = match[2].trim() // Extract and trim the content from the second capturing group
-		const name = path.split("/").pop() || "" // Get the file name from the path
+		const name = path.split('/').pop() || '' // Get the file name from the path
 
 		files.push({ name, content }) // Create a FileItem object and push it to the array
 	}
@@ -50,7 +50,10 @@ export function extractUrlsFromContext(input: string): UrlItem[] {
 		const urlsContent = match[1].trim() // Extract the content between <urls> tags
 
 		// Split the content into individual URLs (assuming they are separated by newlines)
-		const additionalUrls = urlsContent.split('\n').map((url) => url.trim()).filter(Boolean)
+		const additionalUrls = urlsContent
+			.split('\n')
+			.map((url) => url.trim())
+			.filter(Boolean)
 
 		// Add each URL to the UrlItem list with a default description if needed
 		additionalUrls.forEach((url) => {
@@ -61,19 +64,18 @@ export function extractUrlsFromContext(input: string): UrlItem[] {
 	return urls // Return the array of UrlItem objects
 }
 
-
 export const TextWithAttachments = ({ text }: { text?: string }) => {
 	if (!text) {
 		return null
 	}
 	const [mainContent, additionalContent] = extractAdditionalContext(text)
-	const files = extractFilesFromContext(additionalContent || "")
-	const urls = extractUrlsFromContext(additionalContent || "")
+	const files = extractFilesFromContext(additionalContent || '')
+	const urls = extractUrlsFromContext(additionalContent || '')
 
 	return (
 		<div>
 			{mainContent}
-			<AttachmentsList files={files}  urls={urls}/>
+			<AttachmentsList files={files} urls={urls} />
 		</div>
 	)
 }

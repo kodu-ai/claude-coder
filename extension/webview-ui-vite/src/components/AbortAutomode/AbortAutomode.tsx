@@ -1,38 +1,34 @@
-import React, { useEffect } from "react";
-import { vscode } from "../../utils/vscode";
-import { useExtensionState } from "../../context/ExtensionStateContext";
-import AbortButton from "./AbortButton";
+import React, { useEffect } from 'react'
+import { useExtensionState } from '../../context/ExtensionStateContext'
+import { vscode } from '../../utils/vscode'
+import AbortButton from './AbortButton'
 
 interface AbortAutomodeProps {
-  isVisible: boolean;
+	isVisible: boolean
 }
 
 const AbortAutomode: React.FC<AbortAutomodeProps> = ({ isVisible }) => {
-  const [isAborting, setIsAborting] = React.useState(false);
-  const { claudeMessages: messages } = useExtensionState();
+	const [isAborting, setIsAborting] = React.useState(false)
+	const { claudeMessages: messages } = useExtensionState()
 
-  const lastMessage = messages[messages.length - 1];
+	const lastMessage = messages[messages.length - 1]
 
-  const handleAbort = () => {
-    setIsAborting(true);
-    vscode.postMessage({ type: "abortAutomode" });
-  };
+	const handleAbort = () => {
+		setIsAborting(true)
+		vscode.postMessage({ type: 'abortAutomode' })
+	}
 
-  useEffect(() => {
-    if (lastMessage.say === "abort_automode") {
-      setIsAborting(false);
-    }
-  }, [lastMessage]);
+	useEffect(() => {
+		if (lastMessage.say === 'abort_automode') {
+			setIsAborting(false)
+		}
+	}, [lastMessage])
 
-  return (
-    <div style={{ display: "flex", padding: "10px 15px 0px 15px" }}>
-      <AbortButton
-        isDisabled={!isVisible || isAborting}
-        isAborting={isAborting}
-        onClick={handleAbort}
-      />
-    </div>
-  );
-};
+	return (
+		<div style={{ display: 'flex', padding: '10px 15px 0px 15px' }}>
+			<AbortButton isDisabled={!isVisible || isAborting} isAborting={isAborting} onClick={handleAbort} />
+		</div>
+	)
+}
 
-export default AbortAutomode;
+export default AbortAutomode

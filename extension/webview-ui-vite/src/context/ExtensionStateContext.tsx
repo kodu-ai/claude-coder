@@ -1,66 +1,67 @@
-import { atom, useAtom, useSetAtom } from "jotai"
-import React, { useEffect } from "react"
-import { useEvent } from "react-use"
-import { ApiConfiguration } from "../../../src/api/index"
-import type { GlobalState } from "../../../src/providers/claude-coder/state/GlobalStateManager"
-import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/ExtensionMessage"
-import { HistoryItem } from "../../../src/shared/HistoryItem"
-import { vscode } from "../utils/vscode"
+import { atom, useAtom, useSetAtom } from 'jotai'
+import type React from 'react'
+import { useEffect } from 'react'
+import { useEvent } from 'react-use'
+import type { ApiConfiguration } from '../../../src/api/index'
+import type { GlobalState } from '../../../src/providers/claude-coder/state/GlobalStateManager'
+import type { ClaudeMessage, ExtensionMessage } from '../../../src/shared/ExtensionMessage'
+import type { HistoryItem } from '../../../src/shared/HistoryItem'
+import { vscode } from '../utils/vscode'
 
 // Define atoms for each piece of state
-const technicalBackgroundAtom = atom<GlobalState["technicalBackground"] | undefined>(undefined)
-technicalBackgroundAtom.debugLabel = "technicalBackground"
-const versionAtom = atom("")
-versionAtom.debugLabel = "version"
+const technicalBackgroundAtom = atom<GlobalState['technicalBackground'] | undefined>(undefined)
+technicalBackgroundAtom.debugLabel = 'technicalBackground'
+const versionAtom = atom('')
+versionAtom.debugLabel = 'version'
 const claudeMessagesAtom = atom<ClaudeMessage[]>([])
-claudeMessagesAtom.debugLabel = "claudeMessages"
+claudeMessagesAtom.debugLabel = 'claudeMessages'
 const taskHistoryAtom = atom<HistoryItem[]>([])
-taskHistoryAtom.debugLabel = "taskHistory"
+taskHistoryAtom.debugLabel = 'taskHistory'
 export const shouldShowAnnouncementAtom = atom(false)
-shouldShowAnnouncementAtom.debugLabel = "shouldShowAnnouncement"
+shouldShowAnnouncementAtom.debugLabel = 'shouldShowAnnouncement'
 const shouldShowKoduPromoAtom = atom(false)
-shouldShowKoduPromoAtom.debugLabel = "shouldShowKoduPromo"
+shouldShowKoduPromoAtom.debugLabel = 'shouldShowKoduPromo'
 const apiConfigurationAtom = atom<ApiConfiguration | undefined>(undefined)
-apiConfigurationAtom.debugLabel = "apiConfiguration"
+apiConfigurationAtom.debugLabel = 'apiConfiguration'
 const maxRequestsPerTaskAtom = atom<number | undefined>(undefined)
-maxRequestsPerTaskAtom.debugLabel = "maxRequestsPerTask"
+maxRequestsPerTaskAtom.debugLabel = 'maxRequestsPerTask'
 const customInstructionsAtom = atom<string | undefined>(undefined)
-customInstructionsAtom.debugLabel = "customInstructions"
+customInstructionsAtom.debugLabel = 'customInstructions'
 const alwaysAllowReadOnlyAtom = atom(false)
-alwaysAllowReadOnlyAtom.debugLabel = "alwaysAllowReadOnly"
+alwaysAllowReadOnlyAtom.debugLabel = 'alwaysAllowReadOnly'
 const alwaysAllowApproveOnlyAtom = atom(false)
-alwaysAllowApproveOnlyAtom.debugLabel = "alwaysAllowApproveOnly"
-const userAtom = atom<GlobalState["user"]>(undefined)
-userAtom.debugLabel = "user"
+alwaysAllowApproveOnlyAtom.debugLabel = 'alwaysAllowApproveOnly'
+const userAtom = atom<GlobalState['user']>(undefined)
+userAtom.debugLabel = 'user'
 const uriSchemeAtom = atom<string | undefined>(undefined)
-uriSchemeAtom.debugLabel = "uriScheme"
+uriSchemeAtom.debugLabel = 'uriScheme'
 const themeNameAtom = atom<string | undefined>(undefined)
-themeNameAtom.debugLabel = "themeName"
-export const creativeModeAtom = atom<"creative" | "normal" | "deterministic">("normal")
-creativeModeAtom.debugLabel = "creativeMode"
+themeNameAtom.debugLabel = 'themeName'
+export const creativeModeAtom = atom<'creative' | 'normal' | 'deterministic'>('normal')
+creativeModeAtom.debugLabel = 'creativeMode'
 const extensionNameAtom = atom<string | undefined>(undefined)
-extensionNameAtom.debugLabel = "extensionName"
+extensionNameAtom.debugLabel = 'extensionName'
 
 const summarizationThresholdAtom = atom<number>(50)
-summarizationThresholdAtom.debugLabel = "summarizationThreshold"
+summarizationThresholdAtom.debugLabel = 'summarizationThreshold'
 
 const fingerprintAtom = atom<string | undefined>(undefined)
-fingerprintAtom.debugLabel = "fingerprint"
+fingerprintAtom.debugLabel = 'fingerprint'
 
 const fpjsKeyAtom = atom<string | undefined>(undefined)
-fpjsKeyAtom.debugLabel = "fpjsKey"
+fpjsKeyAtom.debugLabel = 'fpjsKey'
 
 const currentTaskIdAtom = atom<string | undefined>(undefined)
-currentTaskIdAtom.debugLabel = "currentTask"
+currentTaskIdAtom.debugLabel = 'currentTask'
 
 const autoCloseTerminalAtom = atom(false)
-autoCloseTerminalAtom.debugLabel = "autoCloseTerminal"
+autoCloseTerminalAtom.debugLabel = 'autoCloseTerminal'
 
 const useUdiffAtom = atom(false)
-useUdiffAtom.debugLabel = "useUdiff"
+useUdiffAtom.debugLabel = 'useUdiff'
 
 const skipWriteAnimationAtom = atom(false)
-skipWriteAnimationAtom.debugLabel = "skipWriteAnimation"
+skipWriteAnimationAtom.debugLabel = 'skipWriteAnimation'
 
 const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	const currentTaskId = get(currentTaskIdAtom)
@@ -94,11 +95,11 @@ export const extensionStateAtom = atom((get) => ({
 	creativeMode: get(creativeModeAtom),
 	summarizationThreshold: get(summarizationThresholdAtom),
 }))
-extensionStateAtom.debugLabel = "extensionState"
+extensionStateAtom.debugLabel = 'extensionState'
 
 // Atom to track if state has been hydrated
 const didHydrateStateAtom = atom(false)
-didHydrateStateAtom.debugLabel = "didHydrateState"
+didHydrateStateAtom.debugLabel = 'didHydrateState'
 
 export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 	const setVersion = useSetAtom(versionAtom)
@@ -127,10 +128,10 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setSummarizationThreshold = useSetAtom(summarizationThresholdAtom)
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
-		if (message.type === "claudeMessages") {
+		if (message.type === 'claudeMessages') {
 			setClaudeMessages(message.claudeMessages)
 		}
-		if (message.type === "state" && message.state) {
+		if (message.type === 'state' && message.state) {
 			setVersion(message.state.version)
 			setCurrentIdTask(message.state.currentTaskId)
 			setClaudeMessages(message.state.claudeMessages)
@@ -153,18 +154,18 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setFpjsKey(message.state.fpjsKey)
 			setFingerprint(message.state.fingerprint)
 			setUriScheme(message.state.uriScheme)
-			setCreativeMode(message.state.creativeMode ?? "normal")
+			setCreativeMode(message.state.creativeMode ?? 'normal')
 			setSummarizationThreshold(message.state.summarizationThreshold ?? 50)
 		}
-		if (message.type === "action" && message.action === "koduCreditsFetched") {
+		if (message.type === 'action' && message.action === 'koduCreditsFetched') {
 			setUser(message.user)
 		}
 	}
 
-	useEvent("message", handleMessage)
+	useEvent('message', handleMessage)
 
 	useEffect(() => {
-		vscode.postMessage({ type: "webviewDidLaunch" })
+		vscode.postMessage({ type: 'webviewDidLaunch' })
 	}, [])
 
 	const [didHydrateState] = useAtom(didHydrateStateAtom)

@@ -1,5 +1,5 @@
-import React from "react"
-import { formatDate } from "./utils"
+import type React from 'react'
+import { formatDate } from './utils'
 
 interface TaskCardProps {
 	id: string
@@ -27,18 +27,19 @@ const TaskCard: React.FC<TaskCardProps> = ({
 	<div className="task-card is-clickable text-start" onClick={() => onSelect(id)}>
 		<div
 			style={{
-				display: "-webkit-box",
+				display: '-webkit-box',
 				WebkitLineClamp: 3,
-				WebkitBoxOrient: "vertical",
-				overflow: "hidden",
-				whiteSpace: "pre-wrap",
-				wordBreak: "break-word",
-				overflowWrap: "anywhere",
-			}}>
+				WebkitBoxOrient: 'vertical',
+				overflow: 'hidden',
+				whiteSpace: 'pre-wrap',
+				wordBreak: 'break-word',
+				overflowWrap: 'anywhere',
+			}}
+		>
 			{task}
 		</div>
 		<div className="text-light">{formatDate(ts)}</div>
-		<div className="text-light flex-line wrap !gap-2" style={{ justifyContent: "space-between" }}>
+		<div className="text-light flex-line wrap !gap-2" style={{ justifyContent: 'space-between' }}>
 			<div className="flex-line nowrap">
 				Tokens:
 				<code>

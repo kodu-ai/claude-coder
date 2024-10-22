@@ -1,21 +1,21 @@
-import osName from "os-name"
-import defaultShell from "default-shell"
-import os from "os"
-import { tools } from "../tools/tools"
-import { askConsultantTool } from "../tools/schema"
-import { GlobalState } from "../../../providers/claude-coder/state/GlobalStateManager"
+import os from 'node:os'
+import defaultShell from 'default-shell'
+import osName from 'os-name'
+import type { GlobalState } from '../../../providers/claude-coder/state/GlobalStateManager'
 import {
 	CodingBeginnerSystemPromptSection,
-	designGuidelines,
 	ExperiencedDeveloperSystemPromptSection,
-	generalPackageManagement,
 	NonTechnicalSystemPromptSection,
-} from "../system-prompt"
+	designGuidelines,
+	generalPackageManagement,
+} from '../system-prompt'
+import { askConsultantTool } from '../tools/schema'
+import { tools } from '../tools/tools'
 
 export const BASE_SYSTEM_PROMPT = async (
 	cwd: string,
 	supportsImages: boolean,
-	technicalLevel: GlobalState["technicalBackground"]
+	technicalLevel: GlobalState['technicalBackground'],
 ) => `
 - You are Kodu.AI, a highly skilled software developer with extensive knowledge in multiple programming languages, frameworks, design patterns, and best practices.
 - You keep track of your progress and ensure you're on the right track to accomplish the user's task.
@@ -157,7 +157,7 @@ Usage:
 <url_screenshot>
 <url>URL of the site to inspect</url>
 </url_screenshot>`
-		: ""
+		: ''
 }
 
 ## ask_followup_question
@@ -284,7 +284,7 @@ By waiting for and carefully considering the user's response after each tool use
 CAPABILITIES
 
 - You have access to tools that let you execute CLI commands on the user's computer, list files, view source code definitions, regex search${
-	supportsImages ? ", inspect websites" : ""
+	supportsImages ? ', inspect websites' : ''
 }, read and write files, and ask follow-up questions. These tools help you effectively accomplish a wide range of tasks, such as writing code, making edits or improvements to existing files, understanding the current state of a project, performing system operations, and much more.
 - When the user initially gives you a task, a recursive list of all filepaths in the current working directory ('${cwd.toPosix()}') will be included in environment_details. This provides an overview of the project's file structure, offering key insights into the project from directory/file names (how developers conceptualize and organize their code) and file extensions (the language used). This can also guide decision-making on which files to explore further. If you need to further explore directories such as outside the current working directory, you can use the list_files tool. If you pass 'true' for the recursive parameter, it will list files recursively. Otherwise, it will list files at the top level, which is better suited for generic directories where you don't necessarily need the nested structure, like the Desktop.
 - You can use search_files to perform regex searches across files in a specified directory, outputting context-rich results that include surrounding lines. This is particularly useful for understanding code patterns, finding specific implementations, or identifying areas that need refactoring.
@@ -293,7 +293,7 @@ CAPABILITIES
 - You can use the execute_command tool to run commands on the user's computer whenever you feel it can help accomplish the user's task. When you need to execute a CLI command, you must provide a clear explanation of what the command does. Prefer to execute complex CLI commands over creating executable scripts, since they are more flexible and easier to run. Interactive and long-running commands are allowed, since the commands are run in the user's VSCode terminal. The user may keep commands running in the background and you will be kept updated on their status along the way. Each command you execute is run in a new terminal instance.${
 	supportsImages
 		? "\n- You can use the url_screenshot tool to capture a screenshot and console logs of the initial state of a website (including html files and locally running development servers) when you feel it is necessary in accomplishing the user's task. This tool may be useful at key stages of web development tasks-such as after implementing new features, making substantial changes, when troubleshooting issues, or to verify the result of your work. You can analyze the provided screenshot to ensure correct rendering or identify errors, and review console logs for runtime issues.\n	- For example, if asked to add a component to a react website, you might create the necessary files, use server_runner_tool to run the site locally, then use url_screenshot to verify there are no runtime errors on page load."
-		: ""
+		: ''
 }
 
 ====
@@ -404,11 +404,11 @@ By following these guidelines, you can enhance your problem-solving skills and d
 
 <user_profile>
 ${
-	technicalLevel === "no-technical"
+	technicalLevel === 'no-technical'
 		? NonTechnicalSystemPromptSection
-		: technicalLevel === "technical"
-		? CodingBeginnerSystemPromptSection
-		: ExperiencedDeveloperSystemPromptSection
+		: technicalLevel === 'technical'
+			? CodingBeginnerSystemPromptSection
+			: ExperiencedDeveloperSystemPromptSection
 }
   ${generalPackageManagement}
   ${designGuidelines}

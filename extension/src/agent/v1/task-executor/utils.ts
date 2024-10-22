@@ -1,26 +1,26 @@
-import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
-import { ClaudeAsk, ClaudeMessage, ClaudeSay, V1ClaudeMessage } from "../../../shared/ExtensionMessage"
-import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
-import { ChatTool } from "../../../shared/new-tools"
-import { StateManager } from "../state-manager"
+import type { ExtensionProvider } from '../../../providers/claude-coder/ClaudeCoderProvider'
+import type { ClaudeAsk, ClaudeMessage, ClaudeSay, V1ClaudeMessage } from '../../../shared/ExtensionMessage'
+import type { ClaudeAskResponse } from '../../../shared/WebviewMessage'
+import type { ChatTool } from '../../../shared/new-tools'
+import type { StateManager } from '../state-manager'
 
 export enum TaskState {
-	IDLE = "IDLE",
-	WAITING_FOR_API = "WAITING_FOR_API",
-	PROCESSING_RESPONSE = "PROCESSING_RESPONSE",
-	EXECUTING_TOOL = "EXECUTING_TOOL",
-	WAITING_FOR_USER = "WAITING_FOR_USER",
-	COMPLETED = "COMPLETED",
-	ABORTED = "ABORTED",
+	IDLE = 'IDLE',
+	WAITING_FOR_API = 'WAITING_FOR_API',
+	PROCESSING_RESPONSE = 'PROCESSING_RESPONSE',
+	EXECUTING_TOOL = 'EXECUTING_TOOL',
+	WAITING_FOR_USER = 'WAITING_FOR_USER',
+	COMPLETED = 'COMPLETED',
+	ABORTED = 'ABORTED',
 }
 
 export class TaskError extends Error {
-	type: "API_ERROR" | "TOOL_ERROR" | "USER_ABORT" | "UNKNOWN_ERROR" | "UNAUTHORIZED" | "PAYMENT_REQUIRED"
+	type: 'API_ERROR' | 'TOOL_ERROR' | 'USER_ABORT' | 'UNKNOWN_ERROR' | 'UNAUTHORIZED' | 'PAYMENT_REQUIRED'
 	constructor({
 		type,
 		message,
 	}: {
-		type: "API_ERROR" | "TOOL_ERROR" | "USER_ABORT" | "UNKNOWN_ERROR" | "UNAUTHORIZED" | "PAYMENT_REQUIRED"
+		type: 'API_ERROR' | 'TOOL_ERROR' | 'USER_ABORT' | 'UNKNOWN_ERROR' | 'UNAUTHORIZED' | 'PAYMENT_REQUIRED'
 		message: string
 	}) {
 		super(message)
@@ -53,9 +53,8 @@ export abstract class TaskExecutorUtils {
 
 	public async summarizeTask(): Promise<void> {
 		// Popup a message using alert
-		alert("Task is too long !")
+		alert('Task is too long !')
 	}
-
 
 	public async ask(type: ClaudeAsk, data?: AskDetails): Promise<AskResponse> {
 		const { question, tool } = data ?? {}
@@ -63,9 +62,9 @@ export abstract class TaskExecutorUtils {
 			const askTs = Date.now()
 			const askMessage: V1ClaudeMessage = {
 				ts: askTs,
-				type: "ask",
+				type: 'ask',
 				ask: type,
-				text: question ? question : tool ? JSON.stringify(tool) : "",
+				text: question ? question : tool ? JSON.stringify(tool) : '',
 				v: 1,
 				status: tool?.approvalState,
 				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
@@ -76,15 +75,15 @@ export abstract class TaskExecutorUtils {
 			this.updateWebview()
 
 			const mustRequestApproval: ClaudeAsk[] = [
-				"completion_result",
-				"resume_completed_task",
-				"resume_task",
-				"request_limit_reached",
-				"followup",
+				'completion_result',
+				'resume_completed_task',
+				'resume_task',
+				'request_limit_reached',
+				'followup',
 			]
 
 			if (this.stateManager.alwaysAllowWriteOnly && !mustRequestApproval.includes(type)) {
-				resolve({ response: "yesButtonTapped", text: "", images: [] })
+				resolve({ response: 'yesButtonTapped', text: '', images: [] })
 				return
 			}
 
@@ -102,39 +101,39 @@ export abstract class TaskExecutorUtils {
 		if (tool && !askTs && tool.ts) {
 			askTs = tool.ts
 		}
-		return new Promise(async (resolve) => {
-			const readCommands: ChatTool["tool"][] = [
-				"read_file",
-				"list_files",
-				"search_files",
-				"list_code_definition_names",
-				"web_search",
-				"url_screenshot",
+		return new Promise((resolve) => {
+			const readCommands: ChatTool['tool'][] = [
+				'read_file',
+				'list_files',
+				'search_files',
+				'list_code_definition_names',
+				'web_search',
+				'url_screenshot',
 			]
 			const mustRequestApprovalType: ClaudeAsk[] = [
-				"completion_result",
-				"resume_completed_task",
-				"resume_task",
-				"request_limit_reached",
-				"followup",
+				'completion_result',
+				'resume_completed_task',
+				'resume_task',
+				'request_limit_reached',
+				'followup',
 			]
-			const mustRequestApprovalTool: ChatTool["tool"][] = ["ask_followup_question", "attempt_completion"]
+			const mustRequestApprovalTool: ChatTool['tool'][] = ['ask_followup_question', 'attempt_completion']
 			if (
 				tool &&
-				tool.approvalState === "pending" &&
-				((this.stateManager.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool["tool"])) ||
+				tool.approvalState === 'pending' &&
+				((this.stateManager.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool['tool'])) ||
 					(this.stateManager.alwaysAllowWriteOnly &&
-						!mustRequestApprovalTool.includes(tool?.tool as ChatTool["tool"])))
+						!mustRequestApprovalTool.includes(tool?.tool as ChatTool['tool'])))
 			) {
 				// update the tool.status
-				tool.approvalState = "loading"
+				tool.approvalState = 'loading'
 			}
 
 			const askMessage: V1ClaudeMessage = {
 				ts: askTs,
-				type: "ask",
+				type: 'ask',
 				ask: type,
-				text: question ? question : tool ? JSON.stringify(tool) : "",
+				text: question ? question : tool ? JSON.stringify(tool) : '',
 				v: 1,
 				status: tool?.approvalState,
 				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
@@ -142,22 +141,22 @@ export abstract class TaskExecutorUtils {
 			if (this.stateManager.getMessageById(askTs)) {
 				this.stateManager.updateClaudeMessage(askTs, askMessage)
 			} else {
-				await this.stateManager.addToClaudeMessages(askMessage)
+				this.stateManager.addToClaudeMessages(askMessage)
 			}
 			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion: ${question}`)
 			this.updateWebview()
 
-			if (this.stateManager.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool["tool"])) {
-				resolve({ response: "yesButtonTapped", text: "", images: [] })
+			if (this.stateManager.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool['tool'])) {
+				resolve({ response: 'yesButtonTapped', text: '', images: [] })
 				return
 			}
 
 			if (
 				this.stateManager.alwaysAllowWriteOnly &&
 				!mustRequestApprovalType.includes(type) &&
-				!mustRequestApprovalTool.includes(tool?.tool as ChatTool["tool"])
+				!mustRequestApprovalTool.includes(tool?.tool as ChatTool['tool'])
 			) {
-				resolve({ response: "yesButtonTapped", text: "", images: [] })
+				resolve({ response: 'yesButtonTapped', text: '', images: [] })
 				return
 			}
 
@@ -169,9 +168,9 @@ export abstract class TaskExecutorUtils {
 		const { question, tool } = data
 		const askMessage: V1ClaudeMessage = {
 			ts: askTs,
-			type: "ask",
+			type: 'ask',
 			ask: type,
-			text: question ? question : tool ? JSON.stringify(tool) : "",
+			text: question ? question : tool ? JSON.stringify(tool) : '',
 			v: 1,
 			status: tool?.approvalState,
 			autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
@@ -184,11 +183,11 @@ export abstract class TaskExecutorUtils {
 	public async sayWithId(sayTs: number, type: ClaudeSay, text?: string, images?: string[]): Promise<number> {
 		const sayMessage: ClaudeMessage = {
 			ts: sayTs,
-			type: "say",
+			type: 'say',
 			say: type,
 			text: text,
 			images,
-			isFetching: type === "api_req_started",
+			isFetching: type === 'api_req_started',
 			v: 1,
 		}
 		if (this.stateManager.getMessageById(sayTs)) {
@@ -203,11 +202,11 @@ export abstract class TaskExecutorUtils {
 	public async say(type: ClaudeSay, text?: string, images?: string[], sayTs = Date.now()): Promise<number> {
 		const sayMessage: ClaudeMessage = {
 			ts: sayTs,
-			type: "say",
+			type: 'say',
 			say: type,
 			text: text,
 			images,
-			isFetching: type === "api_req_started",
+			isFetching: type === 'api_req_started',
 			v: 1,
 		}
 
@@ -220,7 +219,7 @@ export abstract class TaskExecutorUtils {
 		console.log(`Saying after: ${type} ${text}`)
 		const sayMessage: ClaudeMessage = {
 			ts: Date.now(),
-			type: "say",
+			type: 'say',
 			say: type,
 			text: text,
 			images,

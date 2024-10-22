@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Button } from "@/components/ui/button"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
-import { MagicWandIcon } from "@radix-ui/react-icons"
-import { Loader2, Rocket, X } from "lucide-react"
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { vscode } from '@/utils/vscode'
+import { MagicWandIcon } from '@radix-ui/react-icons'
+import { useQuery } from '@tanstack/react-query'
+import { Loader2, Rocket, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -17,11 +18,10 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-} from "../ui/alert-dialog"
-import { vscode } from "@/utils/vscode"
-import { Label } from "../ui/label"
-import { Input } from "../ui/input"
-import { FormDescription } from "../ui/form"
+} from '../ui/alert-dialog'
+import { FormDescription } from '../ui/form'
+import { Input } from '../ui/input'
+import { Label } from '../ui/label'
 
 interface Starter {
 	title: string
@@ -32,25 +32,25 @@ interface Starter {
 }
 
 const fetchStarters = async (): Promise<Starter[]> => {
-	const response = await fetch("https://raw.githubusercontent.com/kodu-ai/starters/main/starters.json")
+	const response = await fetch('https://raw.githubusercontent.com/kodu-ai/starters/main/starters.json')
 	if (!response.ok) {
-		throw new Error("Network response was not ok")
+		throw new Error('Network response was not ok')
 	}
 	return response.json()
 }
 
 export default function ProjectStarterChooser() {
 	const [open, setOpen] = useState(false)
-	const [searchValue, setSearchValue] = useState("")
+	const [searchValue, setSearchValue] = useState('')
 	const [selectedStarter, setSelectedStarter] = useState<Starter | null>(null)
-	const [projectName, setProjectName] = useState("")
+	const [projectName, setProjectName] = useState('')
 
 	const {
 		data: starters,
 		isLoading,
 		error,
 	} = useQuery<Starter[]>({
-		queryKey: ["starters"],
+		queryKey: ['starters'],
 		queryFn: fetchStarters,
 	})
 
@@ -59,7 +59,7 @@ export default function ProjectStarterChooser() {
 			(project) =>
 				project.title?.toLowerCase().includes(searchValue?.toLowerCase()) ||
 				project.description?.toLowerCase().includes(searchValue?.toLowerCase()) ||
-				project.creator?.toLowerCase().includes(searchValue?.toLowerCase())
+				project.creator?.toLowerCase().includes(searchValue?.toLowerCase()),
 		) || []
 	const handleStarterClick = (starter: Starter) => {
 		setSelectedStarter(starter)
@@ -69,8 +69,8 @@ export default function ProjectStarterChooser() {
 		// Implement the bootstrapping logic here
 		console.log(`Bootstrapping ${selectedStarter?.title}`)
 		vscode.postMessage({
-			type: "quickstart",
-			repo: selectedStarter!.repo,
+			type: 'quickstart',
+			repo: selectedStarter?.repo,
 			name: projectName,
 		})
 		setSelectedStarter(null)
@@ -81,8 +81,8 @@ export default function ProjectStarterChooser() {
 	useEffect(() => {
 		return () => {
 			setSelectedStarter(null)
-			setProjectName("")
-			setSearchValue("")
+			setProjectName('')
+			setSearchValue('')
 		}
 	}, [])
 
@@ -99,7 +99,8 @@ export default function ProjectStarterChooser() {
 					className="max-w-[280px] w-[90vw] p-0 !bg-transparent !border-none overflow-y-hidden"
 					avoidCollisions={true}
 					collisionPadding={8}
-					align="center">
+					align="center"
+				>
 					<Command className="rounded-lg border shadow-md">
 						<CommandInput
 							placeholder="Search project starters..."
@@ -124,7 +125,8 @@ export default function ProjectStarterChooser() {
 												<CommandItem
 													key={project.repo}
 													className="p-0 rounded-lg cursor-pointer"
-													onSelect={() => handleStarterClick(project)}>
+													onSelect={() => handleStarterClick(project)}
+												>
 													<Card className="w-full overflow-hidden transition-all rounded-lg hover:bg-accent hover:text-accent-foreground">
 														<CardHeader className="p-3">
 															<div className="flex justify-between items-start">
@@ -134,7 +136,8 @@ export default function ProjectStarterChooser() {
 																{project.isOfficial && (
 																	<Badge
 																		variant="default"
-																		className="bg-primary text-primary-foreground">
+																		className="bg-primary text-primary-foreground"
+																	>
 																		Official
 																	</Badge>
 																)}
@@ -164,9 +167,10 @@ export default function ProjectStarterChooser() {
 				open={!!selectedStarter}
 				onOpenChange={() => {
 					setSelectedStarter(null)
-					setProjectName("")
-					setSearchValue("")
-				}}>
+					setProjectName('')
+					setSearchValue('')
+				}}
+			>
 				<AlertDialogContent className="max-w-[320px] w-[90vw]">
 					<AlertDialogHeader>
 						<AlertDialogTitle>Quickstart Project</AlertDialogTitle>

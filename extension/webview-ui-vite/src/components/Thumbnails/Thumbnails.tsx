@@ -1,6 +1,7 @@
-import React, { useRef, useLayoutEffect } from "react"
-import { useWindowSize } from "react-use"
-import ThumbnailItem from "./ThumbnailItem"
+import type React from 'react'
+import { useLayoutEffect, useRef } from 'react'
+import { useWindowSize } from 'react-use'
+import ThumbnailItem from './ThumbnailItem'
 
 interface ThumbnailsProps {
 	images: string[]
@@ -35,12 +36,13 @@ const Thumbnails: React.FC<ThumbnailsProps> = ({ images, style, setImages, onHei
 			className=""
 			ref={containerRef}
 			style={{
-				display: "flex",
-				flexWrap: "wrap",
+				display: 'flex',
+				flexWrap: 'wrap',
 				gap: 5,
 				rowGap: 3,
 				...style,
-			}}>
+			}}
+		>
 			{images.map((image, index) => (
 				<ThumbnailItem
 					key={index}

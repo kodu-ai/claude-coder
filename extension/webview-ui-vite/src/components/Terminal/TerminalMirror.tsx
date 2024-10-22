@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from "react"
+import type React from 'react'
+import { useEffect, useRef } from 'react'
 
 interface TerminalMirrorProps {
 	textareaValue: string
@@ -16,29 +17,31 @@ const TerminalMirror: React.FC<TerminalMirrorProps> = ({
 	const mirrorRef = useRef<HTMLDivElement>(null)
 
 	useEffect(() => {
-		if (!mirrorRef.current) return
+		if (!mirrorRef.current) {
+			return
+		}
 
 		const textBeforeCursor = textareaValue.substring(0, cursorPosition)
 		const textAfterCursor = textareaValue.substring(cursorPosition)
 
-		mirrorRef.current.innerHTML = ""
+		mirrorRef.current.innerHTML = ''
 		mirrorRef.current.appendChild(document.createTextNode(textBeforeCursor))
 
-		const caretEle = document.createElement("span")
-		caretEle.classList.add("terminal-cursor")
+		const caretEle = document.createElement('span')
+		caretEle.classList.add('terminal-cursor')
 		if (isFocused) {
-			caretEle.classList.add("terminal-cursor-focused")
+			caretEle.classList.add('terminal-cursor-focused')
 		}
 		if (!shouldAllowInput) {
-			caretEle.classList.add("terminal-cursor-hidden")
+			caretEle.classList.add('terminal-cursor-hidden')
 		}
-		caretEle.innerHTML = "&nbsp;"
+		caretEle.innerHTML = '&nbsp;'
 		mirrorRef.current.appendChild(caretEle)
 
 		mirrorRef.current.appendChild(document.createTextNode(textAfterCursor))
 	}, [textareaValue, cursorPosition, isFocused, shouldAllowInput])
 
-	return <div ref={mirrorRef} className="terminal-mirror"></div>
+	return <div ref={mirrorRef} className="terminal-mirror" />
 }
 
 export default TerminalMirror

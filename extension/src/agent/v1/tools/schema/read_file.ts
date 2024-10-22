@@ -1,5 +1,5 @@
 // schema/read_file.ts
-import { z } from "zod"
+import { z } from 'zod'
 
 /**
  * @tool read_file
@@ -28,7 +28,7 @@ import { z } from "zod"
  * ```
  */
 const schema = z.object({
-	path: z.string().describe("The path of the file to read (relative to the current working directory)."),
+	path: z.string().describe('The path of the file to read (relative to the current working directory).'),
 })
 
 const examples = [
@@ -47,7 +47,7 @@ const examples = [
 
 export const readFileTool = {
 	schema: {
-		name: "read_file",
+		name: 'read_file',
 		schema,
 	},
 	examples,

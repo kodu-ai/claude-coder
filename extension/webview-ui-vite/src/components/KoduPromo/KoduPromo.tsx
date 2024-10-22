@@ -1,8 +1,8 @@
-import React from "react"
-import { getKoduSignInUrl } from "../../../../src/shared/kodu"
-import { vscode } from "../../utils/vscode"
-import { useExtensionState } from "../../context/ExtensionStateContext"
-import { PromoContainer, PromoLink, CloseButton } from "./styles"
+import type React from 'react'
+import { getKoduSignInUrl } from '../../../../src/shared/kodu'
+import { useExtensionState } from '../../context/ExtensionStateContext'
+import { vscode } from '../../utils/vscode'
+import { CloseButton, PromoContainer, PromoLink } from './styles'
 
 interface KoduPromoProps {
 	style?: React.CSSProperties
@@ -12,7 +12,7 @@ const KoduPromo: React.FC<KoduPromoProps> = ({ style }) => {
 	const { uriScheme, extensionName } = useExtensionState()
 
 	const handleClose = () => {
-		vscode.postMessage({ type: "didDismissKoduPromo" })
+		vscode.postMessage({ type: 'didDismissKoduPromo' })
 	}
 
 	return (

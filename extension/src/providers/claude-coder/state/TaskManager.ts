@@ -1,31 +1,31 @@
-import { Anthropic } from "@anthropic-ai/sdk"
-import fs from "fs/promises"
-import * as path from "path"
-import * as vscode from "vscode"
-import { formatAttachementsIntoBlocks } from "../../../agent/v1/tools/format-content"
-import { HistoryItem } from "../../../shared/HistoryItem"
-import { Resource } from "../../../shared/WebviewMessage"
-import { compressImages, downloadTask, selectImages } from "../../../utils"
-import { ExtensionProvider } from "../ClaudeCoderProvider"
+import fs from 'node:fs/promises'
+import * as path from 'node:path'
+import type { Anthropic } from '@anthropic-ai/sdk'
+import * as vscode from 'vscode'
+import { formatAttachementsIntoBlocks } from '../../../agent/v1/tools/format-content'
+import type { HistoryItem } from '../../../shared/HistoryItem'
+import type { Resource } from '../../../shared/WebviewMessage'
+import { compressImages, downloadTask, selectImages } from '../../../utils'
+import type { ExtensionProvider } from '../ClaudeCoderProvider'
 
 export class TaskManager {
 	constructor(private provider: ExtensionProvider) {}
 
 	async clearTask() {
 		await this.provider.getKoduDev()?.abortTask()
-		this.provider["koduDev"] = undefined
+		this.provider.koduDev = undefined
 	}
 
 	async exportBug(description: string, reproduction: string) {
 		if (!this.provider.getKoduDev()?.getStateManager().state) {
-			vscode.window.showErrorMessage(`Task not found`)
+			vscode.window.showErrorMessage('Task not found')
 			return
 		}
 
 		await vscode.window.withProgress(
 			{
 				location: vscode.ProgressLocation.Notification,
-				title: "Sending bug report...",
+				title: 'Sending bug report...',
 				cancellable: false,
 			},
 			async () => {
@@ -50,11 +50,11 @@ export class TaskManager {
 						claudeMessage,
 					})
 
-					vscode.window.showInformationMessage(`Bug report sent successfully`)
+					vscode.window.showInformationMessage('Bug report sent successfully')
 				} catch (err) {
-					vscode.window.showErrorMessage(`Failed to send bug report`)
+					vscode.window.showErrorMessage('Failed to send bug report')
 				}
-			}
+			},
 		)
 	}
 
@@ -81,7 +81,7 @@ export class TaskManager {
 			| {
 					isCurentTask?: undefined
 					taskId: string
-			  }
+			  },
 	) {
 		let currentTaskId = params.taskId
 		if (params.isCurentTask) {
@@ -89,24 +89,24 @@ export class TaskManager {
 		}
 		if (!currentTaskId) {
 			// throw vscode error message
-			vscode.window.showErrorMessage(`Task not found`)
+			vscode.window.showErrorMessage('Task not found')
 			return
 		}
 		const taskData = await this.getTaskWithId(currentTaskId)
 		// vscode dialog to rename task
 		const newTaskName = await this.provider.getWebviewManager().showInputBox({
-			prompt: "Enter the new task name",
+			prompt: 'Enter the new task name',
 			value: taskData.historyItem.name,
 			validateInput(value) {
 				if (!value) {
-					return "Task name cannot be empty"
+					return 'Task name cannot be empty'
 				}
 				return null
 			},
-			placeHolder: "Task name",
+			placeHolder: 'Task name',
 		})
 		if (!newTaskName) {
-			vscode.window.showErrorMessage(`Task name cannot be empty`)
+			vscode.window.showErrorMessage('Task name cannot be empty')
 			return
 		}
 		taskData.historyItem.name = newTaskName
@@ -136,7 +136,7 @@ export class TaskManager {
 		}
 
 		// await this.provider.getTaskExecutor().runTask()
-		await this.provider.getWebviewManager().postMessageToWebview({ type: "action", action: "chatButtonTapped" })
+		await this.provider.getWebviewManager().postMessageToWebview({ type: 'action', action: 'chatButtonTapped' })
 	}
 
 	async exportTaskWithId(id: string) {
@@ -174,7 +174,7 @@ export class TaskManager {
 	async clearAllTasks() {
 		// delete all tasks from state and delete task folder
 		this.provider.getStateManager().clearHistory()
-		const taskDirPath = path.join(this.provider.getContext().globalStorageUri.fsPath, "tasks")
+		const taskDirPath = path.join(this.provider.getContext().globalStorageUri.fsPath, 'tasks')
 		const taskDirExists = await fs
 			.access(taskDirPath)
 			.then(() => true)
@@ -194,15 +194,15 @@ export class TaskManager {
 		const history = (await this.provider.getStateManager().getState()).taskHistory || []
 		const historyItem = history.find((item) => item.id === id)
 		if (historyItem) {
-			const taskDirPath = path.join(this.provider.getContext().globalStorageUri.fsPath, "tasks", id)
-			const apiConversationHistoryFilePath = path.join(taskDirPath, "api_conversation_history.json")
-			const claudeMessagesFilePath = path.join(taskDirPath, "claude_messages.json")
+			const taskDirPath = path.join(this.provider.getContext().globalStorageUri.fsPath, 'tasks', id)
+			const apiConversationHistoryFilePath = path.join(taskDirPath, 'api_conversation_history.json')
+			const claudeMessagesFilePath = path.join(taskDirPath, 'claude_messages.json')
 			const fileExists = await fs
 				.access(apiConversationHistoryFilePath)
 				.then(() => true)
 				.catch(() => false)
 			if (fileExists) {
-				const apiConversationHistory = JSON.parse(await fs.readFile(apiConversationHistoryFilePath, "utf8"))
+				const apiConversationHistory = JSON.parse(await fs.readFile(apiConversationHistoryFilePath, 'utf8'))
 				return {
 					historyItem,
 					taskDirPath,
@@ -214,13 +214,13 @@ export class TaskManager {
 		}
 		// if we tried to get a task that doesn't exist, remove it from state
 		await this.deleteTaskFromState(id)
-		throw new Error("Task not found")
+		throw new Error('Task not found')
 	}
 
 	private async deleteTaskFromState(id: string) {
 		const taskHistory = (await this.provider.getStateManager().getState()).taskHistory || []
 		const updatedTaskHistory = taskHistory.filter((task) => task.id !== id)
-		await this.provider.getGlobalStateManager().updateGlobalState("taskHistory", updatedTaskHistory)
+		await this.provider.getGlobalStateManager().updateGlobalState('taskHistory', updatedTaskHistory)
 
 		await this.provider.getWebviewManager().postStateToWebview()
 	}

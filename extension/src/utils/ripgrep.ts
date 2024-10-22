@@ -1,8 +1,8 @@
-import * as vscode from "vscode"
-import * as childProcess from "child_process"
-import * as path from "path"
-import * as fs from "fs"
-import * as readline from "readline"
+import * as childProcess from 'node:child_process'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import * as readline from 'node:readline'
+import * as vscode from 'vscode'
 
 /*
 This file provides functionality to perform regex searches on files using ripgrep.
@@ -47,7 +47,7 @@ rel/path/to/helper.ts
 */
 
 const isWindows = /^win/.test(process.platform)
-const binName = isWindows ? "rg.exe" : "rg"
+const binName = isWindows ? 'rg.exe' : 'rg'
 
 interface SearchResult {
 	file: string
@@ -67,10 +67,10 @@ async function getBinPath(vscodeAppRoot: string): Promise<string | undefined> {
 	}
 
 	return (
-		(await checkPath("node_modules/@vscode/ripgrep/bin/")) ||
-		(await checkPath("node_modules/vscode-ripgrep/bin")) ||
-		(await checkPath("node_modules.asar.unpacked/vscode-ripgrep/bin/")) ||
-		(await checkPath("node_modules.asar.unpacked/@vscode/ripgrep/bin/"))
+		(await checkPath('node_modules/@vscode/ripgrep/bin/')) ||
+		(await checkPath('node_modules/vscode-ripgrep/bin')) ||
+		(await checkPath('node_modules.asar.unpacked/vscode-ripgrep/bin/')) ||
+		(await checkPath('node_modules.asar.unpacked/@vscode/ripgrep/bin/'))
 	)
 }
 
@@ -88,16 +88,16 @@ async function execRipgrep(bin: string, args: string[]): Promise<string> {
 		// cross-platform alternative to head, which is ripgrep author's recommendation for limiting output.
 		const rl = readline.createInterface({
 			input: rgProcess.stdout,
-			crlfDelay: Infinity, // treat \r\n as a single line break even if it's split across chunks. This ensures consistent behavior across different operating systems.
+			crlfDelay: Number.POSITIVE_INFINITY, // treat \r\n as a single line break even if it's split across chunks. This ensures consistent behavior across different operating systems.
 		})
 
-		let output = ""
+		let output = ''
 		let lineCount = 0
 		const maxLines = MAX_RESULTS * 5 // limiting ripgrep output with max lines since there's no other way to limit results. it's okay that we're outputting as json, since we're parsing it line by line and ignore anything that's not part of a match. This assumes each result is at most 5 lines.
 
-		rl.on("line", (line) => {
+		rl.on('line', (line) => {
 			if (lineCount < maxLines) {
-				output += line + "\n"
+				output += `${line}\n`
 				lineCount++
 			} else {
 				rl.close()
@@ -105,18 +105,18 @@ async function execRipgrep(bin: string, args: string[]): Promise<string> {
 			}
 		})
 
-		let errorOutput = ""
-		rgProcess.stderr.on("data", (data) => {
+		let errorOutput = ''
+		rgProcess.stderr.on('data', (data) => {
 			errorOutput += data.toString()
 		})
-		rl.on("close", () => {
+		rl.on('close', () => {
 			if (errorOutput) {
 				reject(new Error(`ripgrep process error: ${errorOutput}`))
 			} else {
 				resolve(output)
 			}
 		})
-		rgProcess.on("error", (error) => {
+		rgProcess.on('error', (error) => {
 			reject(new Error(`ripgrep process error: ${error.message}`))
 		})
 	})
@@ -126,31 +126,31 @@ export async function regexSearchFiles(
 	cwd: string,
 	directoryPath: string,
 	regex: string,
-	filePattern?: string
+	filePattern?: string,
 ): Promise<string> {
 	const vscodeAppRoot = vscode.env.appRoot
 	const rgPath = await getBinPath(vscodeAppRoot)
 
 	if (!rgPath) {
-		throw new Error("Could not find ripgrep binary")
+		throw new Error('Could not find ripgrep binary')
 	}
 
-	const args = ["--json", "-e", regex, "--glob", filePattern || "*", "--context", "1", directoryPath]
+	const args = ['--json', '-e', regex, '--glob', filePattern || '*', '--context', '1', directoryPath]
 
 	let output: string
 	try {
 		output = await execRipgrep(rgPath, args)
 	} catch {
-		return "No results found"
+		return 'No results found'
 	}
 	const results: SearchResult[] = []
 	let currentResult: Partial<SearchResult> | null = null
 
-	output.split("\n").forEach((line) => {
+	output.split('\n').forEach((line) => {
 		if (line) {
 			try {
 				const parsed = JSON.parse(line)
-				if (parsed.type === "match") {
+				if (parsed.type === 'match') {
 					if (currentResult) {
 						results.push(currentResult as SearchResult)
 					}
@@ -162,15 +162,15 @@ export async function regexSearchFiles(
 						beforeContext: [],
 						afterContext: [],
 					}
-				} else if (parsed.type === "context" && currentResult) {
+				} else if (parsed.type === 'context' && currentResult) {
 					if (parsed.data.line_number < currentResult.line!) {
-						currentResult.beforeContext!.push(parsed.data.lines.text)
+						currentResult.beforeContext?.push(parsed.data.lines.text)
 					} else {
-						currentResult.afterContext!.push(parsed.data.lines.text)
+						currentResult.afterContext?.push(parsed.data.lines.text)
 					}
 				}
 			} catch (error) {
-				console.error("Error parsing ripgrep output:", error)
+				console.error('Error parsing ripgrep output:', error)
 			}
 		}
 	})
@@ -185,11 +185,11 @@ export async function regexSearchFiles(
 function formatResults(results: SearchResult[], cwd: string): string {
 	const groupedResults: { [key: string]: SearchResult[] } = {}
 
-	let output = ""
+	let output = ''
 	if (results.length >= MAX_RESULTS) {
 		output += `Showing first ${MAX_RESULTS} of ${MAX_RESULTS}+ results. Use a more specific search if necessary.\n\n`
 	} else {
-		output += `Found ${results.length === 1 ? "1 result" : `${results.length.toLocaleString()} results`}.\n\n`
+		output += `Found ${results.length === 1 ? '1 result' : `${results.length.toLocaleString()} results`}.\n\n`
 	}
 
 	// Group results by file name
@@ -207,15 +207,15 @@ function formatResults(results: SearchResult[], cwd: string): string {
 		fileResults.forEach((result, index) => {
 			const allLines = [...result.beforeContext, result.match, ...result.afterContext]
 			allLines.forEach((line) => {
-				output += `│${line?.trimEnd() ?? ""}\n`
+				output += `│${line?.trimEnd() ?? ''}\n`
 			})
 
 			if (index < fileResults.length - 1) {
-				output += "│----\n"
+				output += '│----\n'
 			}
 		})
 
-		output += "│----\n\n"
+		output += '│----\n\n'
 	}
 
 	return output.trim()

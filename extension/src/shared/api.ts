@@ -1,4 +1,4 @@
-export type ApiProvider = "anthropic" | "openrouter" | "bedrock" | "vertex"
+export type ApiProvider = 'anthropic' | 'openrouter' | 'bedrock' | 'vertex'
 
 export interface ApiHandlerOptions {
 	koduApiKey?: string
@@ -35,9 +35,9 @@ export type ApiModelId = KoduModelId
 // Anthropic
 // https://docs.anthropic.com/en/docs/about-claude/models
 export type AnthropicModelId = keyof typeof anthropicModels
-export const anthropicDefaultModelId: AnthropicModelId = "claude-3-5-sonnet-20240620"
+export const anthropicDefaultModelId: AnthropicModelId = 'claude-3-5-sonnet-20240620'
 export const anthropicModels = {
-	"claude-3-5-sonnet-20240620": {
+	'claude-3-5-sonnet-20240620': {
 		maxTokens: 8192,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -47,7 +47,7 @@ export const anthropicModels = {
 		cacheWritesPrice: 3.75, // $3.75 per million tokens
 		cacheReadsPrice: 0.3, // $0.30 per million tokens
 	},
-	"claude-3-opus-20240229": {
+	'claude-3-opus-20240229': {
 		maxTokens: 4096,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -57,7 +57,7 @@ export const anthropicModels = {
 		cacheWritesPrice: 18.75,
 		cacheReadsPrice: 1.5,
 	},
-	"claude-3-haiku-20240307": {
+	'claude-3-haiku-20240307': {
 		maxTokens: 4096,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -72,9 +72,9 @@ export const anthropicModels = {
 // AWS Bedrock
 // https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html
 export type BedrockModelId = keyof typeof bedrockModels
-export const bedrockDefaultModelId: BedrockModelId = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+export const bedrockDefaultModelId: BedrockModelId = 'anthropic.claude-3-5-sonnet-20240620-v1:0'
 export const bedrockModels = {
-	"anthropic.claude-3-5-sonnet-20240620-v1:0": {
+	'anthropic.claude-3-5-sonnet-20240620-v1:0': {
 		maxTokens: 8192,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -82,7 +82,7 @@ export const bedrockModels = {
 		inputPrice: 3.0,
 		outputPrice: 15.0,
 	},
-	"anthropic.claude-3-opus-20240229-v1:0": {
+	'anthropic.claude-3-opus-20240229-v1:0': {
 		maxTokens: 4096,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -90,7 +90,7 @@ export const bedrockModels = {
 		inputPrice: 15.0,
 		outputPrice: 75.0,
 	},
-	"anthropic.claude-3-sonnet-20240229-v1:0": {
+	'anthropic.claude-3-sonnet-20240229-v1:0': {
 		maxTokens: 4096,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -98,7 +98,7 @@ export const bedrockModels = {
 		inputPrice: 3.0,
 		outputPrice: 15.0,
 	},
-	"anthropic.claude-3-haiku-20240307-v1:0": {
+	'anthropic.claude-3-haiku-20240307-v1:0': {
 		maxTokens: 4096,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -111,9 +111,9 @@ export const bedrockModels = {
 // OpenRouter
 // https://openrouter.ai/models?order=newest&supported_parameters=tools
 export type OpenRouterModelId = keyof typeof openRouterModels
-export const openRouterDefaultModelId: OpenRouterModelId = "anthropic/claude-3.5-sonnet:beta"
+export const openRouterDefaultModelId: OpenRouterModelId = 'anthropic/claude-3.5-sonnet:beta'
 export const openRouterModels = {
-	"anthropic/claude-3.5-sonnet:beta": {
+	'anthropic/claude-3.5-sonnet:beta': {
 		maxTokens: 8192,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -121,7 +121,7 @@ export const openRouterModels = {
 		inputPrice: 3.0,
 		outputPrice: 15.0,
 	},
-	"anthropic/claude-3-opus:beta": {
+	'anthropic/claude-3-opus:beta': {
 		maxTokens: 4096,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -129,7 +129,7 @@ export const openRouterModels = {
 		inputPrice: 15,
 		outputPrice: 75,
 	},
-	"anthropic/claude-3-sonnet:beta": {
+	'anthropic/claude-3-sonnet:beta': {
 		maxTokens: 4096,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -137,7 +137,7 @@ export const openRouterModels = {
 		inputPrice: 3,
 		outputPrice: 15,
 	},
-	"anthropic/claude-3-haiku:beta": {
+	'anthropic/claude-3-haiku:beta': {
 		maxTokens: 4096,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -145,7 +145,7 @@ export const openRouterModels = {
 		inputPrice: 0.25,
 		outputPrice: 1.25,
 	},
-	"openai/gpt-4o-2024-08-06": {
+	'openai/gpt-4o-2024-08-06': {
 		maxTokens: 16384,
 		contextWindow: 128_000,
 		supportsImages: true,
@@ -153,7 +153,7 @@ export const openRouterModels = {
 		inputPrice: 2.5,
 		outputPrice: 10,
 	},
-	"openai/gpt-4o-mini-2024-07-18": {
+	'openai/gpt-4o-mini-2024-07-18': {
 		maxTokens: 16384,
 		contextWindow: 128_000,
 		supportsImages: true,
@@ -161,7 +161,7 @@ export const openRouterModels = {
 		inputPrice: 0.15,
 		outputPrice: 0.6,
 	},
-	"openai/gpt-4-turbo": {
+	'openai/gpt-4-turbo': {
 		maxTokens: 4096,
 		contextWindow: 128_000,
 		supportsImages: true,
@@ -208,7 +208,7 @@ export const openRouterModels = {
 	// 	outputPrice: 0.375,
 	// },
 	// while deepseek coder can use tools, it may sometimes send tool invocation as a text block
-	"deepseek/deepseek-coder": {
+	'deepseek/deepseek-coder': {
 		maxTokens: 4096,
 		contextWindow: 128_000,
 		supportsImages: false,
@@ -217,7 +217,7 @@ export const openRouterModels = {
 		outputPrice: 0.28,
 	},
 	// mistral models can use tools but aren't great at going step-by-step and proceeding to the next step
-	"mistralai/mistral-large": {
+	'mistralai/mistral-large': {
 		maxTokens: 8192,
 		contextWindow: 128_000,
 		supportsImages: false,
@@ -250,9 +250,9 @@ export const openRouterModels = {
 // Vertex AI
 // https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-claude
 export type VertexModelId = keyof typeof vertexModels
-export const vertexDefaultModelId: VertexModelId = "claude-3-5-sonnet@20240620"
+export const vertexDefaultModelId: VertexModelId = 'claude-3-5-sonnet@20240620'
 export const vertexModels = {
-	"claude-3-5-sonnet@20240620": {
+	'claude-3-5-sonnet@20240620': {
 		maxTokens: 8192,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -260,7 +260,7 @@ export const vertexModels = {
 		inputPrice: 3.0,
 		outputPrice: 15.0,
 	},
-	"claude-3-opus@20240229": {
+	'claude-3-opus@20240229': {
 		maxTokens: 4096,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -268,7 +268,7 @@ export const vertexModels = {
 		inputPrice: 15.0,
 		outputPrice: 75.0,
 	},
-	"claude-3-sonnet@20240229": {
+	'claude-3-sonnet@20240229': {
 		maxTokens: 4096,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -276,7 +276,7 @@ export const vertexModels = {
 		inputPrice: 3.0,
 		outputPrice: 15.0,
 	},
-	"claude-3-haiku@20240307": {
+	'claude-3-haiku@20240307': {
 		maxTokens: 4096,
 		contextWindow: 200_000,
 		supportsImages: true,
@@ -287,7 +287,7 @@ export const vertexModels = {
 } as const satisfies Record<string, ModelInfo>
 
 export type KoduModelId = keyof typeof koduModels
-export const koduDefaultModelId: KoduModelId = "claude-3-5-sonnet-20240620"
+export const koduDefaultModelId: KoduModelId = 'claude-3-5-sonnet-20240620'
 export const koduModels = {
 	...anthropicModels,
 } as const satisfies Record<string, ModelInfo>

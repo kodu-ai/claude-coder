@@ -1,8 +1,8 @@
-import * as path from "path"
+import fs from 'node:fs/promises'
+import * as path from 'node:path'
+import mammoth from 'mammoth'
 // @ts-ignore-next-line
-import pdf from "pdf-parse/lib/pdf-parse"
-import mammoth from "mammoth"
-import fs from "fs/promises"
+import pdf from 'pdf-parse/lib/pdf-parse'
 
 export async function extractTextFromFile(filePath: string): Promise<string> {
 	try {
@@ -12,14 +12,14 @@ export async function extractTextFromFile(filePath: string): Promise<string> {
 	}
 	const fileExtension = path.extname(filePath).toLowerCase()
 	switch (fileExtension) {
-		case ".pdf":
+		case '.pdf':
 			return extractTextFromPDF(filePath)
-		case ".docx":
+		case '.docx':
 			return extractTextFromDOCX(filePath)
-		case ".ipynb":
+		case '.ipynb':
 			return extractTextFromIPYNB(filePath)
 		default:
-			return await fs.readFile(filePath, "utf8")
+			return await fs.readFile(filePath, 'utf8')
 	}
 }
 
@@ -35,13 +35,13 @@ async function extractTextFromDOCX(filePath: string): Promise<string> {
 }
 
 async function extractTextFromIPYNB(filePath: string): Promise<string> {
-	const data = await fs.readFile(filePath, "utf8")
+	const data = await fs.readFile(filePath, 'utf8')
 	const notebook = JSON.parse(data)
-	let extractedText = ""
+	let extractedText = ''
 
 	for (const cell of notebook.cells) {
-		if ((cell.cell_type === "markdown" || cell.cell_type === "code") && cell.source) {
-			extractedText += cell.source.join("\n") + "\n"
+		if ((cell.cell_type === 'markdown' || cell.cell_type === 'code') && cell.source) {
+			extractedText += `${cell.source.join('\n')}\n`
 		}
 	}
 

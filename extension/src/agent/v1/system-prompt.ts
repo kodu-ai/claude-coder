@@ -1,7 +1,7 @@
-import osName from "os-name"
-import defaultShell from "default-shell"
-import os from "os"
-import { cwd } from "./utils"
+import os from 'node:os'
+import defaultShell from 'default-shell'
+import osName from 'os-name'
+import { cwd } from './utils'
 
 export const generalPackageManagement = `
 - Always ensure all necessary packages are installed before starting, previewing, or building the project.
@@ -315,7 +315,7 @@ I'm going to start by cloning a great foundation for the website.
 </call-to-action>
 `
 
-export const USER_TASK_HISTORY_PROMPT = (taskHistory = "") => `
+export const USER_TASK_HISTORY_PROMPT = (taskHistory = '') => `
 
 Current Task History:
 

@@ -1,6 +1,6 @@
-import React from "react"
-import { ModelInfo } from "../../../../src/shared/api"
-import { formatPrice } from "./utils"
+import type React from 'react'
+import type { ModelInfo } from '../../../../src/shared/api'
+import { formatPrice } from './utils'
 
 interface ModelInfoViewProps {
 	modelInfo: ModelInfo
@@ -8,7 +8,7 @@ interface ModelInfoViewProps {
 
 const ModelInfoView: React.FC<ModelInfoViewProps> = ({ modelInfo }) => {
 	return (
-		<div style={{ fontSize: "12px", marginTop: "2px", color: "var(--vscode-descriptionForeground)" }}>
+		<div style={{ fontSize: '12px', marginTop: '2px', color: 'var(--vscode-descriptionForeground)' }}>
 			<ModelInfoSupportsItem
 				isSupported={modelInfo.supportsImages}
 				supportsLabel="Supports images"
@@ -38,18 +38,20 @@ const ModelInfoSupportsItem: React.FC<ModelInfoSupportsItemProps> = ({
 	<span
 		style={{
 			fontWeight: 500,
-			color: isSupported ? "var(--vscode-terminal-ansiGreen)" : "var(--vscode-errorForeground)",
-		}}>
+			color: isSupported ? 'var(--vscode-terminal-ansiGreen)' : 'var(--vscode-errorForeground)',
+		}}
+	>
 		<i
-			className={`codicon codicon-${isSupported ? "check" : "x"}`}
+			className={`codicon codicon-${isSupported ? 'check' : 'x'}`}
 			style={{
 				marginRight: 4,
 				marginBottom: isSupported ? 1 : -1,
 				fontSize: isSupported ? 11 : 13,
 				fontWeight: 700,
-				display: "inline-block",
-				verticalAlign: "bottom",
-			}}></i>
+				display: 'inline-block',
+				verticalAlign: 'bottom',
+			}}
+		/>
 		{isSupported ? supportsLabel : doesNotSupportLabel}
 	</span>
 )

@@ -1,5 +1,6 @@
-import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
-import React, { useState } from "react"
+import { VSCodeButton } from '@vscode/webview-ui-toolkit/react'
+import type React from 'react'
+import { useState } from 'react'
 
 interface ButtonSectionProps {
 	primaryButtonText: string | undefined
@@ -23,9 +24,10 @@ const ButtonSection: React.FC<ButtonSectionProps> = ({
 	return (
 		<div
 			style={{
-				padding: "8px 16px 0px 15px",
+				padding: '8px 16px 0px 15px',
 			}}
-			className="flex flex-col gap-2">
+			className="flex flex-col gap-2"
+		>
 			{/* <Button
 				disabled={isCancelling}
 				onClick={() => {
@@ -41,17 +43,19 @@ const ButtonSection: React.FC<ButtonSectionProps> = ({
 			<div
 				style={{
 					opacity: primaryButtonText || secondaryButtonText ? (enableButtons ? 1 : 0.5) : 0,
-					display: "flex",
-				}}>
+					display: 'flex',
+				}}
+			>
 				{!isRequestRunning && primaryButtonText && (
 					<VSCodeButton
 						appearance="primary"
 						disabled={!enableButtons || isRequestRunning}
 						style={{
 							flex: secondaryButtonText ? 1 : 2,
-							marginRight: secondaryButtonText ? "6px" : "0",
+							marginRight: secondaryButtonText ? '6px' : '0',
 						}}
-						onClick={handlePrimaryButtonClick}>
+						onClick={handlePrimaryButtonClick}
+					>
 						{primaryButtonText}
 					</VSCodeButton>
 				)}
@@ -59,8 +63,9 @@ const ButtonSection: React.FC<ButtonSectionProps> = ({
 					<VSCodeButton
 						appearance="secondary"
 						disabled={!enableButtons || isRequestRunning}
-						style={{ flex: 1, marginLeft: "6px" }}
-						onClick={handleSecondaryButtonClick}>
+						style={{ flex: 1, marginLeft: '6px' }}
+						onClick={handleSecondaryButtonClick}
+					>
 						{secondaryButtonText}
 					</VSCodeButton>
 				)}

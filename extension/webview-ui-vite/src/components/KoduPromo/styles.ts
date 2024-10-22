@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled from 'styled-components'
 
 export const PromoContainer = styled.div`
   display: flex;
@@ -11,7 +11,7 @@ export const PromoContainer = styled.div`
   margin: 0 0 8px 0px;
   font-size: 12px;
   cursor: pointer;
-`;
+`
 
 export const PromoLink = styled.a`
   text-decoration: none;
@@ -24,7 +24,7 @@ export const PromoLink = styled.a`
     margin-right: 6px;
     font-size: 16px;
   }
-`;
+`
 
 export const CloseButton = styled.button`
   background: none;
@@ -40,4 +40,4 @@ export const CloseButton = styled.button`
   &:hover {
     opacity: 1;
   }
-`;
+`

@@ -1,36 +1,37 @@
-"use client"
+'use client'
 
-import React, { useState, useCallback, useEffect } from "react"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { LayoutList, Edit, Save, X } from "lucide-react"
-import { vscode } from "@/utils/vscode"
-import { ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
-import { useEvent } from "react-use"
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { vscode } from '@/utils/vscode'
+import { Edit, LayoutList, Save, X } from 'lucide-react'
+import type React from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import { useEvent } from 'react-use'
+import remarkGfm from 'remark-gfm'
+import type { ExtensionMessage } from '../../../../src/shared/ExtensionMessage'
 
 export default function TaskHistoryModal() {
-	const [history, setHistory] = useState("")
+	const [history, setHistory] = useState('')
 	const [isEditing, setIsEditing] = useState(false)
 	const [isOpen, setIsOpen] = useState(false)
 
 	const handleMessage = useCallback((e: MessageEvent) => {
 		const message: ExtensionMessage = e.data
-		if (message.type === "taskHistory" && message.history !== undefined) {
+		if (message.type === 'taskHistory' && message.history !== undefined) {
 			setHistory(message.history)
 		}
 	}, [])
-	useEvent("message", handleMessage)
+	useEvent('message', handleMessage)
 
 	const onOpen = () => {
-		vscode.postMessage({ type: "getTaskHistory" })
+		vscode.postMessage({ type: 'getTaskHistory' })
 		setIsOpen(true)
 	}
 
 	const save = () => {
-		vscode.postMessage({ type: "updateTaskHistory", history })
+		vscode.postMessage({ type: 'updateTaskHistory', history })
 		setIsEditing(false)
 	}
 
@@ -44,7 +45,7 @@ export default function TaskHistoryModal() {
 
 	const cancelEditing = () => {
 		setIsEditing(false)
-		vscode.postMessage({ type: "getTaskHistory" })
+		vscode.postMessage({ type: 'getTaskHistory' })
 	}
 
 	return (

@@ -1,18 +1,18 @@
-import React, { useState, useCallback, useRef, KeyboardEvent, useMemo } from "react"
-import { Folder, File, ChevronRight, Search } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
-import { motion } from "framer-motion"
-import { useVirtualizer } from "@tanstack/react-virtual"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { motion } from 'framer-motion'
+import { ChevronRight, File, Folder, Search } from 'lucide-react'
+import React, { useState, useCallback, useRef, type KeyboardEvent, useMemo } from 'react'
 
 export type FileNode = {
 	id: string
 	name: string
-	type: "file" | "folder"
+	type: 'file' | 'folder'
 	children?: FileNode[]
 	depth: number
-	matchReason?: "direct" | "childMatch"
+	matchReason?: 'direct' | 'childMatch'
 }
 
 type EnhancedFileTreeProps = {
@@ -25,7 +25,7 @@ const MAX_SELECTED_ITEMS = 50
 
 export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: EnhancedFileTreeProps) {
 	const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
-	const [filter, setFilter] = useState("")
+	const [filter, setFilter] = useState('')
 	const [showMaxError, setShowMaxError] = useState(false)
 
 	const toggleFolder = (id: string) => {
@@ -41,15 +41,17 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 	}
 
 	const getFirstDepthChildren = (node: FileNode): string[] => {
-		if (node.type !== "folder" || !node.children) return []
-		return node.children.filter((child) => child.type === "file").map((child) => child.id)
+		if (node.type !== 'folder' || !node.children) {
+			return []
+		}
+		return node.children.filter((child) => child.type === 'file').map((child) => child.id)
 	}
 
 	const toggleSelect = (id: string, node: FileNode) => {
 		const newSelectedItems = new Set(value)
 		const firstDepthChildren = getFirstDepthChildren(node)
 
-		if (node.type === "folder") {
+		if (node.type === 'folder') {
 			const allChildrenSelected = firstDepthChildren.every((childId) => newSelectedItems.has(childId))
 			if (allChildrenSelected) {
 				// Unselect all children
@@ -83,19 +85,19 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 		(node: FileNode): FileNode | null => {
 			const matchesFilter = node.name.toLowerCase().includes(filter.toLowerCase())
 			if (matchesFilter) {
-				return { ...node, matchReason: "direct" }
+				return { ...node, matchReason: 'direct' }
 			}
-			if (node.type === "folder" && node.children) {
+			if (node.type === 'folder' && node.children) {
 				const filteredChildren = node.children
 					.map(filterFiles)
 					.filter((child): child is FileNode => child !== null)
 				if (filteredChildren.length > 0) {
-					return { ...node, children: filteredChildren, matchReason: "childMatch" }
+					return { ...node, children: filteredChildren, matchReason: 'childMatch' }
 				}
 			}
 			return null
 		},
-		[filter]
+		[filter],
 	)
 
 	const filteredFiles = useMemo(() => {
@@ -108,16 +110,16 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 			return nodes.reduce<FileNode[]>((acc, node) => {
 				acc.push(node)
 				if (
-					node.type === "folder" &&
+					node.type === 'folder' &&
 					node.children &&
-					(expandedFolders.has(node.id) || node.matchReason === "childMatch")
+					(expandedFolders.has(node.id) || node.matchReason === 'childMatch')
 				) {
 					acc.push(...flattenFileTree(node.children))
 				}
 				return acc
 			}, [])
 		},
-		[expandedFolders]
+		[expandedFolders],
 	)
 
 	const flattenedFiles = useMemo(() => flattenFileTree(filteredFiles), [filteredFiles, flattenFileTree])
@@ -132,7 +134,7 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 	})
 
 	const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>, node: FileNode) => {
-		if (event.key === "Enter" || event.key === " ") {
+		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault()
 			toggleSelect(node.id, node)
 		}
@@ -149,33 +151,35 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 			return (
 				<div
 					className={`flex items-center space-x-2 py-1 px-2 hover:bg-accent hover:text-accent-foreground cursor-pointer ${
-						isSelected || (node.type === "folder" && areAllChildrenSelected)
-							? "bg-primary text-primary-foreground"
-							: ""
-					} ${node.matchReason === "childMatch" ? "opacity-70" : ""}`}
+						isSelected || (node.type === 'folder' && areAllChildrenSelected)
+							? 'bg-primary text-primary-foreground'
+							: ''
+					} ${node.matchReason === 'childMatch' ? 'opacity-70' : ''}`}
 					style={{ paddingLeft: `${node.depth * 1.5 + 0.5}rem` }}
-					onClick={() => node.type === "folder" && toggleFolder(node.id)}
+					onClick={() => node.type === 'folder' && toggleFolder(node.id)}
 					onKeyDown={(e) => handleKeyDown(e, node)}
 					tabIndex={0}
 					role="button"
-					aria-pressed={isSelected || areAllChildrenSelected}>
+					aria-pressed={isSelected || areAllChildrenSelected}
+				>
 					<Checkbox
 						id={`checkbox-${node.id}`}
-						checked={isSelected || (node.type === "folder" && areAllChildrenSelected)}
+						checked={isSelected || (node.type === 'folder' && areAllChildrenSelected)}
 						onCheckedChange={() => toggleSelect(node.id, node)}
 						onClick={(e) => e.stopPropagation()}
 					/>
-					{node.type === "folder" && (
+					{node.type === 'folder' && (
 						<div className="w-4 h-4 flex items-center justify-center">
 							<motion.div
 								initial={false}
 								animate={{ rotate: isExpanded ? 90 : 0 }}
-								transition={{ duration: 0.2 }}>
+								transition={{ duration: 0.2 }}
+							>
 								<ChevronRight className="w-4 h-4" />
 							</motion.div>
 						</div>
 					)}
-					{node.type === "folder" ? (
+					{node.type === 'folder' ? (
 						<Folder className="w-4 h-4 text-primary" />
 					) : (
 						<File className="w-4 h-4" />
@@ -184,7 +188,7 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 				</div>
 			)
 		},
-		[expandedFolders, value, toggleFolder, toggleSelect]
+		[expandedFolders, value, toggleFolder, toggleSelect],
 	)
 
 	return (
@@ -210,21 +214,23 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 				<div
 					style={{
 						height: `${virtualizer.getTotalSize()}px`,
-						width: "100%",
-						position: "relative",
-					}}>
+						width: '100%',
+						position: 'relative',
+					}}
+				>
 					{virtualizer.getVirtualItems().map((virtualItem) => (
 						<div
 							key={virtualItem.key}
 							data-index={virtualItem.index}
 							ref={virtualizer.measureElement}
 							style={{
-								position: "absolute",
+								position: 'absolute',
 								top: 0,
 								left: 0,
-								width: "100%",
+								width: '100%',
 								transform: `translateY(${virtualItem.start}px)`,
-							}}>
+							}}
+						>
 							<FileTreeItem node={flattenedFiles[virtualItem.index]} />
 						</div>
 					))}

@@ -1,10 +1,10 @@
-import * as vscode from "vscode"
-import * as path from "path"
-import deepEqual from "fast-deep-equal"
+import * as path from 'node:path'
+import deepEqual from 'fast-deep-equal'
+import * as vscode from 'vscode'
 
 export function getNewDiagnostics(
 	oldDiagnostics: [vscode.Uri, vscode.Diagnostic[]][],
-	newDiagnostics: [vscode.Uri, vscode.Diagnostic[]][]
+	newDiagnostics: [vscode.Uri, vscode.Diagnostic[]][],
 ): [vscode.Uri, vscode.Diagnostic[]][] {
 	const newProblems: [vscode.Uri, vscode.Diagnostic[]][] = []
 	const oldMap = new Map(oldDiagnostics)
@@ -73,9 +73,9 @@ export function getNewDiagnostics(
 export function diagnosticsToProblemsString(
 	diagnostics: [vscode.Uri, vscode.Diagnostic[]][],
 	severities: vscode.DiagnosticSeverity[],
-	cwd: string
+	cwd: string,
 ): string {
-	let result = ""
+	let result = ''
 	for (const [uri, fileDiagnostics] of diagnostics) {
 		const problems = fileDiagnostics.filter((d) => severities.includes(d.severity))
 		if (problems.length > 0) {
@@ -84,22 +84,22 @@ export function diagnosticsToProblemsString(
 				let label: string
 				switch (diagnostic.severity) {
 					case vscode.DiagnosticSeverity.Error:
-						label = "Error"
+						label = 'Error'
 						break
 					case vscode.DiagnosticSeverity.Warning:
-						label = "Warning"
+						label = 'Warning'
 						break
 					case vscode.DiagnosticSeverity.Information:
-						label = "Information"
+						label = 'Information'
 						break
 					case vscode.DiagnosticSeverity.Hint:
-						label = "Hint"
+						label = 'Hint'
 						break
 					default:
-						label = "Diagnostic"
+						label = 'Diagnostic'
 				}
 				const line = diagnostic.range.start.line + 1 // VSCode lines are 0-indexed
-				const source = diagnostic.source ? `${diagnostic.source} ` : ""
+				const source = diagnostic.source ? `${diagnostic.source} ` : ''
 				result += `\n- [${source}${label}] Line ${line}: ${diagnostic.message}`
 			}
 		}

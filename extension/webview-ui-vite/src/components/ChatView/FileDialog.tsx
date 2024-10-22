@@ -1,7 +1,7 @@
-import React from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import EnhancedFileTree, { FileNode } from "./file-tree"
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import type React from 'react'
+import EnhancedFileTree, { type FileNode } from './file-tree'
 
 type FileDialogProps = {
 	open: boolean

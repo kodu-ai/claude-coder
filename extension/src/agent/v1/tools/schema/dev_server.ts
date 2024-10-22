@@ -1,5 +1,5 @@
 // schema/dev_server.ts
-import { z } from "zod"
+import { z } from 'zod'
 
 /**
  * @tool dev_server
@@ -40,17 +40,17 @@ import { z } from "zod"
  */
 const schema = z.object({
 	commandType: z
-		.enum(["start", "stop", "restart", "getLogs"])
+		.enum(['start', 'stop', 'restart', 'getLogs'])
 		.optional()
 		.describe(
-			"The type of operation to perform on the dev server. 'start' begins the server, 'stop' terminates it, 'restart' stops then starts the server, and 'getLogs' retrieves the server logs."
+			"The type of operation to perform on the dev server. 'start' begins the server, 'stop' terminates it, 'restart' stops then starts the server, and 'getLogs' retrieves the server logs.",
 		),
-	serverName: z.string().optional().describe("The name of the terminal to use for the operation."),
+	serverName: z.string().optional().describe('The name of the terminal to use for the operation.'),
 	commandToRun: z
 		.string()
 		.optional()
 		.describe(
-			"The specific command to execute for the operation. For 'start' and 'restart', this is typically the command to start your dev server (e.g., 'npm run dev'). For 'stop', it's the command to stop the server. For 'getLogs', this can be left empty."
+			"The specific command to execute for the operation. For 'start' and 'restart', this is typically the command to start your dev server (e.g., 'npm run dev'). For 'stop', it's the command to stop the server. For 'getLogs', this can be left empty.",
 		),
 })
 
@@ -78,7 +78,7 @@ const examples = [
 
 export const devServerTool = {
 	schema: {
-		name: "server_runner_tool",
+		name: 'server_runner_tool',
 		schema,
 	},
 	examples,

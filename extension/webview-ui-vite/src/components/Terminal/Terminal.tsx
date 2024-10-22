@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo, memo } from "react"
-import DynamicTextArea from "react-textarea-autosize"
-import stripAnsi from "strip-ansi"
-import { ScrollArea } from "../ui/scroll-area"
+import type React from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import DynamicTextArea from 'react-textarea-autosize'
+import stripAnsi from 'strip-ansi'
+import { ScrollArea } from '../ui/scroll-area'
 
 interface TerminalProps {
 	rawOutput: string
@@ -16,13 +17,13 @@ Note: Even though vscode exposes var(--vscode-terminalCursor-foreground) it does
 */
 
 const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProps) => {
-	const [userInput, setUserInput] = useState("")
+	const [userInput, setUserInput] = useState('')
 	const [isFocused, setIsFocused] = useState(false) // Initially not focused
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
 	const mirrorRef = useRef<HTMLDivElement>(null)
 	const hiddenTextareaRef = useRef<HTMLTextAreaElement>(null)
 
-	const [lastProcessedOutput, setLastProcessedOutput] = useState("")
+	const [lastProcessedOutput, setLastProcessedOutput] = useState('')
 
 	const output = useMemo(() => {
 		return stripAnsi(rawOutput)
@@ -30,12 +31,12 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 
 	useEffect(() => {
 		if (lastProcessedOutput !== output) {
-			setUserInput("")
+			setUserInput('')
 		}
 	}, [output, lastProcessedOutput])
 
 	const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-		if (e.key === "Enter") {
+		if (e.key === 'Enter') {
 			e.preventDefault()
 			handleSendStdin(userInput)
 			// setUserInput("") // Clear user input after processing
@@ -45,7 +46,7 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 			const textarea = textAreaRef.current
 			const hiddenTextarea = hiddenTextareaRef.current
 			if (textarea && hiddenTextarea) {
-				hiddenTextarea.value = ""
+				hiddenTextarea.value = ''
 				const newHeight = hiddenTextarea.scrollHeight
 				textarea.style.height = `${newHeight}px`
 			}
@@ -53,46 +54,48 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 	}
 
 	useEffect(() => {
-		setUserInput("") // Reset user input when output changes
+		setUserInput('') // Reset user input when output changes
 	}, [output])
 
 	useEffect(() => {
 		const textarea = textAreaRef.current
 		const mirror = mirrorRef.current
 		const hiddenTextarea = hiddenTextareaRef.current
-		if (!textarea || !mirror || !hiddenTextarea) return
+		if (!textarea || !mirror || !hiddenTextarea) {
+			return
+		}
 
 		const textareaStyles = window.getComputedStyle(textarea)
 		const stylesToCopy = [
-			"border",
-			"boxSizing",
-			"fontFamily",
-			"fontSize",
-			"fontWeight",
-			"letterSpacing",
-			"lineHeight",
-			"padding",
-			"textDecoration",
-			"textIndent",
-			"textTransform",
-			"whiteSpace",
-			"wordSpacing",
-			"wordWrap",
-			"width",
-			"height",
+			'border',
+			'boxSizing',
+			'fontFamily',
+			'fontSize',
+			'fontWeight',
+			'letterSpacing',
+			'lineHeight',
+			'padding',
+			'textDecoration',
+			'textIndent',
+			'textTransform',
+			'whiteSpace',
+			'wordSpacing',
+			'wordWrap',
+			'width',
+			'height',
 		]
 
 		stylesToCopy.forEach((property) => {
 			mirror.style[property as any] = textareaStyles[property as any]
 			hiddenTextarea.style[property as any] = textareaStyles[property as any]
 		})
-		mirror.style.borderColor = "transparent"
-		hiddenTextarea.style.visibility = "hidden"
-		hiddenTextarea.style.position = "absolute"
+		mirror.style.borderColor = 'transparent'
+		hiddenTextarea.style.visibility = 'hidden'
+		hiddenTextarea.style.position = 'absolute'
 		// hiddenTextarea.style.height = "auto"
 		hiddenTextarea.style.width = `${textarea.clientWidth}px`
-		hiddenTextarea.style.whiteSpace = "pre-wrap"
-		hiddenTextarea.style.overflowWrap = "break-word"
+		hiddenTextarea.style.whiteSpace = 'pre-wrap'
+		hiddenTextarea.style.overflowWrap = 'break-word'
 
 		// const borderWidth = parseInt(textareaStyles.borderWidth, 10) || 0
 		const updateSize = () => {
@@ -115,49 +118,55 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 			hiddenTextarea.style.width = `${textarea.clientWidth}px`
 			updateSize()
 		}
-		window.addEventListener("resize", handleWindowResize)
+		window.addEventListener('resize', handleWindowResize)
 
 		return () => {
 			resizeObserver.disconnect()
-			window.removeEventListener("resize", handleWindowResize)
+			window.removeEventListener('resize', handleWindowResize)
 		}
 	}, [])
 
 	useEffect(() => {
 		const textarea = textAreaRef.current
 		const mirror = mirrorRef.current
-		if (!textarea || !mirror) return
+		if (!textarea || !mirror) {
+			return
+		}
 
 		const handleScroll = () => {
-			if (mirror) mirror.scrollTop = textarea.scrollTop
+			if (mirror) {
+				mirror.scrollTop = textarea.scrollTop
+			}
 		}
 
-		textarea.addEventListener("scroll", handleScroll)
-		return () => textarea.removeEventListener("scroll", handleScroll)
+		textarea.addEventListener('scroll', handleScroll)
+		return () => textarea.removeEventListener('scroll', handleScroll)
 	}, [])
 
 	useEffect(() => {
 		const textarea = textAreaRef.current
 		const mirror = mirrorRef.current
-		if (!textarea || !mirror) return
+		if (!textarea || !mirror) {
+			return
+		}
 
 		const updateMirror = () => {
 			const cursorPos = textarea.selectionStart
 			const textBeforeCursor = textarea.value.substring(0, cursorPos)
 			const textAfterCursor = textarea.value.substring(cursorPos)
 
-			mirror.innerHTML = ""
+			mirror.innerHTML = ''
 			mirror.appendChild(document.createTextNode(textBeforeCursor))
 
-			const caretEle = document.createElement("span")
-			caretEle.classList.add("terminal-cursor")
+			const caretEle = document.createElement('span')
+			caretEle.classList.add('terminal-cursor')
 			if (isFocused) {
-				caretEle.classList.add("terminal-cursor-focused")
+				caretEle.classList.add('terminal-cursor-focused')
 			}
 			if (!shouldAllowInput) {
-				caretEle.classList.add("terminal-cursor-hidden")
+				caretEle.classList.add('terminal-cursor-hidden')
 			}
-			caretEle.innerHTML = "&nbsp;"
+			caretEle.innerHTML = '&nbsp;'
 			mirror.appendChild(caretEle)
 
 			mirror.appendChild(document.createTextNode(textAfterCursor))
@@ -166,8 +175,8 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 		// Update mirror on initial render
 		updateMirror()
 
-		document.addEventListener("selectionchange", updateMirror)
-		return () => document.removeEventListener("selectionchange", updateMirror)
+		document.addEventListener('selectionchange', updateMirror)
+		return () => document.removeEventListener('selectionchange', updateMirror)
 	}, [userInput, isFocused, shouldAllowInput])
 
 	useEffect(() => {
@@ -175,18 +184,18 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 		const mirror = mirrorRef.current
 		if (mirror) {
 			const text = output + userInput
-			mirror.innerHTML = ""
+			mirror.innerHTML = ''
 			mirror.appendChild(document.createTextNode(text))
 
-			const caretEle = document.createElement("span")
-			caretEle.classList.add("terminal-cursor")
+			const caretEle = document.createElement('span')
+			caretEle.classList.add('terminal-cursor')
 			if (isFocused) {
-				caretEle.classList.add("terminal-cursor-focused")
+				caretEle.classList.add('terminal-cursor-focused')
 			}
 			if (!shouldAllowInput) {
-				caretEle.classList.add("terminal-cursor-hidden")
+				caretEle.classList.add('terminal-cursor-hidden')
 			}
-			caretEle.innerHTML = "&nbsp;"
+			caretEle.innerHTML = '&nbsp;'
 			mirror.appendChild(caretEle)
 		}
 	}, [output, userInput, isFocused, shouldAllowInput])
@@ -217,7 +226,7 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 		const cursorPosition = textarea.selectionStart
 
 		// Prevent backspace from deleting the output part
-		if (e.key === "Backspace" && cursorPosition <= output.length) {
+		if (e.key === 'Backspace' && cursorPosition <= output.length) {
 			e.preventDefault()
 		}
 
@@ -227,40 +236,40 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 			const textBeforeCursor = textarea.value.substring(0, cursorPos)
 			const textAfterCursor = textarea.value.substring(cursorPos)
 
-			mirrorRef.current!.innerHTML = ""
-			mirrorRef.current!.appendChild(document.createTextNode(textBeforeCursor))
+			mirrorRef.current!.innerHTML = ''
+			mirrorRef.current?.appendChild(document.createTextNode(textBeforeCursor))
 
-			const caretEle = document.createElement("span")
-			caretEle.classList.add("terminal-cursor")
+			const caretEle = document.createElement('span')
+			caretEle.classList.add('terminal-cursor')
 			if (isFocused) {
-				caretEle.classList.add("terminal-cursor-focused")
+				caretEle.classList.add('terminal-cursor-focused')
 			}
 			if (!shouldAllowInput) {
-				caretEle.classList.add("terminal-cursor-hidden")
+				caretEle.classList.add('terminal-cursor-hidden')
 			}
-			caretEle.innerHTML = "&nbsp;"
-			mirrorRef.current!.appendChild(caretEle)
+			caretEle.innerHTML = '&nbsp;'
+			mirrorRef.current?.appendChild(caretEle)
 
-			mirrorRef.current!.appendChild(document.createTextNode(textAfterCursor))
+			mirrorRef.current?.appendChild(document.createTextNode(textAfterCursor))
 		}, 0)
 	}
 
 	const textAreaStyle: React.CSSProperties = {
-		fontFamily: "var(--vscode-editor-font-family)",
-		fontSize: "var(--vscode-editor-font-size)",
+		fontFamily: 'var(--vscode-editor-font-family)',
+		fontSize: 'var(--vscode-editor-font-size)',
 		// padding: "10px",
 		// border: "1px solid var(--vscode-editorGroup-border)",
-		outline: "none",
-		whiteSpace: "pre-wrap",
-		overflow: "hidden",
-		width: "100%",
-		boxSizing: "border-box",
-		resize: "none",
+		outline: 'none',
+		whiteSpace: 'pre-wrap',
+		overflow: 'hidden',
+		width: '100%',
+		boxSizing: 'border-box',
+		resize: 'none',
 	}
 
 	return (
 		<div className="terminal-container">
-			<ScrollArea viewProps={{ className: "max-h-[200px] w-full p-2 border-border border rounded" }}>
+			<ScrollArea viewProps={{ className: 'max-h-[200px] w-full p-2 border-border border rounded' }}>
 				<style>
 					{`
 					.terminal-container {
@@ -311,7 +320,7 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 				</style>
 				<DynamicTextArea
 					ref={textAreaRef}
-					value={output + (shouldAllowInput ? userInput : "")}
+					value={output + (shouldAllowInput ? userInput : '')}
 					onChange={handleChange}
 					onKeyDown={handleKeyDown}
 					onKeyPress={handleKeyPress}
@@ -320,14 +329,14 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 					className="terminal-textarea"
 					style={{
 						// backgroundColor: "var(--vscode-editor-background)", // NOTE: adding cursor ontop of this color wouldnt work on some themes
-						caretColor: "transparent", // Hide default caret
-						color: "var(--vscode-terminal-foreground)",
-						borderRadius: "3px",
+						caretColor: 'transparent', // Hide default caret
+						color: 'var(--vscode-terminal-foreground)',
+						borderRadius: '3px',
 						...(textAreaStyle as any),
 					}}
 					minRows={1}
 				/>
-				<div ref={mirrorRef} className="terminal-mirror"></div>
+				<div ref={mirrorRef} className="terminal-mirror" />
 				<DynamicTextArea
 					ref={hiddenTextareaRef}
 					className="terminal-textarea"
@@ -336,12 +345,12 @@ const Terminal = ({ rawOutput, handleSendStdin, shouldAllowInput }: TerminalProp
 					readOnly
 					minRows={1}
 					style={{
-						position: "absolute",
+						position: 'absolute',
 						top: 0,
 						left: 0,
-						height: "100%",
-						width: "100%",
-						overflow: "hidden",
+						height: '100%',
+						width: '100%',
+						overflow: 'hidden',
 						opacity: 0,
 						...(textAreaStyle as any),
 					}}

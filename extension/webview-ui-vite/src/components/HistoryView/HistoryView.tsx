@@ -1,15 +1,13 @@
-import { useState, useEffect, useMemo } from "react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
-import { useExtensionState } from "@/context/ExtensionStateContext"
-import { vscode } from "@/utils/vscode"
-import { Virtuoso } from "react-virtuoso"
-import Fuse, { FuseResult } from "fuse.js"
-import HistoryItem from "./HistoryItem"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
-import { type HistoryItem as HistoryItemT } from "../../../../src/shared/HistoryItem"
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { useExtensionState } from '@/context/ExtensionStateContext'
+import { vscode } from '@/utils/vscode'
+import Fuse, { type FuseResult } from 'fuse.js'
+import { useEffect, useMemo, useState } from 'react'
+import { Virtuoso } from 'react-virtuoso'
+import type { HistoryItem as HistoryItemT } from '../../../../src/shared/HistoryItem'
 import {
 	Dialog,
 	DialogClose,
@@ -18,20 +16,19 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTrigger,
-} from "../ui/dialog"
+} from '../ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
+import HistoryItem from './HistoryItem'
 
-type SortOption = "newest" | "oldest" | "mostExpensive" | "mostTokens" | "mostRelevant"
+type SortOption = 'newest' | 'oldest' | 'mostExpensive' | 'mostTokens' | 'mostRelevant'
 
 type HistoryViewProps = {
 	onDone: () => void
 }
 
-const highlight = (
-	fuseSearchResult: FuseResult<HistoryItemT>[],
-	highlightClassName: string = "history-item-highlight"
-) => {
+const highlight = (fuseSearchResult: FuseResult<HistoryItemT>[], highlightClassName = 'history-item-highlight') => {
 	const set = (obj: Record<string, any>, path: string, value: any) => {
-		const pathValue = path.split(".")
+		const pathValue = path.split('.')
 		let i: number
 
 		for (i = 0; i < pathValue.length - 1; i++) {
@@ -42,7 +39,7 @@ const highlight = (
 	}
 
 	const generateHighlightedText = (inputText: string, regions: [number, number][] = []) => {
-		let content = ""
+		let content = ''
 		let nextUnhighlightedRegionStartingIndex = 0
 
 		regions.forEach((region) => {
@@ -52,8 +49,8 @@ const highlight = (
 				inputText.substring(nextUnhighlightedRegionStartingIndex, region[0]),
 				`<span class="text-primary">`,
 				inputText.substring(region[0], lastRegionNextIndex),
-				"</span>",
-			].join("")
+				'</span>',
+			].join('')
 
 			nextUnhighlightedRegionStartingIndex = lastRegionNextIndex
 		})
@@ -64,12 +61,12 @@ const highlight = (
 	}
 
 	return fuseSearchResult
-		.filter(({ matches }) => matches && matches.length)
+		.filter(({ matches }) => matches?.length)
 		.map(({ item, matches }) => {
 			const highlightedItem = { ...item }
 
 			matches?.forEach((match) => {
-				if (match.key && typeof match.value === "string") {
+				if (match.key && typeof match.value === 'string') {
 					set(highlightedItem, match.key, generateHighlightedText(match.value, [...match.indices]))
 				}
 			})
@@ -80,15 +77,15 @@ const highlight = (
 
 const HistoryView = ({ onDone }: HistoryViewProps) => {
 	const { taskHistory } = useExtensionState()
-	const [searchQuery, setSearchQuery] = useState("")
-	const [sortOption, setSortOption] = useState<SortOption>("newest")
-	const [lastNonRelevantSort, setLastNonRelevantSort] = useState<SortOption | null>("newest")
+	const [searchQuery, setSearchQuery] = useState('')
+	const [sortOption, setSortOption] = useState<SortOption>('newest')
+	const [lastNonRelevantSort, setLastNonRelevantSort] = useState<SortOption | null>('newest')
 
 	useEffect(() => {
-		if (searchQuery && sortOption !== "mostRelevant" && !lastNonRelevantSort) {
+		if (searchQuery && sortOption !== 'mostRelevant' && !lastNonRelevantSort) {
 			setLastNonRelevantSort(sortOption)
-			setSortOption("mostRelevant")
-		} else if (!searchQuery && sortOption === "mostRelevant" && lastNonRelevantSort) {
+			setSortOption('mostRelevant')
+		} else if (!searchQuery && sortOption === 'mostRelevant' && lastNonRelevantSort) {
 			setSortOption(lastNonRelevantSort)
 			setLastNonRelevantSort(null)
 		}
@@ -100,7 +97,7 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 
 	const fuse = useMemo(() => {
 		return new Fuse(presentableTasks, {
-			keys: ["task", "name"],
+			keys: ['task', 'name'],
 			threshold: 0.7,
 			shouldSort: true,
 			isCaseSensitive: false,
@@ -115,11 +112,11 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 
 		results.sort((a, b) => {
 			switch (sortOption) {
-				case "oldest":
+				case 'oldest':
 					return a.ts - b.ts
-				case "mostExpensive":
+				case 'mostExpensive':
 					return (b.totalCost || 0) - (a.totalCost || 0)
-				case "mostTokens":
+				case 'mostTokens':
 					return (
 						(b.tokensIn || 0) +
 						(b.tokensOut || 0) +
@@ -127,9 +124,8 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 						(b.cacheReads || 0) -
 						((a.tokensIn || 0) + (a.tokensOut || 0) + (a.cacheWrites || 0) + (a.cacheReads || 0))
 					)
-				case "mostRelevant":
+				case 'mostRelevant':
 					return searchQuery ? 0 : b.ts - a.ts
-				case "newest":
 				default:
 					return b.ts - a.ts
 			}
@@ -161,7 +157,8 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 								<DialogClose asChild>
 									<Button
 										variant="destructive"
-										onClick={() => vscode.postMessage({ type: "clearHistory" })}>
+										onClick={() => vscode.postMessage({ type: 'clearHistory' })}
+									>
 										Delete All
 									</Button>
 								</DialogClose>
@@ -184,7 +181,8 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 					<RadioGroup
 						className="flex flex-wrap gap-2"
 						value={sortOption}
-						onValueChange={(value) => setSortOption(value as SortOption)}>
+						onValueChange={(value) => setSortOption(value as SortOption)}
+					>
 						<div className="flex items-center space-x-2">
 							<RadioGroupItem value="newest" id="newest" />
 							<Label htmlFor="newest">Newest</Label>
@@ -205,7 +203,7 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 							<TooltipTrigger asChild>
 								<div className="flex items-center space-x-2">
 									<RadioGroupItem value="mostRelevant" id="mostRelevant" disabled={!searchQuery} />
-									<Label htmlFor="mostRelevant" className={!searchQuery ? "opacity-50" : ""}>
+									<Label htmlFor="mostRelevant" className={!searchQuery ? 'opacity-50' : ''}>
 										Most Relevant
 									</Label>
 								</div>
@@ -227,9 +225,9 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 						<HistoryItem
 							key={item.id}
 							item={item}
-							onSelect={() => vscode.postMessage({ type: "showTaskWithId", text: item.id })}
-							onDelete={() => vscode.postMessage({ type: "deleteTaskWithId", text: item.id })}
-							onExport={() => vscode.postMessage({ type: "exportTaskWithId", text: item.id })}
+							onSelect={() => vscode.postMessage({ type: 'showTaskWithId', text: item.id })}
+							onDelete={() => vscode.postMessage({ type: 'deleteTaskWithId', text: item.id })}
+							onExport={() => vscode.postMessage({ type: 'exportTaskWithId', text: item.id })}
 						/>
 					)}
 				/>

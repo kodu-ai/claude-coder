@@ -1,34 +1,34 @@
-import { amplitudeTracker } from "."
-import { AmplitudeWebviewMessage } from "../../shared/WebviewMessage"
+import { amplitudeTracker } from '.'
+import type { AmplitudeWebviewMessage } from '../../shared/WebviewMessage'
 
 export class AmplitudeWebviewManager {
 	static handleMessage(message: AmplitudeWebviewMessage) {
 		switch (message.event_type) {
-			case "OfferwallView":
+			case 'OfferwallView':
 				amplitudeTracker.offerwallView()
 				break
-			case "ExtensionCreditAddOpen":
+			case 'ExtensionCreditAddOpen':
 				amplitudeTracker.addCreditsClick()
 				break
-			case "ReferralProgram":
+			case 'ReferralProgram':
 				amplitudeTracker.referralProgramClick()
 				break
-			case "AuthStart":
+			case 'AuthStart':
 				amplitudeTracker.authStart()
 				break
-			case "TrialOfferView":
+			case 'TrialOfferView':
 				amplitudeTracker.trialOfferView()
 				break
-			case "TrialOfferStart":
+			case 'TrialOfferStart':
 				amplitudeTracker.trialOfferStart()
 				break
-			case "TrialUpsellView":
+			case 'TrialUpsellView':
 				amplitudeTracker.trialUpsellView()
 				break
-			case "TrialUpsellStart":
+			case 'TrialUpsellStart':
 				amplitudeTracker.trialUpsellStart()
 				break
-			case "ExtensionCreditAddSelect":
+			case 'ExtensionCreditAddSelect':
 				amplitudeTracker.extensionCreditAddSelect(message.key!)
 				break
 		}

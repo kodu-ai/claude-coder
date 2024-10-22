@@ -1,5 +1,5 @@
 // schema/ask_consultant.ts
-import { z } from "zod"
+import { z } from 'zod'
 
 /**
  * @tool ask_consultant
@@ -28,7 +28,7 @@ import { z } from "zod"
  * ```
  */
 const schema = z.object({
-	query: z.string().describe("The question or issue you want to ask the consultant."),
+	query: z.string().describe('The question or issue you want to ask the consultant.'),
 })
 
 const examples = [
@@ -47,7 +47,7 @@ const examples = [
 
 export const askConsultantTool = {
 	schema: {
-		name: "ask_consultant",
+		name: 'ask_consultant',
 		schema,
 	},
 	examples,

@@ -1,41 +1,39 @@
-import { readdir } from "fs/promises"
-import path from "path"
-import * as vscode from "vscode"
-import { KoduDevState } from "../../../agent/v1/types"
+import { readdir } from 'node:fs/promises'
+import path from 'node:path'
+import * as vscode from 'vscode'
+import type { KoduDevState } from '../../../agent/v1/types'
 // import { GitHandler } from "../../../agent/v1/handlers"
-import { ExecaTerminalManager } from "../../../integrations/terminal/execa-terminal-manager"
-import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
-import {
-	WebviewMessage
-} from "../../../shared/WebviewMessage"
-import { getNonce, getUri } from "../../../utils"
-import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
-import { ExtensionProvider } from "../ClaudeCoderProvider"
-import { quickStart } from "./quick-start"
+import { ExecaTerminalManager } from '../../../integrations/terminal/execa-terminal-manager'
+import type { ExtensionMessage, ExtensionState } from '../../../shared/ExtensionMessage'
+import type { WebviewMessage } from '../../../shared/WebviewMessage'
+import { getNonce, getUri } from '../../../utils'
+import { AmplitudeWebviewManager } from '../../../utils/amplitude/manager'
+import type { ExtensionProvider } from '../ClaudeCoderProvider'
+import { quickStart } from './quick-start'
 
 interface FileTreeItem {
 	id: string
 	name: string
 	children?: FileTreeItem[]
 	depth: number
-	type: "file" | "folder"
+	type: 'file' | 'folder'
 }
 
 const excludedDirectories = [
-	"node_modules",
-	"venv",
-	".venv",
-	"__pycache__",
-	".git",
-	"dist",
-	"build",
-	"target",
-	"vendor",
-	"modules",
-	"packages",
+	'node_modules',
+	'venv',
+	'.venv',
+	'__pycache__',
+	'.git',
+	'dist',
+	'build',
+	'target',
+	'vendor',
+	'modules',
+	'packages',
 ]
 export class WebviewManager {
-	private static readonly latestAnnouncementId = "sep-13-2024"
+	private static readonly latestAnnouncementId = 'sep-13-2024'
 	private execaTerminalManager: ExecaTerminalManager
 
 	constructor(private provider: ExtensionProvider) {
@@ -55,25 +53,25 @@ export class WebviewManager {
 
 		this.setWebviewMessageListener(webviewView.webview)
 
-		if ("onDidChangeViewState" in webviewView) {
+		if ('onDidChangeViewState' in webviewView) {
 			webviewView.onDidChangeViewState(
 				() => {
 					if (webviewView.visible) {
-						this.postMessageToWebview({ type: "action", action: "didBecomeVisible" })
+						this.postMessageToWebview({ type: 'action', action: 'didBecomeVisible' })
 					}
 				},
 				null,
-				this.provider["disposables"]
+				this.provider.disposables,
 			)
-		} else if ("onDidChangeVisibility" in webviewView) {
+		} else if ('onDidChangeVisibility' in webviewView) {
 			webviewView.onDidChangeVisibility(
 				() => {
 					if (webviewView.visible) {
-						this.postMessageToWebview({ type: "action", action: "didBecomeVisible" })
+						this.postMessageToWebview({ type: 'action', action: 'didBecomeVisible' })
 					}
 				},
 				null,
-				this.provider["disposables"]
+				this.provider.disposables,
 			)
 		}
 	}
@@ -83,7 +81,7 @@ export class WebviewManager {
 	}
 
 	async postMessageToWebview(message: ExtensionMessage) {
-		await this.provider["view"]?.webview.postMessage(message)
+		await this.provider.view?.webview.postMessage(message)
 	}
 
 	/**
@@ -93,14 +91,14 @@ export class WebviewManager {
 		const claudeMessages = this.provider.getKoduDev()?.getStateManager().state.claudeMessages ?? []
 
 		return this.postMessageToWebview({
-			type: "claudeMessages",
+			type: 'claudeMessages',
 			claudeMessages,
 		})
 	}
 
 	async postStateToWebview() {
 		const state = await this.getStateToPostToWebview()
-		this.postMessageToWebview({ type: "state", state })
+		this.postMessageToWebview({ type: 'state', state })
 	}
 
 	private async getStateToPostToWebview() {
@@ -109,8 +107,8 @@ export class WebviewManager {
 		const extensionName = this.provider.getContext().extension?.packageJSON?.name
 		return {
 			...state,
-			version: this.provider.getContext().extension?.packageJSON?.version ?? "",
-			themeName: vscode.workspace.getConfiguration("workbench").get<string>("colorTheme"),
+			version: this.provider.getContext().extension?.packageJSON?.version ?? '',
+			themeName: vscode.workspace.getConfiguration('workbench').get<string>('colorTheme'),
 			uriScheme: vscode.env.uriScheme,
 			extensionName,
 			claudeMessages: koduDevState?.claudeMessages ?? [],
@@ -121,33 +119,33 @@ export class WebviewManager {
 	}
 
 	private getHtmlContent(webview: vscode.Webview): string {
-		const localPort = "5173"
+		const localPort = '5173'
 		const localServerUrl = `localhost:${localPort}`
-		let scriptUri
+		let scriptUri: string | vscode.Uri
 		const isProd = this.provider.getContext().extensionMode === vscode.ExtensionMode.Production
 		if (isProd) {
 			scriptUri = getUri(webview, this.provider.getContext().extensionUri, [
-				"webview-ui-vite",
-				"build",
-				"assets",
-				"index.js",
+				'webview-ui-vite',
+				'build',
+				'assets',
+				'index.js',
 			])
 		} else {
 			scriptUri = `http://${localServerUrl}/src/index.tsx`
 		}
 		const stylesUri = getUri(webview, this.provider.getContext().extensionUri, [
-			"webview-ui-vite",
-			"build",
-			"assets",
-			"index.css",
+			'webview-ui-vite',
+			'build',
+			'assets',
+			'index.css',
 		])
 
 		const codiconsUri = getUri(webview, this.provider.getContext().extensionUri, [
-			"node_modules",
-			"@vscode",
-			"codicons",
-			"dist",
-			"codicon.css",
+			'node_modules',
+			'@vscode',
+			'codicons',
+			'dist',
+			'codicon.css',
 		])
 
 		const nonce = getNonce()
@@ -179,7 +177,7 @@ export class WebviewManager {
 			`img-src ${webview.cspSource} data:`,
 			`connect-src https://* ${
 				isProd
-					? ``
+					? ''
 					: `ws://${localServerUrl} ws://0.0.0.0:${localPort} http://${localServerUrl} http://0.0.0.0:${localPort}`
 			}`,
 		]
@@ -191,7 +189,7 @@ export class WebviewManager {
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
             <meta name="theme-color" content="#000000">
-            <meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
+            <meta http-equiv="Content-Security-Policy" content="${csp.join('; ')}">
 	        <link rel="stylesheet" type="text/css" href="${stylesUri}">
 			<link href="${codiconsUri}" rel="stylesheet" />
             <title>Claude Coder</title>
@@ -201,7 +199,7 @@ export class WebviewManager {
             <div id="root"></div>
             ${
 				isProd
-					? ""
+					? ''
 					: `
                 <script type="module">
                   import RefreshRuntime from "http://${localServerUrl}/@react-refresh"
@@ -218,7 +216,7 @@ export class WebviewManager {
       `
 	}
 
-	async getFileTree(dir: string, parentId: string = ""): Promise<FileTreeItem[]> {
+	async getFileTree(dir: string, parentId = ''): Promise<FileTreeItem[]> {
 		const entries = await readdir(dir, { withFileTypes: true })
 		const items: FileTreeItem[] = []
 
@@ -234,17 +232,17 @@ export class WebviewManager {
 				const children = await this.getFileTree(fullPath, id)
 				items.push({
 					id,
-					depth: parentId.split("-").length,
+					depth: parentId.split('-').length,
 					name: entry.name,
 					children,
-					type: "folder",
+					type: 'folder',
 				})
 			} else {
 				items.push({
 					id,
-					depth: parentId.split("-").length,
+					depth: parentId.split('-').length,
 					name: entry.name,
-					type: "file",
+					type: 'file',
 				})
 			}
 		}
@@ -256,11 +254,11 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
-					case "skipWriteAnimation":
+					case 'skipWriteAnimation':
 						await this.provider.getStateManager().setSkipWriteAnimation(!!message.bool)
 						await this.postStateToWebview()
 						break
-					case "updateGlobalState":
+					case 'updateGlobalState':
 						for (const [key, value] of Object.entries(message.state)) {
 							await this.provider
 								.getGlobalStateManager()
@@ -269,37 +267,38 @@ export class WebviewManager {
 						// no need to post state to webview, as the state was received from the webview itself
 						// await this.postStateToWebview()
 						break
-					case "toolFeedback":
+					case 'toolFeedback':
 						await this.provider
 							.getTaskManager()
-							.handleAskResponse(message.feedback === "approve" ? "yesButtonTapped" : "noButtonTapped")
+							.handleAskResponse(message.feedback === 'approve' ? 'yesButtonTapped' : 'noButtonTapped')
 						break
-					case "technicalBackground":
+					case 'technicalBackground':
 						await this.provider.getStateManager().setTechnicalBackground(message.value)
 						await this.postStateToWebview()
 						break
-					case "experimentalTerminal":
+					case 'experimentalTerminal':
 						await this.provider.getStateManager().setExperimentalTerminal(message.bool)
 						await this.postStateToWebview()
 						break
-					case "clearHistory":
+					case 'clearHistory':
 						await this.provider.getStateManager().clearHistory()
 						await this.provider.getTaskManager().clearAllTasks()
 						await this.postStateToWebview()
 						break
-					case "fileTree":
+					case 'fileTree': {
 						const workspaceFolders = vscode.workspace.workspaceFolders
 						if (workspaceFolders && workspaceFolders.length > 0) {
 							const rootPath = workspaceFolders[0].uri.fsPath
 							const fileTree = await this.getFileTree(rootPath)
 							this.postMessageToWebview({
-								type: "fileTree",
+								type: 'fileTree',
 								tree: fileTree,
 							})
 						}
 						break
-					case "quickstart":
-						console.log("Quickstart message received")
+					}
+					case 'quickstart': {
+						console.log('Quickstart message received')
 						this.provider.getTaskManager().handleNewTask
 						const callback = async (description: string) => {
 							// create new KoduDev instance with description as first message
@@ -307,145 +306,147 @@ export class WebviewManager {
 						}
 						await quickStart(message.repo, message.name, callback)
 						break
-					case "exportBug":
-						console.log("Export bug message received")
+					}
+					case 'exportBug':
+						console.log('Export bug message received')
 						await this.provider.getTaskManager().exportBug(message.description, message.reproduction)
 						break
-					case "renameTask":
+					case 'renameTask':
 						await this.provider.getTaskManager().renameTask(
 							message.isCurentTask
 								? {
 										isCurentTask: true,
-								  }
+									}
 								: {
 										taskId: message.taskId!,
-								  }
+									},
 						)
 						break
-					case "useUdiff":
+					case 'useUdiff':
 						await this.provider.getStateManager().setUseUdiff(message.bool)
 						console.log(`useUdiff: ${message.bool}`)
 						await this.postStateToWebview()
 						break
-					case "freeTrial":
+					case 'freeTrial':
 						await this.provider.getApiManager().initFreeTrialUser(message.fp)
 						break
-					case "openExternalLink":
+					case 'openExternalLink':
 						vscode.env.openExternal(vscode.Uri.parse(message.url))
 						break
-					case "amplitude":
+					case 'amplitude':
 						AmplitudeWebviewManager.handleMessage(message)
 						break
-					case "cancelCurrentRequest":
+					case 'cancelCurrentRequest':
 						await this.provider.getKoduDev()?.taskExecutor.abortTask()
 						await this.postStateToWebview()
 						break
-					case "abortAutomode":
+					case 'abortAutomode':
 						await this.provider.getTaskManager().clearTask()
 						await this.postStateToWebview()
 						break
-					case "webviewDidLaunch":
+					case 'webviewDidLaunch':
 						await this.postStateToWebview()
 						break
-					case "newTask":
+					case 'newTask':
 						await this.provider
 							.getTaskManager()
 							.handleNewTask(message.text, message.images, message.attachements)
 						break
-					case "apiConfiguration":
+					case 'apiConfiguration':
 						if (message.apiConfiguration) {
 							await this.provider.getApiManager().updateApiConfiguration(message.apiConfiguration)
 							await this.postStateToWebview()
 						}
 						break
-					case "autoCloseTerminal":
+					case 'autoCloseTerminal':
 						await this.provider.getStateManager().setAutoCloseTerminal(message.bool)
 						await this.postStateToWebview()
 						break
-					case "maxRequestsPerTask":
+					case 'maxRequestsPerTask':
 						await this.provider
 							.getStateManager()
 							.setMaxRequestsPerTask(message.text ? Number(message.text) : undefined)
 						await this.postStateToWebview()
 						break
-					case "customInstructions":
+					case 'customInstructions':
 						await this.provider.getStateManager().setCustomInstructions(message.text || undefined)
 						await this.postStateToWebview()
 						break
-					case "alwaysAllowReadOnly":
+					case 'alwaysAllowReadOnly':
 						await this.provider.getStateManager().setAlwaysAllowReadOnly(message.bool ?? false)
 						await this.postStateToWebview()
 						break
-					case "alwaysAllowWriteOnly":
+					case 'alwaysAllowWriteOnly':
 						await this.provider.getStateManager().setAlwaysAllowWriteOnly(message.bool ?? false)
 						await this.postStateToWebview()
 						break
-					case "askResponse":
+					case 'askResponse':
 						await this.provider
 							.getTaskManager()
 							.handleAskResponse(message.askResponse!, message.text, message.images, message.attachements)
 						break
-					case "clearTask":
+					case 'clearTask':
 						await this.provider.getTaskManager().clearTask()
 						await this.postStateToWebview()
 						break
-					case "didCloseAnnouncement":
+					case 'didCloseAnnouncement':
 						await this.provider
 							.getGlobalStateManager()
-							.updateGlobalState("lastShownAnnouncementId", WebviewManager.latestAnnouncementId)
+							.updateGlobalState('lastShownAnnouncementId', WebviewManager.latestAnnouncementId)
 						await this.postStateToWebview()
 						break
-					case "selectImages":
+					case 'selectImages': {
 						const images = await this.provider.getTaskManager().selectImages()
 						await this.postMessageToWebview({
-							type: "selectedImages",
+							type: 'selectedImages',
 							images: images.map((img) => img),
 						})
 						break
-					case "exportCurrentTask":
+					}
+					case 'exportCurrentTask':
 						await this.provider.getTaskManager().exportCurrentTask()
 						break
-					case "showTaskWithId":
+					case 'showTaskWithId':
 						await this.provider.getTaskManager().showTaskWithId(message.text!)
 						break
-					case "deleteTaskWithId":
+					case 'deleteTaskWithId':
 						await this.provider.getTaskManager().deleteTaskWithId(message.text!)
 						break
-					case "setCreativeMode":
+					case 'setCreativeMode':
 						await this.provider
 							.getStateManager()
-							.setCreativeMode(message.text as "creative" | "normal" | "deterministic")
+							.setCreativeMode(message.text as 'creative' | 'normal' | 'deterministic')
 						await this.postStateToWebview()
 						break
-					case "setSummarizationThreshold":
+					case 'setSummarizationThreshold':
 						await this.provider.getStateManager().setSummarizationThreshold(message.value ?? 50)
 						await this.postStateToWebview()
 						break
-					case "exportTaskWithId":
+					case 'exportTaskWithId':
 						await this.provider.getTaskManager().exportTaskWithId(message.text!)
 						break
-					case "didClickKoduSignOut":
+					case 'didClickKoduSignOut':
 						await this.provider.getApiManager().signOutKodu()
 						await this.postStateToWebview()
 						break
-					case "fetchKoduCredits":
+					case 'fetchKoduCredits':
 						await this.provider.getApiManager().fetchKoduCredits()
 						await this.postMessageToWebview({
-							type: "action",
-							action: "koduCreditsFetched",
+							type: 'action',
+							action: 'koduCreditsFetched',
 							state: await this.getStateToPostToWebview(),
 						})
 						break
-					case "didDismissKoduPromo":
-						await this.provider.getGlobalStateManager().updateGlobalState("shouldShowKoduPromo", false)
+					case 'didDismissKoduPromo':
+						await this.provider.getGlobalStateManager().updateGlobalState('shouldShowKoduPromo', false)
 						await this.postStateToWebview()
 						break
-					case "resetState":
+					case 'resetState':
 						await this.provider.getGlobalStateManager().resetState()
 						await this.provider.getSecretStateManager().resetState()
 						await this.postStateToWebview()
 						break
-					case "debug":
+					case 'debug':
 						await this.handleDebugInstruction()
 						break
 					// case "gitLog":
@@ -471,14 +472,14 @@ export class WebviewManager {
 					// case "updateTaskHistory":
 					// 	this.provider.getKoduDev()?.executeTool("upsert_memory", { content: message.history })
 					// 	break
-					case "executeCommand":
+					case 'executeCommand': {
 						const callbackFunction = (
-							event: "error" | "exit" | "response",
+							event: 'error' | 'exit' | 'response',
 							commandId: number,
-							data: string
+							data: string,
 						) => {
 							this.postMessageToWebview({
-								type: "commandExecutionResponse",
+								type: 'commandExecutionResponse',
 								status: event,
 								payload: data,
 								commandId: commandId.toString(),
@@ -486,10 +487,11 @@ export class WebviewManager {
 						}
 						await this.execaTerminalManager.executeCommand(message, callbackFunction)
 						break
+					}
 				}
 			},
 			null,
-			this.provider["disposables"]
+			this.provider.disposables,
 		)
 	}
 
@@ -498,13 +500,13 @@ export class WebviewManager {
 		const openFolders = vscode.workspace.workspaceFolders
 		if (!openFolders) {
 			// vscode toast
-			vscode.window.showErrorMessage("No open workspaces, please open a workspace.")
+			vscode.window.showErrorMessage('No open workspaces, please open a workspace.')
 			return
 		}
 
 		if (openFolders.length > 1) {
 			// vscode toast
-			vscode.window.showErrorMessage("Multiple workspaces detected! Please open only one workspace.")
+			vscode.window.showErrorMessage('Multiple workspaces detected! Please open only one workspace.')
 			return
 		}
 
@@ -519,9 +521,9 @@ export class WebviewManager {
 		// 	await agent.taskExecutor.say("info", "No problems detected!")
 		// 	return
 		// }
-		const problemsString = "Check system logs for more information."
+		const problemsString = 'Check system logs for more information.'
 
-		return await agent.taskExecutor.handleAskResponse("messageResponse", problemsString)
+		return await agent.taskExecutor.handleAskResponse('messageResponse', problemsString)
 	}
 
 	private async getTaskHistory(): Promise<void> {
@@ -532,10 +534,10 @@ export class WebviewManager {
 		}
 
 		this.postMessageToWebview({
-			type: "taskHistory",
+			type: 'taskHistory',
 			history:
 				memory ??
-				"Task history is not initialized yet, Agent will initialize it soon, or you can ask Agent to create it.",
+				'Task history is not initialized yet, Agent will initialize it soon, or you can ask Agent to create it.',
 			isInitialized: !!memory,
 		})
 	}

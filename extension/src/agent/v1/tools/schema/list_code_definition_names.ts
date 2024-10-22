@@ -1,5 +1,5 @@
 // schema/list_code_definition_names.ts
-import { z } from "zod"
+import { z } from 'zod'
 
 /**
  * @tool list_code_definition_names
@@ -31,7 +31,7 @@ const schema = z.object({
 	path: z
 		.string()
 		.describe(
-			"The path of the directory (relative to the current working directory) to list top-level source code definitions for."
+			'The path of the directory (relative to the current working directory) to list top-level source code definitions for.',
 		),
 })
 
@@ -51,7 +51,7 @@ const examples = [
 
 export const listCodeDefinitionNamesTool = {
 	schema: {
-		name: "list_code_definition_names",
+		name: 'list_code_definition_names',
 		schema,
 	},
 	examples,

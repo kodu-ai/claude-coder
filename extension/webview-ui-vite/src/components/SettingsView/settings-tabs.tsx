@@ -1,23 +1,23 @@
-import { Button } from "@/components/ui/button"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
-import useDebounce from "@/hooks/use-debounce"
-import { vscode } from "@/utils/vscode"
-import { Check, ChevronDown, X } from "lucide-react"
-import React, { useCallback, useState } from "react"
-import { GlobalState } from "../../../../src/providers/claude-coder/state/GlobalStateManager"
-import { KoduModels, koduModels } from "../../../../src/shared/api"
-import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
-import { useExtensionState } from "../../context/ExtensionStateContext"
-import { formatPrice } from "../ApiOptions/utils"
-import SummarizationThresholdSlider from "../SummarizationThresholdSlider"
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
-import { SettingsFooter } from "./settings-footer"
+import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+import useDebounce from '@/hooks/use-debounce'
+import { vscode } from '@/utils/vscode'
+import { Check, ChevronDown, X } from 'lucide-react'
+import React, { useCallback, useState } from 'react'
+import type { GlobalState } from '../../../../src/providers/claude-coder/state/GlobalStateManager'
+import { type KoduModels, koduModels } from '../../../../src/shared/api'
+import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduSignInUrl } from '../../../../src/shared/kodu'
+import { useExtensionState } from '../../context/ExtensionStateContext'
+import { formatPrice } from '../ApiOptions/utils'
+import SummarizationThresholdSlider from '../SummarizationThresholdSlider'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
+import { SettingsFooter } from './settings-footer'
 
 interface ExperimentalFeature {
 	id: keyof GlobalState
@@ -38,40 +38,40 @@ const models: Record<
 		isHardWorker?: boolean
 	}
 > = {
-	"claude-3-5-sonnet-20240620": {
-		...koduModels["claude-3-5-sonnet-20240620"],
-		label: "Claude 3.5 Sonnet",
+	'claude-3-5-sonnet-20240620': {
+		...koduModels['claude-3-5-sonnet-20240620'],
+		label: 'Claude 3.5 Sonnet',
 		isRecommended: true,
 		isHardWorker: true,
 	},
-	"claude-3-opus-20240229": {
-		...koduModels["claude-3-opus-20240229"],
-		label: "Claude 3 Opus",
+	'claude-3-opus-20240229': {
+		...koduModels['claude-3-opus-20240229'],
+		label: 'Claude 3 Opus',
 	},
-	"claude-3-haiku-20240307": {
-		...koduModels["claude-3-haiku-20240307"],
-		label: "Claude 3 Haiku",
+	'claude-3-haiku-20240307': {
+		...koduModels['claude-3-haiku-20240307'],
+		label: 'Claude 3 Haiku',
 	},
 }
 
 const experimentalFeatures: ExperimentalFeature[] = [
 	{
-		id: "alwaysAllowWriteOnly",
-		label: "Automatic Mode",
-		description: "Claude will automatically try to solve tasks without asking for permission",
+		id: 'alwaysAllowWriteOnly',
+		label: 'Automatic Mode',
+		description: 'Claude will automatically try to solve tasks without asking for permission',
 	},
 
 	{
-		id: "lastShownAnnouncementId",
-		label: "One Click Deployment",
-		description: "Deploy your projects with a single click",
+		id: 'lastShownAnnouncementId',
+		label: 'One Click Deployment',
+		description: 'Deploy your projects with a single click',
 		disabled: true,
 		comingSoon: true,
 	},
 	{
-		id: "creativeMode",
-		label: "AutoSummarize Chat",
-		description: "Automatically generate summaries of your chat conversations",
+		id: 'creativeMode',
+		label: 'AutoSummarize Chat',
+		description: 'Automatically generate summaries of your chat conversations',
 		disabled: true,
 		comingSoon: true,
 	},
@@ -80,7 +80,9 @@ const experimentalFeatures: ExperimentalFeature[] = [
 // Components
 const ModelDetails: React.FC<{ model: keyof KoduModels }> = React.memo(({ model }) => {
 	const details = models[model]
-	if (!details || details.comingSoon) return null
+	if (!details || details.comingSoon) {
+		return null
+	}
 
 	return (
 		<Collapsible defaultOpen className="w-full">
@@ -93,7 +95,7 @@ const ModelDetails: React.FC<{ model: keyof KoduModels }> = React.memo(({ model 
 					<div>Max Tokens: {details.maxTokens?.toLocaleString()}</div>
 					<div>Context Window: {details.contextWindow?.toLocaleString()}</div>
 					<div>
-						Supports Images:{" "}
+						Supports Images:{' '}
 						{details.supportsImages ? (
 							<Check className="inline text-green-500 h-3 w-3" />
 						) : (
@@ -101,7 +103,7 @@ const ModelDetails: React.FC<{ model: keyof KoduModels }> = React.memo(({ model 
 						)}
 					</div>
 					<div>
-						Supports Prompt Cache:{" "}
+						Supports Prompt Cache:{' '}
 						{details.supportsPromptCache ? (
 							<Check className="inline text-green-500 h-3 w-3" />
 						) : (
@@ -170,62 +172,64 @@ const ExperimentalFeatureItem: React.FC<{
 
 const SettingsPage: React.FC = () => {
 	const extensionState = useExtensionState()
-	const [model, setModel] = useState(extensionState.apiConfiguration?.apiModelId || "claude-3-5-sonnet-20240620")
+	const [model, setModel] = useState(extensionState.apiConfiguration?.apiModelId || 'claude-3-5-sonnet-20240620')
 	const [technicalLevel, setTechnicalLevel] = useState(extensionState.technicalBackground)
 	const [readOnly, setReadOnly] = useState(extensionState.alwaysAllowReadOnly || false)
 	const [autoCloseTerminal, setAutoCloseTerminal] = useState(extensionState.autoCloseTerminal || false)
 	const [experimentalFeatureStates, setExperimentalFeatureStates] = useState({
 		alwaysAllowWriteOnly: extensionState.alwaysAllowWriteOnly || false,
-		"one-click-deployment": false,
-		"auto-summarize-chat": false,
+		'one-click-deployment': false,
+		'auto-summarize-chat': false,
 	})
-	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
+	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || '')
 	const [autoSkipWrite, setAutoSkipWrite] = useState(extensionState.skipWriteAnimation || false)
 
 	const handleAutoSkipWriteChange = useCallback((checked: boolean) => {
 		setAutoSkipWrite(checked)
-		vscode.postMessage({ type: "skipWriteAnimation", bool: checked })
+		vscode.postMessage({ type: 'skipWriteAnimation', bool: checked })
 	}, [])
 
 	const handleExperimentalFeatureChange = useCallback(
 		(featureId: keyof GlobalState, checked: boolean) => {
 			setExperimentalFeatureStates((prev) => {
 				const newState = { ...prev, [featureId]: checked }
-				if (featureId === "alwaysAllowWriteOnly") {
+				if (featureId === 'alwaysAllowWriteOnly') {
 					extensionState.setAlwaysAllowWriteOnly(checked)
-					vscode.postMessage({ type: "alwaysAllowWriteOnly", bool: checked })
+					vscode.postMessage({ type: 'alwaysAllowWriteOnly', bool: checked })
 				}
 				return newState
 			})
 		},
-		[extensionState]
+		[extensionState],
 	)
 
 	const handleTechnicalLevelChange = useCallback((setLevel: typeof technicalLevel) => {
 		console.log(`Setting technical level to: ${setLevel}`)
 		setTechnicalLevel(setLevel!)
-		vscode.postMessage({ type: "technicalBackground", value: setLevel! })
+		vscode.postMessage({ type: 'technicalBackground', value: setLevel! })
 	}, [])
 
 	const handleModelChange = useCallback((newModel: typeof model) => {
 		setModel(newModel!)
-		vscode.postMessage({ type: "apiConfiguration", apiConfiguration: { apiModelId: newModel } })
+		vscode.postMessage({ type: 'apiConfiguration', apiConfiguration: { apiModelId: newModel } })
 	}, [])
 
 	const handleSetReadOnly = useCallback((checked: boolean) => {
 		setReadOnly(checked)
-		vscode.postMessage({ type: "alwaysAllowReadOnly", bool: checked })
+		vscode.postMessage({ type: 'alwaysAllowReadOnly', bool: checked })
 	}, [])
 
 	const handleSetAutoCloseTerminal = useCallback((checked: boolean) => {
 		setAutoCloseTerminal(checked)
-		vscode.postMessage({ type: "autoCloseTerminal", bool: checked })
+		vscode.postMessage({ type: 'autoCloseTerminal', bool: checked })
 	}, [])
 
 	useDebounce(customInstructions, 250, (val) => {
-		if (val === extensionState.customInstructions) return
+		if (val === extensionState.customInstructions) {
+			return
+		}
 		extensionState.setCustomInstructions(val)
-		vscode.postMessage({ type: "customInstructions", text: val })
+		vscode.postMessage({ type: 'customInstructions', text: val })
 	})
 
 	return (
@@ -243,7 +247,8 @@ const SettingsPage: React.FC = () => {
 								variant="link"
 								size="sm"
 								className="text-sm !text-muted-foreground"
-								onClick={() => vscode.postMessage({ type: "didClickKoduSignOut" })}>
+								onClick={() => vscode.postMessage({ type: 'didClickKoduSignOut' })}
+							>
 								sign out
 							</Button>
 						</div>
@@ -258,21 +263,23 @@ const SettingsPage: React.FC = () => {
 						<>
 							<Button
 								onClick={() => {
-									vscode.postTrackingEvent("ExtensionCreditAddOpen")
-									vscode.postTrackingEvent("ExtensionCreditAddSelect", "purchase")
+									vscode.postTrackingEvent('ExtensionCreditAddOpen')
+									vscode.postTrackingEvent('ExtensionCreditAddSelect', 'purchase')
 								}}
-								asChild>
+								asChild
+							>
 								<a href={getKoduAddCreditsUrl(extensionState.uriScheme)}>Add Credits</a>
 							</Button>
 							<Tooltip>
 								<TooltipTrigger>
 									<Button
 										onClick={() => {
-											vscode.postTrackingEvent("OfferwallView")
-											vscode.postTrackingEvent("ExtensionCreditAddSelect", "offerwall")
+											vscode.postTrackingEvent('OfferwallView')
+											vscode.postTrackingEvent('ExtensionCreditAddSelect', 'offerwall')
 										}}
-										variant={"outline"}
-										asChild>
+										variant={'outline'}
+										asChild
+									>
 										<a href={getKoduOfferUrl(extensionState.uriScheme)}>Get Free Credits</a>
 									</Button>
 								</TooltipTrigger>
@@ -282,9 +289,10 @@ const SettingsPage: React.FC = () => {
 					) : (
 						<Button
 							onClick={() => {
-								vscode.postTrackingEvent("AuthStart")
+								vscode.postTrackingEvent('AuthStart')
 							}}
-							asChild>
+							asChild
+						>
 							<a href={getKoduSignInUrl(extensionState.uriScheme, extensionState.extensionName)}>
 								Sign in to Kodu
 							</a>
@@ -307,14 +315,18 @@ const SettingsPage: React.FC = () => {
 				</TabsList>
 
 				<TabsContent value="preferences" className="space-y-4">
-					<SummarizationThresholdSlider summarizationThreshold={extensionState.summarizationThreshold} setSummarizationThreshold={extensionState.setSummarizationThreshold} />
+					<SummarizationThresholdSlider
+						summarizationThreshold={extensionState.summarizationThreshold}
+						setSummarizationThreshold={extensionState.setSummarizationThreshold}
+					/>
 					<div className="space-y-2">
 						<Label className="text-sm">Technical Level</Label>
 						<RadioGroup
 							value={technicalLevel}
 							// @ts-expect-error can't be stricly typed
 							onValueChange={handleTechnicalLevelChange}
-							className="space-y-1">
+							className="space-y-1"
+						>
 							<div className="flex items-center space-x-2">
 								<RadioGroupItem value="no-technical" id="no-technical" />
 								<Label htmlFor="no-technical" className="text-xs">
@@ -347,7 +359,7 @@ const SettingsPage: React.FC = () => {
 							<SelectContent>
 								{Object.entries(models).map(([key, value]) => (
 									<SelectItem key={key} value={key} disabled={value.disabled} className="text-xs">
-										{value.label} {value.comingSoon && "(Coming Soon)"}
+										{value.label} {value.comingSoon && '(Coming Soon)'}
 									</SelectItem>
 								))}
 							</SelectContent>

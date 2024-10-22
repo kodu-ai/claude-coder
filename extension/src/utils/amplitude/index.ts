@@ -1,16 +1,16 @@
-import { init, track as ampTrack } from "@amplitude/analytics-node"
-import axios from "axios"
-import osName from "os-name"
-import * as vscode from "vscode"
-import { AmplitudeMetrics, TaskCompleteEventParams, TaskRequestEventParams } from "./types"
+import { track as ampTrack, init } from '@amplitude/analytics-node'
+import axios from 'axios'
+import osName from 'os-name'
+import * as vscode from 'vscode'
+import { AmplitudeMetrics, type TaskCompleteEventParams, type TaskRequestEventParams } from './types'
 
 const getUserIP = async () => {
 	try {
-		const response = await axios.get("https://ipinfo.io/json")
+		const response = await axios.get('https://ipinfo.io/json')
 		const data = response.data
 		return data.ip as string // returns the external IP address
 	} catch (error) {
-		console.error("Error fetching user IP:", error)
+		console.error('Error fetching user IP:', error)
 		return undefined
 	}
 }
@@ -18,7 +18,7 @@ const getUserIP = async () => {
 export class AmplitudeTracker {
 	private static instance: AmplitudeTracker
 	private currentUserId: string | undefined
-	private initialized: boolean = false
+	private initialized = false
 	private sessionId: string | undefined
 	private extensionName: string | undefined
 	private ip: string | undefined
@@ -39,10 +39,10 @@ export class AmplitudeTracker {
 		isLoggedIn: boolean,
 		sessionId: string,
 		extensionName: string,
-		userId?: string
+		userId?: string,
 	): Promise<void> {
 		if (this.initialized) {
-			console.warn("AmplitudeTracker is already initialized. Use updateUserState to change user state.")
+			console.warn('AmplitudeTracker is already initialized. Use updateUserState to change user state.')
 			return
 		}
 
@@ -71,13 +71,13 @@ export class AmplitudeTracker {
 	}
 
 	public sessionStart(): void {
-		this.track("SessionStart")
+		this.track('SessionStart')
 	}
 
 	public taskStart(taskId: string): void {
 		this.currentTaskRequestCount = 0
 
-		this.track("TaskStart", {
+		this.track('TaskStart', {
 			taskId,
 		})
 	}
@@ -85,7 +85,7 @@ export class AmplitudeTracker {
 	public taskResume(taskId: string, pastRequestsCount: number): void {
 		this.currentTaskRequestCount = pastRequestsCount
 
-		this.track("TaskResume", {
+		this.track('TaskResume', {
 			taskId,
 		})
 	}
@@ -95,7 +95,7 @@ export class AmplitudeTracker {
 		const globalTaskRequestCount = this.getMetric(AmplitudeMetrics.GLOBAL_TASK_REQUEST_COUNT)
 
 		this.track(
-			"TaskRequest",
+			'TaskRequest',
 			{
 				...params,
 				thisTaskRequestCount: ++this.currentTaskRequestCount,
@@ -104,62 +104,62 @@ export class AmplitudeTracker {
 			{
 				sessionTaskRequestCount: ++this.sessionTaskRequestCount,
 				globalTaskRequestCount,
-			}
+			},
 		)
 	}
 
 	public taskComplete(params: TaskCompleteEventParams): void {
-		this.track("TaskComplete", params)
+		this.track('TaskComplete', params)
 	}
 
 	public authStart(): void {
-		this.track("AuthStart")
+		this.track('AuthStart')
 	}
 
 	public authSuccess(): void {
-		this.track("AuthSuccess")
+		this.track('AuthSuccess')
 	}
 
 	public extensionActivateSuccess(isFirst: boolean): void {
-		this.track("ExtensionActivateSuccess", {
+		this.track('ExtensionActivateSuccess', {
 			isFirst,
 		})
 	}
 
 	public referralProgramClick(): void {
-		this.track("ReferralProgramClick")
+		this.track('ReferralProgramClick')
 	}
 
 	public addCreditsClick(): void {
-		this.track("ExtensionCreditAddOpen")
+		this.track('ExtensionCreditAddOpen')
 	}
 
 	public trialOfferView(): void {
-		this.track("TrialOfferView")
+		this.track('TrialOfferView')
 	}
 
 	public offerwallView(): void {
-		this.track("OfferwallView")
+		this.track('OfferwallView')
 	}
 
 	public trialOfferStart(): void {
-		this.track("TrialOfferStart")
+		this.track('TrialOfferStart')
 	}
 
 	public trialUpsellView(): void {
-		this.track("TrialUpsellView")
+		this.track('TrialUpsellView')
 	}
 
 	public trialUpsellStart(): void {
-		this.track("TrialUpsellStart")
+		this.track('TrialUpsellStart')
 	}
 
 	public trialUpsellSuccess(): void {
-		this.track("TrialUpsellSuccess")
+		this.track('TrialUpsellSuccess')
 	}
 
 	public extensionCreditAddSelect(key: string): void {
-		this.track("ExtensionCreditAddSelect", {
+		this.track('ExtensionCreditAddSelect', {
 			key,
 		})
 	}
@@ -180,7 +180,7 @@ export class AmplitudeTracker {
 			extra: {
 				extensionName: this.extensionName,
 				sessionId: this.sessionId,
-				platform: "vscode",
+				platform: 'vscode',
 			},
 		})
 	}

@@ -1,6 +1,6 @@
-import * as vscode from "vscode"
-import * as path from "path"
-import { getCwd } from "../utils"
+import * as path from 'node:path'
+import * as vscode from 'vscode'
+import { getCwd } from '../utils'
 
 export class DiagnosticsHandler {
 	private static instance: DiagnosticsHandler
@@ -37,7 +37,7 @@ export class DiagnosticsHandler {
 	}
 
 	private formatDiagnostics(uri: vscode.Uri, diagnostics: vscode.Diagnostic[]): string {
-		const relativePath = vscode.workspace.asRelativePath(uri.fsPath).replace(/\\/g, "/")
+		const relativePath = vscode.workspace.asRelativePath(uri.fsPath).replace(/\\/g, '/')
 		let result = `Errors in ${relativePath}:\n`
 
 		for (const diagnostic of diagnostics) {
