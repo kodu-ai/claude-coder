@@ -210,16 +210,12 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const handleSendMessage = useCallback(
 		async (input?: string) => {
 			if (!user) {
-				console.debug("[DEBUG]: user is undefined, opening login dialog")
 				setIsLoginDialogOpen(true)
 				const loggedIn = await loginDialogClosePromise
-				console.debug("[DEBUG]: loggedIn", loggedIn)
 				if (!loggedIn) {
-					console.debug("[DEBUG]: user is still undefined, returning")
 					return // User closed the dialog without logging in
 				}
 			}
-			console.debug("[DEBUG]: user is defined, continuing")
 			if (shouldOpenOutOfCreditDialog) {
 				openOutOfCreditDialog()
 				return
