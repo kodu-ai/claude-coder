@@ -63,6 +63,7 @@ export type AgentToolParams = {
 	isFinal?: boolean
 	ask: (type: ClaudeAsk, data?: AskDetails, askTs?: number) => Promise<AskResponse>
 	say: (type: ClaudeSay, text?: string, images?: string[], sayTs?: number) => Promise<number>
+	updateAsk: (type: ClaudeAsk, data: AskDetails, askTs: number) => Promise<void>
 	returnEmptyStringOnSuccess?: boolean
 }
 

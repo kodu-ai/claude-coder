@@ -1,26 +1,3 @@
-export type ModelProvider = "anthropic" | "openrouter" | "bedrock" | "vertex"
-
-export interface ApiClientOptions {
-	koduApiKey?: string
-	koduEmail?: string
-	apiModelId?: ApiModelId
-	apiKey?: string // anthropic
-	openRouterApiKey?: string
-	awsAccessKey?: string
-	awsSecretKey?: string
-	awsRegion?: string
-	vertexProjectId?: string
-	vertexRegion?: string
-}
-
-export type ApiClientConfiguration = ApiClientOptions & {
-	apiProvider?: ModelProvider
-	koduApiKey?: string
-	apiModelId?: ApiModelId
-}
-
-// Models
-
 export const MODAL_TEMPERATURES = {
 	creative: {
 		top_p: 0.9,

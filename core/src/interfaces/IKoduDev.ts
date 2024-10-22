@@ -3,6 +3,7 @@ import { IStateManager } from './IStateManager';
 import { IApiManager } from './IApiManager';
 import { IBrowserManager } from './IBrowserManager';
 import { IDiagnosticsHandler } from './IDiagnosticsHandler';
+import { KoduApiService } from '@/services';
 
 /**
  * Main interface for the Kodu Development environment.
@@ -68,6 +69,8 @@ export interface IKoduDev {
    * Gets the diagnostics handler instance.
    */
   getDiagnosticsHandler(): IDiagnosticsHandler;
+
+  apiService: KoduApiService;
 }
 
 /**

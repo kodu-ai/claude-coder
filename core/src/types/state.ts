@@ -1,19 +1,29 @@
-import { Anthropic } from "@anthropic-ai/sdk";
-import { ClaudeMessage } from "./messages";
+import { KoduModelId } from "@/services/kodu-api/kodu-api-models";
+import { HistoryItem } from "./history-item";
 
-export interface State {
-    taskId: string;
-    dirAbsolutePath: string;
-    isRepoInitialized: boolean;
-    requestCount: number;
-    apiConversationHistory: Anthropic.Messages.MessageParam[];
-    claudeMessages: ClaudeMessage[];
-    abort: boolean;
-    isHistoryItem?: boolean;
+type User = {
+	email: string
+	credits: number
+	id: string
+	isVisitor: boolean
 }
 
-export type ApiConversationHistoryItem = Anthropic.Messages.MessageParam;
+type CreativeMode = "creative" | "normal" | "deterministic"
 
-// If KoduState is different from State, define it here
-// Otherwise, you can use State as KoduState
-export type KoduState = State;
+export type GlobalState = {
+	user: User | undefined | null
+	maxRequestsPerTask: number | undefined
+	lastShownAnnouncementId: string | undefined
+	customInstructions: string | undefined
+	apiModelId: KoduModelId | undefined
+	useUdiff: boolean | undefined
+	alwaysAllowReadOnly: boolean | undefined
+	alwaysAllowWriteOnly: boolean | undefined
+	taskHistory: HistoryItem[] | undefined
+	shouldShowKoduPromo: boolean | undefined
+	creativeMode: CreativeMode | undefined
+	autoCloseTerminal: boolean | undefined
+	experimentalTerminal: boolean | undefined
+	skipWriteAnimation: boolean | undefined
+	technicalBackground: "no-technical" | "technical" | "developer" | undefined
+}

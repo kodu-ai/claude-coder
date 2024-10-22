@@ -1,6 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { KoduApiClient } from "./kodu-api-client"
-import { ApiClientConfiguration } from "./kodu-api-models"
+import { ApiClientConfiguration } from "@/types"
 import { ClaudeMessage, isV1ClaudeMessage, KoduError, KoduSSEResponse, UserContent, V1ClaudeMessage } from "@/types"
 import { BASE_SYSTEM_PROMPT, CodingBeginnerSystemPromptSection, ExperiencedDeveloperSystemPromptSection, NonTechnicalSystemPromptSection, SYSTEM_PROMPT } from "@/ai/prompts"
 import { amplitudeTracker, cwd, findLast, truncateHalfConversation } from "@/utils"

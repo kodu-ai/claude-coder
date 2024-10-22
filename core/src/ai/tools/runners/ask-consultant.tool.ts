@@ -1,7 +1,6 @@
-import { ToolResponse } from "../../../types"
-import { formatToolResponse } from "../../../utils"
+import { formatToolResponse } from "@/utils"
 import { BaseAgentTool } from "../base-agent.tool"
-import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "@/types"
+import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse, ToolResponse } from "@/types"
 
 export class AskConsultantTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -60,7 +59,7 @@ export class AskConsultantTool extends BaseAgentTool {
 		)
 
 		try {
-			const response = await this.koduDev.getApiManager().getApi()?.sendAskConsultantRequest?.(query)
+			const response = await this.koduDev.apiService.getApi()?.sendAskConsultantRequest?.(query)
 			if (!response || !response.result) {
 				this.params.ask(
 					"tool",
@@ -144,7 +143,7 @@ export class AskConsultantTool extends BaseAgentTool {
 		if (response === "messageResponse") {
 			await this.params.say("user_feedback", text, images)
 
-			return formatToolResponse(formatGenericToolFeedback(text), images)
+			return formatToolResponse(await this.formatGenericToolFeedback(text), images)
 		}
 
 		return "The user denied this operation."
