@@ -1,4 +1,3 @@
-import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 import { atom, useAtom, useSetAtom } from "jotai"
 import React, { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
@@ -12,9 +11,11 @@ import {
 	V1ClaudeMessage,
 	isV1ClaudeMessage,
 } from "../../../../src/shared/ExtensionMessage"
+import { Resource } from "../../../../src/shared/WebviewMessage"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
 import { COMMAND_STDIN_STRING, combineCommandSequences } from "../../../../src/shared/combineCommandSequences"
 import { getApiMetrics } from "../../../../src/shared/getApiMetrics"
+import { ChatTool } from "../../../../src/shared/new-tools"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { getSyntaxHighlighterStyleFromTheme } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import { vscode } from "../../utils/vscode"
@@ -22,15 +23,12 @@ import Announcement from "../Announcement/Announcement"
 import HistoryPreview from "../HistoryPreview/HistoryPreview"
 import KoduPromo from "../KoduPromo/KoduPromo"
 import TaskHeader from "../TaskHeader/TaskHeader"
-import ProjectStarterChooser from "../project-starters"
+import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
 import ButtonSection from "./ButtonSection"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
-import { CHAT_BOX_INPUT_ID } from "./InputTextArea"
 import ChatScreen from "./chat-screen"
-import { Resource } from "../../../../src/shared/WebviewMessage"
-import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
-import { ChatTool } from "../../../../src/shared/new-tools"
+import SummarizationThresholdSlider from '../SummarizationThresholdSlider'
 
 export const attachementsAtom = atom<Resource[]>([])
 
@@ -63,6 +61,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 		uriScheme,
 		shouldShowKoduPromo,
 		user,
+		summarizationThreshold,
 	} = useExtensionState()
 
 	// Input-related state
@@ -122,6 +121,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const task = useMemo(() => (messages.length > 0 ? messages[0] : undefined), [messages])
 	const modifiedMessages = useMemo(() => combineApiRequests(combineCommandSequences(messages.slice(1))), [messages])
 	const apiMetrics = useMemo(() => getApiMetrics(modifiedMessages), [modifiedMessages])
+
 	const selectImages = () => {
 		vscode.postMessage({ type: "selectImages" })
 	}
@@ -456,6 +456,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 							setPrimaryButtonText("Run Command")
 							setSecondaryButtonText("Reject")
 							break
+						case "summarize": 
+						 setPrimaryButtonText("Summarize")
+						 setSecondaryButtonText("Acknowledge and continue")
+						 break
 						case "upsert_memory":
 							setPrimaryButtonText(undefined)
 							setSecondaryButtonText(undefined)
@@ -660,7 +664,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 						{!showAnnouncement && shouldShowKoduPromo && (
 							<KoduPromo style={{ margin: "10px 15px -10px 15px" }} />
 						)}
-
 						<ChatScreen
 							taskHistory={<HistoryPreview showHistoryView={showHistoryView} />}
 							handleClick={(text) => {

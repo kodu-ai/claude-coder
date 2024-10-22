@@ -1,58 +1,52 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { vscode } from '@/utils/vscode'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
-	Terminal,
-	FolderTree,
-	Code,
-	Search,
-	FileText,
-	Edit,
-	HelpCircle,
-	CheckCircle,
-	Globe,
-	Image,
-	MessageCircle,
-	BookOpen,
 	AlertCircle,
-	XCircle,
-	ThumbsUp,
-	ThumbsDown,
+	BookOpen,
+	CheckCircle,
 	ChevronDown,
 	ChevronUp,
+	Code,
+	Edit,
+	FileText,
+	FolderTree,
+	Globe,
+	HelpCircle,
+	Image,
 	LoaderPinwheel,
-	ExternalLink,
+	MessageCircle,
 	Play,
-	Square,
 	RefreshCw,
+	Search,
 	Server,
+	Square,
+	Terminal,
+	XCircle
 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { AnimatePresence, motion } from "framer-motion"
 import {
-	ExecuteCommandTool,
-	ListFilesTool,
-	ListCodeDefinitionNamesTool,
-	SearchFilesTool,
-	ReadFileTool,
-	WriteToFileTool,
+	AskConsultantTool,
 	AskFollowupQuestionTool,
 	AttemptCompletionTool,
-	WebSearchTool,
-	UrlScreenshotTool,
-	AskConsultantTool,
-	UpsertMemoryTool,
 	ChatTool,
+	ExecuteCommandTool,
+	ListCodeDefinitionNamesTool,
+	ListFilesTool,
+	ReadFileTool,
+	SearchFilesTool,
 	ServerRunnerTool,
+	SummarizeChatTool,
+	UpsertMemoryTool,
+	UrlScreenshotTool,
+	WebSearchTool,
+	WriteToFileTool,
 } from "../../../../src/shared/new-tools"
-import { vscode } from "@/utils/vscode"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
-import SyntaxHighlighter from "react-syntax-highlighter"
-import { useAtomValue } from "jotai"
-import { SyntaxHighlighterAtom } from "../ChatView/ChatView"
-import { syntaxHighlighterCustomStyle } from "../CodeBlock/utils"
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
-import { useEvent } from "react-use"
+import { useEffect, useRef, useState } from 'react'
+import React from 'react'
+import MarkdownRenderer from './MarkdownRenderer'
 
 type ApprovalState = ToolStatus
 type ToolAddons = {
@@ -69,8 +63,8 @@ type ToolBlockProps = {
 	icon: React.FC<React.SVGProps<SVGSVGElement>>
 	title: string
 	children: React.ReactNode
-	tool: ChatTool["tool"]
-	variant: "default" | "primary" | "info" | "accent" | "info" | "success" | "info" | "destructive"
+	tool: ChatTool['tool']
+	variant: 'default' | 'primary' | 'info' | 'accent' | 'info' | 'success' | 'info' | 'destructive'
 } & ToolAddons
 
 const ToolBlock: React.FC<ToolBlockProps> = ({
@@ -86,13 +80,13 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 	onReject,
 }) => {
 	variant =
-		approvalState === "loading"
-			? "info"
-			: approvalState === "error" || approvalState === "rejected"
-			? "destructive"
-			: approvalState === "approved"
-			? "success"
-			: variant
+		approvalState === 'loading'
+			? 'info'
+			: approvalState === 'error' || approvalState === 'rejected'
+				? 'destructive'
+				: approvalState === 'approved'
+					? 'success'
+					: variant
 	const stateIcons = {
 		pending: <AlertCircle className="w-4 h-4 text-info" />,
 		approved: <CheckCircle className="w-4 h-4 text-success" />,
@@ -100,7 +94,7 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 		error: <AlertCircle className="w-4 h-4 text-destructive" />,
 		loading: <LoaderPinwheel className="w-4 h-4 text-info animate-spin" />,
 	}
-	const avoidRenderingApprovalTools: ChatTool["tool"][] = ["ask_followup_question", "upsert_memory"]
+	const avoidRenderingApprovalTools: ChatTool['tool'][] = ['ask_followup_question', 'upsert_memory']
 
 	if (!approvalState) {
 		// dont render anything if approval state is not provided, it means the tool has not been executed yet
@@ -110,27 +104,28 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 	return (
 		<div
 			className={cn(
-				"border-l-4 p-3 mb-3 bg-card text-card-foreground",
+				'border-l-4 p-3 mb-3 bg-card text-card-foreground',
 				{
-					"border-primary": variant === "primary",
-					"border-secondary": variant === "info",
-					"border-accent": variant === "accent",
-					"border-success": variant === "success",
-					"border-info": variant === "info",
-					"border-muted": variant === "default",
-					"border-destructive": variant === "destructive",
+					'border-primary': variant === 'primary',
+					'border-secondary': variant === 'info',
+					'border-accent': variant === 'accent',
+					'border-success': variant === 'success',
+					'border-info': variant === 'info',
+					'border-muted': variant === 'default',
+					'border-destructive': variant === 'destructive',
 				},
-				isSubMsg && "!-mt-5"
-			)}>
+				isSubMsg && '!-mt-5',
+			)}
+		>
 			<div className="flex items-center justify-between mb-2">
 				<div className="flex items-center">
-					<Icon className={cn("w-5 h-5 mr-2", `text-${variant}`)} />
+					<Icon className={cn('w-5 h-5 mr-2', `text-${variant}`)} />
 					<h3 className="text-sm font-semibold">{title}</h3>
 				</div>
 				{stateIcons[approvalState]}
 			</div>
 			<div className="text-sm">{children}</div>
-			{approvalState === "pending" && !avoidRenderingApprovalTools.includes(tool) && (
+			{approvalState === 'pending' && !avoidRenderingApprovalTools.includes(tool) && (
 				<div className="flex justify-end space-x-1 mt-2">
 					<Button variant="outline" size="sm" onClick={onReject}>
 						Deny
@@ -258,7 +253,8 @@ export const ExecuteCommandBlock: React.FC<
 			variant="info"
 			approvalState={approvalState}
 			onApprove={onApprove}
-			onReject={onReject}>
+			onReject={onReject}
+		>
 			<div className="bg-muted p-2 rounded font-mono text-xs overflow-x-auto">
 				<span className="text-success">$</span> {command}
 			</div>
@@ -310,12 +306,13 @@ export const ListFilesBlock: React.FC<ListFilesTool & ToolAddons> = ({
 		variant="info"
 		approvalState={approvalState}
 		onApprove={onApprove}
-		onReject={onReject}>
+		onReject={onReject}
+	>
 		<p className="text-xs">
 			<span className="font-semibold">Folder:</span> {path}
 		</p>
 		<p className="text-xs">
-			<span className="font-semibold">Include subfolders:</span> {recursive || "No"}
+			<span className="font-semibold">Include subfolders:</span> {recursive || 'No'}
 		</p>
 	</ToolBlock>
 )
@@ -338,7 +335,8 @@ export const ListCodeDefinitionNamesBlock: React.FC<ListCodeDefinitionNamesTool 
 		variant="accent"
 		approvalState={approvalState}
 		onApprove={onApprove}
-		onReject={onReject}>
+		onReject={onReject}
+	>
 		<p className="text-xs">
 			<span className="font-semibold">Scanning folder:</span> {path}
 		</p>
@@ -365,7 +363,8 @@ export const SearchFilesBlock: React.FC<SearchFilesTool & ToolAddons> = ({
 		variant="info"
 		approvalState={approvalState}
 		onApprove={onApprove}
-		onReject={onReject}>
+		onReject={onReject}
+	>
 		<p className="text-xs">
 			<span className="font-semibold">Search in:</span> {path}
 		</p>
@@ -402,7 +401,8 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 			variant="primary"
 			approvalState={approvalState}
 			onApprove={onApprove}
-			onReject={onReject}>
+			onReject={onReject}
+		>
 			<p className="text-xs">
 				<span className="font-semibold">File:</span> {path}
 			</p>
@@ -425,7 +425,7 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 	)
 }
 
-export type ToolStatus = "pending" | "rejected" | "approved" | "error" | "loading" | undefined
+export type ToolStatus = 'pending' | 'rejected' | 'approved' | 'error' | 'loading' | undefined
 
 const CHUNK_SIZE = 50
 
@@ -444,20 +444,20 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 	ts,
 	...rest
 }) => {
-	content = content ?? ""
+	content = content ?? ''
 	const [visibleContent, setVisibleContent] = useState<string[]>([])
 	const [totalLines, setTotalLines] = useState(0)
-	const isStreaming = approvalState === "loading"
+	const isStreaming = approvalState === 'loading'
 	const scrollAreaRef = useRef<HTMLDivElement>(null)
 	const lastChunkRef = useRef<HTMLPreElement>(null)
 	const animationCompleteCountRef = useRef(0)
 
 	useEffect(() => {
-		const text = content ?? ""
-		setTotalLines(text.split("\n").length)
+		const text = content ?? ''
+		setTotalLines(text.split('\n').length)
 
 		if (isStreaming) {
-			const chunks = text.match(new RegExp(`.{1,${CHUNK_SIZE * 2}}`, "g")) || []
+			const chunks = text.match(new RegExp(`.{1,${CHUNK_SIZE * 2}}`, 'g')) || []
 			setVisibleContent(chunks)
 		} else {
 			setVisibleContent([text])
@@ -477,7 +477,8 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 			variant="info"
 			approvalState={approvalState}
 			onApprove={onApprove}
-			onReject={onReject}>
+			onReject={onReject}
+		>
 			<p className="text-xs mb-1">
 				<span className="font-semibold">File:</span> {path}
 			</p>
@@ -493,7 +494,7 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 							transition={{
 								repeat: Infinity,
 								duration: 2,
-								ease: "linear",
+								ease: 'linear',
 							}}
 						/>
 					)}
@@ -506,7 +507,8 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 								initial="hidden"
 								animate="visible"
 								transition={{ duration: 0.3, delay: index * 0.03 }}
-								className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
+								className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden"
+							>
 								{index === 0 ? chunk.trim() : chunk}
 							</motion.pre>
 						))}
@@ -515,7 +517,7 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 			</ScrollArea>
 			<div className="mt-2 flex justify-between items-center">
 				<span className="text-xs text-muted-foreground">
-					{isStreaming ? "Streaming..." : `Completed: ${totalLines} lines written`}
+					{isStreaming ? 'Streaming...' : `Completed: ${totalLines} lines written`}
 				</span>
 			</div>
 		</ToolBlock>
@@ -539,7 +541,8 @@ export const AskFollowupQuestionBlock: React.FC<AskFollowupQuestionTool & ToolAd
 		variant="info"
 		approvalState={approvalState}
 		onApprove={onApprove}
-		onReject={onReject}>
+		onReject={onReject}
+	>
 		<div className="bg-info/20 text-info-foreground p-2 rounded text-xs">{question}</div>
 	</ToolBlock>
 )
@@ -563,7 +566,8 @@ export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons
 		variant="success"
 		approvalState={approvalState}
 		onApprove={onApprove}
-		onReject={onReject}>
+		onReject={onReject}
+	>
 		{/* {command && (
 			<div className="bg-muted p-2 rounded font-mono text-xs overflow-x-auto mb-2">
 				<span className="text-success">$</span> {command}
@@ -594,7 +598,8 @@ export const WebSearchBlock: React.FC<WebSearchTool & ToolAddons> = ({
 		variant="info"
 		approvalState={approvalState}
 		onApprove={onApprove}
-		onReject={onReject}>
+		onReject={onReject}
+	>
 		<p className="text-xs">
 			<span className="font-semibold">Search for:</span> {searchQuery}
 		</p>
@@ -625,7 +630,8 @@ export const UrlScreenshotBlock: React.FC<UrlScreenshotTool & ToolAddons> = ({
 		variant="accent"
 		approvalState={approvalState}
 		onApprove={onApprove}
-		onReject={onReject}>
+		onReject={onReject}
+	>
 		<p className="text-xs">
 			<span className="font-semibold">Website:</span> {url}
 		</p>
@@ -636,6 +642,73 @@ export const UrlScreenshotBlock: React.FC<UrlScreenshotTool & ToolAddons> = ({
 		)}
 	</ToolBlock>
 )
+
+export const SummarizeBlock: React.FC<SummarizeChatTool & ToolAddons> = ({
+	approvalState,
+	onApprove,
+	onReject,
+	tool,
+	ts,
+	output,
+	...rest
+}) => {
+	const handleStartNewTask = () => {
+		vscode.postMessage({ type: 'newTask', text: output })
+	}
+
+	const handleDisregardSummary = () => {
+		onReject?.()
+	}
+
+	return (
+		<ToolBlock
+			{...rest}
+			ts={ts}
+			tool={tool}
+			icon={MessageCircle}
+			onApprove={onApprove}
+			onReject={onReject}
+			title="Summarization"
+			variant="primary"
+			approvalState={approvalState}
+		>
+			{approvalState === 'pending' && (
+				<div className="bg-primary/20 text-primary-foreground p-2 rounded text-xs">
+					<p className="mb-2">
+						This conversation has almost reached your context window threshold. In order to reduce costs, we
+						recommend starting over from a summary of the conversation. Would you like to do this or
+						continue with the current task?
+					</p>
+				</div>
+			)}
+			{approvalState === 'loading' && (
+				<div className="animate-pulse space-y-2">
+					<div className="h-4 bg-primary/20 rounded"></div>
+					<div className="h-4 bg-primary/20 rounded"></div>
+					<div className="h-4 bg-primary/20 rounded"></div>
+				</div>
+			)}
+			{approvalState === 'approved' && output && (
+				<div className="bg-primary/20 text-primary-foreground p-2 rounded text-xs max-h-60 overflow-y-auto">
+					<p className="font-semibold mb-2">Conversation Summary:</p>
+					<MarkdownRenderer markdown={output} syntaxHighlighterStyle={{}} />
+				</div>
+			)}
+			{approvalState === 'rejected' && (
+				<div className="bg-warning/20 text-warning-foreground p-2 rounded text-xs flex items-center">
+					<p>Summarization was skipped. The conversation will continue with reduced context.</p>
+				</div>
+			)}
+			{approvalState === 'approved' && output && (
+				<div className="flex justify-end mt-2">
+					<Button variant="default" size="sm" onClick={handleStartNewTask}>
+						Start a new task from this summary
+					</Button>
+				</div>
+			)}
+		</ToolBlock>
+	)
+}
 
 export const AskConsultantBlock: React.FC<AskConsultantTool & ToolAddons> = ({
 	query,
@@ -655,7 +728,8 @@ export const AskConsultantBlock: React.FC<AskConsultantTool & ToolAddons> = ({
 		variant="primary"
 		approvalState={approvalState}
 		onApprove={onApprove}
-		onReject={onReject}>
+		onReject={onReject}
+	>
 		<div className="bg-primary/20 text-primary-foreground p-2 rounded text-xs">{query}</div>
 	</ToolBlock>
 )
@@ -680,7 +754,8 @@ export const UpsertMemoryBlock: React.FC<UpsertMemoryTool & ToolAddons> = ({
 		variant="info"
 		approvalState={approvalState}
 		onApprove={onApprove}
-		onReject={onReject}>
+		onReject={onReject}
+	>
 		{milestoneName && (
 			<p className="text-xs">
 				<span className="font-semibold">Milestone:</span> {milestoneName}
@@ -704,16 +779,16 @@ export const ToolContentBlock: React.FC<{
 }> = ({ tool, hasNextMessage }) => {
 	tool.onApprove = () => {
 		vscode.postMessage({
-			feedback: "approve",
+			feedback: 'approve',
 			toolId: tool.ts,
-			type: "toolFeedback",
+			type: 'toolFeedback',
 		})
 	}
 	tool.onReject = () => {
 		vscode.postMessage({
-			feedback: "reject",
+			feedback: 'reject',
 			toolId: tool.ts,
-			type: "toolFeedback",
+			type: 'toolFeedback',
 		})
 	}
 	switch (tool.tool) {
@@ -721,25 +796,27 @@ export const ToolContentBlock: React.FC<{
 			return <ExecuteCommandBlock hasNextMessage {...tool} />
 		case "list_files":
 			return <ListFilesBlock {...tool} />
-		case "list_code_definition_names":
+		case 'list_code_definition_names':
 			return <ListCodeDefinitionNamesBlock {...tool} />
-		case "search_files":
+		case 'search_files':
 			return <SearchFilesBlock {...tool} />
-		case "read_file":
+		case 'read_file':
 			return <ReadFileBlock {...tool} />
-		case "write_to_file":
+		case 'write_to_file':
 			return <WriteToFileBlock {...tool} />
-		case "ask_followup_question":
+		case 'ask_followup_question':
 			return <AskFollowupQuestionBlock {...tool} approvalState="pending" />
-		case "attempt_completion":
+		case 'attempt_completion':
 			return <AttemptCompletionBlock {...tool} />
-		case "web_search":
+		case 'web_search':
 			return <WebSearchBlock {...tool} />
-		case "url_screenshot":
+		case 'url_screenshot':
 			return <UrlScreenshotBlock {...tool} />
-		case "ask_consultant":
+		case 'ask_consultant':
 			return <AskConsultantBlock {...tool} />
-		case "upsert_memory":
+		case 'summarize':
+			return <SummarizeBlock {...tool} />
+		case 'upsert_memory':
 			return <UpsertMemoryBlock {...tool} />
 		case "server_runner_tool":
 			return <DevServerToolBlock {...tool} />

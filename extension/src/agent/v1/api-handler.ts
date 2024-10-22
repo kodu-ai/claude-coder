@@ -1,23 +1,18 @@
 import { Anthropic } from "@anthropic-ai/sdk"
+import { AxiosError } from "axios"
 import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
+import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
-import { UserContent } from "./types"
 import { amplitudeTracker } from "../../utils/amplitude"
-import { truncateHalfConversation } from "../../utils/context-management"
+import { BASE_SYSTEM_PROMPT } from "./prompts/base-system"
 import {
 	CodingBeginnerSystemPromptSection,
 	ExperiencedDeveloperSystemPromptSection,
 	NonTechnicalSystemPromptSection,
 	SYSTEM_PROMPT,
 } from "./system-prompt"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { tools as baseTools } from "./tools/tools"
-import { findLast } from "../../utils"
-import delay from "delay"
-import { BASE_SYSTEM_PROMPT } from "./prompts/base-system"
+import { UserContent } from "./types"
 import { getCwd } from "./utils"
-import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
-import { AxiosError } from "axios"
 
 /**
  *
@@ -25,7 +20,7 @@ import { AxiosError } from "axios"
  * @param message the last message
  * @returns the tokens from the message
  */
-const anthropicMessageToTokens = (message: Anthropic.MessageParam) => {
+export const anthropicMessageToTokens = (message: Anthropic.MessageParam) => {
 	const content = message.content
 	if (typeof content === "string") {
 		return Math.round(content.length / 2)
@@ -89,126 +84,42 @@ export class ApiManager {
 	}
 
 	updateApi(apiConfiguration: ApiConfiguration): void {
-		console.log("Updating API configuration", apiConfiguration)
+		console.log('Updating API configuration', apiConfiguration)
 		this.api = buildApiHandler(apiConfiguration)
 	}
 
 	updateCustomInstructions(customInstructions: string | undefined): void {
 		this.customInstructions = customInstructions
 	}
-
-	async *createApiStreamRequest(
-		apiConversationHistory: Anthropic.MessageParam[],
-		abortSignal?: AbortSignal | null
+	async *createBaseMessageStream(
+		systemPrompt: string,
+		messages: Anthropic.Messages.MessageParam[],
+		abortSignal?: AbortSignal | null,
+		tempature: number = 0,
+		top_p: number = 0.9,
 	): AsyncGenerator<koduSSEResponse> {
-		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
-		const technicalBackground =
-			(await this.providerRef.deref()?.getStateManager()?.getState())?.technicalBackground ?? "no-technical"
-		let systemPrompt = await SYSTEM_PROMPT()
-		systemPrompt += `
-		===
-USER PERSONALIZED INSTRUCTIONS
-
-${
-	technicalBackground === "no-technical"
-		? NonTechnicalSystemPromptSection
-		: technicalBackground === "technical"
-		? ExperiencedDeveloperSystemPromptSection
-		: CodingBeginnerSystemPromptSection
-}
-		`
-		let customInstructions: string | undefined
-		if (this.customInstructions && this.customInstructions.trim()) {
-			customInstructions += `
-====
-
-USER'S CUSTOM INSTRUCTIONS
-
-The following additional instructions are provided by the user. They should be followed and given precedence in case of conflicts with previous instructions.
-
-${this.customInstructions.trim()}
-`
-		}
-		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), true, technicalBackground)
-
-		const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
-		let apiMetrics: NonNullable<V1ClaudeMessage["apiMetrics"]> = {
-			inputTokens: 0,
-			outputTokens: 0,
-			inputCacheRead: 0,
-			inputCacheWrite: 0,
-			cost: 0,
-		}
-		// If the last API request's total token usage is close to the context window, truncate the conversation history to free up space for the new request
-		const lastApiReqFinished = findLast(claudeMessages!, (m) => m.say === "api_req_finished")
-		if (lastApiReqFinished && lastApiReqFinished.text) {
-			const {
-				tokensIn,
-				tokensOut,
-				cacheWrites,
-				cacheReads,
-			}: { tokensIn?: number; tokensOut?: number; cacheWrites?: number; cacheReads?: number } = JSON.parse(
-				lastApiReqFinished.text
-			)
-			apiMetrics = {
-				inputCacheRead: cacheReads || 0,
-				inputCacheWrite: cacheWrites || 0,
-				inputTokens: tokensIn || 0,
-				outputTokens: tokensOut || 0,
-				cost: 0,
-			}
-		} else {
-			// reverse claude messages to find the last message that is typeof v1 and has apiMetrics
-			const reversedClaudeMessages = claudeMessages?.slice().reverse()
-			const lastV1Message = reversedClaudeMessages?.find((m) => isV1ClaudeMessage(m) && m?.apiMetrics)
-			if (lastV1Message) {
-				apiMetrics = (lastV1Message as V1ClaudeMessage)?.apiMetrics!
-			}
-		}
-
-		const totalTokens =
-			(apiMetrics.inputTokens || 0) +
-			(apiMetrics.outputTokens || 0) +
-			(apiMetrics.inputCacheWrite || 0) +
-			(apiMetrics.inputCacheRead || 0) +
-			anthropicMessageToTokens(apiConversationHistory.at(-1)!)
-		const contextWindow = this.api.getModel().info.contextWindow
-
-		if (totalTokens >= contextWindow * 0.9) {
-			const truncatedMessages = truncateHalfConversation(apiConversationHistory)
-			apiConversationHistory = truncatedMessages
-			this.providerRef.deref()?.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
-		}
-		const isFirstRequest = this.providerRef.deref()?.getKoduDev()?.isFirstMessage ?? false
-		// on first request, we need to get the environment details with details of the current task and folder
-		const environmentDetails = await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
-		if (isFirstRequest && this.providerRef.deref()?.getKoduDev()) {
-			this.providerRef.deref()!.getKoduDev()!.isFirstMessage = false
-		}
-
+		console.debug(
+			`[DEBUG] createBaseMessageStream with systemPrompt: ${systemPrompt}, messages: ${JSON.stringify(
+				messages,
+				null,
+				2,
+			)}, abortSignal: ${abortSignal}, tempature: ${tempature}, top_p: ${top_p}`,
+		)
 		try {
-			const stream = await this.api.createMessageStream(
-				newSystemPrompt.trim(),
-				apiConversationHistory,
-				creativeMode,
-				abortSignal,
-				customInstructions,
-				await this.providerRef.deref()?.getKoduDev()?.getStateManager().state.memory,
-				environmentDetails
-			)
+			const stream = await this.api.createBaseMessageStream(systemPrompt, messages, abortSignal, tempature, top_p)
 
 			for await (const chunk of stream) {
 				switch (chunk.code) {
 					case 0:
-						console.log("Health check received")
+						console.log('Health check received')
 						break
 					case 1:
-						console.log("finalResponse", chunk)
+						console.log('finalResponse', chunk)
 						// we always reach here
 						const response = chunk.body.anthropic
 						// update state of credit
 						if (chunk.body.internal.userCredits !== undefined) {
-							console.log("Updating kodu credits", chunk.body.internal.userCredits)
+							console.log('Updating kodu credits', chunk.body.internal.userCredits)
 							this.providerRef
 								.deref()
 								?.getStateManager()
@@ -223,7 +134,7 @@ ${this.customInstructions.trim()}
 							inputTokens,
 							outputTokens,
 							cacheCreationInputTokens,
-							cacheReadInputTokens
+							cacheReadInputTokens,
 						)
 						amplitudeTracker.taskRequest({
 							taskId: taskId!,
@@ -240,7 +151,107 @@ ${this.customInstructions.trim()}
 			}
 		} catch (error) {
 			if (error instanceof KoduError) {
-				console.error("KODU API request failed", error)
+				console.error('KODU API request failed', error)
+			}
+			throw error
+		}
+	}
+
+	async *createApiStreamRequest(
+		apiConversationHistory: Anthropic.MessageParam[],
+		abortSignal?: AbortSignal | null,
+	): AsyncGenerator<koduSSEResponse> {
+		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? 'normal'
+		const technicalBackground =
+			(await this.providerRef.deref()?.getStateManager()?.getState())?.technicalBackground ?? 'no-technical'
+		let systemPrompt = await SYSTEM_PROMPT()
+		systemPrompt += `
+		===
+USER PERSONALIZED INSTRUCTIONS
+
+${
+	technicalBackground === 'no-technical'
+		? NonTechnicalSystemPromptSection
+		: technicalBackground === 'technical'
+			? ExperiencedDeveloperSystemPromptSection
+			: CodingBeginnerSystemPromptSection
+}
+		`
+		let customInstructions: string | undefined
+		if (this.customInstructions && this.customInstructions.trim()) {
+			customInstructions += `
+====
+
+USER'S CUSTOM INSTRUCTIONS
+
+The following additional instructions are provided by the user. They should be followed and given precedence in case of conflicts with previous instructions.
+
+${this.customInstructions.trim()}
+`
+		}
+		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), true, technicalBackground)
+		const isFirstRequest = this.providerRef.deref()?.getKoduDev()?.isFirstMessage ?? false
+		// on first request, we need to get the environment details with details of the current task and folder
+		const environmentDetails = await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
+		if (isFirstRequest && this.providerRef.deref()?.getKoduDev()) {
+			this.providerRef.deref()!.getKoduDev()!.isFirstMessage = false
+		}
+
+		try {
+			const stream = await this.api.createMessageStream(
+				newSystemPrompt.trim(),
+				apiConversationHistory,
+				creativeMode,
+				abortSignal,
+				customInstructions,
+				await this.providerRef.deref()?.getKoduDev()?.getStateManager().state.memory,
+				environmentDetails,
+			)
+
+			for await (const chunk of stream) {
+				switch (chunk.code) {
+					case 0:
+						console.log('Health check received')
+						break
+					case 1:
+						console.log('finalResponse', chunk)
+						// we always reach here
+						const response = chunk.body.anthropic
+						// update state of credit
+						if (chunk.body.internal.userCredits !== undefined) {
+							console.log('Updating kodu credits', chunk.body.internal.userCredits)
+							this.providerRef
+								.deref()
+								?.getStateManager()
+								?.updateKoduCredits(chunk.body.internal.userCredits)
+						}
+						const inputTokens = response.usage.input_tokens
+						const outputTokens = response.usage.output_tokens
+						const cacheCreationInputTokens = (response as any).usage?.cache_creation_input_tokens
+						const cacheReadInputTokens = (response as any).usage?.cache_read_input_tokens
+						const taskId = (await this.providerRef.deref()?.getState())?.currentTaskId
+						const apiCost = this.calculateApiCost(
+							inputTokens,
+							outputTokens,
+							cacheCreationInputTokens,
+							cacheReadInputTokens,
+						)
+						amplitudeTracker.taskRequest({
+							taskId: taskId!,
+							model: this.getModelId(),
+							apiCost: apiCost!,
+							inputTokens,
+							cacheReadTokens: cacheReadInputTokens,
+							cacheWriteTokens: cacheCreationInputTokens,
+							outputTokens,
+						})
+						break
+				}
+				yield chunk
+			}
+		} catch (error) {
+			if (error instanceof KoduError) {
+				console.error('KODU API request failed', error)
 			}
 			if (error instanceof AxiosError) {
 				throw new KoduError({
@@ -260,7 +271,7 @@ ${this.customInstructions.trim()}
 		inputTokens: number,
 		outputTokens: number,
 		cacheCreationInputTokens?: number,
-		cacheReadInputTokens?: number
+		cacheReadInputTokens?: number,
 	): number {
 		const modelCacheWritesPrice = this.api.getModel().info.cacheWritesPrice
 		let cacheWritesCost = 0

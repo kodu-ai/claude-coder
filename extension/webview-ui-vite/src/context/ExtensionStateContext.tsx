@@ -1,11 +1,11 @@
-import React, { useEffect, useRef } from "react"
-import { useEvent } from "react-use"
 import { atom, useAtom, useSetAtom } from "jotai"
-import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/ExtensionMessage"
-import { vscode } from "../utils/vscode"
+import React, { useEffect } from "react"
+import { useEvent } from "react-use"
 import { ApiConfiguration } from "../../../src/api/index"
-import { HistoryItem } from "../../../src/shared/HistoryItem"
 import type { GlobalState } from "../../../src/providers/claude-coder/state/GlobalStateManager"
+import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/ExtensionMessage"
+import { HistoryItem } from "../../../src/shared/HistoryItem"
+import { vscode } from "../utils/vscode"
 
 // Define atoms for each piece of state
 const technicalBackgroundAtom = atom<GlobalState["technicalBackground"] | undefined>(undefined)
@@ -40,6 +40,9 @@ export const creativeModeAtom = atom<"creative" | "normal" | "deterministic">("n
 creativeModeAtom.debugLabel = "creativeMode"
 const extensionNameAtom = atom<string | undefined>(undefined)
 extensionNameAtom.debugLabel = "extensionName"
+
+const summarizationThresholdAtom = atom<number>(50)
+summarizationThresholdAtom.debugLabel = "summarizationThreshold"
 
 const fingerprintAtom = atom<string | undefined>(undefined)
 fingerprintAtom.debugLabel = "fingerprint"
@@ -89,6 +92,7 @@ export const extensionStateAtom = atom((get) => ({
 	user: get(userAtom),
 	alwaysAllowWriteOnly: get(alwaysAllowApproveOnlyAtom),
 	creativeMode: get(creativeModeAtom),
+	summarizationThreshold: get(summarizationThresholdAtom),
 }))
 extensionStateAtom.debugLabel = "extensionState"
 
@@ -120,7 +124,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 	const setExtensionName = useSetAtom(extensionNameAtom)
 	const setFpjsKey = useSetAtom(fpjsKeyAtom)
-
+	const setSummarizationThreshold = useSetAtom(summarizationThresholdAtom)
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
 		if (message.type === "claudeMessages") {
@@ -150,6 +154,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setFingerprint(message.state.fingerprint)
 			setUriScheme(message.state.uriScheme)
 			setCreativeMode(message.state.creativeMode ?? "normal")
+			setSummarizationThreshold(message.state.summarizationThreshold ?? 50)
 		}
 		if (message.type === "action" && message.action === "koduCreditsFetched") {
 			setUser(message.user)
@@ -184,6 +189,7 @@ export const useExtensionState = () => {
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
+	const setSummarizationThreshold = useSetAtom(summarizationThresholdAtom)
 
 	return {
 		...state,
@@ -198,5 +204,6 @@ export const useExtensionState = () => {
 		setCreativeMode,
 		setAlwaysAllowReadOnly,
 		setShowAnnouncement: setShouldShowAnnouncement,
+		setSummarizationThreshold,
 	}
 }

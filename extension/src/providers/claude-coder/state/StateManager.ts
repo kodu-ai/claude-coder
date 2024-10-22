@@ -1,12 +1,10 @@
-import * as vscode from "vscode"
-import { ApiModelId } from "../../../shared/api"
-import { GlobalStateManager } from "./GlobalStateManager"
-import { ApiManager } from "./ApiManager"
-import { HistoryItem } from "../../../shared/HistoryItem"
-import { SecretStateManager } from "./SecretStateManager"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
-import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { ExtensionState } from "../../../shared/ExtensionMessage"
+import { HistoryItem } from "../../../shared/HistoryItem"
+import { ExtensionProvider } from "../ClaudeCoderProvider"
+import { ApiManager } from "./ApiManager"
+import { GlobalStateManager } from "./GlobalStateManager"
+import { SecretStateManager } from "./SecretStateManager"
 export class StateManager {
 	private globalStateManager: GlobalStateManager
 	private secretStateManager: SecretStateManager
@@ -35,6 +33,7 @@ export class StateManager {
 			useUdiff,
 			experimentalTerminal,
 			technicalBackground,
+			summarizationThreshold,
 			autoCloseTerminal,
 			skipWriteAnimation,
 		] = await Promise.all([
@@ -53,6 +52,7 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("useUdiff"),
 			this.globalStateManager.getGlobalState("experimentalTerminal"),
 			this.globalStateManager.getGlobalState("technicalBackground"),
+			this.globalStateManager.getGlobalState("summarizationThreshold"),
 			this.globalStateManager.getGlobalState("autoCloseTerminal"),
 			this.globalStateManager.getGlobalState("skipWriteAnimation"),
 		])
@@ -70,10 +70,10 @@ export class StateManager {
 			customInstructions,
 			technicalBackground,
 			experimentalTerminal:
-				experimentalTerminal === undefined || experimentalTerminal === null ? true : experimentalTerminal,
+			experimentalTerminal === undefined || experimentalTerminal === null ? true : experimentalTerminal,
 			currentTaskId,
 			alwaysAllowReadOnly:
-				alwaysAllowReadOnly === undefined || alwaysAllowReadOnly === null ? true : alwaysAllowReadOnly,
+			alwaysAllowReadOnly === undefined || alwaysAllowReadOnly === null ? true : alwaysAllowReadOnly,
 			shouldShowAnnouncement: lastShownAnnouncementId === undefined,
 			claudeMessages: currentClaudeMessage ?? [],
 			version: this.context.context.extension.packageJSON.version,
@@ -81,6 +81,7 @@ export class StateManager {
 			alwaysAllowWriteOnly: alwaysAllowWriteOnly ?? false,
 			taskHistory: taskHistory ?? [],
 			shouldShowKoduPromo: shouldShowKoduPromo ?? true,
+			summarizationThreshold: summarizationThreshold ?? 50,
 			creativeMode: creativeMode ?? "normal",
 			fingerprint: fp,
 			useUdiff: useUdiff ?? false,
@@ -169,4 +170,9 @@ export class StateManager {
 	setCreativeMode(value: "creative" | "normal" | "deterministic") {
 		return this.globalStateManager.updateGlobalState("creativeMode", value)
 	}
+
+	setSummarizationThreshold(value: number | undefined) {
+		return this.globalStateManager.updateGlobalState("summarizationThreshold", value)
+	}
+
 }

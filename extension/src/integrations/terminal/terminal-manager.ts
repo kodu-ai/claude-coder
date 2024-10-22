@@ -339,7 +339,6 @@ export class TerminalManager {
 		const process = this.processes.get(terminalId)
 		return process ? process.isHot : false
 	}
-
 	/**
 	 * Closes the terminal with the given ID.
 	 * @param id The unique ID of the terminal to close.
@@ -350,7 +349,6 @@ export class TerminalManager {
 			console.warn(`Terminal with ID ${id} does not exist or is already closed.`)
 			return false
 		}
-
 		const closed = TerminalRegistry.closeTerminal(id)
 		if (closed) {
 			// Remove the terminal from tracking

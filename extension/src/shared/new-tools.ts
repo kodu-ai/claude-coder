@@ -119,6 +119,7 @@ export type ChatTool = (
 	| AskConsultantTool
 	| ServerRunnerTool
 	| UpsertMemoryTool
+	| SummarizeChatTool
 ) & {
 	ts: number
 	approvalState?: ToolStatus

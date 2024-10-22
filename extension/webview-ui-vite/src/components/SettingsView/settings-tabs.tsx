@@ -1,22 +1,22 @@
-import React, { useState, useCallback } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Check, X, ChevronDown } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
-import { useExtensionState } from "../../context/ExtensionStateContext"
-import { debounce } from "lodash"
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import useDebounce from "@/hooks/use-debounce"
 import { vscode } from "@/utils/vscode"
+import { Check, ChevronDown, X } from "lucide-react"
+import React, { useCallback, useState } from "react"
 import { GlobalState } from "../../../../src/providers/claude-coder/state/GlobalStateManager"
-import { koduModels, KoduModels } from "../../../../src/shared/api"
+import { KoduModels, koduModels } from "../../../../src/shared/api"
+import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
+import { useExtensionState } from "../../context/ExtensionStateContext"
 import { formatPrice } from "../ApiOptions/utils"
-import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
+import SummarizationThresholdSlider from "../SummarizationThresholdSlider"
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { SettingsFooter } from "./settings-footer"
 
 interface ExperimentalFeature {
@@ -141,15 +141,15 @@ const ExperimentalFeatureItem: React.FC<{
 }> = React.memo(({ feature, checked, onCheckedChange }) => (
 	<div className="flex items-center justify-between">
 		<div className="flex-1 pr-2">
-			<Label htmlFor={feature.id} className="text-xs font-medium flex items-center">
+			<Label htmlFor={feature.id} className="text-sm font-semibold flex items-center">
 				{feature.label}
 			</Label>
-			<p className="text-[10px] text-muted-foreground">{feature.description}</p>
+			<p className="text-xs text-muted-foreground">{feature.description}</p>
 		</div>
 		{feature.comingSoon ? (
 			<Tooltip>
 				<TooltipTrigger asChild>
-					<span className="ml-1 text-[10px] bg-secondary text-secondary-foreground px-1 py-0.5 rounded cursor-pointer">
+					<span className="ml-1 font-bold text-sm bg-secondary text-secondary-foreground px-1 py-0.5 rounded cursor-pointer">
 						BETA
 					</span>
 				</TooltipTrigger>
@@ -356,6 +356,10 @@ const SettingsPage: React.FC = () => {
 				</TabsContent>
 
 				<TabsContent value="experimental" className="space-y-4">
+				<SummarizationThresholdSlider
+						summarizationThreshold={extensionState.summarizationThreshold}
+						setSummarizationThreshold={extensionState.setSummarizationThreshold}
+					/>
 					{experimentalFeatures.map((feature) => (
 						<ExperimentalFeatureItem
 							key={feature.id}

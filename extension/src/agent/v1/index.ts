@@ -132,6 +132,7 @@ export class KoduDev {
 		}
 		this.taskExecutor.handleAskResponse(askResponse, text, images)
 	}
+	
 	private async startTask(task?: string, images?: string[]): Promise<void> {
 		this.stateManager.state.claudeMessages = []
 		this.stateManager.state.apiConversationHistory = []
@@ -360,7 +361,6 @@ export class KoduDev {
 			say: this.taskExecutor.say.bind(this.taskExecutor),
 			updateAsk: this.taskExecutor.updateAsk.bind(this.taskExecutor),
 		})
-		4
 	}
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {

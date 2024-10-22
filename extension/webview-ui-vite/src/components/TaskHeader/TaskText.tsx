@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils"
 import { extractAdditionalContext, extractFilesFromContext, extractUrlsFromContext } from "@/utils/extractAttachments"
 import React, { useEffect, useRef, useState } from "react"
 import { useWindowSize } from "react-use"

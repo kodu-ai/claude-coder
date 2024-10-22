@@ -1,5 +1,5 @@
-import { ApiConfiguration } from "../api"
-import { GlobalState } from "../providers/claude-coder/state/GlobalStateManager"
+import { ApiConfiguration } from "../api";
+import { GlobalState } from "../providers/claude-coder/state/GlobalStateManager";
 
 export type Resource =
 	| { id: string; type: "file" | "folder"; name: string }
@@ -111,6 +111,11 @@ export type ToolFeedbackAllMessage = {
 	feedback: "approve" | "reject"
 }
 
+export type SummarizationThresholdMessage = {
+	type: "setSummarizationThreshold"
+	value: NonNullable<GlobalState["summarizationThreshold"]>
+}
+
 export type updateGlobalStateMessage = {
 	type: "updateGlobalState"
 	state: Partial<GlobalState>
@@ -141,6 +146,7 @@ export type WebviewMessage =
 	| UpdateTaskHistoryMessage
 	| ExecuteCommandMessage
 	| CommandInputMessage
+	| SummarizationThresholdMessage
 	| {
 			type:
 				| "skipWriteAnimation"
