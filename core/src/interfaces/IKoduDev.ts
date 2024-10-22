@@ -3,7 +3,9 @@ import { IStateManager } from './IStateManager';
 import { IApiManager } from './IApiManager';
 import { IBrowserManager } from './IBrowserManager';
 import { IDiagnosticsHandler } from './IDiagnosticsHandler';
-import { KoduApiService } from '@/services';
+import { BrowserService, KoduApiService } from '@/services';
+import { StateService } from '@/services/state/state.service';
+import { AdvancedTerminalManager } from '@/integrations';
 
 /**
  * Main interface for the Kodu Development environment.
@@ -71,6 +73,13 @@ export interface IKoduDev {
   getDiagnosticsHandler(): IDiagnosticsHandler;
 
   apiService: KoduApiService;
+
+  stateService: StateService;
+
+  // @TODO: change back to Service?
+  terminalManager: AdvancedTerminalManager;
+
+  browserService: BrowserService;
 }
 
 /**

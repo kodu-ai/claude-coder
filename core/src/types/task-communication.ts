@@ -46,11 +46,24 @@ export type ClaudeSay =
 	| "show_terminal"
 
 
-export interface ClaudeSayTool {
-    tool: string;
-    path: string;
-    content: string;
-}
+	export type ClaudeSayTool =
+	| ChatTool
+	| {
+			tool:
+				| "editedExistingFile"
+				| "newFileCreated"
+				| "readFile"
+				| "listFilesTopLevel"
+				| "listFilesRecursive"
+				| "listCodeDefinitionNames"
+				| "searchFiles"
+			path?: string
+			diff?: string
+			content?: string
+			regex?: string
+			filePattern?: string
+	  }
+
 export type UserContent = Array<
     Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam
 >;

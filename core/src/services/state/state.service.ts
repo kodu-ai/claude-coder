@@ -1,20 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk"
 import fs from "fs/promises"
 import path from "path"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { findLastIndex, combineApiRequests, combineCommandSequences, getApiMetrics } from "@/utils"
-import {  } from "@/utils"
-import { ApiManager } from "./api-handler"
 import { ClaudeMessage, KoduDevOptions, KoduDevState } from "@/types"
 
 export const DEFAULT_MAX_REQUESTS_PER_TASK = 20
 
-// new State Manager class
-export class StateManager {
+export class StateService {
 	private _state: KoduDevState
-	private _apiManager: ApiManager
 	private _maxRequestsPerTask: number
-	private _providerRef: WeakRef<ExtensionProvider>
 	private _alwaysAllowReadOnly: boolean
 	private _creativeMode: "creative" | "normal" | "deterministic"
 	private _customInstructions?: string
@@ -22,11 +16,9 @@ export class StateManager {
 	private _experimentalTerminal?: boolean
 	private _autoCloseTerminal?: boolean
 	private _skipWriteAnimation?: boolean
-
+	private _globalStoragePath?: string
 	constructor(options: KoduDevOptions) {
 		const {
-			provider,
-			apiConfiguration,
 			maxRequestsPerTask,
 			customInstructions,
 			alwaysAllowReadOnly,
@@ -36,10 +28,9 @@ export class StateManager {
 			experimentalTerminal,
 			autoCloseTerminal,
 			skipWriteAnimation,
+			globalStoragePath,
 		} = options
 		this._creativeMode = creativeMode ?? "normal"
-		this._providerRef = new WeakRef(provider)
-		this._apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
 		this._alwaysAllowReadOnly = alwaysAllowReadOnly ?? false
 		this._alwaysAllowWriteOnly = alwaysAllowWriteOnly ?? false
 		this._customInstructions = customInstructions
@@ -47,6 +38,8 @@ export class StateManager {
 		this._experimentalTerminal = experimentalTerminal
 		this._autoCloseTerminal = autoCloseTerminal
 		this._skipWriteAnimation = skipWriteAnimation
+		this._globalStoragePath = globalStoragePath
+
 		this._state = {
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
 			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
@@ -92,20 +85,12 @@ export class StateManager {
 		return this.state.isRepoInitialized ?? false
 	}
 
-	get apiManager(): ApiManager {
-		return this._apiManager
-	}
-
 	get experimentalTerminal(): boolean | undefined {
 		return this._experimentalTerminal
 	}
 
 	get maxRequestsPerTask(): number {
 		return this._maxRequestsPerTask
-	}
-
-	get providerRef(): WeakRef<ExtensionProvider> {
-		return this._providerRef
 	}
 
 	get alwaysAllowReadOnly(): boolean {
@@ -160,16 +145,8 @@ export class StateManager {
 		this._experimentalTerminal = newValue
 	}
 
-	public setApiManager(newApiManager: ApiManager): void {
-		this._apiManager = newApiManager
-	}
-
 	public setMaxRequestsPerTask(newMax?: number): void {
 		this._maxRequestsPerTask = newMax ?? DEFAULT_MAX_REQUESTS_PER_TASK
-	}
-
-	public setProviderRef(newProviderRef: WeakRef<ExtensionProvider>): void {
-		this._providerRef = newProviderRef
 	}
 
 	public setCustomInstructions(newInstructions?: string): void {
@@ -189,11 +166,10 @@ export class StateManager {
 	}
 
 	private async ensureTaskDirectoryExists(): Promise<string> {
-		const globalStoragePath = this.providerRef.deref()?.context.globalStorageUri.fsPath
-		if (!globalStoragePath) {
+		if (!this._globalStoragePath) {
 			throw new Error("Global storage uri is invalid")
 		}
-		const taskDir = path.join(globalStoragePath, "tasks", this.state.taskId)
+		const taskDir = path.join(this._globalStoragePath, "tasks", this.state.taskId)
 		await fs.mkdir(taskDir, { recursive: true })
 		return taskDir
 	}
@@ -377,19 +353,21 @@ export class StateManager {
 						(m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task")
 					)
 				]
-			await this.providerRef
-				.deref()
-				?.getStateManager()
-				.updateTaskHistory({
-					id: this.state.taskId,
-					ts: lastRelevantMessage.ts,
-					task: taskMessage.text ?? "",
-					tokensIn: apiMetrics.totalTokensIn,
-					tokensOut: apiMetrics.totalTokensOut,
-					cacheWrites: apiMetrics.totalCacheWrites,
-					cacheReads: apiMetrics.totalCacheReads,
-					totalCost: apiMetrics.totalCost,
-				})
+
+			// @TODO: refactor this to use the new state manager
+			// await this.providerRef
+			// 	.deref()
+			// 	?.getStateManager()
+			// 	.updateTaskHistory({
+			// 		id: this.state.taskId,
+			// 		ts: lastRelevantMessage.ts,
+			// 		task: taskMessage.text ?? "",
+			// 		tokensIn: apiMetrics.totalTokensIn,
+			// 		tokensOut: apiMetrics.totalTokensOut,
+			// 		cacheWrites: apiMetrics.totalCacheWrites,
+			// 		cacheReads: apiMetrics.totalCacheReads,
+			// 		totalCost: apiMetrics.totalCost,
+			// 	})
 		} catch (error) {
 			console.error("Failed to save claude messages:", error)
 		}

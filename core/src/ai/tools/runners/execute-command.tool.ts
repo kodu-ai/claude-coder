@@ -110,7 +110,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			console.log("Terminal created")
 			terminalInfo.terminal.show() // weird visual bug when creating new terminals (even manually) where there's an empty space at the top.
 			const process = terminalManager.runCommand(terminalInfo, command, {
-				autoClose: this.koduDev.getStateManager().autoCloseTerminal ?? false,
+				autoClose: this.koduDev.stateService.autoCloseTerminal ?? false,
 			})
 			await delay(100)
 
