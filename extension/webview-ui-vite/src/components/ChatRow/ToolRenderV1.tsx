@@ -16,20 +16,36 @@ import {
 	HelpCircle,
 	Image,
 	LoaderPinwheel,
+	MessageCircle,
 	Play,
 	RefreshCw,
+	Search,
 	Server,
-	Square
+	Square,
+	Terminal,
+	XCircle
 } from "lucide-react"
 import {
 	AskConsultantTool,
 	AskFollowupQuestionTool,
 	AttemptCompletionTool,
 	ChatTool,
+	ExecuteCommandTool,
+	ListCodeDefinitionNamesTool,
+	ListFilesTool,
+	ReadFileTool,
+	SearchFilesTool,
 	ServerRunnerTool,
+	SummarizeChatTool,
+	UpsertMemoryTool,
+	UrlScreenshotTool,
+	WebSearchTool,
+	WriteToFileTool,
 } from "../../../../src/shared/new-tools"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
+import React, { useState, useRef, useEffect } from 'react'
+import MarkdownRenderer from './MarkdownRenderer'
 
 type ApprovalState = ToolStatus
 type ToolAddons = {
