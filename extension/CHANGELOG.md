@@ -4,6 +4,10 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.9.19]
+
+-   [FIX]: prompt caching, reduce cost.
+
 ## [1.9.18]
 
 -   [FIX]: adjust system prompt to prevent redundant reads

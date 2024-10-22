@@ -18,6 +18,7 @@ import { getCwd } from "./utils"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { AxiosError } from "axios"
 import { koduModels } from "../../shared/api"
+import { Message } from "@anthropic-ai/sdk/resources/messages.mjs"
 
 /**
  *
@@ -154,6 +155,46 @@ ${this.customInstructions.trim()}
 				apiMetrics = (lastV1Message as V1ClaudeMessage)?.apiMetrics!
 			}
 		}
+		const isFirstRequest = this.providerRef.deref()?.getKoduDev()?.isFirstMessage ?? false
+		// on first request, we need to get the environment details with details of the current task and folder
+		const environmentDetails = await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
+		if (isFirstRequest && this.providerRef.deref()?.getKoduDev()) {
+			this.providerRef.deref()!.getKoduDev()!.isFirstMessage = false
+		}
+		// every 4 messages, add a critical message and on first message
+		const shouldAddCriticalMsg = apiConversationHistory.length % 4 === 0 || apiConversationHistory.length === 1
+		const lastMessage = apiConversationHistory[apiConversationHistory.length - 1]
+
+		// Add critical messages if needed
+		if (shouldAddCriticalMsg) {
+			const criticalMsg = `<most_important_context>
+					// ...Critical message content...
+				  </most_important_context>`
+
+			if (typeof lastMessage.content === "string") {
+				lastMessage.content = [
+					{
+						type: "text",
+						text: lastMessage.content,
+					},
+					{
+						type: "text",
+						text: criticalMsg,
+					},
+				] satisfies Message["content"]
+			} else if (Array.isArray(lastMessage.content)) {
+				lastMessage.content.push({
+					type: "text",
+					text: criticalMsg,
+				})
+			}
+			if (Array.isArray(lastMessage.content) && environmentDetails) {
+				lastMessage.content.push({
+					text: environmentDetails,
+					type: "text",
+				})
+			}
+		}
 
 		const totalTokens =
 			(apiMetrics.inputTokens || 0) +
@@ -172,12 +213,6 @@ ${this.customInstructions.trim()}
 				?.getStateManager()
 				.overwriteApiConversationHistory(truncatedMessages)
 		}
-		const isFirstRequest = this.providerRef.deref()?.getKoduDev()?.isFirstMessage ?? false
-		// on first request, we need to get the environment details with details of the current task and folder
-		const environmentDetails = await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
-		if (isFirstRequest && this.providerRef.deref()?.getKoduDev()) {
-			this.providerRef.deref()!.getKoduDev()!.isFirstMessage = false
-		}
 
 		try {
 			const stream = await this.api.createMessageStream(
@@ -185,9 +220,7 @@ ${this.customInstructions.trim()}
 				apiConversationHistory,
 				creativeMode,
 				abortSignal,
-				customInstructions,
-				await this.providerRef.deref()?.getKoduDev()?.getStateManager().state.memory,
-				environmentDetails
+				customInstructions
 			)
 
 			for await (const chunk of stream) {
