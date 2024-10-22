@@ -7,6 +7,8 @@ All notable changes to the "claude-coder" extension will be documented in this f
 ## [1.9.19]
 
 -   [FIX]: prompt caching, reduce cost.
+-   [ADJUSTMENT]: better attention on system prompt to prevent looping and get task done faster.
+-   [FIX]: server runner tool was having trouble sometimes do to missing cleanup.
 
 ## [1.9.18]
 
