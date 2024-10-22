@@ -71,6 +71,15 @@ export type WebSearchTool = {
 	content?: string
 }
 
+export type ServerRunnerTool = {
+	tool: "server_runner_tool"
+	port?: number
+	serverName?: string
+	commandType?: "start" | "stop" | "restart" | "getLogs"
+	output?: string
+	commandToRun?: string
+}
+
 export type UrlScreenshotTool = {
 	tool: "url_screenshot"
 	url: string
@@ -90,6 +99,12 @@ export type UpsertMemoryTool = {
 	content: string
 }
 
+export type SummarizeChatTool = {
+	tool: "summarize"
+	cost?: number
+	output?: string
+}
+
 export type ChatTool = (
 	| ExecuteCommandTool
 	| ListFilesTool
@@ -102,6 +117,7 @@ export type ChatTool = (
 	| WebSearchTool
 	| UrlScreenshotTool
 	| AskConsultantTool
+	| ServerRunnerTool
 	| UpsertMemoryTool
 ) & {
 	ts: number

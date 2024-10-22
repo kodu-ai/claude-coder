@@ -17,6 +17,7 @@ import delay from "delay"
 import { BASE_SYSTEM_PROMPT } from "./prompts/base-system"
 import { getCwd } from "./utils"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
+import { AxiosError } from "axios"
 
 /**
  *
@@ -159,9 +160,9 @@ ${this.customInstructions.trim()}
 		} else {
 			// reverse claude messages to find the last message that is typeof v1 and has apiMetrics
 			const reversedClaudeMessages = claudeMessages?.slice().reverse()
-			const lastV1Message = reversedClaudeMessages?.find((m) => isV1ClaudeMessage(m) && m.apiMetrics)
+			const lastV1Message = reversedClaudeMessages?.find((m) => isV1ClaudeMessage(m) && m?.apiMetrics)
 			if (lastV1Message) {
-				apiMetrics = (lastV1Message as V1ClaudeMessage).apiMetrics!
+				apiMetrics = (lastV1Message as V1ClaudeMessage)?.apiMetrics!
 			}
 		}
 
@@ -241,6 +242,12 @@ ${this.customInstructions.trim()}
 			if (error instanceof KoduError) {
 				console.error("KODU API request failed", error)
 			}
+			if (error instanceof AxiosError) {
+				throw new KoduError({
+					code: error.response?.status || 500,
+				})
+			}
+
 			throw error
 		}
 	}
