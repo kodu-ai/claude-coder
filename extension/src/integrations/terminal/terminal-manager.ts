@@ -109,6 +109,7 @@ export class TerminalRegistry {
 		if (terminalInfo) {
 			terminalInfo.terminal.dispose()
 			this.removeTerminal(id)
+
 			return true
 		}
 		return false
@@ -125,6 +126,13 @@ export class TerminalRegistry {
 		this.terminals = this.terminals.filter((t) => t.id !== id)
 		// Remove from devServers if exists
 		this.devServers = this.devServers.filter((ds) => ds.terminalInfo.id !== id)
+		// kill the terminal if it's still running
+		const terminal = this.getTerminal(id)
+		if (terminal && !this.isTerminalClosed(terminal.terminal)) {
+			terminal.terminal.dispose()
+			// kill the terminal if it's still running
+			terminal.terminal.shellIntegration?.executeCommand?.("exit")
+		}
 	}
 
 	static getAllTerminals(): TerminalInfo[] {
@@ -260,7 +268,7 @@ export class TerminalManager {
 			process.waitForShellIntegration = false
 			process.run(terminalInfo.terminal, command)
 		} else {
-			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 10000 }).finally(() => {
+			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 15_000 }).finally(() => {
 				const existingProcess = this.processes.get(terminalInfo.id)
 				if (existingProcess && existingProcess.waitForShellIntegration) {
 					existingProcess.waitForShellIntegration = false

@@ -71,7 +71,11 @@ export class BrowserManager {
 		const logs: string[] = []
 
 		this.page.on("console", (msg) => {
-			logs.push(`[${msg.type()}] ${msg.text()}`)
+			if (msg.type() === "error") {
+				console.error(`[Browser Error] ${msg.text()}`)
+			} else {
+				logs.push(`[${msg.type()}] ${msg.text()}`)
+			}
 		})
 
 		try {

@@ -236,7 +236,9 @@ export class KoduHandler implements ApiHandler {
 		messages: Anthropic.Messages.MessageParam[],
 		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null,
-		customInstructions?: string
+		customInstructions?: string,
+		userMemory?: string,
+		environmentDetails?: string
 	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
 		const creativitySettings = temperatures[creativeMode ?? "normal"]
@@ -260,11 +262,19 @@ export class KoduHandler implements ApiHandler {
 		// Mark the last block with cache_control (First Breakpoint)
 		system[system.length - 1].cache_control = { type: "ephemeral" }
 
+		// Add environment details
+		if (environmentDetails && environmentDetails.trim()) {
+			system.push({
+				text: environmentDetails,
+				type: "text",
+				cache_control: { type: "ephemeral" }, // Second Breakpoint
+			})
+		}
+
 		const userMsgIndices = messages.reduce(
 			(acc, msg, index) => (msg.role === "user" ? [...acc, index] : acc),
 			[] as number[]
 		)
-
 		const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
 		const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 		// Prepare messages up to the last user message

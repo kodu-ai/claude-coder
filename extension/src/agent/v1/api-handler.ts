@@ -13,7 +13,7 @@ import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvi
 import { tools as baseTools } from "./tools/tools"
 import { findLast } from "../../utils"
 import delay from "delay"
-import { BASE_SYSTEM_PROMPT } from "./prompts/base-system"
+import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
 import { getCwd } from "./utils"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { AxiosError } from "axios"
@@ -165,36 +165,35 @@ ${this.customInstructions.trim()}
 		const shouldAddCriticalMsg = apiConversationHistory.length % 4 === 0 || apiConversationHistory.length === 1
 		const lastMessage = apiConversationHistory[apiConversationHistory.length - 1]
 
+		if (typeof lastMessage.content === "string") {
+			lastMessage.content = [
+				{
+					type: "text",
+					text: lastMessage.content,
+				},
+			] satisfies Message["content"]
+		}
 		// Add critical messages if needed
 		if (shouldAddCriticalMsg) {
-			const criticalMsg = `<most_important_context>
-					// ...Critical message content...
-				  </most_important_context>`
-
-			if (typeof lastMessage.content === "string") {
-				lastMessage.content = [
-					{
-						type: "text",
-						text: lastMessage.content,
-					},
-					{
-						type: "text",
-						text: criticalMsg,
-					},
-				] satisfies Message["content"]
-			} else if (Array.isArray(lastMessage.content)) {
+			if (Array.isArray(lastMessage.content)) {
 				lastMessage.content.push({
 					type: "text",
 					text: criticalMsg,
 				})
 			}
-			if (Array.isArray(lastMessage.content) && environmentDetails) {
-				lastMessage.content.push({
-					text: environmentDetails,
-					type: "text",
-				})
-			}
 		}
+		if (Array.isArray(lastMessage.content) && environmentDetails) {
+			lastMessage.content.push({
+				text: environmentDetails,
+				type: "text",
+			})
+		}
+		// override the api conversation history with the updated messages
+		await this.providerRef
+			.deref()
+			?.getKoduDev()
+			?.getStateManager()
+			.overwriteApiConversationHistory(apiConversationHistory)
 
 		const totalTokens =
 			(apiMetrics.inputTokens || 0) +

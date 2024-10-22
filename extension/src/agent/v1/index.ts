@@ -432,8 +432,7 @@ export class KoduDev {
 		if (newErrors.length === 0) {
 			details += "\n(No diagnostics errors)"
 		} else {
-			details +=
-				"\n (Errors found in the following files) please address these errors before proceeding with the task, this action is critical to the task completion."
+			details += `The following errors are present in the current task you have been working on. this is the only errors that are present if you seen previous linting errors they have been resolved.\n`
 			details += `<linter_errors>\n`
 			details += newErrors.map((diag) => diag.errorString).join("\n")
 			details += `</linter_errors>\n`

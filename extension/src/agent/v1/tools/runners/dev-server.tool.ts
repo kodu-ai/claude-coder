@@ -4,6 +4,7 @@ import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
 import { TerminalManager, TerminalRegistry } from "../../../../integrations/terminal/terminal-manager"
 import pWaitFor from "p-wait-for"
+import delay from "delay"
 
 export class DevServerTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -18,21 +19,35 @@ export class DevServerTool extends BaseAgentTool {
 		const { commandType, commandToRun, serverName } = input
 		const { terminalManager } = this.koduDev
 
-		if (!commandType || !commandToRun || !serverName) {
+		if (!commandType || !serverName) {
 			await say(
 				"error",
 				"Missing values for required parameters 'commandType', 'commandToRun', or 'serverName'. Retrying..."
 			)
 			return `Error: Missing values for required parameters 'commandType', 'commandToRun', or 'serverName'. Please retry with complete response.
+			You must provide values for the required parameters 'commandType', 'commandToRun', and 'serverName' for the server_runner_tool to work.
             An example of a good devServer tool call is:
-            {
-                "tool": "server_runner_tool",
-                "commandType": "start" | "stop" | "restart" | "getLogs",
-                "commandToRun": "npm run dev",
-                "serverName": "my-dev-server"
-            }
+			<server_runner_tool>
+				<commandType>start</commandType>
+				<commandToRun>npm run dev</commandToRun>
+				<serverName>my-dev-server</serverName>
+			</server_runner_tool>
             Please try again with the correct parameters.
             `
+		}
+
+		if ((commandType === "start" || commandType === "restart") && !commandToRun) {
+			await say("error", "Missing value for required parameter 'commandToRun'. Retrying...")
+			return `Error: Missing value for required parameter 'commandToRun'. Please retry with complete response.
+			When using the 'start' or 'restart' commandType, you must provide a value for the 'commandToRun' parameter in addition to the 'serverName' parameter and the 'commandType' parameter.
+			An example of a good devServer tool call is:
+			<server_runner_tool>
+				<commandType>start</commandType>
+				<commandToRun>npm run dev</commandToRun>
+				<serverName>my-dev-server</serverName>
+			</server_runner_tool>
+			Please try again with the correct parameters.
+			`
 		}
 
 		const { response, text, images } = await ask(
@@ -70,13 +85,13 @@ export class DevServerTool extends BaseAgentTool {
 				let result: string
 				switch (commandType) {
 					case "start":
-						result = await this.startServer(terminalManager, commandToRun, serverName)
+						result = await this.startServer(terminalManager, commandToRun!, serverName)
 						break
 					case "stop":
 						result = await this.stopServer(terminalManager, serverName)
 						break
 					case "restart":
-						result = await this.restartServer(terminalManager, commandToRun, serverName)
+						result = await this.restartServer(terminalManager, commandToRun!, serverName)
 						break
 					case "getLogs":
 						result = await this.getLogs(terminalManager, serverName)
@@ -195,7 +210,7 @@ export class DevServerTool extends BaseAgentTool {
 		})
 
 		// Wait for the process to complete or for the URL to be found
-		await Promise.race([serverProcess, pWaitFor(() => urlFound, { timeout: 15000 })])
+		await Promise.race([serverProcess, pWaitFor(() => urlFound, { timeout: 15_000 })])
 
 		const devServer = TerminalRegistry.getDevServer(terminalInfo.id)
 		const serverUrl = devServer?.url
@@ -286,6 +301,7 @@ export class DevServerTool extends BaseAgentTool {
 			this.ts
 		)
 		const stopResult = await this.stopServer(terminalManager, serverName)
+		await delay(300) // Wait for the terminal to close
 		const startResult = await this.startServer(terminalManager, command, serverName)
 		this.params.updateAsk(
 			"tool",
