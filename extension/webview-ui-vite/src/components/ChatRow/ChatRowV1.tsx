@@ -122,7 +122,9 @@ const APIRequestMessage: React.FC<{
 
 const TextMessage: React.FC<{ message: V1ClaudeMessage; syntaxHighlighterStyle: SyntaxHighlighterStyle }> = React.memo(
 	({ message, syntaxHighlighterStyle }) => (
-		<MarkdownRenderer markdown={message.text || ""} syntaxHighlighterStyle={syntaxHighlighterStyle} />
+		<div className="flex text-wrap flex-wrap gap-2">
+			<MarkdownRenderer markdown={message.text || ""} syntaxHighlighterStyle={syntaxHighlighterStyle} />
+		</div>
 	)
 )
 

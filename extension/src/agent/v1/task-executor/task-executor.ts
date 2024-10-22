@@ -133,6 +133,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 		if (lastToolRequest) {
 			const parsedTool = JSON.parse(lastToolRequest.text ?? "{}") as ChatTool
+			if (parsedTool.approvalState === "approved") {
+				return
+			}
 			await this.updateAsk(
 				lastToolRequest.ask!,
 				{
@@ -153,7 +156,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				errorText: "Request cancelled by user",
 				isError: true,
 			})
-			await this.stateManager.removeEverythingAfterMessage(lastApiRequest.ts)
+			// await this.stateManager.removeEverythingAfterMessage(lastApiRequest.ts)
 		}
 		// Update the provider state
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()

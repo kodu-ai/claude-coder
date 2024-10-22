@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useExtensionState } from "../../context/ExtensionStateContext"
+import { showSettingsAtom, useExtensionState } from "../../context/ExtensionStateContext"
 import { vscode } from "@/utils/vscode"
 import { formatPrice } from "../ApiOptions/utils"
 import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
@@ -14,6 +14,8 @@ import { experimentalFeatures, models } from "./constants"
 import { useSettingsState } from "../../hooks/useSettingsState"
 import { ModelDetails } from "./ModelDetails"
 import { ExperimentalFeatureItem } from "./ExperimentalFeatureItem"
+import { useSetAtom } from "jotai"
+import { X } from "lucide-react"
 
 const UserInfoSection: React.FC = () => {
 	const extensionState = useExtensionState()
@@ -142,6 +144,15 @@ const ExperimentalTab: React.FC = () => {
 	)
 }
 
+const ClosePageButton: React.FC = () => {
+	const setIsOpen = useSetAtom(showSettingsAtom)
+	return (
+		<Button variant="ghost" size="icon" className="ml-auto" onClick={() => setIsOpen(false)}>
+			<X className="size-4" />
+		</Button>
+	)
+}
+
 const AdvancedTab: React.FC = () => {
 	const {
 		readOnly,
@@ -203,7 +214,11 @@ const AdvancedTab: React.FC = () => {
 const SettingsPage: React.FC = () => {
 	return (
 		<div className="container mx-auto px-4 max-[280px]:px-2 py-4 max-w-[500px] flex flex-col h-full">
-			<h1 className="text-xl font-bold mb-2">Settings</h1>
+			<div className="flex items-center">
+				<h1 className="text-xl font-bold mb-2">Settings</h1>
+
+				<ClosePageButton />
+			</div>
 			<p className="text-xs text-muted-foreground mb-4">Manage your extension preferences</p>
 
 			<div className="mb-4 space-y-3">

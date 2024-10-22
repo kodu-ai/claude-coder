@@ -76,8 +76,8 @@ export default {
 					foreground: createColorWithOpacity("--vscode-disabledForeground"),
 				},
 				accent: {
-					DEFAULT: createColorWithOpacity("--vscode-statusBar-background"),
-					foreground: createColorWithOpacity("--vscode-statusBar-foreground"),
+					DEFAULT: createColorWithOpacity("--vscode-button-secondaryBackground"),
+					foreground: createColorWithOpacity("--vscode-button-secondaryForeground"),
 				},
 				popover: {
 					DEFAULT: createColorWithOpacity("--vscode-editorWidget-background"),

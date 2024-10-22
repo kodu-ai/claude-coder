@@ -216,85 +216,27 @@ export class KoduDev {
 				newUserContent.push({ type: "text", text })
 			}
 		}
-
+		if (response === "yesButtonTapped") {
+			newUserContent.push({ type: "text", text: `Let's continue the task from where we left off.` })
+		}
 		const existingApiConversationHistory: Anthropic.Messages.MessageParam[] =
 			await this.stateManager.getSavedApiConversationHistory()
 
-		let modifiedOldUserContent: UserContent
-		let modifiedApiConversationHistory: Anthropic.Messages.MessageParam[]
-		if (existingApiConversationHistory.length > 0) {
-			const lastMessage = existingApiConversationHistory[existingApiConversationHistory.length - 1]
-
-			if (lastMessage.role === "assistant") {
-				const content = Array.isArray(lastMessage.content)
-					? lastMessage.content
-					: [{ type: "text", text: lastMessage.content }]
-				const hasToolUse = content.some((block) => block.type === "tool_use")
-
-				if (hasToolUse) {
-					const toolUseBlocks = content.filter(
-						(block) => block.type === "tool_use"
-					) as Anthropic.Messages.ToolUseBlock[]
-					const toolResponses: Anthropic.ToolResultBlockParam[] = toolUseBlocks.map((block) => ({
-						type: "tool_result",
-						tool_use_id: block.id,
-						content: "Task was interrupted before this tool call could be completed.",
-					}))
-					modifiedApiConversationHistory = [...existingApiConversationHistory]
-					modifiedOldUserContent = [...toolResponses]
-				} else {
-					modifiedApiConversationHistory = [...existingApiConversationHistory]
-					modifiedOldUserContent = []
-				}
-			} else if (lastMessage.role === "user") {
-				const previousAssistantMessage =
-					existingApiConversationHistory[existingApiConversationHistory.length - 2]
-
-				const existingUserContent: UserContent = Array.isArray(lastMessage.content)
-					? lastMessage.content
-					: [{ type: "text", text: lastMessage.content }]
-				if (previousAssistantMessage && previousAssistantMessage.role === "assistant") {
-					const assistantContent = Array.isArray(previousAssistantMessage.content)
-						? previousAssistantMessage.content
-						: [{ type: "text", text: previousAssistantMessage.content }]
-
-					const toolUseBlocks = assistantContent.filter(
-						(block) => block.type === "tool_use"
-					) as Anthropic.Messages.ToolUseBlock[]
-
-					if (toolUseBlocks.length > 0) {
-						const existingToolResults = existingUserContent.filter(
-							(block) => block.type === "tool_result"
-						) as Anthropic.ToolResultBlockParam[]
-
-						const missingToolResponses: Anthropic.ToolResultBlockParam[] = toolUseBlocks
-							.filter(
-								(toolUse) => !existingToolResults.some((result) => result.tool_use_id === toolUse.id)
-							)
-							.map((toolUse) => ({
-								type: "tool_result",
-								tool_use_id: toolUse.id,
-								content: "Task was interrupted before this tool call could be completed.",
-							}))
-
-						modifiedApiConversationHistory = existingApiConversationHistory.slice(0, -1)
-						modifiedOldUserContent = [...existingUserContent, ...missingToolResponses]
-					} else {
-						modifiedApiConversationHistory = [...existingApiConversationHistory]
-						modifiedOldUserContent = [...existingUserContent]
-					}
-				} else {
-					modifiedApiConversationHistory = [...existingApiConversationHistory]
-					modifiedOldUserContent = [...existingUserContent]
-				}
-			} else {
-				throw new Error("Unexpected: Last message is not a user or assistant message")
+		// remove all the corrupted messages (if there is a message with empty content)
+		const modifiedApiConversationHistory = existingApiConversationHistory.filter((m) => {
+			let shouldKeep = true
+			if (typeof m.content === "string") {
+				shouldKeep = m.content.trim() !== ""
 			}
-		} else {
-			throw new Error("Unexpected: No existing API conversation history")
-		}
+			if (Array.isArray(m.content) && m.content.length > 1) {
+				shouldKeep = m.content.some(
+					(block) => (block.type === "text" && block.text.trim() !== "") || block.type === "image"
+				)
+			}
+			return shouldKeep
+		})
+		await this.stateManager.overwriteApiConversationHistory(modifiedApiConversationHistory) // remove the corrupted messages
 
-		const modifiedOldUserContentText = modifiedOldUserContent.find((block) => block.type === "text")?.text
 		const newUserContentText = newUserContent.find((block) => block.type === "text")?.text
 		const agoText = (() => {
 			const timestamp = lastClaudeMessage?.ts ?? Date.now()
@@ -318,9 +260,6 @@ export class KoduDev {
 
 		let combinedText =
 			`Task resumption: This autonomous coding task was interrupted ${agoText}. It may or may not be complete, so please reassess the task context. Be aware that the project state may have changed since then. The current working directory is now ${getCwd()}. If the task has not been completed, retry the last step before interruption and proceed with completing the task.` +
-			(modifiedOldUserContentText
-				? `\n\nLast recorded user input before interruption:\n<previous_message>\n${modifiedOldUserContentText}\n</previous_message>\n`
-				: "") +
 			(newUserContentText
 				? `\n\nNew instructions for task continuation:\n<user_message>\n${newUserContentText}\n</user_message>\n`
 				: "")
@@ -328,24 +267,18 @@ export class KoduDev {
 		combinedText += await this.getEnvironmentDetails(true)
 		combinedText += `No dev server information is available. Please start the dev server if needed.`
 
-		const newUserContentImages = newUserContent.filter((block) => block.type === "image")
-		const combinedModifiedOldUserContentWithNewUserContent: UserContent = (
-			modifiedOldUserContent.filter((block) => block.type !== "text") as UserContent
-		).concat([{ type: "text", text: combinedText }, ...newUserContentImages])
-
 		const pastRequestsCount = modifiedApiConversationHistory.filter((m) => m.role === "assistant").length
 		amplitudeTracker.taskResume(this.stateManager.state.taskId, pastRequestsCount)
 
 		this.stateManager.state.isHistoryItemResumed = true
-		await this.stateManager.overwriteApiConversationHistory(modifiedApiConversationHistory)
-		await this.taskExecutor.startTask(combinedModifiedOldUserContentWithNewUserContent)
+		await this.taskExecutor.startTask(newUserContent)
 	}
 
 	async abortTask() {
-		await this.taskExecutor.abortTask()
-		this.browserManager.closeBrowser()
-		this.terminalManager.disposeAll()
-		TerminalRegistry.clearAllDevServers()
+		void this.taskExecutor.abortTask()
+		void this.browserManager.closeBrowser()
+		void this.terminalManager.disposeAll()
+		void TerminalRegistry.clearAllDevServers()
 	}
 
 	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false): Promise<ToolResponse> {

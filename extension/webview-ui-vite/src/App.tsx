@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { useEvent } from "react-use"
 import { ExtensionMessage } from "../../src/shared/ExtensionMessage"
-import { ExtensionStateProvider, useExtensionState } from "./context/ExtensionStateContext"
+import { ExtensionStateProvider, showSettingsAtom, useExtensionState } from "./context/ExtensionStateContext"
 import { vscode } from "./utils/vscode"
 import { normalizeApiConfiguration } from "./components/ApiOptions/utils"
 import ChatView from "./components/ChatView/ChatView"
@@ -14,11 +14,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import OnboardingDialog from "./components/onboarding"
 import OutOfCreditDialog from "./components/dialogs/out-of-credit-dialog"
 import SettingsPage from "./components/SettingsView/settings-tabs"
+import { useAtom, useAtomValue } from "jotai"
 const queryClient = new QueryClient()
 
 const AppContent = () => {
 	const { apiConfiguration, user } = useExtensionState()
-	const [showSettings, setShowSettings] = useState(false)
+	const [showSettings, setShowSettings] = useAtom(showSettingsAtom)
 	const [showHistory, setShowHistory] = useState(false)
 	const [showWelcome, setShowWelcome] = useState<boolean>(false)
 	const [showAnnouncement, setShowAnnouncement] = useState(false)

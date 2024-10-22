@@ -210,9 +210,13 @@ export const DevServerToolBlock: React.FC<ServerRunnerTool & ToolAddons> = ({
 					</CollapsibleTrigger>
 					<CollapsibleContent className="mt-2">
 						<ScrollArea className="h-[200px] w-full rounded-md border">
-							<div className="p-4">
-								<pre className="text-sm">{output}</pre>
-							</div>
+							<ScrollArea className="h-[200px] w-full rounded-md border">
+								<div className="p-4">
+									<pre className="text-sm whitespace-pre-wrap text-pretty break-all">{output}</pre>
+								</div>{" "}
+								<ScrollBar orientation="vertical" />
+							</ScrollArea>
+
 							<ScrollBar orientation="vertical" />
 						</ScrollArea>
 					</CollapsibleContent>
@@ -281,9 +285,12 @@ export const ExecuteCommandBlock: React.FC<
 						</Button>
 					</CollapsibleTrigger>
 					<CollapsibleContent className="mt-2">
-						<div className="bg-secondary/20 p-3 rounded-md text-sm">
-							<pre className="whitespace-pre-wrap">{output}</pre>
-						</div>
+						<ScrollArea className="h-[200px] w-full rounded-md border">
+							<div className="bg-secondary/20 p-3 rounded-md text-sm">
+								<pre className="whitespace-pre-wrap text-pretty break-all">{output}</pre>
+							</div>
+							<ScrollBar orientation="vertical" />
+						</ScrollArea>
 					</CollapsibleContent>
 				</Collapsible>
 			)}
@@ -415,9 +422,13 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 						</Button>
 					</CollapsibleTrigger>
 					<CollapsibleContent className="mt-2">
-						<div className="bg-secondary/20 p-3 rounded-md text-sm">
-							<pre className="whitespace-pre-wrap">{content}</pre>
-						</div>
+						<ScrollArea className="h-[200px] w-full rounded-md border">
+							<div className="bg-secondary/20 p-3 rounded-md text-sm">
+								<pre className="whitespace-pre-wrap">{content}</pre>
+							</div>
+							<ScrollBar orientation="vertical" />
+							<ScrollBar orientation="horizontal" />
+						</ScrollArea>
 					</CollapsibleContent>
 				</Collapsible>
 			)}
@@ -487,7 +498,7 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
 				<div className="relative">
 					{isStreaming && (
 						<motion.div
-							className="absolute left-0 top-0 w-full h-1 bg-primary"
+							className="sticky left-0 top-0 w-full h-1 bg-primary"
 							initial={{ scaleX: 0 }}
 							animate={{ scaleX: 1 }}
 							transition={{

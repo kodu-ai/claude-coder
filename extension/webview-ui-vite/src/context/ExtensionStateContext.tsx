@@ -96,6 +96,9 @@ extensionStateAtom.debugLabel = "extensionState"
 const didHydrateStateAtom = atom(false)
 didHydrateStateAtom.debugLabel = "didHydrateState"
 
+export const showSettingsAtom = atom(false)
+showSettingsAtom.debugLabel = "showSettings"
+
 export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 	const setVersion = useSetAtom(versionAtom)
 	const setClaudeMessages = useSetAtom(claudeMessagesAtom)

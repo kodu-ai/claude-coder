@@ -110,7 +110,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			const process = terminalManager.runCommand(terminalInfo, command, {
 				autoClose: this.koduDev.getStateManager().autoCloseTerminal ?? false,
 			})
-			await delay(100)
+			await delay(300)
 
 			let userFeedback: { text?: string; images?: string[] } | undefined
 			let didContinue = false
@@ -221,11 +221,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			await Promise.race([earlyExitPromise, process])
 
 			// Wait for a short delay to ensure all messages are sent to the webview
-			// This delay allows time for non-awaited promises to be created and
-			// for their associated messages to be sent to the webview, maintaining
-			// the correct order of messages (although the webview is smart about
-			// grouping command_output messages despite any gaps anyways)
-			await delay(50)
+			await delay(300)
 
 			result = result.trim()
 			await updateAsk(
