@@ -349,18 +349,6 @@ export class TerminalManager {
 			console.warn(`Terminal with ID ${id} does not exist or is already closed.`)
 			return false
 		}
-
-	/**
-	 * Closes the terminal with the given ID.
-	 * @param id The unique ID of the terminal to close.
-	 * @returns True if the terminal was found and closed, false otherwise.
-	 */
-	closeTerminal(id: number): boolean {
-		if (!this.terminalIds.has(id)) {
-			console.warn(`Terminal with ID ${id} does not exist or is already closed.`)
-			return false
-		}
-
 		const closed = TerminalRegistry.closeTerminal(id)
 		if (closed) {
 			// Remove the terminal from tracking

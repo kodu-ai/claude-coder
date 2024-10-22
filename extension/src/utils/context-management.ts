@@ -1,6 +1,4 @@
 import { Anthropic } from '@anthropic-ai/sdk'
-import axios from 'axios'
-import { getKoduSummarizeUrl } from '../shared/kodu'
 
 /*
 We can't implement a dynamically updating sliding window as it would break prompt cache
@@ -25,15 +23,4 @@ export function truncateHalfConversation(
 	truncatedMessages.push(...remainingMessages)
 
 	return truncatedMessages
-}
-
-export async function summarizeConversation(messages: Anthropic.Messages.MessageParam[]): Promise<string> {
-	const userMessages = messages.filter((m) => m.role === 'user')
-	const assistantMessages = messages.filter((m) => m.role === 'assistant')
-	const result = await axios.post(getKoduSummarizeUrl(), {
-		userMessages: userMessages,
-		assistantMessages: assistantMessages,
-	})
-
-	return `User messages: ${userMessagesCount}\n${userMessagesText}\n\nAssistant messages: ${assistantMessagesCount}\n${assistantMessagesText}`
 }
