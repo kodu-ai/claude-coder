@@ -141,15 +141,15 @@ const ExperimentalFeatureItem: React.FC<{
 }> = React.memo(({ feature, checked, onCheckedChange }) => (
 	<div className="flex items-center justify-between">
 		<div className="flex-1 pr-2">
-			<Label htmlFor={feature.id} className="text-xs font-medium flex items-center">
+			<Label htmlFor={feature.id} className="text-sm font-semibold flex items-center">
 				{feature.label}
 			</Label>
-			<p className="text-[10px] text-muted-foreground">{feature.description}</p>
+			<p className="text-xs text-muted-foreground">{feature.description}</p>
 		</div>
 		{feature.comingSoon ? (
 			<Tooltip>
 				<TooltipTrigger asChild>
-					<span className="ml-1 text-[10px] bg-secondary text-secondary-foreground px-1 py-0.5 rounded cursor-pointer">
+					<span className="ml-1 font-bold text-sm bg-secondary text-secondary-foreground px-1 py-0.5 rounded cursor-pointer">
 						BETA
 					</span>
 				</TooltipTrigger>
@@ -307,7 +307,6 @@ const SettingsPage: React.FC = () => {
 				</TabsList>
 
 				<TabsContent value="preferences" className="space-y-4">
-					<SummarizationThresholdSlider summarizationThreshold={extensionState.summarizationThreshold} setSummarizationThreshold={extensionState.setSummarizationThreshold} />
 					<div className="space-y-2">
 						<Label className="text-sm">Technical Level</Label>
 						<RadioGroup
@@ -357,6 +356,10 @@ const SettingsPage: React.FC = () => {
 				</TabsContent>
 
 				<TabsContent value="experimental" className="space-y-4">
+				<SummarizationThresholdSlider
+						summarizationThreshold={extensionState.summarizationThreshold}
+						setSummarizationThreshold={extensionState.setSummarizationThreshold}
+					/>
 					{experimentalFeatures.map((feature) => (
 						<ExperimentalFeatureItem
 							key={feature.id}

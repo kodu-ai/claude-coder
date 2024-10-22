@@ -1,4 +1,4 @@
-import React from 'react'
+import { cn } from '@/lib/utils'
 import { vscode } from '../utils/vscode'
 import { Label } from './ui/label'
 import { Slider } from './ui/slider'
@@ -6,12 +6,14 @@ import { Slider } from './ui/slider'
 interface SummarizationThresholdSliderProps {
 	summarizationThreshold: number
 	setSummarizationThreshold: (threshold: number) => void
+	className?: string
 }
 
-const SummarizationThresholdSlider: React.FC<SummarizationThresholdSliderProps> = ({
+export default function SummarizationThresholdSlider({
 	summarizationThreshold,
-	setSummarizationThreshold
-}) => {
+	setSummarizationThreshold,
+	className,
+}: SummarizationThresholdSliderProps) {
 	const handleThresholdChange = (value: number[]) => {
 		const newThreshold = value[0]
 		setSummarizationThreshold(newThreshold)
@@ -19,10 +21,13 @@ const SummarizationThresholdSlider: React.FC<SummarizationThresholdSliderProps> 
 	}
 
 	return (
-		<div className="flex flex-col space-y-2">
-			<Label htmlFor="threshold-slider" className="text-sm font-medium">
-				Summarization Threshold: {summarizationThreshold}%
-			</Label>
+		<div className={cn('flex flex-col space-y-2', className)}>
+			<div className="flex justify-between items-center">
+				<Label htmlFor="threshold-slider" className="text-sm font-medium">
+					Summarization Threshold
+				</Label>
+				<span className="text-sm font-semibold">{summarizationThreshold}%</span>
+			</div>
 			<Slider
 				id="threshold-slider"
 				min={20}
@@ -30,7 +35,7 @@ const SummarizationThresholdSlider: React.FC<SummarizationThresholdSliderProps> 
 				step={1}
 				value={[summarizationThreshold]}
 				onValueChange={handleThresholdChange}
-				className="w-full px-2"
+				className="w-full"
 			/>
 			<p className="text-xs text-muted-foreground">
 				Adjust when Claude should offer to summarize the conversation in order to save tokens.
@@ -38,5 +43,3 @@ const SummarizationThresholdSlider: React.FC<SummarizationThresholdSliderProps> 
 		</div>
 	)
 }
-
-export default SummarizationThresholdSlider
