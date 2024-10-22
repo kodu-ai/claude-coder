@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk"
-import { ToolResponse } from "../types"
-import { AgentToolOptions, AgentToolParams } from "./types"
-import { IKoduDev } from "../interfaces/IKoduDev"
+import { ToolResponse } from "@/types"
+import { AgentToolOptions, AgentToolParams } from "@/types"
+import { IKoduDev } from "@/interfaces"
+import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "@/utils"
 
 export abstract class BaseAgentTool {
 	protected cwd: string
@@ -56,9 +57,7 @@ export abstract class BaseAgentTool {
 		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>`
 	}
 	async formatGenericToolFeedback(feedback?: string) {
-		// @TODO: revert later
-		// return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>\n\n${await getPotentiallyRelevantDetails()}`
-		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>`
+		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>\n\n${await getPotentiallyRelevantDetails()}`
 	}
 
 	public async formatToolDenied() {
@@ -75,12 +74,9 @@ export abstract class BaseAgentTool {
 	public formatToolResponseWithImages(text: string, images?: string[]): ToolResponse {
 		if (images && images.length > 0) {
 			const textBlock: Anthropic.TextBlockParam = { type: "text", text }
-			// @TODO: revert later
-			// // Placing images after text leads to better results
-			// const imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
-			// return [textBlock, ...imageBlocks]
-
-			return [textBlock]
+			const imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
+			// Placing images after text leads to better results
+			return [textBlock, ...imageBlocks]
 		} else {
 			return text
 		}

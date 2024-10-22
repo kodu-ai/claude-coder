@@ -1,6 +1,6 @@
 import { z } from "zod"
-import { Tool } from "../../../shared/Tool"
-import { cwd } from "../utils"
+import { cwd } from "@/utils"
+import { Tool } from "@/types"
 
 export const tools: Tool[] = [
 	{

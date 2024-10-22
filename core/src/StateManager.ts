@@ -1,5 +1,5 @@
-import { IStateManager } from './interfaces/IStateManager';
-import { State } from './types/state';
+import { IStateManager } from '@/interfaces';
+import { State } from '@/types';
 
 export abstract class BaseStateManager implements IStateManager {
     protected state: State;

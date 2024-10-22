@@ -1,4 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk";
+import { ClaudeMessage } from "./messages";
 
 export interface State {
     taskId: string;
@@ -9,15 +10,6 @@ export interface State {
     claudeMessages: ClaudeMessage[];
     abort: boolean;
     isHistoryItem?: boolean;
-}
-
-export interface ClaudeMessage {
-    // Define the structure of ClaudeMessage here
-    // This is a placeholder, adjust according to your actual ClaudeMessage structure
-    id: string;
-    content: string;
-    role: 'user' | 'assistant';
-    timestamp: number;
 }
 
 export type ApiConversationHistoryItem = Anthropic.Messages.MessageParam;
