@@ -9,6 +9,7 @@ import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderPr
 import { ToolResponse, UserContent } from "../types"
 import { debounce } from "lodash"
 import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
+import { ChatTool } from "../../../shared/new-tools"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -116,6 +117,34 @@ export class TaskExecutor extends TaskExecutorUtils {
 			.slice()
 			.reverse()
 			.find((msg) => msg.type === "say" && msg.say === "api_req_started")
+		const lastToolRequest = this.stateManager.state.claudeMessages
+			.slice()
+			.reverse()
+			.find((msg) => {
+				if (!isV1ClaudeMessage(msg) || msg.ask !== "tool") {
+					return false
+				}
+				const parsedTool = JSON.parse(msg.text ?? "{}") as ChatTool
+				if (parsedTool.approvalState !== "error") {
+					return true
+				}
+				return false
+			})
+
+		if (lastToolRequest) {
+			const parsedTool = JSON.parse(lastToolRequest.text ?? "{}") as ChatTool
+			await this.updateAsk(
+				lastToolRequest.ask!,
+				{
+					tool: {
+						...parsedTool,
+						approvalState: "error",
+						error: "Task was interrupted before this tool call could be completed.",
+					},
+				},
+				lastToolRequest.ts
+			)
+		}
 		if (lastApiRequest && isV1ClaudeMessage(lastApiRequest) && !lastApiRequest.isDone) {
 			await this.stateManager.updateClaudeMessage(lastApiRequest.ts, {
 				...lastApiRequest,
@@ -314,6 +343,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.consecutiveErrorCount = 0
 		this.state = TaskState.WAITING_FOR_USER
 		await this.toolExecutor.resetToolState()
+		await this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 
 		this.logState("State reset due to request cancellation")
 	}

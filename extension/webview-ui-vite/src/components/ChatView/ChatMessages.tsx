@@ -24,27 +24,39 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 }) => {
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
 	const [atBottom, setAtBottom] = useState(true)
+	const [userScrolled, setUserScrolled] = useState(false)
 
-	const followOutput = useCallback((isAtBottom: boolean) => {
-		if (isAtBottom) {
-			return "smooth"
-		}
-		return false
+	const followOutput = useCallback(
+		(isAtBottom: boolean) => {
+			if (isAtBottom && !userScrolled) {
+				return "smooth"
+			}
+			return false
+		},
+		[userScrolled]
+	)
+
+	const handleScroll = useCallback(() => {
+		setUserScrolled(true)
 	}, [])
 
 	const handleAtBottomStateChange = useCallback((bottom: boolean) => {
 		setAtBottom(bottom)
+		if (bottom) {
+			setUserScrolled(false)
+		}
 	}, [])
 
+	// Only auto-scroll on new messages if we're at the bottom and user hasn't manually scrolled
 	useEffect(() => {
-		if (atBottom) {
+		if (atBottom && !userScrolled) {
 			virtuosoRef.current?.scrollToIndex({
 				index: visibleMessages.length - 1,
 				behavior: "smooth",
 				align: "end",
 			})
 		}
-	}, [visibleMessages, atBottom])
+	}, [visibleMessages, atBottom, userScrolled])
 
 	return (
 		<Virtuoso
@@ -52,6 +64,17 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 			data={visibleMessages}
 			followOutput={followOutput}
 			atBottomStateChange={handleAtBottomStateChange}
+			atBottomThreshold={2}
+			scrollerRef={(ref) => {
+				if (ref) {
+					ref.addEventListener("wheel", handleScroll)
+					ref.addEventListener("touchmove", handleScroll)
+					return () => {
+						ref.removeEventListener("wheel", handleScroll)
+						ref.removeEventListener("touchmove", handleScroll)
+					}
+				}
+			}}
 			itemContent={(index, message) => (
 				<>
 					{isV1ClaudeMessage(message) ? (
