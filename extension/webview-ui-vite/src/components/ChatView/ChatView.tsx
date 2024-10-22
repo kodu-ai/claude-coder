@@ -211,8 +211,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 		async (input?: string) => {
 			if (!user) {
 				setIsLoginDialogOpen(true)
-			await	loginDialogClosePromise;
-			
+				await loginDialogClosePromise
 			}
 			if (shouldOpenOutOfCreditDialog) {
 				openOutOfCreditDialog()
@@ -720,8 +719,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 			<LoginRequiredDialog
 				isOpen={isLoginDialogOpen}
 				onClose={() => {
-setIsLoginDialogOpen(false)
-					resolveLoginDialogClose()
+					setIsLoginDialogOpen(false)
+					resolveLoginDialogClose?.()
 				}}
 			/>
 		</div>
