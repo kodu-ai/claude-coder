@@ -1,22 +1,21 @@
-import React, { useState, useCallback } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Check, X, ChevronDown } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
-import { useExtensionState } from "../../context/ExtensionStateContext"
-import { debounce } from "lodash"
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import useDebounce from "@/hooks/use-debounce"
 import { vscode } from "@/utils/vscode"
+import { Check, ChevronDown, X } from "lucide-react"
+import React, { useCallback, useState } from "react"
 import { GlobalState } from "../../../../src/providers/claude-coder/state/GlobalStateManager"
-import { koduModels, KoduModels } from "../../../../src/shared/api"
+import { KoduModels, koduModels } from "../../../../src/shared/api"
+import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
+import { useExtensionState } from "../../context/ExtensionStateContext"
 import { formatPrice } from "../ApiOptions/utils"
-import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { SettingsFooter } from "./settings-footer"
 
 interface ExperimentalFeature {
@@ -237,23 +236,22 @@ const SettingsPage: React.FC = () => {
 				{extensionState.user !== undefined && (
 					<div className="flex max-[280px]:items-start max-[280px]:flex-col max-[280px]:space-y-2 flex-row justify-between items-center">
 						<div>
-							<p className="text-xs font-medium">Signed in as</p>
-							<p className="text-sm font-bold">{extensionState.user?.email}</p>
+							<p className="text-xs">Signed in as: <b>{extensionState.user?.email}</b></p>
 							<Button
 								variant="link"
 								size="sm"
-								className="text-sm !text-muted-foreground"
+								className="text-xs !text-primary-foreground/60"
 								onClick={() => vscode.postMessage({ type: "didClickKoduSignOut" })}>
-								sign out
+								Sign out
 							</Button>
 						</div>
 						<div className="max-[280px]:mt-2">
-							<p className="text-xs font-medium">Credits remaining</p>
-							<p className="text-lg font-bold">{formatPrice(extensionState.user?.credits || 0)}</p>
+							<p className="text-xs">Credits remaining</p>
+							<p className="text-sm font-bold">{formatPrice(extensionState.user?.credits || 0)}</p>
 						</div>
 					</div>
 				)}
-				<div className="flex gap-2 flex-wrap">
+				<div className="flex gap-2 flex-wrap justify-center">
 					{extensionState.user !== undefined ? (
 						<>
 							<Button
@@ -271,7 +269,8 @@ const SettingsPage: React.FC = () => {
 											vscode.postTrackingEvent("OfferwallView")
 											vscode.postTrackingEvent("ExtensionCreditAddSelect", "offerwall")
 										}}
-										variant={"outline"}
+										className="border"
+										variant={"secondary"}
 										asChild>
 										<a href={getKoduOfferUrl(extensionState.uriScheme)}>Get Free Credits</a>
 									</Button>

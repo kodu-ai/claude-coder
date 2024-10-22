@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from "react"
+import React, { useEffect, useCallback, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Sparkles, Zap } from "lucide-react"
@@ -7,15 +7,15 @@ import { loginKodu } from "@/utils/kodu-links"
 
 interface LoginRequiredDialogProps {
   isOpen: boolean
-  onClose: () => void
+  onClose: (loggedIn: boolean) => void
 }
 
 export const useDialogClosePromise = () => {
-  const [promiseResolve, setPromiseResolve] = React.useState<(() => void) | null>(null);
+  const [promiseResolve, setPromiseResolve] = useState<(value: boolean) => void>(() => {});
 
   const promise = React.useMemo(
     () =>
-      new Promise<void>((resolve) => {
+      new Promise<boolean>((resolve) => {
         setPromiseResolve(() => resolve);
       }),
     []
@@ -27,19 +27,29 @@ export const useDialogClosePromise = () => {
 export default function LoginRequiredDialog({ isOpen, onClose }: LoginRequiredDialogProps) {
   const { uriScheme, extensionName, user } = useExtensionState()
   const { promise: dialogClosePromise, resolvePromise } = useDialogClosePromise();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      onClose()
+    if (isLoggingIn && user) {
+      setIsLoggingIn(false);
+      onClose(true);
+      if (resolvePromise) {
+        resolvePromise(true);
+      }
     }
-  }, [user, onClose])
+  }, [user, onClose, resolvePromise, isLoggingIn]);
 
   const handleClose = useCallback(() => {
-    onClose();
+    onClose(false);
     if (resolvePromise) {
-      resolvePromise();
+      resolvePromise(false);
     }
   }, [onClose, resolvePromise]);
+
+  const handleLogin = useCallback(() => {
+    setIsLoggingIn(true);
+    loginKodu({ uriScheme: uriScheme || "", extensionName: extensionName || "" });
+  }, [uriScheme, extensionName]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -81,10 +91,7 @@ export default function LoginRequiredDialog({ isOpen, onClose }: LoginRequiredDi
             </ul>
           </div>
           <Button
-            onClick={() => {
-              loginKodu({ uriScheme: uriScheme || "", extensionName: extensionName || "" })
-              handleClose()
-            }}
+            onClick={handleLogin}
             className="w-full text-white bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
           >
             Create Account & Get $10 Bonus

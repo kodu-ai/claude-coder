@@ -210,14 +210,20 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const handleSendMessage = useCallback(
 		async (input?: string) => {
 			if (!user) {
+				console.debug("[DEBUG]: user is undefined, opening login dialog")
 				setIsLoginDialogOpen(true)
-				await loginDialogClosePromise
+				const loggedIn = await loginDialogClosePromise
+				console.debug("[DEBUG]: loggedIn", loggedIn)
+				if (!loggedIn) {
+					console.debug("[DEBUG]: user is still undefined, returning")
+					return // User closed the dialog without logging in
+				}
 			}
+			console.debug("[DEBUG]: user is defined, continuing")
 			if (shouldOpenOutOfCreditDialog) {
 				openOutOfCreditDialog()
 				return
 			}
-			console.log(`inputValue: ${inputValue}`)
 			let text = inputValue?.trim()
 			if (!!input && input.length > 1) {
 				text = input?.trim()
@@ -244,7 +250,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 				setEnableButtons(false)
 			}
 		},
-		[inputValue, selectedImages, messages.length, claudeAsk, user, shouldOpenOutOfCreditDialog]
+		[inputValue, selectedImages, messages.length, claudeAsk, user, shouldOpenOutOfCreditDialog, loginDialogClosePromise]
 	)
 
 	// Handle Claude ask response
@@ -718,9 +724,9 @@ const ChatView: React.FC<ChatViewProps> = ({
 			</div>
 			<LoginRequiredDialog
 				isOpen={isLoginDialogOpen}
-				onClose={() => {
+				onClose={(loggedIn) => {
 					setIsLoginDialogOpen(false)
-					resolveLoginDialogClose?.()
+					resolveLoginDialogClose(true)
 				}}
 			/>
 		</div>
