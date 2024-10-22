@@ -38,3 +38,5 @@ export function createTerminalManager(useAdvanced: boolean, context: vscode.Exte
 
 // Export other necessary types and interfaces
 export { TerminalManager as AdvancedTerminalManager } from "./terminal-manager"
+export * from "./execa-terminal-manager"
+export * from "./terminal-manager"

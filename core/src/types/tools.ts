@@ -1,6 +1,7 @@
 import { IKoduDev } from "@/interfaces"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { AskDetails, AskResponse, ClaudeAsk, ClaudeAskResponse, ClaudeSay } from "./task-communication"
+import { ServerRunnerTool } from "./chat-tools"
 
 export type ToolName =
 	| "write_to_file"
@@ -50,10 +51,15 @@ export type ToolInput = {
 	url?: string
 }
 
+type DevServerToolParams = {
+	name: "server_runner_tool"
+	input: Omit<ServerRunnerTool, "tool">
+}
+
 export type AgentToolParams = {
 	name: ToolName
 	id: string
-	input: ToolInput
+	input: ToolInput & DevServerToolParams["input"]
 	ts: number
 	/**
 	 * If this is a sub message, it will force it to stick to previous tool call in the ui (same message)
