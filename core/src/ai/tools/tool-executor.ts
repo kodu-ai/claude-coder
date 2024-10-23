@@ -1,6 +1,8 @@
 import treeKill from "tree-kill"
-import { IKoduDev } from "@/interfaces"
-import { AgentToolOptions, AgentToolParams , ToolName, ToolResponse } from "@/types"
+import pWaitFor from "p-wait-for"
+import PQueue from "p-queue"
+
+import { AgentToolOptions, AgentToolParams, ToolName, ToolResponse, ChatTool } from "@/types"
 import {
 	SearchFilesTool,
 	ListFilesTool,
@@ -16,26 +18,22 @@ import {
 	WebSearchTool,
 	DevServerTool,
 } from "./runners"
-import { TerminalManager } from "@/integrations/"
 import { BaseAgentTool } from "./base-agent.tool"
 import ToolParser from "./tool-parser/tool-parser"
 import { tools } from "./schema"
-import pWaitFor from "p-wait-for"
-import PQueue from "p-queue"
-import { ChatTool } from "@/types"
+
+import { KoduDev } from "@/index"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined
 	private cwd: string
 	private alwaysAllowReadOnly: boolean
 	private alwaysAllowWriteOnly: boolean
-	private terminalManager: TerminalManager
-	private koduDev: IKoduDev
+	private koduDev: KoduDev
 	private toolQueue: BaseAgentTool[] = []
 	private toolInstances: { [id: string]: BaseAgentTool } = {}
 	private toolParser: ToolParser
 	private toolResults: { name: string; result: ToolResponse }[] = []
-	private isProcessing: Promise<void> | null = null
 	private queue: PQueue
 
 	constructor(options: AgentToolOptions) {
@@ -44,7 +42,6 @@ export class ToolExecutor {
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
 		this.koduDev = options.koduDev
 		this.queue = new PQueue({ concurrency: 1 })
-		this.terminalManager = new TerminalManager()
 		this.toolParser = new ToolParser(
 			tools.map((tool) => tool.schema),
 			{
@@ -309,7 +306,6 @@ export class ToolExecutor {
 			await tool.abortToolExecution()
 		}
 		this.toolQueue = []
-		this.isProcessing = null
 		this.toolInstances = {}
 		this.toolResults = []
 	}

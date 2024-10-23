@@ -1,7 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { KoduApiClient } from "./kodu-api-client"
 import { ApiClientConfiguration } from "@/types"
-import { ClaudeMessage, isV1ClaudeMessage, KoduError, KoduSSEResponse, UserContent, V1ClaudeMessage } from "@/types"
+import { KoduError, KoduSSEResponse, UserContent, V1ClaudeMessage } from "@/types"
 import {
 	BASE_SYSTEM_PROMPT,
 	CodingBeginnerSystemPromptSection,
@@ -9,8 +9,9 @@ import {
 	NonTechnicalSystemPromptSection,
 	SYSTEM_PROMPT,
 } from "@/ai/prompts"
-import { amplitudeTracker, cwd, findLast, truncateHalfConversation } from "@/utils"
+import { amplitudeTracker, cwd, findLast, isV1ClaudeMessage, truncateHalfConversation } from "@/utils"
 import { tools as BaseTools } from "@/ai/tools"
+import { stateService } from "../state/state.service"
 
 /**
  *
@@ -139,9 +140,7 @@ ${this.customInstructions.trim()}
 		}
 		const newSystemPrompt = await BASE_SYSTEM_PROMPT(cwd, true, technicalBackground)
 
-		// @TODO: refactor
-		// const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
-		const claudeMessages: ClaudeMessage[] = []
+		const claudeMessages = stateService.state.claudeMessages
 		let apiMetrics: NonNullable<V1ClaudeMessage["apiMetrics"]> = {
 			inputTokens: 0,
 			outputTokens: 0,
@@ -187,8 +186,7 @@ ${this.customInstructions.trim()}
 		if (totalTokens >= contextWindow * 0.9) {
 			const truncatedMessages = truncateHalfConversation(apiConversationHistory)
 			apiConversationHistory = truncatedMessages
-			// @TODO: refactor
-			// this.providerRef.deref()?.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
+			stateService.overwriteApiConversationHistory(truncatedMessages)
 		}
 
 		// @TODO: refactor
@@ -205,8 +203,8 @@ ${this.customInstructions.trim()}
 				apiConversationHistory,
 				creativeMode,
 				abortSignal,
-				customInstructions
-				// await this.providerRef.deref()?.getKoduDev()?.getStateManager().state.memory,
+				customInstructions,
+				stateService.state.memory
 				// environmentDetails
 			)
 

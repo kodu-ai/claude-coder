@@ -2,8 +2,6 @@ import { Anthropic } from "@anthropic-ai/sdk"
 import { debounce } from "lodash"
 import {
 	ClaudeMessage,
-	isV1ClaudeMessage,
-	ClaudeAskResponse,
 	ToolResponse,
 	UserContent,
 	KODU_ERROR_CODES,
@@ -17,6 +15,7 @@ import { ToolExecutor } from "@/ai/tools"
 import { ChunkProcessor } from "./chunk-proccess"
 import { TaskExecutorUtils } from "./utils"
 import { koduApiService } from "@/singletons"
+import { isV1ClaudeMessage } from "@/utils"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -157,8 +156,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			const startedReqId = await this.say(
 				"api_req_started",
 				JSON.stringify({
-					// request: stateService.apiManager.createUserReadableRequest(this.currentUserContent),
-					request: "// TODO: refactor", // TODO: refactor
+					request: koduApiService.createUserReadableRequest(this.currentUserContent),
 				})
 			)
 
@@ -221,7 +219,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				}
 				textBuffer = ""
 				await stateService.appendToClaudeMessage(currentReplyId, text)
-				await this.postMessage()
+				await this.updateWebview()
 			}, updateInterval)
 
 			const processor = new ChunkProcessor({
@@ -256,7 +254,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 							isError: true,
 						}
 						await stateService.updateClaudeMessage(startedReqId, updatedMsg)
-						await this.postMessage()
+						await this.updateWebview()
 						throw new KoduError({ code: chunk.body.status ?? 500 })
 					}
 				},
@@ -310,11 +308,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 			throw error
 		} finally {
 		}
-	}
-
-	private async postMessage() {
-		// TODO: refactor
-		// await stateService.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	private async resetState() {
@@ -452,10 +445,4 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.state = TaskState.COMPLETED
 		}
 	}
-}
-
-export type AskResponse = {
-	response: ClaudeAskResponse
-	text?: string
-	images?: string[]
 }

@@ -2,6 +2,7 @@ import { IKoduDev } from "@/interfaces"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { AskDetails, AskResponse, ClaudeAsk, ClaudeAskResponse, ClaudeSay } from "./task-communication"
 import { ServerRunnerTool } from "./chat-tools"
+import { KoduDev } from ".."
 
 export type ToolName =
 	| "write_to_file"
@@ -24,7 +25,7 @@ export type Tool = Omit<Anthropic.Tool, "name"> & {
 
 export type ToolStatus = "pending" | "rejected" | "approved" | "error" | "loading" | undefined
 
-export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>;
+export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>
 
 export type UpsertMemoryInput = {
 	milestoneName: string
@@ -57,7 +58,7 @@ type DevServerToolParams = {
 }
 
 export type AgentToolParams = {
-	name: ToolName
+	name: ToolName | "server_runner_tool"
 	id: string
 	input: ToolInput & DevServerToolParams["input"]
 	ts: number
@@ -83,6 +84,6 @@ export type AgentToolOptions = {
 	cwd: string
 	alwaysAllowReadOnly: boolean
 	alwaysAllowWriteOnly: boolean
-	koduDev: IKoduDev
+	koduDev: KoduDev
 	setRunningProcessId?: (pid: number | undefined) => void
 }

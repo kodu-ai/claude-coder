@@ -28,10 +28,9 @@ export class StateService {
 		return StateService.instance
 	}
 
-	public async initialize(): Promise<void> {
+	public async initialize(options: KoduDevOptions): Promise<void> {
 		try {
-			const data = await fs.readFile(this._globalStoragePath, "utf-8")
-			this._options = JSON.parse(data)
+			this._options = options
 			this._state = {
 				taskId: this._options.historyItem ? this._options.historyItem.id : Date.now().toString(),
 				dirAbsolutePath: this._options.historyItem?.dirAbsolutePath ?? "",
@@ -108,12 +107,10 @@ export class StateService {
 	// Methods to modify the properties (only accessible within the class)
 	public setState(newState: KoduDevState): void {
 		this._state = newState
-		this.saveState()
 	}
 
 	public setSkipWriteAnimation(newValue: boolean | undefined) {
 		this._options.skipWriteAnimation = newValue
-		this.saveState()
 	}
 
 	get historyErrors(): KoduDevState["historyErrors"] | undefined {
@@ -129,7 +126,6 @@ export class StateService {
 			this._state.historyErrors = {}
 		}
 		this._state.historyErrors[key] = value
-		this.saveState()
 	}
 
 	public getMessageById(messageId: number): ClaudeMessage | undefined {
@@ -138,37 +134,30 @@ export class StateService {
 
 	public setAutoCloseTerminal(newValue: boolean): void {
 		this._options.autoCloseTerminal = newValue
-		this.saveState()
 	}
 
 	public setExperimentalTerminal(newValue: boolean): void {
 		this._options.experimentalTerminal = newValue
-		this.saveState()
 	}
 
 	public setMaxRequestsPerTask(newMax?: number): void {
 		this._options.maxRequestsPerTask = newMax ?? DEFAULT_MAX_REQUESTS_PER_TASK
-		this.saveState()
 	}
 
 	public setCustomInstructions(newInstructions?: string): void {
 		this._options.customInstructions = newInstructions
-		this.saveState()
 	}
 
 	public setAlwaysAllowReadOnly(newValue: boolean): void {
 		this._options.alwaysAllowReadOnly = newValue
-		this.saveState()
 	}
 
 	public setCreativeMode(newMode: "creative" | "normal" | "deterministic"): void {
 		this._options.creativeMode = newMode
-		this.saveState()
 	}
 
 	public setAlwaysAllowWriteOnly(newValue: boolean): void {
 		this._options.alwaysAllowWriteOnly = newValue
-		this.saveState()
 	}
 
 	private async ensureTaskDirectoryExists(): Promise<string> {
@@ -369,21 +358,6 @@ export class StateService {
 			// 	})
 		} catch (error) {
 			console.error("Failed to save claude messages:", error)
-		}
-	}
-
-	private async saveState(): Promise<void> {
-		try {
-			await fs.writeFile(
-				this._globalStoragePath,
-				JSON.stringify({
-					...this._options,
-					state: this._state,
-				})
-			)
-		} catch (error) {
-			console.error("Failed to save state:", error)
-			throw error
 		}
 	}
 }

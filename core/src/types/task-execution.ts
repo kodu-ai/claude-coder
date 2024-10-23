@@ -21,4 +21,3 @@ export class TaskError extends Error {
 		this.type = type
 	}
 }
-

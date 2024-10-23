@@ -42,7 +42,3 @@ export type V1ClaudeMessage = {
 } & V0ClaudeMessage
 
 export type ClaudeMessage = V1ClaudeMessage | V0ClaudeMessage
-
-export const isV1ClaudeMessage = (message: ClaudeMessage): message is V1ClaudeMessage => {
-	return (message as V1ClaudeMessage).v === 1
-}

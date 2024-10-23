@@ -3,12 +3,13 @@ import { ToolResponse } from "@/types"
 import { AgentToolOptions, AgentToolParams } from "@/types"
 import { IKoduDev } from "@/interfaces"
 import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "@/utils"
+import { KoduDev } from "@/index"
 
 export abstract class BaseAgentTool {
 	protected cwd: string
 	protected alwaysAllowReadOnly: boolean
 	protected alwaysAllowWriteOnly: boolean
-	protected koduDev: IKoduDev
+	protected koduDev: KoduDev
 	protected setRunningProcessId: (pid: number | undefined) => void
 
 	protected abstract params: AgentToolParams

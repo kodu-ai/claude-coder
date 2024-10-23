@@ -1,10 +1,12 @@
-import { Anthropic } from "@anthropic-ai/sdk";
-import { HistoryItem } from "./history-item";
-import { ClaudeMessage } from "./claude-messages";
-import { ClaudeAskResponse } from "./task-communication";
-import { ResultPromise } from "execa";
+import { Anthropic } from "@anthropic-ai/sdk"
+import { HistoryItem } from "./history-item"
+import { ClaudeMessage } from "./claude-messages"
+import { ClaudeAskResponse } from "./task-communication"
+import { ResultPromise } from "execa"
+import { ApiClientConfiguration } from "./api-client"
 
 export interface KoduDevOptions {
+	apiConfiguration: ApiClientConfiguration
 	maxRequestsPerTask?: number
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean

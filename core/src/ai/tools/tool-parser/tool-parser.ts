@@ -190,12 +190,7 @@ export class ToolParser {
 			this.onToolEnd?.(context.id, context.toolName, validatedParams, context.ts)
 		} catch (error) {
 			if (error instanceof z.ZodError) {
-				this.onToolError?.(
-					context.id,
-					context.toolName,
-					new Error(`Validation error: ${error.message}`),
-					context.ts
-				)
+				this.onToolError?.(context.id, context.toolName, new Error(`Validation error: ${error.message}`), context.ts)
 			} else {
 				this.onToolError?.(context.id, context.toolName, error as Error, context.ts)
 			}
@@ -206,6 +201,14 @@ export class ToolParser {
 		if (this.currentContext) {
 			this.onToolClosingError?.(new Error("Unclosed tool tag at end of input"))
 		}
+	}
+
+	reset(): void {
+		this.currentContext = null
+		this.buffer = ""
+		this.isInTag = false
+		this.isInTool = false
+		this.nonToolBuffer = ""
 	}
 }
 
