@@ -312,10 +312,6 @@ export class WebviewManager {
 						}
 						await quickStart(message.repo, message.name, callback)
 						break
-					case "exportBug":
-						console.log("Export bug message received")
-						await this.provider.getTaskManager().exportBug(message.description, message.reproduction)
-						break
 					case "renameTask":
 						await this.provider.getTaskManager().renameTask(
 							message.isCurentTask
