@@ -338,6 +338,7 @@ export class DiffViewProvider {
 			// Write file with error handling
 			try {
 				await vscode.workspace.fs.writeFile(uri, Buffer.from(editedContent))
+				await delay(100)
 			} catch (error) {
 				throw new Error(`Failed to write file: ${error instanceof Error ? error.message : String(error)}`)
 			}
@@ -352,9 +353,10 @@ export class DiffViewProvider {
 					const document = await vscode.workspace.openTextDocument(uri)
 					// save it to the editor
 					await document.save()
+					// if this is a new file, we need to
 					// save it to the workspace timeline
-					await vscode.workspace.save(document.uri)
 					await vscode.window.showTextDocument(document, { preview: false })
+					await vscode.workspace.save(document.uri)
 				} catch (error) {
 					console.warn("Could not open saved file in editor:", error)
 					// Non-critical error, continue execution
