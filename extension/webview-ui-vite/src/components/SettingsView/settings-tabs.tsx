@@ -12,12 +12,12 @@ import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduSignInUrl } from "../../.
 import { SettingsFooter } from "./settings-footer"
 import { experimentalFeatures, models } from "./constants"
 import { useSettingsState } from "../../hooks/useSettingsState"
-import { ModelDetails } from "./ModelDetails"
-import { ExperimentalFeatureItem } from "./ExperimentalFeatureItem"
+import { ModelDetails } from "./model-details"
+import { ExperimentalFeatureItem } from "./experimental-feature-item"
 import { useSetAtom } from "jotai"
 import { X } from "lucide-react"
 
-const UserInfoSection: React.FC = () => {
+export const UserInfoSection: React.FC = () => {
 	const extensionState = useExtensionState()
 
 	if (extensionState.user === undefined) {
@@ -74,7 +74,7 @@ const UserInfoSection: React.FC = () => {
 	)
 }
 
-const PreferencesTab: React.FC = () => {
+export const PreferencesTab: React.FC = () => {
 	const { model, technicalLevel, handleModelChange, handleTechnicalLevelChange } = useSettingsState()
 
 	return (
@@ -127,7 +127,7 @@ const PreferencesTab: React.FC = () => {
 	)
 }
 
-const ExperimentalTab: React.FC = () => {
+export const ExperimentalTab: React.FC = () => {
 	const { experimentalFeatureStates, handleExperimentalFeatureChange } = useSettingsState()
 
 	return (

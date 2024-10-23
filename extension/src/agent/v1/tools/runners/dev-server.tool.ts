@@ -232,7 +232,11 @@ export class DevServerTool extends BaseAgentTool {
 				this.ts
 			)
 			return `Dev server "${serverName}" started successfully, check <dev_server_status> and
-<dev_server_running> to find the details. The server is only viable for limited amount of time, don't take it for granted.`
+<dev_server_running> to find the details. The server is only viable for limited amount of time, don't take it for granted
+<dev_server_logs>
+${result}
+</dev_server_logs>
+.`
 		} else {
 			// no output was found in the logs to indicate the server started successfully or the URL was found
 			this.params.updateAsk(
