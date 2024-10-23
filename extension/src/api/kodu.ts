@@ -473,15 +473,6 @@ export class KoduHandler implements ApiHandler {
 		return response.data
 	}
 
-	async sendBugReportRequest(bugReport: z.infer<typeof bugReportSchema>) {
-		await axios.post(getKoduBugReportUrl(), bugReport, {
-			headers: {
-				"Content-Type": "application/json",
-				"x-api-key": this.options.koduApiKey || "",
-			},
-		})
-	}
-
 	async sendSummarizeRequest(output: string, command: string): Promise<SummaryResponseDto> {
 		this.cancelTokenSource = axios.CancelToken.source()
 
