@@ -1,6 +1,7 @@
 import { formatToolResponse } from "@/utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse, ToolResponse } from "@/types"
+import { koduApiService } from "@/singletons"
 
 export class AskConsultantTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -59,7 +60,7 @@ export class AskConsultantTool extends BaseAgentTool {
 		)
 
 		try {
-			const response = await this.koduDev.apiService.getApi()?.sendAskConsultantRequest?.(query)
+			const response = await koduApiService.getApi()?.sendAskConsultantRequest?.(query)
 			if (!response || !response.result) {
 				this.params.ask(
 					"tool",

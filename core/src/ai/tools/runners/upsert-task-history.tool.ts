@@ -1,3 +1,4 @@
+import { stateService } from "@/singletons"
 import { BaseAgentTool } from "../base-agent.tool"
 import type { AgentToolOptions, AgentToolParams, ToolResponse } from "@/types"
 import { serializeError } from "serialize-error"
@@ -17,11 +18,11 @@ export class UpsertTaskHistoryTool extends BaseAgentTool {
 		}
 
 		try {
-			const taskId = this.koduDev.stateService.state.taskId
-			const state = this.koduDev.stateService.state
+			const taskId = stateService.state.taskId
+			const state = stateService.state
 			state.memory = content
 
-			await this.koduDev.getStateManager().setState(state)
+			await stateService.setState(state)
 
 			// TODO: refactor and re-enable this
 			// const { historyItem } = await this.koduDev.providerRef.deref()?.getTaskManager().getTaskWithId(taskId)!

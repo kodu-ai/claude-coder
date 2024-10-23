@@ -1,5 +1,5 @@
-import { KoduModelId } from "@/services/kodu-api/kodu-api-models";
-import { HistoryItem } from "./history-item";
+import { KoduModelId } from "@/singletons/kodu-api/kodu-api-models"
+import { HistoryItem } from "./history-item"
 
 type User = {
 	email: string

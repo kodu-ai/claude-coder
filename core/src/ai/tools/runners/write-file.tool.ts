@@ -1,11 +1,12 @@
 import * as path from "path"
 import { formatToolResponse, getCwd, getReadablePath } from "@/utils"
-import { AgentToolOptions, AgentToolParams, ToolResponse , ClaudeSayTool} from "@/types"
+import { AgentToolOptions, AgentToolParams, ToolResponse, ClaudeSayTool } from "@/types"
 import { BaseAgentTool } from "../base-agent.tool"
 import { DiffViewProvider } from "@/integrations"
 import { fileExistsAtPath } from "@/utils"
 import delay from "delay"
 import pWaitFor from "p-wait-for"
+import { stateService } from "@/singletons"
 
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -22,7 +23,7 @@ export class WriteFileTool extends BaseAgentTool {
 		// Initialize DiffViewProvider without opening the diff editor
 		this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev, this.UPDATE_INTERVAL)
 		// Set skipWriteAnimation based on state manager
-		if (!!this.koduDev.stateService.skipWriteAnimation) {
+		if (!!stateService.skipWriteAnimation) {
 			this.skipWriteAnimation = true
 		}
 	}
@@ -182,7 +183,7 @@ export class WriteFileTool extends BaseAgentTool {
 	}
 
 	public async handleFinalContent(relPath: string, newContent: string): Promise<string> {
-		this.koduDev.stateService.addErrorPath(relPath)
+		stateService.addErrorPath(relPath)
 		const fileExists = await this.checkFileExists(relPath)
 		const { userEdits } = await this.diffViewProvider.saveChanges()
 		await delay(300)

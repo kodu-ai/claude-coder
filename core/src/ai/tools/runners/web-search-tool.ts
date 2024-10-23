@@ -2,6 +2,7 @@ import { ToolResponse } from "@/types"
 import { formatToolResponse } from "@/utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import type { AgentToolOptions, AgentToolParams } from "@/types"
+import { koduApiService } from "@/singletons"
 
 export class WebSearchTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -76,7 +77,7 @@ export class WebSearchTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			const result = await this.koduDev.apiService.getApi().sendWebSearchRequest?.(searchQuery, baseLink!)
+			const result = await koduApiService.getApi().sendWebSearchRequest?.(searchQuery, baseLink!)
 			if (!result) {
 				ask(
 					"tool",

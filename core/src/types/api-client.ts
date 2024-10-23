@@ -1,4 +1,4 @@
-import { ApiModelId } from "@/services/kodu-api/kodu-api-models"
+import { ApiModelId } from "@/singletons/kodu-api/kodu-api-models"
 
 export type ModelProvider = "anthropic" | "openrouter" | "bedrock" | "vertex"
 

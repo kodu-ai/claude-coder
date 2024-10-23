@@ -10,9 +10,9 @@ import { AgentToolOptions, AgentToolParams } from "@/types"
 import { ExecaTerminalManager } from "@/integrations/terminal/execa-terminal-manager"
 import { WebviewMessage } from "@/types"
 import { ChatTool } from "@/types"
+import { stateService } from "@/singletons"
 
 export const COMMAND_OUTPUT_DELAY = 100 // milliseconds
-
 
 export class ExecuteCommandTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -110,7 +110,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			console.log("Terminal created")
 			terminalInfo.terminal.show() // weird visual bug when creating new terminals (even manually) where there's an empty space at the top.
 			const process = terminalManager.runCommand(terminalInfo, command, {
-				autoClose: this.koduDev.stateService.autoCloseTerminal ?? false,
+				autoClose: stateService.autoCloseTerminal ?? false,
 			})
 			await delay(100)
 

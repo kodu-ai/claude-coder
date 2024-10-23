@@ -1,15 +1,21 @@
-import { ChatTool, ClaudeAsk, ClaudeSay, ClaudeMessage, V1ClaudeMessage, ClaudeAskResponse, AskDetails, AskResponse, TaskError, TaskState } from "@/types"
-import { StateService } from "../state/state.service"
-
-
+import {
+	ChatTool,
+	ClaudeAsk,
+	ClaudeSay,
+	ClaudeMessage,
+	V1ClaudeMessage,
+	ClaudeAskResponse,
+	AskDetails,
+	AskResponse,
+	TaskError,
+	TaskState,
+} from "@/types"
+import { stateService } from "../../singletons/state/state.service"
 
 export abstract class TaskExecutorUtils {
-	protected stateService: StateService
 	protected pendingAskResponse: ((value: AskResponse) => void) | null = null
 
-	constructor(stateService: StateService) {
-		this.stateService = stateService
-	}
+	constructor() {}
 
 	public async ask(type: ClaudeAsk, data?: AskDetails): Promise<AskResponse> {
 		const { question, tool } = data ?? {}
@@ -22,10 +28,10 @@ export abstract class TaskExecutorUtils {
 				text: question ? question : tool ? JSON.stringify(tool) : "",
 				v: 1,
 				status: tool?.approvalState,
-				autoApproved: !!this.stateService.alwaysAllowWriteOnly,
+				autoApproved: !!stateService.alwaysAllowWriteOnly,
 			}
 
-			this.stateService.addToClaudeMessages(askMessage)
+			stateService.addToClaudeMessages(askMessage)
 			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion: ${question}`)
 			this.updateWebview()
 
@@ -37,7 +43,7 @@ export abstract class TaskExecutorUtils {
 				"followup",
 			]
 
-			if (this.stateService.alwaysAllowWriteOnly && !mustRequestApproval.includes(type)) {
+			if (stateService.alwaysAllowWriteOnly && !mustRequestApproval.includes(type)) {
 				resolve({ response: "yesButtonTapped", text: "", images: [] })
 				return
 			}
@@ -76,9 +82,8 @@ export abstract class TaskExecutorUtils {
 			if (
 				tool &&
 				tool.approvalState === "pending" &&
-				((this.stateService.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool["tool"])) ||
-					(this.stateService.alwaysAllowWriteOnly &&
-						!mustRequestApprovalTool.includes(tool?.tool as ChatTool["tool"])))
+				((stateService.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool["tool"])) ||
+					(stateService.alwaysAllowWriteOnly && !mustRequestApprovalTool.includes(tool?.tool as ChatTool["tool"])))
 			) {
 				// update the tool.status
 				tool.approvalState = "loading"
@@ -91,23 +96,23 @@ export abstract class TaskExecutorUtils {
 				text: question ? question : tool ? JSON.stringify(tool) : "",
 				v: 1,
 				status: tool?.approvalState,
-				autoApproved: !!this.stateService.alwaysAllowWriteOnly,
+				autoApproved: !!stateService.alwaysAllowWriteOnly,
 			}
-			if (this.stateService.getMessageById(askTs)) {
-				this.stateService.updateClaudeMessage(askTs, askMessage)
+			if (stateService.getMessageById(askTs)) {
+				stateService.updateClaudeMessage(askTs, askMessage)
 			} else {
-				await this.stateService.addToClaudeMessages(askMessage)
+				await stateService.addToClaudeMessages(askMessage)
 			}
 			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion: ${question}`)
 			this.updateWebview()
 
-			if (this.stateService.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool["tool"])) {
+			if (stateService.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool["tool"])) {
 				resolve({ response: "yesButtonTapped", text: "", images: [] })
 				return
 			}
 
 			if (
-				this.stateService.alwaysAllowWriteOnly &&
+				stateService.alwaysAllowWriteOnly &&
 				!mustRequestApprovalType.includes(type) &&
 				!mustRequestApprovalTool.includes(tool?.tool as ChatTool["tool"])
 			) {
@@ -128,10 +133,10 @@ export abstract class TaskExecutorUtils {
 			text: question ? question : tool ? JSON.stringify(tool) : "",
 			v: 1,
 			status: tool?.approvalState,
-			autoApproved: !!this.stateService.alwaysAllowWriteOnly,
+			autoApproved: !!stateService.alwaysAllowWriteOnly,
 		}
 
-		await this.stateService?.updateClaudeMessage(askTs, askMessage)
+		await stateService.updateClaudeMessage(askTs, askMessage)
 		await this.updateWebview()
 	}
 
@@ -145,10 +150,10 @@ export abstract class TaskExecutorUtils {
 			isFetching: type === "api_req_started",
 			v: 1,
 		}
-		if (this.stateService.getMessageById(sayTs)) {
-			await this.stateService.updateClaudeMessage(sayTs, sayMessage)
+		if (stateService.getMessageById(sayTs)) {
+			await stateService.updateClaudeMessage(sayTs, sayMessage)
 		} else {
-			await this.stateService.addToClaudeMessages(sayMessage)
+			await stateService.addToClaudeMessages(sayMessage)
 		}
 		await this.updateWebview()
 		return sayTs
@@ -165,7 +170,7 @@ export abstract class TaskExecutorUtils {
 			v: 1,
 		}
 
-		await this.stateService.addToClaudeMessages(sayMessage)
+		await stateService.addToClaudeMessages(sayMessage)
 		await this.updateWebview()
 		return sayTs
 	}
@@ -181,7 +186,7 @@ export abstract class TaskExecutorUtils {
 			v: 1,
 		}
 
-		await this.stateService.addToClaudeAfterMessage(target, sayMessage)
+		await stateService.addToClaudeAfterMessage(target, sayMessage)
 		await this.updateWebview()
 	}
 

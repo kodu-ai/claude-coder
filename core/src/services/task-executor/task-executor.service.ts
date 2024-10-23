@@ -1,10 +1,22 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { debounce } from "lodash"
-import { ClaudeMessage, isV1ClaudeMessage, ClaudeAskResponse, ToolResponse, UserContent, KODU_ERROR_CODES, KoduError, TaskState  } from "@/types"
-import { StateService } from "@/services"
+import {
+	ClaudeMessage,
+	isV1ClaudeMessage,
+	ClaudeAskResponse,
+	ToolResponse,
+	UserContent,
+	KODU_ERROR_CODES,
+	KoduError,
+	TaskState,
+	TaskError,
+	KoduSSEResponse,
+} from "@/types"
+import { stateService } from "@/singletons"
 import { ToolExecutor } from "@/ai/tools"
 import { ChunkProcessor } from "./chunk-proccess"
 import { TaskExecutorUtils } from "./utils"
+import { koduApiService } from "@/singletons"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -16,8 +28,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private abortController: AbortController | null = null
 	private consecutiveErrorCount: number = 0
 
-	constructor(stateManager: StateService, toolExecutor: ToolExecutor, ) {
-		super(stateManager)
+	constructor(toolExecutor: ToolExecutor) {
+		super()
 		this.toolExecutor = toolExecutor
 	}
 	protected getState(): TaskState {
@@ -98,7 +110,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 
 		// check if this is the first message
-		if (this.stateService.state.claudeMessages.length === 2) {
+		if (stateService.state.claudeMessages.length === 2) {
 			// cant cancel the first message
 			return
 		}
@@ -108,19 +120,19 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.abortController?.abort()
 		this.state = TaskState.ABORTED
 		// find the last api request
-		const lastApiRequest = this.stateService.state.claudeMessages
+		const lastApiRequest = stateService.state.claudeMessages
 			.slice()
 			.reverse()
 			.find((msg) => msg.type === "say" && msg.say === "api_req_started")
 		if (lastApiRequest && isV1ClaudeMessage(lastApiRequest) && !lastApiRequest.isDone) {
-			await this.stateService.updateClaudeMessage(lastApiRequest.ts, {
+			await stateService.updateClaudeMessage(lastApiRequest.ts, {
 				...lastApiRequest,
 				isDone: true,
 				isFetching: false,
 				errorText: "Request cancelled by user",
 				isError: true,
 			})
-			await this.stateService.removeEverythingAfterMessage(lastApiRequest.ts)
+			await stateService.removeEverythingAfterMessage(lastApiRequest.ts)
 		}
 		// Update the provider state
 		await this.updateWebview()
@@ -141,16 +153,17 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 			this.logState("Making Claude API request")
 
-			await this.stateService.addToApiConversationHistory({ role: "user", content: this.currentUserContent })
+			await stateService.addToApiConversationHistory({ role: "user", content: this.currentUserContent })
 			const startedReqId = await this.say(
 				"api_req_started",
 				JSON.stringify({
-					request: this.stateService.apiManager.createUserReadableRequest(this.currentUserContent),
+					// request: stateService.apiManager.createUserReadableRequest(this.currentUserContent),
+					request: "// TODO: refactor", // TODO: refactor
 				})
 			)
 
-			const stream = this.stateService.apiManager.createApiStreamRequest(
-				this.stateService.state.apiConversationHistory,
+			const stream = koduApiService.createApiStreamRequest(
+				stateService.state.apiConversationHistory,
 				this.abortController?.signal
 			)
 
@@ -160,7 +173,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				return
 			}
 
-			this.stateService.state.requestCount++
+			stateService.state.requestCount++
 			this.state = TaskState.PROCESSING_RESPONSE
 			await this.processApiResponse(stream, startedReqId)
 		} catch (error) {
@@ -186,7 +199,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	}
 
 	private async processApiResponse(
-		stream: AsyncGenerator<koduSSEResponse, any, unknown>,
+		stream: AsyncGenerator<KoduSSEResponse, any, unknown>,
 		startedReqId: number
 	): Promise<void> {
 		if (this.state !== TaskState.PROCESSING_RESPONSE || this.isRequestCancelled) {
@@ -207,8 +220,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 					return
 				}
 				textBuffer = ""
-				await this.stateService.appendToClaudeMessage(currentReplyId, text)
-				await this.stateService.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+				await stateService.appendToClaudeMessage(currentReplyId, text)
+				await this.postMessage()
 			}, updateInterval)
 
 			const processor = new ChunkProcessor({
@@ -219,10 +232,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 					}
 					if (chunk.code === 1) {
 						console.log("End of stream reached")
-						const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
-							chunk.body.internal
+						const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } = chunk.body.internal
 						const updatedMsg: ClaudeMessage = {
-							...this.stateService.getMessageById(startedReqId)!,
+							...stateService.getMessageById(startedReqId)!,
 							apiMetrics: {
 								cost: chunk.body.internal.cost,
 								inputTokens,
@@ -233,19 +245,18 @@ export class TaskExecutor extends TaskExecutorUtils {
 							isDone: true,
 							isFetching: false,
 						}
-						await this.stateService.updateClaudeMessage(startedReqId, updatedMsg)
-						await this.stateService.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						await stateService.updateClaudeMessage(startedReqId, updatedMsg)
 					}
 					if (chunk.code === -1) {
 						const updatedMsg: ClaudeMessage = {
-							...this.stateService.getMessageById(startedReqId)!,
+							...stateService.getMessageById(startedReqId)!,
 							isDone: true,
 							isFetching: false,
 							errorText: chunk.body.msg ?? "Internal Server Error",
 							isError: true,
 						}
-						await this.stateService.updateClaudeMessage(startedReqId, updatedMsg)
-						await this.stateService.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						await stateService.updateClaudeMessage(startedReqId, updatedMsg)
+						await this.postMessage()
 						throw new KoduError({ code: chunk.body.status ?? 500 })
 					}
 				},
@@ -301,6 +312,11 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 	}
 
+	private async postMessage() {
+		// TODO: refactor
+		// await stateService.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+	}
+
 	private async resetState() {
 		this.abortController?.abort()
 		this.currentApiResponse = null
@@ -326,10 +342,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 		if (assistantResponses.length > 0) {
 			console.log("[TaskExecutor] assistantResponses:", assistantResponses)
-			await this.stateService.addToApiConversationHistory({ role: "assistant", content: assistantResponses })
+			await stateService.addToApiConversationHistory({ role: "assistant", content: assistantResponses })
 		} else {
 			await this.say("error", "Unexpected Error: No assistant messages were found in the API response")
-			await this.stateService.addToApiConversationHistory({
+			await stateService.addToApiConversationHistory({
 				role: "assistant",
 				content: [{ type: "text", text: "Failure: I did not have a response to provide." }],
 			})
@@ -344,11 +360,11 @@ export class TaskExecutor extends TaskExecutorUtils {
 			console.log("[TaskExecutor] Completion attempted:", completionAttempted)
 
 			if (completionAttempted) {
-				await this.stateService.addToApiConversationHistory({
+				await stateService.addToApiConversationHistory({
 					role: "user",
 					content: completionAttempted.result,
 				})
-				await this.stateService.addToApiConversationHistory({
+				await stateService.addToApiConversationHistory({
 					role: "assistant",
 					content: [
 						{
@@ -396,11 +412,11 @@ export class TaskExecutor extends TaskExecutorUtils {
 				"Claude Coder has reached the maximum number of requests for this task. Would you like to reset the count and allow him to proceed?",
 		})
 		if (response === "yesButtonTapped") {
-			this.stateService.state.requestCount = 0
+			stateService.state.requestCount = 0
 			this.state = TaskState.WAITING_FOR_API
 			await this.makeClaudeRequest()
 		} else {
-			await this.stateService.addToApiConversationHistory({
+			await stateService.addToApiConversationHistory({
 				role: "assistant",
 				content: [
 					{
@@ -417,7 +433,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.logError(error)
 		console.log(`[TaskExecutor] Error (State: ${this.state}):`, error)
 		await this.toolExecutor.resetToolState()
-		this.stateService.popLastApiConversationMessage()
+		stateService.popLastApiConversationMessage()
 		this.consecutiveErrorCount++
 		if (error.type === "PAYMENT_REQUIRED" || error.type === "UNAUTHORIZED") {
 			this.state = TaskState.IDLE
@@ -427,7 +443,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 		const { response } = await this.ask("api_req_failed", { question: error.message })
 		if (response === "yesButtonTapped" || response === "messageResponse") {
-			console.log(JSON.stringify(this.stateService.state.claudeMessages, null, 2))
+			console.log(JSON.stringify(stateService.state.claudeMessages, null, 2))
 
 			await this.say("api_req_retried")
 			this.state = TaskState.WAITING_FOR_API

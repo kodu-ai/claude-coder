@@ -1,4 +1,3 @@
-
 import Anthropic from "@anthropic-ai/sdk"
 
 export enum KODU_ERROR_CODES {
@@ -67,6 +66,7 @@ export const KODU_ERROR_MESSAGES: Record<KODU_ERROR_CODES, string> = {
 }
 
 export class KoduError extends Error {
+	public errorCode: KODU_ERROR_CODES
 	constructor({ code }: { code: number }) {
 		if (code in KODU_ERROR_CODES) {
 			super(KODU_ERROR_MESSAGES[code as KODU_ERROR_CODES])
@@ -74,6 +74,7 @@ export class KoduError extends Error {
 			super("Unknown error")
 		}
 		this.name = "KoduError"
+		this.errorCode = code
 	}
 }
 

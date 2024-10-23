@@ -1,5 +1,5 @@
 import { ChatTool } from "./chat-tools"
-import { Anthropic } from "@anthropic-ai/sdk";
+import { Anthropic } from "@anthropic-ai/sdk"
 
 export type ClaudeAskResponse = "yesButtonTapped" | "noButtonTapped" | "messageResponse"
 
@@ -33,6 +33,8 @@ export type ClaudeSay =
 	| "api_req_started"
 	| "api_req_finished"
 	| "text"
+	| "payment_required"
+	| "unauthorized"
 	| "completion_result"
 	| "user_feedback"
 	| "user_feedback_diff"
@@ -45,8 +47,7 @@ export type ClaudeSay =
 	| "shell_integration_warning"
 	| "show_terminal"
 
-
-	export type ClaudeSayTool =
+export type ClaudeSayTool =
 	| ChatTool
 	| {
 			tool:
@@ -65,5 +66,5 @@ export type ClaudeSay =
 	  }
 
 export type UserContent = Array<
-    Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam
->;
+	Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam
+>

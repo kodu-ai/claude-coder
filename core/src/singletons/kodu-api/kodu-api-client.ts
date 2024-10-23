@@ -2,8 +2,8 @@ import { Anthropic } from "@anthropic-ai/sdk"
 import axios, { CancelTokenSource } from "axios"
 import * as vscode from "vscode"
 import { z } from "zod"
-import { ApiClientOptions, KODU_MODELS, koduDefaultModelId, KoduModelId, MODAL_TEMPERATURES, ModelInfo } from "./kodu-api-models"
-import { KODU_ERROR_CODES, KODU_ERROR_MESSAGES, KoduError, KoduSSEResponse } from "@/types"
+import { KODU_MODELS, koduDefaultModelId, KoduModelId, MODAL_TEMPERATURES, ModelInfo } from "./kodu-api-models"
+import { ApiClientOptions, KODU_ERROR_CODES, KODU_ERROR_MESSAGES, KoduError, KoduSSEResponse } from "@/types"
 import { healMessages } from "./auto-heal"
 import { withoutImageData } from "@/utils"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./dto"
@@ -15,7 +15,6 @@ import {
 	getKoduSummarizeUrl,
 	getKoduWebSearchUrl,
 } from "./kodu-api-routes"
-
 
 let previousSystemPrompt = "" // TODO: refactor to inside the class
 const bugReportSchema = z.object({
@@ -268,6 +267,7 @@ export class KoduApiClient {
 			}
 		}
 	}
+
 	createUserReadableRequest(
 		userContent: Array<
 			| Anthropic.TextBlockParam
@@ -289,7 +289,7 @@ export class KoduApiClient {
 
 	getModel(): { id: KoduModelId; info: ModelInfo } {
 		const modelId = this.options.apiModelId
-		if (modelId && modelId in KODU_MODELS		) {
+		if (modelId && modelId in KODU_MODELS) {
 			const id = modelId as KoduModelId
 			return { id, info: KODU_MODELS[id] }
 		}
