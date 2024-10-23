@@ -1,3 +1,8 @@
+/**
+ * THIS FILE WAS CREATED BY KODU.AI v1.9.19 - https://kodu.ai/
+ * THIS LETS KODU STREAM DIFF IN MEMORY AND SHOW IT IN VS CODE
+ * ALSO IT UPDATES THE WORKSPACE TIMELINE WITH THE CHANGES
+ */
 import * as vscode from "vscode"
 import * as path from "path"
 import * as fs from "fs/promises"
@@ -8,6 +13,52 @@ import { KoduDev } from "../../agent/v1"
 import delay from "delay"
 
 export const DIFF_VIEW_URI_SCHEME = "claude-coder-diff"
+export const MODIFIED_URI_SCHEME = "claude-coder-modified"
+
+class ModifiedContentProvider implements vscode.FileSystemProvider {
+	private content = new Map<string, Uint8Array>()
+	private _emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>()
+	readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]> = this._emitter.event
+
+	watch(uri: vscode.Uri): vscode.Disposable {
+		return new vscode.Disposable(() => {})
+	}
+
+	stat(uri: vscode.Uri): vscode.FileStat {
+		return {
+			type: vscode.FileType.File,
+			ctime: Date.now(),
+			mtime: Date.now(),
+			size: this.content.get(uri.toString())?.length || 0,
+		}
+	}
+
+	readDirectory(): [string, vscode.FileType][] {
+		return []
+	}
+
+	createDirectory(): void {}
+
+	readFile(uri: vscode.Uri): Uint8Array {
+		const data = this.content.get(uri.toString())
+		if (!data) throw vscode.FileSystemError.FileNotFound(uri)
+		return data
+	}
+
+	writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean }): void {
+		this.content.set(uri.toString(), content)
+		this._emitter.fire([{ type: vscode.FileChangeType.Changed, uri }])
+	}
+
+	delete(uri: vscode.Uri): void {
+		this.content.delete(uri.toString())
+		this._emitter.fire([{ type: vscode.FileChangeType.Deleted, uri }])
+	}
+
+	rename(): void {
+		throw vscode.FileSystemError.NoPermissions("Rename not supported")
+	}
+}
 
 export class DiffViewProvider {
 	private diffEditor?: vscode.TextEditor
@@ -20,41 +71,103 @@ export class DiffViewProvider {
 	private koduDev: KoduDev
 	public lastEditPosition?: vscode.Position
 	private updateTimeout: NodeJS.Timeout | null = null
-	private preDiagnostics: [vscode.Uri, vscode.Diagnostic[]][] = []
-	private updateInterval: number
+	private lastScrollTime: number = 0
+	private isAutoScrollEnabled: boolean = true
+	private lastUserInteraction: number = 0
+	private static readonly SCROLL_THROTTLE = 100 // ms
+	private static readonly USER_INTERACTION_TIMEOUT = 1000 // ms
+	private static readonly SCROLL_THRESHOLD = 5 // lines from bottom to re-enable auto-scroll
+	private static modifiedContentProvider: ModifiedContentProvider
+	private disposables: vscode.Disposable[] = []
 
-	constructor(private cwd: string, koduDev: KoduDev, updateInterval: number = 8) {
+	constructor(private cwd: string, koduDev: KoduDev, private updateInterval: number = 16) {
 		this.koduDev = koduDev
-		this.updateInterval = updateInterval
+
+		if (!DiffViewProvider.modifiedContentProvider) {
+			DiffViewProvider.modifiedContentProvider = new ModifiedContentProvider()
+			vscode.workspace.registerFileSystemProvider(MODIFIED_URI_SCHEME, DiffViewProvider.modifiedContentProvider)
+		}
 	}
 
 	public async open(relPath: string): Promise<void> {
 		this.isEditing = true
 		this.relPath = relPath
+		this.isAutoScrollEnabled = true
 		const absolutePath = path.resolve(this.cwd, relPath)
 
-		// Check if file exists, if not, use empty content
 		try {
 			this.originalContent = await fs.readFile(absolutePath, "utf-8")
 		} catch (error) {
 			this.originalContent = ""
 		}
 
-		// Open diff editor
 		await this.openDiffEditor(relPath)
+		this.setupEventListeners()
+	}
+
+	private checkScrollPosition(): boolean {
+		if (!this.diffEditor) return false
+
+		const visibleRanges = this.diffEditor.visibleRanges
+		if (visibleRanges.length === 0) return false
+
+		const lastVisibleLine = visibleRanges[visibleRanges.length - 1].end.line
+		const totalLines = this.diffEditor.document.lineCount
+		return totalLines - lastVisibleLine <= DiffViewProvider.SCROLL_THRESHOLD
+	}
+
+	private setupEventListeners(): void {
+		// Clean up existing listeners
+		this.disposables.forEach((d) => d.dispose())
+		this.disposables = []
+
+		if (this.diffEditor) {
+			// Track user interactions
+			this.disposables.push(
+				vscode.window.onDidChangeTextEditorSelection((e) => {
+					if (e.textEditor === this.diffEditor) {
+						this.lastUserInteraction = Date.now()
+						this.isAutoScrollEnabled = false
+					}
+				}),
+				vscode.window.onDidChangeTextEditorVisibleRanges((e) => {
+					if (e.textEditor === this.diffEditor) {
+						const now = Date.now()
+						// Check if this is a user-initiated scroll
+						if (now - this.lastScrollTime > DiffViewProvider.SCROLL_THROTTLE) {
+							// If user is near bottom, re-enable auto-scroll
+							if (this.checkScrollPosition()) {
+								this.isAutoScrollEnabled = true
+								this.lastUserInteraction = 0 // Reset interaction timer
+							} else {
+								// Only disable if it was recently enabled and user scrolled away
+								if (
+									this.isAutoScrollEnabled &&
+									now - this.lastUserInteraction < DiffViewProvider.USER_INTERACTION_TIMEOUT
+								) {
+									this.isAutoScrollEnabled = false
+								}
+							}
+						}
+					}
+				})
+			)
+		}
 	}
 
 	private async openDiffEditor(relPath: string): Promise<void> {
 		await this.closeAllDiffViews()
 		const fileName = path.basename(relPath)
+
 		this.originalUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${fileName}`).with({
 			query: Buffer.from(this.originalContent).toString("base64"),
 		})
-		this.modifiedUri = vscode.Uri.file(path.resolve(this.cwd, relPath))
 
-		// Ensure the file exists before opening the diff view
-		await createDirectoriesForFile(this.modifiedUri.fsPath)
-		await vscode.workspace.fs.writeFile(this.modifiedUri, new Uint8Array())
+		this.modifiedUri = vscode.Uri.parse(`${MODIFIED_URI_SCHEME}:/${fileName}`)
+		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(""), {
+			create: true,
+			overwrite: true,
+		})
 
 		await vscode.commands.executeCommand(
 			"vscode.diff",
@@ -72,12 +185,14 @@ export class DiffViewProvider {
 	}
 
 	public async update(accumulatedContent: string, isFinal: boolean): Promise<void> {
-		if (!this.diffEditor) {
+		if (!this.diffEditor || !this.modifiedUri) {
 			throw new Error("Diff editor not initialized")
 		}
+
 		if (isFinal) {
 			if (this.updateTimeout) {
 				clearTimeout(this.updateTimeout)
+				this.updateTimeout = null
 			}
 			await this.applyUpdate(accumulatedContent)
 			await this.finalizeDiff()
@@ -87,37 +202,44 @@ export class DiffViewProvider {
 		if (this.updateTimeout) {
 			clearTimeout(this.updateTimeout)
 		}
+
 		this.updateTimeout = setTimeout(async () => {
 			await this.applyUpdate(accumulatedContent)
-			if (isFinal) {
-				await this.finalizeDiff()
-			}
 		}, this.updateInterval)
 	}
 
 	private async applyUpdate(content: string): Promise<void> {
-		if (!this.diffEditor) {
+		if (!this.diffEditor || !this.modifiedUri) {
 			return
 		}
 
-		const document = this.diffEditor.document
-		const edit = new vscode.WorkspaceEdit()
-		const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
-		edit.replace(document.uri!, fullRange, content)
-		await vscode.workspace.applyEdit(edit)
-
+		// Update content with proper options to maintain file history
+		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(content), {
+			create: false,
+			overwrite: true,
+		})
 		this.streamedContent = content
 
-		this.scrollToBottom()
+		const now = Date.now()
+		if (
+			this.isAutoScrollEnabled &&
+			now - this.lastScrollTime >= DiffViewProvider.SCROLL_THROTTLE &&
+			(now - this.lastUserInteraction >= DiffViewProvider.USER_INTERACTION_TIMEOUT || this.checkScrollPosition())
+		) {
+			await this.scrollToBottom()
+			this.lastScrollTime = now
+		}
 	}
 
-	private scrollToBottom(): void {
-		if (this.diffEditor) {
-			const lastLine = this.diffEditor.document.lineCount - 1
-			const lastCharacter = this.diffEditor.document.lineAt(lastLine).text.length
-			const range = new vscode.Range(lastLine, lastCharacter, lastLine, lastCharacter)
-			this.diffEditor.revealRange(range, vscode.TextEditorRevealType.Default)
-		}
+	private async scrollToBottom(): Promise<void> {
+		if (!this.diffEditor) return
+
+		const lastLine = this.diffEditor.document.lineCount - 1
+		const lastCharacter = this.diffEditor.document.lineAt(lastLine).text.length
+		const range = new vscode.Range(lastLine, lastCharacter, lastLine, lastCharacter)
+
+		// Use less aggressive reveal type
+		this.diffEditor.revealRange(range, vscode.TextEditorRevealType.Default)
 	}
 
 	private async finalizeDiff(): Promise<void> {
@@ -125,27 +247,21 @@ export class DiffViewProvider {
 			return
 		}
 
-		const fileName = path.basename(this.relPath)
-
-		// Ensure the content is up to date
 		await this.applyUpdate(this.streamedContent)
-
-		// Update the diff view title without closing the editor
 		this.lastEditPosition = new vscode.Position(this.diffEditor.document.lineCount - 1, 0)
-
-		// Scroll to the bottom of the finalized diff view
-		this.scrollToBottom()
+		if (this.isAutoScrollEnabled) {
+			await this.scrollToBottom()
+		}
 	}
 
 	public async revertChanges(): Promise<void> {
-		// Close the diff view without saving changes
 		if (!this.relPath) {
 			return
-			// throw new Error("No file path set or diff editor not initialized")
 		}
+
+		this.disposables.forEach((d) => d.dispose())
 		await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
 
-		// If it was a new file, we should delete it
 		if (this.originalContent === "") {
 			const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
 			try {
@@ -153,10 +269,6 @@ export class DiffViewProvider {
 			} catch (error) {
 				console.error("Failed to delete new file:", error)
 			}
-		} else {
-			// For existing files, restore the original content
-			const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
-			await vscode.workspace.fs.writeFile(uri, Buffer.from(this.originalContent))
 		}
 
 		this.isEditing = false
@@ -164,56 +276,111 @@ export class DiffViewProvider {
 	}
 
 	private async reset(): Promise<void> {
+		if (this.modifiedUri) {
+			try {
+				DiffViewProvider.modifiedContentProvider.delete(this.modifiedUri)
+			} catch (error) {
+				// Ignore deletion errors
+			}
+		}
+		if (this.updateTimeout) {
+			clearTimeout(this.updateTimeout)
+			this.updateTimeout = null
+		}
+		this.disposables.forEach((d) => d.dispose())
+		this.disposables = []
 		this.diffEditor = undefined
 		this.streamedContent = ""
 		this.lastEditPosition = undefined
+		this.lastScrollTime = 0
+		this.isAutoScrollEnabled = true
+		this.lastUserInteraction = 0
 	}
 
 	public async acceptChanges(): Promise<void> {
 		if (!this.relPath || !this.diffEditor) {
 			throw new Error("No file path set or diff editor not initialized")
 		}
-		const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
-		await vscode.workspace.fs.writeFile(uri, Buffer.from(this.streamedContent))
-		this.isEditing = false
 
-		// Close the diff view
+		const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
+		await createDirectoriesForFile(uri.fsPath)
+		await vscode.workspace.fs.writeFile(uri, Buffer.from(this.streamedContent))
+
+		// Emit file change event to update timeline
+		if (DiffViewProvider.modifiedContentProvider) {
+			// @ts-expect-error - this not typed in vscode
+			DiffViewProvider.modifiedContentProvider._emitter.fire([{ type: vscode.FileChangeType.Changed, uri }])
+		}
+
+		this.isEditing = false
+		this.disposables.forEach((d) => d.dispose())
 		await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
 	}
 
 	public async saveChanges(): Promise<{ userEdits: string | undefined }> {
-		if (!this.relPath || !this.diffEditor) {
-			throw new Error("No file path set or diff editor not initialized")
-		}
+		try {
+			if (!this.relPath) {
+				throw new Error("No file path set")
+			}
 
-		const absolutePath = path.resolve(this.cwd, this.relPath)
-		const updatedDocument = this.diffEditor.document
-		const editedContent = updatedDocument.getText()
-		if (updatedDocument.isDirty) {
-			await updatedDocument.save()
-		}
+			if (!this.diffEditor || this.diffEditor.document.isClosed) {
+				throw new Error("Diff editor is not initialized or has been closed")
+			}
 
-		await this.closeAllDiffViews()
-		// Open the file in the editor
-		const uri = vscode.Uri.file(absolutePath)
-		if (!vscode.window.visibleTextEditors.some((editor) => arePathsEqual(editor.document.uri.fsPath, uri.fsPath))) {
-			const document = await vscode.workspace.openTextDocument(uri)
-			await vscode.window.showTextDocument(document, { preview: false })
-		}
+			const updatedDocument = this.diffEditor.document
+			const editedContent = updatedDocument.getText()
 
-		// Check for user edits
-		const normalizedEditedContent = editedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
-		const normalizedStreamedContent = this.streamedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+			const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
 
-		if (normalizedEditedContent !== normalizedStreamedContent) {
-			const userEdits = await this.createPrettyPatch(
-				this.relPath.toPosix(),
-				normalizedStreamedContent,
-				normalizedEditedContent
-			)
-			return { userEdits }
-		} else {
+			// Ensure directories exist before writing
+			await createDirectoriesForFile(uri.fsPath)
+
+			// Write file with error handling
+			try {
+				await vscode.workspace.fs.writeFile(uri, Buffer.from(editedContent))
+			} catch (error) {
+				throw new Error(`Failed to write file: ${error instanceof Error ? error.message : String(error)}`)
+			}
+
+			// Try to open the file in editor if it's not visible
+			if (
+				!vscode.window.visibleTextEditors.some((editor) =>
+					arePathsEqual(editor.document.uri.fsPath, uri.fsPath)
+				)
+			) {
+				try {
+					const document = await vscode.workspace.openTextDocument(uri)
+					// save it to the editor
+					await document.save()
+					// save it to the workspace timeline
+					await vscode.workspace.save(document.uri)
+					await vscode.window.showTextDocument(document, { preview: false })
+				} catch (error) {
+					console.warn("Could not open saved file in editor:", error)
+					// Non-critical error, continue execution
+				}
+			}
+
+			// Close diff views
+			await this.closeAllDiffViews()
+
+			// Compare contents and create patch if needed
+			const normalizedEditedContent = editedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+			const normalizedStreamedContent = this.streamedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+
+			if (normalizedEditedContent !== normalizedStreamedContent) {
+				const userEdits = await this.createPrettyPatch(
+					this.relPath.replace(/\\/g, "/"), // Ensure forward slashes for consistency
+					normalizedStreamedContent,
+					normalizedEditedContent
+				)
+				return { userEdits }
+			}
+
 			return { userEdits: undefined }
+		} catch (error) {
+			// Throw a more descriptive error
+			throw new Error(`Failed to save changes: ${error instanceof Error ? error.message : String(error)}`)
 		}
 	}
 
@@ -232,10 +399,11 @@ export class DiffViewProvider {
 			.flatMap((tg) => tg.tabs)
 			.filter(
 				(tab) =>
-					tab.input instanceof vscode.TabInputTextDiff && tab.input?.original?.scheme === DIFF_VIEW_URI_SCHEME
+					tab.input instanceof vscode.TabInputTextDiff &&
+					(tab.input?.original?.scheme === DIFF_VIEW_URI_SCHEME ||
+						tab.input?.modified?.scheme === MODIFIED_URI_SCHEME)
 			)
 		for (const tab of tabs) {
-			// Trying to close dirty views results in save popup
 			if (!tab.isDirty) {
 				await vscode.window.tabGroups.close(tab)
 			}

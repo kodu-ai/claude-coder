@@ -142,7 +142,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, sy
 			rehypePlugins={[rehypeRaw]}
 			components={{
 				// @ts-expect-error not typed
-				thinking: ThinkingContent,
+				// thinking: ThinkingContent,
 				preview: Preview,
 				write_to_file: WriteToFile,
 				"call-to-action": CallToAction,
