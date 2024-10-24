@@ -1,9 +1,8 @@
-import { WebSearchResponseDto } from "../../../../api/interfaces"
-import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
-import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
-import { BaseAgentTool } from "../base-agent.tool"
-import type { AgentToolOptions, AgentToolParams } from "../types"
+import Anthropic from '@anthropic-ai/sdk'
+import { ToolResponse } from '../../types'
+import { formatGenericToolFeedback, formatToolResponse } from '../../utils'
+import { BaseAgentTool } from '../base-agent.tool'
+import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from '../types'
 
 export class WebSearchTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -14,124 +13,157 @@ export class WebSearchTool extends BaseAgentTool {
 	}
 
 	async execute(): Promise<ToolResponse> {
-		const { say, ask, updateAsk, input } = this.params
+		const { say, updateAsk, input } = this.params
 		const { searchQuery, baseLink } = input
 
-		if (!searchQuery) {
-			await say("error", "Claude tried to use `web_search` without required parameter `searchQuery`. Retrying...")
-
-			return `Error: Missing value for required parameter 'searchQuery'. Please retry with complete response.
+		if (!searchQuery || !baseLink) {
+			await say('error', 'Claude tried to use `web_search` without required parameters. Retrying...')
+			return `Error: Missing value for required parameters. Please retry with complete response.
 				A good example of a web_search tool call is:
 				{
 					"tool": "web_search",
 					"searchQuery": "How to import jotai in a react project",
 					"baseLink": "https://jotai.org/docs/introduction"
 				}
-				Please try again with the correct searchQuery, you are not allowed to search without a searchQuery.`
+				Please try again with the correct parameters.`
 		}
 
-		const { response, text, images } = await ask(
-			"tool",
-			{
-				tool: {
-					tool: "web_search",
-					searchQuery,
-					baseLink,
-					approvalState: "pending",
-					ts: this.ts,
-				},
-			},
-			this.ts
-		)
-		if (response !== "yesButtonTapped") {
-			ask(
-				"tool",
+		const confirmation = await this.askToolExecConfirmation(searchQuery, baseLink)
+		if (confirmation.response !== 'yesButtonTapped') {
+			await updateAsk(
+				'tool',
 				{
 					tool: {
-						tool: "web_search",
+						tool: 'web_search',
 						searchQuery,
 						baseLink,
-						approvalState: "rejected",
+						approvalState: 'rejected',
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
-			if (response === "messageResponse") {
-				await say("user_feedback", text, images)
-				return formatToolResponse(formatGenericToolFeedback(text), images)
-			}
-
-			return "The user denied this operation."
+			return await this.onExecDenied(confirmation)
 		}
+
 		try {
-			updateAsk(
-				"tool",
+			await updateAsk(
+				'tool',
 				{
 					tool: {
-						tool: "web_search",
+						tool: 'web_search',
 						searchQuery,
 						baseLink,
-						approvalState: "pending",
+						approvalState: 'loading',
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
-			const result = await this.koduDev
-				.getApiManager()
-				.getApi()
-				?.sendWebSearchRequest?.(searchQuery, baseLink)
-				.then((res) => res)
-				.catch((err) => undefined)
-			if (!result) {
-				updateAsk(
-					"tool",
-					{
-						tool: {
-							tool: "web_search",
-							searchQuery,
-							baseLink,
-							approvalState: "error",
-							error: "No result found.",
-							ts: this.ts,
+
+			let textBlock: Anthropic.TextBlockParam
+
+			if (baseLink) {
+				const browserManager = this.koduDev.browserManager
+				await browserManager.launchBrowser()
+
+				const { content } = await browserManager.getWebsiteContent(baseLink)
+
+				await browserManager.closeBrowser()
+
+				textBlock = {
+					type: 'text',
+					text: `Page crawl results for: ${baseLink}\nPage content: ${content}`,
+				}
+			} else {
+				const result = await this.koduDev
+					.getApiManager()
+					.getApi()
+					?.sendWebSearchRequest?.(searchQuery, baseLink)
+					.then((res) => res)
+					.catch((err) => undefined)
+				if (!result) {
+					updateAsk(
+						'tool',
+						{
+							tool: {
+								tool: 'web_search',
+								searchQuery,
+								baseLink,
+								approvalState: 'error',
+								error: 'No result found.',
+								ts: this.ts,
+							},
 						},
-					},
-					this.ts
-				)
-				return "Web search failed with error: No result found."
+						this.ts,
+					)
+					return 'Web search failed with error: No result found.'
+				}
+
+				textBlock = {
+					type: 'text',
+					text: result.content,
+				}
 			}
-			updateAsk(
-				"tool",
+
+			// Done with the tool execution (backend call / browser)
+			await updateAsk(
+				'tool',
 				{
 					tool: {
-						tool: "web_search",
+						tool: 'web_search',
 						searchQuery,
 						baseLink,
-						content: result.content,
-						approvalState: "approved",
+						approvalState: 'approved',
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
-			return `This is the result of the web search: ${result.content}`
+			return formatToolResponse(textBlock.text)
 		} catch (err) {
-			updateAsk(
-				"tool",
+			await updateAsk(
+				'tool',
 				{
 					tool: {
-						tool: "web_search",
+						tool: 'web_search',
 						searchQuery,
 						baseLink,
-						approvalState: "error",
-						error: err,
+						approvalState: 'error',
+						error: `Web search failed with error: ${err}`,
 						ts: this.ts,
 					},
 				},
-				this.ts
+				this.ts,
 			)
 			return `Web search failed with error: ${err}`
 		}
+	}
+
+	private async askToolExecConfirmation(searchQuery: string, baseLink: string): Promise<AskConfirmationResponse> {
+		return await this.params.ask(
+			'tool',
+			{
+				tool: {
+					tool: 'web_search',
+					searchQuery: searchQuery,
+					baseLink: baseLink,
+					approvalState: 'pending',
+					ts: this.ts,
+				},
+			},
+			this.ts,
+		)
+	}
+
+	private async onExecDenied(confirmation: AskConfirmationResponse) {
+		const { response, text, images } = confirmation
+
+		if (response === 'messageResponse') {
+			await this.params.say('user_feedback', text, images)
+			return formatToolResponse(formatGenericToolFeedback(text), images)
+		}
+
+		return 'The user denied this operation.'
 	}
 }
