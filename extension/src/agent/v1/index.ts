@@ -28,6 +28,7 @@ import { TaskExecutor } from "./task-executor/task-executor"
 import { AskResponse, TaskState } from "./task-executor/utils"
 import { ChatTool } from "../../shared/new-tools"
 import { Chat } from "openai/resources/index.mjs"
+import { TerminalTaskManager } from "../../integrations/terminal/terminal-task-manager"
 
 // new KoduDev
 export class KoduDev {

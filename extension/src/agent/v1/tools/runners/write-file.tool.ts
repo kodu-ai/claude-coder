@@ -186,8 +186,8 @@ export class WriteFileTool extends BaseAgentTool {
 	public async handleFinalContent(relPath: string, newContent: string): Promise<string> {
 		this.koduDev.getStateManager().addErrorPath(relPath)
 		const fileExists = await this.checkFileExists(relPath)
-		const { userEdits } = await this.diffViewProvider.saveChanges()
 		await delay(300)
+		const { userEdits } = await this.diffViewProvider.saveChanges()
 		this.params.ask(
 			"tool",
 			{

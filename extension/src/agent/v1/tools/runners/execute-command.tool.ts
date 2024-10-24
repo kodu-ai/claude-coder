@@ -11,10 +11,17 @@ import { AgentToolOptions, AgentToolParams } from "../types"
 import { ExecaTerminalManager } from "../../../../integrations/terminal/execa-terminal-manager"
 import { WebviewMessage } from "../../../../shared/WebviewMessage"
 import { ChatTool } from "../../../../shared/new-tools"
+import { TerminalProcessResultPromise } from "../../../../integrations/terminal/terminal-manager"
+
+const COMMAND_TIMEOUT = 45000 // 45 seconds
+const MAX_RETRIES = 3
+
+type EarlyExitState = "approved" | "rejected" | "pending"
 
 export class ExecuteCommandTool extends BaseAgentTool {
 	protected params: AgentToolParams
 	private execaTerminalManager: ExecaTerminalManager
+	private output: string = ""
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
@@ -23,26 +30,30 @@ export class ExecuteCommandTool extends BaseAgentTool {
 	}
 
 	override async execute(): Promise<ToolResponse> {
-		const { input, ask, say } = this.params
+		const { input, say } = this.params
 		const { command } = input as { command?: string }
-		if (command === undefined || command === "") {
+
+		if (!command?.trim()) {
 			await say(
 				"error",
 				"Claude tried to use execute_command without value for required parameter 'command'. Retrying..."
 			)
-			return `Error: Missing value for required parameter 'command'. Please retry with complete response.
-			an example of a good executeCommand tool call is:
-			{
-				"tool": "execute_command",
-				"command": "command to execute"
-			}
-			Please try again with the correct command, you are not allowed to execute commands without a command.
-			`
+			return `Error: Missing or empty command parameter. Please provide a valid command.`
 		}
-		// if (this.koduDev.terminalManager instanceof AdvancedTerminalManager) {
+
 		return this.executeShellTerminal(command)
-		// }
-		// return this.executeExeca()
+	}
+
+	private cleanOutput(output: string): string {
+		return output
+			.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "") // ANSI escape sequences
+			.replace(/\x1b\]633;.*?\x07/g, "") // Terminal integration sequences
+			.replace(/\r/g, "") // Carriage returns
+			.trim()
+	}
+
+	private isApprovedState(state: EarlyExitState): state is "approved" {
+		return state === "approved"
 	}
 
 	private async executeShellTerminal(command: string): Promise<ToolResponse> {
@@ -50,9 +61,11 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		if (!(terminalManager instanceof AdvancedTerminalManager)) {
 			throw new Error("AdvancedTerminalManager is not available")
 		}
+
 		const { ask, updateAsk, say, returnEmptyStringOnSuccess } = this.params
 		const cwd = getCwd()
 
+		// Initial approval request
 		const { response, text, images } = await ask(
 			"tool",
 			{
@@ -66,6 +79,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			},
 			this.ts
 		)
+
 		if (response !== "yesButtonTapped") {
 			updateAsk(
 				"tool",
@@ -80,14 +94,15 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			if (response === "messageResponse") {
-				if (!this.alwaysAllowWriteOnly) {
-					await say("user_feedback", text, images)
-				}
+
+			if (response === "messageResponse" && !this.alwaysAllowWriteOnly) {
+				await say("user_feedback", text, images)
 				return this.formatToolResponseWithImages(await this.formatToolDeniedFeedback(text), images)
 			}
 			return await this.formatToolDenied()
 		}
+
+		// Set loading state
 		updateAsk(
 			"tool",
 			{
@@ -102,135 +117,124 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			this.ts
 		)
 
-		try {
-			console.log(`Creating terminal: ${typeof terminalManager} `)
-			const terminalInfo = await terminalManager.getOrCreateTerminal(this.cwd)
-			console.log("Terminal created")
-			terminalInfo.terminal.show() // weird visual bug when creating new terminals (even manually) where there's an empty space at the top.
-			const process = terminalManager.runCommand(terminalInfo, command, {
-				autoClose: this.koduDev.getStateManager().autoCloseTerminal ?? false,
-			})
-			await delay(300)
+		let retryCount = 0
+		let process: TerminalProcessResultPromise | null = null
 
-			let userFeedback: { text?: string; images?: string[] } | undefined
-			let didContinue = false
-			let earlyExit: "approved" | "rejected" | "pending" = "pending"
+		while (retryCount < MAX_RETRIES) {
+			try {
+				const terminalInfo = await terminalManager.getOrCreateTerminal(this.cwd)
+				terminalInfo.terminal.show()
 
-			const sendCommandOutput = async (line: string): Promise<void> => {
-				try {
-					updateAsk(
-						"tool",
-						{
-							tool: {
-								tool: "execute_command",
-								command,
-								output: line,
-								approvalState: "loading",
-								ts: this.ts,
-								earlyExit,
-								isSubMsg: this.params.isSubMsg,
+				process = terminalManager.runCommand(terminalInfo, command, {
+					autoClose: this.koduDev.getStateManager().autoCloseTerminal ?? false,
+				})
+
+				break
+			} catch (error) {
+				retryCount++
+				if (retryCount === MAX_RETRIES) {
+					throw error
+				}
+				await delay(1000 * retryCount) // Exponential backoff
+			}
+		}
+
+		if (!process) {
+			throw new Error("Failed to create terminal process after retries")
+		}
+
+		let userFeedback: { text?: string; images?: string[] } | undefined
+		let didContinue = false
+		let earlyExit: EarlyExitState = "pending"
+
+		process.on("line", async (line) => {
+			const cleanedLine = this.cleanOutput(line)
+			if (cleanedLine) {
+				this.output += cleanedLine + "\n"
+				if (!didContinue || this.isApprovedState(earlyExit)) {
+					try {
+						await updateAsk(
+							"tool",
+							{
+								tool: {
+									tool: "execute_command",
+									command,
+									output: this.output,
+									approvalState: "loading",
+									ts: this.ts,
+									earlyExit,
+									isSubMsg: this.params.isSubMsg,
+								},
 							},
-						},
-						this.ts
-					)
-				} catch {
-					// This can only happen if this ask promise was ignored, so ignore this error
+							this.ts
+						)
+					} catch (error) {
+						console.error("Failed to update output:", error)
+					}
 				}
 			}
+		})
 
-			let result = ""
-			process.on("line", (line) => {
-				result += line + "\n"
-				// if it starts with \n, remove it
-				if (result.startsWith("\n")) {
-					result = result.slice(1)
-				}
-				if (!didContinue) {
-					sendCommandOutput(result)
-				} else {
-					updateAsk(
-						"tool",
-						{
-							tool: {
-								tool: "execute_command",
-								command,
-								output: result,
-								approvalState: "loading",
-								ts: this.ts,
-								earlyExit,
-								isSubMsg: this.params.isSubMsg,
-							},
-						},
-						this.ts
-					)
-				}
-			})
+		let completed = false
+		process.once("completed", () => {
+			earlyExit = "approved"
+			completed = true
+		})
 
-			let completed = false
-			process.once("completed", () => {
-				earlyExit = "approved"
-				completed = true
-				// terminalManager.closeTerminal(terminalInfo.id)
-			})
+		process.once("no_shell_integration", async () => {
+			await say("shell_integration_warning")
+			throw new Error(
+				"No shell integration, cannot run commands please enable shell integration otherwise commands will not run."
+			)
+		})
 
-			process.once("no_shell_integration", async () => {
-				await say("shell_integration_warning")
-			})
-
-			let earlyExitPromise = delay(45_000)
-			if (!this.alwaysAllowWriteOnly) {
-				earlyExitPromise = ask(
-					"tool",
-					{
-						tool: {
-							tool: "execute_command",
-							command,
-							approvalState: "loading",
-							ts: this.ts,
-							earlyExit,
-							isSubMsg: this.params.isSubMsg,
-						},
+		let earlyExitPromise = delay(COMMAND_TIMEOUT)
+		if (!this.alwaysAllowWriteOnly) {
+			earlyExitPromise = ask(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						command,
+						approvalState: "loading",
+						ts: this.ts,
+						earlyExit,
+						isSubMsg: this.params.isSubMsg,
 					},
-					this.ts
-				)
-					.then((res) => {
-						console.log(`Command contiune result`)
-						const { text, images, response } = res
+				},
+				this.ts
+			)
+				.then((res) => {
+					const { text, images, response } = res
 
-						if (response === "yesButtonTapped") {
-							didContinue = true
-							earlyExit = "approved"
-							// proceed while running
-						} else {
-							if (response === "messageResponse") {
-								didContinue = true
-								earlyExit = "approved"
-								userFeedback = { text, images }
-							} else {
-								earlyExit = "rejected"
-							}
+					if (response === "yesButtonTapped" || response === "messageResponse") {
+						didContinue = true
+						earlyExit = "approved"
+						if (response === "messageResponse") {
+							userFeedback = { text, images }
 						}
-						if (didContinue) {
-							process.continue()
-						}
-						userFeedback = { text, images }
-					})
-					.catch()
-			}
+						process?.continue()
+					} else {
+						earlyExit = "rejected"
+					}
+				})
+				.catch((error) => {
+					console.error("Early exit promise error:", error)
+					earlyExit = "rejected"
+				})
+		}
 
+		try {
 			await Promise.race([earlyExitPromise, process])
+			await delay(300) // Small delay to ensure final output is captured
 
-			// Wait for a short delay to ensure all messages are sent to the webview
-			await delay(300)
-
-			result = result.trim()
 			await updateAsk(
 				"tool",
 				{
 					tool: {
 						tool: "execute_command",
 						command,
-						output: result,
+						output: this.output,
 						approvalState: "approved",
 						ts: this.ts,
 						earlyExit,
@@ -239,36 +243,37 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				},
 				this.ts
 			)
+
 			let toolRes = "The command has been executed."
-			// @ts-expect-error type is broken but it is reachable
-			if (earlyExit === "approved") {
-				toolRes =
-					"User chose to run the command without waiting for output, you won't be able to see the output. just assume it ran successfully."
+			if (this.isApprovedState(earlyExit) && completed) {
+				toolRes = "Command execution completed successfully."
 			}
-			if ((userFeedback?.text !== "undefined" && userFeedback?.text?.length) || userFeedback?.images?.length) {
+
+			if ((userFeedback?.text && userFeedback.text.length) || userFeedback?.images?.length) {
 				toolRes += `\n\nUser feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
 				await say("user_feedback", userFeedback.text, userFeedback.images)
 			}
 
-			// for attemptCompletion, we don't want to return the command output
 			if (returnEmptyStringOnSuccess) {
-				return this.formatToolResponseWithImages(await this.formatToolResult(""), [])
+				return this.formatToolResponseWithImages("", [])
 			}
+
 			if (completed) {
-				toolRes += `\n\nOutput:\n<output>\n${result ?? "No output"}\n</output>`
+				toolRes += `\n\nOutput:\n<output>\n${this.output || "No output"}\n</output>`
 			} else {
-				toolRes += `\n\nThe command ran but didn't provide the full output, this is the only available output we can give you, keep going with the task.
-				\n\nOutput so far:\n<output>\n${result ?? "No output"}\n</output>`
+				toolRes += `\n\nPartial output available:\n<output>\n${this.output || "No output"}\n</output>`
 			}
+
 			return await this.formatToolResponseWithImages(toolRes, userFeedback?.images)
 		} catch (error) {
+			const errorMessage = error.message || JSON.stringify(serializeError(error), null, 2)
 			updateAsk(
 				"tool",
 				{
 					tool: {
 						tool: "execute_command",
 						command,
-						output: error.message || JSON.stringify(serializeError(error), null, 2),
+						output: errorMessage,
 						approvalState: "error",
 						ts: this.ts,
 						earlyExit: undefined,
@@ -277,10 +282,29 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			let errorMessage = error.message || JSON.stringify(serializeError(error), null, 2)
-			const errorString = `Error executing command:\n${errorMessage}`
-			// await say("error", `Error executing command:\n${errorMessage}`)
-			return await this.formatToolError(errorString)
+			return await this.formatToolError(`Error executing command:\n${errorMessage}`)
 		}
+	}
+
+	private formatImagesIntoBlocks(images?: string[]): Anthropic.ImageBlockParam[] {
+		return (
+			images?.map((dataUrl) => {
+				const [rest, base64] = dataUrl.split(",")
+				const mimeType = rest.split(":")[1].split(";")[0]
+				return {
+					type: "image",
+					source: { type: "base64", media_type: mimeType, data: base64 },
+				} as Anthropic.ImageBlockParam
+			}) ?? []
+		)
+	}
+
+	private formatIntoToolResponse(text: string, images?: string[]): ToolResponse {
+		if (images?.length) {
+			const textBlock: Anthropic.TextBlockParam = { type: "text", text }
+			const imageBlocks = this.formatImagesIntoBlocks(images)
+			return [textBlock, ...imageBlocks]
+		}
+		return text
 	}
 }

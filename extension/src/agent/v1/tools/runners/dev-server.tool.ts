@@ -250,6 +250,13 @@ export class DevServerTool extends BaseAgentTool {
 			this.processServerOutput(line, startData, terminalInfo.id)
 		})
 
+		serverProcess.on("no_shell_integration", () => {
+			this.params.say("shell_integration_warning")
+			throw new Error(
+				"Shell integration not available, to run commands in the terminal the user must enable shell integration. Otherwise, commands will not run."
+			)
+		})
+
 		try {
 			await Promise.race([
 				serverProcess,

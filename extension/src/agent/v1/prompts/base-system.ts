@@ -488,6 +488,12 @@ export const criticalMsg = `
 - If you are writing to a file write the entire content of the file, even if it hasn't been modified and write the entire implementation, no placeholders, leaving comments like // TODO: Implement edit functionality will hurt you as you might forget to implement it.
 - do one step at a time, remember that the user will have to confirm each action before you can proceed.
 - read files generally can be done in bulk so if you need to do multiple reads, you can do them in one response.
+- Remember that every tool you call has to go through the user first, you can't assume the outcome of a tool call, thus you must always wait for the user to confirm the result of the tool call before proceeding.
+  * so if you are calling a tool you must wait for the user to confirm the content of the file before proceeding, the user might reject it or give you feedback that you need to address.
+  * for example you called the read_file tool, you don't know the content of the file unless the user confirms and give you the content of the file in the next message.
+  * for example you called the write_to_file tool, you don't know if the file was written successfully unless the user confirms it in the next message, the user can reject the content or give you feedback that you need to address.
+  * If the user gives you feedback for a tool you must address it, his opinion is critical to the task completion.
+  * attempt completion shouldn't be eagrly called, only call it once the user confirms the result of the tool calls and you believe the task is completed.
 				
 # RUNNING A SERVER:
 If you want to run a server, you must use the server_runner_tool tool, do not use the execute_command tool to start a server.
