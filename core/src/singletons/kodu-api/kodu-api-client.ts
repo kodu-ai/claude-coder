@@ -1,6 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import axios, { CancelTokenSource } from "axios"
-import * as vscode from "vscode"
 import { z } from "zod"
 import { KODU_MODELS, koduDefaultModelId, KoduModelId, MODAL_TEMPERATURES, ModelInfo } from "./kodu-api-models"
 import { ApiClientOptions, KODU_ERROR_CODES, KODU_ERROR_MESSAGES, KoduError, KoduSSEResponse } from "@/types"
@@ -53,21 +52,7 @@ export class KoduApiClient {
 		console.log(`creativeMode: ${creativeMode}`)
 		const creativitySettings = MODAL_TEMPERATURES[creativeMode ?? "normal"]
 		// check if the root of the folder has .kodu file if so read the content and use it as the system prompt
-		let dotKoduFileContent = ""
-		const workspaceFolders = vscode.workspace.workspaceFolders
-		if (workspaceFolders) {
-			for (const folder of workspaceFolders) {
-				const dotKoduFile = vscode.Uri.joinPath(folder.uri, ".kodu")
-				try {
-					const fileContent = await vscode.workspace.fs.readFile(dotKoduFile)
-					dotKoduFileContent = Buffer.from(fileContent).toString("utf8")
-					console.log(".kodu file content:", dotKoduFileContent)
-					break // Exit the loop after finding and reading the first .kodu file
-				} catch (error) {
-					console.log(`No .kodu file found in ${folder.uri.fsPath}`)
-				}
-			}
-		}
+
 		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = [
 			{ text: systemPrompt.trim(), type: "text" },
 		]

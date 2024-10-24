@@ -53,7 +53,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			await fs.writeFile(absolutePath, buffer)
 
 			await this.relaySuccessfulResponse({ absolutePath, imageToBase64 })
-			await this.consumer.openFile(absolutePath)
+			await this.filesAdapter.openFile(absolutePath)
 
 			const textBlock: Anthropic.TextBlockParam = {
 				type: "text",

@@ -16,14 +16,11 @@ export class DiffViewProvider {
 	public relPath?: string
 	private originalUri?: vscode.Uri
 	private modifiedUri?: vscode.Uri
-	private koduDev: IKoduDev
 	public lastEditPosition?: vscode.Position
 	private updateTimeout: NodeJS.Timeout | null = null
-	private preDiagnostics: [vscode.Uri, vscode.Diagnostic[]][] = []
 	private updateInterval: number
 
-	constructor(private cwd: string, koduDev: IKoduDev, updateInterval: number = 8) {
-		this.koduDev = koduDev
+	constructor(private cwd: string, updateInterval: number = 8) {
 		this.updateInterval = updateInterval
 	}
 
@@ -230,8 +227,7 @@ export class DiffViewProvider {
 		const tabs = vscode.window.tabGroups.all
 			.flatMap((tg) => tg.tabs)
 			.filter(
-				(tab) =>
-					tab.input instanceof vscode.TabInputTextDiff && tab.input?.original?.scheme === DIFF_VIEW_URI_SCHEME
+				(tab) => tab.input instanceof vscode.TabInputTextDiff && tab.input?.original?.scheme === DIFF_VIEW_URI_SCHEME
 			)
 		for (const tab of tabs) {
 			// Trying to close dirty views results in save popup

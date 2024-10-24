@@ -134,7 +134,7 @@ export class KoduDev {
 
 		let textBlock: Anthropic.TextBlockParam = {
 			type: "text",
-			text: `<task>\n${task}\n</task>\n\n${getPotentiallyRelevantDetails()}`,
+			text: `<task>\n${task}\n</task>\n\n${getPotentiallyRelevantDetails(this.consumer.filesAdapter)}`,
 		}
 		let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
 		amplitudeTracker.taskStart(stateService.state.taskId)
@@ -379,7 +379,8 @@ export class KoduDev {
 		details += devServerSection
 		// It could be useful for cline to know if the user went from one or no file to another between messages, so we always include this context
 		details += "\n\n# VSCode Visible Files"
-		const visibleFiles = this.consumer.getVisibleFiles()
+
+		const visibleFiles = this.consumer.filesAdapter.getVisibleFiles(true)
 		if (visibleFiles.length > 0) {
 			details += `\n${visibleFiles.join("\n")}`
 		} else {
@@ -387,7 +388,7 @@ export class KoduDev {
 		}
 
 		details += "\n\n# VSCode Open Tabs"
-		const openTabs = this.consumer.getOpenTabs()
+		const openTabs = this.consumer.filesAdapter.getOpenTabs(true)
 		if (openTabs.length > 0) {
 			details += `\n${openTabs.join("\n")}`
 		} else {

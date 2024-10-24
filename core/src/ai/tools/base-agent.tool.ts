@@ -4,6 +4,7 @@ import { AgentToolOptions, AgentToolParams } from "@/types"
 import { IConsumer, IKoduDev } from "@/interfaces"
 import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "@/utils"
 import { KoduDev } from "@/index"
+import { IConsumerFilesAdapter } from "@/interfaces"
 
 export abstract class BaseAgentTool {
 	protected cwd: string
@@ -99,5 +100,9 @@ export abstract class BaseAgentTool {
 			setRunningProcessId: this.setRunningProcessId,
 			consumer: this.consumer,
 		}
+	}
+
+	protected get filesAdapter(): IConsumerFilesAdapter {
+		return this.consumer.filesAdapter
 	}
 }

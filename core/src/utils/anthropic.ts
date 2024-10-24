@@ -33,10 +33,7 @@ export function formatToolResponse(
 
 export function withoutImageData(
 	userContent: Array<
-		| Anthropic.TextBlockParam
-		| Anthropic.ImageBlockParam
-		| Anthropic.ToolUseBlockParam
-		| Anthropic.ToolResultBlockParam
+		Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam
 	>
 ): Array<
 	Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam
@@ -57,4 +54,23 @@ export function withoutImageData(
 		}
 		return part
 	})
+}
+
+/**
+ *
+ * @description every 3 letters are on avg 1 token, image is about 2000 tokens
+ * @param message the last message
+ * @returns the tokens from the message
+ */
+export const anthropicMessageToTokens = (message: Anthropic.MessageParam) => {
+	const content = message.content
+	if (typeof content === "string") {
+		return Math.round(content.length / 2)
+	}
+	const textBlocks = content.filter((block) => block.type === "text")
+	const text = textBlocks.map((block) => block.text).join("")
+	const textTokens = Math.round(text.length / 3)
+	const imgBlocks = content.filter((block) => block.type === "image")
+	const imgTokens = imgBlocks.length * 2000
+	return Math.round(textTokens + imgTokens)
 }

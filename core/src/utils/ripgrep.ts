@@ -1,8 +1,8 @@
-import * as vscode from "vscode" // @TODO: refactor
 import * as childProcess from "child_process"
 import * as path from "path"
 import * as fs from "fs"
 import * as readline from "readline"
+import { IAppPaths } from "@/interfaces/IConsumer"
 
 /*
 This file provides functionality to perform regex searches on files using ripgrep.
@@ -60,18 +60,20 @@ interface SearchResult {
 
 const MAX_RESULTS = 300
 
-async function getBinPath(vscodeAppRoot: string): Promise<string | undefined> {
+async function getBinPath(appPaths: IAppPaths): Promise<string | undefined> {
 	const checkPath = async (pkgFolder: string) => {
-		const fullPath = path.join(vscodeAppRoot, pkgFolder, binName)
+		const fullPath = path.join(appPaths.appRoot, pkgFolder, binName)
 		return (await pathExists(fullPath)) ? fullPath : undefined
 	}
 
-	return (
-		(await checkPath("node_modules/@vscode/ripgrep/bin/")) ||
-		(await checkPath("node_modules/vscode-ripgrep/bin")) ||
-		(await checkPath("node_modules.asar.unpacked/vscode-ripgrep/bin/")) ||
-		(await checkPath("node_modules.asar.unpacked/@vscode/ripgrep/bin/"))
-	)
+	for (const binPath of appPaths.binPaths) {
+		const path = await checkPath(binPath)
+
+		if (path) {
+			return path
+		}
+	}
+	return undefined
 }
 
 async function pathExists(path: string): Promise<boolean> {
@@ -123,13 +125,13 @@ async function execRipgrep(bin: string, args: string[]): Promise<string> {
 }
 
 export async function regexSearchFiles(
+	appPaths: IAppPaths,
 	cwd: string,
 	directoryPath: string,
 	regex: string,
 	filePattern?: string
 ): Promise<string> {
-	const vscodeAppRoot = vscode.env.appRoot
-	const rgPath = await getBinPath(vscodeAppRoot)
+	const rgPath = await getBinPath(appPaths)
 
 	if (!rgPath) {
 		throw new Error("Could not find ripgrep binary")

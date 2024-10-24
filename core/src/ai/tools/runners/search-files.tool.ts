@@ -1,6 +1,6 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
-import { formatToolResponse, getReadablePath , regexSearchFiles} from "@/utils"
+import { formatToolResponse, getReadablePath, regexSearchFiles } from "@/utils"
 import { AgentToolOptions, AgentToolParams, ToolResponse } from "@/types"
 import { BaseAgentTool } from "../base-agent.tool"
 
@@ -17,10 +17,7 @@ export class SearchFilesTool extends BaseAgentTool {
 		const { path: relDirPath, regex, filePattern } = input
 
 		if (relDirPath === undefined) {
-			await say(
-				"error",
-				"Claude tried to use search_files without value for required parameter 'path'. Retrying..."
-			)
+			await say("error", "Claude tried to use search_files without value for required parameter 'path'. Retrying...")
 
 			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
 			An example of a good tool call is:
@@ -34,10 +31,7 @@ export class SearchFilesTool extends BaseAgentTool {
 		}
 
 		if (regex === undefined) {
-			await say(
-				"error",
-				"Claude tried to use search_files without value for required parameter 'regex'. Retrying..."
-			)
+			await say("error", "Claude tried to use search_files without value for required parameter 'regex'. Retrying...")
 
 			return `Error: Missing value for required parameter 'regex'. Please retry with complete response.
 			{
@@ -51,7 +45,7 @@ export class SearchFilesTool extends BaseAgentTool {
 
 		try {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
-			const results = await regexSearchFiles(this.cwd, absolutePath, regex, filePattern)
+			const results = await regexSearchFiles(this.consumer.appPaths, this.cwd, absolutePath, regex, filePattern)
 
 			const { response, text, images } = await ask(
 				"tool",

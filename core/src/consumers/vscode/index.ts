@@ -1,1 +1,1 @@
-export * from "./consumer"
+export * from "./vsc-consumer"

@@ -1,5 +1,5 @@
+import { IConsumerFilesAdapter } from "@/interfaces"
 import { Anthropic } from "@anthropic-ai/sdk"
-import * as vscode from "vscode" // @TODO: refactor
 
 /*
 We can't implement a dynamically updating sliding window as it would break prompt cache
@@ -26,25 +26,14 @@ export function truncateHalfConversation(
 	return truncatedMessages
 }
 
-
 /**
  * Get potentially relevant details for the AI
  * @returns A string containing relevant VSCode details
  */
-export function getPotentiallyRelevantDetails(): string {
+export function getPotentiallyRelevantDetails(filesAdapter: IConsumerFilesAdapter): string {
 	return `<potentially_relevant_details>
-VSCode Visible Files: ${
-		vscode.window.visibleTextEditors
-			?.map((editor) => editor.document?.uri?.fsPath)
-			.filter(Boolean)
-			.join(", ") || "(No files open)"
+VSCode Visible Files: ${filesAdapter.getVisibleFiles(false).join(", ") || "(No files open)"}
 	}
-VSCode Opened Tabs: ${
-		vscode.window.tabGroups.all
-			.flatMap((group) => group.tabs)
-			.map((tab) => (tab.input as vscode.TabInputText)?.uri?.fsPath)
-			.filter(Boolean)
-			.join(", ") || "(No tabs open)"
-	}
+VSCode Opened Tabs: ${filesAdapter.getOpenTabs(false).join(", ") || "(No tabs open)"}
 </potentially_relevant_details>`
 }

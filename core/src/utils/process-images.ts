@@ -1,25 +1,12 @@
-import * as vscode from "vscode" // @TODO: refactor
 import fs from "fs/promises"
 import * as path from "path"
+import { IConsumer } from "@/interfaces"
 
-export async function selectImages(): Promise<string[]> {
-	const options: vscode.OpenDialogOptions = {
-		canSelectMany: true,
-		openLabel: "Select",
-		filters: {
-			Images: ["png", "jpg", "jpeg", "webp"], // supported by anthropic and openrouter
-		},
-	}
-
-	const fileUris = await vscode.window.showOpenDialog(options)
-
-	if (!fileUris || fileUris.length === 0) {
-		return []
-	}
+export async function selectImages(consumer: IConsumer): Promise<string[]> {
+	const fileUris = await consumer.selectImages()
 
 	return await Promise.all(
-		fileUris.map(async (uri) => {
-			const imagePath = uri.fsPath
+		fileUris.map(async (imagePath) => {
 			const buffer = await fs.readFile(imagePath)
 			const base64 = buffer.toString("base64")
 			const mimeType = getMimeType(imagePath)
@@ -46,5 +33,5 @@ function getMimeType(filePath: string): string {
 
 export async function compressImages(images: string[]) {
 	// TODO: Implement image compression
-	return images;
+	return images
 }

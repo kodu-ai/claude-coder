@@ -1,7 +1,6 @@
 import { init, track as ampTrack } from "@amplitude/analytics-node"
 import axios from "axios"
 import osName from "os-name"
-import * as vscode from "vscode"
 import { AmplitudeMetrics, TaskCompleteEventParams, TaskRequestEventParams } from "@/types"
 
 const getUserIP = async () => {
@@ -22,9 +21,10 @@ export class AmplitudeTracker {
 	private sessionId: string | undefined
 	private extensionName: string | undefined
 	private ip: string | undefined
-	private globalState: vscode.Memento | undefined
+	private adapter: IAmplitudeAdapter | undefined
 	private currentTaskRequestCount = 0
 	private sessionTaskRequestCount = 0
+	private disableTracking: boolean = false
 	private constructor() {}
 
 	public static getInstance(): AmplitudeTracker {
@@ -35,21 +35,23 @@ export class AmplitudeTracker {
 	}
 
 	public async initialize(
-		globalState: vscode.Memento,
+		adapter: IAmplitudeAdapter,
 		isLoggedIn: boolean,
 		sessionId: string,
 		extensionName: string,
-		userId?: string
+		userId?: string,
+		disableTracking: boolean = false
 	): Promise<void> {
 		if (this.initialized) {
 			console.warn("AmplitudeTracker is already initialized. Use updateUserState to change user state.")
 			return
 		}
 
-		this.globalState = globalState
+		this.adapter = adapter
 		this.sessionId = sessionId
 		this.extensionName = extensionName
 		this.sessionTaskRequestCount = 0
+		this.disableTracking = disableTracking
 
 		const userIp = await getUserIP()
 		this.ip = userIp
@@ -60,6 +62,10 @@ export class AmplitudeTracker {
 		this.updateUserState(isLoggedIn, userId)
 		this.initialized = true
 		console.log(`AmplitudeTracker initialized with user ID: ${this.currentUserId}`)
+	}
+
+	public setTrackingEnabled(enabled: boolean): void {
+		this.disableTracking = !enabled
 	}
 
 	public updateUserState(isLoggedIn: boolean, userId?: string): void {
@@ -162,9 +168,14 @@ export class AmplitudeTracker {
 
 	private async track(eventType: string, eventProperties?: object, userProperties?: object): Promise<void> {
 		this.ensureInitialized()
+
+		if (this.disableTracking) {
+			return
+		}
+
 		ampTrack({
 			event_type: eventType,
-			device_id: this.getDeviceId(),
+			device_id: this.adapter?.getDeviceId() || "",
 			event_properties: eventProperties,
 			user_properties: {
 				...userProperties,
@@ -187,17 +198,13 @@ export class AmplitudeTracker {
 		}
 	}
 
-	private getDeviceId(): string {
-		return vscode.env.machineId
-	}
-
 	private getMetric(key: string): number {
-		return this.globalState?.get(key) || 0
+		return this.adapter?.get(key) || 0
 	}
 
 	private incrementMetric(key: string): void {
 		const currentCount = this.getMetric(key)
-		this.globalState?.update(key, currentCount + 1)
+		this.adapter?.update(key, currentCount + 1)
 	}
 }
 
