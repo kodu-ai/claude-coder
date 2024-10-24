@@ -148,7 +148,20 @@ export class UrlScreenshotTool extends BaseAgentTool {
 		const { response, text, images } = confirmation
 
 		if (response === "messageResponse") {
-			await this.params.say("user_feedback", text, images)
+			// await this.params.say("user_feedback", text, images)
+			await this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "url_screenshot",
+						url: this.params.input.url!,
+						approvalState: "rejected",
+						ts: this.ts,
+						userFeedback: text,
+					},
+				},
+				this.ts
+			)
 			return formatToolResponse(formatGenericToolFeedback(text), images)
 		}
 

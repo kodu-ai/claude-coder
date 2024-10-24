@@ -131,7 +131,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 					onClick={scrollToBottom}
 					size="icon"
 					variant="secondary"
-					className="fixed bottom-48 right-4 rounded-full"
+					className="fixed bottom-32 right-4 rounded-full"
 					aria-label="Scroll to bottom">
 					<ChevronDown size={24} />
 				</Button>

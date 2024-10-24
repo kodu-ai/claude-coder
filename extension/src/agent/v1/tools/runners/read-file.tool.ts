@@ -60,6 +60,7 @@ export class ReadFileTool extends BaseAgentTool {
 							path: getReadablePath(relPath, this.cwd),
 							approvalState: "rejected",
 							content,
+							userFeedback: text,
 							ts: this.ts,
 						},
 					},
@@ -67,7 +68,6 @@ export class ReadFileTool extends BaseAgentTool {
 				)
 
 				if (response === "messageResponse") {
-					await say("user_feedback", text, images)
 					return formatToolResponse(formatGenericToolFeedback(text), images)
 				}
 

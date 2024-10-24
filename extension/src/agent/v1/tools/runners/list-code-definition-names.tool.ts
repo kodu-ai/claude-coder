@@ -67,7 +67,21 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 					this.ts
 				)
 				if (response === "messageResponse") {
-					await say("user_feedback", text, images)
+					// await say("user_feedback", text, images)
+					await this.params.updateAsk(
+						"tool",
+						{
+							tool: {
+								tool: "list_code_definition_names",
+								userFeedback: text,
+								approvalState: "rejected",
+								ts: this.ts,
+								path: getReadablePath(relDirPath),
+							},
+						},
+						this.ts
+					)
+
 					return formatToolResponse(await formatGenericToolFeedback(text), images)
 				}
 				return "The user denied this operation."

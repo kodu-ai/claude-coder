@@ -9,6 +9,8 @@ import TaskHistoryModal from "./TaskHistoryDialog"
 import InteractiveTerminal from "../ChatRow/InteractiveTerminal"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { AnimatePresence, motion } from "framer-motion"
+import AnimatedAbortButton from "./animated-abort-button"
 
 interface InputAreaProps {
 	inputValue: string
@@ -56,6 +58,15 @@ const InputArea: React.FC<InputAreaProps> = ({
 
 	return (
 		<>
+			<AnimatedAbortButton
+				isInTask={isInTask}
+				isRequestRunning={isRequestRunning}
+				isAborting={isAborting}
+				onAbort={() => {
+					setIsAborting(true)
+					vscode.postMessage({ type: "cancelCurrentRequest" })
+				}}
+			/>
 			<div
 				className="flex flex-col gap-2"
 				style={{
@@ -65,29 +76,6 @@ const InputArea: React.FC<InputAreaProps> = ({
 					display: "flex",
 					marginTop: 0,
 				}}>
-				{isInTask && (
-					<div className="flex justify-between">
-						<Button
-							onClick={() => {
-								setIsAborting(true)
-								vscode.postMessage({ type: "cancelCurrentRequest" })
-							}}
-							disabled={!isRequestRunning || isAborting}
-							size="sm"
-							variant="destructive"
-							className="w-fit">
-							<Loader2 className={cn("animate-spin w-4 mr-2", !isAborting && "hidden")}></Loader2>
-							Abort Request
-						</Button>
-
-						{/* <div className="flex gap-2">
-							<TaskHistoryModal />
-
-							<GitDialog />
-						</div> */}
-					</div>
-				)}
-
 				{/* {!isTextAreaFocused && (
 					<div
 						style={{
@@ -108,7 +96,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 					thumbnailsHeight={thumbnailsHeight}
 					ref={textAreaRef}
 					value={inputValue}
-					disabled={textAreaDisabled || isRequestRunning}
+					disabled={textAreaDisabled}
 					onChange={(e) => setInputValue(e.target.value)}
 					onKeyDown={handleKeyDown}
 					onFocus={() => setIsTextAreaFocused(true)}

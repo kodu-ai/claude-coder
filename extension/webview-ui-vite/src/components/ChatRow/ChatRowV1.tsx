@@ -1,19 +1,19 @@
-import { TextWithAttachments } from "@/utils/extractAttachments"
-import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
 import React from "react"
-import { ClaudeSayTool, V1ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
+import { V1ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
 import { COMMAND_OUTPUT_STRING } from "../../../../src/shared/combineCommandSequences"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
-import CodeBlock from "../CodeBlock/CodeBlock"
-import Terminal from "../Terminal/Terminal"
-import Thumbnails from "../Thumbnails/Thumbnails"
 import IconAndTitle from "./IconAndTitle"
-import MarkdownRenderer from "./MarkdownRenderer"
 import ToolRenderer from "./ToolRenderer"
 import MemoryUpdate from "./memory-update"
-import InteractiveTerminal from "./InteractiveTerminal"
 import { cn } from "@/lib/utils"
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
+import {
+	ErrorMsgComponent,
+	APIRequestMessage,
+	TextMessage,
+	InfoMessage,
+	UserFeedbackMessage,
+	UserFeedbackDiffMessage,
+} from "./ChatRowUtilts"
 
 interface ChatRowProps {
 	message: V1ClaudeMessage
@@ -25,246 +25,15 @@ interface ChatRowProps {
 	handleSendStdin: (text: string) => void
 }
 
-const APIRequestMessage: React.FC<{
-	message: V1ClaudeMessage
-	nextMessage?: V1ClaudeMessage
-	isExpanded: boolean
-	onToggleExpand: () => void
-	syntaxHighlighterStyle: SyntaxHighlighterStyle
-}> = React.memo(({ message, nextMessage, isExpanded, onToggleExpand, syntaxHighlighterStyle }) => {
-	const { cost } = message.apiMetrics || {}
-	const isError = message.isError || message.isAborted
-	const [icon, title] = IconAndTitle({
-		type: "api_req_started",
-		cost: message.apiMetrics?.cost,
-		isCommandExecuting: !!message.isExecutingCommand,
-		/**
-		 * ideally this would be automatically updated so isStreaming is only on until we reached error or success
-		 */
-		apiRequestFailedMessage: isError,
-	})
-
-	const getStatusInfo = () => {
-		if (message.isDone) {
-			return { status: "", className: "text-success" }
-		}
-		if (message.retryCount) {
-			return { status: `Retried (${message.retryCount})`, className: "text-error" }
-		}
-		if (message.isError) {
-			return { status: "Error", className: "text-error" }
-		}
-		if (message.isFetching) {
-			return { status: "", className: "" }
-		}
-		if (message.isAborted) {
-			return { status: "Aborted", className: "text-error" }
-		}
-
-		return { status: "", className: "text-success" }
-	}
-
-	const { status, className } = getStatusInfo()
-
-	return (
-		<>
-			<div className="flex-line">
-				{icon}
-				{title}
-				{/* hide cost for now - not needed */}
-				{cost && (
-					<Tooltip>
-						<TooltipContent className="bg-secondary text-secondary-foreground">
-							<div className="space-y-2">
-								<h3 className="font-medium text-lg">Price Breakdown</h3>
-								{Object.entries(message.apiMetrics!)
-									.reverse()
-									.map(([key, value], index) => (
-										<div
-											key={key}
-											className={`flex justify-between ${
-												index === Object.entries(message.apiMetrics!).length - 1
-													? "pt-2 border-t border-gray-200 font-medium"
-													: ""
-											}`}>
-											<span className="text-secondary-foreground/80">{key}</span>
-											<span className="text-secondary-foreground">{value?.toFixed(2)}</span>
-										</div>
-									))}
-							</div>
-						</TooltipContent>
-						<TooltipTrigger asChild>
-							<code className="text-light">${Number(cost)?.toFixed(4)}</code>
-						</TooltipTrigger>
-					</Tooltip>
-				)}
-				<div className={`ml-2 ${className}`}>{status}</div>
-				<div className="flex-1" />
-				<VSCodeButton appearance="icon" aria-label="Toggle Details" onClick={onToggleExpand}>
-					<span className={`codicon codicon-chevron-${isExpanded ? "up" : "down"}`} />
-				</VSCodeButton>
-			</div>
-			{isError && <div className="text-error">{message.errorText || "An error occurred. Please try again."}</div>}
-			{isExpanded && (
-				<div style={{ marginTop: "10px" }}>
-					<CodeBlock
-						code={JSON.stringify(JSON.parse(message.text || "{}").request, null, 2)}
-						language="json"
-						syntaxHighlighterStyle={syntaxHighlighterStyle}
-						isExpanded={true}
-						onToggleExpand={onToggleExpand}
-					/>
-				</div>
-			)}
-		</>
-	)
-})
-
-const TextMessage: React.FC<{ message: V1ClaudeMessage; syntaxHighlighterStyle: SyntaxHighlighterStyle }> = React.memo(
-	({ message, syntaxHighlighterStyle }) => (
-		<div className="flex text-wrap flex-wrap gap-2">
-			<MarkdownRenderer markdown={message.text || ""} syntaxHighlighterStyle={syntaxHighlighterStyle} />
-		</div>
-	)
-)
-
-const UserFeedbackMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => {
-	return (
-		<div style={{ display: "flex", alignItems: "start", gap: "8px" }}>
-			<span className="codicon codicon-account" style={{ marginTop: "2px" }} />
-			<div style={{ display: "grid", gap: "8px" }}>
-				<TextWithAttachments text={message.text} />
-				{message.images && message.images.length > 0 && <Thumbnails images={message.images} />}
-			</div>
-		</div>
-	)
-})
-
-const InfoMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => (
-	<div style={{ display: "flex", alignItems: "start", gap: "8px" }} className="text-info">
-		<span className="codicon codicon-info" style={{ marginTop: "2px" }} />
-		<div style={{ display: "grid", gap: "8px" }}>
-			<div>{message.text}</div>
-		</div>
-	</div>
-))
-
-const UserFeedbackDiffMessage: React.FC<{
-	message: V1ClaudeMessage
-	syntaxHighlighterStyle: SyntaxHighlighterStyle
-	isExpanded: boolean
-	onToggleExpand: () => void
-}> = React.memo(({ message, syntaxHighlighterStyle, isExpanded, onToggleExpand }) => {
-	const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
-	return (
-		<div
-			style={{
-				backgroundColor: "var(--vscode-editor-inactiveSelectionBackground)",
-				borderRadius: "3px",
-				padding: "8px",
-				whiteSpace: "pre-line",
-				wordWrap: "break-word",
-			}}>
-			<span
-				style={{
-					display: "block",
-					fontStyle: "italic",
-					marginBottom: "8px",
-					opacity: 0.8,
-				}}>
-				The user made the following changes:
-			</span>
-			<CodeBlock
-				// @ts-ignore - diff is not always defined
-				diff={tool.diff!}
-				// @ts-ignore - path is not always defined
-				path={tool.path!}
-				syntaxHighlighterStyle={syntaxHighlighterStyle}
-				isExpanded={isExpanded}
-				onToggleExpand={onToggleExpand}
-			/>
-		</div>
-	)
-})
-
-const CommandMessage: React.FC<{
-	message: V1ClaudeMessage
-	isCommandExecuting: boolean
-	handleSendStdin: (text: string) => void
-}> = React.memo(({ message, isCommandExecuting, handleSendStdin }) => {
-	const [icon, title] = IconAndTitle({ type: "command", isCommandExecuting })
-	const splitMessage = (text: string) => {
-		const outputIndex = text.indexOf(COMMAND_OUTPUT_STRING)
-		if (outputIndex === -1) {
-			return { command: text, output: "" }
-		}
-		return {
-			command: text.slice(0, outputIndex).trim(),
-			output: text.slice(outputIndex + COMMAND_OUTPUT_STRING.length).trim() + " ",
-		}
-	}
-
-	const { command, output } = splitMessage(message.text || "")
-	return (
-		<>
-			<h3 className="flex-line">
-				{icon}
-				{title}
-			</h3>
-			<Terminal
-				rawOutput={command + (output ? "\n" + output : "")}
-				handleSendStdin={handleSendStdin}
-				shouldAllowInput={!!isCommandExecuting && output.length > 0}
-			/>
-		</>
-	)
-})
-import { AlertCircle, LogIn, CreditCard } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { loginKodu } from "@/utils/kodu-links"
-import { useExtensionState } from "@/context/ExtensionStateContext"
-import { vscode } from "@/utils/vscode"
-import { getKoduOfferUrl } from "../../../../src/shared/kodu"
-
-function ErrorMsgComponent({ type }: { type: "unauthorized" | "payment_required" }) {
-	const { uriScheme, extensionName } = useExtensionState()
-	return (
-		<div className="border border-destructive/50 rounded-md p-4 max-w-[360px] mx-auto bg-background/5">
-			<div className="flex items-center space-x-2 text-destructive">
-				<AlertCircle className="h-4 w-4" />
-				<h4 className="font-semibold text-sm">
-					{type === "unauthorized" ? "Unauthorized Access" : "Payment Required"}
-				</h4>
-			</div>
-			<p className="text-destructive/90 text-xs mt-2">
-				{type === "unauthorized"
-					? "You are not authorized to run this command. Please log in or contact your administrator."
-					: "You have run out of credits. Please contact your administrator."}
-			</p>
-			<button className="w-full mt-3 py-1 px-2 text-xs border border-destructive/50 rounded hover:bg-destructive/10 transition-colors">
-				{type === "unauthorized" ? (
-					<span
-						onClick={() => loginKodu({ uriScheme: uriScheme!, extensionName: extensionName! })}
-						className="flex items-center justify-center">
-						<LogIn className="mr-2 h-3 w-3" /> Log In
-					</span>
-				) : (
-					<a className="!text-foreground" href={getKoduOfferUrl(uriScheme)}>
-						<span
-							onClick={() => {
-								vscode.postTrackingEvent("OfferwallView")
-								vscode.postTrackingEvent("ExtensionCreditAddSelect", "offerwall")
-							}}
-							className="flex items-center justify-center">
-							<CreditCard className="mr-2 h-3 w-3" /> FREE Credits
-						</span>
-					</a>
-				)}
-			</button>
-		</div>
-	)
+/**
+ * @description removes <thinking> and </thinking> from text
+ * @param text
+ * @returns
+ */
+const removeThinking = (text?: string) => {
+	return text?.replace(/<thinking>|<\/thinking>/g, "")
 }
+
 const ChatRowV1: React.FC<ChatRowProps> = ({
 	message,
 	syntaxHighlighterStyle,
@@ -274,12 +43,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 	isLast,
 	handleSendStdin,
 }) => {
-	const isCommandExecuting = !!(
-		isLast &&
-		nextMessage?.ask === "command" &&
-		nextMessage?.text?.includes(COMMAND_OUTPUT_STRING)
-	)
-
+	message.text = removeThinking(message.text!)
 	const renderContent = () => {
 		switch (message.type) {
 			case "say":
@@ -317,8 +81,6 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 						return <InfoMessage message={message} />
 					case "user_feedback":
 						return <UserFeedbackMessage message={message} />
-					// case "show_terminal":
-					// 	return <InteractiveTerminal initialCommand={message.text} refId={message.metadata?.refId} />
 					case "user_feedback_diff":
 						return (
 							<UserFeedbackDiffMessage
@@ -418,38 +180,6 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 								onToggleExpand={onToggleExpand}
 							/>
 						)
-					case "command":
-						return (
-							<CommandMessage
-								message={message}
-								isCommandExecuting={isCommandExecuting}
-								handleSendStdin={handleSendStdin}
-							/>
-						)
-					case "completion_result":
-						if (message.text) {
-							const [icon, title] = IconAndTitle({
-								type: "completion_result",
-								cost: undefined,
-								isCommandExecuting: false,
-							})
-							return (
-								<>
-									<h3 className="flex-line">
-										{icon}
-										{title}
-									</h3>
-									<div className="text-success">
-										<TextMessage
-											message={message}
-											syntaxHighlighterStyle={syntaxHighlighterStyle}
-										/>
-									</div>
-								</>
-							)
-						} else {
-							return null
-						}
 					case "api_req_failed":
 						return null
 					case "followup":

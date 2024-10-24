@@ -24,6 +24,8 @@ import {
 	Square,
 	RefreshCw,
 	Server,
+	MessageSquareDiff,
+	MessageCircleReply,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -48,22 +50,25 @@ import { vscode } from "@/utils/vscode"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
 import SyntaxHighlighter from "react-syntax-highlighter"
-import { useAtomValue } from "jotai"
+import { atom, useAtom, useAtomValue } from "jotai"
 import { SyntaxHighlighterAtom } from "../ChatView/ChatView"
 import { syntaxHighlighterCustomStyle } from "../CodeBlock/utils"
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { useEvent } from "react-use"
+import { Textarea } from "../ui/textarea"
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 
 type ApprovalState = ToolStatus
 type ToolAddons = {
 	approvalState?: ApprovalState
 	ts: number
 	onApprove?: () => void
-	onReject?: () => void
+	onReject?: (feedback: string) => void
 	/**
 	 * If this is a sub message, it will force it to stick to previous tool call in the ui (same message)
 	 */
 	isSubMsg?: boolean
+	userFeedback?: string
 }
 type ToolBlockProps = {
 	icon: React.FC<React.SVGProps<SVGSVGElement>>
@@ -72,6 +77,92 @@ type ToolBlockProps = {
 	tool: ChatTool["tool"]
 	variant: "default" | "primary" | "info" | "accent" | "info" | "success" | "info" | "destructive"
 } & ToolAddons
+
+const AnimatedButtonText: React.FC<{
+	feedback: string
+	onClick: () => void
+}> = ({ feedback, onClick }) => {
+	return (
+		<div className="relative flex justify-end">
+			<Button variant="outline" size="sm" onClick={onClick} className="relative overflow-hidden min-w-[160px]">
+				<AnimatePresence mode="wait">
+					<motion.span
+						key={feedback.length > 0 ? "with-feedback" : "without-feedback"}
+						initial={{
+							position: "absolute",
+							opacity: 0,
+							x: 5,
+						}}
+						animate={{
+							position: "relative",
+							opacity: 1,
+							x: 0,
+						}}
+						exit={{
+							position: "absolute",
+							opacity: 0,
+							x: -5,
+						}}
+						transition={{
+							duration: 0.15,
+							ease: "easeOut",
+						}}
+						className="block whitespace-nowrap">
+						{feedback.length > 0 ? "Reject with feedback" : "Reject without feedback"}
+					</motion.span>
+				</AnimatePresence>
+			</Button>
+		</div>
+	)
+}
+
+const currentRejectAtom = atom<{
+	id: number | undefined
+	feedback: string
+	showFeedback: boolean
+}>({
+	id: undefined,
+	feedback: "",
+	showFeedback: false,
+})
+
+const feedbackAtom = atom(
+	(get) => get(currentRejectAtom).feedback,
+	(get, set, newFeedback: string) => {
+		const current = get(currentRejectAtom)
+		set(currentRejectAtom, {
+			...current,
+			feedback: newFeedback,
+		})
+	}
+)
+const FeedbackMessage: React.FC<{
+	feedback: string
+}> = ({ feedback }) => {
+	const [isExpanded, setIsExpanded] = React.useState(false)
+	const isLong = feedback.length > 120
+
+	return (
+		<div className="mt-3 space-y-1.5">
+			<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+				<MessageSquareDiff className="w-3.5 h-3.5" />
+				<span className="font-medium">Feedback</span>
+			</div>
+			<div className={cn("text-sm text-muted-foreground", !isExpanded && isLong && "line-clamp-3")}>
+				{feedback}
+			</div>
+			{isLong && (
+				<Button
+					variant="ghost"
+					size="sm"
+					className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground"
+					onClick={() => setIsExpanded(!isExpanded)}>
+					{isExpanded ? "Show less" : "Show more"}
+				</Button>
+			)}
+		</div>
+	)
+}
 
 const ToolBlock: React.FC<ToolBlockProps> = ({
 	icon: Icon,
@@ -84,7 +175,14 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 	approvalState,
 	onApprove,
 	onReject,
+	userFeedback,
 }) => {
+	const [currentReject, setCurrentReject] = useAtom(currentRejectAtom)
+	const textAreaRef = useRef<HTMLTextAreaElement>(null)
+	const [feedback, setFeedback] = useAtom(feedbackAtom)
+	const buttonContainerRef = useRef<HTMLDivElement>(null)
+	const showFeedback = currentReject.id === ts && currentReject.showFeedback
+
 	variant =
 		approvalState === "loading"
 			? "info"
@@ -94,16 +192,41 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 			? "success"
 			: variant
 	const stateIcons = {
-		pending: <AlertCircle className="w-4 h-4 text-info" />,
-		approved: <CheckCircle className="w-4 h-4 text-success" />,
-		rejected: <XCircle className="w-4 h-4 text-destructive" />,
-		error: <AlertCircle className="w-4 h-4 text-destructive" />,
-		loading: <LoaderPinwheel className="w-4 h-4 text-info animate-spin" />,
+		pending: <AlertCircle className="w-5 h-5 text-info" />,
+		approved: <CheckCircle className="w-5 h-5 text-success" />,
+		rejected: <XCircle className="w-5 h-5 text-destructive" />,
+		error: <AlertCircle className="w-5 h-5 text-destructive" />,
+		loading: <LoaderPinwheel className="w-5 h-5 text-info animate-spin" />,
+		feedback: <MessageCircleReply className="w-5 h-5 text-destructive" />,
 	}
 	const avoidRenderingApprovalTools: ChatTool["tool"][] = ["ask_followup_question", "upsert_memory"]
 
+	const handleReject = () => {
+		if (onReject) {
+			onReject(feedback)
+		}
+		setCurrentReject({ id: ts, showFeedback: true, feedback: "" })
+	}
+	useEffect(() => {
+		if (showFeedback) {
+			// Small delay to ensure animation has started
+			const timer = setTimeout(() => {
+				if (textAreaRef.current) {
+					textAreaRef.current.focus()
+				}
+				if (buttonContainerRef.current) {
+					// margin-top of 2
+					buttonContainerRef.current.scrollIntoView({
+						behavior: "smooth",
+						block: "end",
+					})
+				}
+			}, 100) // Adjust timeout as needed
+
+			return () => clearTimeout(timer)
+		}
+	}, [showFeedback])
 	if (!approvalState) {
-		// dont render anything if approval state is not provided, it means the tool has not been executed yet
 		return null
 	}
 
@@ -127,18 +250,70 @@ const ToolBlock: React.FC<ToolBlockProps> = ({
 					<Icon className={cn("w-5 h-5 mr-2", `text-${variant}`)} />
 					<h3 className="text-sm font-semibold">{title}</h3>
 				</div>
-				{stateIcons[approvalState]}
+
+				{userFeedback ? (
+					<Tooltip>
+						<TooltipTrigger>{stateIcons["feedback"]}</TooltipTrigger>
+						<TooltipContent side="left">The tool got rejected with feedback</TooltipContent>
+					</Tooltip>
+				) : (
+					stateIcons[approvalState]
+				)}
 			</div>
 			<div className="text-sm">{children}</div>
 			{approvalState === "pending" && !avoidRenderingApprovalTools.includes(tool) && (
-				<div className="flex justify-end space-x-1 mt-2">
-					<Button variant="outline" size="sm" onClick={onReject}>
-						Deny
-					</Button>
-					<Button variant="outline" size="sm" onClick={onApprove}>
-						Accept
-					</Button>
+				<div className="mt-2">
+					<AnimatePresence mode="wait">
+						{!showFeedback ? (
+							<motion.div
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								className="flex justify-end space-x-1">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setCurrentReject({ id: ts, showFeedback: true, feedback: "" })}>
+									Deny
+								</Button>
+								<Button variant="outline" size="sm" onClick={onApprove}>
+									Accept
+								</Button>
+							</motion.div>
+						) : (
+							<motion.div
+								initial={{ opacity: 0, height: 0 }}
+								animate={{ opacity: 1, height: "auto" }}
+								exit={{ opacity: 0, height: 0 }}
+								className="space-y-2">
+								<Textarea
+									ref={textAreaRef}
+									value={feedback}
+									onChange={(e) => setFeedback(e.target.value)}
+									placeholder="Why are you denying this action? Your feedback helps improve future recommendations."
+									className="w-full resize-none"
+									rows={3}
+								/>
+								<div className="flex justify-end space-x-1">
+									<AnimatedButtonText onClick={handleReject} feedback={feedback} />
+								</div>
+								<div ref={buttonContainerRef} className="h-2 w-0" />
+							</motion.div>
+						)}
+					</AnimatePresence>
 				</div>
+			)}
+
+			{userFeedback && (
+				<motion.div
+					initial={{ opacity: 0, height: 0 }}
+					animate={{ opacity: 1, height: "auto" }}
+					exit={{ opacity: 0, height: 0 }}
+					className="overflow-hidden">
+					<div className="mt-3 pt-3 border-t border-border">
+						<p className="text-sm text-muted-foreground">{userFeedback}</p>
+					</div>
+				</motion.div>
 			)}
 		</div>
 	)
@@ -709,7 +884,7 @@ export const UpsertMemoryBlock: React.FC<UpsertMemoryTool & ToolAddons> = ({
 export const ToolContentBlock: React.FC<{
 	tool: ChatTool & {
 		onApprove?: () => void
-		onReject?: () => void
+		onReject?: (feedback: string) => void
 	}
 	hasNextMessage?: boolean
 }> = ({ tool, hasNextMessage }) => {
@@ -720,10 +895,11 @@ export const ToolContentBlock: React.FC<{
 			type: "toolFeedback",
 		})
 	}
-	tool.onReject = () => {
+	tool.onReject = (feedback: string) => {
 		vscode.postMessage({
 			feedback: "reject",
 			toolId: tool.ts,
+			feedbackMessage: feedback,
 			type: "toolFeedback",
 		})
 	}

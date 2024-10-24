@@ -96,7 +96,21 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			)
 
 			if (response === "messageResponse" && !this.alwaysAllowWriteOnly) {
-				await say("user_feedback", text, images)
+				// await say("user_feedback", text, images)
+				await this.params.updateAsk(
+					"tool",
+					{
+						tool: {
+							tool: "execute_command",
+							command,
+							approvalState: "rejected",
+							ts: this.ts,
+							userFeedback: text,
+							isSubMsg: this.params.isSubMsg,
+						},
+					},
+					this.ts
+				)
 				return this.formatToolResponseWithImages(await this.formatToolDeniedFeedback(text), images)
 			}
 			return await this.formatToolDenied()
@@ -251,7 +265,23 @@ export class ExecuteCommandTool extends BaseAgentTool {
 
 			if ((userFeedback?.text && userFeedback.text.length) || userFeedback?.images?.length) {
 				toolRes += `\n\nUser feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
-				await say("user_feedback", userFeedback.text, userFeedback.images)
+				// await say("user_feedback", userFeedback.text, userFeedback.images)
+				await this.params.updateAsk(
+					"tool",
+					{
+						tool: {
+							tool: "execute_command",
+							command,
+							output: this.output,
+							approvalState: "approved",
+							ts: this.ts,
+							earlyExit,
+							userFeedback: userFeedback.text,
+							isSubMsg: this.params.isSubMsg,
+						},
+					},
+					this.ts
+				)
 			}
 
 			if (returnEmptyStringOnSuccess) {

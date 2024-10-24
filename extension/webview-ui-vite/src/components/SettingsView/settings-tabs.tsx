@@ -15,7 +15,7 @@ import { useSettingsState } from "../../hooks/useSettingsState"
 import { ModelDetails } from "./model-details"
 import { ExperimentalFeatureItem } from "./experimental-feature-item"
 import { useSetAtom } from "jotai"
-import { X } from "lucide-react"
+import { GiftIcon, X } from "lucide-react"
 
 export const UserInfoSection: React.FC = () => {
 	const extensionState = useExtensionState()
@@ -67,7 +67,10 @@ export const UserInfoSection: React.FC = () => {
 					}}
 					variant={"outline"}
 					asChild>
-					<a href={getKoduOfferUrl(extensionState.uriScheme)}>Get Free Credits</a>
+					<a href={getKoduOfferUrl(extensionState.uriScheme)}>
+						<GiftIcon className="size-4 mr-1" />
+						$10 Free Credits
+					</a>
 				</Button>
 			</div>
 		</>

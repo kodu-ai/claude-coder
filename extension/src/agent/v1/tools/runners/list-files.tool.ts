@@ -72,7 +72,21 @@ export class ListFilesTool extends BaseAgentTool {
 					this.ts
 				)
 				if (response === "messageResponse") {
-					await say("user_feedback", text, images)
+					// await say("user_feedback", text, images)
+					await this.params.updateAsk(
+						"tool",
+						{
+							tool: {
+								tool: "list_files",
+								userFeedback: text,
+								approvalState: "rejected",
+								ts: this.ts,
+								path: getReadablePath(relDirPath, this.cwd),
+								recursive: recursive ? "true" : "false",
+							},
+						},
+						this.ts
+					)
 					return formatToolResponse(formatGenericToolFeedback(text), images)
 				}
 

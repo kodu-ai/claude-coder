@@ -58,7 +58,20 @@ export class WebSearchTool extends BaseAgentTool {
 				this.ts
 			)
 			if (response === "messageResponse") {
-				await say("user_feedback", text, images)
+				updateAsk(
+					"tool",
+					{
+						tool: {
+							tool: "web_search",
+							searchQuery,
+							baseLink,
+							approvalState: "rejected",
+							ts: this.ts,
+							userFeedback: text,
+						},
+					},
+					this.ts
+				)
 				return formatToolResponse(formatGenericToolFeedback(text), images)
 			}
 

@@ -143,7 +143,20 @@ export class AskConsultantTool extends BaseAgentTool {
 	private async onExecDenied(confirmation: AskConfirmationResponse) {
 		const { response, text, images } = confirmation
 		if (response === "messageResponse") {
-			await this.params.say("user_feedback", text, images)
+			// await this.params.say("user_feedback", text, images)
+			await this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "ask_consultant",
+						approvalState: "rejected",
+						query: this.params.input.query!,
+						ts: this.ts,
+						userFeedback: text,
+					},
+				},
+				this.ts
+			)
 
 			return formatToolResponse(formatGenericToolFeedback(text), images)
 		}

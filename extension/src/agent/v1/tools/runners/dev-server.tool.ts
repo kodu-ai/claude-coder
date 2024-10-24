@@ -128,7 +128,23 @@ export class DevServerTool extends BaseAgentTool {
 					commandToRun ? ` with command "${commandToRun}"` : ""
 				}`
 				if (text) {
-					await say("user_feedback", text, images)
+					// await say("user_feedback", text, images)
+					await this.params.updateAsk(
+						"tool",
+						{
+							tool: {
+								tool: "server_runner_tool",
+								approvalState: "rejected",
+								ts: this.ts,
+								commandType,
+								commandToRun,
+								serverName,
+								// output: text,
+								userFeedback: text,
+							},
+						},
+						this.ts
+					)
 				}
 				return formatToolResponse(
 					`${errorMsg}${text ? `\n<user_feedback>${text}</user_feedback>` : ""}`,

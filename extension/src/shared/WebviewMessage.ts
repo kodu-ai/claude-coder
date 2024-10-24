@@ -97,6 +97,7 @@ export type CommandInputMessage = {
 export type ToolFeedbackMessage = {
 	type: "toolFeedback"
 	toolId: number
+	feedbackMessage?: string
 	feedback: "approve" | "reject"
 }
 

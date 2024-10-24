@@ -403,11 +403,18 @@ const ChatView: React.FC<ChatViewProps> = ({
 				setClaudeAsk("followup")
 				break
 			case "tool":
-				setTextAreaDisabled(false)
+				const tool = JSON.parse(message.text || "{}") as ChatTool
+				if (tool.approvalState === "pending") {
+					setTextAreaDisabled(false)
+					setEnableButtons(false)
+					setPrimaryButtonText(undefined)
+					setSecondaryButtonText(undefined)
+				} else {
+					setTextAreaDisabled(true)
+				}
 				setClaudeAsk("tool")
 				if (!message.autoApproved) {
 					setEnableButtons(true)
-					const tool = JSON.parse(message.text || "{}") as ChatTool
 					if (tool.approvalState !== "pending") {
 						setEnableButtons(false)
 						setPrimaryButtonText(undefined)
@@ -416,12 +423,12 @@ const ChatView: React.FC<ChatViewProps> = ({
 					}
 					switch (tool?.tool) {
 						case "write_to_file":
-							setPrimaryButtonText("Save")
-							setSecondaryButtonText("Reject")
+							// setPrimaryButtonText("Save")
+							// setSecondaryButtonText("Reject")
 							break
 						case "web_search":
-							setPrimaryButtonText("Search")
-							setSecondaryButtonText("Reject")
+							// setPrimaryButtonText("Search")
+							// setSecondaryButtonText("Reject")
 							break
 						case "attempt_completion":
 							// we want to update the type of button executed based on the tool
@@ -430,36 +437,36 @@ const ChatView: React.FC<ChatViewProps> = ({
 							setSecondaryButtonText(undefined)
 							break
 						case "ask_followup_question":
-							setPrimaryButtonText(undefined)
-							setSecondaryButtonText(undefined)
-							setEnableButtons(false)
+							// setPrimaryButtonText(undefined)
+							// setSecondaryButtonText(undefined)
+							// setEnableButtons(false)
 							break
 						case "url_screenshot":
-							setPrimaryButtonText("Capture Screenshot")
-							setSecondaryButtonText("Reject")
+							// setPrimaryButtonText("Capture Screenshot")
+							// setSecondaryButtonText("Reject")
 							break
 						case "ask_consultant":
-							setPrimaryButtonText("Ask Consultant")
-							setSecondaryButtonText("Reject")
+							// setPrimaryButtonText("Ask Consultant")
+							// setSecondaryButtonText("Reject")
 							break
 						case "execute_command":
-							setPrimaryButtonText("Run Command")
-							setSecondaryButtonText("Reject")
+							// setPrimaryButtonText("Run Command")
+							// setSecondaryButtonText("Reject")
 							break
 						case "upsert_memory":
-							setPrimaryButtonText(undefined)
-							setSecondaryButtonText(undefined)
-							setEnableButtons(false)
+							// setPrimaryButtonText(undefined)
+							// setSecondaryButtonText(undefined)
+							// setEnableButtons(false)
 							break
 						case "list_files":
 						case "list_code_definition_names":
 						case "search_files":
 						case "read_file":
-							setPrimaryButtonText("Read")
-							setSecondaryButtonText("Reject")
+							// setPrimaryButtonText("Read")
+							// setSecondaryButtonText("Reject")
 							break
 						default:
-							handleToolButtons(tool)
+						// handleToolButtons(tool)
 					}
 				}
 				break
@@ -502,6 +509,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	// Handle say messages
 	const handleSayMessage = (message: ClaudeMessage) => {
+		setTextAreaDisabled(false)
 		// This function updates the component state based on the type of say message received
 		switch (message.say) {
 			case "text":

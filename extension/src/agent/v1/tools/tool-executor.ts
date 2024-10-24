@@ -264,6 +264,7 @@ export class ToolExecutor {
 		await pWaitFor(() => tool.isFinal, { interval: 50 })
 
 		try {
+			// this.koduDev.taskExecutor.pauseStream()
 			const result = await tool.execute({
 				name: tool.name as ToolName,
 				input: tool.paramsInput,
@@ -281,7 +282,7 @@ export class ToolExecutor {
 			console.error(`Error executing tool: ${tool.name}`, error)
 			this.toolResults.push({ name: tool.name, result: `Error: ${error}` })
 		}
-
+		// this.koduDev.taskExecutor.resumeStream()
 		// Remove the tool from the toolQueue
 		this.toolQueue = this.toolQueue.filter((t) => t.id !== tool.id)
 	}

@@ -93,12 +93,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	}
 
 	private async cancelCurrentRequest(): Promise<void> {
-		if (
-			this.isRequestCancelled ||
-			this.state === TaskState.IDLE ||
-			this.state === TaskState.COMPLETED ||
-			this.state === TaskState.ABORTED
-		) {
+		if (this.isRequestCancelled) {
 			return // Prevent multiple cancellations
 		}
 
@@ -169,6 +164,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 			}
 			// make sure to reset the tool state before making a new request
 			await this.toolExecutor.resetToolState()
+			// make sure to reset claude abort state and abort controller
+			this.isRequestCancelled = false
+			this.abortController = new AbortController()
+
 			if (this.consecutiveErrorCount >= 3) {
 				await this.ask("resume_task", {
 					question: "Claude has encountered an error 3 times in a row. Would you like to resume the task?",

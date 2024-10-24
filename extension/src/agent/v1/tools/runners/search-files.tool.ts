@@ -89,7 +89,22 @@ export class SearchFilesTool extends BaseAgentTool {
 					this.ts
 				)
 				if (response === "messageResponse") {
-					await say("user_feedback", text, images)
+					// await say("user_feedback", text, images)
+					await this.params.updateAsk(
+						"tool",
+						{
+							tool: {
+								tool: "search_files",
+								userFeedback: text,
+								approvalState: "rejected",
+								ts: this.ts,
+								path: getReadablePath(relDirPath, this.cwd),
+								regex: regex,
+								filePattern: filePattern,
+							},
+						},
+						this.ts
+					)
 					return formatToolResponse(formatGenericToolFeedback(text), images)
 				}
 

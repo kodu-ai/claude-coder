@@ -275,9 +275,15 @@ export class WebviewManager {
 						// await this.postStateToWebview()
 						break
 					case "toolFeedback":
-						await this.provider
-							.getTaskManager()
-							.handleAskResponse(message.feedback === "approve" ? "yesButtonTapped" : "noButtonTapped")
+						const feedbackMessage = message.feedbackMessage
+						const feedback = message.feedback !== "approve" ? feedbackMessage : undefined
+						const responseType =
+							message.feedback === "approve"
+								? "yesButtonTapped"
+								: (feedback ?? "").length > 0
+								? "messageResponse"
+								: "noButtonTapped"
+						await this.provider.getTaskManager().handleAskResponse(responseType, feedback)
 						break
 					case "technicalBackground":
 						await this.provider.getStateManager().setTechnicalBackground(message.value)

@@ -154,8 +154,7 @@ const AddCreditsContent = () => {
 					<div className="flex items-center space-x-4">
 						<Gift className="h-5 w-5 shrink-0" />
 						<div className="flex-1 space-y-1">
-							<p className="text-sm font-medium leading-none">Check our Offer wall</p>
-							<p className="text-xs text-muted-foreground">Max 10 USD</p>
+							<p className="text-sm font-medium leading-none">$10 FREE CREDITS</p>
 						</div>
 					</div>
 				</Button>

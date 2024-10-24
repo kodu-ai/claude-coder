@@ -37,6 +37,9 @@ export class ToolParser {
 	private isInTag: boolean = false
 	private isInTool: boolean = false
 	private nonToolBuffer: string = ""
+	private activeToolId: string | null = null
+	private pendingTools: string[] = []
+	private tagStack: string[] = []
 	public onToolUpdate?: ToolUpdateCallback
 	public onToolEnd?: ToolEndCallback
 	public onToolError?: ToolErrorCallback
@@ -76,7 +79,24 @@ export class ToolParser {
 			this.buffer = char
 		} else if (char === ">" && this.isInTag) {
 			this.buffer += char
-			this.checkForToolStart(this.buffer)
+			const tag = this.buffer
+			const isClosingTag = tag.startsWith("</")
+			const tagName = isClosingTag ? tag.slice(2, -1).split(" ")[0] : tag.slice(1, -1).split(" ")[0]
+
+			if (!isClosingTag) {
+				this.tagStack.push(tagName)
+			} else {
+				if (this.tagStack[this.tagStack.length - 1] === tagName) {
+					this.tagStack.pop()
+				}
+			}
+
+			if (this.toolSchemas.some((schema) => schema.name === tagName)) {
+				this.checkForToolStart(tag)
+			} else {
+				this.nonToolBuffer += tag
+			}
+
 			this.isInTag = false
 			this.buffer = ""
 		} else {
@@ -111,8 +131,14 @@ export class ToolParser {
 	private checkForToolStart(tag: string): void {
 		const tagName = tag.slice(1, -1).split(" ")[0]
 		if (this.toolSchemas.some((schema) => schema.name === tagName)) {
+			if (this.activeToolId) {
+				this.pendingTools.push(tag)
+				return
+			}
+
 			this.isInTool = true
 			const id = nanoid()
+			this.activeToolId = id
 			const ts = Date.now()
 			this.currentContext = {
 				id,
@@ -157,6 +183,14 @@ export class ToolParser {
 		const tagContent = isClosingTag ? tag.slice(2, -1) : tag.slice(1, -1)
 		const tagName = tagContent.split(" ")[0]
 
+		if (!isClosingTag) {
+			this.tagStack.push(tagName)
+		} else {
+			if (this.tagStack[this.tagStack.length - 1] === tagName) {
+				this.tagStack.pop()
+			}
+		}
+
 		if (isClosingTag) {
 			this.handleClosingTag(tagName)
 		} else {
@@ -168,23 +202,15 @@ export class ToolParser {
 		if (!this.currentContext) return
 
 		if (this.currentContext.currentParam) {
-			// We're in a parameter, increment its nesting level if we see its tag
 			if (tagName === this.currentContext.currentParam) {
 				this.currentContext.paramNestingLevel[tagName] =
 					(this.currentContext.paramNestingLevel[tagName] || 0) + 1
 			}
-			// Add the tag as content
 			this.currentContext.params[this.currentContext.currentParam] += this.buffer
 		} else if (this.toolSchemas.some((schema) => schema.name === tagName)) {
-			// This is a nested tool tag
+			this.pendingTools.push(this.buffer)
 			this.currentContext.nestingLevel++
-			if (this.currentContext.currentParam) {
-				this.currentContext.params[this.currentContext.currentParam] += this.buffer
-			} else {
-				this.currentContext.content += this.buffer
-			}
 		} else {
-			// This is a new parameter
 			this.currentContext.currentParam = tagName
 			this.currentContext.paramNestingLevel[tagName] = 1
 			this.currentContext.params[tagName] = ""
@@ -194,34 +220,31 @@ export class ToolParser {
 	private handleClosingTag(tagName: string): void {
 		if (!this.currentContext) return
 
-		if (tagName === this.currentContext.toolName) {
+		if (tagName === this.currentContext.toolName && this.tagStack.length === 0) {
 			this.currentContext.nestingLevel--
 			if (this.currentContext.nestingLevel === 0) {
 				this.finalizeTool(this.currentContext)
 				this.isInTool = false
+				this.activeToolId = null
 				this.currentContext = null
-			} else {
-				// This is a nested closing tool tag
-				if (this.currentContext.currentParam) {
-					this.currentContext.params[this.currentContext.currentParam] += this.buffer
-				} else {
-					this.currentContext.content += this.buffer
+
+				if (this.pendingTools.length > 0) {
+					const nextTool = this.pendingTools.shift()
+					if (nextTool) {
+						this.nonToolBuffer += nextTool
+					}
 				}
 			}
 		} else if (tagName === this.currentContext.currentParam) {
-			// Decrement the nesting level for this parameter
 			this.currentContext.paramNestingLevel[tagName]--
 
-			// Only clear the current parameter if we're at the root level
 			if (this.currentContext.paramNestingLevel[tagName] === 0) {
 				this.currentContext.currentParam = ""
 				delete this.currentContext.paramNestingLevel[tagName]
 			} else {
-				// This is a nested closing tag, add it as content
 				this.currentContext.params[this.currentContext.currentParam] += this.buffer
 			}
 		} else if (this.currentContext.currentParam) {
-			// This is some other closing tag inside a parameter
 			this.currentContext.params[this.currentContext.currentParam] += this.buffer
 		}
 	}
@@ -254,6 +277,8 @@ export class ToolParser {
 		if (this.currentContext) {
 			this.onToolClosingError?.(new Error("Unclosed tool tag at end of input"))
 		}
+		this.pendingTools = []
+		this.tagStack = []
 	}
 
 	reset(): void {
@@ -262,7 +287,41 @@ export class ToolParser {
 		this.isInTag = false
 		this.isInTool = false
 		this.nonToolBuffer = ""
+		this.activeToolId = null
+		this.pendingTools = []
+		this.tagStack = []
+	}
+
+	hasPendingTools(): boolean {
+		return this.pendingTools.length > 0
+	}
+
+	getActiveToolId(): string | null {
+		return this.activeToolId
 	}
 }
 
 export default ToolParser
+
+const parser = new ToolParser(
+	tools.map((t) => t.schema),
+	{
+		onToolUpdate: (id, toolName, params, ts) => {
+			console.log("Update:", { id, toolName, params, ts })
+		},
+		onToolEnd: (id, toolName, params, ts) => {
+			console.log("End:", { id, toolName, params, ts })
+		},
+		onToolError: (id, toolName, error, ts) => {
+			console.error("Error:", { id, toolName, error, ts })
+		},
+		onToolClosingError: (error) => {
+			console.error("Closing Error:", error)
+		},
+	}
+)
+
+const input = `<thinking>\nBefore proceeding with the task, I need to answer the critical questions:\n\n1. Did I read the file before writing to it? No\n2. Did I write to the file before? No\n3. Did the user provide the content of the file? Yes\n4. Do I have the last content of the file either from the user or from a previous read_file tool use or from write_to_file tool? Yes, user provided\n\nCurrent step: Write the content provided by the user to the file test.txt\nNext step: Confirm the file has been written successfully\n\nThe file path relative to the current path (/home/matan/code/test-3/kodu) is simply test.txt.\n\nThere are no current errors in the file that I should be aware of.\n\nThe project does not appear to be in a /frontend/[...path] structure, so I'll use the direct path.\n</thinking>\n\nNow, I'll proceed with writing the file as requested by the user.\n\n<write_to_file>\n<path>test.txt</path>\n<content><write_to_file><content>Hello world</content></write_to_file></content>\n</write_to_file>`
+
+parser.appendText(input)
+parser.endParsing()

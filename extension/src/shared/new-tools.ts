@@ -127,4 +127,5 @@ export type ChatTool = (
 	 */
 	isSubMsg?: boolean
 	error?: string
+	userFeedback?: string
 }
