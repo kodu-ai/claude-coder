@@ -1,4 +1,7 @@
 import AttachmentsList, { FileItem, UrlItem } from "@/components/ChatRow/FileList"
+import MarkdownRenderer from "@/components/ChatRow/MarkdownRenderer"
+import { getSyntaxHighlighterStyleFromTheme } from "./getSyntaxHighlighterStyleFromTheme"
+import { syntaxHighlighterCustomStyle } from "@/components/CodeBlock/utils"
 
 export function extractAdditionalContext(input: string): [string, string | null] {
 	const regex = /<additional-context(?:\s+[^>]*)?>[\s\S]*?<\/additional-context>/
@@ -50,17 +53,19 @@ export function extractUrlsFromContext(input: string): UrlItem[] {
 		const urlsContent = match[1].trim() // Extract the content between <urls> tags
 
 		// Split the content into individual URLs (assuming they are separated by newlines)
-		const additionalUrls = urlsContent.split('\n').map((url) => url.trim()).filter(Boolean)
+		const additionalUrls = urlsContent
+			.split("\n")
+			.map((url) => url.trim())
+			.filter(Boolean)
 
 		// Add each URL to the UrlItem list with a default description if needed
 		additionalUrls.forEach((url) => {
-			urls.push({ url, description: 'No description provided' })
+			urls.push({ url, description: "No description provided" })
 		})
 	}
 
 	return urls // Return the array of UrlItem objects
 }
-
 
 export const TextWithAttachments = ({ text }: { text?: string }) => {
 	if (!text) {
@@ -71,9 +76,11 @@ export const TextWithAttachments = ({ text }: { text?: string }) => {
 	const urls = extractUrlsFromContext(additionalContent || "")
 
 	return (
-		<div>
-			{mainContent}
-			<AttachmentsList files={files}  urls={urls}/>
+		<div className="flex w-full max-w-[100vw]">
+			<span className="whitespace-pre-wrap max-w-full" style={{ lineBreak: "anywhere" }}>
+				{mainContent}
+			</span>
+			<AttachmentsList files={files} urls={urls} />
 		</div>
 	)
 }

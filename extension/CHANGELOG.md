@@ -4,6 +4,54 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.9.19]
+
+-   [FIX]: prompt caching, reduce cost.
+-   [ADJUSTMENT]: better attention on system prompt to prevent looping and get task done faster.
+-   [FIX]: server runner tool was having trouble sometimes do to missing cleanup.
+
+## [1.9.18]
+
+-   [FIX]: adjust system prompt to prevent redundant reads
+-   [FIX]: add more attention to // ... (previous code remains unchanged)
+-   [NEW]: detailed chain of thought for tool call and steps
+
+## [1.9.17]
+
+-   [NEW]: Improved prompt caching, significantly reducing costs.
+-   [NEW]: Added settings tab for more customization options.
+-   [NEW]: Auto-close terminal after execution (toggleable).
+-   [NEW]: Option to disable write file animation.
+-   [NEW]: Server runner tool for efficiently managing development servers, providing better insights for Kodu.
+-   [NEW]: Chain-of-thought prompting to prevent getting stuck in loops.
+-   [FIX]: Resolved write-to-file corruption in certain edge cases.
+-   [FIX]: Improved terminal behavior for better accuracy.
+-   [FIX]: Stabilized automatic mode for increased effectiveness.
+-   [REMOVE]: Removed trial offer.
+-   [ADJUSTMENT]: Relaxed linting checks to prevent Kodu from getting stuck on non-critical errors.
+
+## [1.9.16]
+
+-   [FIX]: prompt caching is working more effective now
+-   [FIX]: execute commands now run properly
+-   [NEW]: execute commands can now be ran easily on the background
+-   [NEW]: automatically close terminal after command finish executing
+-   [NEW]: improved loop detection and diagonstic tools
+
+## [1.9.9]
+
+-   [FIX]: tools and chat scroll
+
+## [1.9.6]
+
+-   [FIX]: prompt caching
+-   [FIX]: attempt_completion tool when command is included.
+
+## [1.9.3]
+
+-   Streaming UI Beta
+-   Revert 1.9.0 for now
+
 ## [1.9.0]
 
 -   Improved Attachments: removed the need for approval to read attachments.

@@ -12,50 +12,8 @@ export class TaskManager {
 	constructor(private provider: ExtensionProvider) {}
 
 	async clearTask() {
-		this.provider.getKoduDev()?.abortTask()
+		await this.provider.getKoduDev()?.abortTask()
 		this.provider["koduDev"] = undefined
-	}
-
-	async exportBug(description: string, reproduction: string) {
-		if (!this.provider.getKoduDev()?.getStateManager().state) {
-			vscode.window.showErrorMessage(`Task not found`)
-			return
-		}
-
-		await vscode.window.withProgress(
-			{
-				location: vscode.ProgressLocation.Notification,
-				title: "Sending bug report...",
-				cancellable: false,
-			},
-			async () => {
-				try {
-					const apiConversationHistory = await this.provider
-						.getKoduDev()
-						?.getStateManager()
-						.getCleanedApiConversationHistory()
-
-					const claudeMessages = await this.provider
-						.getKoduDev()
-						?.getStateManager()
-						.getCleanedClaudeMessages()
-
-					const apiHistory = JSON.stringify(apiConversationHistory)
-					const claudeMessage = JSON.stringify(claudeMessages)
-
-					await this.provider?.getKoduDev()?.getApiManager()?.getApi().sendBugReportRequest?.({
-						description,
-						reproduction,
-						apiHistory,
-						claudeMessage,
-					})
-
-					vscode.window.showInformationMessage(`Bug report sent successfully`)
-				} catch (err) {
-					vscode.window.showErrorMessage(`Failed to send bug report`)
-				}
-			}
-		)
 	}
 
 	async handleNewTask(task?: string, images?: string[], attachements?: Resource[]) {
@@ -132,7 +90,7 @@ export class TaskManager {
 			const { historyItem } = await this.getTaskWithId(id)
 
 			await this.provider.initWithHistoryItem(historyItem)
-			await this.provider.getKoduDev()?.taskExecutor.gitHandler.init(historyItem.dirAbsolutePath!)
+			// await this.provider.getKoduDev()?.taskExecutor.gitHandler.init(historyItem.dirAbsolutePath!)
 		}
 
 		// await this.provider.getTaskExecutor().runTask()

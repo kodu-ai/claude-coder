@@ -1,8 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
-import { API_RETRY_DELAY } from "./constants"
-import { tools } from "./tools/tools"
 import { UserContent } from "./types"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { truncateHalfConversation } from "../../utils/context-management"
@@ -10,12 +8,63 @@ import {
 	CodingBeginnerSystemPromptSection,
 	ExperiencedDeveloperSystemPromptSection,
 	NonTechnicalSystemPromptSection,
-	SYSTEM_PROMPT,
 } from "./system-prompt"
 import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { tools as baseTools, uDifftools } from "./tools/tools"
+import { tools as baseTools } from "./tools/tools"
 import { findLast } from "../../utils"
 import delay from "delay"
+import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
+import { getCwd } from "./utils"
+import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
+import { AxiosError } from "axios"
+import { koduModels } from "../../shared/api"
+import { Message } from "@anthropic-ai/sdk/resources/messages.mjs"
+
+/**
+ *
+ * @description every 3 letters are on avg 1 token, image is about 2000 tokens
+ * @param message the last message
+ * @returns the tokens from the message
+ */
+const anthropicMessageToTokens = (message: Anthropic.MessageParam) => {
+	const content = message.content
+	if (typeof content === "string") {
+		return Math.round(content.length / 2)
+	}
+	const textBlocks = content.filter((block) => block.type === "text")
+	const text = textBlocks.map((block) => block.text).join("")
+	const textTokens = Math.round(text.length / 3)
+	const imgBlocks = content.filter((block) => block.type === "image")
+	const imgTokens = imgBlocks.length * 2000
+	return Math.round(textTokens + imgTokens)
+}
+
+interface Difference {
+	index: number
+	char1: string
+	char2: string
+}
+
+export function findStringDifferences(str1: string, str2: string): Difference[] {
+	const differences: Difference[] = []
+
+	// Make sure both strings are the same length for comparison
+	const maxLength = Math.max(str1.length, str2.length)
+	const paddedStr1 = str1.padEnd(maxLength)
+	const paddedStr2 = str2.padEnd(maxLength)
+
+	for (let i = 0; i < maxLength; i++) {
+		if (paddedStr1[i] !== paddedStr2[i]) {
+			differences.push({
+				index: i,
+				char1: paddedStr1[i],
+				char2: paddedStr2[i],
+			})
+		}
+	}
+
+	return differences
+}
 
 export class ApiManager {
 	private api: ApiHandler
@@ -54,27 +103,10 @@ export class ApiManager {
 		abortSignal?: AbortSignal | null
 	): AsyncGenerator<koduSSEResponse> {
 		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
-		const useUdiff = (await this.providerRef.deref()?.getStateManager()?.getState())?.useUdiff
 		const technicalBackground =
 			(await this.providerRef.deref()?.getStateManager()?.getState())?.technicalBackground ?? "no-technical"
-		let systemPrompt = await SYSTEM_PROMPT()
-		let tools = baseTools
-		// if (useUdiff) {
-		// 	systemPrompt = await UDIFF_SYSTEM_PROMPT()
-		// 	tools = uDifftools
-		// }
-		systemPrompt += `
-		===
-USER PERSONALIZED INSTRUCTIONS
+		const isImageSupported = koduModels[this.getModelId()].supportsImages
 
-${
-	technicalBackground === "no-technical"
-		? NonTechnicalSystemPromptSection
-		: technicalBackground === "technical"
-		? ExperiencedDeveloperSystemPromptSection
-		: CodingBeginnerSystemPromptSection
-}
-		`
 		let customInstructions: string | undefined
 		if (this.customInstructions && this.customInstructions.trim()) {
 			customInstructions += `
@@ -87,7 +119,16 @@ The following additional instructions are provided by the user. They should be f
 ${this.customInstructions.trim()}
 `
 		}
+		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), !!isImageSupported, technicalBackground)
+
 		const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
+		let apiMetrics: NonNullable<V1ClaudeMessage["apiMetrics"]> = {
+			inputTokens: 0,
+			outputTokens: 0,
+			inputCacheRead: 0,
+			inputCacheWrite: 0,
+			cost: 0,
+		}
 		// If the last API request's total token usage is close to the context window, truncate the conversation history to free up space for the new request
 		const lastApiReqFinished = findLast(claudeMessages!, (m) => m.say === "api_req_finished")
 		if (lastApiReqFinished && lastApiReqFinished.text) {
@@ -99,30 +140,86 @@ ${this.customInstructions.trim()}
 			}: { tokensIn?: number; tokensOut?: number; cacheWrites?: number; cacheReads?: number } = JSON.parse(
 				lastApiReqFinished.text
 			)
-			const totalTokens = (tokensIn || 0) + (tokensOut || 0) + (cacheWrites || 0) + (cacheReads || 0)
-			const contextWindow = this.api.getModel().info.contextWindow
-			const maxAllowedSize = Math.max(contextWindow - 40_000, contextWindow * 0.8)
-			if (totalTokens >= maxAllowedSize) {
-				const truncatedMessages = truncateHalfConversation(apiConversationHistory)
-				apiConversationHistory = truncatedMessages
-				this.providerRef
-					.deref()
-					?.getKoduDev()
-					?.getStateManager()
-					.overwriteApiConversationHistory(truncatedMessages)
+			apiMetrics = {
+				inputCacheRead: cacheReads || 0,
+				inputCacheWrite: cacheWrites || 0,
+				inputTokens: tokensIn || 0,
+				outputTokens: tokensOut || 0,
+				cost: 0,
 			}
+		} else {
+			// reverse claude messages to find the last message that is typeof v1 and has apiMetrics
+			const reversedClaudeMessages = claudeMessages?.slice().reverse()
+			const lastV1Message = reversedClaudeMessages?.find((m) => isV1ClaudeMessage(m) && m?.apiMetrics)
+			if (lastV1Message) {
+				apiMetrics = (lastV1Message as V1ClaudeMessage)?.apiMetrics!
+			}
+		}
+		const isFirstRequest = this.providerRef.deref()?.getKoduDev()?.isFirstMessage ?? false
+		// on first request, we need to get the environment details with details of the current task and folder
+		const environmentDetails = await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
+		if (isFirstRequest && this.providerRef.deref()?.getKoduDev()) {
+			this.providerRef.deref()!.getKoduDev()!.isFirstMessage = false
+		}
+		// every 4 messages, add a critical message and on first message
+		const shouldAddCriticalMsg = apiConversationHistory.length % 4 === 0 || apiConversationHistory.length === 1
+		const lastMessage = apiConversationHistory[apiConversationHistory.length - 1]
+
+		if (typeof lastMessage.content === "string") {
+			lastMessage.content = [
+				{
+					type: "text",
+					text: lastMessage.content,
+				},
+			] satisfies Message["content"]
+		}
+		// Add critical messages if needed
+		if (shouldAddCriticalMsg) {
+			if (Array.isArray(lastMessage.content)) {
+				lastMessage.content.push({
+					type: "text",
+					text: criticalMsg,
+				})
+			}
+		}
+		if (Array.isArray(lastMessage.content) && environmentDetails) {
+			lastMessage.content.push({
+				text: environmentDetails,
+				type: "text",
+			})
+		}
+		// override the api conversation history with the updated messages
+		await this.providerRef
+			.deref()
+			?.getKoduDev()
+			?.getStateManager()
+			.overwriteApiConversationHistory(apiConversationHistory)
+
+		const totalTokens =
+			(apiMetrics.inputTokens || 0) +
+			(apiMetrics.outputTokens || 0) +
+			(apiMetrics.inputCacheWrite || 0) +
+			(apiMetrics.inputCacheRead || 0) +
+			anthropicMessageToTokens(apiConversationHistory.at(-1)!)
+		const contextWindow = this.api.getModel().info.contextWindow
+
+		if (totalTokens >= contextWindow * 0.9) {
+			const truncatedMessages = truncateHalfConversation(apiConversationHistory)
+			apiConversationHistory = truncatedMessages
+			await this.providerRef
+				.deref()
+				?.getKoduDev()
+				?.getStateManager()
+				.overwriteApiConversationHistory(truncatedMessages)
 		}
 
 		try {
 			const stream = await this.api.createMessageStream(
-				systemPrompt,
+				newSystemPrompt.trim(),
 				apiConversationHistory,
-				tools,
 				creativeMode,
 				abortSignal,
-				customInstructions,
-				await this.providerRef.deref()?.getKoduDev()?.getStateManager().state.memory,
-				await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails()
+				customInstructions
 			)
 
 			for await (const chunk of stream) {
@@ -170,86 +267,14 @@ ${this.customInstructions.trim()}
 			if (error instanceof KoduError) {
 				console.error("KODU API request failed", error)
 			}
+			if (error instanceof AxiosError) {
+				throw new KoduError({
+					code: error.response?.status || 500,
+				})
+			}
+
 			throw error
 		}
-	}
-
-	async createApiRequest(
-		apiConversationHistory: Anthropic.MessageParam[],
-		abortSignal?: AbortSignal | null
-	): Promise<Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage> {
-		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
-		let systemPrompt = await SYSTEM_PROMPT()
-		let tools = baseTools
-		// if (useUdiff) {
-		// 	systemPrompt = await UDIFF_SYSTEM_PROMPT()
-		// 	tools = uDifftools
-		// }
-		let customInstructions: string | undefined
-		if (this.customInstructions && this.customInstructions.trim()) {
-			customInstructions += `
-====
-
-USER'S CUSTOM INSTRUCTIONS
-
-The following additional instructions are provided by the user. They should be followed and given precedence in case of conflicts with previous instructions.
-
-${this.customInstructions.trim()}
-`
-		}
-		const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
-		// If the last API request's total token usage is close to the context window, truncate the conversation history to free up space for the new request
-		const lastApiReqFinished = findLast(claudeMessages!, (m) => m.say === "api_req_finished")
-		if (lastApiReqFinished && lastApiReqFinished.text) {
-			const {
-				tokensIn,
-				tokensOut,
-				cacheWrites,
-				cacheReads,
-			}: { tokensIn?: number; tokensOut?: number; cacheWrites?: number; cacheReads?: number } = JSON.parse(
-				lastApiReqFinished.text
-			)
-			const totalTokens = (tokensIn || 0) + (tokensOut || 0) + (cacheWrites || 0) + (cacheReads || 0)
-			const contextWindow = this.api.getModel().info.contextWindow
-			const maxAllowedSize = Math.max(contextWindow - 40_000, contextWindow * 0.8)
-			if (totalTokens >= maxAllowedSize) {
-				const truncatedMessages = truncateHalfConversation(apiConversationHistory)
-				apiConversationHistory = truncatedMessages
-				this.providerRef
-					.deref()
-					?.getKoduDev()
-					?.getStateManager()
-					.overwriteApiConversationHistory(truncatedMessages)
-			}
-		}
-
-		try {
-			const { message, userCredits } = await this.api.createMessage(
-				systemPrompt,
-				apiConversationHistory,
-				tools,
-				creativeMode,
-				abortSignal,
-				customInstructions
-			)
-
-			if (userCredits !== undefined) {
-				console.log("Updating kodu credits", userCredits)
-				this.providerRef.deref()?.getStateManager()?.updateKoduCredits(userCredits)
-			}
-
-			return message
-		} catch (error) {
-			if (error instanceof KoduError) {
-				console.error("KODU API request failed", error)
-			}
-			throw error
-		}
-	}
-
-	async retryApiRequest(apiConversationHistory: Anthropic.MessageParam[]): Promise<Anthropic.Messages.Message> {
-		await new Promise((resolve) => setTimeout(resolve, API_RETRY_DELAY))
-		return this.createApiRequest(apiConversationHistory)
 	}
 
 	createUserReadableRequest(userContent: UserContent): string {

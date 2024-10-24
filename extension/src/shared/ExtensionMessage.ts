@@ -3,6 +3,7 @@
 import type { GlobalState } from "../providers/claude-coder/state/GlobalStateManager"
 import { ApiConfiguration } from "./api"
 import { HistoryItem } from "./HistoryItem"
+import { ChatTool } from "./new-tools"
 interface FileTreeItem {
 	id: string
 	depth: number
@@ -41,6 +42,18 @@ type PostTaskHistory = {
 	isInitialized: boolean
 }
 
+export type CommandExecutionResponse = {
+	type: "commandExecutionResponse"
+	status: "response" | "error" | "exit"
+	payload: string
+	commandId?: string
+}
+
+export type HideCommandBlockMessage = {
+	type: "hideCommandBlock"
+	identifier?: string
+}
+
 // webview will hold state
 export type ExtensionMessage =
 	| {
@@ -64,10 +77,14 @@ export type ExtensionMessage =
 	| PostGitBranches
 	| PostGitCheckoutSuccess
 	| PostTaskHistory
+	| CommandExecutionResponse
+	| HideCommandBlockMessage
+
 export interface ExtensionState {
 	version: string
 	maxRequestsPerTask?: number
 	lastShownAnnouncementId?: string
+	skipWriteAnimation?: boolean
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
 	technicalBackground?: "no-technical" | "technical" | "developer"
@@ -85,6 +102,7 @@ export interface ExtensionState {
 	claudeMessages: ClaudeMessage[]
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean
+	autoCloseTerminal: boolean
 	shouldShowKoduPromo: boolean
 	fingerprint?: string
 }
@@ -102,6 +120,11 @@ type V0ClaudeMessage = {
 	autoApproved?: boolean
 }
 
+/**
+ * The status of the tool
+ */
+export type ToolStatus = "pending" | "rejected" | "approved" | "error" | "loading" | undefined
+
 export type V1ClaudeMessage = {
 	/**
 	 * the version of the message format
@@ -116,6 +139,7 @@ export type V1ClaudeMessage = {
 	isExecutingCommand?: boolean
 	errorText?: string
 	retryCount?: number
+	status?: ToolStatus
 	isDone?: boolean
 	modelId?: string
 	apiMetrics?: {
@@ -140,10 +164,10 @@ export type ClaudeAsk =
 	| "command"
 	| "command_output"
 	| "completion_result"
-	| "tool"
 	| "api_req_failed"
 	| "resume_task"
 	| "resume_completed_task"
+	| "tool"
 
 export type ClaudeSay =
 	| "task"
@@ -151,6 +175,8 @@ export type ClaudeSay =
 	| "api_req_started"
 	| "api_req_finished"
 	| "text"
+	| "payment_required"
+	| "unauthorized"
 	| "completion_result"
 	| "user_feedback"
 	| "user_feedback_diff"
@@ -161,6 +187,7 @@ export type ClaudeSay =
 	| "info"
 	| "abort_automode"
 	| "shell_integration_warning"
+	| "show_terminal"
 
 type WebSearchTool = {
 	tool: "web_search"
@@ -180,9 +207,7 @@ export type AskConsultantTool = {
 }
 
 export type ClaudeSayTool =
-	| WebSearchTool
-	| UrlScreenshotTool
-	| AskConsultantTool
+	| ChatTool
 	| {
 			tool:
 				| "editedExistingFile"

@@ -16,6 +16,7 @@ export type AmplitudeWebviewMessage = {
 		| "TrialUpsellView"
 		| "TrialUpsellStart"
 		| "ExtensionCreditAddSelect"
+		| "OfferwallView"
 	key?: string
 }
 
@@ -61,12 +62,6 @@ type experimentalTerminalMessage = {
 	bool: boolean
 }
 
-type exportBugMessage = {
-	type: "exportBug"
-	description: string
-	reproduction: string
-}
-
 type technicalBackgroundMessage = {
 	type: "technicalBackground"
 	value: NonNullable<GlobalState["technicalBackground"]>
@@ -86,13 +81,50 @@ type UpdateTaskHistoryMessage = {
 	history: string
 }
 
+export type ExecuteCommandMessage = {
+	type: "executeCommand"
+	command: string
+	isEnter: boolean
+	commandId?: string
+}
+
+export type CommandInputMessage = {
+	type: "commandInput"
+	commandId: string
+	input: string
+}
+
+export type ToolFeedbackMessage = {
+	type: "toolFeedback"
+	toolId: number
+	feedback: "approve" | "reject"
+}
+
+export type ToolFeedbackAllMessage = {
+	type: "toolFeedbackAll"
+	feedback: "approve" | "reject"
+}
+
+export type updateGlobalStateMessage = {
+	type: "updateGlobalState"
+	state: Partial<GlobalState>
+}
+
+export type autoCloseTerminalMessage = {
+	type: "autoCloseTerminal"
+	bool: boolean
+}
+
 export type WebviewMessage =
-	| exportBugMessage
+	| updateGlobalStateMessage
+	| ToolFeedbackAllMessage
+	| ToolFeedbackMessage
 	| experimentalTerminalMessage
 	| AmplitudeWebviewMessage
 	| OpenExternalLink
 	| FreeTrial
 	| technicalBackgroundMessage
+	| autoCloseTerminalMessage
 	| ApiConfigurationMessage
 	| RenameTask
 	| QuickstartMessage
@@ -100,8 +132,11 @@ export type WebviewMessage =
 	| DebugMessage
 	| GitCheckoutToMessage
 	| UpdateTaskHistoryMessage
+	| ExecuteCommandMessage
+	| CommandInputMessage
 	| {
 			type:
+				| "skipWriteAnimation"
 				| "cancelCurrentRequest"
 				| "maxRequestsPerTask"
 				| "customInstructions"

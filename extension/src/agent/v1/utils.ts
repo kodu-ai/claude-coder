@@ -4,6 +4,12 @@ import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeMessage, ClaudeSayTool } from "../../shared/ExtensionMessage"
 
+declare global {
+	interface String {
+		toPosix(): string
+	}
+}
+
 export const getCwd = (): string =>
 	vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), "Desktop")
 
@@ -137,6 +143,21 @@ export function formatToolResponse(
 }
 
 /**
+ * Format a tool response block of text
+ * @param toolName - The tool name
+ * @param params - The parameters
+ * @returns <t
+ */
+export function formatToolResponseText(toolName: string, params: Record<string, string>): string {
+	// we convert the object to XML-like format for readability
+	const formattedParams = Object.entries(params)
+		.map(([key, value]) => `<${key}>${value}</${key}>`)
+		.join("\n")
+	return `Tool response for: ${toolName}\n
+		<tool_response toolName="${toolName}">\n${formattedParams}\n</tool_response>`
+}
+
+/**
  * Format generic tool feedback
  * @param feedback - The feedback text
  * @returns Formatted feedback string
@@ -159,4 +180,11 @@ export function createToolMessage(tool: string, path: string, content: string, c
 		path: getReadablePath(path, customCwd),
 		content,
 	} as ClaudeSayTool)
+}
+
+export const isTextBlock = (block: any): block is Anthropic.TextBlockParam => {
+	if (typeof block === "object") {
+		return block.type === "text"
+	}
+	return false
 }

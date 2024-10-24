@@ -4,41 +4,47 @@ import { ClaudeAsk, isV1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { ToolName } from "../../shared/Tool"
 import { ClaudeAskResponse } from "../../shared/WebviewMessage"
 import { ApiManager } from "./api-handler"
-import { ToolExecutor } from "./tool-executor"
+import { ToolExecutor } from "./tools/tool-executor"
 import { KoduDevOptions, ToolResponse, UserContent } from "./types"
 import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails, formatFilesList } from "./utils"
 import { StateManager } from "./state-manager"
-import { AskResponse, TaskExecutor, TaskState } from "./task-executor"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
-import { createTerminalManager } from "../../integrations/terminal"
+import { AdvancedTerminalManager, createTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
 import { DiagnosticsHandler } from "./handlers"
 import vscode from "vscode"
 import path from "path"
-import { TerminalManager } from "../../integrations/terminal/terminal-manager"
+import { TerminalManager, TerminalRegistry } from "../../integrations/terminal/terminal-manager"
 import delay from "delay"
 import pWaitFor from "p-wait-for"
 import os from "os"
 import { arePathsEqual } from "../../utils/path-helpers"
 import { listFiles } from "../../parse-source-code"
+import { ExecaTerminalManager } from "../../integrations/terminal/execa-terminal-manager"
+import { DiffViewProvider } from "../../integrations/editor/diff-view-provider"
+import { TaskExecutor } from "./task-executor/task-executor"
+import { AskResponse, TaskState } from "./task-executor/utils"
+import { ChatTool } from "../../shared/new-tools"
+import { Chat } from "openai/resources/index.mjs"
+import { TerminalTaskManager } from "../../integrations/terminal/terminal-task-manager"
 
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
 	private apiManager: ApiManager
-	private toolExecutor: ToolExecutor
+	public toolExecutor: ToolExecutor
 	public taskExecutor: TaskExecutor
 	/**
 	 * If the last api message caused a file edit
 	 */
 	public isLastMessageFileEdit: boolean = false
-	public terminalManager: ReturnType<typeof createTerminalManager>
+	public terminalManager: AdvancedTerminalManager
 	public providerRef: WeakRef<ExtensionProvider>
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
-	public diagnosticsHandler: DiagnosticsHandler
+	public isFirstMessage: boolean = true
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
@@ -51,13 +57,9 @@ export class KoduDev {
 			alwaysAllowWriteOnly: this.stateManager.alwaysAllowWriteOnly,
 			koduDev: this,
 		})
-		this.terminalManager = createTerminalManager(
-			!!this.stateManager.experimentalTerminal,
-			this.providerRef.deref()!.context
-		)
+		this.terminalManager = new AdvancedTerminalManager()
 		this.taskExecutor = new TaskExecutor(this.stateManager, this.toolExecutor, this.providerRef)
-		this.browserManager = new BrowserManager()
-		this.diagnosticsHandler = new DiagnosticsHandler()
+		this.browserManager = new BrowserManager(this.providerRef.deref()!.context)
 
 		this.setupTaskExecutor()
 
@@ -73,24 +75,8 @@ export class KoduDev {
 
 		if (historyItem?.dirAbsolutePath) {
 		}
-		if (options.isDebug) {
-			const openFolders = vscode.workspace.workspaceFolders
-			if (!openFolders || !openFolders[0]) {
-				vscode.window.showErrorMessage("Please open only one workspace folder to debug the project.")
-				return
-			}
-
-			const rootPath = openFolders[0].uri.fsPath
-			const problemsString = this.diagnosticsHandler?.getProblemsString(rootPath)
-			if (!problemsString) {
-				vscode.window.showErrorMessage("No problems found in the project.")
-			}
-			this.startTask(`Please debug the project. here are some of the problems:\n ${problemsString}`, [])
-			return
-		}
 
 		if (historyItem) {
-			this.diagnosticsHandler.init(historyItem.dirAbsolutePath ?? "")
 			this.stateManager.state.isHistoryItem = true
 			this.resumeTaskFromHistory()
 		} else if (task || images) {
@@ -132,7 +118,7 @@ export class KoduDev {
 			// this is a bug
 		}
 		if (
-			this.taskExecutor.state === TaskState.WAITING_FOR_USER &&
+			(this.taskExecutor.state === TaskState.WAITING_FOR_USER || this.taskExecutor.state === TaskState.IDLE) &&
 			askResponse === "messageResponse" &&
 			!this.pendingAskResponse
 		) {
@@ -187,6 +173,25 @@ export class KoduDev {
 					m.isError = true
 					m.errorText = "Task was interrupted before this API request could be completed."
 				}
+				if (m.ask === "tool" && m.type === "ask") {
+					const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
+					if (
+						typeof parsedTool === "object" &&
+						(parsedTool.approvalState === "pending" ||
+							parsedTool.approvalState === undefined ||
+							parsedTool.approvalState === "loading")
+					) {
+						const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
+						if (toolsToSkip.includes(parsedTool.tool)) {
+							parsedTool.approvalState = "pending"
+							m.text = JSON.stringify(parsedTool)
+							return
+						}
+						parsedTool.approvalState = "rejected"
+						parsedTool.error = "Task was interrupted before this tool call could be completed."
+						m.text = JSON.stringify(parsedTool)
+					}
+				}
 			}
 		})
 		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessages)
@@ -212,85 +217,27 @@ export class KoduDev {
 				newUserContent.push({ type: "text", text })
 			}
 		}
-
+		if (response === "yesButtonTapped") {
+			newUserContent.push({ type: "text", text: `Let's continue the task from where we left off.` })
+		}
 		const existingApiConversationHistory: Anthropic.Messages.MessageParam[] =
 			await this.stateManager.getSavedApiConversationHistory()
 
-		let modifiedOldUserContent: UserContent
-		let modifiedApiConversationHistory: Anthropic.Messages.MessageParam[]
-		if (existingApiConversationHistory.length > 0) {
-			const lastMessage = existingApiConversationHistory[existingApiConversationHistory.length - 1]
-
-			if (lastMessage.role === "assistant") {
-				const content = Array.isArray(lastMessage.content)
-					? lastMessage.content
-					: [{ type: "text", text: lastMessage.content }]
-				const hasToolUse = content.some((block) => block.type === "tool_use")
-
-				if (hasToolUse) {
-					const toolUseBlocks = content.filter(
-						(block) => block.type === "tool_use"
-					) as Anthropic.Messages.ToolUseBlock[]
-					const toolResponses: Anthropic.ToolResultBlockParam[] = toolUseBlocks.map((block) => ({
-						type: "tool_result",
-						tool_use_id: block.id,
-						content: "Task was interrupted before this tool call could be completed.",
-					}))
-					modifiedApiConversationHistory = [...existingApiConversationHistory]
-					modifiedOldUserContent = [...toolResponses]
-				} else {
-					modifiedApiConversationHistory = [...existingApiConversationHistory]
-					modifiedOldUserContent = []
-				}
-			} else if (lastMessage.role === "user") {
-				const previousAssistantMessage =
-					existingApiConversationHistory[existingApiConversationHistory.length - 2]
-
-				const existingUserContent: UserContent = Array.isArray(lastMessage.content)
-					? lastMessage.content
-					: [{ type: "text", text: lastMessage.content }]
-				if (previousAssistantMessage && previousAssistantMessage.role === "assistant") {
-					const assistantContent = Array.isArray(previousAssistantMessage.content)
-						? previousAssistantMessage.content
-						: [{ type: "text", text: previousAssistantMessage.content }]
-
-					const toolUseBlocks = assistantContent.filter(
-						(block) => block.type === "tool_use"
-					) as Anthropic.Messages.ToolUseBlock[]
-
-					if (toolUseBlocks.length > 0) {
-						const existingToolResults = existingUserContent.filter(
-							(block) => block.type === "tool_result"
-						) as Anthropic.ToolResultBlockParam[]
-
-						const missingToolResponses: Anthropic.ToolResultBlockParam[] = toolUseBlocks
-							.filter(
-								(toolUse) => !existingToolResults.some((result) => result.tool_use_id === toolUse.id)
-							)
-							.map((toolUse) => ({
-								type: "tool_result",
-								tool_use_id: toolUse.id,
-								content: "Task was interrupted before this tool call could be completed.",
-							}))
-
-						modifiedApiConversationHistory = existingApiConversationHistory.slice(0, -1)
-						modifiedOldUserContent = [...existingUserContent, ...missingToolResponses]
-					} else {
-						modifiedApiConversationHistory = existingApiConversationHistory.slice(0, -1)
-						modifiedOldUserContent = [...existingUserContent]
-					}
-				} else {
-					modifiedApiConversationHistory = existingApiConversationHistory.slice(0, -1)
-					modifiedOldUserContent = [...existingUserContent]
-				}
-			} else {
-				throw new Error("Unexpected: Last message is not a user or assistant message")
+		// remove all the corrupted messages (if there is a message with empty content)
+		const modifiedApiConversationHistory = existingApiConversationHistory.filter((m) => {
+			let shouldKeep = true
+			if (typeof m.content === "string") {
+				shouldKeep = m.content.trim() !== ""
 			}
-		} else {
-			throw new Error("Unexpected: No existing API conversation history")
-		}
+			if (Array.isArray(m.content) && m.content.length > 1) {
+				shouldKeep = m.content.some(
+					(block) => (block.type === "text" && block.text.trim() !== "") || block.type === "image"
+				)
+			}
+			return shouldKeep
+		})
+		await this.stateManager.overwriteApiConversationHistory(modifiedApiConversationHistory) // remove the corrupted messages
 
-		const modifiedOldUserContentText = modifiedOldUserContent.find((block) => block.type === "text")?.text
 		const newUserContentText = newUserContent.find((block) => block.type === "text")?.text
 		const agoText = (() => {
 			const timestamp = lastClaudeMessage?.ts ?? Date.now()
@@ -312,49 +259,67 @@ export class KoduDev {
 			return "just now"
 		})()
 
-		const combinedText =
+		let combinedText =
 			`Task resumption: This autonomous coding task was interrupted ${agoText}. It may or may not be complete, so please reassess the task context. Be aware that the project state may have changed since then. The current working directory is now ${getCwd()}. If the task has not been completed, retry the last step before interruption and proceed with completing the task.` +
-			(modifiedOldUserContentText
-				? `\n\nLast recorded user input before interruption:\n<previous_message>\n${modifiedOldUserContentText}\n</previous_message>\n`
-				: "") +
 			(newUserContentText
 				? `\n\nNew instructions for task continuation:\n<user_message>\n${newUserContentText}\n</user_message>\n`
-				: "") +
-			`\n\n${getPotentiallyRelevantDetails()}`
-
-		const newUserContentImages = newUserContent.filter((block) => block.type === "image")
-		const combinedModifiedOldUserContentWithNewUserContent: UserContent = (
-			modifiedOldUserContent.filter((block) => block.type !== "text") as UserContent
-		).concat([{ type: "text", text: combinedText }, ...newUserContentImages])
+				: "")
+		combinedText += `\n\n`
+		combinedText += await this.getEnvironmentDetails(true)
+		combinedText += `No dev server information is available. Please start the dev server if needed.`
 
 		const pastRequestsCount = modifiedApiConversationHistory.filter((m) => m.role === "assistant").length
 		amplitudeTracker.taskResume(this.stateManager.state.taskId, pastRequestsCount)
 
 		this.stateManager.state.isHistoryItemResumed = true
-		await this.stateManager.overwriteApiConversationHistory(modifiedApiConversationHistory)
-		await this.taskExecutor.startTask(combinedModifiedOldUserContentWithNewUserContent)
+		await this.taskExecutor.startTask(newUserContent)
 	}
 
 	async abortTask() {
-		this.taskExecutor.abortTask()
-		this.toolExecutor.abortTask()
-		this.terminalManager.disposeAll()
+		void this.taskExecutor.abortTask()
+		void this.browserManager.closeBrowser()
+		void this.terminalManager.disposeAll()
+		void TerminalRegistry.clearAllDevServers()
 	}
 
 	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false): Promise<ToolResponse> {
+		const now = Date.now()
 		return this.toolExecutor.executeTool({
 			name,
 			input,
+			id: now.toString(),
+			ts: now,
 			isLastWriteToFile,
 			ask: this.taskExecutor.ask.bind(this.taskExecutor),
 			say: this.taskExecutor.say.bind(this.taskExecutor),
+			updateAsk: this.taskExecutor.updateAsk.bind(this.taskExecutor),
 		})
 		4
 	}
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {
 		let details = ""
-
+		const devServers = TerminalRegistry.getAllDevServers()
+		const isDevServerRunning = devServers.length > 0
+		let devServerSection =
+			"# Critical information about the current running development server, when you call the dev_server tool, the dev server information will be updated here. this is the only place where the dev server information will be updated. don't ask the user for information about the dev server, always refer to this section.\n"
+		devServerSection += `\n\n<dev_server_status>\n`
+		devServerSection += `<dev_server_running>${
+			isDevServerRunning ? "SERVER IS RUNNING" : "SERVER IS NOT RUNNING!"
+		}</dev_server_running>\n`
+		if (isDevServerRunning) {
+			for (const server of devServers) {
+				const serverName = server.terminalInfo.name
+				devServerSection += `<dev_server_info>\n`
+				devServerSection += `<server_name>${serverName}</server_name>\n`
+				devServerSection += `<dev_server_url>${server.url}</dev_server_url>\n`
+				devServerSection += `</dev_server_info>\n`
+			}
+		} else {
+			devServerSection += `<dev_server_info>Dev server is not running. Please start the dev server using the dev_server tool if needed.</dev_server_info>\n`
+		}
+		devServerSection += `</dev_server_status>\n`
+		details += devServerSection
 		// It could be useful for cline to know if the user went from one or no file to another between messages, so we always include this context
 		details += "\n\n# VSCode Visible Files"
 		const visibleFiles = vscode.window.visibleTextEditors
@@ -381,71 +346,30 @@ export class KoduDev {
 			details += "\n(No open tabs)"
 		}
 
-		if (this.terminalManager instanceof TerminalManager) {
-			const busyTerminals = this.terminalManager.getTerminals(true)
-			const inactiveTerminals = this.terminalManager.getTerminals(false)
+		// get the diagnostics errors for all files in the current task
 
-			if (busyTerminals.length > 0 && this.isLastMessageFileEdit) {
-				await delay(300) // delay after saving file to let terminals catch up
+		const diagnosticsHandler = DiagnosticsHandler.getInstance()
+		const files = this.stateManager.historyErrors ? Object.keys(this.stateManager.historyErrors) : []
+		const diagnostics = diagnosticsHandler.getDiagnostics(files)
+		const newErrors = diagnostics.filter((diag) => diag.errorString !== null)
+		const taskErrorsRecord = newErrors.reduce((acc, curr) => {
+			acc[curr.key] = {
+				lastCheckedAt: Date.now(),
+				error: curr.errorString!,
 			}
+			return acc
+		}, {} as NonNullable<typeof this.stateManager.historyErrors>)
+		this.stateManager.historyErrors = taskErrorsRecord
 
-			// let terminalWasBusy = false
-			if (busyTerminals.length > 0) {
-				// wait for terminals to cool down
-				// terminalWasBusy = allTerminals.some((t) => this.terminalManager.isProcessHot(t.id))
-				await pWaitFor(
-					() =>
-						busyTerminals.every(
-							(t) =>
-								this.terminalManager instanceof TerminalManager &&
-								!this.terminalManager.isProcessHot(t.id)
-						),
-					{
-						interval: 100,
-						timeout: 15_000,
-					}
-				).catch(() => {})
-			}
-			this.isLastMessageFileEdit = false // reset, this lets us know when to wait for saved files to update terminals
-
-			// waiting for updated diagnostics lets terminal output be the most up-to-date possible
-			let terminalDetails = ""
-			if (busyTerminals.length > 0) {
-				// terminals are cool, let's retrieve their output
-				terminalDetails += "\n\n# Actively Running Terminals"
-				for (const busyTerminal of busyTerminals) {
-					terminalDetails += `\n## Original command: \`${busyTerminal.lastCommand}\``
-					const newOutput = this.terminalManager.getUnretrievedOutput(busyTerminal.id)
-					if (newOutput) {
-						terminalDetails += `\n### New Output\n${newOutput}`
-					} else {
-						// details += `\n(Still running, no new output)` // don't want to show this right after running the command
-					}
-				}
-			}
-			// only show inactive terminals if there's output to show
-			if (inactiveTerminals.length > 0) {
-				const inactiveTerminalOutputs = new Map<number, string>()
-				for (const inactiveTerminal of inactiveTerminals) {
-					const newOutput = this.terminalManager.getUnretrievedOutput(inactiveTerminal.id)
-					if (newOutput) {
-						inactiveTerminalOutputs.set(inactiveTerminal.id, newOutput)
-					}
-				}
-				if (inactiveTerminalOutputs.size > 0) {
-					terminalDetails += "\n\n# Inactive Terminals"
-					for (const [terminalId, newOutput] of inactiveTerminalOutputs) {
-						const inactiveTerminal = inactiveTerminals.find((t) => t.id === terminalId)
-						if (inactiveTerminal) {
-							terminalDetails += `\n## ${inactiveTerminal.lastCommand}`
-							terminalDetails += `\n### New Output\n${newOutput}`
-						}
-					}
-				}
-			}
-			if (terminalDetails) {
-				details += terminalDetails
-			}
+		// map the diagnostics to the original file path
+		details += "\n\n# CURRENT ERRORS (Linter Errors)"
+		if (newErrors.length === 0) {
+			details += "\n(No diagnostics errors)"
+		} else {
+			details += `The following errors are present in the current task you have been working on. this is the only errors that are present if you seen previous linting errors they have been resolved.\n`
+			details += `<linter_errors>\n`
+			details += newErrors.map((diag) => diag.errorString).join("\n")
+			details += `</linter_errors>\n`
 		}
 
 		if (includeFileDetails) {

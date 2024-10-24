@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
 
-// const KODU_BASE_URL = "http://localhost:3001"
+// const KODU_BASE_URL = "http://localhost:3000"
 const KODU_BASE_URL = "https://www.kodu.ai"
 
 export function getKoduSignInUrl(uriScheme?: string, extensionName?: string) {
@@ -120,6 +120,7 @@ export const koduErrorMessages: Record<KODU_ERROR_CODES, string> = {
 }
 
 export class KoduError extends Error {
+	public errorCode: KODU_ERROR_CODES
 	constructor({ code }: { code: number }) {
 		if (code in KODU_ERROR_CODES) {
 			super(koduErrorMessages[code as KODU_ERROR_CODES])
@@ -127,6 +128,7 @@ export class KoduError extends Error {
 			super("Unknown error")
 		}
 		this.name = "KoduError"
+		this.errorCode = code
 	}
 }
 
