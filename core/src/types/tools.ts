@@ -1,4 +1,4 @@
-import { IKoduDev } from "@/interfaces"
+import { IConsumer, IKoduDev } from "@/interfaces"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { AskDetails, AskResponse, ClaudeAsk, ClaudeAskResponse, ClaudeSay } from "./task-communication"
 import { ServerRunnerTool } from "./chat-tools"
@@ -85,5 +85,6 @@ export type AgentToolOptions = {
 	alwaysAllowReadOnly: boolean
 	alwaysAllowWriteOnly: boolean
 	koduDev: KoduDev
+	consumer: IConsumer
 	setRunningProcessId?: (pid: number | undefined) => void
 }

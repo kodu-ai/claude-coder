@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-import { KoduDev, KoduDevOptions } from "../index"
+import { KoduDev, KoduDevOptions } from "../../index"
 import { TaskState } from "@/types"
 import path from "path"
 import os from "os"
+import { CliConsumer } from "./editor"
 
 const task = process.argv[2]
 
@@ -25,7 +26,7 @@ const options: KoduDevOptions = {
 	globalStoragePath: path.join(os.homedir(), ".kodu-dev"),
 }
 
-const koduDev = new KoduDev(options)
+const koduDev = new KoduDev(options, new CliConsumer())
 
 async function runKoduDevTask() {
 	try {

@@ -1,8 +1,7 @@
 import * as path from "path"
-import * as vscode from "vscode"
 import fs from "fs/promises"
 import { ToolResponse } from "@/types"
-import {  formatToolResponse } from "@/utils"
+import { formatToolResponse } from "@/utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "@/types"
 import Anthropic from "@anthropic-ai/sdk"
@@ -40,11 +39,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 		}
 
 		try {
-			this.params.ask(
-				"tool",
-				{ tool: { tool: "url_screenshot", approvalState: "loading", url, ts: this.ts } },
-				this.ts
-			)
+			this.params.ask("tool", { tool: { tool: "url_screenshot", approvalState: "loading", url, ts: this.ts } }, this.ts)
 			const browserManager = this.koduDev.browserService
 			await browserManager.launchBrowser()
 			const { buffer } = await browserManager.urlToScreenshotAndLogs(url)
@@ -58,8 +53,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			await fs.writeFile(absolutePath, buffer)
 
 			await this.relaySuccessfulResponse({ absolutePath, imageToBase64 })
-			const uri = vscode.Uri.file(absolutePath)
-			// await vscode.commands.executeCommand("vscode.open", uri)
+			await this.consumer.openFile(absolutePath)
 
 			const textBlock: Anthropic.TextBlockParam = {
 				type: "text",
@@ -106,10 +100,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 	}
 
 	private async onBadInputReceived() {
-		await this.params.say(
-			"error",
-			"Claude tried to use `url_screenshot` without required parameter `url`. Retrying..."
-		)
+		await this.params.say("error", "Claude tried to use `url_screenshot` without required parameter `url`. Retrying...")
 
 		return `Error: Missing value for required parameter 'url'. Please retry with complete response.
 			A good example of a web_search tool call is:

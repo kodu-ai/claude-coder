@@ -1,6 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk"
 import delay from "delay"
-import { ExecaError } from "execa"
 import { serializeError } from "serialize-error"
 import { AdvancedTerminalManager } from "@/integrations/terminal"
 import { ToolResponse } from "@/types"
@@ -8,8 +7,6 @@ import { getCwd } from "@/utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "@/types"
 import { ExecaTerminalManager } from "@/integrations/terminal/execa-terminal-manager"
-import { WebviewMessage } from "@/types"
-import { ChatTool } from "@/types"
 import { stateService } from "@/singletons"
 
 export const COMMAND_OUTPUT_DELAY = 100 // milliseconds

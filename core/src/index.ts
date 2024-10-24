@@ -1,5 +1,4 @@
 import os from "os"
-import vscode from "vscode"
 import path from "path"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ToolExecutor } from "@/ai"
@@ -28,6 +27,7 @@ import {
 } from "@/utils"
 import { BrowserService, TaskExecutor, DiagnosticsService } from "@/services"
 import { AdvancedTerminalManager, TerminalRegistry } from "@/integrations"
+import type { IConsumer } from "@/interfaces"
 
 import { koduApiService, stateService, StateService } from "./singletons"
 
@@ -41,10 +41,11 @@ export class KoduDev {
 	public isLastMessageFileEdit: boolean = false
 	public terminalManager: AdvancedTerminalManager
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
-	public browserManager: BrowserService
+	public browserService: BrowserService
 	public isFirstMessage: boolean = true
+	private consumer: IConsumer
 
-	constructor(options: KoduDevOptions) {
+	constructor(options: KoduDevOptions, consumer: IConsumer) {
 		const { apiConfiguration, customInstructions, task, images, historyItem, globalStoragePath } = options
 		stateService.initialize(options)
 		koduApiService.initialize(apiConfiguration, customInstructions)
@@ -54,10 +55,12 @@ export class KoduDev {
 			alwaysAllowReadOnly: stateService.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: stateService.alwaysAllowWriteOnly,
 			koduDev: this,
+			consumer,
 		})
 		this.terminalManager = new AdvancedTerminalManager()
 		this.taskExecutor = new TaskExecutor(this.toolExecutor)
-		this.browserManager = new BrowserService(globalStoragePath!)
+		this.browserService = new BrowserService(globalStoragePath!)
+		this.consumer = consumer
 
 		this.setupTaskExecutor()
 
@@ -331,7 +334,7 @@ export class KoduDev {
 
 	async abortTask() {
 		await this.taskExecutor.abortTask()
-		this.browserManager.closeBrowser()
+		this.browserService.closeBrowser()
 		this.terminalManager.disposeAll()
 		TerminalRegistry.clearAllDevServers()
 	}
@@ -376,26 +379,17 @@ export class KoduDev {
 		details += devServerSection
 		// It could be useful for cline to know if the user went from one or no file to another between messages, so we always include this context
 		details += "\n\n# VSCode Visible Files"
-		const visibleFiles = vscode.window.visibleTextEditors
-			?.map((editor) => editor.document?.uri?.fsPath)
-			.filter(Boolean)
-			.map((absolutePath) => path.relative(getCwd(), absolutePath).toPosix())
-			.join("\n")
-		if (visibleFiles) {
-			details += `\n${visibleFiles}`
+		const visibleFiles = this.consumer.getVisibleFiles()
+		if (visibleFiles.length > 0) {
+			details += `\n${visibleFiles.join("\n")}`
 		} else {
 			details += "\n(No visible files)"
 		}
 
 		details += "\n\n# VSCode Open Tabs"
-		const openTabs = vscode.window.tabGroups.all
-			.flatMap((group) => group.tabs)
-			.map((tab) => (tab.input as vscode.TabInputText)?.uri?.fsPath)
-			.filter(Boolean)
-			.map((absolutePath) => path.relative(getCwd(), absolutePath).toPosix())
-			.join("\n")
-		if (openTabs) {
-			details += `\n${openTabs}`
+		const openTabs = this.consumer.getOpenTabs()
+		if (openTabs.length > 0) {
+			details += `\n${openTabs.join("\n")}`
 		} else {
 			details += "\n(No open tabs)"
 		}

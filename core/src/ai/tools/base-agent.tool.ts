@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { ToolResponse } from "@/types"
 import { AgentToolOptions, AgentToolParams } from "@/types"
-import { IKoduDev } from "@/interfaces"
+import { IConsumer, IKoduDev } from "@/interfaces"
 import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "@/utils"
 import { KoduDev } from "@/index"
 
@@ -10,6 +10,7 @@ export abstract class BaseAgentTool {
 	protected alwaysAllowReadOnly: boolean
 	protected alwaysAllowWriteOnly: boolean
 	protected koduDev: KoduDev
+	protected consumer: IConsumer
 	protected setRunningProcessId: (pid: number | undefined) => void
 
 	protected abstract params: AgentToolParams
@@ -20,6 +21,7 @@ export abstract class BaseAgentTool {
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
 		this.koduDev = options.koduDev
 		this.setRunningProcessId = options.setRunningProcessId!
+		this.consumer = options.consumer
 	}
 
 	get name(): string {
@@ -95,6 +97,7 @@ export abstract class BaseAgentTool {
 			alwaysAllowWriteOnly: this.alwaysAllowWriteOnly,
 			koduDev: this.koduDev,
 			setRunningProcessId: this.setRunningProcessId,
+			consumer: this.consumer,
 		}
 	}
 }
