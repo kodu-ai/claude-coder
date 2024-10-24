@@ -283,29 +283,4 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			return await this.formatToolError(errorString)
 		}
 	}
-
-	private formatImagesIntoBlocks(images?: string[]): Anthropic.ImageBlockParam[] {
-		return images
-			? images.map((dataUrl) => {
-					// data:image/png;base64,base64string
-					const [rest, base64] = dataUrl.split(",")
-					const mimeType = rest.split(":")[1].split(";")[0]
-					return {
-						type: "image",
-						source: { type: "base64", media_type: mimeType, data: base64 },
-					} as Anthropic.ImageBlockParam
-			  })
-			: []
-	}
-
-	private formatIntoToolResponse(text: string, images?: string[]): ToolResponse {
-		if (images && images.length > 0) {
-			const textBlock: Anthropic.TextBlockParam = { type: "text", text }
-			const imageBlocks: Anthropic.ImageBlockParam[] = this.formatImagesIntoBlocks(images)
-			// Placing images after text leads to better results
-			return [textBlock, ...imageBlocks]
-		} else {
-			return text
-		}
-	}
 }
