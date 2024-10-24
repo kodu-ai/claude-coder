@@ -606,12 +606,13 @@ export const WebSearchBlock: React.FC<WebSearchTool & ToolAddons> = ({
 		approvalState={approvalState}
 		onApprove={onApprove}
 		onReject={onReject}>
-		<p className="text-xs">
-			<span className="font-semibold">Search for:</span> {searchQuery}
-		</p>
-		{baseLink && (
+		{baseLink ? (
 			<p className="text-xs">
-				<span className="font-semibold">Starting from:</span> {baseLink}
+				<span className="font-semibold">Accessing:</span> {baseLink}
+			</p>
+		) : (
+			<p className="text-xs">
+				<span className="font-semibold">Search for:</span> {searchQuery}
 			</p>
 		)}
 	</ToolBlock>
@@ -758,3 +759,4 @@ export const ToolContentBlock: React.FC<{
 			return null
 	}
 }
+

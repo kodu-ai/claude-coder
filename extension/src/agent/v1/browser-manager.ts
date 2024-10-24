@@ -6,10 +6,12 @@ import PCR from "puppeteer-chromium-resolver"
 import puppeteer, { Browser, launch, Page } from "puppeteer-core"
 import * as vscode from "vscode"
 import { fileExistsAtPath } from "../../utils/path-helpers"
+
 interface PCRStats {
 	puppeteer: { launch: typeof launch }
 	executablePath: string
 }
+
 export class BrowserManager {
 	private browser?: Browser
 	private page?: Page
@@ -94,5 +96,33 @@ export class BrowserManager {
 		const screenshotBuffer = Buffer.from(screenshotUInt)
 
 		return { buffer: screenshotBuffer, logs }
+	}
+
+	async getWebsiteContent(url: string): Promise<{ content: string }> {
+		if (!this.page) {
+			throw new Error("Browser not initialized")
+		}
+
+		this.page.on("console", (msg) => {
+			if (msg.type() === "error") {
+				console.error(`[Browser Error] ${msg.text()}`)
+				throw new Error(`[Browser Error] ${msg.text()}`);
+			}
+		})
+
+		try {
+			await this.page.goto(url, { timeout: 30000, waitUntil: "networkidle0" })
+		} catch (err) {
+			throw new Error(`[Navigation Error] ${err}`)
+		}
+
+		// Extract the main content of the page
+		const content = await this.page.evaluate(() => {
+			// This is a simple example. You might need to adjust this based on the structure of the websites you're targeting.
+			const article = document.querySelector('article') || document.body;
+			return article.innerText;
+		});
+
+		return { content }
 	}
 }
