@@ -16,7 +16,7 @@ export class WebSearchTool extends BaseAgentTool {
 		const { say, updateAsk, input } = this.params
 		const { searchQuery, baseLink } = input
 
-		if (!searchQuery || !baseLink) {
+		if (!searchQuery) {
 			await say('error', 'Claude tried to use `web_search` without required parameters. Retrying...')
 			return `Error: Missing value for required parameters. Please retry with complete response.
 				A good example of a web_search tool call is:
@@ -28,7 +28,7 @@ export class WebSearchTool extends BaseAgentTool {
 				Please try again with the correct parameters.`
 		}
 
-		const confirmation = await this.askToolExecConfirmation(searchQuery, baseLink)
+		const confirmation = await this.askToolExecConfirmation(searchQuery, baseLink || '')
 		if (confirmation.response !== 'yesButtonTapped') {
 			await updateAsk(
 				'tool',
