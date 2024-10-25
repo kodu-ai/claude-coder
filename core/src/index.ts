@@ -25,7 +25,7 @@ import {
 	findLastIndex,
 	amplitudeTracker,
 } from "@/utils"
-import { BrowserService, TaskExecutor, DiagnosticsService } from "@/services"
+import { BrowserService, TaskExecutor } from "@/services"
 import { TerminalManager, TerminalRegistry } from "@/integrations"
 import type { IConsumer } from "@/interfaces"
 
