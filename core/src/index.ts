@@ -396,9 +396,8 @@ export class KoduDev {
 
 		// get the diagnostics errors for all files in the current task
 
-		const diagnosticsHandler = DiagnosticsService.getInstance()
 		const files = stateService.historyErrors ? Object.keys(stateService.historyErrors) : []
-		const diagnostics = diagnosticsHandler.getDiagnostics(files)
+		const diagnostics = this.consumer.getDiagnostics(files)
 		const newErrors = diagnostics.filter((diag) => diag.errorString !== null)
 		const taskErrorsRecord = newErrors.reduce((acc, curr) => {
 			acc[curr.key] = {

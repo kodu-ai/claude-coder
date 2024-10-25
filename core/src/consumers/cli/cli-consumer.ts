@@ -59,4 +59,8 @@ export class CliConsumer implements IConsumer {
 	get terminalManager(): TerminalManager {
 		return new TerminalManager(new CLITerminalWindow())
 	}
+
+	getDiagnostics(paths: string[]): { key: string; errorString: string | null }[] {
+		return []
+	}
 }

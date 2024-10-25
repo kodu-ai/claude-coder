@@ -6,6 +6,8 @@ export interface IConsumer {
 	get appPaths(): IAppPaths
 
 	terminalManager: TerminalManager
+
+	getDiagnostics(paths: string[]): { key: string; errorString: string | null }[]
 }
 
 export interface IAppPaths {
@@ -29,4 +31,8 @@ export interface IConsumerFilesAdapter {
 		markdownContent: string,
 		filters: Record<string, string[]>
 	): Promise<boolean>
+}
+
+export interface IDiagnosticsHandler {
+	getDiagnostics(paths: string[]): { key: string; errorString: string | null }[]
 }

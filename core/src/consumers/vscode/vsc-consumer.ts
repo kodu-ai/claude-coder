@@ -2,11 +2,12 @@ import * as os from "os"
 import * as path from "path"
 import * as vscode from "vscode"
 
-import type { IConsumer } from "@/interfaces"
+import type { IConsumer, IDiagnosticsHandler } from "@/interfaces"
 import { getCwd } from "@/utils"
 import { IAppPaths, IConsumerFilesAdapter } from "@/interfaces/IConsumer"
 import { TerminalManager } from "@/integrations"
 import { getVscTerminalManger } from "./vsc-terminal"
+import { VscDiagnosticsHandler } from "./vsc-diagnostics"
 
 export class VSCodeFilesAdapter implements IConsumerFilesAdapter {
 	getVisibleFiles(relativeToCwd: boolean = true): string[] {
@@ -91,6 +92,12 @@ export class VSCodeFilesAdapter implements IConsumerFilesAdapter {
 }
 
 export class VSCodeConsumer implements IConsumer {
+	private diagnosticsHandler: IDiagnosticsHandler
+
+	constructor() {
+		this.diagnosticsHandler = new VscDiagnosticsHandler()
+	}
+
 	filesAdapter: VSCodeFilesAdapter = new VSCodeFilesAdapter()
 
 	get appPaths(): IAppPaths {
@@ -107,5 +114,9 @@ export class VSCodeConsumer implements IConsumer {
 
 	get terminalManager(): TerminalManager {
 		return getVscTerminalManger()
+	}
+
+	getDiagnostics(paths: string[]): { key: string; errorString: string | null }[] {
+		return this.diagnosticsHandler.getDiagnostics(paths)
 	}
 }
