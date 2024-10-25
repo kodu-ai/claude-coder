@@ -1,16 +1,15 @@
-import { Anthropic } from '@anthropic-ai/sdk'
-import { ClaudeMessage, isV1ClaudeMessage } from '../../../shared/ExtensionMessage'
-import { ClaudeAskResponse } from '../../../shared/WebviewMessage'
-import { KODU_ERROR_CODES, KoduError, koduSSEResponse } from '../../../shared/kodu'
-import { StateManager } from '../state-manager'
-import { ToolExecutor } from '../tools/tool-executor'
-import { ChunkProcessor } from '../chunk-proccess'
-import { ExtensionProvider } from '../../../providers/claude-coder/ClaudeCoderProvider'
-import { ToolResponse, UserContent } from '../types'
-import { debounce } from 'lodash'
-import { TaskError, TaskExecutorUtils, TaskState } from './utils'
-import { manageTokensAndConversation } from '../tools/manage-conversation'
-import { truncateHalfConversation } from '../../../utils/context-management'
+import { Anthropic } from "@anthropic-ai/sdk"
+import { ClaudeMessage, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
+import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
+import { KODU_ERROR_CODES, KoduError, koduSSEResponse } from "../../../shared/kodu"
+import { StateManager } from "../state-manager"
+import { ToolExecutor } from "../tools/tool-executor"
+import { ChunkProcessor } from "../chunk-proccess"
+import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
+import { ToolResponse, UserContent } from "../types"
+import { debounce } from "lodash"
+import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
+import { ChatTool } from "../../../shared/new-tools"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -118,7 +117,38 @@ export class TaskExecutor extends TaskExecutorUtils {
 		const lastApiRequest = this.stateManager.state.claudeMessages
 			.slice()
 			.reverse()
-			.find((msg) => msg.type === 'say' && msg.say === 'api_req_started')
+			.find((msg) => msg.type === "say" && msg.say === "api_req_started")
+		const lastToolRequest = this.stateManager.state.claudeMessages
+			.slice()
+			.reverse()
+			.find((msg) => {
+				if (!isV1ClaudeMessage(msg) || msg.ask !== "tool") {
+					return false
+				}
+				const parsedTool = JSON.parse(msg.text ?? "{}") as ChatTool
+				if (parsedTool.approvalState !== "error") {
+					return true
+				}
+				return false
+			})
+
+		if (lastToolRequest) {
+			const parsedTool = JSON.parse(lastToolRequest.text ?? "{}") as ChatTool
+			if (parsedTool.approvalState === "approved") {
+				return
+			}
+			await this.updateAsk(
+				lastToolRequest.ask!,
+				{
+					tool: {
+						...parsedTool,
+						approvalState: "error",
+						error: "Task was interrupted before this tool call could be completed.",
+					},
+				},
+				lastToolRequest.ts
+			)
+		}
 		if (lastApiRequest && isV1ClaudeMessage(lastApiRequest) && !lastApiRequest.isDone) {
 			await this.stateManager.updateClaudeMessage(lastApiRequest.ts, {
 				...lastApiRequest,
@@ -127,7 +157,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				errorText: 'Request cancelled by user',
 				isError: true,
 			})
-			await this.stateManager.removeEverythingAfterMessage(lastApiRequest.ts)
+			// await this.stateManager.removeEverythingAfterMessage(lastApiRequest.ts)
 		}
 		// Update the provider state
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
@@ -479,6 +509,7 @@ This summary contains all relevant details for seamless continuation of the task
 		this.consecutiveErrorCount = 0
 		this.state = TaskState.WAITING_FOR_USER
 		await this.toolExecutor.resetToolState()
+		await this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 
 		this.logState('State reset due to request cancellation')
 	}

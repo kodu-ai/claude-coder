@@ -14,7 +14,7 @@ export class WebSearchTool extends BaseAgentTool {
 	}
 
 	async execute(): Promise<ToolResponse> {
-		const { say, ask, input } = this.params
+		const { say, ask, updateAsk, input } = this.params
 		const { searchQuery, baseLink } = input
 
 		if (!searchQuery) {
@@ -65,7 +65,7 @@ export class WebSearchTool extends BaseAgentTool {
 			return "The user denied this operation."
 		}
 		try {
-			ask(
+			updateAsk(
 				"tool",
 				{
 					tool: {
@@ -78,9 +78,14 @@ export class WebSearchTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			const result = await this.koduDev.getApiManager().getApi()?.sendWebSearchRequest?.(searchQuery, baseLink)
+			const result = await this.koduDev
+				.getApiManager()
+				.getApi()
+				?.sendWebSearchRequest?.(searchQuery, baseLink)
+				.then((res) => res)
+				.catch((err) => undefined)
 			if (!result) {
-				ask(
+				updateAsk(
 					"tool",
 					{
 						tool: {
@@ -96,7 +101,7 @@ export class WebSearchTool extends BaseAgentTool {
 				)
 				return "Web search failed with error: No result found."
 			}
-			this.params.ask(
+			updateAsk(
 				"tool",
 				{
 					tool: {
@@ -112,7 +117,7 @@ export class WebSearchTool extends BaseAgentTool {
 			)
 			return `This is the result of the web search: ${result.content}`
 		} catch (err) {
-			this.params.ask(
+			updateAsk(
 				"tool",
 				{
 					tool: {

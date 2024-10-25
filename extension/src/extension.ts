@@ -1,5 +1,3 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode"
 import { ExtensionProvider } from "./providers/claude-coder/ClaudeCoderProvider"
 import { amplitudeTracker } from "./utils/amplitude"
@@ -9,6 +7,7 @@ import { extensionName } from "./shared/Constants"
 import "./utils/path-helpers"
 import { TerminalManager } from "./integrations/terminal/terminal-manager"
 import { getCwd } from "./agent/v1/utils"
+import { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } from "./integrations/editor/diff-view-provider"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -203,24 +202,36 @@ export function activate(context: vscode.ExtensionContext) {
 			return Buffer.from(uri.query, "base64").toString("utf-8")
 		}
 	})()
-	context.subscriptions.push(
-		vscode.workspace.registerTextDocumentContentProvider("claude-coder-diff", diffContentProvider)
-	)
+
+	const modifiedContentProvider = new (class implements vscode.TextDocumentContentProvider {
+		private content = new Map<string, string>()
+
+		provideTextDocumentContent(uri: vscode.Uri): string {
+			return this.content.get(uri.toString()) || ""
+		}
+
+		// Method to update content
+		updateContent(uri: vscode.Uri, content: string) {
+			this.content.set(uri.toString(), content)
+			this._onDidChange.fire(uri)
+		}
+
+		private _onDidChange = new vscode.EventEmitter<vscode.Uri>()
+		onDidChange = this._onDidChange.event
+	})()
+	vscode.workspace.registerTextDocumentContentProvider(DIFF_VIEW_URI_SCHEME, diffContentProvider),
+		vscode.workspace.registerTextDocumentContentProvider(MODIFIED_URI_SCHEME, modifiedContentProvider)
 
 	// URI Handler
 	const handleUri = async (uri: vscode.Uri) => {
 		const query = new URLSearchParams(uri.query.replace(/\+/g, "%2B"))
 		const token = query.get("token")
-		const postTrial = query.get("postTrial")
 		const email = query.get("email")
 		// toast login success
 		vscode.window.showInformationMessage(`Logged in as ${email} successfully!`)
 		if (token) {
 			amplitudeTracker.authSuccess()
 			console.log(`Received token: ${token}`)
-			if (postTrial) {
-				amplitudeTracker.trialUpsellSuccess()
-			}
 			await vscode.commands.executeCommand(`${extensionName}.SidebarProvider.focus`)
 			await sidebarProvider.getApiManager().saveKoduApiKey(token)
 		}

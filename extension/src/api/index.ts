@@ -62,7 +62,6 @@ export interface ApiHandler {
 
 	sendSummarizeRequest?(text: string, command: string): Promise<SummaryResponseDto>
 
-	sendBugReportRequest?(params: z.infer<typeof bugReportSchema>): Promise<void>
 }
 
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {

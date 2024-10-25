@@ -307,10 +307,6 @@ export class WebviewManager {
 						}
 						await quickStart(message.repo, message.name, callback)
 						break
-					case "exportBug":
-						console.log("Export bug message received")
-						await this.provider.getTaskManager().exportBug(message.description, message.reproduction)
-						break
 					case "renameTask":
 						await this.provider.getTaskManager().renameTask(
 							message.isCurentTask
@@ -326,9 +322,6 @@ export class WebviewManager {
 						await this.provider.getStateManager().setUseUdiff(message.bool)
 						console.log(`useUdiff: ${message.bool}`)
 						await this.postStateToWebview()
-						break
-					case "freeTrial":
-						await this.provider.getApiManager().initFreeTrialUser(message.fp)
 						break
 					case "openExternalLink":
 						vscode.env.openExternal(vscode.Uri.parse(message.url))

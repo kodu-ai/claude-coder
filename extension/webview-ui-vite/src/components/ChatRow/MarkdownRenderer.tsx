@@ -30,9 +30,9 @@ const ThinkingContent: React.FC<{ node: any; rendererProps: MarkdownRendererProp
 	const textContent = extractTextContent(node)
 
 	return (
-		<Collapsible>
+		<Collapsible defaultOpen className="w-full">
 			<CollapsibleTrigger
-				className="flex items-center justify-between w-full p-2 bg-primary/10 rounded-t-md hover:bg-primary/20 transition-colors"
+				className="flex items-center justify-between w-full p-2 bg-primary/10 rounded-t-md hover:bg-primary/20 transition-colors flex-grow basis-full"
 				onClick={() => setIsExpanded(!isExpanded)}
 				aria-expanded={isExpanded}>
 				<span className="font-semibold">Thinking Process</span>
@@ -42,11 +42,11 @@ const ThinkingContent: React.FC<{ node: any; rendererProps: MarkdownRendererProp
 					<ChevronDown className="h-4 w-4" aria-hidden="true" />
 				)}
 			</CollapsibleTrigger>
-			<CollapsibleContent>
+			<CollapsibleContent className="w-full">
 				<ScrollArea
-					viewProps={{ className: "max-h-[200px] pt-0" }}
+					viewProps={{ className: "max-h-[200px] pt-4" }}
 					className="w-full rounded-b-md bg-primary/5 p-4 pt-0">
-					<div>{textContent}</div>
+					<div className="whitespace-pre text-pretty">{textContent.trim()}</div>
 					<ScrollBar forceMount />
 				</ScrollArea>
 			</CollapsibleContent>
@@ -147,7 +147,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, sy
 				write_to_file: WriteToFile,
 				"call-to-action": CallToAction,
 				// "write-to-file": (props) => <WriteToFile {...props} syntaxHighlighterStyle={syntaxHighlighterStyle} />,
-				p: (props) => <p className="my-1 leading-6 " {...props} />,
+				p: (props) => <p className="my-1 leading-6 text-wrap whitespace-pre" {...props} />,
 				ol: (props) => <ol className="list-decimal list-inside pl-4 space-y-2" {...props} />,
 				ul: (props) => <ul className="list-disc list-inside my-4 pl-6 space-y-2" {...props} />,
 				li: (props) => <li style={{ listStyle: "auto!important" }} className="mb-1 list item" {...props} />,
@@ -190,6 +190,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, sy
 						</code>
 					)
 				},
+				span: (props) => <span className="text-wrap whitespace-pre" {...props} />,
 				pre: (props) => <pre className="overflow-auto p-4 rounded-lg my-4 bg-muted" {...props} />,
 			}}>
 			{markdown}

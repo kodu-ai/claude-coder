@@ -11,10 +11,6 @@ export type AmplitudeWebviewMessage = {
 		| "AuthStart"
 		| "ReferralProgram"
 		| "ExtensionCreditAddOpen"
-		| "TrialOfferView"
-		| "TrialOfferStart"
-		| "TrialUpsellView"
-		| "TrialUpsellStart"
 		| "ExtensionCreditAddSelect"
 		| "OfferwallView"
 	key?: string
@@ -37,11 +33,6 @@ type OpenExternalLink = {
 	url: string
 }
 
-type FreeTrial = {
-	type: "freeTrial"
-	fp: string
-}
-
 type ApiConfigurationMessage = {
 	type: "apiConfiguration"
 	apiConfiguration: NonNullable<ApiConfiguration>
@@ -60,12 +51,6 @@ type QuickstartMessage = {
 type experimentalTerminalMessage = {
 	type: "experimentalTerminal"
 	bool: boolean
-}
-
-type exportBugMessage = {
-	type: "exportBug"
-	description: string
-	reproduction: string
 }
 
 type technicalBackgroundMessage = {
@@ -130,11 +115,9 @@ export type WebviewMessage =
 	| updateGlobalStateMessage
 	| ToolFeedbackAllMessage
 	| ToolFeedbackMessage
-	| exportBugMessage
 	| experimentalTerminalMessage
 	| AmplitudeWebviewMessage
 	| OpenExternalLink
-	| FreeTrial
 	| technicalBackgroundMessage
 	| autoCloseTerminalMessage
 	| ApiConfigurationMessage

@@ -1,18 +1,17 @@
-import { Anthropic } from "@anthropic-ai/sdk"
-import { AxiosError } from "axios"
-import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { KoduError, koduSSEResponse } from "../../shared/kodu"
-import { amplitudeTracker } from "../../utils/amplitude"
-import { BASE_SYSTEM_PROMPT } from "./prompts/base-system"
-import {
-	CodingBeginnerSystemPromptSection,
-	ExperiencedDeveloperSystemPromptSection,
-	NonTechnicalSystemPromptSection,
-	SYSTEM_PROMPT,
-} from "./system-prompt"
-import { UserContent } from "./types"
-import { getCwd } from "./utils"
+import { Anthropic } from '@anthropic-ai/sdk'
+import { Message } from '@anthropic-ai/sdk/resources/messages.mjs'
+import { AxiosError } from 'axios'
+import { ApiConfiguration, ApiHandler, buildApiHandler } from '../../api'
+import { ExtensionProvider } from '../../providers/claude-coder/ClaudeCoderProvider'
+import { V1ClaudeMessage, isV1ClaudeMessage } from '../../shared/ExtensionMessage'
+import { koduModels } from '../../shared/api'
+import { KoduError, koduSSEResponse } from '../../shared/kodu'
+import { findLast } from '../../utils'
+import { amplitudeTracker } from '../../utils/amplitude'
+import { truncateHalfConversation } from '../../utils/context-management'
+import { BASE_SYSTEM_PROMPT, criticalMsg } from './prompts/base-system'
+import { UserContent } from './types'
+import { getCwd } from './utils'
 
 /**
  *
@@ -22,13 +21,13 @@ import { getCwd } from "./utils"
  */
 export const anthropicMessageToTokens = (message: Anthropic.MessageParam) => {
 	const content = message.content
-	if (typeof content === "string") {
+	if (typeof content === 'string') {
 		return Math.round(content.length / 2)
 	}
-	const textBlocks = content.filter((block) => block.type === "text")
-	const text = textBlocks.map((block) => block.text).join("")
+	const textBlocks = content.filter((block) => block.type === 'text')
+	const text = textBlocks.map((block) => block.text).join('')
 	const textTokens = Math.round(text.length / 3)
-	const imgBlocks = content.filter((block) => block.type === "image")
+	const imgBlocks = content.filter((block) => block.type === 'image')
 	const imgTokens = imgBlocks.length * 2000
 	return Math.round(textTokens + imgTokens)
 }
@@ -98,13 +97,6 @@ export class ApiManager {
 		tempature: number = 0,
 		top_p: number = 0.9,
 	): AsyncGenerator<koduSSEResponse> {
-		console.debug(
-			`[DEBUG] createBaseMessageStream with systemPrompt: ${systemPrompt}, messages: ${JSON.stringify(
-				messages,
-				null,
-				2,
-			)}, abortSignal: ${abortSignal}, tempature: ${tempature}, top_p: ${top_p}`,
-		)
 		try {
 			const stream = await this.api.createBaseMessageStream(systemPrompt, messages, abortSignal, tempature, top_p)
 
@@ -164,19 +156,8 @@ export class ApiManager {
 		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? 'normal'
 		const technicalBackground =
 			(await this.providerRef.deref()?.getStateManager()?.getState())?.technicalBackground ?? 'no-technical'
-		let systemPrompt = await SYSTEM_PROMPT()
-		systemPrompt += `
-		===
-USER PERSONALIZED INSTRUCTIONS
+		const isImageSupported = koduModels[this.getModelId()].supportsImages
 
-${
-	technicalBackground === 'no-technical'
-		? NonTechnicalSystemPromptSection
-		: technicalBackground === 'technical'
-			? ExperiencedDeveloperSystemPromptSection
-			: CodingBeginnerSystemPromptSection
-}
-		`
 		let customInstructions: string | undefined
 		if (this.customInstructions && this.customInstructions.trim()) {
 			customInstructions += `
@@ -189,12 +170,98 @@ The following additional instructions are provided by the user. They should be f
 ${this.customInstructions.trim()}
 `
 		}
-		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), true, technicalBackground)
+		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), !!isImageSupported, technicalBackground)
+
+		const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
+		let apiMetrics: NonNullable<V1ClaudeMessage['apiMetrics']> = {
+			inputTokens: 0,
+			outputTokens: 0,
+			inputCacheRead: 0,
+			inputCacheWrite: 0,
+			cost: 0,
+		}
+		// If the last API request's total token usage is close to the context window, truncate the conversation history to free up space for the new request
+		const lastApiReqFinished = findLast(claudeMessages!, (m) => m.say === 'api_req_finished')
+		if (lastApiReqFinished && lastApiReqFinished.text) {
+			const {
+				tokensIn,
+				tokensOut,
+				cacheWrites,
+				cacheReads,
+			}: { tokensIn?: number; tokensOut?: number; cacheWrites?: number; cacheReads?: number } = JSON.parse(
+				lastApiReqFinished.text,
+			)
+			apiMetrics = {
+				inputCacheRead: cacheReads || 0,
+				inputCacheWrite: cacheWrites || 0,
+				inputTokens: tokensIn || 0,
+				outputTokens: tokensOut || 0,
+				cost: 0,
+			}
+		} else {
+			// reverse claude messages to find the last message that is typeof v1 and has apiMetrics
+			const reversedClaudeMessages = claudeMessages?.slice().reverse()
+			const lastV1Message = reversedClaudeMessages?.find((m) => isV1ClaudeMessage(m) && m?.apiMetrics)
+			if (lastV1Message) {
+				apiMetrics = (lastV1Message as V1ClaudeMessage)?.apiMetrics!
+			}
+		}
 		const isFirstRequest = this.providerRef.deref()?.getKoduDev()?.isFirstMessage ?? false
 		// on first request, we need to get the environment details with details of the current task and folder
 		const environmentDetails = await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
 		if (isFirstRequest && this.providerRef.deref()?.getKoduDev()) {
 			this.providerRef.deref()!.getKoduDev()!.isFirstMessage = false
+		}
+		// every 4 messages, add a critical message and on first message
+		const shouldAddCriticalMsg = apiConversationHistory.length % 4 === 0 || apiConversationHistory.length === 1
+		const lastMessage = apiConversationHistory[apiConversationHistory.length - 1]
+
+		if (typeof lastMessage.content === 'string') {
+			lastMessage.content = [
+				{
+					type: 'text',
+					text: lastMessage.content,
+				},
+			] satisfies Message['content']
+		}
+		// Add critical messages if needed
+		if (shouldAddCriticalMsg) {
+			if (Array.isArray(lastMessage.content)) {
+				lastMessage.content.push({
+					type: 'text',
+					text: criticalMsg,
+				})
+			}
+		}
+		if (Array.isArray(lastMessage.content) && environmentDetails) {
+			lastMessage.content.push({
+				text: environmentDetails,
+				type: 'text',
+			})
+		}
+		// override the api conversation history with the updated messages
+		await this.providerRef
+			.deref()
+			?.getKoduDev()
+			?.getStateManager()
+			.overwriteApiConversationHistory(apiConversationHistory)
+
+		const totalTokens =
+			(apiMetrics.inputTokens || 0) +
+			(apiMetrics.outputTokens || 0) +
+			(apiMetrics.inputCacheWrite || 0) +
+			(apiMetrics.inputCacheRead || 0) +
+			anthropicMessageToTokens(apiConversationHistory.at(-1)!)
+		const contextWindow = this.api.getModel().info.contextWindow
+
+		if (totalTokens >= contextWindow * 0.9) {
+			const truncatedMessages = truncateHalfConversation(apiConversationHistory)
+			apiConversationHistory = truncatedMessages
+			await this.providerRef
+				.deref()
+				?.getKoduDev()
+				?.getStateManager()
+				.overwriteApiConversationHistory(truncatedMessages)
 		}
 
 		try {
@@ -204,8 +271,6 @@ ${this.customInstructions.trim()}
 				creativeMode,
 				abortSignal,
 				customInstructions,
-				await this.providerRef.deref()?.getKoduDev()?.getStateManager().state.memory,
-				environmentDetails,
 			)
 
 			for await (const chunk of stream) {

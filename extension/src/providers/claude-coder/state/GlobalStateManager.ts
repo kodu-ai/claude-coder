@@ -6,7 +6,6 @@ type User = {
 	email: string
 	credits: number
 	id: string
-	isVisitor: boolean
 }
 
 type CreativeMode = "creative" | "normal" | "deterministic"

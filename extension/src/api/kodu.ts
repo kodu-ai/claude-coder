@@ -1,8 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import axios, { CancelTokenSource } from "axios"
-import * as vscode from "vscode"
 import { z } from "zod"
-import { ApiHandler, ApiHandlerMessageResponse, withoutImageData } from "."
+import { ApiHandler, withoutImageData } from "."
 import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduModels } from "../shared/api"
 import {
 	KODU_ERROR_CODES,
@@ -18,9 +17,8 @@ import {
 	koduErrorMessages,
 	koduSSEResponse,
 } from "../shared/kodu"
-import { healMessages } from "./auto-heal"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
-import { USER_TASK_HISTORY_PROMPT } from "../agent/v1/system-prompt"
+
 const temperatures = {
 	creative: {
 		top_p: 0.9,
@@ -48,7 +46,6 @@ export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 			credits: Number(response.data.credits) ?? 0,
 			id: response.data.id as string,
 			email: response.data.email as string,
-			isVisitor: response.data.isVisitor as boolean,
 		}
 	}
 	return null
@@ -82,6 +79,9 @@ const bugReportSchema = z.object({
 	claudeMessage: z.string(),
 })
 let previousSystemPrompt = ""
+
+// const findLastMessageTextMsg
+
 export class KoduHandler implements ApiHandler {
 	private options: ApiHandlerOptions
 	private cancelTokenSource: CancelTokenSource | null = null
@@ -163,6 +163,8 @@ export class KoduHandler implements ApiHandler {
 			getKoduInferenceUrl(),
 			{
 				...requestBody,
+				temperature: 0.1,
+				top_p: 0.9,
 			},
 			{
 				headers: {
@@ -238,142 +240,74 @@ export class KoduHandler implements ApiHandler {
 		environmentDetails?: string
 	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
-		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming
-		console.log(`creativeMode: ${creativeMode}`)
 		const creativitySettings = temperatures[creativeMode ?? "normal"]
-		// check if the root of the folder has .kodu file if so read the content and use it as the system prompt
-		let dotKoduFileContent = ""
-		const workspaceFolders = vscode.workspace.workspaceFolders
-		if (workspaceFolders) {
-			for (const folder of workspaceFolders) {
-				const dotKoduFile = vscode.Uri.joinPath(folder.uri, ".kodu")
-				try {
-					const fileContent = await vscode.workspace.fs.readFile(dotKoduFile)
-					dotKoduFileContent = Buffer.from(fileContent).toString("utf8")
-					console.log(".kodu file content:", dotKoduFileContent)
-					break // Exit the loop after finding and reading the first .kodu file
-				} catch (error) {
-					console.log(`No .kodu file found in ${folder.uri.fsPath}`)
-				}
-			}
-		}
-		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = [
-			{ text: systemPrompt.trim(), type: "text" },
-		]
-		if (previousSystemPrompt !== systemPrompt) {
-			console.error("System prompt changed")
-			console.error("Previous system prompt:", previousSystemPrompt)
-			console.error("Current system prompt:", systemPrompt)
-			console.error(`Length difference: ${previousSystemPrompt.length - systemPrompt.length}`)
-		}
-		previousSystemPrompt = systemPrompt
+
+		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = []
+
+		// Add system prompt
+		system.push({
+			text: systemPrompt.trim(),
+			type: "text",
+		})
+
+		// Add custom instructions
 		if (customInstructions && customInstructions.trim()) {
 			system.push({
 				text: customInstructions,
 				type: "text",
-				cache_control: { type: "ephemeral" },
 			})
-		} else {
-			system[0].cache_control = { type: "ephemeral" }
 		}
-		system.push({
-			cache_control: {
-				type: "ephemeral",
-			},
-			text: environmentDetails ?? "No environment details provided",
-			type: "text",
+
+		// Mark the last block with cache_control (First Breakpoint)
+		system[system.length - 1].cache_control = { type: "ephemeral" }
+
+		// Add environment details
+		if (environmentDetails && environmentDetails.trim()) {
+			system.push({
+				text: environmentDetails,
+				type: "text",
+				cache_control: { type: "ephemeral" }, // Second Breakpoint
+			})
+		}
+
+		const userMsgIndices = messages.reduce(
+			(acc, msg, index) => (msg.role === "user" ? [...acc, index] : acc),
+			[] as number[]
+		)
+		const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
+		const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
+		// Prepare messages up to the last user message
+		const messagesToCache: Anthropic.Messages.MessageParam[] = messages.map((message, index) => {
+			if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
+				return {
+					...message,
+					content:
+						typeof message.content === "string"
+							? [
+									{
+										type: "text",
+										text: message.content,
+										cache_control: { type: "ephemeral" },
+									},
+							  ]
+							: message.content.map((content, contentIndex) =>
+									contentIndex === message.content.length - 1
+										? { ...content, cache_control: { type: "ephemeral" } }
+										: content
+							  ),
+				}
+			}
+			return message
 		})
 
-		// every 4 messages, we should add a critical message to the last user message and on the first user message
-		const lengthDivdedByFour = messages.length % 4 === 0 || messages.length === 1
-
-		switch (modelId) {
-			case "claude-3-5-sonnet-20240620":
-			case "claude-3-opus-20240229":
-			case "claude-3-haiku-20240307":
-				console.log("Matched anthropic cache model")
-				const userMsgIndices = messages.reduce(
-					(acc, msg, index) => (msg.role === "user" ? [...acc, index] : acc),
-					[] as number[]
-				)
-				const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
-				const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
-				requestBody = {
-					model: modelId,
-					max_tokens: this.getModel().info.maxTokens,
-					system,
-					messages: healMessages(messages).map((message, index) => {
-						if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
-							if (index === lastUserMsgIndex && lengthDivdedByFour) {
-								const criticalMsg = `<most_important_context>
-								If you want to run a server, you must use the server_runner_tool tool, do not use the execute_command tool to start a server.
-								SUPER CRITICAL YOU MUST NEVER FORGET THIS:
-								You shouldn't never call read_file again, unless you don't have the content of the file in the conversation history, if you called write_to_file, the content you sent in <write_to_file> is the latest, you should never call read_file again unless the content is gone from the conversation history.
-								- Before writing to a file you must first write the following questions and answers:
-								- Did i read the file before writing to it? (yes/no)
-								- Did i write to the file before? (yes/no)
-								- Did the user provide the content of the file? (yes/no)
-								- Do i have the last content of the file either from the user or from a previous read_file tool use or from write_to_file tool? Yes write_to_file | Yes read_file | Yes user provided | No i don't have the last content of the file
-								
-								Think about in your <thinking> tags and ask yourself the question: "Do I really need to read the file again?".
-								SUPER SUPER CRITICAL:
-								You should never truncate the content of a file, always return the complete content of the file in your, even if you didn't modify it.
-								</most_important_context>`
-								if (typeof message.content === "string") {
-									// add environment details to the last user message
-									return {
-										...message,
-										content: [
-											{
-												text: criticalMsg,
-												type: "text",
-											},
-											{
-												text: message.content,
-												type: "text",
-												cache_control: { type: "ephemeral" },
-											},
-										],
-									}
-								} else {
-									message.content.push({
-										text: criticalMsg,
-										type: "text",
-									})
-								}
-							}
-							return {
-								...message,
-								content:
-									typeof message.content === "string"
-										? [
-												{
-													type: "text",
-													text: message.content,
-													cache_control: { type: "ephemeral" },
-												},
-										  ]
-										: message.content.map((content, contentIndex) =>
-												contentIndex === message.content.length - 1
-													? { ...content, cache_control: { type: "ephemeral" } }
-													: content
-										  ),
-							}
-						}
-						return message
-					}),
-				}
-				break
-			default:
-				console.log("Matched default model")
-				requestBody = {
-					model: modelId,
-					max_tokens: this.getModel().info.maxTokens,
-					system: [{ text: systemPrompt, type: "text" }],
-					messages,
-					...creativitySettings,
-					// temperature: 0,
-				}
+		// Build request body
+		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
+			model: modelId,
+			max_tokens: this.getModel().info.maxTokens,
+			system,
+			messages: messagesToCache,
+			temperature: 0.1,
+			top_p: 0.9,
 		}
 		this.cancelTokenSource = axios.CancelToken.source()
 
@@ -536,15 +470,6 @@ export class KoduHandler implements ApiHandler {
 		)
 
 		return response.data
-	}
-
-	async sendBugReportRequest(bugReport: z.infer<typeof bugReportSchema>) {
-		await axios.post(getKoduBugReportUrl(), bugReport, {
-			headers: {
-				"Content-Type": "application/json",
-				"x-api-key": this.options.koduApiKey || "",
-			},
-		})
 	}
 
 	async sendSummarizeConversationRequest(messages: Anthropic.Messages.MessageParam[]): Promise<SummaryResponseDto> {

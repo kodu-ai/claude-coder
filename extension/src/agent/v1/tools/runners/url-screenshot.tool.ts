@@ -48,7 +48,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			)
 			const browserManager = this.koduDev.browserManager
 			await browserManager.launchBrowser()
-			const { buffer } = await browserManager.urlToScreenshotAndLogs(url)
+			const { buffer, logs } = await browserManager.urlToScreenshotAndLogs(url)
 			await browserManager.closeBrowser()
 
 			const relPath = `${url.replace(/[^a-zA-Z0-9]/g, "_")}-${Date.now()}.jpeg`
@@ -59,12 +59,20 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			await fs.writeFile(absolutePath, buffer)
 
 			await this.relaySuccessfulResponse({ absolutePath, imageToBase64 })
-			const uri = vscode.Uri.file(absolutePath)
-			// await vscode.commands.executeCommand("vscode.open", uri)
 
 			const textBlock: Anthropic.TextBlockParam = {
 				type: "text",
-				text: `The screenshot was saved to file path: ${absolutePath}.`,
+				text: `
+				The screenshot was saved to file path: ${absolutePath}.
+				Here is the updated browser logs, THIS IS THE ONLY RELEVANT INFORMATION, all previous logs are irrelevant:
+				<browser_logs>
+				You should only care about mission critical errors, you shouldn't care about warnings or info logs.
+				YOU SHOULD ONLY care about errors that mention there is a clear error like a missing import or a syntax error.
+				<log>
+				${logs}
+				</log>
+				</browser_logs>
+				`,
 			}
 			const imageBlock: Anthropic.ImageBlockParam = {
 				type: "image",
@@ -87,7 +95,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			return [textBlock, imageBlock]
+			return [imageBlock, textBlock]
 		} catch (err) {
 			this.params.ask(
 				"tool",

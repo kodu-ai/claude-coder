@@ -23,12 +23,12 @@ import Announcement from "../Announcement/Announcement"
 import HistoryPreview from "../HistoryPreview/HistoryPreview"
 import KoduPromo from "../KoduPromo/KoduPromo"
 import TaskHeader from "../TaskHeader/TaskHeader"
+import LoginRequiredDialog, { useDialogClosePromise } from "../dialogs/login-required-dialog"
 import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
 import ButtonSection from "./ButtonSection"
 import ChatMessages from "./ChatMessages"
 import InputArea from "./InputArea"
 import ChatScreen from "./chat-screen"
-import SummarizationThresholdSlider from '../SummarizationThresholdSlider'
 
 export const attachementsAtom = atom<Resource[]>([])
 
@@ -80,6 +80,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
 	const [attachements, setAttachements] = useAtom(attachementsAtom)
 	const setSyntaxHighlighterStyleAtom = useSetAtom(SyntaxHighlighterAtom)
+	const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
 
 	// Refs
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
@@ -96,6 +97,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 			if (lastAsk && lastAsk.type === "ask" && lastAsk.ask === "tool") {
 				const tool = JSON.parse(lastAsk.text || "{}") as ChatTool
 				if (tool.approvalState === "pending" || tool.approvalState === "loading") {
+					if (tool.tool === "ask_followup_question") return false
 					return true
 				}
 			}
@@ -205,14 +207,22 @@ const ChatView: React.FC<ChatViewProps> = ({
 		return () => clearTimeout(timer)
 	}, [visibleMessages])
 
+	const { promise: loginDialogClosePromise, resolvePromise: resolveLoginDialogClose } = useDialogClosePromise()
+
 	// Handle sending messages
 	const handleSendMessage = useCallback(
-		(input?: string) => {
+		async (input?: string) => {
+			if (!user) {
+				setIsLoginDialogOpen(true)
+				const loggedIn = await loginDialogClosePromise
+				if (!loggedIn) {
+					return // User closed the dialog without logging in
+				}
+			}
 			if (shouldOpenOutOfCreditDialog) {
 				openOutOfCreditDialog()
 				return
 			}
-			console.log(`inputValue: ${inputValue}`)
 			let text = inputValue?.trim()
 			if (!!input && input.length > 1) {
 				text = input?.trim()
@@ -239,7 +249,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 				setEnableButtons(false)
 			}
 		},
-		[inputValue, selectedImages, messages.length, claudeAsk, user, shouldOpenOutOfCreditDialog]
+		[inputValue, selectedImages, messages.length, claudeAsk, user, shouldOpenOutOfCreditDialog, loginDialogClosePromise]
 	)
 
 	// Handle Claude ask response
@@ -260,17 +270,17 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Handle paste
 
 	const handlePaste = async (e: React.ClipboardEvent) => {
-		if (shouldDisableImages) {
-			e.preventDefault()
-			return
-		}
-
 		const items = e.clipboardData.items
 		const acceptedTypes = ["png", "jpeg", "webp"] // supported by anthropic and openrouter (jpg is just a file extension but the image will be recognized as jpeg)
 		const imageItems = Array.from(items).filter((item) => {
 			const [type, subtype] = item.type.split("/")
 			return type === "image" && acceptedTypes.includes(subtype)
 		})
+		if (shouldDisableImages && imageItems.length > 0) {
+			e.preventDefault()
+			return
+		}
+
 		if (imageItems.length > 0) {
 			e.preventDefault()
 			const imagePromises = imageItems.map((item) => {
@@ -714,8 +724,14 @@ const ChatView: React.FC<ChatViewProps> = ({
 					handlePaste={handlePaste}
 				/>
 			</div>
+			<LoginRequiredDialog
+				isOpen={isLoginDialogOpen}
+				onClose={(loggedIn) => {
+					setIsLoginDialogOpen(false)
+					resolveLoginDialogClose(true)
+				}}
+			/>
 		</div>
 	)
 }
-
 export default React.memo(ChatView)

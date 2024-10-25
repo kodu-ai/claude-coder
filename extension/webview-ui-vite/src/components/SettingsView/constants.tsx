@@ -1,10 +1,11 @@
 import { koduModels, KoduModels } from "../../../../src/shared/api"
+import { Badge } from "../ui/badge"
 import { ExperimentalFeature } from "./types"
 
 export const models: Record<
 	keyof KoduModels,
 	KoduModels[keyof KoduModels] & {
-		label: string
+		label: string | React.ReactNode
 		disabled?: boolean
 		comingSoon?: boolean
 		isRecommended?: boolean
@@ -34,12 +35,7 @@ export const experimentalFeatures: ExperimentalFeature[] = [
 		description: "Claude will automatically try to solve tasks without asking for permission",
 	},
 	{
-		id: "experimentalTerminal",
-		label: "Experimental Terminal Shell",
-		description: "Enable Claude to run shell commands in the terminal directly",
-	},
-	{
-		id: "lastShownAnnouncementId",
+		id: "apiModelId",
 		label: "One Click Deployment",
 		description: "Deploy your projects with a single click",
 		disabled: true,
