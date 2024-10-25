@@ -1,88 +1,52 @@
-import { EventEmitter } from "events"
-import pWaitFor from "p-wait-for"
-import stripAnsi from "strip-ansi"
-import * as vscode from "vscode"
 import { arePathsEqual } from "@/utils"
 import { TerminalProcess } from "./terminal-process"
-import { TerminalRegistry } from "./terminal-resigtry"
+import { TerminalRegistry } from "./terminal-registry"
+import { IDisposable, ITerminal, ITerminalWindow, IUri } from "@/interfaces"
+import { TerminalInfo, TerminalProcessResultPromise } from "@/types"
 
-/*
-TerminalManager:
-- Creates/reuses terminals
-- Now supports multiple dev servers
-- Assigns names to terminals for identification
-- Runs commands via runCommand(), returning a TerminalProcessResultPromise
-- Handles shell integration events
-
-TerminalProcess extends EventEmitter and implements Promise:
-- Emits 'line' events with output while promise is pending
-- process.continue() resolves promise and stops event emission
-- Allows real-time output handling or background execution
-- Keeps track of output, supports retrieving outputs, including partial outputs
-- Supports tracking retrieved/unretrieved outputs
-- Remembers terminal output even after retrieval
-
-Enhancements:
-- Improved output parsing to handle different shell prompts and themes
-- Robust handling of multiple terminals
-- Added option to auto-close terminal after command execution
-*/
-
-declare module "vscode" {
-	interface Terminal {
-		// @ts-expect-error
-		shellIntegration?: {
-			cwd?: vscode.Uri
-			executeCommand?: (command: string) => {
-				read: () => AsyncIterable<string>
-			}
+// Merge TerminalProcess and Promise into a single object
+export function mergePromise(process: TerminalProcess, promise: Promise<void>): TerminalProcessResultPromise {
+	const nativePromisePrototype = (async () => {})().constructor.prototype
+	const descriptors = ["then", "catch", "finally"].map(
+		(property) => [property, Reflect.getOwnPropertyDescriptor(nativePromisePrototype, property)] as const
+	)
+	for (const [property, descriptor] of descriptors) {
+		if (descriptor) {
+			const value = descriptor.value.bind(promise)
+			Reflect.defineProperty(process, property, { ...descriptor, value })
 		}
 	}
-	interface Window {
-		onDidStartTerminalShellExecution?: (
-			listener: (e: any) => any,
-			thisArgs?: any,
-			disposables?: vscode.Disposable[]
-		) => vscode.Disposable
-	}
+	return process as TerminalProcessResultPromise
 }
-
-export interface TerminalInfo {
-	terminal: vscode.Terminal
-	busy: boolean
-	lastCommand: string
-	id: number
-	name?: string // Added optional name property
-}
-
-export interface DevServerInfo {
-	terminalInfo: TerminalInfo
-	url: string | null
-}
-
-// TerminalRegistry class to manage terminals
 
 export class TerminalManager {
 	private terminalIds: Set<number> = new Set()
 	private processes: Map<number, TerminalProcess> = new Map()
-	private disposables: vscode.Disposable[] = []
+	private disposables: IDisposable[] = []
+	private terminalWindow: ITerminalWindow
 
-	constructor() {
-		let disposable: vscode.Disposable | undefined
+	constructor(terminalWindow: ITerminalWindow) {
+		this.terminalWindow = terminalWindow
+		TerminalRegistry.initialize(terminalWindow)
+
+		// Initialize shell execution listener if available
 		try {
-			disposable = (vscode.window as vscode.Window).onDidStartTerminalShellExecution?.(async (e) => {
-				e?.execution?.read()
-			})
+			const window = this.terminalWindow as any
+			if (window.onDidStartTerminalShellExecution) {
+				const disposable = window.onDidStartTerminalShellExecution(async (e: any) => {
+					e?.execution?.read()
+				})
+				if (disposable) {
+					this.disposables.push(disposable)
+				}
+			}
 		} catch (error) {
-			// Handle error if needed
-		}
-		if (disposable) {
-			this.disposables.push(disposable)
+			console.warn("Shell execution events not supported in this environment")
 		}
 
 		// Listen for terminal close events
-		const closeDisposable = vscode.window.onDidCloseTerminal((closedTerminal) => {
-			const terminalInfo = TerminalRegistry.getAllTerminals().find((t) => t.terminal === closedTerminal)
+		const closeDisposable = this.terminalWindow.onDidCloseTerminal((event) => {
+			const terminalInfo = TerminalRegistry.getAllTerminals().find((t) => t.terminal === event.terminal)
 			if (terminalInfo) {
 				this.terminalIds.delete(terminalInfo.id)
 				this.processes.delete(terminalInfo.id)
@@ -128,7 +92,18 @@ export class TerminalManager {
 			process.waitForShellIntegration = false
 			process.run(terminalInfo.terminal, command)
 		} else {
-			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 10000 }).finally(() => {
+			this.waitForShellIntegration(terminalInfo, process, command)
+		}
+
+		return mergePromise(process, promise)
+	}
+
+	private async waitForShellIntegration(terminalInfo: TerminalInfo, process: TerminalProcess, command: string) {
+		const timeout = 10000
+		const startTime = Date.now()
+
+		while (Date.now() - startTime < timeout) {
+			if (terminalInfo.terminal.shellIntegration !== undefined) {
 				const existingProcess = this.processes.get(terminalInfo.id)
 				if (existingProcess && existingProcess.waitForShellIntegration) {
 					existingProcess.waitForShellIntegration = false
@@ -141,14 +116,24 @@ export class TerminalManager {
 						existingProcess.emit("no_shell_integration")
 					}
 				}
-			})
+				return
+			}
+			await new Promise((resolve) => setTimeout(resolve, 100))
 		}
 
-		return mergePromise(process, promise)
+		// Timeout reached, fallback to basic terminal
+		const existingProcess = this.processes.get(terminalInfo.id)
+		if (existingProcess && existingProcess.waitForShellIntegration) {
+			existingProcess.waitForShellIntegration = false
+			terminalInfo.terminal.sendText(command, true)
+			existingProcess.emit("completed")
+			existingProcess.emit("continue")
+			existingProcess.emit("no_shell_integration")
+		}
 	}
 
 	async getOrCreateTerminal(cwd: string, name?: string): Promise<TerminalInfo> {
-		// Find available terminal from our pool first (created for this task)
+		// Find available terminal from our pool first
 		const availableTerminal = TerminalRegistry.getAllTerminals().find((t) => {
 			if (t.busy) {
 				return false
@@ -156,12 +141,13 @@ export class TerminalManager {
 			if (name && t.name === name) {
 				return true
 			}
-			let terminalCwd = t.terminal.shellIntegration?.cwd // One of cline's commands could have changed the cwd of the terminal
+			let terminalCwd = t.terminal.shellIntegration?.cwd
 			if (!terminalCwd) {
 				return false
 			}
-			return arePathsEqual(vscode.Uri.file(cwd).fsPath, terminalCwd?.fsPath)
+			return arePathsEqual(cwd, terminalCwd?.fsPath)
 		})
+
 		if (availableTerminal) {
 			this.terminalIds.add(availableTerminal.id)
 			return availableTerminal
@@ -208,11 +194,6 @@ export class TerminalManager {
 		return process ? process.isHot : false
 	}
 
-	/**
-	 * Closes the terminal with the given ID.
-	 * @param id The unique ID of the terminal to close.
-	 * @returns True if the terminal was found and closed, false otherwise.
-	 */
 	closeTerminal(id: number): boolean {
 		if (!this.terminalIds.has(id)) {
 			console.warn(`Terminal with ID ${id} does not exist or is already closed.`)
@@ -221,7 +202,6 @@ export class TerminalManager {
 
 		const closed = TerminalRegistry.closeTerminal(id)
 		if (closed) {
-			// Remove the terminal from tracking
 			this.terminalIds.delete(id)
 			this.processes.delete(id)
 			console.log(`Terminal with ID ${id} has been closed.`)
@@ -232,9 +212,6 @@ export class TerminalManager {
 		return closed
 	}
 
-	/**
-	 * Closes all managed terminals.
-	 */
 	closeAllTerminals(): void {
 		for (const id of Array.from(this.terminalIds)) {
 			this.closeTerminal(id)
@@ -248,29 +225,4 @@ export class TerminalManager {
 		this.disposables.forEach((disposable) => disposable.dispose())
 		this.disposables = []
 	}
-}
-
-export interface TerminalProcessEvents {
-	line: [line: string]
-	continue: []
-	completed: []
-	error: [error: Error]
-	no_shell_integration: []
-}
-
-export type TerminalProcessResultPromise = TerminalProcess & Promise<void>
-
-// Merge TerminalProcess and Promise into a single object
-export function mergePromise(process: TerminalProcess, promise: Promise<void>): TerminalProcessResultPromise {
-	const nativePromisePrototype = (async () => {})().constructor.prototype
-	const descriptors = ["then", "catch", "finally"].map(
-		(property) => [property, Reflect.getOwnPropertyDescriptor(nativePromisePrototype, property)] as const
-	)
-	for (const [property, descriptor] of descriptors) {
-		if (descriptor) {
-			const value = descriptor.value.bind(promise)
-			Reflect.defineProperty(process, property, { ...descriptor, value })
-		}
-	}
-	return process as TerminalProcessResultPromise
 }

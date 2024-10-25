@@ -1,6 +1,11 @@
+import { TerminalManager } from "@/integrations"
+
 export interface IConsumer {
 	filesAdapter: IConsumerFilesAdapter
+
 	get appPaths(): IAppPaths
+
+	terminalManager: TerminalManager
 }
 
 export interface IAppPaths {

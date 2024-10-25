@@ -1,12 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk"
 import delay from "delay"
 import { serializeError } from "serialize-error"
-import { AdvancedTerminalManager } from "@/integrations/terminal"
 import { ToolResponse } from "@/types"
 import { getCwd } from "@/utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "@/types"
-import { ExecaTerminalManager } from "@/integrations/terminal/execa-terminal-manager"
+import { ExecaTerminalManager, TerminalManager } from "@/integrations"
 import { stateService } from "@/singletons"
 
 export const COMMAND_OUTPUT_DELAY = 100 // milliseconds
@@ -46,7 +45,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 
 	private async executeShellTerminal(command: string): Promise<ToolResponse> {
 		const { terminalManager } = this.koduDev
-		if (!(terminalManager instanceof AdvancedTerminalManager)) {
+		if (!(terminalManager instanceof TerminalManager)) {
 			throw new Error("AdvancedTerminalManager is not available")
 		}
 		const { ask, updateAsk, say, returnEmptyStringOnSuccess } = this.params

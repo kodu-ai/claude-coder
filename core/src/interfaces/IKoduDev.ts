@@ -5,7 +5,7 @@ import { IBrowserManager } from "./IBrowserManager"
 import { IDiagnosticsHandler } from "./IDiagnosticsHandler"
 import { BrowserService } from "@/services"
 import { StateService } from "@/singletons/state/state.service"
-import { AdvancedTerminalManager } from "@/integrations"
+import { TerminalManager } from "@/integrations"
 import { KoduApiService } from "@/singletons"
 
 /**
@@ -74,7 +74,7 @@ export interface IKoduDev {
 	getDiagnosticsHandler(): IDiagnosticsHandler
 
 	// @TODO: change back to Service?
-	terminalManager: AdvancedTerminalManager
+	terminalManager: TerminalManager
 
 	browserService: BrowserService
 }

@@ -1,13 +1,20 @@
-import * as vscode from "vscode"
-import { DevServerInfo, TerminalInfo } from "./terminal-manager"
+import { DevServerInfo, TerminalInfo } from "@/types"
+import { ITerminal, ITerminalWindow, IUri } from "@/interfaces"
 
 export class TerminalRegistry {
 	private static terminals: TerminalInfo[] = []
 	private static nextTerminalId = 1
-	private static devServers: DevServerInfo[] = [] // Now supports multiple dev servers
+	private static devServers: DevServerInfo[] = []
+	private static terminalOutputMap: Map<number, string[]> = new Map()
+	private static outputBuffers: Map<number, string> = new Map()
+	private static window: ITerminalWindow
 
-	static createTerminal(cwd?: string | vscode.Uri | undefined, name?: string): TerminalInfo {
-		const terminal = vscode.window.createTerminal({
+	static initialize(window: ITerminalWindow) {
+		this.window = window
+	}
+
+	static createTerminal(cwd?: string | IUri | undefined, name?: string): TerminalInfo {
+		const terminal = this.window.createTerminal({
 			cwd,
 			name: name || "Kodu.AI",
 		})
@@ -19,7 +26,33 @@ export class TerminalRegistry {
 			name,
 		}
 		this.terminals.push(newInfo)
+		this.terminalOutputMap.set(newInfo.id, [])
+		this.outputBuffers.set(newInfo.id, "")
 		return newInfo
+	}
+
+	static addOutput(terminalId: number, output: string, flush: boolean = false) {
+		let buffer = this.outputBuffers.get(terminalId) || ""
+		buffer += output
+
+		if (flush || buffer.includes("\n")) {
+			const lines = buffer.split("\n")
+			const completeLines = lines.slice(0, -1)
+			const remainingBuffer = lines[lines.length - 1]
+
+			if (completeLines.length > 0) {
+				const logs = this.terminalOutputMap.get(terminalId) || []
+				logs.push(...completeLines.filter((line) => line.trim()))
+				this.terminalOutputMap.set(terminalId, logs)
+
+				const devServer = this.getDevServer(terminalId)
+				if (devServer) {
+					devServer.logs = logs
+				}
+			}
+
+			this.outputBuffers.set(terminalId, remainingBuffer)
+		}
 	}
 
 	static getTerminal(id: number): TerminalInfo | undefined {
@@ -31,7 +64,6 @@ export class TerminalRegistry {
 		return terminalInfo
 	}
 
-	// Added method to get terminal by name
 	static getTerminalByName(name: string): TerminalInfo | undefined {
 		const terminalInfo = this.terminals.find((t) => t.name === name)
 		if (terminalInfo && this.isTerminalClosed(terminalInfo.terminal)) {
@@ -41,11 +73,6 @@ export class TerminalRegistry {
 		return terminalInfo
 	}
 
-	/**
-	 * Closes the terminal with the given ID.
-	 * @param id The unique ID of the terminal to close.
-	 * @returns True if the terminal was found and closed, false otherwise.
-	 */
 	static closeTerminal(id: number): boolean {
 		const terminalInfo = this.getTerminal(id)
 		if (terminalInfo) {
@@ -65,8 +92,14 @@ export class TerminalRegistry {
 
 	static removeTerminal(id: number) {
 		this.terminals = this.terminals.filter((t) => t.id !== id)
-		// Remove from devServers if exists
 		this.devServers = this.devServers.filter((ds) => ds.terminalInfo.id !== id)
+		this.terminalOutputMap.delete(id)
+		this.outputBuffers.delete(id)
+		const terminal = this.getTerminal(id)
+		if (terminal && !this.isTerminalClosed(terminal.terminal)) {
+			terminal.terminal.dispose()
+			terminal.terminal.shellIntegration?.executeCommand?.("exit")
+		}
 	}
 
 	static getAllTerminals(): TerminalInfo[] {
@@ -74,20 +107,35 @@ export class TerminalRegistry {
 		return this.terminals
 	}
 
-	// The exit status of the terminal will be undefined while the terminal is active.
-	private static isTerminalClosed(terminal: vscode.Terminal): boolean {
+	private static isTerminalClosed(terminal: ITerminal): boolean {
 		return terminal.exitStatus !== undefined
 	}
 
-	// Dev server management methods
 	static addDevServer(terminalInfo: TerminalInfo, url: string | null = null) {
-		this.devServers.push({ terminalInfo, url })
+		const logs = this.terminalOutputMap.get(terminalInfo.id) || []
+		this.devServers.push({
+			terminalInfo,
+			url,
+			logs,
+			status: "starting",
+		})
 	}
 
 	static updateDevServerUrl(terminalId: number, url: string) {
 		const devServer = this.devServers.find((ds) => ds.terminalInfo.id === terminalId)
 		if (devServer) {
 			devServer.url = url
+			devServer.status = "running"
+		}
+	}
+
+	static updateDevServerStatus(terminalId: number, status: DevServerInfo["status"], error?: string) {
+		const devServer = this.devServers.find((ds) => ds.terminalInfo.id === terminalId)
+		if (devServer) {
+			devServer.status = status
+			if (error) {
+				devServer.error = error
+			}
 		}
 	}
 
@@ -109,7 +157,7 @@ export class TerminalRegistry {
 
 	static isDevServerRunning(terminalId: number): boolean {
 		const devServer = this.getDevServer(terminalId)
-		return !!devServer && !this.isTerminalClosed(devServer.terminalInfo.terminal)
+		return !!devServer && devServer.status === "running" && !this.isTerminalClosed(devServer.terminalInfo.terminal)
 	}
 
 	static isDevServerRunningByName(name: string): boolean {
@@ -128,10 +176,22 @@ export class TerminalRegistry {
 		this.closeTerminal(terminalId)
 		this.removeDevServer(terminalId)
 	}
+
 	static clearAllDevServers() {
 		for (const devServer of this.devServers) {
 			this.closeTerminal(devServer.terminalInfo.id)
 		}
 		this.devServers = []
+	}
+
+	static getTerminalLogs(terminalId: number): string[] {
+		return this.terminalOutputMap.get(terminalId) || []
+	}
+
+	static flushOutputBuffer(terminalId: number) {
+		const buffer = this.outputBuffers.get(terminalId)
+		if (buffer && buffer.trim()) {
+			this.addOutput(terminalId, "", true)
+		}
 	}
 }

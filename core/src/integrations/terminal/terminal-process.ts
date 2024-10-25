@@ -1,9 +1,7 @@
 import { EventEmitter } from "events"
-import pWaitFor from "p-wait-for"
 import stripAnsi from "strip-ansi"
-import * as vscode from "vscode"
-import { arePathsEqual } from "@/utils"
-import { TerminalProcessEvents } from "./terminal-manager"
+import { ITerminal } from "@/interfaces"
+import { TerminalProcessEvents } from "@/types"
 
 export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 	waitForShellIntegration: boolean = true
@@ -13,7 +11,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 	private lastRetrievedLineIndex: number = 0
 	isHot: boolean = false
 
-	async run(terminal: vscode.Terminal, command: string) {
+	async run(terminal: ITerminal, command: string) {
 		this.isHot = true // Process is now running
 		try {
 			if (terminal.shellIntegration && terminal.shellIntegration.executeCommand) {
@@ -48,7 +46,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 				this.emit("no_shell_integration")
 			}
 		} catch (error) {
-			this.emit("error", error)
+			this.emit("error", error instanceof Error ? error : new Error(String(error)))
 			console.error(`Error in terminal process:`, error)
 		} finally {
 			this.isHot = false // Process has completed

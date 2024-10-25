@@ -5,6 +5,8 @@ import * as vscode from "vscode"
 import type { IConsumer } from "@/interfaces"
 import { getCwd } from "@/utils"
 import { IAppPaths, IConsumerFilesAdapter } from "@/interfaces/IConsumer"
+import { TerminalManager } from "@/integrations"
+import { getVscTerminalManger } from "./vsc-terminal"
 
 export class VSCodeFilesAdapter implements IConsumerFilesAdapter {
 	getVisibleFiles(relativeToCwd: boolean = true): string[] {
@@ -101,5 +103,9 @@ export class VSCodeConsumer implements IConsumer {
 				"node_modules.asar.unpacked/@vscode/ripgrep/bin/",
 			],
 		}
+	}
+
+	get terminalManager(): TerminalManager {
+		return getVscTerminalManger()
 	}
 }
