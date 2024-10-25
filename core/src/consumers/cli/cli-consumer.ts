@@ -1,5 +1,7 @@
 import { IConsumer } from "@/interfaces"
 import { IAppPaths, IConsumerFilesAdapter } from "@/interfaces/IConsumer"
+import { CLITerminalWindow } from "./cli-terminal"
+import { TerminalManager } from "@/integrations"
 
 // TODO: Improve
 export class CliFilesAdapter implements IConsumerFilesAdapter {
@@ -52,5 +54,9 @@ export class CliConsumer implements IConsumer {
 			appRoot: process.cwd(),
 			binPaths: [],
 		}
+	}
+
+	get terminalManager(): TerminalManager {
+		return new TerminalManager(new CLITerminalWindow())
 	}
 }

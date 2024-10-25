@@ -85,6 +85,5 @@ export type AgentToolOptions = {
 	alwaysAllowReadOnly: boolean
 	alwaysAllowWriteOnly: boolean
 	koduDev: KoduDev
-	consumer: IConsumer
 	setRunningProcessId?: (pid: number | undefined) => void
 }

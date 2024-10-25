@@ -26,7 +26,7 @@ import {
 	amplitudeTracker,
 } from "@/utils"
 import { BrowserService, TaskExecutor, DiagnosticsService } from "@/services"
-import { AdvancedTerminalManager, TerminalRegistry } from "@/integrations"
+import { TerminalManager, TerminalRegistry } from "@/integrations"
 import type { IConsumer } from "@/interfaces"
 
 import { koduApiService, stateService, StateService } from "./singletons"
@@ -39,11 +39,11 @@ export class KoduDev {
 	 * If the last api message caused a file edit
 	 */
 	public isLastMessageFileEdit: boolean = false
-	public terminalManager: AdvancedTerminalManager
+	public terminalManager: TerminalManager
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserService: BrowserService
 	public isFirstMessage: boolean = true
-	private consumer: IConsumer
+	public consumer: IConsumer
 
 	constructor(options: KoduDevOptions, consumer: IConsumer) {
 		const { apiConfiguration, customInstructions, task, images, historyItem, globalStoragePath } = options
@@ -55,9 +55,8 @@ export class KoduDev {
 			alwaysAllowReadOnly: stateService.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: stateService.alwaysAllowWriteOnly,
 			koduDev: this,
-			consumer,
 		})
-		this.terminalManager = new AdvancedTerminalManager()
+		this.terminalManager = consumer.terminalManager
 		this.taskExecutor = new TaskExecutor(this.toolExecutor)
 		this.browserService = new BrowserService(globalStoragePath!)
 		this.consumer = consumer

@@ -23,6 +23,7 @@ import ToolParser from "./tool-parser/tool-parser"
 import { tools } from "./schema"
 
 import { KoduDev } from "@/index"
+import { IConsumer } from "@/interfaces"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined
