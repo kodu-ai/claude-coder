@@ -37,7 +37,7 @@ export const EnhancedWebSearchBlock: React.FC<EnhancedWebSearchBlockProps> = ({
       const interval = setInterval(() => {
         setCurrentStep(steps[currentStepIndex])
         currentStepIndex = (currentStepIndex + 1) % steps.length
-      }, 2000)
+      }, 3000)
 
       return () => clearInterval(interval)
     }
@@ -54,12 +54,12 @@ export const EnhancedWebSearchBlock: React.FC<EnhancedWebSearchBlockProps> = ({
       return (
         <div className="flex items-center space-x-2 text-primary animate-pulse">
           <Search className="w-4 h-4" />
-          <span className="text-sm">{currentStep}</span>
+          <span className="text-sm">{searchContent}</span>
         </div>
       )
     }
 
-    if ((approvalState === 'approved' || approvalState === 'loading') && searchContent) {
+    if ((approvalState === 'approved') && searchContent) {
       return (
         <ScrollArea className="h-[200px] w-full rounded-md border mt-2">
           <div className="p-4">
@@ -84,9 +84,9 @@ export const EnhancedWebSearchBlock: React.FC<EnhancedWebSearchBlockProps> = ({
       onReject={onReject}
       ts={ts}
     >
-      <div className="space-y-2 text-sm">
-        <p><span className="font-semibold">Search query:</span> {searchQuery}</p>
-        {baseLink && <p><span className="font-semibold">Starting from:</span> {baseLink}</p>}
+      <div className="text-xs">
+        <p><span className="font-semibold">Search query:</span> "{searchQuery}</p>
+        {baseLink && <p><span className="font-semibold">Starting from:</span> <a href={baseLink} target="_blank" rel="noopener noreferrer" className="text-primary">{baseLink}</a></p>}
       </div>
       {renderContent()}
       {approvalState === 'approved' && searchContent && (
