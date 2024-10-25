@@ -1,5 +1,3 @@
-import { WebSearchResponseDto } from "../../../../api/interfaces"
-import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
 import { ToolResponse } from "../../types"
 import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
@@ -43,8 +41,9 @@ export class WebSearchTool extends BaseAgentTool {
 			},
 			this.ts
 		)
+
 		if (response !== "yesButtonTapped") {
-			ask(
+			await updateAsk(
 				"tool",
 				{
 					tool: {
@@ -57,75 +56,67 @@ export class WebSearchTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			if (response === "messageResponse") {
-				await say("user_feedback", text, images)
-				return formatToolResponse(formatGenericToolFeedback(text), images)
-			}
-
-			return "The user denied this operation."
 		}
+		if (response === "messageResponse") {
+			await say("user_feedback", text, images)
+			return formatToolResponse(formatGenericToolFeedback(text), images)
+		}
+
 		try {
-			updateAsk(
+			await updateAsk(
 				"tool",
 				{
 					tool: {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
-						approvalState: "pending",
+						approvalState: "loading",
 						ts: this.ts,
 					},
 				},
 				this.ts
 			)
-			const result = await this.koduDev
+
+			const result = this.koduDev
 				.getApiManager()
 				.getApi()
 				?.sendWebSearchRequest?.(searchQuery, baseLink)
-				.then((res) => res)
-				.catch((err) => undefined)
+
 			if (!result) {
-				updateAsk(
+				throw new Error("Unable to read response")
+			}
+
+			let fullContent = ""
+			for await (const chunk of result) {
+				fullContent += chunk.content
+				await updateAsk(
 					"tool",
 					{
 						tool: {
 							tool: "web_search",
-							searchQuery,
+									searchQuery,
 							baseLink,
-							approvalState: "error",
-							error: "No result found.",
+							content: chunk.content,
+							streamType: chunk.type,
+							approvalState: "loading",
 							ts: this.ts,
 						},
-					},
-					this.ts
-				)
-				return "Web search failed with error: No result found."
+							},
+							this.ts
+						)
 			}
-			updateAsk(
-				"tool",
-				{
-					tool: {
-						tool: "web_search",
-						searchQuery,
-						baseLink,
-						content: result.content,
-						approvalState: "approved",
-						ts: this.ts,
-					},
-				},
-				this.ts
-			)
-			return `This is the result of the web search: ${result.content}`
+
+			return `Web search completed. Full content: ${fullContent}`
 		} catch (err) {
-			updateAsk(
+			await updateAsk(
 				"tool",
 				{
 					tool: {
 						tool: "web_search",
-						searchQuery,
-						baseLink,
+						searchQuery: searchQuery ?? "",
+						baseLink: baseLink ?? "",
 						approvalState: "error",
-						error: err,
+						error: `${err}`,
 						ts: this.ts,
 					},
 				},

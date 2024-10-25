@@ -1,5 +1,6 @@
 export type WebSearchResponseDto = {
 	content: string
+	type: "start" | "explore" | "summarize" | "end"
 }
 
 export type AskConsultantResponseDto = {

@@ -64,11 +64,12 @@ export type AttemptCompletionTool = {
 	result: string
 }
 
-export type WebSearchTool = {
+export interface WebSearchTool {
 	tool: "web_search"
 	searchQuery: string
 	baseLink?: string
 	content?: string
+	streamType?: "start" | "explore" | "summarize" | "end"
 }
 
 export type ServerRunnerTool = {

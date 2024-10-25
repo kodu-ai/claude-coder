@@ -46,7 +46,7 @@ export interface ApiHandler {
 
 	abortRequest(): void
 
-	sendWebSearchRequest?(searchQuery: string, baseLink?: string): Promise<WebSearchResponseDto>
+	sendWebSearchRequest?(searchQuery: string, baseLink?: string): AsyncIterable<WebSearchResponseDto>
 
 	sendUrlScreenshotRequest?(url: string): Promise<Blob>
 

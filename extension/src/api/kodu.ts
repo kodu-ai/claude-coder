@@ -6,7 +6,6 @@ import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduMode
 import {
 	KODU_ERROR_CODES,
 	KoduError,
-	getKoduBugReportUrl,
 	getKoduConsultantUrl,
 	getKoduCurrentUser,
 	getKoduInferenceUrl,
@@ -15,7 +14,7 @@ import {
 	getKoduVisitorUrl,
 	getKoduWebSearchUrl,
 	koduErrorMessages,
-	koduSSEResponse,
+	koduSSEResponse
 } from "../shared/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 
@@ -408,26 +407,42 @@ export class KoduHandler implements ApiHandler {
 		return { id: koduDefaultModelId, info: koduModels[koduDefaultModelId] }
 	}
 
-	async sendWebSearchRequest(searchQuery: string, baseLink: string): Promise<WebSearchResponseDto> {
-		this.cancelTokenSource = axios.CancelToken.source()
+	async *sendWebSearchRequest(searchQuery: string, baseLink?: string): AsyncIterable<WebSearchResponseDto> {
+		// Implementation details will depend on your backend
+		// This is just a conceptual example
+		return {
+			async *[Symbol.asyncIterator]() {
+				const response = await axios.post(
+					getKoduWebSearchUrl(),
+					{
+						searchQuery,
+						baseLink,
+					},
+					{
+						headers: {
+							"Content-Type": "application/json",
+							"x-api-key": this.options.koduApiKey || "",
+						},
+						timeout: 60_000,
+						cancelToken: this.cancelTokenSource?.token,
+					}
+				)
 
-		const response = await axios.post(
-			getKoduWebSearchUrl(),
-			{
-				searchQuery,
-				baseLink,
-			},
-			{
-				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
-				},
-				timeout: 60_000,
-				cancelToken: this.cancelTokenSource?.token,
+				const reader = response.data?.getReader();
+				const decoder = new TextDecoder();
+
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+
+					const chunk = decoder.decode(value);
+					const lines = chunk.split('\n');
+					for (const line of lines) {
+						yield JSON.parse(line) as WebSearchResponseDto
+					}
+				}
 			}
-		)
-
-		return response.data
+		};
 	}
 
 	async sendUrlScreenshotRequest(url: string): Promise<Blob> {

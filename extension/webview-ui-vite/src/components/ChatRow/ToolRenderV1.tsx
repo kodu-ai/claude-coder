@@ -1,58 +1,49 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import {
-	Terminal,
-	FolderTree,
-	Code,
-	Search,
-	FileText,
-	Edit,
-	HelpCircle,
-	CheckCircle,
-	Globe,
-	Image,
-	MessageCircle,
-	BookOpen,
-	AlertCircle,
-	XCircle,
-	ThumbsUp,
-	ThumbsDown,
-	ChevronDown,
-	ChevronUp,
-	LoaderPinwheel,
-	ExternalLink,
-	Play,
-	Square,
-	RefreshCw,
-	Server,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { vscode } from "@/utils/vscode"
 import { AnimatePresence, motion } from "framer-motion"
 import {
-	ExecuteCommandTool,
-	ListFilesTool,
-	ListCodeDefinitionNamesTool,
-	SearchFilesTool,
-	ReadFileTool,
-	WriteToFileTool,
+	AlertCircle,
+	BookOpen,
+	CheckCircle,
+	ChevronDown,
+	ChevronUp,
+	Code,
+	Edit,
+	FileText,
+	FolderTree,
+	Globe,
+	HelpCircle,
+	Image,
+	LoaderPinwheel,
+	MessageCircle,
+	Play,
+	RefreshCw,
+	Search,
+	Server,
+	Square,
+	Terminal,
+	XCircle
+} from "lucide-react"
+import React, { useEffect, useRef, useState } from "react"
+import {
+	AskConsultantTool,
 	AskFollowupQuestionTool,
 	AttemptCompletionTool,
-	WebSearchTool,
-	UrlScreenshotTool,
-	AskConsultantTool,
-	UpsertMemoryTool,
 	ChatTool,
+	ExecuteCommandTool,
+	ListCodeDefinitionNamesTool,
+	ListFilesTool,
+	ReadFileTool,
+	SearchFilesTool,
 	ServerRunnerTool,
+	UpsertMemoryTool,
+	UrlScreenshotTool,
+	WebSearchTool,
+	WriteToFileTool,
 } from "../../../../src/shared/new-tools"
-import { vscode } from "@/utils/vscode"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
-import SyntaxHighlighter from "react-syntax-highlighter"
-import { useAtomValue } from "jotai"
-import { SyntaxHighlighterAtom } from "../ChatView/ChatView"
-import { syntaxHighlighterCustomStyle } from "../CodeBlock/utils"
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
-import { useEvent } from "react-use"
 
 type ApprovalState = ToolStatus
 type ToolAddons = {
@@ -589,6 +580,8 @@ export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons
 export const WebSearchBlock: React.FC<WebSearchTool & ToolAddons> = ({
 	searchQuery,
 	baseLink,
+	content,
+	streamType,
 	approvalState,
 	onApprove,
 	onReject,
@@ -613,6 +606,14 @@ export const WebSearchBlock: React.FC<WebSearchTool & ToolAddons> = ({
 			<p className="text-xs">
 				<span className="font-semibold">Starting from:</span> {baseLink}
 			</p>
+		)}
+		{streamType && (
+			<p className="text-xs">
+				<span className="font-semibold">Stream type:</span> {streamType}
+			</p>
+		)}
+		{content && (
+			<div className="bg-muted p-2 rounded font-mono text-xs max-h-20 overflow-y-auto mt-1">{content}</div>
 		)}
 	</ToolBlock>
 )
@@ -758,3 +759,4 @@ export const ToolContentBlock: React.FC<{
 			return null
 	}
 }
+
