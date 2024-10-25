@@ -63,10 +63,10 @@ export default function LoginRequiredDialog({ isOpen, onClose }: LoginRequiredDi
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-2 text-white bg-gradient-to-r from-purple-600 to-blue-600">
+        <DialogHeader className="p-6 pb-2 text-primary bg-secondary">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <Sparkles className="w-5 h-5 text-yellow-300" />
-            <span>Login Required</span>
+            <span className="text-primary-foreground">Login Required</span>
           </DialogTitle>
           <DialogDescription className="text-white/90">
             Create an account to start using Kodu.ai
@@ -92,14 +92,27 @@ export default function LoginRequiredDialog({ isOpen, onClose }: LoginRequiredDi
                 <Zap className="w-4 h-4 text-yellow-500" />
                 <span>No rate limits</span>
               </li>
+              <li className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-yellow-500" />
+                <span>One Click Deployments</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-yellow-500" />
+                <span>Automatic Task Summarization</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-yellow-500" />
+                <span>Save Tasks to Cloud</span>
+              </li>
             </ul>
           </div>
           <Button
             onClick={handleLogin}
-            className="w-full text-white bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+            className="w-full font-bold text-primmary h-10"
           >
-            Create Account & Get $10 for FREE, No Credit Card Required
+            Create Account for FREE & Get $10
           </Button>
+          <p className="text-sm text-muted-foreground">No credit card required</p>
         </div>
       </DialogContent>
     </Dialog>
