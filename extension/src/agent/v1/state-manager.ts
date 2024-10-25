@@ -21,7 +21,6 @@ export class StateManager {
 	private _customInstructions?: string
 	private _alwaysAllowWriteOnly: boolean
 	private _experimentalTerminal?: boolean
-	private _summarizationThreshold: number
 	private _autoCloseTerminal?: boolean
 	private _skipWriteAnimation?: boolean
 	private _saveInProgress: boolean = false
@@ -93,7 +92,6 @@ export class StateManager {
 			historyItem,
 			creativeMode,
 			experimentalTerminal,
-			summarizationThreshold,
 			autoCloseTerminal,
 			skipWriteAnimation,
 		} = options
@@ -105,7 +103,6 @@ export class StateManager {
 		this._customInstructions = customInstructions
 		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
 		this._experimentalTerminal = experimentalTerminal
-		this._summarizationThreshold = summarizationThreshold ?? 50
 
 		this._autoCloseTerminal = autoCloseTerminal
 		this._skipWriteAnimation = skipWriteAnimation
@@ -160,10 +157,6 @@ export class StateManager {
 
 	get experimentalTerminal(): boolean | undefined {
 		return this._experimentalTerminal
-	}
-
-	get summarizationThreshold(): number {
-		return this._summarizationThreshold
 	}
 
 	get maxRequestsPerTask(): number {
@@ -252,11 +245,6 @@ export class StateManager {
 
 	public setAlwaysAllowWriteOnly(newValue: boolean): void {
 		this._alwaysAllowWriteOnly = newValue
-	}
-
-	public updateSummarizationThreshold(threshold: number) {
-		this._summarizationThreshold = threshold
-		this.saveState()
 	}
 
 	private async ensureTaskDirectoryExists(): Promise<string> {

@@ -410,10 +410,6 @@ export class WebviewManager {
 							.setCreativeMode(message.text as "creative" | "normal" | "deterministic")
 						await this.postStateToWebview()
 						break
-					case "setSummarizationThreshold":
-						await this.provider.getStateManager().setSummarizationThreshold(message.value ?? 50)
-						await this.postStateToWebview()
-						break
 					case "exportTaskWithId":
 						await this.provider.getTaskManager().exportTaskWithId(message.text!)
 						break

@@ -67,7 +67,6 @@ export type ExtensionMessage =
 				| "didBecomeVisible"
 				| "koduAuthenticated"
 				| "koduCreditsFetched"
-				| "updateSummarizationThreshold"
 			state?: ExtensionState
 			images?: string[]
 	  }
@@ -105,7 +104,6 @@ export interface ExtensionState {
 	autoCloseTerminal: boolean
 	shouldShowKoduPromo: boolean
 	fingerprint?: string
-	summarizationThreshold?: number
 }
 
 type V0ClaudeMessage = {

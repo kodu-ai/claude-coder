@@ -10,6 +10,8 @@ import { ToolResponse, UserContent } from "../types"
 import { debounce } from "lodash"
 import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
 import { ChatTool } from "../../../shared/new-tools"
+import { truncateHalfConversation } from "../../../utils/context-management"
+import { manageTokensAndConversation } from "../tools/manage-conversation"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -198,9 +200,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 					this.stateManager.state.apiConversationHistory,
 				)
 				console.log(
-					`[TaskExecutor] Percentage of tokens used: ${percentageUsed}, user-defined threshold: ${this.stateManager.summarizationThreshold}`,
+					`[TaskExecutor] Percentage of tokens used: ${percentageUsed}, threshold (hardcoded): 70%`,
 				)
-				const threshold = this.stateManager.summarizationThreshold / 100
+				const threshold = 70 / 100
 				if (percentageUsed > threshold) {
 					const response = await this.askWithId(
 						'tool',

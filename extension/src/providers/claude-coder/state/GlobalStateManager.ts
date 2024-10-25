@@ -24,7 +24,6 @@ export type GlobalState = {
 	creativeMode: CreativeMode | undefined
 	autoCloseTerminal: boolean | undefined
 	experimentalTerminal: boolean | undefined
-	summarizationThreshold: number | undefined
 	skipWriteAnimation: boolean | undefined
 	technicalBackground: "no-technical" | "technical" | "developer" | undefined
 }

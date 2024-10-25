@@ -61,7 +61,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 		uriScheme,
 		shouldShowKoduPromo,
 		user,
-		summarizationThreshold,
 	} = useExtensionState()
 
 	// Input-related state

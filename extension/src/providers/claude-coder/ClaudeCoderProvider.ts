@@ -97,7 +97,6 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 			skipWriteAnimation: state.skipWriteAnimation,
 			autoCloseTerminal: state.autoCloseTerminal,
 			creativeMode: state.creativeMode,
-			summarizationThreshold: state.summarizationThreshold,
 			isDebug,
 		})
 	}
@@ -114,7 +113,6 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 			alwaysAllowWriteOnly: state.alwaysAllowWriteOnly,
 			experimentalTerminal: state.experimentalTerminal,
 			creativeMode: state.creativeMode,
-			summarizationThreshold: state.summarizationThreshold,
 			skipWriteAnimation: state.skipWriteAnimation,
 			autoCloseTerminal: state.autoCloseTerminal,
 			historyItem,

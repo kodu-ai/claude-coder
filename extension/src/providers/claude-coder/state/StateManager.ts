@@ -33,7 +33,6 @@ export class StateManager {
 			useUdiff,
 			experimentalTerminal,
 			technicalBackground,
-			summarizationThreshold,
 			autoCloseTerminal,
 			skipWriteAnimation,
 		] = await Promise.all([
@@ -52,7 +51,6 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("useUdiff"),
 			this.globalStateManager.getGlobalState("experimentalTerminal"),
 			this.globalStateManager.getGlobalState("technicalBackground"),
-			this.globalStateManager.getGlobalState("summarizationThreshold"),
 			this.globalStateManager.getGlobalState("autoCloseTerminal"),
 			this.globalStateManager.getGlobalState("skipWriteAnimation"),
 		])
@@ -81,7 +79,6 @@ export class StateManager {
 			alwaysAllowWriteOnly: alwaysAllowWriteOnly ?? false,
 			taskHistory: taskHistory ?? [],
 			shouldShowKoduPromo: shouldShowKoduPromo ?? true,
-			summarizationThreshold: summarizationThreshold ?? 50,
 			creativeMode: creativeMode ?? "normal",
 			fingerprint: fp,
 			useUdiff: useUdiff ?? false,
@@ -170,9 +167,4 @@ export class StateManager {
 	setCreativeMode(value: "creative" | "normal" | "deterministic") {
 		return this.globalStateManager.updateGlobalState("creativeMode", value)
 	}
-
-	setSummarizationThreshold(value: number | undefined) {
-		return this.globalStateManager.updateGlobalState("summarizationThreshold", value)
-	}
-
 }

@@ -17,7 +17,7 @@ export default function SummarizationThresholdSlider({
 	const handleThresholdChange = (value: number[]) => {
 		const newThreshold = value[0]
 		setSummarizationThreshold(newThreshold)
-		vscode.postMessage({ type: 'setSummarizationThreshold', value: newThreshold })
+		// vscode.postMessage({ type: 'setSummarizationThreshold', value: newThreshold })
 	}
 
 	return (

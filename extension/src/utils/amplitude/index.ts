@@ -126,6 +126,10 @@ export class AmplitudeTracker {
 		})
 	}
 
+	public offerwallView(): void {
+		this.track("OfferwallView")
+	}
+
 	public referralProgramClick(): void {
 		this.track("ReferralProgramClick")
 	}

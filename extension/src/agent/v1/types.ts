@@ -20,7 +20,6 @@ export interface KoduDevOptions {
 	alwaysAllowReadOnly?: boolean
 	experimentalTerminal?: boolean
 	alwaysAllowWriteOnly?: boolean
-	summarizationThreshold?: number
 	skipWriteAnimation?: boolean
 	autoCloseTerminal?: boolean
 	creativeMode?: "creative" | "normal" | "deterministic"
