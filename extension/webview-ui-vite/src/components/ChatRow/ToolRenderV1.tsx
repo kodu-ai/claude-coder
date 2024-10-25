@@ -12,7 +12,6 @@ import {
 	Edit,
 	FileText,
 	FolderTree,
-	Globe,
 	HelpCircle,
 	Image,
 	LoaderPinwheel,
@@ -39,14 +38,14 @@ import {
 	ServerRunnerTool,
 	UpsertMemoryTool,
 	UrlScreenshotTool,
-	WebSearchTool,
-	WriteToFileTool,
+	WriteToFileTool
 } from "../../../../src/shared/new-tools"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
+import { EnhancedWebSearchBlock } from "./Tools/WebSearchTool"
 
 type ApprovalState = ToolStatus
-type ToolAddons = {
+export type ToolAddons = {
 	approvalState?: ApprovalState
 	ts: number
 	onApprove?: () => void
@@ -64,7 +63,7 @@ type ToolBlockProps = {
 	variant: "default" | "primary" | "info" | "accent" | "info" | "success" | "info" | "destructive"
 } & ToolAddons
 
-const ToolBlock: React.FC<ToolBlockProps> = ({
+export const ToolBlock: React.FC<ToolBlockProps> = ({
 	icon: Icon,
 	title,
 	ts,
@@ -577,47 +576,6 @@ export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons
 	</ToolBlock>
 )
 
-export const WebSearchBlock: React.FC<WebSearchTool & ToolAddons> = ({
-	searchQuery,
-	baseLink,
-	content,
-	streamType,
-	approvalState,
-	onApprove,
-	onReject,
-	tool,
-	ts,
-	...rest
-}) => (
-	<ToolBlock
-		{...rest}
-		ts={ts}
-		tool={tool}
-		icon={Globe}
-		title="Web Search"
-		variant="info"
-		approvalState={approvalState}
-		onApprove={onApprove}
-		onReject={onReject}>
-		<p className="text-xs">
-			<span className="font-semibold">Search for:</span> {searchQuery}
-		</p>
-		{baseLink && (
-			<p className="text-xs">
-				<span className="font-semibold">Starting from:</span> {baseLink}
-			</p>
-		)}
-		{streamType && (
-			<p className="text-xs">
-				<span className="font-semibold">Stream type:</span> {streamType}
-			</p>
-		)}
-		{content && (
-			<div className="bg-muted p-2 rounded font-mono text-xs max-h-20 overflow-y-auto mt-1">{content}</div>
-		)}
-	</ToolBlock>
-)
-
 export const UrlScreenshotBlock: React.FC<UrlScreenshotTool & ToolAddons> = ({
 	url,
 	approvalState,
@@ -746,7 +704,7 @@ export const ToolContentBlock: React.FC<{
 		case "attempt_completion":
 			return <AttemptCompletionBlock {...tool} />
 		case "web_search":
-			return <WebSearchBlock {...tool} />
+			return <EnhancedWebSearchBlock {...tool} />
 		case "url_screenshot":
 			return <UrlScreenshotBlock {...tool} />
 		case "ask_consultant":

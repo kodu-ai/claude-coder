@@ -87,27 +87,53 @@ export class WebSearchTool extends BaseAgentTool {
 			}
 
 			let fullContent = ""
-			for await (const chunk of result) {
-				fullContent += chunk.content
-				await updateAsk(
-					"tool",
-					{
-						tool: {
-							tool: "web_search",
+			let lastError: Error | null = null
+
+		
+				try {
+					for await (const chunk of result) {
+						await updateAsk(
+							"tool",
+							{
+								tool: {
+									tool: "web_search",
 									searchQuery,
-							baseLink,
-							content: chunk.content,
-							streamType: chunk.type,
-							approvalState: "loading",
-							ts: this.ts,
-						},
+									baseLink,
+									content: chunk.content,
+									streamType: chunk.type,
+									approvalState: "loading",
+									ts: this.ts,
+								},
 							},
 							this.ts
 						)
-			}
+						fullContent += chunk.content
+					}
+					// If we get here, the stream completed successfully
+				} catch (err) {
+					lastError = err as Error
+					// If we've exhausted retries, throw the last error
+					throw lastError
+				}
+
+			// Update UI with completion status
+			await updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "web_search",
+						searchQuery,
+						baseLink,
+						approvalState: "approved",
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 
 			return `Web search completed. Full content: ${fullContent}`
 		} catch (err) {
+			// Update UI with error status
 			await updateAsk(
 				"tool",
 				{

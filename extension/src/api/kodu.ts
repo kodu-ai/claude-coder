@@ -408,10 +408,6 @@ export class KoduHandler implements ApiHandler {
 	}
 
 	async *sendWebSearchRequest(searchQuery: string, baseLink?: string): AsyncIterable<WebSearchResponseDto> {
-		// Implementation details will depend on your backend
-		// This is just a conceptual example
-		return {
-			async *[Symbol.asyncIterator]() {
 				const response = await axios.post(
 					getKoduWebSearchUrl(),
 					{
@@ -424,25 +420,28 @@ export class KoduHandler implements ApiHandler {
 							"x-api-key": this.options.koduApiKey || "",
 						},
 						timeout: 60_000,
+						responseType: "stream",
 						cancelToken: this.cancelTokenSource?.token,
 					}
 				)
-
-				const reader = response.data?.getReader();
-				const decoder = new TextDecoder();
-
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-
-					const chunk = decoder.decode(value);
-					const lines = chunk.split('\n');
-					for (const line of lines) {
-						yield JSON.parse(line) as WebSearchResponseDto
+				
+				if (response.data) {
+					const reader = response.data
+					const decoder = new TextDecoder("utf-8")
+					let buffer = ""
+		
+					for await (const chunk of reader) {
+						buffer += decoder.decode(chunk, { stream: true })
+						const lines = buffer.split("\n\n")
+						buffer = lines.pop() || ""
+						for (const line of lines) {
+							if (line.startsWith("data: ")) {
+								const eventData = JSON.parse(line.slice(6)) as WebSearchResponseDto
+								yield eventData
+							}
+						}
 					}
 				}
-			}
-		};
 	}
 
 	async sendUrlScreenshotRequest(url: string): Promise<Blob> {

@@ -1,24 +1,25 @@
 import { Anthropic } from "@anthropic-ai/sdk"
+import { Message } from "@anthropic-ai/sdk/resources/messages.mjs"
+import { AxiosError } from "axios"
+import delay from "delay"
 import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
+import { WebSearchResponseDto } from "../../api/interfaces"
+import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
+import { V1ClaudeMessage, isV1ClaudeMessage } from "../../shared/ExtensionMessage"
+import { koduModels } from "../../shared/api"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
-import { UserContent } from "./types"
+import { findLast } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { truncateHalfConversation } from "../../utils/context-management"
+import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
 import {
 	CodingBeginnerSystemPromptSection,
 	ExperiencedDeveloperSystemPromptSection,
 	NonTechnicalSystemPromptSection,
 } from "./system-prompt"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { tools as baseTools } from "./tools/tools"
-import { findLast } from "../../utils"
-import delay from "delay"
-import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
+import { UserContent } from "./types"
 import { getCwd } from "./utils"
-import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
-import { AxiosError } from "axios"
-import { koduModels } from "../../shared/api"
-import { Message } from "@anthropic-ai/sdk/resources/messages.mjs"
 
 /**
  *
