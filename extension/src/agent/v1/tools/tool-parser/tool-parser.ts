@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { nanoid } from "nanoid"
+import { tools } from "../schema"
 
 type ToolSchema = {
 	name: string
@@ -18,6 +19,8 @@ interface Context {
 	params: Record<string, string>
 	currentParam: string
 	content: string
+	nestingLevel: number
+	paramNestingLevel: Record<string, number>
 }
 
 interface ToolParserConstructor {
@@ -96,8 +99,10 @@ export class ToolParser {
 			this.isInTag = false
 			this.buffer = ""
 		} else {
-			this.buffer += char
-			if (!this.isInTag) {
+			if (this.isInTag) {
+				this.buffer += char
+			} else {
+				this.buffer += char
 				this.handleBufferContent()
 			}
 		}
@@ -116,6 +121,8 @@ export class ToolParser {
 				params: {},
 				currentParam: "",
 				content: "",
+				nestingLevel: 1,
+				paramNestingLevel: {},
 			}
 			this.onToolUpdate?.(id, tagName, {}, ts)
 		} else {
@@ -126,6 +133,9 @@ export class ToolParser {
 	private handleBufferContent(): void {
 		if (this.buffer && this.currentContext) {
 			if (this.currentContext.currentParam) {
+				if (!this.currentContext.params[this.currentContext.currentParam]) {
+					this.currentContext.params[this.currentContext.currentParam] = ""
+				}
 				this.currentContext.params[this.currentContext.currentParam] += this.buffer
 				this.onToolUpdate?.(
 					this.currentContext.id,
@@ -141,40 +151,78 @@ export class ToolParser {
 	}
 
 	private handleTag(tag: string): void {
-		if (tag.startsWith("</")) {
-			this.handleClosingTag(tag)
+		if (!this.currentContext) return
+
+		const isClosingTag = tag.startsWith("</")
+		const tagContent = isClosingTag ? tag.slice(2, -1) : tag.slice(1, -1)
+		const tagName = tagContent.split(" ")[0]
+
+		if (isClosingTag) {
+			this.handleClosingTag(tagName)
 		} else {
-			this.handleOpeningTag(tag)
+			this.handleOpeningTag(tagName)
 		}
 	}
 
-	private handleOpeningTag(tag: string): void {
-		if (this.currentContext) {
-			const tagName = tag.slice(1, -1).split(" ")[0]
-			if (this.currentContext.currentParam) {
-				// We're inside a parameter, treat this as content
-				this.currentContext.params[this.currentContext.currentParam] += tag
-			} else {
-				this.currentContext.currentParam = tagName
-				this.currentContext.params[tagName] = ""
+	private handleOpeningTag(tagName: string): void {
+		if (!this.currentContext) return
+
+		if (this.currentContext.currentParam) {
+			// We're in a parameter, increment its nesting level if we see its tag
+			if (tagName === this.currentContext.currentParam) {
+				this.currentContext.paramNestingLevel[tagName] =
+					(this.currentContext.paramNestingLevel[tagName] || 0) + 1
 			}
+			// Add the tag as content
+			this.currentContext.params[this.currentContext.currentParam] += this.buffer
+		} else if (this.toolSchemas.some((schema) => schema.name === tagName)) {
+			// This is a nested tool tag
+			this.currentContext.nestingLevel++
+			if (this.currentContext.currentParam) {
+				this.currentContext.params[this.currentContext.currentParam] += this.buffer
+			} else {
+				this.currentContext.content += this.buffer
+			}
+		} else {
+			// This is a new parameter
+			this.currentContext.currentParam = tagName
+			this.currentContext.paramNestingLevel[tagName] = 1
+			this.currentContext.params[tagName] = ""
 		}
 	}
 
-	private handleClosingTag(tag: string): void {
-		if (this.currentContext) {
-			const tagName = tag.slice(2, -1)
-			if (tagName === this.currentContext.toolName) {
+	private handleClosingTag(tagName: string): void {
+		if (!this.currentContext) return
+
+		if (tagName === this.currentContext.toolName) {
+			this.currentContext.nestingLevel--
+			if (this.currentContext.nestingLevel === 0) {
 				this.finalizeTool(this.currentContext)
 				this.isInTool = false
 				this.currentContext = null
-			} else if (tagName === this.currentContext.currentParam) {
-				// End of parameter
-				this.currentContext.currentParam = ""
-			} else if (this.currentContext.currentParam) {
-				// Closing tag inside parameter content
-				this.currentContext.params[this.currentContext.currentParam] += tag
+			} else {
+				// This is a nested closing tool tag
+				if (this.currentContext.currentParam) {
+					this.currentContext.params[this.currentContext.currentParam] += this.buffer
+				} else {
+					this.currentContext.content += this.buffer
+				}
 			}
+		} else if (tagName === this.currentContext.currentParam) {
+			// Decrement the nesting level for this parameter
+			this.currentContext.paramNestingLevel[tagName]--
+
+			// Only clear the current parameter if we're at the root level
+			if (this.currentContext.paramNestingLevel[tagName] === 0) {
+				this.currentContext.currentParam = ""
+				delete this.currentContext.paramNestingLevel[tagName]
+			} else {
+				// This is a nested closing tag, add it as content
+				this.currentContext.params[this.currentContext.currentParam] += this.buffer
+			}
+		} else if (this.currentContext.currentParam) {
+			// This is some other closing tag inside a parameter
+			this.currentContext.params[this.currentContext.currentParam] += this.buffer
 		}
 	}
 

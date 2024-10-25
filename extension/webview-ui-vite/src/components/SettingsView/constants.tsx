@@ -35,12 +35,7 @@ export const experimentalFeatures: ExperimentalFeature[] = [
 		description: "Claude will automatically try to solve tasks without asking for permission",
 	},
 	{
-		id: "experimentalTerminal",
-		label: "Experimental Terminal Shell",
-		description: "Enable Claude to run shell commands in the terminal directly",
-	},
-	{
-		id: "lastShownAnnouncementId",
+		id: "apiModelId",
 		label: "One Click Deployment",
 		description: "Deploy your projects with a single click",
 		disabled: true,

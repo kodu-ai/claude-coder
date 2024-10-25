@@ -64,9 +64,13 @@ export class UrlScreenshotTool extends BaseAgentTool {
 				type: "text",
 				text: `
 				The screenshot was saved to file path: ${absolutePath}.
-				Here is the browser logs:
+				Here is the updated browser logs, THIS IS THE ONLY RELEVANT INFORMATION, all previous logs are irrelevant:
 				<browser_logs>
+				You should only care about mission critical errors, you shouldn't care about warnings or info logs.
+				YOU SHOULD ONLY care about errors that mention there is a clear error like a missing import or a syntax error.
+				<log>
 				${logs}
+				</log>
 				</browser_logs>
 				`,
 			}

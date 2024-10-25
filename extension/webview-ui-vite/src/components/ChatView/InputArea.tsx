@@ -1,4 +1,4 @@
-import React, { KeyboardEvent, useRef, useState } from "react"
+import React, { KeyboardEvent, useEffect, useRef, useState } from "react"
 import Thumbnails from "../Thumbnails/Thumbnails"
 import { Button } from "../ui/button"
 import { vscode } from "@/utils/vscode"
@@ -7,6 +7,8 @@ import InputV1 from "./InputV1"
 import GitDialog from "./GitDialog"
 import TaskHistoryModal from "./TaskHistoryDialog"
 import InteractiveTerminal from "../ChatRow/InteractiveTerminal"
+import { Loader2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface InputAreaProps {
 	inputValue: string
@@ -45,6 +47,12 @@ const InputArea: React.FC<InputAreaProps> = ({
 }) => {
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
 	const [isTextAreaFocused, setIsTextAreaFocused] = useState(false)
+	const [isAborting, setIsAborting] = useState(false)
+	useEffect(() => {
+		if (!isRequestRunning) {
+			setIsAborting(false)
+		}
+	}, [isRequestRunning])
 
 	return (
 		<>
@@ -60,11 +68,15 @@ const InputArea: React.FC<InputAreaProps> = ({
 				{isInTask && (
 					<div className="flex justify-between">
 						<Button
-							onClick={() => vscode.postMessage({ type: "cancelCurrentRequest" })}
-							disabled={!isRequestRunning}
+							onClick={() => {
+								setIsAborting(true)
+								vscode.postMessage({ type: "cancelCurrentRequest" })
+							}}
+							disabled={!isRequestRunning || isAborting}
 							size="sm"
 							variant="destructive"
 							className="w-fit">
+							<Loader2 className={cn("animate-spin w-4 mr-2", !isAborting && "hidden")}></Loader2>
 							Abort Request
 						</Button>
 

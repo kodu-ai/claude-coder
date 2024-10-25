@@ -53,12 +53,6 @@ type experimentalTerminalMessage = {
 	bool: boolean
 }
 
-type exportBugMessage = {
-	type: "exportBug"
-	description: string
-	reproduction: string
-}
-
 type technicalBackgroundMessage = {
 	type: "technicalBackground"
 	value: NonNullable<GlobalState["technicalBackground"]>
@@ -116,7 +110,6 @@ export type WebviewMessage =
 	| updateGlobalStateMessage
 	| ToolFeedbackAllMessage
 	| ToolFeedbackMessage
-	| exportBugMessage
 	| experimentalTerminalMessage
 	| AmplitudeWebviewMessage
 	| OpenExternalLink
