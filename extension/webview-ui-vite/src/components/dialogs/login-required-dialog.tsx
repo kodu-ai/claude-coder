@@ -88,13 +88,17 @@ export default function LoginRequiredDialog({ isOpen, onClose }: LoginRequiredDi
                 <Zap className="w-4 h-4 text-yellow-500" />
                 <span>Personalized AI assistance</span>
               </li>
+              <li className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-yellow-500" />
+                <span>No rate limits</span>
+              </li>
             </ul>
           </div>
           <Button
             onClick={handleLogin}
             className="w-full text-white bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
           >
-            Create Account & Get $10 Bonus
+            Create Account & Get $10 for FREE, No Credit Card Required
           </Button>
         </div>
       </DialogContent>
