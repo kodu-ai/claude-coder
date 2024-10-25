@@ -226,16 +226,12 @@ export function activate(context: vscode.ExtensionContext) {
 	const handleUri = async (uri: vscode.Uri) => {
 		const query = new URLSearchParams(uri.query.replace(/\+/g, "%2B"))
 		const token = query.get("token")
-		const postTrial = query.get("postTrial")
 		const email = query.get("email")
 		// toast login success
 		vscode.window.showInformationMessage(`Logged in as ${email} successfully!`)
 		if (token) {
 			amplitudeTracker.authSuccess()
 			console.log(`Received token: ${token}`)
-			if (postTrial) {
-				amplitudeTracker.trialUpsellSuccess()
-			}
 			await vscode.commands.executeCommand(`${extensionName}.SidebarProvider.focus`)
 			await sidebarProvider.getApiManager().saveKoduApiKey(token)
 		}

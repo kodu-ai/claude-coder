@@ -24,9 +24,10 @@ export const UserInfoSection: React.FC = () => {
 		return (
 			<Button
 				onClick={() => {
-					vscode.postTrackingEvent("AuthStart")
+					vscode.postTrackingEvent('AuthStart')
 				}}
-				asChild>
+				asChild
+			>
 				<a href={getKoduSignInUrl(extensionState.uriScheme, extensionState.extensionName)}>Sign in to Kodu</a>
 			</Button>
 		)
@@ -42,7 +43,8 @@ export const UserInfoSection: React.FC = () => {
 						variant="link"
 						size="sm"
 						className="text-sm !text-muted-foreground"
-						onClick={() => vscode.postMessage({ type: "didClickKoduSignOut" })}>
+						onClick={() => vscode.postMessage({ type: 'didClickKoduSignOut' })}
+					>
 						sign out
 					</Button>
 				</div>
@@ -54,19 +56,21 @@ export const UserInfoSection: React.FC = () => {
 			<div className="flex gap-2 flex-wrap">
 				<Button
 					onClick={() => {
-						vscode.postTrackingEvent("ExtensionCreditAddOpen")
-						vscode.postTrackingEvent("ExtensionCreditAddSelect", "purchase")
+						vscode.postTrackingEvent('ExtensionCreditAddOpen')
+						vscode.postTrackingEvent('ExtensionCreditAddSelect', 'purchase')
 					}}
-					asChild>
+					asChild
+				>
 					<a href={getKoduAddCreditsUrl(extensionState.uriScheme)}>Add Credits</a>
 				</Button>
 				<Button
 					onClick={() => {
-						vscode.postTrackingEvent("OfferwallView")
-						vscode.postTrackingEvent("ExtensionCreditAddSelect", "offerwall")
+						vscode.postTrackingEvent('OfferwallView')
+						vscode.postTrackingEvent('ExtensionCreditAddSelect', 'offerwall')
 					}}
-					variant={"outline"}
-					asChild>
+					variant={'outline'}
+					asChild
+				>
 					<a href={getKoduOfferUrl(extensionState.uriScheme)}>Get Free Credits</a>
 				</Button>
 			</div>
@@ -84,7 +88,8 @@ export const PreferencesTab: React.FC = () => {
 				<RadioGroup
 					value={technicalLevel}
 					onValueChange={(v) => handleTechnicalLevelChange(v as typeof technicalLevel)}
-					className="space-y-1">
+					className="space-y-1"
+				>
 					<div className="flex items-center space-x-2">
 						<RadioGroupItem value="no-technical" id="no-technical" />
 						<Label htmlFor="no-technical" className="text-xs">
@@ -116,7 +121,7 @@ export const PreferencesTab: React.FC = () => {
 					<SelectContent>
 						{Object.entries(models).map(([key, value]) => (
 							<SelectItem key={key} value={key} disabled={value.disabled}>
-								{value.label} {value.comingSoon && "(Coming Soon)"}
+								{value.label} {value.comingSoon && '(Coming Soon)'}
 							</SelectItem>
 						))}
 					</SelectContent>
@@ -169,28 +174,28 @@ const AdvancedTab: React.FC = () => {
 		<div className="space-y-4">
 			<ExperimentalFeatureItem
 				feature={{
-					id: "alwaysAllowReadOnly",
-					label: "Always Allow Read-Only Operations",
-					description: "Automatically read files and view directories without requiring permission",
+					id: 'alwaysAllowReadOnly',
+					label: 'Always Allow Read-Only Operations',
+					description: 'Automatically read files and view directories without requiring permission',
 				}}
 				checked={readOnly}
 				onCheckedChange={handleSetReadOnly}
 			/>
 			<ExperimentalFeatureItem
 				feature={{
-					id: "autoCloseTerminal",
-					label: "Automatically close terminal",
-					description: "Automatically close the terminal after executing a command",
+					id: 'autoCloseTerminal',
+					label: 'Automatically close terminal',
+					description: 'Automatically close the terminal after executing a command',
 				}}
 				checked={autoCloseTerminal}
 				onCheckedChange={handleSetAutoCloseTerminal}
 			/>
 			<ExperimentalFeatureItem
 				feature={{
-					id: "skipWriteAnimation",
-					label: "Automatically skip file write animation",
+					id: 'skipWriteAnimation',
+					label: 'Automatically skip file write animation',
 					description:
-						"Automatically skip the file write animation when saving files *good for low-end machines*",
+						'Automatically skip the file write animation when saving files *good for low-end machines*',
 				}}
 				checked={autoSkipWrite}
 				onCheckedChange={handleAutoSkipWriteChange}

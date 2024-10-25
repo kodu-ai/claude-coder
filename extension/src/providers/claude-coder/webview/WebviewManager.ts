@@ -328,9 +328,6 @@ export class WebviewManager {
 						console.log(`useUdiff: ${message.bool}`)
 						await this.postStateToWebview()
 						break
-					case "freeTrial":
-						await this.provider.getApiManager().initFreeTrialUser(message.fp)
-						break
 					case "openExternalLink":
 						vscode.env.openExternal(vscode.Uri.parse(message.url))
 						break

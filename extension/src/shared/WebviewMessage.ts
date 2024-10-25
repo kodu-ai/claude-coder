@@ -11,10 +11,6 @@ export type AmplitudeWebviewMessage = {
 		| "AuthStart"
 		| "ReferralProgram"
 		| "ExtensionCreditAddOpen"
-		| "TrialOfferView"
-		| "TrialOfferStart"
-		| "TrialUpsellView"
-		| "TrialUpsellStart"
 		| "ExtensionCreditAddSelect"
 		| "OfferwallView"
 	key?: string
@@ -35,11 +31,6 @@ type RenameTask =
 type OpenExternalLink = {
 	type: "openExternalLink"
 	url: string
-}
-
-type FreeTrial = {
-	type: "freeTrial"
-	fp: string
 }
 
 type ApiConfigurationMessage = {
@@ -122,7 +113,6 @@ export type WebviewMessage =
 	| experimentalTerminalMessage
 	| AmplitudeWebviewMessage
 	| OpenExternalLink
-	| FreeTrial
 	| technicalBackgroundMessage
 	| autoCloseTerminalMessage
 	| ApiConfigurationMessage
