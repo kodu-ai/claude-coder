@@ -407,7 +407,7 @@ export class KoduHandler implements ApiHandler {
 		return { id: koduDefaultModelId, info: koduModels[koduDefaultModelId] }
 	}
 
-	async *sendWebSearchRequest(searchQuery: string, baseLink?: string): AsyncIterable<WebSearchResponseDto> {
+	async *sendWebSearchRequest(searchQuery: string, baseLink?: string, abortSignal?: AbortSignal): AsyncIterable<WebSearchResponseDto> {
 				const response = await axios.post(
 					getKoduWebSearchUrl(),
 					{
@@ -422,6 +422,7 @@ export class KoduHandler implements ApiHandler {
 						timeout: 60_000,
 						responseType: "stream",
 						cancelToken: this.cancelTokenSource?.token,
+						signal: abortSignal ?? undefined,
 					}
 				)
 				

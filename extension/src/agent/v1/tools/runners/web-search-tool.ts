@@ -1,14 +1,15 @@
 import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import type { AgentToolOptions, AgentToolParams } from "../types"
 
 export class WebSearchTool extends BaseAgentTool {
 	protected params: AgentToolParams
+	private abortController: AbortController
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
+		this.abortController = new AbortController()
 	}
 
 	async execute(): Promise<ToolResponse> {
@@ -56,10 +57,11 @@ export class WebSearchTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-		}
-		if (response === "messageResponse") {
-			await say("user_feedback", text, images)
-			return formatToolResponse(formatGenericToolFeedback(text), images)
+			if (response === "messageResponse") {
+				await say("user_feedback", text, images)
+				return this.formatToolResponseWithImages(await this.formatGenericToolFeedback(text), images)
+			}
+			return this.formatToolDenied()
 		}
 
 		try {
@@ -80,43 +82,57 @@ export class WebSearchTool extends BaseAgentTool {
 			const result = this.koduDev
 				.getApiManager()
 				.getApi()
-				?.sendWebSearchRequest?.(searchQuery, baseLink)
+				?.sendWebSearchRequest?.(searchQuery, baseLink, this.abortController.signal)
 
 			if (!result) {
 				throw new Error("Unable to read response")
 			}
 
 			let fullContent = ""
-			let lastError: Error | null = null
 
-		
-				try {
-					for await (const chunk of result) {
-						await updateAsk(
-							"tool",
-							{
-								tool: {
-									tool: "web_search",
-									searchQuery,
-									baseLink,
-									content: chunk.content,
-									streamType: chunk.type,
-									approvalState: "loading",
-									ts: this.ts,
-								},
-							},
-							this.ts
-						)
-						fullContent += chunk.content
+			try {
+				for await (const chunk of result) {
+					if (this.abortController.signal.aborted) {
+						throw new Error("Web search aborted")
 					}
-					// If we get here, the stream completed successfully
-				} catch (err) {
-					lastError = err as Error
-					// If we've exhausted retries, throw the last error
-					throw lastError
+					await updateAsk(
+						"tool",
+						{
+							tool: {
+								tool: "web_search",
+								searchQuery,
+								baseLink,
+								content: chunk.content,
+								streamType: chunk.type,
+								approvalState: "loading",
+								ts: this.ts,
+							},
+						},
+						this.ts
+					)
+					fullContent += chunk.content
 				}
+			} catch (err) {
+				if (err.message === "Web search aborted") {
+					await updateAsk(
+						"tool",
+						{
+							tool: {
+								tool: "web_search",
+								searchQuery,
+								baseLink,
+								approvalState: "error",
+								error: "Web search was aborted",
+								ts: this.ts,
+							},
+						},
+						this.ts
+					)
+					return "Web search was aborted"
+				}
+				throw err
+			}
 
-			// Update UI with completion status
 			await updateAsk(
 				"tool",
 				{
@@ -133,7 +149,6 @@ export class WebSearchTool extends BaseAgentTool {
 
 			return `Web search completed. Full content: ${fullContent}`
 		} catch (err) {
-			// Update UI with error status
 			await updateAsk(
 				"tool",
 				{
@@ -151,4 +166,11 @@ export class WebSearchTool extends BaseAgentTool {
 			return `Web search failed with error: ${err}`
 		}
 	}
+
+	public override abortToolExecution(): Promise<void> {
+		super.abortToolExecution();
+		this.abortController.abort();
+		return Promise.resolve();
+	}
+
 }
