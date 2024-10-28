@@ -40,7 +40,7 @@ export function getKoduSummarizeUrl() {
 }
 
 export function getKoduWebSearchUrl() {
-	return `${KODU_BASE_URL}/api/tools/web-search`
+	return `${KODU_BASE_URL}/api/tools/new-web-search`
 }
 
 export function getKoduScreenshotUrl() {

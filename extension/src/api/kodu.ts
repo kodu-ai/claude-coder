@@ -6,7 +6,6 @@ import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduMode
 import {
 	KODU_ERROR_CODES,
 	KoduError,
-	getKoduBugReportUrl,
 	getKoduConsultantUrl,
 	getKoduCurrentUser,
 	getKoduInferenceUrl,
@@ -15,7 +14,7 @@ import {
 	getKoduVisitorUrl,
 	getKoduWebSearchUrl,
 	koduErrorMessages,
-	koduSSEResponse,
+	koduSSEResponse
 } from "../shared/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { ApiHistoryItem } from "../agent/v1"
@@ -410,26 +409,42 @@ export class KoduHandler implements ApiHandler {
 		return { id: koduDefaultModelId, info: koduModels[koduDefaultModelId] }
 	}
 
-	async sendWebSearchRequest(searchQuery: string, baseLink: string): Promise<WebSearchResponseDto> {
-		this.cancelTokenSource = axios.CancelToken.source()
-
-		const response = await axios.post(
-			getKoduWebSearchUrl(),
-			{
-				searchQuery,
-				baseLink,
-			},
-			{
-				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
-				},
-				timeout: 60_000,
-				cancelToken: this.cancelTokenSource?.token,
-			}
-		)
-
-		return response.data
+	async *sendWebSearchRequest(searchQuery: string, baseLink?: string, abortSignal?: AbortSignal): AsyncIterable<WebSearchResponseDto> {
+				const response = await axios.post(
+					getKoduWebSearchUrl(),
+					{
+						searchQuery,
+						baseLink,
+					},
+					{
+						headers: {
+							"Content-Type": "application/json",
+							"x-api-key": this.options.koduApiKey || "",
+						},
+						timeout: 60_000,
+						responseType: "stream",
+						cancelToken: this.cancelTokenSource?.token,
+						signal: abortSignal ?? undefined,
+					}
+				)
+				
+				if (response.data) {
+					const reader = response.data
+					const decoder = new TextDecoder("utf-8")
+					let buffer = ""
+		
+					for await (const chunk of reader) {
+						buffer += decoder.decode(chunk, { stream: true })
+						const lines = buffer.split("\n\n")
+						buffer = lines.pop() || ""
+						for (const line of lines) {
+							if (line.startsWith("data: ")) {
+								const eventData = JSON.parse(line.slice(6)) as WebSearchResponseDto
+								yield eventData
+							}
+						}
+					}
+				}
 	}
 
 	async sendUrlScreenshotRequest(url: string): Promise<Blob> {

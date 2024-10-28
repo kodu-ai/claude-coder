@@ -1,16 +1,15 @@
-import { WebSearchResponseDto } from "../../../../api/interfaces"
-import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
 import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import type { AgentToolOptions, AgentToolParams } from "../types"
 
 export class WebSearchTool extends BaseAgentTool {
 	protected params: AgentToolParams
+	private abortController: AbortController
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
+		this.abortController = new AbortController()
 	}
 
 	async execute(): Promise<ToolResponse> {
@@ -43,8 +42,9 @@ export class WebSearchTool extends BaseAgentTool {
 			},
 			this.ts
 		)
+
 		if (response !== "yesButtonTapped") {
-			ask(
+			await updateAsk(
 				"tool",
 				{
 					tool: {
@@ -58,87 +58,106 @@ export class WebSearchTool extends BaseAgentTool {
 				this.ts
 			)
 			if (response === "messageResponse") {
-				updateAsk(
-					"tool",
-					{
-						tool: {
-							tool: "web_search",
-							searchQuery,
-							baseLink,
-							approvalState: "rejected",
-							ts: this.ts,
-							userFeedback: text,
-						},
-					},
-					this.ts
-				)
-				return formatToolResponse(formatGenericToolFeedback(text), images)
+				await say("user_feedback", text, images)
+				return this.formatToolResponseWithImages(await this.formatGenericToolFeedback(text), images)
 			}
-
-			return "The user denied this operation."
+			return this.formatToolDenied()
 		}
+
 		try {
-			updateAsk(
+			await updateAsk(
 				"tool",
 				{
 					tool: {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
-						approvalState: "pending",
+						approvalState: "loading",
 						ts: this.ts,
 					},
 				},
 				this.ts
 			)
-			const result = await this.koduDev
+
+			const result = this.koduDev
 				.getApiManager()
 				.getApi()
-				?.sendWebSearchRequest?.(searchQuery, baseLink)
-				.then((res) => res)
-				.catch((err) => undefined)
+				?.sendWebSearchRequest?.(searchQuery, baseLink, this.abortController.signal)
+
 			if (!result) {
-				updateAsk(
-					"tool",
-					{
-						tool: {
-							tool: "web_search",
-							searchQuery,
-							baseLink,
-							approvalState: "error",
-							error: "No result found.",
-							ts: this.ts,
-						},
-					},
-					this.ts
-				)
-				return "Web search failed with error: No result found."
+				throw new Error("Unable to read response")
 			}
-			updateAsk(
+
+			let fullContent = ""
+
+			try {
+				for await (const chunk of result) {
+					if (this.abortController.signal.aborted) {
+						throw new Error("Web search aborted")
+					}
+					await updateAsk(
+						"tool",
+						{
+							tool: {
+								tool: "web_search",
+								searchQuery,
+								baseLink,
+								content: chunk.content,
+								streamType: chunk.type,
+								approvalState: "loading",
+								ts: this.ts,
+							},
+						},
+						this.ts
+					)
+					fullContent += chunk.content
+				}
+			} catch (err) {
+				if (err.message === "Web search aborted") {
+					await updateAsk(
+						"tool",
+						{
+							tool: {
+								tool: "web_search",
+								searchQuery,
+								baseLink,
+								approvalState: "error",
+								error: "Web search was aborted",
+								ts: this.ts,
+							},
+						},
+						this.ts
+					)
+					return "Web search was aborted"
+				}
+				throw err
+			}
+
+			await updateAsk(
 				"tool",
 				{
 					tool: {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
-						content: result.content,
 						approvalState: "approved",
 						ts: this.ts,
 					},
 				},
 				this.ts
 			)
-			return `This is the result of the web search: ${result.content}`
+
+			return `Web search completed. Full content: ${fullContent}`
 		} catch (err) {
-			updateAsk(
+			await updateAsk(
 				"tool",
 				{
 					tool: {
 						tool: "web_search",
-						searchQuery,
-						baseLink,
+						searchQuery: searchQuery ?? "",
+						baseLink: baseLink ?? "",
 						approvalState: "error",
-						error: err,
+						error: `${err}`,
 						ts: this.ts,
 					},
 				},
@@ -146,5 +165,11 @@ export class WebSearchTool extends BaseAgentTool {
 			)
 			return `Web search failed with error: ${err}`
 		}
+	}
+
+	public override abortToolExecution(): Promise<void> {
+		super.abortToolExecution()
+		this.abortController.abort()
+		return Promise.resolve()
 	}
 }

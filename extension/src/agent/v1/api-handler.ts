@@ -4,20 +4,19 @@
  * token calculations, and conversation history management.
  */
 
-import { Anthropic } from "@anthropic-ai/sdk"
-import { Message } from "@anthropic-ai/sdk/resources/messages.mjs"
-import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
-import { KoduError, koduSSEResponse } from "../../shared/kodu"
-import { UserContent } from "./types"
+import Anthropic from "@anthropic-ai/sdk"
+import { AxiosError } from "axios"
+import { findLast } from "lodash"
+import { ApiHandler, ApiConfiguration, buildApiHandler } from "../../api"
+import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
+import { koduModels } from "../../shared/api"
+import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
+import { koduSSEResponse, KoduError } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { truncateHalfConversation } from "../../utils/context-management"
 import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
+import { ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
-import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
-import { AxiosError } from "axios"
-import { koduModels } from "../../shared/api"
-import { findLast } from "../../utils"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 
 /**
  * Interface for tracking API usage metrics

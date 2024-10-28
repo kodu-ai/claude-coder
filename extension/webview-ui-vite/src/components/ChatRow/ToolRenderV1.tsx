@@ -1,65 +1,55 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import {
-	Terminal,
-	FolderTree,
-	Code,
-	Search,
-	FileText,
-	Edit,
-	HelpCircle,
-	CheckCircle,
-	Globe,
-	Image,
-	MessageCircle,
-	BookOpen,
-	AlertCircle,
-	XCircle,
-	ThumbsUp,
-	ThumbsDown,
-	ChevronDown,
-	ChevronUp,
-	LoaderPinwheel,
-	ExternalLink,
-	Play,
-	Square,
-	RefreshCw,
-	Server,
-	MessageSquareDiff,
-	MessageCircleReply,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { vscode } from "@/utils/vscode"
 import { AnimatePresence, motion } from "framer-motion"
 import {
-	ExecuteCommandTool,
-	ListFilesTool,
-	ListCodeDefinitionNamesTool,
-	SearchFilesTool,
-	ReadFileTool,
-	WriteToFileTool,
+	AlertCircle,
+	BookOpen,
+	CheckCircle,
+	ChevronDown,
+	ChevronUp,
+	Code,
+	Edit,
+	FileText,
+	FolderTree,
+	HelpCircle,
+	Image,
+	LoaderPinwheel,
+	MessageCircle,
+	MessageCircleReply,
+	Play,
+	RefreshCw,
+	Search,
+	Server,
+	Square,
+	Terminal,
+	XCircle,
+} from "lucide-react"
+import React, { useEffect, useRef, useState } from "react"
+import {
+	AskConsultantTool,
 	AskFollowupQuestionTool,
 	AttemptCompletionTool,
-	WebSearchTool,
-	UrlScreenshotTool,
-	AskConsultantTool,
-	UpsertMemoryTool,
 	ChatTool,
+	ExecuteCommandTool,
+	ListCodeDefinitionNamesTool,
+	ListFilesTool,
+	ReadFileTool,
+	SearchFilesTool,
 	ServerRunnerTool,
+	UpsertMemoryTool,
+	UrlScreenshotTool,
+	WriteToFileTool,
 } from "../../../../src/shared/new-tools"
-import { vscode } from "@/utils/vscode"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
-import SyntaxHighlighter from "react-syntax-highlighter"
-import { atom, useAtom, useAtomValue } from "jotai"
-import { SyntaxHighlighterAtom } from "../ChatView/ChatView"
-import { syntaxHighlighterCustomStyle } from "../CodeBlock/utils"
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
-import { useEvent } from "react-use"
+import { atom, useAtom } from "jotai"
 import { Textarea } from "../ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
+import { EnhancedWebSearchBlock } from "./Tools/WebSearchTool"
 
 type ApprovalState = ToolStatus
-type ToolAddons = {
+export type ToolAddons = {
 	approvalState?: ApprovalState
 	ts: number
 	onApprove?: () => void
@@ -136,35 +126,8 @@ const feedbackAtom = atom(
 		})
 	}
 )
-const FeedbackMessage: React.FC<{
-	feedback: string
-}> = ({ feedback }) => {
-	const [isExpanded, setIsExpanded] = React.useState(false)
-	const isLong = feedback.length > 120
 
-	return (
-		<div className="mt-3 space-y-1.5">
-			<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-				<MessageSquareDiff className="w-3.5 h-3.5" />
-				<span className="font-medium">Feedback</span>
-			</div>
-			<div className={cn("text-sm text-muted-foreground", !isExpanded && isLong && "line-clamp-3")}>
-				{feedback}
-			</div>
-			{isLong && (
-				<Button
-					variant="ghost"
-					size="sm"
-					className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground"
-					onClick={() => setIsExpanded(!isExpanded)}>
-					{isExpanded ? "Show less" : "Show more"}
-				</Button>
-			)}
-		</div>
-	)
-}
-
-const ToolBlock: React.FC<ToolBlockProps> = ({
+export const ToolBlock: React.FC<ToolBlockProps> = ({
 	icon: Icon,
 	title,
 	ts,
@@ -761,37 +724,6 @@ export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons
 	</ToolBlock>
 )
 
-export const WebSearchBlock: React.FC<WebSearchTool & ToolAddons> = ({
-	searchQuery,
-	baseLink,
-	approvalState,
-	onApprove,
-	onReject,
-	tool,
-	ts,
-	...rest
-}) => (
-	<ToolBlock
-		{...rest}
-		ts={ts}
-		tool={tool}
-		icon={Globe}
-		title="Web Search"
-		variant="info"
-		approvalState={approvalState}
-		onApprove={onApprove}
-		onReject={onReject}>
-		<p className="text-xs">
-			<span className="font-semibold">Search for:</span> {searchQuery}
-		</p>
-		{baseLink && (
-			<p className="text-xs">
-				<span className="font-semibold">Starting from:</span> {baseLink}
-			</p>
-		)}
-	</ToolBlock>
-)
-
 export const UrlScreenshotBlock: React.FC<UrlScreenshotTool & ToolAddons> = ({
 	url,
 	approvalState,
@@ -921,7 +853,7 @@ export const ToolContentBlock: React.FC<{
 		case "attempt_completion":
 			return <AttemptCompletionBlock {...tool} />
 		case "web_search":
-			return <WebSearchBlock {...tool} />
+			return <EnhancedWebSearchBlock {...tool} />
 		case "url_screenshot":
 			return <UrlScreenshotBlock {...tool} />
 		case "ask_consultant":

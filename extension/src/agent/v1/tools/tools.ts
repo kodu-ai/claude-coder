@@ -1,4 +1,3 @@
-import { z } from "zod"
 import { Tool } from "../../../shared/Tool"
 import { cwd } from "../utils"
 
@@ -160,6 +159,15 @@ export const tools: Tool[] = [
 				searchQuery: {
 					type: "string",
 					description: "The question you want to search for on the web. ",
+				},
+				streamType: {
+					type: "string",
+					enum: ["start", "explore", "summarize", "end"],
+					description: "The type of stream you want to use for the web search.",
+				},
+				content: {
+					type: "string",
+					description: "The content of the web search.",
 				},
 				baseLink: {
 					type: "string",
