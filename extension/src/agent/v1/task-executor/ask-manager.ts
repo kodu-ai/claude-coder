@@ -13,7 +13,8 @@ interface PendingAsk {
 
 export class AskManager {
 	private readonly stateManager: StateManager
-	private pendingAsks: Map<number, PendingAsk> = new Map()
+	private currentAsk: PendingAsk | null = null
+	private currentAskId: number | null = null
 	private pendingToolAsks: Map<string, number> = new Map()
 	private readonly readOnlyTools = [
 		"read_file",
@@ -53,57 +54,47 @@ export class AskManager {
 			await this.trackToolAsk(id, tool)
 		}
 
-		// Create and store new ask message
-		const askMessage = this.createAskMessage(id, type, question, tool)
-		await this.updateState(id, type, tool)
+		// Handle existing ask updates
+		if (this.isExistingAskUpdate(askTs)) {
+			return this.handleExistingAskUpdate(askTs!, type, tool)
+		}
 
-		return new Promise<AskResponse>((resolve, reject) => {
-			const pendingAsk: PendingAsk = {
-				resolve,
-				reject,
-				message: askMessage,
-				toolId: tool?.ts?.toString(),
-			}
-
-			this.pendingAsks.set(id, pendingAsk)
-			console.log(`Created new ask with id ${id}`, {
-				type,
-				question,
-				tool: tool?.tool,
-				toolId: tool?.ts,
-				pendingAsksSize: this.pendingAsks.size,
-			})
-		})
+		// Handle new ask
+		return this.handleNewAsk(id, type, question, tool)
 	}
 
 	public handleResponse(id: number, response: ClaudeAskResponse, text?: string, images?: string[]) {
-		console.log(`Handling response for ask ${id}`, {
-			pendingAsksSize: this.pendingAsks.size,
-			pendingToolAsksSize: this.pendingToolAsks.size,
-			hasPendingAsk: this.pendingAsks.has(id),
-		})
-
-		const pendingAsk = this.pendingAsks.get(id)
-		if (!pendingAsk) {
-			console.warn(`No pending ask found for id ${id}`)
+		// Try current ask first
+		if (this.isCurrentAsk(id)) {
+			this.resolveCurrentAsk(response, text, images)
 			return
 		}
 
-		const result: AskResponse = { response, text, images }
-		pendingAsk.resolve(result)
-
-		// Cleanup
-		this.pendingAsks.delete(id)
-		if (pendingAsk.toolId) {
-			this.pendingToolAsks.delete(pendingAsk.toolId)
+		// Try tool ask
+		if (this.isToolAskResponse(id)) {
+			this.resolveToolAsk(id, response, text, images)
+			return
 		}
+
+		// Fallback to current ask if no match
+		if (this.currentAsk) {
+			console.log(`No exact match found for response ${id}, using current ask ${this.currentAskId}`)
+			this.resolveCurrentAsk(response, text, images)
+			return
+		}
+
+		console.warn("No ask in progress to handle response", {
+			responseId: id,
+			currentAskId: this.currentAskId,
+			pendingToolAsks: Array.from(this.pendingToolAsks.entries()),
+		})
 	}
 
 	public dispose() {
-		// Resolve all pending asks with messageResponse
-		for (const [id, ask] of this.pendingAsks) {
-			ask.resolve({ response: "messageResponse" })
-			this.pendingAsks.delete(id)
+		if (this.currentAsk) {
+			this.currentAsk.resolve({ response: "messageResponse" })
+			this.currentAsk = null
+			this.currentAskId = null
 		}
 		this.pendingToolAsks.clear()
 	}
@@ -114,6 +105,50 @@ export class AskManager {
 			this.pendingToolAsks.set(toolId, id)
 			console.log(`Tracking tool ask ${toolId} with ask id ${id}`)
 		}
+	}
+
+	private async handleExistingAskUpdate(askTs: number, type: ClaudeAsk, tool?: ChatTool): Promise<AskResponse> {
+		await this.updateState(askTs, type, tool)
+		return new Promise<AskResponse>((resolve, reject) => {
+			if (this.currentAsk) {
+				this.currentAsk.resolve = resolve
+				this.currentAsk.reject = reject
+				console.log(`Updated existing ask ${askTs}`)
+			} else {
+				resolve({ response: "messageResponse" })
+			}
+		})
+	}
+
+	private async handleNewAsk(id: number, type: ClaudeAsk, question?: string, tool?: ChatTool): Promise<AskResponse> {
+		// Resolve any existing ask first
+		if (this.currentAsk) {
+			console.log(`Auto-resolving existing ask ${this.currentAskId} before creating new one`)
+			this.currentAsk.resolve({ response: "messageResponse" })
+			this.currentAsk = null
+			this.currentAskId = null
+		}
+
+		// Create and store new ask message
+		const askMessage = this.createAskMessage(id, type, question, tool)
+		await this.updateState(id, type, tool)
+
+		return new Promise<AskResponse>((resolve, reject) => {
+			this.currentAsk = {
+				resolve,
+				reject,
+				message: askMessage,
+				toolId: tool?.ts?.toString(),
+			}
+			this.currentAskId = id
+
+			console.log(`Created new ask with id ${id}`, {
+				type,
+				question,
+				tool: tool?.tool,
+				toolId: tool?.ts,
+			})
+		})
 	}
 
 	private createAskMessage(id: number, type: ClaudeAsk, question?: string, tool?: ChatTool): V1ClaudeMessage {
@@ -176,5 +211,49 @@ export class AskManager {
 
 	private isToolAsk(type: ClaudeAsk, tool?: ChatTool): boolean {
 		return type === "tool" && !!tool
+	}
+
+	private isExistingAskUpdate(askTs?: number): boolean {
+		return !!askTs && this.currentAskId === askTs
+	}
+
+	private isCurrentAsk(id: number): boolean {
+		return this.currentAskId === id && !!this.currentAsk
+	}
+
+	private isToolAskResponse(id: number): boolean {
+		if (!this.currentAsk) return false
+
+		for (const [toolId, askId] of this.pendingToolAsks.entries()) {
+			if (askId === id && this.currentAsk.toolId === toolId) {
+				return true
+			}
+		}
+		return false
+	}
+
+	private resolveCurrentAsk(response: ClaudeAskResponse, text?: string, images?: string[]) {
+		if (!this.currentAsk) return
+
+		const result: AskResponse = { response, text, images }
+		this.currentAsk.resolve(result)
+
+		this.currentAsk = null
+		this.currentAskId = null
+	}
+
+	private resolveToolAsk(id: number, response: ClaudeAskResponse, text?: string, images?: string[]) {
+		if (!this.currentAsk) return
+
+		const result: AskResponse = { response, text, images }
+		this.currentAsk.resolve(result)
+
+		// Cleanup tool ask
+		if (this.currentAsk.toolId) {
+			this.pendingToolAsks.delete(this.currentAsk.toolId)
+		}
+
+		this.currentAsk = null
+		this.currentAskId = null
 	}
 }
