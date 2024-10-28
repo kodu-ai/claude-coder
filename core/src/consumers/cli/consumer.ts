@@ -21,7 +21,7 @@ async function promptUser(question: string): Promise<string> {
 async function runKoduDevTask(task: string) {
 	const options: KoduDevOptions = {
 		apiConfiguration: {
-			apiKey: "EP4e-C2siGMKsvPyG3nP-ChtCpNOkgaeYwLryyDIMf",
+			apiKey: process.env.KODU_API_KEY,
 		},
 		alwaysAllowReadOnly: true,
 		customInstructions: "",
