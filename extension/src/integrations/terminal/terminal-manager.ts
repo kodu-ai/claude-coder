@@ -243,10 +243,12 @@ export class TerminalRegistry {
 		this.removeDevServer(terminalId)
 	}
 	static clearAllDevServers() {
+		const now = Date.now()
 		for (const devServer of this.devServers) {
 			this.closeTerminal(devServer.terminalInfo.id)
 		}
 		this.devServers = []
+		console.log(`All dev servers cleared in ${Date.now() - now}ms`)
 	}
 
 	static getTerminalLogs(terminalId: number): string[] {
@@ -444,11 +446,13 @@ export class TerminalManager {
 	}
 
 	disposeAll() {
+		const now = Date.now()
 		this.closeAllTerminals()
 		this.terminalIds.clear()
 		this.processes.clear()
 		this.disposables.forEach((disposable) => disposable.dispose())
 		this.disposables = []
+		console.log(`TerminalManager disposed in ${Date.now() - now}ms`)
 	}
 }
 

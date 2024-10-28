@@ -168,7 +168,7 @@ export class WebSearchTool extends BaseAgentTool {
 	}
 
 	public override abortToolExecution(): Promise<void> {
-		super.abortToolExecution()
+		// super.abortToolExecution()
 		this.abortController.abort()
 		return Promise.resolve()
 	}

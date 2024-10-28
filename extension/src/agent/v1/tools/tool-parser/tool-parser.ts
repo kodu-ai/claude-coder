@@ -303,25 +303,25 @@ export class ToolParser {
 
 export default ToolParser
 
-const parser = new ToolParser(
-	tools.map((t) => t.schema),
-	{
-		onToolUpdate: (id, toolName, params, ts) => {
-			console.log("Update:", { id, toolName, params, ts })
-		},
-		onToolEnd: (id, toolName, params, ts) => {
-			console.log("End:", { id, toolName, params, ts })
-		},
-		onToolError: (id, toolName, error, ts) => {
-			console.error("Error:", { id, toolName, error, ts })
-		},
-		onToolClosingError: (error) => {
-			console.error("Closing Error:", error)
-		},
-	}
-)
+// const parser = new ToolParser(
+// 	tools.map((t) => t.schema),
+// 	{
+// 		onToolUpdate: (id, toolName, params, ts) => {
+// 			console.log("Update:", { id, toolName, params, ts })
+// 		},
+// 		onToolEnd: (id, toolName, params, ts) => {
+// 			console.log("End:", { id, toolName, params, ts })
+// 		},
+// 		onToolError: (id, toolName, error, ts) => {
+// 			console.error("Error:", { id, toolName, error, ts })
+// 		},
+// 		onToolClosingError: (error) => {
+// 			console.error("Closing Error:", error)
+// 		},
+// 	}
+// )
 
-const input = `<thinking>\nBefore proceeding with the task, I need to answer the critical questions:\n\n1. Did I read the file before writing to it? No\n2. Did I write to the file before? No\n3. Did the user provide the content of the file? Yes\n4. Do I have the last content of the file either from the user or from a previous read_file tool use or from write_to_file tool? Yes, user provided\n\nCurrent step: Write the content provided by the user to the file test.txt\nNext step: Confirm the file has been written successfully\n\nThe file path relative to the current path (/home/matan/code/test-3/kodu) is simply test.txt.\n\nThere are no current errors in the file that I should be aware of.\n\nThe project does not appear to be in a /frontend/[...path] structure, so I'll use the direct path.\n</thinking>\n\nNow, I'll proceed with writing the file as requested by the user.\n\n<write_to_file>\n<path>test.txt</path>\n<content><write_to_file><content>Hello world</content></write_to_file></content>\n</write_to_file>`
+// const input = `<thinking>\nBefore proceeding with the task, I need to answer the critical questions:\n\n1. Did I read the file before writing to it? No\n2. Did I write to the file before? No\n3. Did the user provide the content of the file? Yes\n4. Do I have the last content of the file either from the user or from a previous read_file tool use or from write_to_file tool? Yes, user provided\n\nCurrent step: Write the content provided by the user to the file test.txt\nNext step: Confirm the file has been written successfully\n\nThe file path relative to the current path (/home/matan/code/test-3/kodu) is simply test.txt.\n\nThere are no current errors in the file that I should be aware of.\n\nThe project does not appear to be in a /frontend/[...path] structure, so I'll use the direct path.\n</thinking>\n\nNow, I'll proceed with writing the file as requested by the user.\n\n<write_to_file>\n<path>test.txt</path>\n<content><write_to_file><content>Hello world</content></write_to_file></content>\n</write_to_file>`
 
-parser.appendText(input)
-parser.endParsing()
+// parser.appendText(input)
+// parser.endParsing()

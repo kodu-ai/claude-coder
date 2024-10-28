@@ -14,7 +14,13 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 	public static readonly tabPanelId = `${extensionName}.TabPanelProvider`
 	private disposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
-	private koduDev?: KoduDev
+	private _koduDev?: KoduDev | undefined
+	public get koduDev(): KoduDev | undefined {
+		return this._koduDev
+	}
+	public set koduDev(value: KoduDev | undefined) {
+		this._koduDev = value
+	}
 	private stateManager: StateManager
 	private webviewManager: WebviewManager
 	private secretStateManager: SecretStateManager

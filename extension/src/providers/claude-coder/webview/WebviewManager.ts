@@ -14,7 +14,6 @@ import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
 import { KoduDevState } from "../../../agent/v1/types"
-// import { GitHandler } from "../../../agent/v1/handlers"
 import { ExecaTerminalManager } from "../../../integrations/terminal/execa-terminal-manager"
 import { cwd } from "../../../agent/v1/utils"
 
@@ -39,9 +38,13 @@ const excludedDirectories = [
 	"modules",
 	"packages",
 ]
+
 export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
 	private execaTerminalManager: ExecaTerminalManager
+	private lastStateUpdate: number = 0
+	private stateUpdateDebounceMs: number = 10 // Debounce state updates by 10ms
+	private pendingStateUpdate: boolean = false
 
 	constructor(private provider: ExtensionProvider) {
 		this.execaTerminalManager = new ExecaTerminalManager()
@@ -104,8 +107,24 @@ export class WebviewManager {
 	}
 
 	async postStateToWebview() {
-		const state = await this.getStateToPostToWebview()
-		this.postMessageToWebview({ type: "state", state })
+		const now = Date.now()
+		if (this.pendingStateUpdate || now - this.lastStateUpdate < this.stateUpdateDebounceMs) {
+			// Skip this update if one is pending or if we updated too recently
+			return
+		}
+
+		this.pendingStateUpdate = true
+		setTimeout(async () => {
+			try {
+				const state = await this.getStateToPostToWebview()
+				await this.postMessageToWebview({ type: "state", state })
+				this.lastStateUpdate = Date.now()
+			} catch (error) {
+				console.error("Error posting state to webview:", error)
+			} finally {
+				this.pendingStateUpdate = false
+			}
+		}, this.stateUpdateDebounceMs)
 	}
 
 	private async getStateToPostToWebview() {
@@ -120,7 +139,6 @@ export class WebviewManager {
 			extensionName,
 			claudeMessages: koduDevState?.claudeMessages ?? [],
 			taskHistory: (state.taskHistory || []).filter((item) => item.ts && item.task).sort((a, b) => b.ts - a.ts),
-			// shouldShowAnnouncement: state.lastShownAnnouncementId !== WebviewManager.latestAnnouncementId,
 			shouldShowAnnouncement: false,
 		} satisfies ExtensionState
 	}
@@ -157,23 +175,6 @@ export class WebviewManager {
 
 		const nonce = getNonce()
 
-		// const csp = [
-		// 	`default-src 'none';`,
-		// 	`script-src 'unsafe-eval' https://* ${
-		// 		isProd ? `'nonce-${nonce}'` : `http://${localServerUrl} http://0.0.0.0:${localPort} 'unsafe-inline'`
-		// 	}`,
-		// 	`style-src ${webview.cspSource} 'self' 'unsafe-inline' https://*`,
-		// 	`font-src ${webview.cspSource}`,
-		// 	`img-src ${webview.cspSource} data:`,
-		// 	`connect-src https://* ${
-		// 		isProd
-		// 			? ``
-		// 			: `ws://${localServerUrl} ws://0.0.0.0:${localPort} http://${localServerUrl} http://0.0.0.0:${localPort}`
-		// 	}`,
-		// 	`frame-src https://*`,
-		// 	`child-src https://*`,
-		// 	`window-open https://*`,
-		// ]
 		const csp = [
 			`default-src 'none';`,
 			`script-src 'unsafe-eval' https://* ${
@@ -271,8 +272,6 @@ export class WebviewManager {
 								.getGlobalStateManager()
 								.updateGlobalState(key as keyof typeof message.state, value)
 						}
-						// no need to post state to webview, as the state was received from the webview itself
-						// await this.postStateToWebview()
 						break
 					case "toolFeedback":
 						const feedbackMessage = message.feedbackMessage
@@ -451,29 +450,6 @@ export class WebviewManager {
 					case "debug":
 						await this.handleDebugInstruction()
 						break
-					// case "gitLog":
-					// 	this.postMessageToWebview({
-					// 		type: "gitLog",
-					// 		history: await GitHandler.getLog(this.state?.dirAbsolutePath!),
-					// 	})
-					// 	break
-					// case "gitCheckoutTo":
-					// 	await this.checkoutToBranch(message)
-					// 	break
-					// case "gitBranches":
-					// 	const branches = await GitHandler.getBranches(this.state?.dirAbsolutePath!)
-
-					// 	this.postMessageToWebview({
-					// 		type: "gitBranches",
-					// 		branches,
-					// 	})
-					// 	break
-					// case "getTaskHistory":
-					// 	await this.getTaskHistory()
-					// 	break
-					// case "updateTaskHistory":
-					// 	this.provider.getKoduDev()?.executeTool("upsert_memory", { content: message.history })
-					// 	break
 					case "executeCommand":
 						const callbackFunction = (
 							event: "error" | "exit" | "response",
@@ -500,13 +476,11 @@ export class WebviewManager {
 		const agent = this.provider.getKoduDev()
 		const openFolders = vscode.workspace.workspaceFolders
 		if (!openFolders) {
-			// vscode toast
 			vscode.window.showErrorMessage("No open workspaces, please open a workspace.")
 			return
 		}
 
 		if (openFolders.length > 1) {
-			// vscode toast
 			vscode.window.showErrorMessage("Multiple workspaces detected! Please open only one workspace.")
 			return
 		}
@@ -517,46 +491,7 @@ export class WebviewManager {
 			return
 		}
 
-		// const problemsString = await agent.ha
-		// if (!problemsString) {
-		// 	await agent.taskExecutor.say("info", "No problems detected!")
-		// 	return
-		// }
 		const problemsString = "Check system logs for more information."
-
 		return await agent.taskExecutor.handleAskResponse("messageResponse", problemsString)
 	}
-
-	private async getTaskHistory(): Promise<void> {
-		let memory = this.state?.memory
-		const { historyItem } = await this.provider.getTaskManager().getTaskWithId(this.state?.taskId!)
-		if (historyItem) {
-			memory = historyItem.memory
-		}
-
-		this.postMessageToWebview({
-			type: "taskHistory",
-			history:
-				memory ??
-				"Task history is not initialized yet, Agent will initialize it soon, or you can ask Agent to create it.",
-			isInitialized: !!memory,
-		})
-	}
-
-	// private async checkoutToBranch(message: GitCheckoutToMessage): Promise<void> {
-	// 	const taskExecutor = this.provider.getKoduDev()?.taskExecutor!
-	// 	const isSuccess = (await taskExecutor?.gitHandler.checkoutTo(message.branchName!)) ?? false
-
-	// 	if (isSuccess) {
-	// 		await taskExecutor.handleAskResponse(
-	// 			"messageResponse",
-	// 			`The user checked out to version: '${message.branchName}'`
-	// 		)
-	// 	}
-
-	// 	this.postMessageToWebview({
-	// 		type: "gitCheckoutTo",
-	// 		isSuccess,
-	// 	})
-	// }
 }

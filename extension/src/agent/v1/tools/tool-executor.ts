@@ -37,6 +37,8 @@ export class ToolExecutor {
 	private toolParser: ToolParser
 	private toolResults: { name: string; result: ToolResponse }[] = []
 	private queue: PQueue
+	private isAborting: boolean = false
+	private abortTimeoutMs: number = 2000 // 2 second timeout for cleanup
 
 	constructor(options: AgentToolOptions) {
 		this.cwd = options.cwd
@@ -80,6 +82,9 @@ export class ToolExecutor {
 	}
 
 	async executeTool(params: AgentToolParams): Promise<ToolResponse> {
+		if (this.isAborting) {
+			throw new Error("Cannot execute tool while aborting")
+		}
 		const tool = this.getTool(params)
 		return tool.execute({
 			name: tool?.name as ToolName,
@@ -139,11 +144,65 @@ export class ToolExecutor {
 		this.runningProcessId = pid
 	}
 
-	abortTask() {
-		this.toolParser.reset()
-		const runningProcessId = this.runningProcessId
-		if (runningProcessId) {
-			treeKill(runningProcessId, "SIGTERM")
+	async abortTask(): Promise<void> {
+		if (this.isAborting) {
+			return
+		}
+
+		this.isAborting = true
+		try {
+			// Clear the queue first
+			this.queue.clear()
+
+			// Reset the tool parser
+			this.toolParser.reset()
+
+			// Create a promise that resolves after timeout
+			const timeoutPromise = new Promise<void>((_, reject) => {
+				setTimeout(() => reject(new Error("Cleanup timeout")), this.abortTimeoutMs)
+			})
+
+			// Kill running process if exists
+			const cleanupPromise = new Promise<void>(async (resolve) => {
+				const runningProcessId = this.runningProcessId
+				if (runningProcessId) {
+					await new Promise<void>((resolve) => {
+						treeKill(runningProcessId, "SIGTERM", (err) => {
+							if (err) {
+								console.error("Error killing process:", err)
+							}
+							this.runningProcessId = undefined
+							resolve()
+						})
+					})
+				}
+
+				// Cancel all running tools
+				const cancelPromises = this.toolQueue.map((tool) => tool.abortToolExecution())
+				await Promise.allSettled(
+					cancelPromises.map((promise) =>
+						promise.catch((error) => {
+							console.error("Error cancelling tool execution", error)
+						})
+					)
+				)
+
+				// Wait for queue to be empty
+				await this.queue.onIdle()
+
+				// Reset all state
+				this.toolQueue = []
+				this.toolInstances = {}
+				this.toolResults = []
+				resolve()
+			})
+
+			// Race between cleanup and timeout
+			await Promise.race([cleanupPromise, timeoutPromise])
+		} catch (error) {
+			console.error("Cleanup error or timeout:", error)
+		} finally {
+			this.isAborting = false
 		}
 	}
 
@@ -153,10 +212,17 @@ export class ToolExecutor {
 	 * @returns the non-xml text
 	 */
 	public async processToolUse(text: string): Promise<string> {
+		if (this.isAborting) {
+			return text
+		}
 		return await this.toolParser.appendText(text)
 	}
 
 	private async handleToolUpdate(id: string, toolName: string, params: any, ts: number): Promise<void> {
+		if (this.isAborting) {
+			return
+		}
+
 		let toolInstance = this.toolInstances[id]
 		if (!toolInstance) {
 			const newTool = this.getTool({
@@ -214,6 +280,10 @@ export class ToolExecutor {
 	}
 
 	private async handleToolEnd(id: string, toolName: string, input: any): Promise<void> {
+		if (this.isAborting) {
+			return
+		}
+
 		let toolInstance = this.toolInstances[id]
 		if (!toolInstance) {
 			const newTool = this.getTool({
@@ -300,6 +370,10 @@ export class ToolExecutor {
 	}
 
 	private async processTool(tool: BaseAgentTool): Promise<void> {
+		if (this.isAborting) {
+			return
+		}
+
 		// Ensure tool is final before execution
 		await pWaitFor(() => tool.isFinal, { interval: 50 })
 
@@ -333,6 +407,10 @@ export class ToolExecutor {
 	}
 
 	private async handlePartialWriteToFile(tool: WriteFileTool): Promise<void> {
+		if (this.isAborting) {
+			return
+		}
+
 		const { path, content } = tool.paramsInput
 		if (!path || !content) {
 			// wait for both path and content to be available
@@ -346,12 +424,6 @@ export class ToolExecutor {
 	}
 
 	public async resetToolState() {
-		this.toolParser.reset()
-		for await (const tool of this.toolQueue) {
-			await tool.abortToolExecution()
-		}
-		this.toolQueue = []
-		this.toolInstances = {}
-		this.toolResults = []
+		await this.abortTask()
 	}
 }

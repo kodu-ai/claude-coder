@@ -58,9 +58,11 @@ export class BrowserManager {
 	}
 
 	async closeBrowser(): Promise<void> {
+		const now = Date.now()
 		await this.browser?.close()
 		this.browser = undefined
 		this.page = undefined
+		console.log(`Browser closed in ${Date.now() - now}ms`)
 	}
 
 	async urlToScreenshotAndLogs(url: string): Promise<{ buffer: Buffer; logs: string[] }> {

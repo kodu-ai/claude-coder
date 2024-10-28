@@ -44,6 +44,7 @@ export class KoduDev {
 	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
 	public isFirstMessage: boolean = true
+	private isAborting: boolean = false
 
 	constructor(options: KoduDevOptions) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
@@ -99,6 +100,9 @@ export class KoduDev {
 	}
 
 	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
+		if (this.isAborting) {
+			return
+		}
 		console.log(`Is there a pending ask response? ${!!this.pendingAskResponse}`)
 		if (this.taskExecutor.state === TaskState.ABORTED && (text || images)) {
 			let textBlock: Anthropic.TextBlockParam = {
@@ -133,6 +137,9 @@ export class KoduDev {
 		this.taskExecutor.handleAskResponse(askResponse, text, images)
 	}
 	private async startTask(task?: string, images?: string[]): Promise<void> {
+		if (this.isAborting) {
+			throw new Error("Cannot start task while aborting")
+		}
 		this.stateManager.state.claudeMessages = []
 		this.stateManager.state.apiConversationHistory = []
 		await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
@@ -148,10 +155,10 @@ export class KoduDev {
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
 	}
 
-	/**
-	 * @todo bug fix - sometlogic is not working properly with cancelled tasks or errored tasks
-	 */
 	async resumeTaskFromHistory() {
+		if (this.isAborting) {
+			throw new Error("Cannot resume task while aborting")
+		}
 		const modifiedClaudeMessages = await this.stateManager.getSavedClaudeMessages()
 
 		const lastRelevantMessageIndex = findLastIndex(
@@ -275,13 +282,32 @@ export class KoduDev {
 	}
 
 	async abortTask() {
-		void this.taskExecutor.abortTask()
-		void this.browserManager.closeBrowser()
-		void this.terminalManager.disposeAll()
-		void TerminalRegistry.clearAllDevServers()
+		if (this.isAborting) {
+			return
+		}
+
+		this.isAborting = true
+		try {
+			// First abort the task executor
+			await this.taskExecutor.abortTask()
+
+			// Then close the browser
+			await this.browserManager.closeBrowser()
+
+			// Then dispose terminals
+			await this.terminalManager.disposeAll()
+
+			// Finally clear dev servers
+			await TerminalRegistry.clearAllDevServers()
+		} finally {
+			this.isAborting = false
+		}
 	}
 
 	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false): Promise<ToolResponse> {
+		if (this.isAborting) {
+			throw new Error("Cannot execute tool while aborting")
+		}
 		const now = Date.now()
 		return this.toolExecutor.executeTool({
 			name,
@@ -293,7 +319,6 @@ export class KoduDev {
 			say: this.taskExecutor.say.bind(this.taskExecutor),
 			updateAsk: this.taskExecutor.updateAsk.bind(this.taskExecutor),
 		})
-		4
 	}
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {

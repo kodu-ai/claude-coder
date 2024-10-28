@@ -19,6 +19,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private isRequestCancelled: boolean = false
 	private abortController: AbortController | null = null
 	private consecutiveErrorCount: number = 0
+	private isAborting: boolean = false
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
@@ -29,6 +30,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 	}
 
 	public async newMessage(message: UserContent) {
+		if (this.isAborting) {
+			throw new Error("Cannot start new message while aborting")
+		}
 		this.logState("New message")
 		this.state = TaskState.WAITING_FOR_API
 		this.isRequestCancelled = false
@@ -39,6 +43,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 	}
 
 	public async startTask(userContent: UserContent): Promise<void> {
+		if (this.isAborting) {
+			throw new Error("Cannot start task while aborting")
+		}
 		this.logState("Starting task")
 		this.state = TaskState.WAITING_FOR_API
 		if (userContent.length === 0) {
@@ -61,6 +68,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 	}
 
 	public async resumeTask(userContent: UserContent): Promise<void> {
+		if (this.isAborting) {
+			throw new Error("Cannot resume task while aborting")
+		}
 		if (this.state === TaskState.WAITING_FOR_USER) {
 			this.logState("Resuming task")
 			this.state = TaskState.WAITING_FOR_API
@@ -86,12 +96,32 @@ export class TaskExecutor extends TaskExecutorUtils {
 	}
 
 	public async abortTask(): Promise<void> {
-		this.logState("Aborting task")
-		await this.cancelCurrentRequest()
-		await this.resetState()
+		if (this.isAborting) {
+			return
+		}
+
+		this.isAborting = true
+		try {
+			this.logState("Aborting task")
+			const now = Date.now()
+
+			// First cancel the current request
+			await this.cancelCurrentRequest()
+
+			// Then cleanup tool executor
+			await this.toolExecutor.abortTask()
+
+			// Finally reset state
+			await this.resetState()
+
+			this.logState(`Task aborted in ${Date.now() - now}ms`)
+		} finally {
+			this.isAborting = false
+		}
 	}
 
 	private async cancelCurrentRequest(): Promise<void> {
+		const now = Date.now()
 		if (this.isRequestCancelled) {
 			return // Prevent multiple cancellations
 		}
@@ -150,15 +180,22 @@ export class TaskExecutor extends TaskExecutorUtils {
 				errorText: "Request cancelled by user",
 				isError: true,
 			})
-			// await this.stateManager.removeEverythingAfterMessage(lastApiRequest.ts)
 		}
 		// Update the provider state
+		const now2 = Date.now()
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+		this.logState(`Provider state updated in ${Date.now() - now2}ms`)
+		console.log(`Request cancelled in ${Date.now() - now}ms`)
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
 		try {
-			if (this.state !== TaskState.WAITING_FOR_API || !this.currentUserContent || this.isRequestCancelled) {
+			if (
+				this.state !== TaskState.WAITING_FOR_API ||
+				!this.currentUserContent ||
+				this.isRequestCancelled ||
+				this.isAborting
+			) {
 				return
 			}
 			// make sure to reset the tool state before making a new request
@@ -189,7 +226,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				this.abortController?.signal
 			)
 
-			if (this.isRequestCancelled) {
+			if (this.isRequestCancelled || this.isAborting) {
 				this.abortController?.abort()
 				this.logState("Request cancelled, ignoring response")
 				return
@@ -199,7 +236,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.state = TaskState.PROCESSING_RESPONSE
 			await this.processApiResponse(stream, startedReqId)
 		} catch (error) {
-			if (!this.isRequestCancelled) {
+			if (!this.isRequestCancelled && !this.isAborting) {
 				if (error instanceof KoduError) {
 					console.log("[TaskExecutor] KoduError:", error)
 					if (error.errorCode === KODU_ERROR_CODES.AUTHENTICATION_ERROR) {
@@ -224,7 +261,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		stream: AsyncGenerator<koduSSEResponse, any, unknown>,
 		startedReqId: number
 	): Promise<void> {
-		if (this.state !== TaskState.PROCESSING_RESPONSE || this.isRequestCancelled) {
+		if (this.state !== TaskState.PROCESSING_RESPONSE || this.isRequestCancelled || this.isAborting) {
 			return
 		}
 
@@ -246,7 +283,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			const updateInterval = 10 // milliseconds
 
 			const debouncedUpdate = debounce(async (text: string) => {
-				if (this.isRequestCancelled) {
+				if (this.isRequestCancelled || this.isAborting) {
 					console.log("Request was cancelled, not updating UI")
 					return
 				}
@@ -257,7 +294,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 			const processor = new ChunkProcessor({
 				onImmediateEndOfStream: async (chunk) => {
-					if (this.isRequestCancelled) {
+					if (this.isRequestCancelled || this.isAborting) {
 						this.logState("Request was cancelled during onImmediateEndOfStream")
 						return
 					}
@@ -294,17 +331,17 @@ export class TaskExecutor extends TaskExecutorUtils {
 					}
 				},
 				onChunk: async (chunk) => {
-					if (this.isRequestCancelled) {
+					if (this.isRequestCancelled || this.isAborting) {
 						this.logState("Request was cancelled during onChunk")
 						return
 					}
 					if (chunk.code === 2) {
-						if (this.isRequestCancelled) {
+						if (this.isRequestCancelled || this.isAborting) {
 							this.logState("Request was cancelled during debounced update")
 							return
 						}
 						if (Array.isArray(apiHistoryItem.content) && apiHistoryItem.content[0].type === "text") {
-							apiHistoryItem.content[0].text = chunk.body.text
+							apiHistoryItem.content[0].text += chunk.body.text
 							this.stateManager.updateApiHistoryItem(startedReqId, apiHistoryItem)
 						}
 						const nonXMLText = await this.toolExecutor.processToolUse(chunk.body.text)
@@ -315,9 +352,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 				onFinalEndOfStream: async () => {},
 			})
 
-			// will the stream api request be called here?
 			await processor.processStream(stream)
-			if (this.isRequestCancelled) {
+			if (this.isRequestCancelled || this.isAborting) {
 				this.logState("Request was cancelled during onFinalEndOfStream")
 				return
 			}
@@ -326,10 +362,13 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 			await this.finishProcessingResponse(apiHistoryItem)
 		} catch (error) {
+			if (this.isRequestCancelled || this.isAborting) {
+				// dont show message if request was cancelled
+				throw error
+			}
 			// update the say to error
-			this.sayWithId(startedReqId, "error", "An error occurred. Please try again.")
+			// this.sayAfter("error", startedReqId, "An error occurred. Please try again.")
 			throw error
-		} finally {
 		}
 	}
 
@@ -339,7 +378,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.abortController = null
 		this.consecutiveErrorCount = 0
 		this.state = TaskState.WAITING_FOR_USER
-		await this.toolExecutor.resetToolState()
 		await this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 
 		this.logState("State reset due to request cancellation")
@@ -347,7 +385,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 	private async finishProcessingResponse(assistantResponses: ApiHistoryItem): Promise<void> {
 		this.logState("Finishing response processing")
-		if (this.isRequestCancelled) {
+		if (this.isRequestCancelled || this.isAborting) {
 			return
 		}
 

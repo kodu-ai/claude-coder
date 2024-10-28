@@ -12,8 +12,19 @@ export class TaskManager {
 	constructor(private provider: ExtensionProvider) {}
 
 	async clearTask() {
-		await this.provider.getKoduDev()?.abortTask()
-		this.provider["koduDev"] = undefined
+		const now = new Date()
+		// Set koduDev to undefined first to prevent any new operations
+		const koduDev = this.provider.getKoduDev()
+		this.provider.koduDev = undefined
+
+		// Then abort the task asynchronously
+		if (koduDev) {
+			koduDev.abortTask().catch((err) => {
+				console.error("Error during task abort:", err)
+			})
+		}
+
+		console.log(`Task cleared in ${new Date().getTime() - now.getTime()}ms`)
 	}
 
 	async handleNewTask(task?: string, images?: string[], attachements?: Resource[]) {

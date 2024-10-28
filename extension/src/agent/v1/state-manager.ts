@@ -77,8 +77,8 @@ export class StateManager {
 				}
 			}
 		},
-		500, // Debounce delay
-		{ maxWait: 5000 } // Maximum time to wait before forcing a save
+		10, // Debounce delay
+		{ maxWait: 25 } // Maximum time to wait before forcing a save
 	)
 
 	constructor(options: KoduDevOptions) {
