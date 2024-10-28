@@ -143,6 +143,10 @@ export type V1ClaudeMessage = {
 	isFetching?: boolean
 	isExecutingCommand?: boolean
 	errorText?: string
+	/**
+	 * should be rendered as a sub message or not
+	 */
+	isSubMessage?: boolean
 	retryCount?: number
 	status?: ToolStatus
 	isDone?: boolean

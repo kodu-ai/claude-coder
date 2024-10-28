@@ -197,7 +197,8 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, ne
 		<section
 			className={cn(
 				"!border-b-0 border-t-border border-t-2",
-				message.text?.includes('"tool":"') && "!border-t-0 !py-1"
+				(message.text?.includes('"tool":"') || message.isSubMessage) && "!border-t-0 !py-1",
+				message.isSubMessage && "!py-0"
 			)}>
 			{/* Text content container */}
 			{textContent && <div>{textContent}</div>}

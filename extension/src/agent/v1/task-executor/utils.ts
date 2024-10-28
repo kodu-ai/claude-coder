@@ -88,7 +88,13 @@ export abstract class TaskExecutorUtils {
 		return sayTs
 	}
 
-	public async say(type: ClaudeSay, text?: string, images?: string[], sayTs = Date.now()): Promise<number> {
+	public async say(
+		type: ClaudeSay,
+		text?: string,
+		images?: string[],
+		sayTs = Date.now(),
+		options: Partial<V1ClaudeMessage> = {}
+	): Promise<number> {
 		const sayMessage: ClaudeMessage = {
 			ts: sayTs,
 			type: "say",
@@ -97,6 +103,7 @@ export abstract class TaskExecutorUtils {
 			images,
 			isFetching: type === "api_req_started",
 			v: 1,
+			...options,
 		}
 
 		await this.stateManager.addToClaudeMessages(sayMessage)

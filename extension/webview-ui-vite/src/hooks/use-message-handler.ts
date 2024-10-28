@@ -250,13 +250,6 @@ export const useChatMessageHandling = (
 		(message: ClaudeMessage) => {
 			switch (message.say) {
 				case "text":
-					updateState({
-						textAreaDisabled: false,
-						claudeAsk: undefined,
-						primaryButtonText: undefined,
-						secondaryButtonText: undefined,
-						enableButtons: false,
-					})
 					break
 
 				case "abort_automode":
@@ -298,9 +291,11 @@ export const useChatMessageHandling = (
 
 	useEffect(() => {
 		const lastMessage = messages.at(-1)
-		if (lastMessage) {
-			if (lastMessage.type === "ask") handleAskMessage(lastMessage)
-			else if (lastMessage.type === "say") handleSayMessage(lastMessage)
+		const lastAskMessage = messages.reverse().find((msg) => msg.type === "ask")
+		if (lastMessage?.say === "error") {
+			handleSayMessage(lastMessage)
+		} else if (lastAskMessage) {
+			handleAskMessage(lastAskMessage)
 		} else {
 			updateState({
 				textAreaDisabled: false,

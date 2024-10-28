@@ -13,8 +13,8 @@ import { AskManager } from "./ask-manager"
 import { ChatTool } from "../../../shared/new-tools"
 
 // Constants for buffer management
-const BUFFER_FLUSH_INTERVAL = 50 // ms
-const BUFFER_SIZE_THRESHOLD = 500 // characters
+const BUFFER_FLUSH_INTERVAL = 10 // ms
+const BUFFER_SIZE_THRESHOLD = 50 // characters
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -29,6 +29,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private askManager: AskManager
 	private flushTimeout: NodeJS.Timeout | null = null
 	private lastFlushTime: number = 0
+	private currentReplyId: number | null = null
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
@@ -56,17 +57,26 @@ export class TaskExecutor extends TaskExecutorUtils {
 	}
 
 	public pauseStream() {
-		this.streamPaused = true
+		if (!this.streamPaused) {
+			this.streamPaused = true
+			// Ensure any buffered content is flushed before pausing
+			if (this.currentReplyId !== null) {
+				this.flushTextBuffer(this.currentReplyId, true)
+			}
+		}
 	}
 
 	public resumeStream() {
-		this.streamPaused = false
-		// Flush any pending content when resuming
-		this.flushTextBuffer(this.stateManager.state.claudeMessages.at(-1)?.ts || 0)
+		if (this.streamPaused) {
+			this.streamPaused = false
+			this.lastFlushTime = Date.now() // Reset flush timer on resume
+		}
 	}
 
-	private async flushTextBuffer(currentReplyId: number) {
-		if (!this.textBuffer.trim()) return
+	private async flushTextBuffer(currentReplyId?: number | null, force: boolean = false) {
+		if (!this.textBuffer.trim() || !currentReplyId) {
+			return
+		}
 
 		const now = Date.now()
 		const timeSinceLastFlush = now - this.lastFlushTime
@@ -77,19 +87,21 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.flushTimeout = null
 		}
 
-		// If buffer is large enough or enough time has passed, flush immediately
-		if (this.textBuffer.length >= BUFFER_SIZE_THRESHOLD || timeSinceLastFlush >= BUFFER_FLUSH_INTERVAL) {
-			await this.stateManager.appendToClaudeMessage(currentReplyId, this.textBuffer)
+		// If forced, buffer is large enough, or enough time has passed, flush immediately
+		if (force || this.textBuffer.length >= BUFFER_SIZE_THRESHOLD || timeSinceLastFlush >= BUFFER_FLUSH_INTERVAL) {
+			const contentToFlush = this.textBuffer
+			this.textBuffer = "" // Clear buffer before async operations
+			await this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush)
 			await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-			this.textBuffer = ""
 			this.lastFlushTime = now
-		} else {
-			// Schedule a delayed flush
+		} else if (!this.streamPaused) {
+			// Only schedule new flush if stream is not paused
 			this.flushTimeout = setTimeout(async () => {
-				if (this.textBuffer.trim()) {
-					await this.stateManager.appendToClaudeMessage(currentReplyId, this.textBuffer)
-					await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+				if (this.textBuffer.trim() && !this.streamPaused) {
+					const contentToFlush = this.textBuffer
 					this.textBuffer = ""
+					await this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush)
+					await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 					this.lastFlushTime = Date.now()
 				}
 			}, BUFFER_FLUSH_INTERVAL - timeSinceLastFlush)
@@ -281,6 +293,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.streamPaused = false
 			this.textBuffer = ""
 			this.lastFlushTime = Date.now()
+			this.currentReplyId = null
 
 			if (this.consecutiveErrorCount >= 3) {
 				await this.ask("resume_task", {
@@ -349,7 +362,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 		try {
 			this.logState("Processing API response")
-			const currentReplyId = await this.say("text", "")
+			const currentReplyId = await this.say("text", "", undefined, Date.now(), { isSubMessage: true })
+			this.currentReplyId = currentReplyId
+
 			const apiHistoryItem: ApiHistoryItem = {
 				role: "assistant",
 				ts: startedReqId,
@@ -361,6 +376,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 				],
 			}
 			await this.stateManager.addToApiConversationHistory(apiHistoryItem)
+
+			let accumulatedText = ""
 
 			const processor = new ChunkProcessor({
 				onImmediateEndOfStream: async (chunk) => {
@@ -417,23 +434,33 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 						// Process chunk only if stream is not paused
 						if (!this.streamPaused) {
+							// Accumulate text until we have a complete XML tag or enough non-XML content
+							accumulatedText += chunk.body.text
+
 							// Process for tool use and get non-XML text
-							const nonXMLText = await this.toolExecutor.processToolUse(chunk.body.text)
+							const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
+							accumulatedText = "" // Clear accumulated text after processing
 
 							// If we got non-XML text, add it to buffer
 							if (nonXMLText) {
 								this.textBuffer += nonXMLText
 								// Only flush buffer if we're not paused
-								await this.flushTextBuffer(currentReplyId)
+								await this.flushTextBuffer(this.currentReplyId)
 							}
 
 							// If tool processing started, pause the stream
 							if (this.toolExecutor.hasActiveTools()) {
+								// Ensure any buffered content is flushed before pausing
+								await this.flushTextBuffer(this.currentReplyId, true)
 								this.pauseStream()
 								// Wait for tool processing to complete
 								await this.toolExecutor.waitForToolProcessing()
 								// Resume stream after tool processing
 								this.resumeStream()
+								const newReplyId = await this.say("text", "", undefined, Date.now(), {
+									isSubMessage: true,
+								})
+								this.currentReplyId = newReplyId
 							}
 						}
 					}
@@ -444,6 +471,14 @@ export class TaskExecutor extends TaskExecutorUtils {
 						return
 					}
 
+					// Process any remaining accumulated text
+					if (accumulatedText) {
+						const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
+						if (nonXMLText) {
+							this.textBuffer += nonXMLText
+						}
+					}
+
 					// Ensure all tools are processed
 					await this.toolExecutor.waitForToolProcessing()
 
@@ -452,7 +487,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 						clearTimeout(this.flushTimeout)
 						this.flushTimeout = null
 					}
-					await this.flushTextBuffer(currentReplyId)
+					await this.flushTextBuffer(currentReplyId, true)
+					this.currentReplyId = null
 
 					await this.finishProcessingResponse(apiHistoryItem)
 				},
@@ -480,6 +516,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.streamPaused = false
 		this.textBuffer = ""
 		this.lastFlushTime = Date.now()
+		this.currentReplyId = null
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 

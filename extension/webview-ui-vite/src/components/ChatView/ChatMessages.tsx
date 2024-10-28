@@ -76,6 +76,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 		isInitialMount.current = true
 	}, [taskId])
 
+	console.log("visibleMessages", visibleMessages)
+
 	return (
 		<div className="relative h-full">
 			<Virtuoso

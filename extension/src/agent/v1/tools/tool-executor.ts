@@ -302,7 +302,8 @@ export class ToolExecutor {
 	}
 
 	public async waitForToolProcessing(): Promise<void> {
-		await this.queue.onIdle()
+		// use pwaitfor to wait for the queue to be idle
+		await pWaitFor(() => this.queue.size === 0 && this.queue.pending === 0, { interval: 10 })
 	}
 
 	public getToolResults(): { name: string; result: ToolResponse }[] {
