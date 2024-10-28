@@ -37,7 +37,7 @@ export class ReadFileTool extends BaseAgentTool {
 			const absolutePath = path.resolve(this.cwd, relPath)
 			const content = await extractTextFromFile(absolutePath)
 
-			const { response, text, images } = await ask(
+			const { response, text, images } = await ask!(
 				"tool",
 				{
 					tool: {
@@ -52,7 +52,7 @@ export class ReadFileTool extends BaseAgentTool {
 			)
 
 			if (response !== "yesButtonTapped") {
-				ask(
+				this.params.updateAsk(
 					"tool",
 					{
 						tool: {
@@ -73,7 +73,7 @@ export class ReadFileTool extends BaseAgentTool {
 
 				return "The user denied this operation."
 			}
-			ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -91,7 +91,7 @@ export class ReadFileTool extends BaseAgentTool {
 			}
 			return content.length > 0 ? content : "The file is empty."
 		} catch (error) {
-			ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {

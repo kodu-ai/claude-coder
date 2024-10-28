@@ -204,7 +204,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 
 		let earlyExitPromise = delay(COMMAND_TIMEOUT)
 		if (!this.alwaysAllowWriteOnly) {
-			earlyExitPromise = ask(
+			earlyExitPromise = this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -218,29 +218,11 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-				.then((res) => {
-					const { text, images, response } = res
-
-					if (response === "yesButtonTapped" || response === "messageResponse") {
-						didContinue = true
-						earlyExit = "approved"
-						if (response === "messageResponse") {
-							userFeedback = { text, images }
-						}
-						process?.continue()
-					} else {
-						earlyExit = "rejected"
-					}
-				})
-				.catch((error) => {
-					console.error("Early exit promise error:", error)
-					earlyExit = "rejected"
-				})
 		}
 
 		try {
 			await Promise.race([earlyExitPromise, process])
-			await delay(300) // Small delay to ensure final output is captured
+			// await delay(300) // Small delay to ensure final output is captured
 
 			await updateAsk(
 				"tool",
@@ -296,7 +278,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 
 			return await this.formatToolResponseWithImages(toolRes, userFeedback?.images)
 		} catch (error) {
-			const errorMessage = error.message || JSON.stringify(serializeError(error), null, 2)
+			const errorMessage = (error as Error)?.message || JSON.stringify(serializeError(error), null, 2)
 			updateAsk(
 				"tool",
 				{

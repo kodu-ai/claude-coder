@@ -25,7 +25,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 
 		const confirmation = await this.askToolExecConfirmation()
 		if (confirmation.response !== "yesButtonTapped") {
-			this.params.ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -41,7 +41,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 		}
 
 		try {
-			this.params.ask(
+			this.params.updateAsk(
 				"tool",
 				{ tool: { tool: "url_screenshot", approvalState: "loading", url, ts: this.ts } },
 				this.ts
@@ -82,7 +82,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 					data: imageToBase64,
 				},
 			}
-			this.params.ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -97,7 +97,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			)
 			return [imageBlock, textBlock]
 		} catch (err) {
-			this.params.ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -130,7 +130,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 	}
 
 	private async askToolExecConfirmation(): Promise<AskConfirmationResponse> {
-		return await this.params.ask(
+		return await this.params.ask!(
 			"tool",
 			{
 				tool: {

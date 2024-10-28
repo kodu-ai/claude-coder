@@ -56,7 +56,7 @@ export class SearchFilesTool extends BaseAgentTool {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
 			const results = await regexSearchFiles(this.cwd, absolutePath, regex, filePattern)
 
-			const { response, text, images } = await ask(
+			const { response, text, images } = await ask!(
 				"tool",
 				{
 					tool: {
@@ -73,7 +73,7 @@ export class SearchFilesTool extends BaseAgentTool {
 			)
 
 			if (response !== "yesButtonTapped") {
-				ask(
+				this.params.updateAsk(
 					"tool",
 					{
 						tool: {
@@ -111,7 +111,7 @@ export class SearchFilesTool extends BaseAgentTool {
 				return "The user denied this operation."
 			}
 
-			ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {

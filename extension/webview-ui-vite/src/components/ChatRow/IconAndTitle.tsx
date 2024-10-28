@@ -23,20 +23,19 @@ const IconAndTitle = ({ type, isCommandExecuting, cost, apiRequestFailedMessage 
 			</div>
 		</div>
 	)
-	console.log("TEST")
 
 	switch (type) {
 		case "api_req_failed":
 			return [
 				<span className="codicon codicon-error text-error" />,
-				<h3 className="text-error">API Request Failed</h3>,
+				<h3 className="text-error">Request Failed</h3>,
 			]
 		case "error":
 			return [<span className="codicon codicon-error text-error" />, <h3 className="text-error">Error</h3>]
 		case "command":
 			return [
 				isCommandExecuting ? ProgressIndicator : <span className="codicon codicon-terminal text-alt" />,
-				<h3 className="text-alt">Claude wants to execute this command:</h3>,
+				<h3 className="text-alt">Kodu wants to execute this command:</h3>,
 			]
 		case "completion_result":
 			return [
@@ -47,23 +46,23 @@ const IconAndTitle = ({ type, isCommandExecuting, cost, apiRequestFailedMessage 
 			return [
 				cost ? (
 					<span className="codicon codicon-check text-success" />
-				) : !!apiRequestFailedMessage ? (
+				) : apiRequestFailedMessage ? (
 					<span className="codicon codicon-error text-error" />
 				) : (
 					ProgressIndicator
 				),
 				cost ? (
-					<h3 className="text-success">API Request Complete</h3>
+					<h3 className="text-success">Request Complete</h3>
 				) : apiRequestFailedMessage ? (
-					<h3 className="text-error">API Request Failed</h3>
+					<h3 className="text-error">Request Failed</h3>
 				) : (
-					<h3 className="text-alt">Making API Request...</h3>
+					<h3 className="text-alt">Making Request...</h3>
 				),
 			]
 		case "followup":
 			return [
 				<span className="codicon codicon-question text-alt" />,
-				<h3 className="text-alt">Claude has a question:</h3>,
+				<h3 className="text-alt">Kodu has a question:</h3>,
 			]
 		default:
 			return [null, null]

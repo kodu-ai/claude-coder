@@ -1,27 +1,19 @@
-import React, { KeyboardEvent, useEffect, useRef, useState } from "react"
+import React, { KeyboardEvent, useState } from "react"
 import Thumbnails from "../Thumbnails/Thumbnails"
 import { Button } from "../ui/button"
-import { vscode } from "@/utils/vscode"
 import InputV1 from "./InputV1"
 
-import GitDialog from "./GitDialog"
-import TaskHistoryModal from "./TaskHistoryDialog"
-import InteractiveTerminal from "../ChatRow/InteractiveTerminal"
-import { Loader2 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { AnimatePresence, motion } from "framer-motion"
-import AnimatedAbortButton from "./animated-abort-button"
-
 interface InputAreaProps {
+	inputRef: React.RefObject<HTMLTextAreaElement>
 	inputValue: string
 	setInputValue: (value: string) => void
 	textAreaDisabled: boolean
 	handleSendMessage: () => void
-	handleKeyDown: (event: KeyboardEvent<HTMLDivElement> | KeyboardEvent<HTMLTextAreaElement>) => void
+	handleKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
 	handlePaste: (e: React.ClipboardEvent) => void
 	placeholderText: string
 	selectedImages: string[]
-	setSelectedImages: React.Dispatch<React.SetStateAction<string[]>>
+	setSelectedImages: (images: string[]) => void
 	shouldDisableImages: boolean
 	selectImages: () => void
 	thumbnailsHeight: number
@@ -33,11 +25,11 @@ interface InputAreaProps {
 const InputArea: React.FC<InputAreaProps> = ({
 	inputValue,
 	setInputValue,
+	inputRef,
 	textAreaDisabled,
 	handleSendMessage,
 	handleKeyDown,
 	handlePaste,
-	placeholderText,
 	selectedImages,
 	setSelectedImages,
 	shouldDisableImages,
@@ -45,28 +37,11 @@ const InputArea: React.FC<InputAreaProps> = ({
 	thumbnailsHeight,
 	handleThumbnailsHeightChange,
 	isRequestRunning,
-	isInTask,
 }) => {
-	const textAreaRef = useRef<HTMLTextAreaElement>(null)
-	const [isTextAreaFocused, setIsTextAreaFocused] = useState(false)
-	const [isAborting, setIsAborting] = useState(false)
-	useEffect(() => {
-		if (!isRequestRunning) {
-			setIsAborting(false)
-		}
-	}, [isRequestRunning])
+	const [_, setIsTextAreaFocused] = useState(false)
 
 	return (
 		<>
-			<AnimatedAbortButton
-				isInTask={isInTask}
-				isRequestRunning={isRequestRunning}
-				isAborting={isAborting}
-				onAbort={() => {
-					setIsAborting(true)
-					vscode.postMessage({ type: "cancelCurrentRequest" })
-				}}
-			/>
 			<div
 				className="flex flex-col gap-2"
 				style={{
@@ -76,25 +51,10 @@ const InputArea: React.FC<InputAreaProps> = ({
 					display: "flex",
 					marginTop: 0,
 				}}>
-				{/* {!isTextAreaFocused && (
-					<div
-						style={{
-							position: "absolute",
-							inset: "8px 16px",
-							border: "1px solid var(--vscode-input-border)",
-							borderRadius: 2,
-							pointerEvents: "none",
-						}}
-					/>
-				)} */}
-
-				{/* @TODO: only for testing*/}
-				{/* <InteractiveTerminal /> */}
-
 				<InputV1
 					isRequestRunning={isRequestRunning}
 					thumbnailsHeight={thumbnailsHeight}
-					ref={textAreaRef}
+					ref={inputRef}
 					value={inputValue}
 					disabled={textAreaDisabled}
 					onChange={(e) => setInputValue(e.target.value)}

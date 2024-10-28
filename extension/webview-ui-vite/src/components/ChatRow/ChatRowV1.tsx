@@ -1,6 +1,5 @@
 import React from "react"
 import { V1ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
-import { COMMAND_OUTPUT_STRING } from "../../../../src/shared/combineCommandSequences"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
 import IconAndTitle from "./IconAndTitle"
 import ToolRenderer from "./ToolRenderer"
@@ -18,8 +17,6 @@ import {
 interface ChatRowProps {
 	message: V1ClaudeMessage
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
-	isExpanded: boolean
-	onToggleExpand: () => void
 	nextMessage?: V1ClaudeMessage
 	isLast: boolean
 	handleSendStdin: (text: string) => void
@@ -34,15 +31,7 @@ const removeThinking = (text?: string) => {
 	return text?.replace(/<thinking>|<\/thinking>/g, "")
 }
 
-const ChatRowV1: React.FC<ChatRowProps> = ({
-	message,
-	syntaxHighlighterStyle,
-	isExpanded,
-	onToggleExpand,
-	nextMessage,
-	isLast,
-	handleSendStdin,
-}) => {
+const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, nextMessage }) => {
 	message.text = removeThinking(message.text!)
 
 	const renderTextContent = () => {
@@ -58,8 +47,6 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 							<APIRequestMessage
 								message={message}
 								nextMessage={nextMessage}
-								isExpanded={isExpanded}
-								onToggleExpand={onToggleExpand}
 								syntaxHighlighterStyle={syntaxHighlighterStyle}
 							/>
 						)
@@ -86,12 +73,10 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 							<UserFeedbackDiffMessage
 								message={message}
 								syntaxHighlighterStyle={syntaxHighlighterStyle}
-								isExpanded={isExpanded}
-								onToggleExpand={onToggleExpand}
 							/>
 						)
 					case "error":
-					case "completion_result":
+					case "completion_result": {
 						const [icon, title] = IconAndTitle({ type: message.say, isCommandExecuting: false })
 						return (
 							<>
@@ -104,6 +89,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 								</div>
 							</>
 						)
+					}
 					case "shell_integration_warning":
 						return (
 							<>
@@ -142,7 +128,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 								</div>
 							</>
 						)
-					default:
+					default: {
 						const [defaultIcon, defaultTitle] = IconAndTitle({
 							type: message.say,
 							isCommandExecuting: false,
@@ -160,6 +146,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 								<TextMessage message={message} syntaxHighlighterStyle={syntaxHighlighterStyle} />
 							</>
 						)
+					}
 				}
 			case "ask":
 				if (message.ask === "api_req_failed") {
@@ -189,21 +176,12 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 				<ToolRenderer
 					message={message}
 					syntaxHighlighterStyle={syntaxHighlighterStyle}
-					isExpanded={isExpanded}
 					nextMessage={nextMessage}
-					onToggleExpand={onToggleExpand}
 				/>
 			)
 		}
 		if (message.type === "ask" && message.ask === "tool") {
-			return (
-				<ToolRenderer
-					message={message}
-					syntaxHighlighterStyle={syntaxHighlighterStyle}
-					isExpanded={isExpanded}
-					onToggleExpand={onToggleExpand}
-				/>
-			)
+			return <ToolRenderer message={message} syntaxHighlighterStyle={syntaxHighlighterStyle} />
 		}
 		return null
 	}
@@ -222,7 +200,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 				message.text?.includes('"tool":"') && "!border-t-0 !py-1"
 			)}>
 			{/* Text content container */}
-			{textContent && <div className="mb-2">{textContent}</div>}
+			{textContent && <div>{textContent}</div>}
 
 			{/* Tool content container - always at the bottom */}
 			{toolContent && (
@@ -234,4 +212,4 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 	)
 }
 
-export default React.memo(ChatRowV1)
+export default ChatRowV1

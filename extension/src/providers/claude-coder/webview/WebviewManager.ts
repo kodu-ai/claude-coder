@@ -42,16 +42,9 @@ const excludedDirectories = [
 export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
 	private execaTerminalManager: ExecaTerminalManager
-	private lastStateUpdate: number = 0
-	private stateUpdateDebounceMs: number = 10 // Debounce state updates by 10ms
-	private pendingStateUpdate: boolean = false
 
 	constructor(private provider: ExtensionProvider) {
 		this.execaTerminalManager = new ExecaTerminalManager()
-	}
-
-	private get state(): KoduDevState | undefined {
-		return this.provider.getKoduDev()?.getStateManager()?.state
 	}
 
 	setupWebview(webviewView: vscode.WebviewView | vscode.WebviewPanel) {
@@ -328,7 +321,6 @@ export class WebviewManager {
 						break
 					case "cancelCurrentRequest":
 						await this.provider.getKoduDev()?.taskExecutor.abortTask()
-						await this.postStateToWebview()
 						break
 					case "abortAutomode":
 						await this.provider.getTaskManager().clearTask()
@@ -371,6 +363,7 @@ export class WebviewManager {
 						await this.postStateToWebview()
 						break
 					case "askResponse":
+						console.log("askResponse", message)
 						await this.provider
 							.getTaskManager()
 							.handleAskResponse(message.askResponse!, message.text, message.images, message.attachements)
@@ -469,9 +462,7 @@ export class WebviewManager {
 			return
 		}
 
-		const rootPath = openFolders[0].uri.fsPath
 		if (!agent) {
-			const res = await this.provider.initWithTask(`Let's debug my project`, undefined, true)
 			return
 		}
 

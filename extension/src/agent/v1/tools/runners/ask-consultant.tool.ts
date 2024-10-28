@@ -19,7 +19,7 @@ export class AskConsultantTool extends BaseAgentTool {
 			return await this.onBadInputReceived()
 		}
 
-		const confirmation = await this.params.ask(
+		const confirmation = await this.params.ask!(
 			"tool",
 			{
 				tool: {
@@ -33,7 +33,7 @@ export class AskConsultantTool extends BaseAgentTool {
 		)
 
 		if (confirmation.response !== "yesButtonTapped") {
-			this.params.ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -47,7 +47,7 @@ export class AskConsultantTool extends BaseAgentTool {
 			)
 			return await this.onExecDenied(confirmation)
 		}
-		this.params.ask(
+		this.params.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -63,7 +63,7 @@ export class AskConsultantTool extends BaseAgentTool {
 		try {
 			const response = await this.koduDev.getApiManager().getApi()?.sendAskConsultantRequest?.(query)
 			if (!response || !response.result) {
-				this.params.ask(
+				this.params.updateAsk(
 					"tool",
 					{
 						tool: {
@@ -79,7 +79,7 @@ export class AskConsultantTool extends BaseAgentTool {
 				return "Consultant failed to answer your question."
 			}
 
-			this.params.ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -95,14 +95,14 @@ export class AskConsultantTool extends BaseAgentTool {
 
 			return `This is the advice from the consultant: ${response.result}`
 		} catch (err) {
-			this.params.ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
 						tool: "ask_consultant",
 						approvalState: "error",
 						query: this.params.input.query!,
-						error: err,
+						error: (err as Error)?.message,
 						ts: this.ts,
 					},
 				},
@@ -113,7 +113,7 @@ export class AskConsultantTool extends BaseAgentTool {
 	}
 
 	private async onBadInputReceived() {
-		this.params.ask(
+		this.params.updateAsk(
 			"tool",
 			{
 				tool: {

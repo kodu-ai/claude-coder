@@ -5,12 +5,9 @@ import { ToolRendererProps } from "../ToolRenderer"
 import { Loader2 } from "lucide-react"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 
-export const AskConsultantTool: React.FC<ToolRendererProps> = ({
-	message,
-	syntaxHighlighterStyle,
-	isExpanded,
-	onToggleExpand,
-}) => {
+export const AskConsultantTool: React.FC<ToolRendererProps> = ({ message, syntaxHighlighterStyle }) => {
+	const [isExpanded, setIsExpanded] = React.useState(false)
+	const onToggleExpand = () => setIsExpanded(!isExpanded)
 	const { claudeMessages } = useExtensionState()
 	const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
 	const toolIcon = (name: string) => <span className={`codicon codicon-${name} text-alt`} />

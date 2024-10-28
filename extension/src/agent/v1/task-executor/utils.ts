@@ -3,7 +3,6 @@ import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
 import { StateManager } from "../state-manager"
 import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
 import { ChatTool } from "../../../shared/new-tools"
-import { read } from "fs"
 
 export enum TaskState {
 	IDLE = "IDLE",
@@ -40,125 +39,19 @@ export type AskDetails = {
 	tool?: ChatTool
 }
 
-export type AskForConfirmation = (type: ClaudeAsk, details?: AskDetails, askTs?: number) => Promise<AskResponse>
-
 export abstract class TaskExecutorUtils {
 	protected stateManager: StateManager
 	protected providerRef: WeakRef<ExtensionProvider>
-	protected pendingAskResponse: ((value: AskResponse) => void) | null = null
 
 	constructor(stateManager: StateManager, providerRef: WeakRef<ExtensionProvider>) {
 		this.stateManager = stateManager
 		this.providerRef = providerRef
 	}
 
-	public async ask(type: ClaudeAsk, data?: AskDetails): Promise<AskResponse> {
-		const { question, tool } = data ?? {}
-		return new Promise((resolve) => {
-			const askTs = Date.now()
-			const askMessage: V1ClaudeMessage = {
-				ts: askTs,
-				type: "ask",
-				ask: type,
-				text: question ? question : tool ? JSON.stringify(tool) : "",
-				v: 1,
-				status: tool?.approvalState,
-				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
-			}
-
-			this.stateManager.addToClaudeMessages(askMessage)
-			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion: ${question}`)
-			this.updateWebview()
-
-			const mustRequestApproval: ClaudeAsk[] = [
-				"completion_result",
-				"resume_completed_task",
-				"resume_task",
-				"request_limit_reached",
-				"followup",
-			]
-
-			if (this.stateManager.alwaysAllowWriteOnly && !mustRequestApproval.includes(type)) {
-				resolve({ response: "yesButtonTapped", text: "", images: [] })
-				return
-			}
-
-			this.pendingAskResponse = resolve
-		})
-	}
-
-	public async askWithId(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
-		// set default askTs if not provided
-		if (!askTs) {
-			askTs = Date.now()
-		}
-		const { question, tool } = data ?? {}
-		// if it's a tool, get the ts from the tool
-		if (tool && !askTs && tool.ts) {
-			askTs = tool.ts
-		}
-		return new Promise(async (resolve) => {
-			const readCommands: ChatTool["tool"][] = [
-				"read_file",
-				"list_files",
-				"search_files",
-				"list_code_definition_names",
-				"web_search",
-				"url_screenshot",
-			]
-			const mustRequestApprovalType: ClaudeAsk[] = [
-				"completion_result",
-				"resume_completed_task",
-				"resume_task",
-				"request_limit_reached",
-				"followup",
-			]
-			const mustRequestApprovalTool: ChatTool["tool"][] = ["ask_followup_question", "attempt_completion"]
-			if (
-				tool &&
-				tool.approvalState === "pending" &&
-				((this.stateManager.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool["tool"])) ||
-					(this.stateManager.alwaysAllowWriteOnly &&
-						!mustRequestApprovalTool.includes(tool?.tool as ChatTool["tool"])))
-			) {
-				// update the tool.status
-				tool.approvalState = "loading"
-			}
-
-			const askMessage: V1ClaudeMessage = {
-				ts: askTs,
-				type: "ask",
-				ask: type,
-				text: question ? question : tool ? JSON.stringify(tool) : "",
-				v: 1,
-				status: tool?.approvalState,
-				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
-			}
-			if (this.stateManager.getMessageById(askTs)) {
-				this.stateManager.updateClaudeMessage(askTs, askMessage)
-			} else {
-				await this.stateManager.addToClaudeMessages(askMessage)
-			}
-			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion: ${tool ? JSON.stringify(tool) : question}`)
-			await this.updateWebview()
-
-			if (this.stateManager.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool["tool"])) {
-				resolve({ response: "yesButtonTapped", text: "", images: [] })
-				return
-			}
-
-			if (
-				this.stateManager.alwaysAllowWriteOnly &&
-				!mustRequestApprovalType.includes(type) &&
-				!mustRequestApprovalTool.includes(tool?.tool as ChatTool["tool"])
-			) {
-				resolve({ response: "yesButtonTapped", text: "", images: [] })
-				return
-			}
-
-			this.pendingAskResponse = resolve
-		})
-	}
+	// Abstract methods that must be implemented by derived classes
+	public abstract ask(type: ClaudeAsk, data?: AskDetails): Promise<AskResponse>
+	public abstract askWithId(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse>
+	public abstract handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void
 
 	public async updateAsk(type: ClaudeAsk, data: AskDetails, askTs: number): Promise<void> {
 		const { question, tool } = data
@@ -224,13 +117,6 @@ export abstract class TaskExecutorUtils {
 
 		await this.stateManager.addToClaudeAfterMessage(target, sayMessage)
 		await this.updateWebview()
-	}
-
-	public handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void {
-		if (this.pendingAskResponse) {
-			this.pendingAskResponse({ response, text, images })
-			this.pendingAskResponse = null
-		}
 	}
 
 	protected logState(message: string): void {

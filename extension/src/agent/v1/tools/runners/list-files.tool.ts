@@ -41,7 +41,7 @@ export class ListFilesTool extends BaseAgentTool {
 			const files = await listFiles(absolutePath, recursive, 200)
 			const result = this.formatFilesList(absolutePath, files[0])
 
-			const { response, text, images } = await ask(
+			const { response, text, images } = await ask!(
 				"tool",
 				{
 					tool: {
@@ -57,7 +57,7 @@ export class ListFilesTool extends BaseAgentTool {
 			)
 
 			if (response !== "yesButtonTapped") {
-				ask(
+				this.params.updateAsk(
 					"tool",
 					{
 						tool: {
@@ -92,7 +92,7 @@ export class ListFilesTool extends BaseAgentTool {
 				return "The user denied this operation."
 			}
 
-			ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -109,14 +109,14 @@ export class ListFilesTool extends BaseAgentTool {
 
 			return result
 		} catch (error) {
-			ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
 						tool: "list_files",
 						path: getReadablePath(relDirPath, this.cwd),
 						approvalState: "error",
-						error: serializeError(error),
+						error: serializeError(error).message,
 						ts: this.ts,
 					},
 				},

@@ -8,18 +8,17 @@ import { ToolContentBlock } from "./ToolRenderV1"
 export interface ToolRendererProps {
 	message: V1ClaudeMessage
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
-	isExpanded: boolean
-	onToggleExpand: () => void
 	nextMessage?: V1ClaudeMessage
 }
 
 const ToolRenderer: React.FC<ToolRendererProps> = ({
 	message,
 	syntaxHighlighterStyle,
-	isExpanded,
-	onToggleExpand,
+
 	nextMessage,
 }) => {
+	const [isExpanded, setToggle] = React.useState(false)
+	const onToggleExpand = () => setToggle(!isExpanded)
 	const tool = JSON.parse(message.text || "{}") as ClaudeSayTool | ChatTool
 	const toolIcon = (name: string) => <span className={`codicon codicon-${name} text-alt`} />
 

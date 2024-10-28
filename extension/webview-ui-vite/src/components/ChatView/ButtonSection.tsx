@@ -1,5 +1,10 @@
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
-import React, { useState } from "react"
+import React, { useState, useCallback, useRef, useEffect, memo, useDeferredValue } from "react"
+import { Button } from "../ui/button"
+import { motion, AnimatePresence } from "framer-motion"
+import { vscode } from "@/utils/vscode"
+import { AlertCircle } from "lucide-react"
+import { useTransition } from "react"
 
 interface ButtonSectionProps {
 	primaryButtonText: string | undefined
@@ -10,61 +15,81 @@ interface ButtonSectionProps {
 	isRequestRunning: boolean
 }
 
-const ButtonSection: React.FC<ButtonSectionProps> = ({
+function ButtonSection({
 	primaryButtonText,
 	secondaryButtonText,
 	enableButtons,
 	handlePrimaryButtonClick,
 	isRequestRunning,
 	handleSecondaryButtonClick,
-}) => {
-	const [isCancelling, setIsCancelling] = useState(false)
+}: ButtonSectionProps) {
+	const [isAborting, setIsAborting] = useState(false)
+	const [isPending, startTransition] = useTransition()
+
+	// Defer button text updates to avoid flicker
+	const deferredPrimaryText = useDeferredValue(primaryButtonText)
+	const deferredSecondaryText = useDeferredValue(secondaryButtonText)
+	const deferredEnableButtons = useDeferredValue(enableButtons)
+
+	const showAbortButton = isRequestRunning && !deferredEnableButtons
+	const showActionButtons = deferredEnableButtons && (deferredPrimaryText || deferredSecondaryText)
+
+	const handleAbort = useCallback(() => {
+		startTransition(() => {
+			setIsAborting(true)
+			vscode.postMessage({ type: "cancelCurrentRequest" })
+		})
+	}, [])
+
+	const handlePrimaryClick = useCallback(() => {
+		startTransition(() => {
+			handlePrimaryButtonClick()
+		})
+	}, [handlePrimaryButtonClick])
+
+	const handleSecondaryClick = useCallback(() => {
+		startTransition(() => {
+			handleSecondaryButtonClick()
+		})
+	}, [handleSecondaryButtonClick])
+
+	if (!showAbortButton && !showActionButtons) return null
 
 	return (
-		<div
-			style={{
-				padding: "8px 16px 0px 15px",
-			}}
-			className="flex flex-col gap-2">
-			{/* <Button
-				disabled={isCancelling}
-				onClick={() => {
-					setIsCancelling(true)
-					vscode.postMessage({ type: "cancelCurrentRequest" })
-					setIsCancelling(false)
-				}}
-				className={cn("w-24", !isRequestRunning && "hidden")}
-				size="sm"
-				variant="destructive">
-				Abort Request
-			</Button> */}
-			<div
-				style={{
-					opacity: primaryButtonText || secondaryButtonText ? (enableButtons ? 1 : 0.5) : 0,
-					display: "flex",
-				}}>
-				{!isRequestRunning && primaryButtonText && (
-					<VSCodeButton
-						appearance="primary"
-						disabled={!enableButtons || isRequestRunning}
-						style={{
-							flex: secondaryButtonText ? 1 : 2,
-							marginRight: secondaryButtonText ? "6px" : "0",
-						}}
-						onClick={handlePrimaryButtonClick}>
-						{primaryButtonText}
-					</VSCodeButton>
-				)}
-				{!isRequestRunning && secondaryButtonText && (
-					<VSCodeButton
-						appearance="secondary"
-						disabled={!enableButtons || isRequestRunning}
-						style={{ flex: 1, marginLeft: "6px" }}
-						onClick={handleSecondaryButtonClick}>
-						{secondaryButtonText}
-					</VSCodeButton>
-				)}
-			</div>
+		<div className="flex flex-col gap-2 px-4 pt-2">
+			{showAbortButton && (
+				<Button
+					disabled={isAborting || isPending}
+					onClick={handleAbort}
+					className="w-full"
+					variant="destructive">
+					Abort Request
+				</Button>
+			)}
+
+			{showActionButtons && (
+				<div className="flex flex-1 w-full">
+					{deferredPrimaryText && (
+						<Button
+							size="sm"
+							disabled={!deferredEnableButtons || isPending}
+							className={`flex-1 ${deferredSecondaryText ? "mr-1.5" : ""}`}
+							onClick={handlePrimaryClick}>
+							{deferredPrimaryText}
+						</Button>
+					)}
+					{deferredSecondaryText && (
+						<Button
+							size="sm"
+							variant="secondary"
+							disabled={!deferredEnableButtons || isPending}
+							className="flex-1 ml-1.5"
+							onClick={handleSecondaryClick}>
+							{deferredSecondaryText}
+						</Button>
+					)}
+				</div>
+			)}
 		</div>
 	)
 }

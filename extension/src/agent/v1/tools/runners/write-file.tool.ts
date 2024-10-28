@@ -6,14 +6,12 @@ import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
 import { DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
 import { fileExistsAtPath } from "../../../../utils/path-helpers"
-import delay from "delay"
 import pWaitFor from "p-wait-for"
 
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
 	public diffViewProvider: DiffViewProvider
 	private isProcessingFinalContent: boolean = false
-	private lastUpdateLength: number = 0
 	private lastUpdateTime: number = 0
 	private readonly UPDATE_INTERVAL = 33 // Approximately 60 FPS
 	private skipWriteAnimation: boolean = false
@@ -21,34 +19,39 @@ export class WriteFileTool extends BaseAgentTool {
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
-		// Initialize DiffViewProvider without opening the diff editor
 		this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev, this.UPDATE_INTERVAL)
-		// Set skipWriteAnimation based on state manager
 		if (!!this.koduDev.getStateManager().skipWriteAnimation) {
 			this.skipWriteAnimation = true
 		}
 	}
 
 	override async execute(): Promise<ToolResponse> {
-		// Perform initial ask without awaiting
-		this.params.ask(
-			"tool",
-			{
-				tool: {
-					tool: "write_to_file",
-					content: this.params.input.content ?? "",
-					approvalState: "loading",
-					path: this.params.input.path ?? "",
-					ts: this.ts,
-				},
-			},
-			this.ts
-		)
 		await pWaitFor(() => this.isFinal, { interval: 20 })
-
 		const result = await this.processFileWrite()
-
 		return result
+	}
+
+	public async handlePartialUpdate(relPath: string, content: string): Promise<void> {
+		if (this.isProcessingFinalContent || this.skipWriteAnimation) {
+			return
+		}
+
+		const currentTime = Date.now()
+		if (currentTime - this.lastUpdateTime < this.UPDATE_INTERVAL) {
+			return
+		}
+
+		if (!this.diffViewProvider.isDiffViewOpen()) {
+			try {
+				await this.diffViewProvider.open(relPath)
+			} catch (e) {
+				console.error("Error opening file: ", e)
+				return
+			}
+		}
+
+		await this.diffViewProvider.update(content, false)
+		this.lastUpdateTime = currentTime
 	}
 
 	private async processFileWrite(): Promise<ToolResponse> {
@@ -59,21 +62,26 @@ export class WriteFileTool extends BaseAgentTool {
 				throw new Error("Missing required parameters 'path' or 'content'")
 			}
 
-			// Handle partial content if not final and skipWriteAnimation is false
-			if (!this.params.isFinal && !this.skipWriteAnimation) {
-				await this.handlePartialContent(relPath, content)
-			} else if (!this.params.isFinal && this.skipWriteAnimation) {
-				// Do nothing if skipWriteAnimation is true
-			} else {
-				// Handle final content we must confirm so we put skipWriteAnimation to false
-				this.skipWriteAnimation = false
-				await this.handlePartialContent(relPath, content)
-				await this.handleFinalContentForConfirmation(relPath, content)
-				this.isProcessingFinalContent = true
-			}
+			// Initial loading state
+			await this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "write_to_file",
+						content: content,
+						approvalState: "loading",
+						path: relPath,
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 
+			// Show changes in diff view
+			await this.showChangesInDiffView(relPath, content)
+
+			// Ask for user approval
 			console.log("Asking for user approval")
-			// Ask for user approval and await response
 			const { response, text, images } = await this.params.ask(
 				"tool",
 				{
@@ -87,17 +95,15 @@ export class WriteFileTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			console.log("User responded at:", Date.now())
 
 			if (response !== "yesButtonTapped") {
-				// Revert changes if user declines
 				await this.diffViewProvider.revertChanges()
-				this.params.ask(
+				await this.params.updateAsk(
 					"tool",
 					{
 						tool: {
 							tool: "write_to_file",
-							content: this.params.input.content ?? "No content provided",
+							content: content,
 							approvalState: "rejected",
 							path: relPath,
 							ts: this.ts,
@@ -111,11 +117,12 @@ export class WriteFileTool extends BaseAgentTool {
 				return formatToolResponse(text ?? "Write operation cancelled by user.", images)
 			}
 
-			// Proceed with final content handling
-			const fileContent = await this.handleFinalContent(relPath, content)
+			// Save changes and handle user edits
+			const fileExists = await this.checkFileExists(relPath)
+			const { userEdits } = await this.diffViewProvider.saveChanges()
 
-			// Notify approval
-			this.params.ask(
+			// Final approval state
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -129,105 +136,45 @@ export class WriteFileTool extends BaseAgentTool {
 				this.ts
 			)
 
-			// Return success message
-			return formatToolResponse(fileContent)
+			if (userEdits) {
+				await this.params.say(
+					"user_feedback_diff",
+					JSON.stringify({
+						tool: fileExists ? "editedExistingFile" : "newFileCreated",
+						path: getReadablePath(getCwd(), relPath),
+						diff: userEdits,
+					} as ClaudeSayTool)
+				)
+				return formatToolResponse(
+					`The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content has been successfully saved to ${relPath.toPosix()}. (Note: you don't need to re-write the file with these changes.)`
+				)
+			}
+
+			return formatToolResponse(
+				`The content was successfully saved to ${relPath.toPosix()}. Do not read the file again unless you forgot the content.`
+			)
 		} catch (error) {
 			console.error("Error in processFileWrite:", error)
-			return formatToolResponse(`Error: ${error.message}`)
+			return formatToolResponse(`Error: ${error instanceof Error ? error.message : String(error)}`)
 		} finally {
 			this.isProcessingFinalContent = false
 			this.diffViewProvider.isEditing = false
 		}
 	}
 
-	public async handlePartialContent(relPath: string, newContent: string): Promise<void> {
-		if (this.isProcessingFinalContent) {
-			console.log("Skipping partial update as final content is being processed")
-			return
-		}
+	private async showChangesInDiffView(relPath: string, content: string): Promise<void> {
+		content = this.preprocessContent(content)
 
-		if (this.skipWriteAnimation) {
-			console.log("Skipping write animation for partial content")
-			return
-		}
-
-		const currentTime = Date.now()
-
-		if (!this.diffViewProvider.isDiffViewOpen()) {
-			try {
-				await this.diffViewProvider.open(relPath)
-				this.lastUpdateLength = 0
-				this.lastUpdateTime = currentTime
-			} catch (e) {
-				console.error("Error opening file: ", e)
-			}
-		}
-
-		// Check if enough time has passed since the last update
-		if (currentTime - this.lastUpdateTime < this.UPDATE_INTERVAL) {
-			return
-		}
-
-		// Perform the update
-		await this.diffViewProvider.update(newContent, false)
-		this.lastUpdateTime = currentTime
-	}
-
-	private async handleFinalContentForConfirmation(relPath: string, newContent: string): Promise<void> {
-		console.log(`Handling final content for confirmation: ${relPath}`)
-		newContent = this.preprocessContent(newContent)
 		if (!this.diffViewProvider.isEditing) {
 			await this.diffViewProvider.open(relPath)
 		}
-		await this.diffViewProvider.update(newContent, true)
-	}
 
-	public async handleFinalContent(relPath: string, newContent: string): Promise<string> {
-		this.koduDev.getStateManager().addErrorPath(relPath)
-		const fileExists = await this.checkFileExists(relPath)
-		const { userEdits } = await this.diffViewProvider.saveChanges()
-		await delay(150)
-		this.params.ask(
-			"tool",
-			{
-				tool: {
-					tool: "write_to_file",
-					content: newContent,
-					approvalState: "approved",
-					ts: this.ts,
-					path: relPath,
-				},
-			},
-			this.ts
-		)
-
-		if (userEdits) {
-			await this.params.say(
-				"user_feedback_diff",
-				JSON.stringify({
-					tool: fileExists ? "editedExistingFile" : "newFileCreated",
-					path: getReadablePath(getCwd(), relPath),
-					diff: userEdits,
-				} as ClaudeSayTool)
-			)
-			console.log(`User edits detected: ${userEdits}`)
-		}
-
-		let response: string
-		if (userEdits) {
-			response = `The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content, which includes both your original modifications and the user's additional edits, has been successfully saved to ${relPath.toPosix()}. (Note this does not mean you need to re-write the file with the user's changes, as they have already been applied to the file.)`
-		} else {
-			response = `The content was successfully saved to ${relPath.toPosix()}.
-			Do not read the file again unless you forgot the file content, (the current content is the one you sent in <content>...</content>).`
-		}
-
-		return response
+		await this.diffViewProvider.update(content, true)
 	}
 
 	private async checkFileExists(relPath: string): Promise<boolean> {
 		const absolutePath = path.resolve(getCwd(), relPath)
-		const fileExists = await fileExistsAtPath(absolutePath)
-		return fileExists
+		return await fileExistsAtPath(absolutePath)
 	}
 
 	override async abortToolExecution(): Promise<void> {
@@ -243,7 +190,6 @@ export class WriteFileTool extends BaseAgentTool {
 		if (content.endsWith("```")) {
 			content = content.split("\n").slice(0, -1).join("\n").trim()
 		}
-
 		return content.replace(/>/g, ">").replace(/</g, "<").replace(/"/g, '"')
 	}
 }

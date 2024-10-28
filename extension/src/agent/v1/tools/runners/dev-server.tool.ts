@@ -156,7 +156,7 @@ export class DevServerTool extends BaseAgentTool {
 			const logs = devServer?.logs || []
 			await this.updateToolState("error", commandType, commandToRun, serverName, logs.join("\n"))
 
-			const errorAnalysis = this.analyzeError(err.message, logs)
+			const errorAnalysis = this.analyzeError((err as Error)?.message, logs)
 			TerminalRegistry.updateDevServerStatus(devServer?.terminalInfo.id || -1, "error", errorAnalysis.message)
 
 			return formatToolResponse(
@@ -325,7 +325,7 @@ export class DevServerTool extends BaseAgentTool {
 			if (startData.timeout) {
 				TerminalRegistry.updateDevServerStatus(terminalInfo.id, "error", "Server start timeout")
 			} else {
-				TerminalRegistry.updateDevServerStatus(terminalInfo.id, "error", error.message)
+				TerminalRegistry.updateDevServerStatus(terminalInfo.id, "error", (error as Error)?.message)
 			}
 
 			await this.updateToolState("error", "start", command, serverName, logs.join("\n"))
@@ -387,7 +387,6 @@ export class DevServerTool extends BaseAgentTool {
 		await this.updateToolState("loading", "restart", command, serverName)
 
 		const stopResult = await this.stopServer(serverName)
-		await delay(2000) // Ensure clean shutdown
 		const startResult = await this.startServer(terminalManager, command, serverName)
 
 		return `${stopResult}\n${startResult}`

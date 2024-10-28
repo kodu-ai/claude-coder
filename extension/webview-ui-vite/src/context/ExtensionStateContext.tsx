@@ -129,6 +129,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 		if (message.type === "claudeMessages") {
 			setClaudeMessages(message.claudeMessages)
 		}
+
 		if (message.type === "state" && message.state) {
 			setVersion(message.state.version)
 			setCurrentIdTask(message.state.currentTaskId)

@@ -188,22 +188,28 @@ export class KoduDev {
 					m.isError = true
 				}
 				if (m.ask === "tool" && m.type === "ask") {
-					const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
-					if (
-						typeof parsedTool === "object" &&
-						(parsedTool.approvalState === "pending" ||
-							parsedTool.approvalState === undefined ||
-							parsedTool.approvalState === "loading")
-					) {
-						const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
-						if (toolsToSkip.includes(parsedTool.tool)) {
-							parsedTool.approvalState = "pending"
+					try {
+						const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
+						if (
+							typeof parsedTool === "object" &&
+							(parsedTool.approvalState === "pending" ||
+								parsedTool.approvalState === undefined ||
+								parsedTool.approvalState === "loading")
+						) {
+							const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
+							if (toolsToSkip.includes(parsedTool.tool)) {
+								parsedTool.approvalState = "pending"
+								m.text = JSON.stringify(parsedTool)
+								return
+							}
+							parsedTool.approvalState = "rejected"
+							parsedTool.error = "Task was interrupted before this tool call could be completed."
 							m.text = JSON.stringify(parsedTool)
-							return
 						}
-						parsedTool.approvalState = "rejected"
-						parsedTool.error = "Task was interrupted before this tool call could be completed."
-						m.text = JSON.stringify(parsedTool)
+					} catch (err) {
+						m.text = "{}"
+						m.errorText = "Task was interrupted before this tool call could be completed."
+						m.isError = true
 					}
 				}
 			}
@@ -216,8 +222,14 @@ export class KoduDev {
 			.reverse()
 			.find((m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task"))
 
-		let askType: ClaudeAsk =
-			lastClaudeMessage?.ask === "completion_result" ? "resume_completed_task" : "resume_task"
+		const isCompleted =
+			lastClaudeMessage?.ask === "completion_result" ||
+			(lastClaudeMessage &&
+				isV1ClaudeMessage(lastClaudeMessage) &&
+				lastClaudeMessage.ask === "tool" &&
+				(JSON.parse(lastClaudeMessage.text ?? "{}") as ChatTool).tool === "attempt_completion")
+
+		let askType: ClaudeAsk = isCompleted ? "resume_completed_task" : "resume_task"
 
 		await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
 		const { response, text, images } = await this.taskExecutor.ask(askType)

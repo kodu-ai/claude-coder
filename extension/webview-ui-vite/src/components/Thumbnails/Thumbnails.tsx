@@ -5,14 +5,13 @@ import ThumbnailItem from "./ThumbnailItem"
 interface ThumbnailsProps {
 	images: string[]
 	style?: React.CSSProperties
-	setImages?: React.Dispatch<React.SetStateAction<string[]>>
+	setImages?: (images: string[]) => void
 	onHeightChange?: (height: number) => void
 }
 
 const Thumbnails: React.FC<ThumbnailsProps> = ({ images, style, setImages, onHeightChange }) => {
 	const containerRef = useRef<HTMLDivElement>(null)
 	const { width } = useWindowSize()
-
 	useLayoutEffect(() => {
 		if (containerRef.current) {
 			let height = containerRef.current.clientHeight
@@ -22,10 +21,12 @@ const Thumbnails: React.FC<ThumbnailsProps> = ({ images, style, setImages, onHei
 			}
 			onHeightChange?.(height)
 		}
-	}, [images, width, onHeightChange])
+	}, [images, width])
 
 	const handleDelete = (index: number) => {
-		setImages?.((prevImages) => prevImages.filter((_, i) => i !== index))
+		// setImages?.((prevImages) => prevImages.filter((_, i) => i !== index))
+		const newImages = [...images].filter((_, i) => i !== index)
+		setImages?.(newImages)
 	}
 
 	const isDeletable = setImages !== undefined

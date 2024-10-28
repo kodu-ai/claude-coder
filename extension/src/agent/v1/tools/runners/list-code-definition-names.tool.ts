@@ -39,7 +39,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
 			const result = await parseSourceCodeForDefinitionsTopLevel(absolutePath)
 
-			const { response, text, images } = await ask(
+			const { response, text, images } = await ask!(
 				"tool",
 				{
 					tool: {
@@ -53,7 +53,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 				this.ts
 			)
 			if (response !== "yesButtonTapped") {
-				ask(
+				this.params.updateAsk(
 					"tool",
 					{
 						tool: {
@@ -86,7 +86,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 				}
 				return "The user denied this operation."
 			}
-			ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -102,7 +102,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 			return result
 		} catch (error) {
 			const errorString = `Error parsing source code definitions: ${JSON.stringify(serializeError(error))}`
-			ask(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {

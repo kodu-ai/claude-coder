@@ -505,7 +505,9 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 				this.emit("no_shell_integration")
 			}
 		} catch (error) {
-			this.emit("error", error)
+			if (error instanceof Error) {
+				this.emit("error", error)
+			}
 			console.error(`Error in terminal process:`, error)
 		} finally {
 			this.isHot = false

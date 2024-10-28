@@ -13,11 +13,9 @@ export class TaskManager {
 
 	async clearTask() {
 		const now = new Date()
-		// Set koduDev to undefined first to prevent any new operations
 		const koduDev = this.provider.getKoduDev()
 		this.provider.koduDev = undefined
 
-		// Then abort the task asynchronously
 		if (koduDev) {
 			koduDev.abortTask().catch((err) => {
 				console.error("Error during task abort:", err)
@@ -34,11 +32,29 @@ export class TaskManager {
 	}
 
 	async handleAskResponse(askResponse: any, text?: string, images?: string[], attachements?: Resource[]) {
-		const compressedImages = await compressImages(images ?? [])
-		const additionalContextBlocks = await formatAttachementsIntoBlocks(attachements)
-		this.provider
-			.getKoduDev()
-			?.handleWebviewAskResponse(askResponse, text + additionalContextBlocks, compressedImages)
+		console.log("Handling ask response:", { askResponse, text, images })
+
+		const koduDev = this.provider.getKoduDev()
+		if (!koduDev) {
+			console.error("No KoduDev instance found when handling ask response")
+			return
+		}
+
+		try {
+			const compressedImages = await compressImages(images ?? [])
+			const additionalContextBlocks = await formatAttachementsIntoBlocks(attachements)
+
+			await koduDev.handleWebviewAskResponse(
+				askResponse,
+				text ? text + additionalContextBlocks : undefined,
+				compressedImages
+			)
+		} catch (error) {
+			console.error("Error handling ask response:", error)
+			vscode.window.showErrorMessage(
+				"Error handling response: " + (error instanceof Error ? error.message : String(error))
+			)
+		}
 	}
 
 	async renameTask(
@@ -57,12 +73,11 @@ export class TaskManager {
 			currentTaskId = this.provider.getKoduDev()?.getStateManager()?.state.taskId!
 		}
 		if (!currentTaskId) {
-			// throw vscode error message
 			vscode.window.showErrorMessage(`Task not found`)
 			return
 		}
+
 		const taskData = await this.getTaskWithId(currentTaskId)
-		// vscode dialog to rename task
 		const newTaskName = await this.provider.getWebviewManager().showInputBox({
 			prompt: "Enter the new task name",
 			value: taskData.historyItem.name,
@@ -74,10 +89,12 @@ export class TaskManager {
 			},
 			placeHolder: "Task name",
 		})
+
 		if (!newTaskName) {
 			vscode.window.showErrorMessage(`Task name cannot be empty`)
 			return
 		}
+
 		taskData.historyItem.name = newTaskName
 		await this.provider.getStateManager().updateTaskHistory(taskData.historyItem)
 		await this.provider.getWebviewManager().postStateToWebview()
@@ -99,13 +116,13 @@ export class TaskManager {
 	async showTaskWithId(id: string) {
 		if (id !== this.provider.getKoduDev()?.getStateManager().state.taskId) {
 			const { historyItem } = await this.getTaskWithId(id)
-
 			await this.provider.initWithHistoryItem(historyItem)
-			// await this.provider.getKoduDev()?.taskExecutor.gitHandler.init(historyItem.dirAbsolutePath!)
 		}
 
-		// await this.provider.getTaskExecutor().runTask()
-		await this.provider.getWebviewManager().postMessageToWebview({ type: "action", action: "chatButtonTapped" })
+		await this.provider.getWebviewManager().postMessageToWebview({
+			type: "action",
+			action: "chatButtonTapped",
+		})
 	}
 
 	async exportTaskWithId(id: string) {
@@ -120,34 +137,20 @@ export class TaskManager {
 
 		const { taskDirPath, apiConversationHistoryFilePath, claudeMessagesFilePath } = await this.getTaskWithId(id)
 
-		// Delete the task files
-		const apiConversationHistoryFileExists = await fs
-			.access(apiConversationHistoryFilePath)
-			.then(() => true)
-			.catch(() => false)
-		if (apiConversationHistoryFileExists) {
-			await fs.unlink(apiConversationHistoryFilePath)
-		}
-		const claudeMessagesFileExists = await fs
-			.access(claudeMessagesFilePath)
-			.then(() => true)
-			.catch(() => false)
-		if (claudeMessagesFileExists) {
-			await fs.unlink(claudeMessagesFilePath)
-		}
-		await fs.rmdir(taskDirPath)
+		await this.deleteTaskFiles(taskDirPath, apiConversationHistoryFilePath, claudeMessagesFilePath)
 
 		await this.deleteTaskFromState(id)
 	}
 
 	async clearAllTasks() {
-		// delete all tasks from state and delete task folder
 		this.provider.getStateManager().clearHistory()
 		const taskDirPath = path.join(this.provider.getContext().globalStorageUri.fsPath, "tasks")
+
 		const taskDirExists = await fs
 			.access(taskDirPath)
 			.then(() => true)
 			.catch(() => false)
+
 		if (taskDirExists) {
 			await fs.rmdir(taskDirPath, { recursive: true })
 		}
@@ -162,28 +165,61 @@ export class TaskManager {
 	}> {
 		const history = (await this.provider.getStateManager().getState()).taskHistory || []
 		const historyItem = history.find((item) => item.id === id)
-		if (historyItem) {
-			const taskDirPath = path.join(this.provider.getContext().globalStorageUri.fsPath, "tasks", id)
-			const apiConversationHistoryFilePath = path.join(taskDirPath, "api_conversation_history.json")
-			const claudeMessagesFilePath = path.join(taskDirPath, "claude_messages.json")
-			const fileExists = await fs
-				.access(apiConversationHistoryFilePath)
-				.then(() => true)
-				.catch(() => false)
-			if (fileExists) {
-				const apiConversationHistory = JSON.parse(await fs.readFile(apiConversationHistoryFilePath, "utf8"))
-				return {
-					historyItem,
-					taskDirPath,
-					apiConversationHistoryFilePath,
-					claudeMessagesFilePath,
-					apiConversationHistory,
-				}
-			}
+
+		if (!historyItem) {
+			await this.deleteTaskFromState(id)
+			throw new Error("Task not found")
 		}
-		// if we tried to get a task that doesn't exist, remove it from state
-		await this.deleteTaskFromState(id)
-		throw new Error("Task not found")
+
+		const taskDirPath = path.join(this.provider.getContext().globalStorageUri.fsPath, "tasks", id)
+		const apiConversationHistoryFilePath = path.join(taskDirPath, "api_conversation_history.json")
+		const claudeMessagesFilePath = path.join(taskDirPath, "claude_messages.json")
+
+		const fileExists = await fs
+			.access(apiConversationHistoryFilePath)
+			.then(() => true)
+			.catch(() => false)
+
+		if (!fileExists) {
+			await this.deleteTaskFromState(id)
+			throw new Error("Task files not found")
+		}
+
+		const apiConversationHistory = JSON.parse(await fs.readFile(apiConversationHistoryFilePath, "utf8"))
+
+		return {
+			historyItem,
+			taskDirPath,
+			apiConversationHistoryFilePath,
+			claudeMessagesFilePath,
+			apiConversationHistory,
+		}
+	}
+
+	private async deleteTaskFiles(
+		taskDirPath: string,
+		apiConversationHistoryFilePath: string,
+		claudeMessagesFilePath: string
+	) {
+		const apiConversationHistoryFileExists = await fs
+			.access(apiConversationHistoryFilePath)
+			.then(() => true)
+			.catch(() => false)
+
+		if (apiConversationHistoryFileExists) {
+			await fs.unlink(apiConversationHistoryFilePath)
+		}
+
+		const claudeMessagesFileExists = await fs
+			.access(claudeMessagesFilePath)
+			.then(() => true)
+			.catch(() => false)
+
+		if (claudeMessagesFileExists) {
+			await fs.unlink(claudeMessagesFilePath)
+		}
+
+		await fs.rmdir(taskDirPath)
 	}
 
 	private async deleteTaskFromState(id: string) {

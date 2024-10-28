@@ -5,19 +5,19 @@ import { useEvent } from "react-use"
 import { ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
 import { Resource } from "../../../../src/shared/WebviewMessage"
 import AttachedResources from "./AttachedResources"
-import { attachementsAtom } from "./ChatView"
 import FileDialog from "./FileDialog"
 import InputTextArea from "./InputTextArea"
 import MentionPopover, { popoverOptions } from "./MentionPopover"
 import ScrapeDialog from "./ScrapeDialog"
 import { FileNode } from "./file-tree"
+import { attachmentsAtom } from "../chat-view/atoms"
 
 type InputOpts = {
 	value: string
 	disabled: boolean
 	isRequestRunning: boolean
 	onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
-	onKeyDown: (e: KeyboardEvent<HTMLDivElement> | KeyboardEvent<HTMLTextAreaElement>) => void
+	onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void
 	onFocus: () => void
 	onBlur: () => void
 	onPaste: (e: React.ClipboardEvent) => void
@@ -35,7 +35,7 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 	const [scrapeUrl, setScrapeUrl] = useState("")
 	const [scrapeDescription, setScrapeDescription] = useState("")
 	const [fileTree, setFileTree] = useState<FileNode[]>([])
-	const [attachedResources, setAttachedResources] = useAtom(attachementsAtom)
+	const [attachedResources, setAttachedResources] = useAtom(attachmentsAtom)
 	useImperativeHandle(forwardedRef, () => localTextareaRef.current!, [])
 
 	useEffect(() => {
@@ -95,7 +95,7 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 		return positions
 	}
 
-	const handleKeyDown = (e: KeyboardEvent<HTMLDivElement> | KeyboardEvent<HTMLTextAreaElement>) => {
+	const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
 		if (!showPopover) {
 			props.onKeyDown(e)
 		}
@@ -200,6 +200,7 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 					focusedIndex={focusedIndex}
 					setFocusedIndex={setFocusedIndex}
 					handleOpenDialog={handleOpenDialog}
+					// @ts-expect-error - event types are not the same but it's ok
 					handleKeyDown={handleKeyDown}
 				/>
 			</div>

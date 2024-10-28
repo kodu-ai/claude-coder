@@ -4,7 +4,7 @@ import { ExtensionMessage } from "../../src/shared/ExtensionMessage"
 import { ExtensionStateProvider, showSettingsAtom, useExtensionState } from "./context/ExtensionStateContext"
 import { vscode } from "./utils/vscode"
 import { normalizeApiConfiguration } from "./components/ApiOptions/utils"
-import ChatView from "./components/ChatView/ChatView"
+import ChatView from "./components/chat-view/chat-view"
 import HistoryView from "./components/HistoryView/HistoryView"
 import "jotai-devtools/styles.css"
 import "./App.css"
@@ -27,7 +27,7 @@ const AppContent = () => {
 	const handleMessage = useCallback((e: MessageEvent) => {
 		const message: ExtensionMessage = e.data
 		switch (message.type) {
-			case "state":
+			case "state": {
 				const hasKey = !!message.state?.user
 				setShowWelcome(!hasKey)
 				// don't update showAnnouncement to false if shouldShowAnnouncement is false
@@ -35,6 +35,7 @@ const AppContent = () => {
 					setShowAnnouncement(true)
 				}
 				break
+			}
 			case "action":
 				switch (message.action!) {
 					case "settingsButtonTapped":

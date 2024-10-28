@@ -113,7 +113,7 @@ export class WebSearchTool extends BaseAgentTool {
 					fullContent += chunk.content
 				}
 			} catch (err) {
-				if (err.message === "Web search aborted") {
+				if ((err as Error).message === "Web search aborted") {
 					await updateAsk(
 						"tool",
 						{

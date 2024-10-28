@@ -96,8 +96,8 @@ export type AskConsultantTool = {
 export type UpsertMemoryTool = {
 	tool: "upsert_memory"
 	milestoneName?: string
-	summary: string
-	content: string
+	summary?: string
+	content?: string
 }
 
 export type SummarizeChatTool = {
@@ -119,7 +119,6 @@ export type ChatTool = (
 	| UrlScreenshotTool
 	| AskConsultantTool
 	| ServerRunnerTool
-	| UpsertMemoryTool
 ) & {
 	ts: number
 	approvalState?: ToolStatus

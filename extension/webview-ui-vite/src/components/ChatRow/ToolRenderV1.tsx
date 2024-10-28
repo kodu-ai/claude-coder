@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { vscode } from "@/utils/vscode"
@@ -40,7 +41,6 @@ import {
 	UpsertMemoryTool,
 	UrlScreenshotTool,
 	WriteToFileTool,
-	WebSearchTool,
 } from "../../../../src/shared/new-tools"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
@@ -163,7 +163,7 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 		loading: <LoaderPinwheel className="w-5 h-5 text-info animate-spin" />,
 		feedback: <MessageCircleReply className="w-5 h-5 text-destructive" />,
 	}
-	const avoidRenderingApprovalTools: ChatTool["tool"][] = ["ask_followup_question", "upsert_memory"]
+	const avoidRenderingApprovalTools: ChatTool["tool"][] = ["ask_followup_question"]
 
 	const handleReject = () => {
 		if (onReject) {
@@ -225,7 +225,8 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 				)}
 			</div>
 			<div className="text-sm">{children}</div>
-			{approvalState === "pending" && !avoidRenderingApprovalTools.includes(tool) && (
+			{/** 
+			approvalState === "pending" && !avoidRenderingApprovalTools.includes(tool) && (
 				<div className="mt-2">
 					<AnimatePresence mode="wait">
 						{!showFeedback ? (
@@ -266,7 +267,7 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 						)}
 					</AnimatePresence>
 				</div>
-			)}
+			)*/}
 
 			{userFeedback && (
 				<motion.div
@@ -388,7 +389,7 @@ export const ExecuteCommandBlock: React.FC<
 		ToolAddons & {
 			hasNextMessage?: boolean
 		}
-> = ({ command, output, approvalState, onApprove, tool, earlyExit, hasNextMessage, ts, onReject, ...rest }) => {
+> = ({ command, output, approvalState, onApprove, tool, ts, onReject, ...rest }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
 
 	return (
@@ -695,7 +696,6 @@ export const AskFollowupQuestionBlock: React.FC<AskFollowupQuestionTool & ToolAd
 )
 
 export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons> = ({
-	command,
 	result,
 	approvalState,
 	onApprove,
@@ -779,48 +779,13 @@ export const AskConsultantBlock: React.FC<AskConsultantTool & ToolAddons> = ({
 	</ToolBlock>
 )
 
-export const UpsertMemoryBlock: React.FC<UpsertMemoryTool & ToolAddons> = ({
-	milestoneName,
-	summary,
-	content,
-	approvalState,
-	onApprove,
-	onReject,
-	tool,
-	ts,
-	...rest
-}) => (
-	<ToolBlock
-		{...rest}
-		ts={ts}
-		tool={tool}
-		icon={BookOpen}
-		title="Update Task History"
-		variant="info"
-		approvalState={approvalState}
-		onApprove={onApprove}
-		onReject={onReject}>
-		{milestoneName && (
-			<p className="text-xs">
-				<span className="font-semibold">Milestone:</span> {milestoneName}
-			</p>
-		)}
-		{summary && (
-			<p className="text-xs">
-				<span className="font-semibold">Summary:</span> {summary}
-			</p>
-		)}
-		<div className="bg-muted p-2 rounded font-mono text-xs max-h-20 overflow-y-auto mt-1">{content}</div>
-	</ToolBlock>
-)
-
 export const ToolContentBlock: React.FC<{
 	tool: ChatTool & {
 		onApprove?: () => void
 		onReject?: (feedback: string) => void
 	}
 	hasNextMessage?: boolean
-}> = ({ tool, hasNextMessage }) => {
+}> = ({ tool }) => {
 	tool.onApprove = () => {
 		vscode.postMessage({
 			feedback: "approve",
@@ -859,8 +824,7 @@ export const ToolContentBlock: React.FC<{
 			return <UrlScreenshotBlock {...tool} />
 		case "ask_consultant":
 			return <AskConsultantBlock {...tool} />
-		case "upsert_memory":
-			return <UpsertMemoryBlock {...tool} />
+
 		case "server_runner_tool":
 			return <DevServerToolBlock {...tool} />
 		default:

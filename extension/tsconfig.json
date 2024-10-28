@@ -4,7 +4,7 @@
 		"experimentalDecorators": true,
 		"forceConsistentCasingInFileNames": true,
 		"isolatedModules": true,
-		"lib": ["es2022", "DOM"],
+		"lib": ["es2022", "DOM", "ES2021.WeakRef"],
 		"module": "esnext",
 		"moduleResolution": "Bundler",
 		"noFallthroughCasesInSwitch": true,
@@ -18,9 +18,15 @@
 		"strict": true,
 		"target": "es2022",
 		"useDefineForClassFields": true,
-		"useUnknownInCatchVariables": false
+		"useUnknownInCatchVariables": true,
+		"noEmit": true,
+		"declaration": false,
+		"declarationMap": false,
+		"paths": {
+			"@/*": ["./src/*"]
+		}
 	},
 	"types": ["jest", "vscode"],
 	"include": ["src/**/*", "scripts/**/*"],
-	"exclude": ["node_modules", ".vscode-test", "webview-ui"]
+	"exclude": ["node_modules", ".vscode-test", "webview-ui", "**/*.d.ts"]
 }

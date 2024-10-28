@@ -348,7 +348,6 @@ ${this.customInstructions.trim()}
 	private async *processStreamChunk(chunk: koduSSEResponse): AsyncGenerator<koduSSEResponse> {
 		switch (chunk.code) {
 			case 0:
-				console.log("Health check received")
 				break
 			case 1:
 				await this.handleFinalResponse(chunk)

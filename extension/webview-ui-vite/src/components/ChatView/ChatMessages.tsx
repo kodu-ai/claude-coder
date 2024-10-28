@@ -10,8 +10,6 @@ import { Button } from "../ui/button"
 interface ChatMessagesProps {
 	visibleMessages: ClaudeMessage[]
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
-	expandedRows: Record<number, boolean>
-	toggleRowExpansion: (ts: number) => void
 	handleSendStdin: (text: string) => void
 	taskId: number
 }
@@ -20,14 +18,14 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 	taskId,
 	visibleMessages,
 	syntaxHighlighterStyle,
-	expandedRows,
-	toggleRowExpansion,
 	handleSendStdin,
 }) => {
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
-	const [atBottom, setAtBottom] = useState(true)
+	// Start with atBottom false to prevent initial auto-scroll
+	const [atBottom, setAtBottom] = useState(false)
 	const [userScrolled, setUserScrolled] = useState(false)
 	const lastMessageCountRef = useRef(visibleMessages.length)
+	const isInitialMount = useRef(true)
 
 	const scrollToBottom = useCallback(() => {
 		virtuosoRef.current?.scrollToIndex({
@@ -36,10 +34,11 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 			align: "end",
 		})
 		setUserScrolled(false)
-	}, [visibleMessages.length])
+	}, [])
 
 	const followOutput = useCallback(() => {
-		if (atBottom && !userScrolled) {
+		// Only follow if not initial mount and conditions are met
+		if (!isInitialMount.current && atBottom && !userScrolled) {
 			return "smooth"
 		}
 		return false
@@ -48,11 +47,11 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 	const handleScroll = useCallback((event: Event) => {
 		if (event.isTrusted) {
 			setUserScrolled(true)
+			isInitialMount.current = false
 		}
 	}, [])
 
 	const handleAtBottomStateChange = useCallback((bottom: boolean) => {
-		console.log("bottom", bottom)
 		setAtBottom(bottom)
 	}, [])
 
@@ -60,7 +59,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 		const newMessageCount = visibleMessages.length
 		const messageAdded = newMessageCount > lastMessageCountRef.current
 
-		if (atBottom && messageAdded && !userScrolled) {
+		if (!isInitialMount.current && atBottom && messageAdded && !userScrolled) {
+			console.log("Scrolling to bottom")
 			virtuosoRef.current?.scrollToIndex({
 				index: newMessageCount - 1,
 				behavior: "smooth",
@@ -71,14 +71,20 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 		lastMessageCountRef.current = newMessageCount
 	}, [visibleMessages, atBottom, userScrolled])
 
+	// Reset initial mount flag when taskId changes
+	useEffect(() => {
+		isInitialMount.current = true
+	}, [taskId])
+
 	return (
 		<div className="relative h-full">
 			<Virtuoso
 				ref={virtuosoRef}
 				data={visibleMessages}
 				followOutput={followOutput}
+				initialTopMostItemIndex={0} // Start at top
 				atBottomStateChange={handleAtBottomStateChange}
-				atBottomThreshold={16}
+				atBottomThreshold={24}
 				scrollerRef={(ref) => {
 					if (ref) {
 						ref.addEventListener("wheel", handleScroll)
@@ -92,14 +98,11 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 					}
 				}}
 				itemContent={(index, message) => (
-					<>
+					<div key={message.ts}>
 						{isV1ClaudeMessage(message) ? (
 							<ChatRowV1
-								key={message.ts}
 								message={message}
 								syntaxHighlighterStyle={syntaxHighlighterStyle}
-								isExpanded={expandedRows[message.ts] || false}
-								onToggleExpand={() => toggleRowExpansion(message.ts)}
 								isLast={index === visibleMessages.length - 1}
 								handleSendStdin={handleSendStdin}
 								nextMessage={
@@ -110,11 +113,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 							/>
 						) : (
 							<ChatRow
-								key={message.ts}
 								message={message}
 								syntaxHighlighterStyle={syntaxHighlighterStyle}
-								isExpanded={expandedRows[message.ts] || false}
-								onToggleExpand={() => toggleRowExpansion(message.ts)}
 								isLast={index === visibleMessages.length - 1}
 								nextMessage={
 									index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined
@@ -122,7 +122,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 								handleSendStdin={handleSendStdin}
 							/>
 						)}
-					</>
+					</div>
 				)}
 			/>
 			{!atBottom && (
@@ -131,7 +131,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 					onClick={scrollToBottom}
 					size="icon"
 					variant="secondary"
-					className="fixed bottom-32 right-4 rounded-full"
+					className="fixed bottom-36 right-4 rounded-full"
 					aria-label="Scroll to bottom">
 					<ChevronDown size={24} />
 				</Button>
@@ -140,4 +140,4 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 	)
 }
 
-export default React.memo(ChatMessages)
+export default ChatMessages

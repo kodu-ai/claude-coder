@@ -348,7 +348,6 @@ export class DiffViewProvider {
 			// Write file with error handling
 			try {
 				await vscode.workspace.fs.writeFile(uri, Buffer.from(editedContent))
-				await delay(100)
 			} catch (error) {
 				throw new Error(`Failed to write file: ${error instanceof Error ? error.message : String(error)}`)
 			}

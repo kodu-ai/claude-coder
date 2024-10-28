@@ -1,60 +1,47 @@
-import React, { useState } from 'react';
+"use client"
+
+import React, { useState } from "react"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { X } from "lucide-react"
 
 interface ThumbnailItemProps {
-  image: string;
-  index: number;
-  isDeletable: boolean;
-  onDelete: (index: number) => void;
+	image: string
+	index: number
+	isDeletable: boolean
+	onDelete: (index: number) => void
 }
 
-const ThumbnailItem: React.FC<ThumbnailItemProps> = ({ image, index, isDeletable, onDelete }) => {
-  const [isHovered, setIsHovered] = useState(false);
+export default function ThumbnailItem({ image, index, isDeletable, onDelete }: ThumbnailItemProps) {
+	const [isOpen, setIsOpen] = useState(false)
 
-  return (
-    <div
-      style={{ position: "relative" }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <img
-        src={image}
-        alt={`Thumbnail ${index + 1}`}
-        style={{
-          width: 34,
-          height: 34,
-          objectFit: "cover",
-          borderRadius: 4,
-        }}
-      />
-      {isDeletable && isHovered && (
-        <div
-          onClick={() => onDelete(index)}
-          style={{
-            position: "absolute",
-            top: -4,
-            right: -4,
-            width: 13,
-            height: 13,
-            borderRadius: "50%",
-            backgroundColor: "var(--vscode-badge-background)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            cursor: "pointer",
-          }}
-        >
-          <span
-            className="codicon codicon-close"
-            style={{
-              color: "var(--vscode-foreground)",
-              fontSize: 10,
-              fontWeight: "bold",
-            }}
-          ></span>
-        </div>
-      )}
-    </div>
-  );
-};
+	const handleDelete = (e: React.MouseEvent) => {
+		e.stopPropagation()
+		onDelete(index)
+	}
 
-export default ThumbnailItem;
+	return (
+		<Dialog open={isOpen} onOpenChange={setIsOpen}>
+			<DialogTrigger asChild>
+				<Button variant="outline" size="icon" className="relative w-[40px] h-[40px] p-0 overflow-hidden group">
+					<img src={image} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover rounded" />
+					{isDeletable && (
+						<div className="absolute  bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+							<Button
+								variant="destructive"
+								size="icon"
+								className="w-4 h-4 rounded-full"
+								onClick={handleDelete}>
+								<X className="size-3.5" />
+								<span className="sr-only">Delete thumbnail</span>
+							</Button>
+						</div>
+					)}
+				</Button>
+			</DialogTrigger>
+			<DialogContent className="max-w-[90vw] max-h-[90vh] p-0">
+				<img src={image} alt={`Full size ${index + 1}`} className="w-full h-full object-contain" />
+			</DialogContent>
+		</Dialog>
+	)
+}

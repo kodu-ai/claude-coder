@@ -1,6 +1,4 @@
-import { AlertCircle, LogIn, CreditCard, Terminal } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle, LogIn, CreditCard, CircleX, X } from "lucide-react"
 import { loginKodu } from "@/utils/kodu-links"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import { vscode } from "@/utils/vscode"
@@ -9,21 +7,21 @@ import { TextWithAttachments } from "@/utils/extractAttachments"
 import { SyntaxHighlighterStyle } from "@/utils/getSyntaxHighlighterStyleFromTheme"
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
 import React from "react"
-import { COMMAND_OUTPUT_STRING } from "../../../../src/shared/combineCommandSequences"
 import { V1ClaudeMessage, ClaudeSayTool } from "../../../../src/shared/ExtensionMessage"
 import CodeBlock from "../CodeBlock/CodeBlock"
 import Thumbnails from "../Thumbnails/Thumbnails"
 import IconAndTitle from "./IconAndTitle"
 import MarkdownRenderer from "./MarkdownRenderer"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
+import { Button } from "../ui/button"
+import { AnimatePresence, m, motion } from "framer-motion"
 
 export const APIRequestMessage: React.FC<{
 	message: V1ClaudeMessage
 	nextMessage?: V1ClaudeMessage
-	isExpanded: boolean
-	onToggleExpand: () => void
+
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
-}> = React.memo(({ message, nextMessage, isExpanded, onToggleExpand, syntaxHighlighterStyle }) => {
+}> = React.memo(({ message, nextMessage, syntaxHighlighterStyle }) => {
 	const { cost } = message.apiMetrics || {}
 	const isError = message.isError || message.isAborted
 	const [icon, title] = IconAndTitle({
@@ -33,7 +31,7 @@ export const APIRequestMessage: React.FC<{
 		/**
 		 * ideally this would be automatically updated so isStreaming is only on until we reached error or success
 		 */
-		apiRequestFailedMessage: message.errorText || message.isError ? "API Request Failed" : false,
+		apiRequestFailedMessage: message.errorText || message.isError ? "Request Failed" : false,
 	})
 
 	const getStatusInfo = () => {
@@ -63,51 +61,11 @@ export const APIRequestMessage: React.FC<{
 			<div className="flex-line">
 				{icon}
 				{title}
-				{/* hide cost for now - not needed */}
-				{cost && (
-					<Tooltip>
-						<TooltipContent className="bg-secondary text-secondary-foreground">
-							<div className="space-y-2">
-								<h3 className="font-medium text-lg">Price Breakdown</h3>
-								{Object.entries(message.apiMetrics!)
-									.reverse()
-									.map(([key, value], index) => (
-										<div
-											key={key}
-											className={`flex justify-between ${
-												index === Object.entries(message.apiMetrics!).length - 1
-													? "pt-2 border-t border-gray-200 font-medium"
-													: ""
-											}`}>
-											<span className="text-secondary-foreground/80">{key}</span>
-											<span className="text-secondary-foreground">{value?.toFixed(2)}</span>
-										</div>
-									))}
-							</div>
-						</TooltipContent>
-						<TooltipTrigger asChild>
-							<code className="text-light">${Number(cost)?.toFixed(4)}</code>
-						</TooltipTrigger>
-					</Tooltip>
-				)}
 				<div className={`ml-2 ${className}`}>{status}</div>
 				<div className="flex-1" />
-				<VSCodeButton appearance="icon" aria-label="Toggle Details" onClick={onToggleExpand}>
-					<span className={`codicon codicon-chevron-${isExpanded ? "up" : "down"}`} />
-				</VSCodeButton>
+				<AnimatePresence mode="wait"></AnimatePresence>
 			</div>
 			{isError && <div className="text-error">{message.errorText || "An error occurred. Please try again."}</div>}
-			{isExpanded && (
-				<div style={{ marginTop: "10px" }}>
-					<CodeBlock
-						code={JSON.stringify(JSON.parse(message.text || "{}").request, null, 2)}
-						language="json"
-						syntaxHighlighterStyle={syntaxHighlighterStyle}
-						isExpanded={true}
-						onToggleExpand={onToggleExpand}
-					/>
-				</div>
-			)}
 		</>
 	)
 })
@@ -143,9 +101,9 @@ export const InfoMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({
 export const UserFeedbackDiffMessage: React.FC<{
 	message: V1ClaudeMessage
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
-	isExpanded: boolean
-	onToggleExpand: () => void
-}> = React.memo(({ message, syntaxHighlighterStyle, isExpanded, onToggleExpand }) => {
+}> = React.memo(({ message, syntaxHighlighterStyle }) => {
+	const [isExpanded, setToggle] = React.useState(false)
+	const onToggleExpand = () => setToggle(!isExpanded)
 	const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
 	return (
 		<div
@@ -166,9 +124,9 @@ export const UserFeedbackDiffMessage: React.FC<{
 				The user made the following changes:
 			</span>
 			<CodeBlock
-				// @ts-ignore - diff is not always defined
+				// @ts-expect-error - diff is not always defined
 				diff={tool.diff!}
-				// @ts-ignore - path is not always defined
+				// @ts-expect-error - path is not always defined
 				path={tool.path!}
 				syntaxHighlighterStyle={syntaxHighlighterStyle}
 				isExpanded={isExpanded}

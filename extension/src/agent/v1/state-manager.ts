@@ -311,7 +311,9 @@ export class StateManager {
 	}
 
 	private async saveClaudeMessages() {
-		if (this._disposed) return
+		if (this._disposed) {
+			return
+		}
 
 		if (this._saveInProgress) {
 			this._pendingSave = true

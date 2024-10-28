@@ -2,7 +2,7 @@ import { ClaudeAsk, ClaudeSay } from "../../../../shared/ExtensionMessage"
 import { ToolName } from "../../../../shared/Tool"
 import { ClaudeAskResponse } from "../../../../shared/WebviewMessage"
 import { KoduDev } from "../.."
-import { AskForConfirmation, TaskExecutorUtils } from "../../task-executor/utils"
+import { TaskExecutorUtils } from "../../task-executor/utils"
 import { ServerRunnerTool } from "../../../../shared/new-tools"
 
 export type UpsertMemoryInput = {
