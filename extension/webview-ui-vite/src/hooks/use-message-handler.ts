@@ -1,14 +1,31 @@
 import { ChatState } from "@/components/chat-view/chat"
 import { useCallback, useEffect } from "react"
-import { ClaudeMessage, isV1ClaudeMessage } from "../../../src/shared/ExtensionMessage"
+import { ClaudeMessage, ExtensionMessage, isV1ClaudeMessage } from "../../../src/shared/ExtensionMessage"
 import { ChatTool } from "../../../src/shared/new-tools"
 import { Resource } from "../../../src/shared/WebviewMessage"
+import { useEvent } from "react-use"
 
 export const useChatMessageHandling = (
 	messages: ClaudeMessage[],
 	updateState: (updates: Partial<ChatState>) => void,
 	setAttachments: (attachments: Resource[]) => void
 ) => {
+	const handleMessage = (event: MessageEvent) => {
+		const message: ExtensionMessage = event.data
+		console.log("message", message)
+		if (message.type === "enableTextAreas") {
+			updateState({
+				textAreaDisabled: false,
+				claudeAsk: undefined,
+				enableButtons: false,
+				primaryButtonText: undefined,
+				secondaryButtonText: undefined,
+			})
+		}
+	}
+
+	useEvent("message", handleMessage)
+
 	const handleAskMessage = useCallback(
 		(message: ClaudeMessage) => {
 			if (!isV1ClaudeMessage(message)) return
@@ -25,7 +42,7 @@ export const useChatMessageHandling = (
 
 				case "api_req_failed":
 					updateState({
-						textAreaDisabled: true,
+						textAreaDisabled: false,
 						claudeAsk: "api_req_failed",
 						...(message.autoApproved
 							? {}

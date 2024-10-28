@@ -54,6 +54,10 @@ export type HideCommandBlockMessage = {
 	identifier?: string
 }
 
+export type EnableTextAreasMessage = {
+	type: "enableTextAreas"
+}
+
 // webview will hold state
 export type ExtensionMessage =
 	| {
@@ -78,6 +82,7 @@ export type ExtensionMessage =
 	| PostGitCheckoutSuccess
 	| PostTaskHistory
 	| CommandExecutionResponse
+	| EnableTextAreasMessage
 	| HideCommandBlockMessage
 
 export interface ExtensionState {
