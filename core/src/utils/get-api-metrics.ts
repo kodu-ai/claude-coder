@@ -1,4 +1,5 @@
-import { ClaudeMessage, isV1ClaudeMessage } from "@/types"
+import { ClaudeMessage } from "@/types"
+import { isV1ClaudeMessage } from "@/utils"
 
 interface ApiMetrics {
 	totalTokensIn: number

@@ -22,7 +22,7 @@ export abstract class BaseAgentTool {
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
 		this.koduDev = options.koduDev
 		this.setRunningProcessId = options.setRunningProcessId!
-		this.consumer = options.consumer
+		this.consumer = options.koduDev.consumer
 	}
 
 	get name(): string {
@@ -61,7 +61,9 @@ export abstract class BaseAgentTool {
 		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>`
 	}
 	async formatGenericToolFeedback(feedback?: string) {
-		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>\n\n${await getPotentiallyRelevantDetails()}`
+		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>\n\n${await getPotentiallyRelevantDetails(
+			this.consumer.filesAdapter
+		)}`
 	}
 
 	public async formatToolDenied() {
@@ -98,7 +100,6 @@ export abstract class BaseAgentTool {
 			alwaysAllowWriteOnly: this.alwaysAllowWriteOnly,
 			koduDev: this.koduDev,
 			setRunningProcessId: this.setRunningProcessId,
-			consumer: this.consumer,
 		}
 	}
 

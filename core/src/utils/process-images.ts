@@ -3,7 +3,7 @@ import * as path from "path"
 import { IConsumer } from "@/interfaces"
 
 export async function selectImages(consumer: IConsumer): Promise<string[]> {
-	const fileUris = await consumer.selectImages()
+	const fileUris = await consumer.filesAdapter.selectImages()
 
 	return await Promise.all(
 		fileUris.map(async (imagePath) => {

@@ -12,6 +12,7 @@
 		"noImplicitReturns": true,
 		"noUnusedLocals": false,
 		"resolveJsonModule": true,
+		"outDir": "./dist",
 		"rootDir": ".",
 		"skipLibCheck": true,
 		"sourceMap": true,
@@ -25,6 +26,6 @@
 		},
 	},
 	"types": ["jest", "vscode"],
-	"include": ["src/**/*", "scripts/**/*"],
+	"include": ["src/**/*", "scripts/**/*", "src/consumers"],
 	"exclude": ["node_modules", ".vscode-test", "webview-ui"]
 }

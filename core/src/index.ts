@@ -27,7 +27,7 @@ import {
 } from "@/utils"
 import { BrowserService, TaskExecutor } from "@/services"
 import { TerminalManager, TerminalRegistry } from "@/integrations"
-import type { IConsumer } from "@/interfaces"
+import type { IBrowserManager, IConsumer, IDiagnosticsHandler, IKoduDev } from "@/interfaces"
 
 import { koduApiService, stateService, StateService } from "./singletons"
 
@@ -84,6 +84,10 @@ export class KoduDev {
 		} else {
 			throw new Error("Either historyItem or task/images must be provided")
 		}
+	}
+
+	public getBrowserManager(): BrowserService {
+		return this.browserService
 	}
 
 	private setupTaskExecutor() {

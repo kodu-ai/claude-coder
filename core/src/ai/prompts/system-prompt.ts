@@ -1,7 +1,7 @@
 import osName from "os-name"
 import defaultShell from "default-shell"
 import os from "os"
-import { cwd } from "../utils"
+import { cwd } from "@/utils"
 
 export const generalPackageManagement = `
 - Always ensure all necessary packages are installed before starting, previewing, or building the project.

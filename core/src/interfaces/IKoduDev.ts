@@ -1,12 +1,12 @@
 import { ClaudeAskResponse, ToolName, ToolInput, ToolResponse, UserContent } from "../types/index"
-import { IStateManager } from "./IStateManager"
+// import { IStateManager } from "./IStateManager"
 import { IApiManager } from "./IApiManager"
 import { IBrowserManager } from "./IBrowserManager"
-import { IDiagnosticsHandler } from "./IDiagnosticsHandler"
 import { BrowserService } from "@/services"
 import { StateService } from "@/singletons/state/state.service"
 import { TerminalManager } from "@/integrations"
 import { KoduApiService } from "@/singletons"
+import { IDiagnosticsHandler } from "./IConsumer"
 
 /**
  * Main interface for the Kodu Development environment.
@@ -56,22 +56,12 @@ export interface IKoduDev {
 	/**
 	 * Gets the state manager instance.
 	 */
-	getStateManager(): IStateManager
-
-	/**
-	 * Gets the API manager instance.
-	 */
-	getApiManager(): IApiManager
+	// getStateManager(): IStateManager
 
 	/**
 	 * Gets the browser manager instance.
 	 */
-	getBrowserManager(): IBrowserManager
-
-	/**
-	 * Gets the diagnostics handler instance.
-	 */
-	getDiagnosticsHandler(): IDiagnosticsHandler
+	getBrowserManager(): BrowserService
 
 	// @TODO: change back to Service?
 	terminalManager: TerminalManager

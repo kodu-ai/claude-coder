@@ -1,34 +1,37 @@
 #!/usr/bin/env node
-
+import { Command } from "commander"
 import { KoduDev, KoduDevOptions } from "../../index"
 import { TaskState } from "@/types"
 import path from "path"
 import os from "os"
 import { CliConsumer } from "./cli-consumer"
 
-const task = process.argv[2]
+const program = new Command()
 
-if (!task) {
-	console.error("Please provide a task as a command-line argument.")
-	process.exit(1)
+// Helper function to prompt for user input
+async function promptUser(question: string): Promise<string> {
+	return new Promise((resolve) => {
+		console.log(question)
+		process.stdin.once("data", (data) => {
+			resolve(data.toString().trim())
+		})
+	})
 }
 
-// Create a new instance of KoduDev
-const options: KoduDevOptions = {
-	apiConfiguration: {
-		// Add your API configuration here
-		// For example:
-		// apiKey: process.env.ANTHROPIC_API_KEY,
-	},
-	customInstructions: "Your custom instructions here",
-	task: task,
-	images: [], // Add any images if needed
-	globalStoragePath: path.join(os.homedir(), ".kodu-dev"),
-}
+async function runKoduDevTask(task: string) {
+	const options: KoduDevOptions = {
+		apiConfiguration: {
+			apiKey: "EP4e-C2siGMKsvPyG3nP-ChtCpNOkgaeYwLryyDIMf",
+		},
+		alwaysAllowReadOnly: true,
+		customInstructions: "",
+		task: task,
+		images: [], // Add any images if needed
+		globalStoragePath: path.join(os.homedir(), ".kodu-dev"),
+	}
 
-const koduDev = new KoduDev(options, new CliConsumer())
+	const koduDev = new KoduDev(options, new CliConsumer())
 
-async function runKoduDevTask() {
 	try {
 		console.log("Starting task:", task)
 
@@ -61,14 +64,11 @@ async function runKoduDevTask() {
 	}
 }
 
-// Helper function to prompt for user input (you'd replace this with a real CLI input library in practice)
-async function promptUser(question: string): Promise<string> {
-	return new Promise((resolve) => {
-		console.log(question)
-		process.stdin.once("data", (data) => {
-			resolve(data.toString().trim())
-		})
+program
+	.version("0.0.1")
+	.argument("<task>", "The task to execute")
+	.action(async (task) => {
+		await runKoduDevTask(task)
 	})
-}
 
-runKoduDevTask().catch(console.error)
+program.parse()

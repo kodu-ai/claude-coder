@@ -1,6 +1,4 @@
-export type { IStateManager } from "./IStateManager"
 export type { IKoduDev } from "./IKoduDev"
-export type { ITaskExecutor } from "./ITaskExecutor"
 export * from "./ITerminalManager"
 export type { IToolExecutor } from "./IToolExecutor"
 export type { IToolParser } from "./IToolParser"

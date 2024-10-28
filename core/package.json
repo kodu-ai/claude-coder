@@ -18,7 +18,7 @@
 		"url": "https://github.com/kodu-ai/claude-coder"
 	},
 	"scripts": {
-		"cli": "node cli.js"
+		"cli": "ts-node -r tsconfig-paths/register src/consumers/cli/consumer.ts"
 	},
 	"devDependencies": {
 		"@types/diff": "^5.2.1",
@@ -26,20 +26,22 @@
 		"@types/jest": "^29.5.13",
 		"@types/lodash": "^4.17.9",
 		"@types/mocha": "^10.0.7",
-		"@types/node": "20.x",
+		"@types/node": "^20.17.1",
 		"@types/vscode": "^1.82.0",
 		"@typescript-eslint/eslint-plugin": "^7.14.1",
 		"@typescript-eslint/parser": "^7.11.0",
 		"@vitejs/plugin-react-swc": "^3.7.0",
 		"@vscode/test-cli": "^0.0.9",
 		"@vscode/test-electron": "^2.4.1",
+		"commander": "^12.1.0",
 		"esbuild": "^0.21.5",
 		"esbuild-register": "^3.6.0",
 		"eslint": "^8.57.0",
 		"npm-run-all": "^4.1.5",
 		"ts-node": "^10.9.2",
+		"tsconfig-paths": "^4.2.0",
 		"tsx": "^4.19.1",
-		"typescript": "^5.4.5"
+		"typescript": "^5.6.3"
 	},
 	"dependencies": {
 		"@amplitude/analytics-browser": "^2.11.2",
