@@ -9,7 +9,6 @@ import { findLastIndex } from "../../utils"
 import { ApiManager } from "./api-handler"
 import { DEFAULT_MAX_REQUESTS_PER_TASK } from "./constants"
 import { ApiHistoryItem, ClaudeMessage, KoduDevOptions, KoduDevState } from "./types"
-import { debounce } from "lodash"
 
 export class StateManager {
 	private _state: KoduDevState
@@ -26,60 +25,6 @@ export class StateManager {
 	private _saveInProgress: boolean = false
 	private _pendingSave: boolean = false
 	private _disposed: boolean = false
-
-	// Debounced save function with a 1-second delay and 5-second max wait
-	private debouncedSaveClaudeMessages = debounce(
-		async () => {
-			if (this._disposed) return
-
-			if (this._saveInProgress) {
-				this._pendingSave = true
-				return
-			}
-
-			try {
-				this._saveInProgress = true
-				const filePath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json")
-				await fs.writeFile(filePath, JSON.stringify(this.state.claudeMessages))
-
-				const apiMetrics = getApiMetrics(
-					combineApiRequests(combineCommandSequences(this.state.claudeMessages.slice(1)))
-				)
-				const taskMessage = this.state.claudeMessages[0]
-				const lastRelevantMessage =
-					this.state.claudeMessages[
-						findLastIndex(
-							this.state.claudeMessages,
-							(m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task")
-						)
-					]
-
-				await this.providerRef
-					.deref()
-					?.getStateManager()
-					.updateTaskHistory({
-						id: this.state.taskId,
-						ts: lastRelevantMessage.ts,
-						task: taskMessage.text ?? "",
-						tokensIn: apiMetrics.totalTokensIn,
-						tokensOut: apiMetrics.totalTokensOut,
-						cacheWrites: apiMetrics.totalCacheWrites,
-						cacheReads: apiMetrics.totalCacheReads,
-						totalCost: apiMetrics.totalCost,
-					})
-			} catch (error) {
-				console.error("Failed to save claude messages:", error)
-			} finally {
-				this._saveInProgress = false
-				if (this._pendingSave) {
-					this._pendingSave = false
-					this.debouncedSaveClaudeMessages()
-				}
-			}
-		},
-		10, // Debounce delay
-		{ maxWait: 25 } // Maximum time to wait before forcing a save
-	)
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -365,6 +310,55 @@ export class StateManager {
 		return []
 	}
 
+	private async saveClaudeMessages() {
+		if (this._disposed) return
+
+		if (this._saveInProgress) {
+			this._pendingSave = true
+			return
+		}
+
+		try {
+			this._saveInProgress = true
+			const filePath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json")
+			await fs.writeFile(filePath, JSON.stringify(this.state.claudeMessages))
+
+			const apiMetrics = getApiMetrics(
+				combineApiRequests(combineCommandSequences(this.state.claudeMessages.slice(1)))
+			)
+			const taskMessage = this.state.claudeMessages[0]
+			const lastRelevantMessage =
+				this.state.claudeMessages[
+					findLastIndex(
+						this.state.claudeMessages,
+						(m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task")
+					)
+				]
+
+			await this.providerRef
+				.deref()
+				?.getStateManager()
+				.updateTaskHistory({
+					id: this.state.taskId,
+					ts: lastRelevantMessage.ts,
+					task: taskMessage.text ?? "",
+					tokensIn: apiMetrics.totalTokensIn,
+					tokensOut: apiMetrics.totalTokensOut,
+					cacheWrites: apiMetrics.totalCacheWrites,
+					cacheReads: apiMetrics.totalCacheReads,
+					totalCost: apiMetrics.totalCost,
+				})
+		} catch (error) {
+			console.error("Failed to save claude messages:", error)
+		} finally {
+			this._saveInProgress = false
+			if (this._pendingSave) {
+				this._pendingSave = false
+				await this.saveClaudeMessages()
+			}
+		}
+	}
+
 	async removeEverythingAfterMessage(messageId: number) {
 		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
 		if (index === -1) {
@@ -375,7 +369,7 @@ export class StateManager {
 			`[StateManager] removeEverythingAfterMessage: Removing everything after message with id ${messageId}`
 		)
 		this.state.claudeMessages = this.state.claudeMessages.slice(0, index + 1)
-		await this.debouncedSaveClaudeMessages()
+		await this.saveClaudeMessages()
 	}
 
 	async updateClaudeMessage(messageId: number, message: ClaudeMessage) {
@@ -385,14 +379,14 @@ export class StateManager {
 			return
 		}
 		this.state.claudeMessages[index] = message
-		await this.debouncedSaveClaudeMessages()
+		await this.saveClaudeMessages()
 	}
 
 	async appendToClaudeMessage(messageId: number, text: string) {
 		const lastMessage = this.state.claudeMessages.find((msg) => msg.ts === messageId)
 		if (lastMessage && lastMessage.type === "say") {
 			lastMessage.text += text
-			await this.debouncedSaveClaudeMessages()
+			await this.saveClaudeMessages()
 		}
 	}
 
@@ -403,28 +397,26 @@ export class StateManager {
 			return
 		}
 		this.state.claudeMessages.splice(index + 1, 0, message)
-		await this.debouncedSaveClaudeMessages()
+		await this.saveClaudeMessages()
 	}
 
 	async addToClaudeMessages(message: ClaudeMessage) {
 		this.state.claudeMessages.push(message)
-		await this.debouncedSaveClaudeMessages()
+		await this.saveClaudeMessages()
 	}
 
 	async overwriteClaudeMessages(newMessages: ClaudeMessage[]) {
 		this.state.claudeMessages = newMessages
-		await this.debouncedSaveClaudeMessages()
+		await this.saveClaudeMessages()
 	}
 
-	// Force an immediate save, bypassing the debounce
+	// Force an immediate save
 	public async forceSaveClaudeMessages(): Promise<void> {
-		await this.debouncedSaveClaudeMessages.flush()
+		await this.saveClaudeMessages()
 	}
 
 	// Cleanup method
 	public dispose(): void {
 		this._disposed = true
-		this.debouncedSaveClaudeMessages.flush()
-		this.debouncedSaveClaudeMessages.cancel()
 	}
 }

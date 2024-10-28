@@ -40,6 +40,7 @@ import {
 	UpsertMemoryTool,
 	UrlScreenshotTool,
 	WriteToFileTool,
+	WebSearchTool,
 } from "../../../../src/shared/new-tools"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"

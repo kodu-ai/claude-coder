@@ -33,7 +33,7 @@ export const APIRequestMessage: React.FC<{
 		/**
 		 * ideally this would be automatically updated so isStreaming is only on until we reached error or success
 		 */
-		apiRequestFailedMessage: isError,
+		apiRequestFailedMessage: message.errorText || message.isError ? "API Request Failed" : false,
 	})
 
 	const getStatusInfo = () => {

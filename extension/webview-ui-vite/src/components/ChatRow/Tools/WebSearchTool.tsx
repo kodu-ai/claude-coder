@@ -1,15 +1,27 @@
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { AlertCircle, Globe, Search } from "lucide-react"
 import React, { useEffect, useState } from "react"
-import { WebSearchTool } from "../../../../../src/shared/new-tools"
-import { ToolBlock, ToolStatus } from "../ToolRenderV1"
 
-type EnhancedWebSearchBlockProps = WebSearchTool & {
-	approvalState?: ToolStatus
-	onApprove?: () => void
-	onReject?: () => void
-	ts: number
-}
+import { ToolAddons, ToolBlock, ToolStatus } from "../ToolRenderV1"
+
+import {
+	AskConsultantTool,
+	AskFollowupQuestionTool,
+	AttemptCompletionTool,
+	ChatTool,
+	ExecuteCommandTool,
+	ListCodeDefinitionNamesTool,
+	ListFilesTool,
+	ReadFileTool,
+	SearchFilesTool,
+	ServerRunnerTool,
+	UpsertMemoryTool,
+	UrlScreenshotTool,
+	WriteToFileTool,
+	WebSearchTool,
+} from "../../../../../src/shared/new-tools"
+
+type EnhancedWebSearchBlockProps = WebSearchTool & ToolAddons
 
 export const EnhancedWebSearchBlock: React.FC<EnhancedWebSearchBlockProps> = ({
 	searchQuery,

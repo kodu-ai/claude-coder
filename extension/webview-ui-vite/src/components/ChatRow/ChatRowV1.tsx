@@ -5,7 +5,7 @@ import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFro
 import IconAndTitle from "./IconAndTitle"
 import ToolRenderer from "./ToolRenderer"
 import MemoryUpdate from "./memory-update"
-import { cn } from "@/lib/utils"
+import { cn } from "../../lib/utils"
 import {
 	ErrorMsgComponent,
 	APIRequestMessage,
@@ -44,7 +44,8 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 	handleSendStdin,
 }) => {
 	message.text = removeThinking(message.text!)
-	const renderContent = () => {
+
+	const renderTextContent = () => {
 		switch (message.type) {
 			case "say":
 				switch (message.say) {
@@ -52,7 +53,6 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 						return <ErrorMsgComponent type="unauthorized" />
 					case "payment_required":
 						return <ErrorMsgComponent type="payment_required" />
-
 					case "api_req_started":
 						return (
 							<APIRequestMessage
@@ -104,16 +104,6 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 								</div>
 							</>
 						)
-					case "tool":
-						return (
-							<ToolRenderer
-								message={message}
-								syntaxHighlighterStyle={syntaxHighlighterStyle}
-								isExpanded={isExpanded}
-								nextMessage={nextMessage}
-								onToggleExpand={onToggleExpand}
-							/>
-						)
 					case "shell_integration_warning":
 						return (
 							<>
@@ -156,6 +146,8 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 						const [defaultIcon, defaultTitle] = IconAndTitle({
 							type: message.say,
 							isCommandExecuting: false,
+							apiRequestFailedMessage: message.errorText,
+							cost: message.apiMetrics?.cost,
 						})
 						return (
 							<>
@@ -170,47 +162,74 @@ const ChatRowV1: React.FC<ChatRowProps> = ({
 						)
 				}
 			case "ask":
-				switch (message.ask) {
-					case "tool":
-						return (
-							<ToolRenderer
-								message={message}
-								syntaxHighlighterStyle={syntaxHighlighterStyle}
-								isExpanded={isExpanded}
-								onToggleExpand={onToggleExpand}
-							/>
-						)
-					case "api_req_failed":
-						return null
-					case "followup":
-						const [icon, title] = IconAndTitle({ type: message.ask, isCommandExecuting: false })
-						return (
-							<>
-								{title && (
-									<h3 className={`flex-line`}>
-										{icon}
-										{title}
-									</h3>
-								)}
-								<TextMessage message={message} syntaxHighlighterStyle={syntaxHighlighterStyle} />
-							</>
-						)
+				if (message.ask === "api_req_failed") {
+					return null
 				}
+				if (message.ask === "followup") {
+					const [icon, title] = IconAndTitle({ type: message.ask, isCommandExecuting: false })
+					return (
+						<>
+							{title && (
+								<h3 className={`flex-line`}>
+									{icon}
+									{title}
+								</h3>
+							)}
+							<TextMessage message={message} syntaxHighlighterStyle={syntaxHighlighterStyle} />
+						</>
+					)
+				}
+				return null
 		}
 	}
 
-	if (renderContent() === null) {
+	const renderToolContent = () => {
+		if (message.type === "say" && message.say === "tool") {
+			return (
+				<ToolRenderer
+					message={message}
+					syntaxHighlighterStyle={syntaxHighlighterStyle}
+					isExpanded={isExpanded}
+					nextMessage={nextMessage}
+					onToggleExpand={onToggleExpand}
+				/>
+			)
+		}
+		if (message.type === "ask" && message.ask === "tool") {
+			return (
+				<ToolRenderer
+					message={message}
+					syntaxHighlighterStyle={syntaxHighlighterStyle}
+					isExpanded={isExpanded}
+					onToggleExpand={onToggleExpand}
+				/>
+			)
+		}
 		return null
 	}
-	{
+
+	const textContent = renderTextContent()
+	const toolContent = renderToolContent()
+
+	if (!textContent && !toolContent) {
+		return null
 	}
+
 	return (
 		<section
 			className={cn(
 				"!border-b-0 border-t-border border-t-2",
 				message.text?.includes('"tool":"') && "!border-t-0 !py-1"
 			)}>
-			{renderContent()}
+			{/* Text content container */}
+			{textContent && <div className="mb-2">{textContent}</div>}
+
+			{/* Tool content container - always at the bottom */}
+			{toolContent && (
+				<div className={cn("tool-content", textContent ? "mt-4 pt-4 border-t border-border" : "")}>
+					{toolContent}
+				</div>
+			)}
 		</section>
 	)
 }

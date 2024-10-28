@@ -23,6 +23,7 @@ const IconAndTitle = ({ type, isCommandExecuting, cost, apiRequestFailedMessage 
 			</div>
 		</div>
 	)
+	console.log("TEST")
 
 	switch (type) {
 		case "api_req_failed":

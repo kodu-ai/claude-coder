@@ -1,13 +1,12 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
 import { LIST_FILES_LIMIT, listFiles } from "../../../../parse-source-code"
-import { ClaudeAsk, ClaudeSay, ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ClaudeAsk } from "../../../../shared/ExtensionMessage"
 import { ToolResponse } from "../../types"
 import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
-import { AskDetails, AskForConfirmation } from "../../task-executor/utils"
-import { AskResponse } from "../../task-executor/task-executor"
+import { AskDetails } from "../../task-executor/utils"
 
 export class ListFilesTool extends BaseAgentTool {
 	protected params: AgentToolParams

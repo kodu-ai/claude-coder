@@ -259,6 +259,7 @@ export class ToolParser {
 		try {
 			const validatedParams = toolSchema.schema.parse(context.params)
 			this.onToolEnd?.(context.id, context.toolName, validatedParams, context.ts)
+			console.log(`Tool is done: ${context.toolName} validatedParams:`, validatedParams)
 		} catch (error) {
 			if (error instanceof z.ZodError) {
 				this.onToolError?.(

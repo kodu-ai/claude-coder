@@ -81,6 +81,10 @@ export class ToolExecutor {
 		}
 	}
 
+	public hasActiveTools(): boolean {
+		return this.toolQueue.length > 0 || this.queue.size > 0
+	}
+
 	async executeTool(params: AgentToolParams): Promise<ToolResponse> {
 		if (this.isAborting) {
 			throw new Error("Cannot execute tool while aborting")
@@ -281,6 +285,7 @@ export class ToolExecutor {
 
 	private async handleToolEnd(id: string, toolName: string, input: any): Promise<void> {
 		if (this.isAborting) {
+			console.log(`Tool is aborting, skipping tool: ${toolName} input: ${input}`)
 			return
 		}
 
@@ -378,7 +383,6 @@ export class ToolExecutor {
 		await pWaitFor(() => tool.isFinal, { interval: 50 })
 
 		try {
-			// this.koduDev.taskExecutor.pauseStream()
 			const result = await tool.execute({
 				name: tool.name as ToolName,
 				input: tool.paramsInput,
@@ -396,7 +400,7 @@ export class ToolExecutor {
 			console.error(`Error executing tool: ${tool.name}`, error)
 			this.toolResults.push({ name: tool.name, result: `Error: ${error}` })
 		}
-		// this.koduDev.taskExecutor.resumeStream()
+
 		// Remove the tool from the toolQueue
 		this.toolQueue = this.toolQueue.filter((t) => t.id !== tool.id)
 	}

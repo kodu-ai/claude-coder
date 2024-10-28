@@ -90,6 +90,11 @@ export class DiffViewProvider {
 	}
 
 	public async open(relPath: string): Promise<void> {
+		if (this.diffEditor) {
+			return
+		}
+		// close all open diff editors
+		await this.closeAllDiffViews()
 		this.isEditing = true
 		this.relPath = relPath
 		this.isAutoScrollEnabled = true
@@ -175,7 +180,6 @@ export class DiffViewProvider {
 			this.modifiedUri,
 			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Editable)`
 		)
-
 		const editor = vscode.window.activeTextEditor
 		if (editor && editor.document.uri.toString() === this.modifiedUri.toString()) {
 			this.diffEditor = editor
@@ -186,6 +190,8 @@ export class DiffViewProvider {
 
 	public async update(accumulatedContent: string, isFinal: boolean): Promise<void> {
 		if (!this.diffEditor || !this.modifiedUri) {
+			console.warn("Diff editor not initialized")
+			return
 			throw new Error("Diff editor not initialized")
 		}
 
@@ -298,8 +304,12 @@ export class DiffViewProvider {
 	}
 
 	public async acceptChanges(): Promise<void> {
-		if (!this.relPath || !this.diffEditor) {
-			throw new Error("No file path set or diff editor not initialized")
+		if (!this.relPath) {
+			throw new Error("No file path set")
+		}
+		if (!this.diffEditor) {
+			console.warn("Diff editor not initialized")
+			await this.open(this.relPath!)
 		}
 
 		const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))

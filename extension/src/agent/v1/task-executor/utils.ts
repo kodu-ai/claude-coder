@@ -139,8 +139,8 @@ export abstract class TaskExecutorUtils {
 			} else {
 				await this.stateManager.addToClaudeMessages(askMessage)
 			}
-			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion: ${question}`)
-			this.updateWebview()
+			console.log(`TS: ${askTs}\nWe asked: ${type}\nQuestion: ${tool ? JSON.stringify(tool) : question}`)
+			await this.updateWebview()
 
 			if (this.stateManager.alwaysAllowReadOnly && readCommands.includes(tool?.tool as ChatTool["tool"])) {
 				resolve({ response: "yesButtonTapped", text: "", images: [] })

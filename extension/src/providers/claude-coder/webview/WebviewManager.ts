@@ -107,24 +107,8 @@ export class WebviewManager {
 	}
 
 	async postStateToWebview() {
-		const now = Date.now()
-		if (this.pendingStateUpdate || now - this.lastStateUpdate < this.stateUpdateDebounceMs) {
-			// Skip this update if one is pending or if we updated too recently
-			return
-		}
-
-		this.pendingStateUpdate = true
-		setTimeout(async () => {
-			try {
-				const state = await this.getStateToPostToWebview()
-				await this.postMessageToWebview({ type: "state", state })
-				this.lastStateUpdate = Date.now()
-			} catch (error) {
-				console.error("Error posting state to webview:", error)
-			} finally {
-				this.pendingStateUpdate = false
-			}
-		}, this.stateUpdateDebounceMs)
+		const state = await this.getStateToPostToWebview()
+		await this.postMessageToWebview({ type: "state", state })
 	}
 
 	private async getStateToPostToWebview() {

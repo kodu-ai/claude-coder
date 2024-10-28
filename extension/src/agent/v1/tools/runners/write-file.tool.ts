@@ -65,16 +65,14 @@ export class WriteFileTool extends BaseAgentTool {
 			} else if (!this.params.isFinal && this.skipWriteAnimation) {
 				// Do nothing if skipWriteAnimation is true
 			} else {
-				// Handle final content
-				if (this.skipWriteAnimation) {
-					// Open diff editor only when final content arrives
-					await this.diffViewProvider.open(relPath)
-				}
+				// Handle final content we must confirm so we put skipWriteAnimation to false
+				this.skipWriteAnimation = false
 				await this.handlePartialContent(relPath, content)
 				await this.handleFinalContentForConfirmation(relPath, content)
 				this.isProcessingFinalContent = true
 			}
 
+			console.log("Asking for user approval")
 			// Ask for user approval and await response
 			const { response, text, images } = await this.params.ask(
 				"tool",
@@ -155,7 +153,7 @@ export class WriteFileTool extends BaseAgentTool {
 
 		const currentTime = Date.now()
 
-		if (!this.diffViewProvider.isEditing) {
+		if (!this.diffViewProvider.isDiffViewOpen()) {
 			try {
 				await this.diffViewProvider.open(relPath)
 				this.lastUpdateLength = 0
@@ -176,6 +174,7 @@ export class WriteFileTool extends BaseAgentTool {
 	}
 
 	private async handleFinalContentForConfirmation(relPath: string, newContent: string): Promise<void> {
+		console.log(`Handling final content for confirmation: ${relPath}`)
 		newContent = this.preprocessContent(newContent)
 		if (!this.diffViewProvider.isEditing) {
 			await this.diffViewProvider.open(relPath)
@@ -186,8 +185,8 @@ export class WriteFileTool extends BaseAgentTool {
 	public async handleFinalContent(relPath: string, newContent: string): Promise<string> {
 		this.koduDev.getStateManager().addErrorPath(relPath)
 		const fileExists = await this.checkFileExists(relPath)
-		await delay(300)
 		const { userEdits } = await this.diffViewProvider.saveChanges()
+		await delay(150)
 		this.params.ask(
 			"tool",
 			{

@@ -20,13 +20,32 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private abortController: AbortController | null = null
 	private consecutiveErrorCount: number = 0
 	private isAborting: boolean = false
+	private streamPaused: boolean = false
+	private textBuffer: string = ""
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
 		this.toolExecutor = toolExecutor
 	}
+
 	protected getState(): TaskState {
 		return this.state
+	}
+
+	public pauseStream() {
+		this.streamPaused = true
+	}
+
+	public resumeStream() {
+		this.streamPaused = false
+	}
+
+	private async flushTextBuffer(currentReplyId: number) {
+		if (this.textBuffer.trim()) {
+			await this.stateManager.appendToClaudeMessage(currentReplyId, this.textBuffer)
+			await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+			this.textBuffer = ""
+		}
 	}
 
 	public async newMessage(message: UserContent) {
@@ -203,6 +222,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 			// make sure to reset claude abort state and abort controller
 			this.isRequestCancelled = false
 			this.abortController = new AbortController()
+			this.streamPaused = false
+			this.textBuffer = ""
 
 			if (this.consecutiveErrorCount >= 3) {
 				await this.ask("resume_task", {
@@ -220,7 +241,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 				})
 			)
 
-			// will the stream api request be called here?
 			const stream = this.stateManager.apiManager.createApiStreamRequest(
 				this.stateManager.state.apiConversationHistory,
 				this.abortController?.signal
@@ -279,18 +299,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 				],
 			}
 			await this.stateManager.addToApiConversationHistory(apiHistoryItem)
-			let textBuffer = ""
-			const updateInterval = 10 // milliseconds
-
-			const debouncedUpdate = debounce(async (text: string) => {
-				if (this.isRequestCancelled || this.isAborting) {
-					console.log("Request was cancelled, not updating UI")
-					return
-				}
-				textBuffer = ""
-				await this.stateManager.appendToClaudeMessage(currentReplyId, text)
-				await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-			}, updateInterval)
 
 			const processor = new ChunkProcessor({
 				onImmediateEndOfStream: async (chunk) => {
@@ -337,16 +345,36 @@ export class TaskExecutor extends TaskExecutorUtils {
 					}
 					if (chunk.code === 2) {
 						if (this.isRequestCancelled || this.isAborting) {
-							this.logState("Request was cancelled during debounced update")
+							this.logState("Request was cancelled during chunk processing")
 							return
 						}
+
 						if (Array.isArray(apiHistoryItem.content) && apiHistoryItem.content[0].type === "text") {
 							apiHistoryItem.content[0].text += chunk.body.text
 							this.stateManager.updateApiHistoryItem(startedReqId, apiHistoryItem)
 						}
-						const nonXMLText = await this.toolExecutor.processToolUse(chunk.body.text)
-						textBuffer += nonXMLText
-						debouncedUpdate(textBuffer)
+
+						// Process chunk only if stream is not paused
+						if (!this.streamPaused) {
+							// Process for tool use and get non-XML text
+							const nonXMLText = await this.toolExecutor.processToolUse(chunk.body.text)
+
+							// If we got non-XML text, add it to buffer
+							if (nonXMLText) {
+								this.textBuffer += nonXMLText
+								// Only flush buffer if we're not paused
+								await this.flushTextBuffer(currentReplyId)
+							}
+
+							// If tool processing started, pause the stream
+							if (this.toolExecutor.hasActiveTools()) {
+								this.pauseStream()
+								// Wait for tool processing to complete
+								await this.toolExecutor.waitForToolProcessing()
+								// Resume stream after tool processing
+								this.resumeStream()
+							}
+						}
 					}
 				},
 				onFinalEndOfStream: async () => {},
@@ -357,17 +385,17 @@ export class TaskExecutor extends TaskExecutorUtils {
 				this.logState("Request was cancelled during onFinalEndOfStream")
 				return
 			}
-			// Wait for all tool executions to complete
+
+			// Ensure all tools are processed
 			await this.toolExecutor.waitForToolProcessing()
+			// Flush any remaining text
+			await this.flushTextBuffer(currentReplyId)
 
 			await this.finishProcessingResponse(apiHistoryItem)
 		} catch (error) {
 			if (this.isRequestCancelled || this.isAborting) {
-				// dont show message if request was cancelled
 				throw error
 			}
-			// update the say to error
-			// this.sayAfter("error", startedReqId, "An error occurred. Please try again.")
 			throw error
 		}
 	}
@@ -378,6 +406,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.abortController = null
 		this.consecutiveErrorCount = 0
 		this.state = TaskState.WAITING_FOR_USER
+		this.streamPaused = false
+		this.textBuffer = ""
 		await this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 
 		this.logState("State reset due to request cancellation")

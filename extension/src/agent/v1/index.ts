@@ -172,12 +172,20 @@ export class KoduDev {
 		// if there is any message that is fetching, mark it as done and remove the next messages
 		modifiedClaudeMessages.forEach((m) => {
 			if (isV1ClaudeMessage(m)) {
+				m.isDone = true
 				if (m.say === "api_req_started" && m.isFetching) {
 					isFetchingInturrupted = true
 					m.isFetching = false
 					m.isDone = true
 					m.isError = true
 					m.errorText = "Task was interrupted before this API request could be completed."
+				}
+				if (m.isFetching) {
+					m.isFetching = false
+					isFetchingInturrupted = true
+					m.errorText = "Task was interrupted before this API request could be completed."
+					m.isAborted = "user"
+					m.isError = true
 				}
 				if (m.ask === "tool" && m.type === "ask") {
 					const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
@@ -211,6 +219,7 @@ export class KoduDev {
 		let askType: ClaudeAsk =
 			lastClaudeMessage?.ask === "completion_result" ? "resume_completed_task" : "resume_task"
 
+		await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
 		const { response, text, images } = await this.taskExecutor.ask(askType)
 
 		let newUserContent: UserContent = []

@@ -85,6 +85,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// isMessageRunning
 	const isMessageRunning = useMemo(() => {
 		const lastMessage = messages.at(-1)
+
+		if (lastMessage && lastMessage.ask && lastMessage.ask === "resume_task") {
+			return false
+		}
 		if (lastMessage && isV1ClaudeMessage(lastMessage)) {
 			const lastAsk = messages
 				.slice()

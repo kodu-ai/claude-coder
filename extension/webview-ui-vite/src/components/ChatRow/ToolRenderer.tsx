@@ -2,7 +2,6 @@ import React from "react"
 import { V1ClaudeMessage, ClaudeSayTool } from "../../../../src/shared/ExtensionMessage"
 import CodeBlock from "../CodeBlock/CodeBlock"
 import { SyntaxHighlighterStyle } from "../../utils/getSyntaxHighlighterStyleFromTheme"
-import { AskConsultantTool, UrlScreenshotTool, WebSearchTool } from "./Tools"
 import { ChatTool } from "../../../../src/shared/new-tools"
 import { ToolContentBlock } from "./ToolRenderV1"
 
