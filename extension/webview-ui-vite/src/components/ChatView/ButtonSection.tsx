@@ -34,6 +34,12 @@ function ButtonSection({
 	const showAbortButton = isRequestRunning && !deferredEnableButtons
 	const showActionButtons = deferredEnableButtons && (deferredPrimaryText || deferredSecondaryText)
 
+	useEffect(() => {
+		if (isRequestRunning) {
+			setIsAborting(false)
+		}
+	}, [isRequestRunning])
+
 	const handleAbort = useCallback(() => {
 		startTransition(() => {
 			setIsAborting(true)

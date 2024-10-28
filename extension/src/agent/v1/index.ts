@@ -232,10 +232,18 @@ export class KoduDev {
 		let askType: ClaudeAsk = isCompleted ? "resume_completed_task" : "resume_task"
 
 		await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
-		const { response, text, images } = await this.taskExecutor.ask(askType)
+		let { response, text, images } = await this.taskExecutor.ask(
+			isCompleted ? "resume_completed_task" : "resume_task"
+		)
 
 		let newUserContent: UserContent = []
 		if (response === "messageResponse") {
+			if (!text || text.trim() === "" || text === "null" || text === "undefined") {
+				text = undefined
+			}
+			if (!images || images.length === 0) {
+				images = undefined
+			}
 			await this.taskExecutor.say("user_feedback", text, images)
 			if (images && images.length > 0) {
 				newUserContent.push(...formatImagesIntoBlocks(images))

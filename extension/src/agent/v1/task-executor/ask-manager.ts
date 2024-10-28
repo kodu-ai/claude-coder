@@ -92,7 +92,6 @@ export class AskManager {
 
 	public dispose() {
 		if (this.currentAsk) {
-			this.currentAsk.resolve({ response: "messageResponse" })
 			this.currentAsk = null
 			this.currentAskId = null
 		}
@@ -123,8 +122,8 @@ export class AskManager {
 	private async handleNewAsk(id: number, type: ClaudeAsk, question?: string, tool?: ChatTool): Promise<AskResponse> {
 		// Resolve any existing ask first
 		if (this.currentAsk) {
-			console.log(`Auto-resolving existing ask ${this.currentAskId} before creating new one`)
-			this.currentAsk.resolve({ response: "messageResponse" })
+			// console.log(`Auto-resolving existing ask ${this.currentAskId} before creating new one`)
+			// this.currentAsk.resolve({ response: "messageResponse" })
 			this.currentAsk = null
 			this.currentAskId = null
 		}

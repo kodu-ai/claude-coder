@@ -80,7 +80,12 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 		<div className="relative h-full">
 			<Virtuoso
 				ref={virtuosoRef}
-				data={visibleMessages}
+				data={visibleMessages.filter((msg) => {
+					if (msg.ask === "resume_completed_task" || msg.ask === "resume_task") {
+						return false
+					}
+					return true
+				})}
 				followOutput={followOutput}
 				initialTopMostItemIndex={0} // Start at top
 				atBottomStateChange={handleAtBottomStateChange}
