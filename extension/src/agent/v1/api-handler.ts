@@ -1,54 +1,74 @@
+/**
+ * @fileoverview API Manager for handling Claude API interactions
+ * This module manages API communications with the Anthropic Claude API, handling message streams,
+ * token calculations, and conversation history management.
+ */
+
 import { Anthropic } from "@anthropic-ai/sdk"
+import { Message } from "@anthropic-ai/sdk/resources/messages.mjs"
 import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
 import { UserContent } from "./types"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { truncateHalfConversation } from "../../utils/context-management"
-import {
-	CodingBeginnerSystemPromptSection,
-	ExperiencedDeveloperSystemPromptSection,
-	NonTechnicalSystemPromptSection,
-} from "./system-prompt"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { tools as baseTools } from "./tools/tools"
-import { findLast } from "../../utils"
-import delay from "delay"
 import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
-import { getCwd } from "./utils"
-import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
+import { getCwd, isTextBlock } from "./utils"
+import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { AxiosError } from "axios"
 import { koduModels } from "../../shared/api"
-import { Message } from "@anthropic-ai/sdk/resources/messages.mjs"
+import { findLast } from "../../utils"
+import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 
 /**
- *
- * @description every 3 letters are on avg 1 token, image is about 2000 tokens
- * @param message the last message
- * @returns the tokens from the message
+ * Interface for tracking API usage metrics
  */
-const anthropicMessageToTokens = (message: Anthropic.MessageParam) => {
-	const content = message.content
-	if (typeof content === "string") {
-		return Math.round(content.length / 2)
-	}
-	const textBlocks = content.filter((block) => block.type === "text")
-	const text = textBlocks.map((block) => block.text).join("")
-	const textTokens = Math.round(text.length / 3)
-	const imgBlocks = content.filter((block) => block.type === "image")
-	const imgTokens = imgBlocks.length * 2000
-	return Math.round(textTokens + imgTokens)
+interface ApiMetrics {
+	inputTokens: number
+	outputTokens: number
+	inputCacheRead: number
+	inputCacheWrite: number
+	cost: number
 }
 
-interface Difference {
+/**
+ * Interface for tracking differences between strings
+ */
+interface StringDifference {
 	index: number
 	char1: string
 	char2: string
 }
 
-export function findStringDifferences(str1: string, str2: string): Difference[] {
-	const differences: Difference[] = []
+/**
+ * Estimates token count from a message
+ * Uses heuristic of 3 characters ≈ 1 token, and images ≈ 2000 tokens
+ * @param message - The message to analyze
+ * @returns Estimated token count
+ */
+const estimateTokenCount = (message: Anthropic.MessageParam): number => {
+	if (typeof message.content === "string") {
+		return Math.round(message.content.length / 3)
+	}
 
-	// Make sure both strings are the same length for comparison
+	const textContent = message.content
+		.filter((block) => block.type === "text")
+		.map((block) => block.text)
+		.join("")
+
+	const textTokens = Math.round(textContent.length / 3)
+	const imageTokens = message.content.filter((block) => block.type === "image").length * 2000
+
+	return textTokens + imageTokens
+}
+
+/**
+ * Compares two strings and finds all character differences
+ * @param str1 - First string to compare
+ * @param str2 - Second string to compare
+ * @returns Array of differences with their positions
+ */
+export function findStringDifferences(str1: string, str2: string): StringDifference[] {
+	const differences: StringDifference[] = []
 	const maxLength = Math.max(str1.length, str2.length)
 	const paddedStr1 = str1.padEnd(maxLength)
 	const paddedStr2 = str2.padEnd(maxLength)
@@ -66,6 +86,9 @@ export function findStringDifferences(str1: string, str2: string): Difference[] 
 	return differences
 }
 
+/**
+ * Main API Manager class that handles all Claude API interactions
+ */
 export class ApiManager {
 	private api: ApiHandler
 	private customInstructions?: string
@@ -77,39 +100,54 @@ export class ApiManager {
 		this.providerRef = new WeakRef(provider)
 	}
 
+	/**
+	 * Returns the current API handler instance
+	 */
 	public getApi(): ApiHandler {
 		return this.api
 	}
 
-	public getModelId() {
+	/**
+	 * Returns the current model ID
+	 */
+	public getModelId(): string {
 		return this.api.getModel().id
 	}
 
-	abortRequest(): void {
+	/**
+	 * Aborts the current API request
+	 */
+	public abortRequest(): void {
 		this.api.abortRequest()
 	}
 
-	updateApi(apiConfiguration: ApiConfiguration): void {
+	/**
+	 * Updates the API configuration
+	 * @param apiConfiguration - New API configuration
+	 */
+	public updateApi(apiConfiguration: ApiConfiguration): void {
 		console.log("Updating API configuration", apiConfiguration)
 		this.api = buildApiHandler(apiConfiguration)
 	}
 
-	updateCustomInstructions(customInstructions: string | undefined): void {
+	/**
+	 * Updates custom instructions for the API
+	 * @param customInstructions - New custom instructions
+	 */
+	public updateCustomInstructions(customInstructions: string | undefined): void {
 		this.customInstructions = customInstructions
 	}
 
-	async *createApiStreamRequest(
-		apiConversationHistory: Anthropic.MessageParam[],
-		abortSignal?: AbortSignal | null
-	): AsyncGenerator<koduSSEResponse> {
-		const creativeMode = (await this.providerRef.deref()?.getStateManager()?.getState())?.creativeMode ?? "normal"
-		const technicalBackground =
-			(await this.providerRef.deref()?.getStateManager()?.getState())?.technicalBackground ?? "no-technical"
-		const isImageSupported = koduModels[this.getModelId()].supportsImages
+	/**
+	 * Formats custom instructions with proper sectioning
+	 * @returns Formatted custom instructions string
+	 */
+	private formatCustomInstructions(): string | undefined {
+		if (!this.customInstructions?.trim()) {
+			return undefined
+		}
 
-		let customInstructions: string | undefined
-		if (this.customInstructions && this.customInstructions.trim()) {
-			customInstructions += `
+		return `
 ====
 
 USER'S CUSTOM INSTRUCTIONS
@@ -118,188 +156,305 @@ The following additional instructions are provided by the user. They should be f
 
 ${this.customInstructions.trim()}
 `
-		}
-		const newSystemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), !!isImageSupported, technicalBackground)
+	}
 
-		const claudeMessages = (await this.providerRef.deref()?.getStateManager()?.getState())?.claudeMessages
-		let apiMetrics: NonNullable<V1ClaudeMessage["apiMetrics"]> = {
+	/**
+	 * Retrieves and processes API metrics from conversation history
+	 * @param claudeMessages - Conversation history
+	 * @returns Processed API metrics
+	 */
+	private getApiMetrics(claudeMessages: ClaudeMessage[]): ApiMetrics {
+		const defaultMetrics: ApiMetrics = {
 			inputTokens: 0,
 			outputTokens: 0,
 			inputCacheRead: 0,
 			inputCacheWrite: 0,
 			cost: 0,
 		}
-		// If the last API request's total token usage is close to the context window, truncate the conversation history to free up space for the new request
-		const lastApiReqFinished = findLast(claudeMessages!, (m) => m.say === "api_req_finished")
-		if (lastApiReqFinished && lastApiReqFinished.text) {
-			const {
-				tokensIn,
-				tokensOut,
-				cacheWrites,
-				cacheReads,
-			}: { tokensIn?: number; tokensOut?: number; cacheWrites?: number; cacheReads?: number } = JSON.parse(
-				lastApiReqFinished.text
-			)
-			apiMetrics = {
-				inputCacheRead: cacheReads || 0,
-				inputCacheWrite: cacheWrites || 0,
+
+		const lastApiReqFinished = findLast(claudeMessages, (m) => m.say === "api_req_finished")
+		if (lastApiReqFinished?.text) {
+			const { tokensIn, tokensOut, cacheWrites, cacheReads } = JSON.parse(lastApiReqFinished.text)
+			return {
 				inputTokens: tokensIn || 0,
 				outputTokens: tokensOut || 0,
+				inputCacheRead: cacheReads || 0,
+				inputCacheWrite: cacheWrites || 0,
 				cost: 0,
 			}
-		} else {
-			// reverse claude messages to find the last message that is typeof v1 and has apiMetrics
-			const reversedClaudeMessages = claudeMessages?.slice().reverse()
-			const lastV1Message = reversedClaudeMessages?.find((m) => isV1ClaudeMessage(m) && m?.apiMetrics)
-			if (lastV1Message) {
-				apiMetrics = (lastV1Message as V1ClaudeMessage)?.apiMetrics!
-			}
 		}
-		const isFirstRequest = this.providerRef.deref()?.getKoduDev()?.isFirstMessage ?? false
-		// on first request, we need to get the environment details with details of the current task and folder
-		const environmentDetails = await this.providerRef.deref()?.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
-		if (isFirstRequest && this.providerRef.deref()?.getKoduDev()) {
-			this.providerRef.deref()!.getKoduDev()!.isFirstMessage = false
-		}
-		// every 4 messages, add a critical message and on first message
-		const shouldAddCriticalMsg = apiConversationHistory.length % 4 === 0 || apiConversationHistory.length === 1
-		const lastMessage = apiConversationHistory[apiConversationHistory.length - 1]
 
-		if (typeof lastMessage.content === "string") {
-			lastMessage.content = [
-				{
-					type: "text",
-					text: lastMessage.content,
-				},
-			] satisfies Message["content"]
-		}
-		// Add critical messages if needed
-		if (shouldAddCriticalMsg) {
-			if (Array.isArray(lastMessage.content)) {
-				lastMessage.content.push({
-					type: "text",
-					text: criticalMsg,
-				})
-			}
-		}
-		if (Array.isArray(lastMessage.content) && environmentDetails) {
-			lastMessage.content.push({
-				text: environmentDetails,
-				type: "text",
-			})
-		}
-		// override the api conversation history with the updated messages
-		await this.providerRef
-			.deref()
-			?.getKoduDev()
-			?.getStateManager()
-			.overwriteApiConversationHistory(apiConversationHistory)
+		const reversedMessages = claudeMessages.slice().reverse()
+		const lastV1Message = reversedMessages.find((m) => isV1ClaudeMessage(m) && m?.apiMetrics)
+		return (lastV1Message as V1ClaudeMessage)?.apiMetrics || defaultMetrics
+	}
 
-		const totalTokens =
-			(apiMetrics.inputTokens || 0) +
-			(apiMetrics.outputTokens || 0) +
-			(apiMetrics.inputCacheWrite || 0) +
-			(apiMetrics.inputCacheRead || 0) +
-			anthropicMessageToTokens(apiConversationHistory.at(-1)!)
-		const contextWindow = this.api.getModel().info.contextWindow
+	/**
+	 * Creates a streaming API request
+	 * @param apiConversationHistory - Conversation history
+	 * @param abortSignal - Optional abort signal for cancelling requests
+	 * @returns AsyncGenerator yielding SSE responses
+	 */
+	async *createApiStreamRequest(
+		apiConversationHistory: Anthropic.MessageParam[],
+		abortSignal?: AbortSignal | null
+	): AsyncGenerator<koduSSEResponse> {
+		const provider = this.providerRef.deref()
+		if (!provider) {
+			throw new Error("Provider reference has been garbage collected")
+		}
 
-		if (totalTokens >= contextWindow * 0.9) {
-			const truncatedMessages = truncateHalfConversation(apiConversationHistory)
-			apiConversationHistory = truncatedMessages
-			await this.providerRef
-				.deref()
-				?.getKoduDev()
-				?.getStateManager()
-				.overwriteApiConversationHistory(truncatedMessages)
+		const state = await provider.getStateManager()?.getState()
+		const creativeMode = state?.creativeMode ?? "normal"
+		const technicalBackground = state?.technicalBackground ?? "no-technical"
+		const isImageSupported = koduModels[this.getModelId()].supportsImages
+
+		const customInstructions = this.formatCustomInstructions()
+		const systemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), isImageSupported, technicalBackground)
+
+		// Process conversation history and manage context window
+		await this.processConversationHistory(apiConversationHistory)
+
+		let apiConversationHistoryCopy = apiConversationHistory.slice()
+		// remove the last message from it if it's assistant's message (it should be, because we add it before calling this function)
+		// this lets us always keep a pair of user and assistant messages in the history no matter what
+		if (apiConversationHistoryCopy[apiConversationHistoryCopy.length - 1].role === "assistant") {
+			apiConversationHistoryCopy = apiConversationHistoryCopy.slice(0, apiConversationHistoryCopy.length - 1)
 		}
 
 		try {
 			const stream = await this.api.createMessageStream(
-				newSystemPrompt.trim(),
-				apiConversationHistory,
+				systemPrompt.trim(),
+				apiConversationHistoryCopy,
 				creativeMode,
 				abortSignal,
 				customInstructions
 			)
 
 			for await (const chunk of stream) {
-				switch (chunk.code) {
-					case 0:
-						console.log("Health check received")
-						break
-					case 1:
-						console.log("finalResponse", chunk)
-						// we always reach here
-						const response = chunk.body.anthropic
-						// update state of credit
-						if (chunk.body.internal.userCredits !== undefined) {
-							console.log("Updating kodu credits", chunk.body.internal.userCredits)
-							this.providerRef
-								.deref()
-								?.getStateManager()
-								?.updateKoduCredits(chunk.body.internal.userCredits)
-						}
-						const inputTokens = response.usage.input_tokens
-						const outputTokens = response.usage.output_tokens
-						const cacheCreationInputTokens = (response as any).usage?.cache_creation_input_tokens
-						const cacheReadInputTokens = (response as any).usage?.cache_read_input_tokens
-						const taskId = (await this.providerRef.deref()?.getState())?.currentTaskId
-						const apiCost = this.calculateApiCost(
-							inputTokens,
-							outputTokens,
-							cacheCreationInputTokens,
-							cacheReadInputTokens
-						)
-						amplitudeTracker.taskRequest({
-							taskId: taskId!,
-							model: this.getModelId(),
-							apiCost: apiCost!,
-							inputTokens,
-							cacheReadTokens: cacheReadInputTokens,
-							cacheWriteTokens: cacheCreationInputTokens,
-							outputTokens,
-						})
-						break
-				}
-				yield chunk
+				yield* this.processStreamChunk(chunk)
 			}
 		} catch (error) {
-			if (error instanceof KoduError) {
-				console.error("KODU API request failed", error)
-			}
-			if (error instanceof AxiosError) {
-				throw new KoduError({
-					code: error.response?.status || 500,
-				})
-			}
-
-			throw error
+			this.handleStreamError(error)
 		}
 	}
 
-	createUserReadableRequest(userContent: UserContent): string {
+	/**
+	 * Processes the conversation history and manages context window
+	 * @param history - Conversation history to process
+	 */
+	private async processConversationHistory(history: Anthropic.MessageParam[]): Promise<void> {
+		const provider = this.providerRef.deref()
+		if (!provider) {
+			return
+		}
+
+		const lastMessage = history[history.length - 2]
+		const isLastMessageFromUser = lastMessage?.role === "user"
+
+		// Convert string content to structured content if needed
+		if (typeof lastMessage?.content === "string") {
+			lastMessage.content = [
+				{
+					type: "text",
+					text: lastMessage.content,
+				},
+			]
+		}
+
+		// Add environment details and critical messages if needed
+		await this.enrichConversationHistory(history, isLastMessageFromUser)
+
+		// Manage context window
+		await this.manageContextWindow(history)
+	}
+
+	/**
+	 * Enriches conversation history with environment details and critical messages
+	 * @param history - Conversation history to enrich
+	 * @param isLastMessageFromUser - Whether the last message was from the user
+	 */
+	private async enrichConversationHistory(
+		history: Anthropic.MessageParam[],
+		isLastMessageFromUser: boolean
+	): Promise<void> {
+		const provider = this.providerRef.deref()
+		if (!provider) {
+			return
+		}
+
+		// Add critical messages every 4th message or the first message
+		const shouldAddCriticalMsg = (history.length % 4 === 0 && history.length > 4) || history.length === 2
+
+		const lastMessage = history[history.length - 2]
+
+		if (shouldAddCriticalMsg && isLastMessageFromUser && Array.isArray(lastMessage.content)) {
+			lastMessage.content.push({
+				type: "text",
+				text: criticalMsg,
+			})
+		}
+
+		const isFirstRequest = provider.getKoduDev()?.isFirstMessage ?? false
+		const environmentDetails = await provider.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
+
+		if (Array.isArray(lastMessage.content) && environmentDetails && isLastMessageFromUser) {
+			const hasEnvDetails = lastMessage.content.some(
+				(block) =>
+					isTextBlock(block) &&
+					block.text.includes("<environment_details>") &&
+					block.text.includes("</environment_details>")
+			)
+
+			if (!hasEnvDetails) {
+				lastMessage.content.push({
+					type: "text",
+					text: environmentDetails,
+				})
+			}
+		}
+	}
+
+	/**
+	 * Manages the context window to prevent token overflow
+	 * @param history - Conversation history to manage
+	 */
+	private async manageContextWindow(history: Anthropic.MessageParam[]): Promise<void> {
+		const provider = this.providerRef.deref()
+		if (!provider) {
+			return
+		}
+
+		const state = await provider.getStateManager()?.getState()
+		const metrics = this.getApiMetrics(state?.claudeMessages || [])
+		const totalTokens =
+			metrics.inputTokens +
+			metrics.outputTokens +
+			metrics.inputCacheWrite +
+			metrics.inputCacheRead +
+			estimateTokenCount(history[history.length - 1])
+
+		const contextWindow = this.api.getModel().info.contextWindow
+
+		if (totalTokens >= contextWindow * 0.9) {
+			const truncatedMessages = truncateHalfConversation(history)
+			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
+		}
+	}
+
+	/**
+	 * Processes stream chunks from the API response
+	 * @param chunk - SSE response chunk
+	 */
+	private async *processStreamChunk(chunk: koduSSEResponse): AsyncGenerator<koduSSEResponse> {
+		switch (chunk.code) {
+			case 0:
+				console.log("Health check received")
+				break
+			case 1:
+				await this.handleFinalResponse(chunk)
+				break
+		}
+		yield chunk
+	}
+
+	/**
+	 * Handles the final response from the API
+	 * @param chunk - Final response chunk
+	 */
+	private async handleFinalResponse(chunk: koduSSEResponse): Promise<void> {
+		const provider = this.providerRef.deref()
+		if (!provider) {
+			return
+		}
+		if (chunk.code !== 1) {
+			return
+		}
+		const response = chunk?.body?.anthropic
+		const { input_tokens, output_tokens } = response.usage
+		const { cache_creation_input_tokens, cache_read_input_tokens } = response.usage as any
+
+		// Update credits if provided
+		if (chunk.body.internal.userCredits !== undefined) {
+			await provider.getStateManager()?.updateKoduCredits(chunk.body.internal.userCredits)
+		}
+
+		// Track metrics
+		const state = await provider.getState()
+		const apiCost = this.calculateApiCost(
+			input_tokens,
+			output_tokens,
+			cache_creation_input_tokens,
+			cache_read_input_tokens
+		)
+
+		amplitudeTracker.taskRequest({
+			taskId: state?.currentTaskId!,
+			model: this.getModelId(),
+			apiCost: apiCost,
+			inputTokens: input_tokens,
+			cacheReadTokens: cache_read_input_tokens,
+			cacheWriteTokens: cache_creation_input_tokens,
+			outputTokens: output_tokens,
+		})
+	}
+
+	/**
+	 * Handles stream errors
+	 * @param error - Error from the stream
+	 */
+	private handleStreamError(error: unknown): never {
+		if (error instanceof KoduError) {
+			console.error("KODU API request failed", error)
+			throw error
+		}
+
+		if (error instanceof AxiosError) {
+			throw new KoduError({
+				code: error.response?.status || 500,
+			})
+		}
+
+		throw error
+	}
+
+	/**
+	 * Creates a human-readable request string
+	 * @param userContent - User content to format
+	 * @returns Formatted request string
+	 */
+	public createUserReadableRequest(userContent: UserContent): string {
 		return this.api.createUserReadableRequest(userContent)
 	}
 
-	calculateApiCost(
+	/**
+	 * Calculates the API cost based on token usage
+	 * @param inputTokens - Number of input tokens
+	 * @param outputTokens - Number of output tokens
+	 * @param cacheCreationInputTokens - Number of cache creation tokens
+	 * @param cacheReadInputTokens - Number of cache read tokens
+	 * @returns Total API cost
+	 */
+	public calculateApiCost(
 		inputTokens: number,
 		outputTokens: number,
 		cacheCreationInputTokens?: number,
 		cacheReadInputTokens?: number
 	): number {
-		const modelCacheWritesPrice = this.api.getModel().info.cacheWritesPrice
-		let cacheWritesCost = 0
-		if (cacheCreationInputTokens && modelCacheWritesPrice) {
-			cacheWritesCost = (modelCacheWritesPrice / 1_000_000) * cacheCreationInputTokens
-		}
-		const modelCacheReadsPrice = this.api.getModel().info.cacheReadsPrice
-		let cacheReadsCost = 0
-		if (cacheReadInputTokens && modelCacheReadsPrice) {
-			cacheReadsCost = (modelCacheReadsPrice / 1_000_000) * cacheReadInputTokens
-		}
-		const baseInputCost = (this.api.getModel().info.inputPrice / 1_000_000) * inputTokens
-		const outputCost = (this.api.getModel().info.outputPrice / 1_000_000) * outputTokens
-		const totalCost = cacheWritesCost + cacheReadsCost + baseInputCost + outputCost
-		return totalCost
+		const model = this.api.getModel().info
+		const cacheWritesCost =
+			cacheCreationInputTokens && model.cacheWritesPrice
+				? (model.cacheWritesPrice / 1_000_000) * cacheCreationInputTokens
+				: 0
+
+		const cacheReadsCost =
+			cacheReadInputTokens && model.cacheReadsPrice
+				? (model.cacheReadsPrice / 1_000_000) * cacheReadInputTokens
+				: 0
+
+		const baseInputCost = (model.inputPrice / 1_000_000) * inputTokens
+		const outputCost = (model.outputPrice / 1_000_000) * outputTokens
+
+		return cacheWritesCost + cacheReadsCost + baseInputCost + outputCost
 	}
 }

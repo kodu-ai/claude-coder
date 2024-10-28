@@ -81,7 +81,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	// Refs
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
-	const virtuosoRef = useRef<VirtuosoHandle>(null)
 
 	// isMessageRunning
 	const isMessageRunning = useMemo(() => {
@@ -376,6 +375,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 			return
 		}
 		// This function updates the component state based on the type of ask message received
+		console.log("handleAskMessage", JSON.stringify(message))
 		switch (message.ask) {
 			case "request_limit_reached":
 				setTextAreaDisabled(true)
@@ -413,62 +413,31 @@ const ChatView: React.FC<ChatViewProps> = ({
 					setTextAreaDisabled(true)
 				}
 				setClaudeAsk("tool")
-				if (!message.autoApproved) {
-					setEnableButtons(true)
-					if (tool.approvalState !== "pending") {
-						setEnableButtons(false)
-						setPrimaryButtonText(undefined)
-						setSecondaryButtonText(undefined)
-						return
-					}
-					switch (tool?.tool) {
-						case "write_to_file":
-							// setPrimaryButtonText("Save")
-							// setSecondaryButtonText("Reject")
-							break
-						case "web_search":
-							// setPrimaryButtonText("Search")
-							// setSecondaryButtonText("Reject")
-							break
-						case "attempt_completion":
-							// we want to update the type of button executed based on the tool
-							setClaudeAsk("completion_result")
-							setPrimaryButtonText("Start New Task")
-							setSecondaryButtonText(undefined)
-							break
-						case "ask_followup_question":
-							// setPrimaryButtonText(undefined)
-							// setSecondaryButtonText(undefined)
-							// setEnableButtons(false)
-							break
-						case "url_screenshot":
-							// setPrimaryButtonText("Capture Screenshot")
-							// setSecondaryButtonText("Reject")
-							break
-						case "ask_consultant":
-							// setPrimaryButtonText("Ask Consultant")
-							// setSecondaryButtonText("Reject")
-							break
-						case "execute_command":
-							// setPrimaryButtonText("Run Command")
-							// setSecondaryButtonText("Reject")
-							break
-						case "upsert_memory":
-							// setPrimaryButtonText(undefined)
-							// setSecondaryButtonText(undefined)
-							// setEnableButtons(false)
-							break
-						case "list_files":
-						case "list_code_definition_names":
-						case "search_files":
-						case "read_file":
-							// setPrimaryButtonText("Read")
-							// setSecondaryButtonText("Reject")
-							break
-						default:
-						// handleToolButtons(tool)
-					}
+				// if (!message.autoApproved) {
+				setEnableButtons(true)
+				console.log(`tool reached: ${tool.tool}`)
+				if (tool.approvalState !== "pending" && tool.tool !== "attempt_completion") {
+					setEnableButtons(false)
+					setPrimaryButtonText(undefined)
+					setSecondaryButtonText(undefined)
+					return
 				}
+				switch (tool?.tool) {
+					case "attempt_completion":
+						// we want to update the type of button executed based on the tool
+						setClaudeAsk("completion_result")
+						setPrimaryButtonText("Start New Task")
+						setSecondaryButtonText(undefined)
+						setTextAreaDisabled(false)
+						setEnableButtons(true)
+						console.log("attempt_completion reached")
+						break
+
+						// setPrimaryButtonText("Read")
+						// setSecondaryButtonText("Reject")
+						break
+				}
+				// }
 				break
 			case "command":
 				setTextAreaDisabled(false)
@@ -510,6 +479,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	// Handle say messages
 	const handleSayMessage = (message: ClaudeMessage) => {
 		setTextAreaDisabled(false)
+		console.log("handleSayMessage")
 		// This function updates the component state based on the type of say message received
 		switch (message.say) {
 			case "text":
@@ -543,24 +513,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 				setEnableButtons(false)
 				setPrimaryButtonText(undefined)
 				setSecondaryButtonText(undefined)
-				break
-		}
-	}
-
-	// Handle tool buttons
-	const handleToolButtons = (tool: ClaudeSayTool) => {
-		switch (tool.tool) {
-			case "editedExistingFile":
-				setPrimaryButtonText("Save")
-				setSecondaryButtonText("Reject")
-				break
-			case "newFileCreated":
-				setPrimaryButtonText("Create")
-				setSecondaryButtonText("Reject")
-				break
-			default:
-				setPrimaryButtonText("Approve")
-				setSecondaryButtonText("Reject")
 				break
 		}
 	}

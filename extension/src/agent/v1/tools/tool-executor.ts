@@ -1,5 +1,5 @@
 import treeKill from "tree-kill"
-import { ToolName, ToolResponse } from "../types"
+import { ToolName, ToolResponse, UserContent } from "../types"
 import { KoduDev } from ".."
 import { AgentToolOptions, AgentToolParams } from "./types"
 import {
@@ -24,19 +24,18 @@ import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
 import { ChatTool } from "../../../shared/new-tools"
 import { DevServerTool } from "./runners/dev-server.tool"
+import Anthropic from "@anthropic-ai/sdk"
 
 export class ToolExecutor {
 	private runningProcessId: number | undefined
 	private cwd: string
 	private alwaysAllowReadOnly: boolean
 	private alwaysAllowWriteOnly: boolean
-	private terminalManager: TerminalManager
 	private koduDev: KoduDev
 	private toolQueue: BaseAgentTool[] = []
 	private toolInstances: { [id: string]: BaseAgentTool } = {}
 	private toolParser: ToolParser
 	private toolResults: { name: string; result: ToolResponse }[] = []
-	private isProcessing: Promise<void> | null = null
 	private queue: PQueue
 
 	constructor(options: AgentToolOptions) {
@@ -45,7 +44,6 @@ export class ToolExecutor {
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
 		this.koduDev = options.koduDev
 		this.queue = new PQueue({ concurrency: 1 })
-		this.terminalManager = new TerminalManager()
 		this.toolParser = new ToolParser(
 			tools.map((tool) => tool.schema),
 			{
@@ -259,6 +257,48 @@ export class ToolExecutor {
 		return this.toolResults
 	}
 
+	/**
+	 * Get the text block for the tool results in order and with the correct formatting
+	 */
+	public getToolsResultBlock(): UserContent {
+		let blocks: UserContent = []
+		const results = this.getToolResults()
+		blocks = results.flatMap((result) => {
+			if (typeof result.result === "string") {
+				const block: UserContent = [
+					{
+						text: `<tool_result>
+					<tool_name>${result.name}</tool_name>
+					<tool_output>${result.result}</tool_output>
+					</tool_result>`,
+						type: "text",
+					},
+				]
+				return block
+			}
+			if (Array.isArray(result.result) && result.result.length > 0) {
+				const block: UserContent = [
+					{
+						text: `<tool_result>
+					<tool_name>${result.name}</tool_name>
+					<tool_output>`,
+						type: "text",
+					},
+					...result.result,
+					{
+						text: `</tool_output>
+					</tool_result>`,
+						type: "text",
+					},
+				]
+				return block
+			}
+
+			return result.result
+		})
+		return blocks
+	}
+
 	private async processTool(tool: BaseAgentTool): Promise<void> {
 		// Ensure tool is final before execution
 		await pWaitFor(() => tool.isFinal, { interval: 50 })
@@ -311,7 +351,6 @@ export class ToolExecutor {
 			await tool.abortToolExecution()
 		}
 		this.toolQueue = []
-		this.isProcessing = null
 		this.toolInstances = {}
 		this.toolResults = []
 	}

@@ -6,17 +6,16 @@ import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
 import { ChunkProcessor } from "../chunk-proccess"
 import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
-import { ToolResponse, UserContent } from "../types"
+import { ApiHistoryItem, ToolResponse, UserContent } from "../types"
 import { debounce } from "lodash"
 import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
 import { ChatTool } from "../../../shared/new-tools"
+import { isTextBlock } from "../utils"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
 	public toolExecutor: ToolExecutor
 	private currentUserContent: UserContent | null = null
-	private currentApiResponse: Anthropic.Messages.Message | null = null
-	private currentToolResults: { name: string; result: ToolResponse }[] = []
 	private isRequestCancelled: boolean = false
 	private abortController: AbortController | null = null
 	private consecutiveErrorCount: number = 0
@@ -184,6 +183,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				})
 			)
 
+			// will the stream api request be called here?
 			const stream = this.stateManager.apiManager.createApiStreamRequest(
 				this.stateManager.state.apiConversationHistory,
 				this.abortController?.signal
@@ -230,9 +230,18 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 		try {
 			this.logState("Processing API response")
-			const assistantResponses: Anthropic.Messages.ContentBlock[] = []
-			this.currentToolResults = []
 			const currentReplyId = await this.say("text", "")
+			const apiHistoryItem: ApiHistoryItem = {
+				role: "assistant",
+				ts: startedReqId,
+				content: [
+					{
+						type: "text",
+						text: ``,
+					},
+				],
+			}
+			await this.stateManager.addToApiConversationHistory(apiHistoryItem)
 			let textBuffer = ""
 			const updateInterval = 10 // milliseconds
 
@@ -289,28 +298,14 @@ export class TaskExecutor extends TaskExecutorUtils {
 						this.logState("Request was cancelled during onChunk")
 						return
 					}
-					if (chunk.code === 1) {
-						const { inputTokens, outputTokens } = chunk.body.internal
-						for (const contentBlock of chunk.body.anthropic.content) {
-							if (this.isRequestCancelled) {
-								console.log("Request was cancelled, ignoring response")
-								return
-							}
-
-							if (contentBlock.type === "text") {
-								assistantResponses.push(contentBlock)
-							}
-
-							if (this.isRequestCancelled) {
-								console.log("Request was cancelled after processing a block")
-								return
-							}
-						}
-					}
 					if (chunk.code === 2) {
 						if (this.isRequestCancelled) {
 							this.logState("Request was cancelled during debounced update")
 							return
+						}
+						if (Array.isArray(apiHistoryItem.content) && apiHistoryItem.content[0].type === "text") {
+							apiHistoryItem.content[0].text = chunk.body.text
+							this.stateManager.updateApiHistoryItem(startedReqId, apiHistoryItem)
 						}
 						const nonXMLText = await this.toolExecutor.processToolUse(chunk.body.text)
 						textBuffer += nonXMLText
@@ -320,6 +315,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				onFinalEndOfStream: async () => {},
 			})
 
+			// will the stream api request be called here?
 			await processor.processStream(stream)
 			if (this.isRequestCancelled) {
 				this.logState("Request was cancelled during onFinalEndOfStream")
@@ -327,7 +323,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 			}
 			// Wait for all tool executions to complete
 			await this.toolExecutor.waitForToolProcessing()
-			await this.finishProcessingResponse(assistantResponses, /*inputTokens*/ 0, /*outputTokens*/ 0)
+
+			await this.finishProcessingResponse(apiHistoryItem)
 		} catch (error) {
 			// update the say to error
 			this.sayWithId(startedReqId, "error", "An error occurred. Please try again.")
@@ -338,8 +335,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 	private async resetState() {
 		this.abortController?.abort()
-		this.currentApiResponse = null
-		this.currentToolResults = []
 		this.isRequestCancelled = false
 		this.abortController = null
 		this.consecutiveErrorCount = 0
@@ -350,31 +345,29 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.logState("State reset due to request cancellation")
 	}
 
-	private async finishProcessingResponse(
-		assistantResponses: Anthropic.Messages.ContentBlock[],
-		inputTokens: number,
-		outputTokens: number
-	): Promise<void> {
+	private async finishProcessingResponse(assistantResponses: ApiHistoryItem): Promise<void> {
 		this.logState("Finishing response processing")
 		if (this.isRequestCancelled) {
 			return
 		}
 
-		if (assistantResponses.length > 0) {
-			console.log("[TaskExecutor] assistantResponses:", assistantResponses)
-			await this.stateManager.addToApiConversationHistory({ role: "assistant", content: assistantResponses })
-		} else {
+		if (assistantResponses.content.length === 0) {
 			await this.say("error", "Unexpected Error: No assistant messages were found in the API response")
-			await this.stateManager.addToApiConversationHistory({
+			await this.stateManager.updateApiHistoryItem(assistantResponses.ts!, {
 				role: "assistant",
 				content: [{ type: "text", text: "Failure: I did not have a response to provide." }],
 			})
 		}
+		if (isTextBlock(assistantResponses.content[0]) && assistantResponses.content[0].text.trim() === "") {
+			assistantResponses.content[0].text = "Failed to generate a response, please try again."
+			this.stateManager.updateApiHistoryItem(assistantResponses.ts!, assistantResponses)
+		}
 
-		this.currentToolResults = await this.toolExecutor.getToolResults()
-		if (this.currentToolResults.length > 0) {
-			console.log("[TaskExecutor] Tool results:", this.currentToolResults)
-			const completionAttempted = this.currentToolResults.find((result) => {
+		const currentToolResults = await this.toolExecutor.getToolResults()
+
+		if (currentToolResults.length > 0) {
+			console.log("[TaskExecutor] Tool results:", currentToolResults)
+			const completionAttempted = currentToolResults.find((result) => {
 				return result?.name === "attempt_completion"
 			})
 			console.log("[TaskExecutor] Completion attempted:", completionAttempted)
@@ -400,7 +393,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				}
 			} else {
 				this.state = TaskState.WAITING_FOR_API
-				this.currentUserContent = this.currentToolResults.flatMap((result) => {
+				this.currentUserContent = currentToolResults.flatMap((result) => {
 					if (typeof result.result === "string") {
 						const block: Anthropic.Messages.TextBlockParam = { type: "text", text: result.result }
 						return block
@@ -425,35 +418,29 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 	}
 
-	private async handleRequestLimitReached(): Promise<void> {
-		this.logState("Request limit reached")
-		const { response } = await this.ask("request_limit_reached", {
-			question:
-				"Claude Coder has reached the maximum number of requests for this task. Would you like to reset the count and allow him to proceed?",
-		})
-		if (response === "yesButtonTapped") {
-			this.stateManager.state.requestCount = 0
-			this.state = TaskState.WAITING_FOR_API
-			await this.makeClaudeRequest()
-		} else {
-			await this.stateManager.addToApiConversationHistory({
-				role: "assistant",
-				content: [
-					{
-						type: "text",
-						text: "Failure: I have reached the request limit for this task. Do you have a new task for me?",
-					},
-				],
-			})
-			this.state = TaskState.COMPLETED
-		}
-	}
-
 	private async handleApiError(error: TaskError): Promise<void> {
 		this.logError(error)
 		console.log(`[TaskExecutor] Error (State: ${this.state}):`, error)
 		await this.toolExecutor.resetToolState()
-		this.stateManager.popLastApiConversationMessage()
+		// update the last assistant message to error
+		const lastAssistantMessage = this.stateManager.state.apiConversationHistory.at(-1)
+		if (lastAssistantMessage && lastAssistantMessage.role === "assistant" && lastAssistantMessage.ts) {
+			if (typeof lastAssistantMessage.content === "string") {
+				lastAssistantMessage.content = [{ type: "text", text: lastAssistantMessage.content }]
+			}
+			if (Array.isArray(lastAssistantMessage.content) && isTextBlock(lastAssistantMessage.content[0])) {
+				if (lastAssistantMessage.content[0].text.trim() === "") {
+					lastAssistantMessage.content[0].text =
+						"An error occurred in the generation of the response, i couldn't provide a response. please try again."
+				} else {
+					lastAssistantMessage.content.push({
+						type: "text",
+						text: "An error occurred in the middle of the response generation.",
+					})
+				}
+			}
+			await this.stateManager.updateApiHistoryItem(lastAssistantMessage.ts, lastAssistantMessage)
+		}
 		this.consecutiveErrorCount++
 		if (error.type === "PAYMENT_REQUIRED" || error.type === "UNAUTHORIZED") {
 			this.state = TaskState.IDLE
@@ -463,8 +450,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 		const { response } = await this.ask("api_req_failed", { question: error.message })
 		if (response === "yesButtonTapped" || response === "messageResponse") {
-			console.log(JSON.stringify(this.stateManager.state.claudeMessages, null, 2))
-
 			await this.say("api_req_retried")
 			this.state = TaskState.WAITING_FOR_API
 			await this.makeClaudeRequest()

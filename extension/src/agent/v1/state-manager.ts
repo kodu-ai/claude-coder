@@ -8,7 +8,7 @@ import { getApiMetrics } from "../../shared/getApiMetrics"
 import { findLastIndex } from "../../utils"
 import { ApiManager } from "./api-handler"
 import { DEFAULT_MAX_REQUESTS_PER_TASK } from "./constants"
-import { ClaudeMessage, KoduDevOptions, KoduDevState } from "./types"
+import { ApiHistoryItem, ClaudeMessage, KoduDevOptions, KoduDevState } from "./types"
 import { debounce } from "lodash"
 
 export class StateManager {
@@ -324,12 +324,22 @@ export class StateManager {
 		}
 	}
 
-	async addToApiConversationHistory(message: Anthropic.MessageParam) {
+	async updateApiHistoryItem(messageId: number, message: ApiHistoryItem) {
+		const index = this.state.apiConversationHistory.findIndex((msg) => msg.ts === messageId)
+		if (index === -1) {
+			console.error(`[StateManager] updateApiConversationHistory: Message with id ${messageId} not found`)
+			return
+		}
+		this.state.apiConversationHistory[index] = message
+		await this.saveApiConversationHistory()
+	}
+
+	async addToApiConversationHistory(message: ApiHistoryItem) {
 		this.state.apiConversationHistory.push(message)
 		await this.saveApiConversationHistory()
 	}
 
-	async overwriteApiConversationHistory(newHistory: Anthropic.MessageParam[]) {
+	async overwriteApiConversationHistory(newHistory: ApiHistoryItem[]) {
 		this.state.apiConversationHistory = newHistory
 		await this.saveApiConversationHistory()
 	}

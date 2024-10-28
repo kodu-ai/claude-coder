@@ -442,7 +442,7 @@ export const ExecuteCommandBlock: React.FC<
 				<span className="text-success">$</span> {command}
 			</div>
 
-			{approvalState === "loading" && earlyExit === "pending" && (
+			{/* {approvalState === "loading" && earlyExit === "pending" && (
 				<>
 					<div className="flex justify-end space-x-1 mt-2">
 						<Button variant="outline" size="sm" onClick={onApprove}>
@@ -450,7 +450,7 @@ export const ExecuteCommandBlock: React.FC<
 						</Button>
 					</div>
 				</>
-			)}
+			)} */}
 			{output && (
 				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
 					<CollapsibleTrigger asChild>

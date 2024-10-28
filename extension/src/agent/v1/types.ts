@@ -32,10 +32,14 @@ export interface KoduDevOptions {
 	isDebug?: boolean
 }
 
+export type ApiHistoryItem = Anthropic.MessageParam & {
+	ts?: number
+}
+
 export interface KoduDevState {
 	taskId: string
 	requestCount: number
-	apiConversationHistory: Anthropic.MessageParam[]
+	apiConversationHistory: ApiHistoryItem[]
 	claudeMessages: ClaudeMessage[]
 	askResponse?: ClaudeAskResponse
 	askResponseText?: string

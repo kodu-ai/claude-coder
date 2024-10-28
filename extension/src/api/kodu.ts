@@ -18,6 +18,7 @@ import {
 	koduSSEResponse,
 } from "../shared/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
+import { ApiHistoryItem } from "../agent/v1"
 
 const temperatures = {
 	creative: {
@@ -233,7 +234,7 @@ export class KoduHandler implements ApiHandler {
 
 	async *createMessageStream(
 		systemPrompt: string,
-		messages: Anthropic.Messages.MessageParam[],
+		messages: ApiHistoryItem[],
 		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null,
 		customInstructions?: string,
@@ -278,7 +279,8 @@ export class KoduHandler implements ApiHandler {
 		const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
 		const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 		// Prepare messages up to the last user message
-		const messagesToCache: Anthropic.Messages.MessageParam[] = messages.map((message, index) => {
+		const messagesToCache: ApiHistoryItem[] = messages.map((msg, index) => {
+			const { ts, ...message } = msg
 			if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
 				return {
 					...message,
