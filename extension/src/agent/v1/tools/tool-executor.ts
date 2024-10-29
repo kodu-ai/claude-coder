@@ -165,16 +165,6 @@ export class ToolExecutor {
 			)
 			const queueEmpty = this.queue.size === 0
 
-			console.log("[ToolExecutor] Waiting for tools:", {
-				queueSize: this.queue.size,
-				contexts: contexts.map((ctx) => ({
-					id: ctx.id,
-					tool: ctx.tool.name,
-					status: ctx.status,
-					hasResult: ctx.result !== undefined,
-				})),
-			})
-
 			return allCompleted && queueEmpty
 		})
 	}
@@ -245,13 +235,24 @@ export class ToolExecutor {
 		console.log(`[ToolExecutor] Updating tool final status: ${toolName}`)
 		await this.updateToolStatus(context, params, context.tool.ts)
 
-		// Execute tool
+		// Execute tool and wait for completion
 		console.log(`[ToolExecutor] Adding tool to queue: ${toolName}`)
-		await this.queue.add(async () => {
-			const result = await this.processTool(context!)
-			context!.result = result
-			this.toolResults.push({ name: context!.tool.name, result })
+		const queuePromise = new Promise<void>((resolve, reject) => {
+			this.queue.add(async () => {
+				try {
+					const result = await this.processTool(context!)
+					context!.result = result
+					this.toolResults.push({ name: context!.tool.name, result })
+					resolve()
+				} catch (error) {
+					reject(error)
+				}
+			})
 		})
+
+		// Wait for both queue processing and tool execution
+		await queuePromise
+		await this.waitForToolProcessing()
 	}
 
 	private async handleToolError(id: string, toolName: string, error: Error, ts: number): Promise<void> {

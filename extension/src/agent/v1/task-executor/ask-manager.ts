@@ -166,6 +166,10 @@ export class AskManager {
 		this.pendingToolAsks.clear()
 	}
 
+	get pendingPromise(): Promise<AskResponse> | null {
+		return this.currentAsk?.promise || null
+	}
+
 	private async trackToolAsk(id: number, tool?: ChatTool) {
 		if (tool?.ts) {
 			const toolId = tool.ts.toString()

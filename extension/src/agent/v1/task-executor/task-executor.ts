@@ -19,7 +19,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private abortController: AbortController | null = null
 	private consecutiveErrorCount: number = 0
 	private isAborting: boolean = false
-	private askManager: AskManager
+	public askManager: AskManager
 	private streamProcessor: StreamProcessor
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
@@ -200,17 +200,26 @@ export class TaskExecutor extends TaskExecutorUtils {
 			})
 		}
 
-		await this.ask("resume_task", {
+		this.isAborting = false
+		this.ask("resume_task", {
 			question:
 				"Task was interrupted before the last response could be generated. Would you like to resume the task?",
 		}).then((res) => {
 			if (res.response === "yesButtonTapped") {
 				this.state = TaskState.WAITING_FOR_API
+				this.abortController = new AbortController()
+				this.isRequestCancelled = false
+				this.isAborting = false
 				this.currentUserContent = [
 					{ type: "text", text: "Let's continue with the task, from where we left off." },
 				]
 				this.makeClaudeRequest()
+				return
 			} else if ((res.response === "noButtonTapped" && res.text) || res.images) {
+				this.state = TaskState.WAITING_FOR_API
+				this.abortController = new AbortController()
+				this.isRequestCancelled = false
+				this.isAborting = false
 				const newContent: UserContent = []
 				if (res.text) {
 					newContent.push({ type: "text", text: res.text })
@@ -219,6 +228,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 					const formattedImages = formatImagesIntoBlocks(res.images)
 					newContent.push(...formattedImages)
 				}
+				this.say("user_feedback", res.text, res.images)
 				this.currentUserContent = newContent
 				this.state = TaskState.WAITING_FOR_API
 				this.makeClaudeRequest()
@@ -226,9 +236,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 				this.state = TaskState.COMPLETED
 			}
 		})
-
-		// Update the provider state
-		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
@@ -295,6 +302,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 			await this.stateManager.addToApiConversationHistory(apiHistoryItem)
 
 			await this.streamProcessor.processStream(stream, startedReqId, apiHistoryItem)
+			console.log(`Stream ended for request ${startedReqId} at ${Date.now()}`)
+			console.log(`Stream tool results: ${JSON.stringify(await this.toolExecutor.getToolResults())}`)
 			await this.finishProcessingResponse(apiHistoryItem)
 		} catch (error) {
 			if (!this.isRequestCancelled && !this.isAborting) {

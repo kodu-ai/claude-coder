@@ -14,6 +14,7 @@ export class StreamProcessor {
 	private isRequestCancelled: boolean = false
 	private isAborting: boolean = false
 	private isProcessingTool: boolean = false
+	private activeToolPromises: Promise<void>[] = []
 
 	constructor(
 		private readonly stateManager: StateManager,
@@ -36,39 +37,55 @@ export class StreamProcessor {
 		try {
 			this.isProcessingTool = true
 
-			// Let the tool parser handle the text and return any non-tool content
-			const nonToolText = await this.toolExecutor.processToolUse(this.accumulatedText)
+			// Create a new Promise for tool processing
+			const toolPromise = (async () => {
+				// Let the tool parser handle the text and return any non-tool content
+				const nonToolText = await this.toolExecutor.processToolUse(this.accumulatedText)
 
-			// If we have a tool being processed, buffer any non-tool text
-			if (await this.toolExecutor.hasActiveTools()) {
-				if (nonToolText) {
-					this.bufferedContent += nonToolText
-				}
+				// If we have a tool being processed, buffer any non-tool text
+				if (await this.toolExecutor.hasActiveTools()) {
+					if (nonToolText) {
+						this.bufferedContent += nonToolText
+					}
 
-				this.streamPaused = true
+					this.streamPaused = true
 
-				// Wait for current tool(s) to complete
-				await this.toolExecutor.waitForToolProcessing()
+					// Wait for current tool(s) to complete
+					await this.toolExecutor.waitForToolProcessing()
 
-				// Create new message section after tool processing
-				const newReplyId = await this.say("text", "", undefined, Date.now(), {
-					isSubMessage: true,
-				})
-				this.currentReplyId = newReplyId
+					// Create new message section after tool processing
+					const newReplyId = await this.say("text", "", undefined, Date.now(), {
+						isSubMessage: true,
+					})
+					this.currentReplyId = newReplyId
 
-				// If we have buffered content, append it all at once
-				if (this.bufferedContent) {
-					await this.stateManager.appendToClaudeMessage(this.currentReplyId!, this.bufferedContent)
+					// If we have buffered content, append it all at once
+					if (this.bufferedContent) {
+						await this.stateManager.appendToClaudeMessage(this.currentReplyId!, this.bufferedContent)
+						await this.updateWebview()
+						this.bufferedContent = ""
+					}
+
+					this.streamPaused = false
+				} else if (nonToolText) {
+					// Only append text if we're not processing any tools
+					await this.stateManager.appendToClaudeMessage(currentReplyId, nonToolText)
 					await this.updateWebview()
-					this.bufferedContent = ""
 				}
+			})()
 
-				this.streamPaused = false
-			} else if (nonToolText) {
-				// Only append text if we're not processing any tools
-				await this.stateManager.appendToClaudeMessage(currentReplyId, nonToolText)
-				await this.updateWebview()
-			}
+			// Add to active promises and clean up when done
+			this.activeToolPromises.push(
+				toolPromise.finally(() => {
+					const index = this.activeToolPromises.indexOf(toolPromise)
+					if (index > -1) {
+						this.activeToolPromises.splice(index, 1)
+					}
+				})
+			)
+
+			// Wait for this tool processing to complete
+			await toolPromise
 
 			// Clear accumulated text after processing
 			this.accumulatedText = ""
@@ -169,7 +186,12 @@ export class StreamProcessor {
 							await this.processAccumulatedText(this.currentReplyId!)
 						}
 
-						// Wait for any remaining tools to complete
+						// Wait for all active tool promises to complete
+						if (this.activeToolPromises.length > 0) {
+							await Promise.all(this.activeToolPromises)
+						}
+
+						// Double check for any tools that might have been added
 						if (await this.toolExecutor.hasActiveTools()) {
 							await this.toolExecutor.waitForToolProcessing()
 						}
@@ -180,13 +202,25 @@ export class StreamProcessor {
 							await this.updateWebview()
 							this.bufferedContent = ""
 						}
+
+						// Final verification - ensure absolutely everything is done
+						await Promise.all([
+							Promise.all(this.activeToolPromises),
+							this.toolExecutor.waitForToolProcessing(),
+						])
 					} finally {
 						this.currentReplyId = null
 					}
 				},
 			})
 
+			// Process stream and ensure all tools complete
 			await processor.processStream(stream)
+
+			// Final wait for any remaining tool processing
+			if (this.activeToolPromises.length > 0 || (await this.toolExecutor.hasActiveTools())) {
+				await Promise.all([Promise.all(this.activeToolPromises), this.toolExecutor.waitForToolProcessing()])
+			}
 		} catch (error) {
 			if (this.isRequestCancelled || this.isAborting) {
 				throw error
@@ -211,5 +245,6 @@ export class StreamProcessor {
 		this.isRequestCancelled = false
 		this.isAborting = false
 		this.isProcessingTool = false
+		this.activeToolPromises = []
 	}
 }
