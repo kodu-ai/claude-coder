@@ -37,7 +37,7 @@ export class AskFollowupQuestionTool extends BaseAgentTool {
 			},
 			this.ts
 		)
-		await this.params.updateAsk(
+		this.params.updateAsk(
 			"tool",
 			{ tool: { tool: "ask_followup_question", question, approvalState: "approved", ts: this.ts } },
 			this.ts

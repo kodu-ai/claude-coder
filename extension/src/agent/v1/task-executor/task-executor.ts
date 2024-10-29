@@ -13,7 +13,7 @@ import { AskManager } from "./ask-manager"
 import { ChatTool } from "../../../shared/new-tools"
 
 // Constants for buffer management - modified for instant output
-const BUFFER_SIZE_THRESHOLD = 1 // Reduced to 1 character for near-instant output
+const BUFFER_SIZE_THRESHOLD = 5 // Reduced to 1 character for near-instant output
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -194,8 +194,15 @@ export class TaskExecutor extends TaskExecutorUtils {
 				if (!isV1ClaudeMessage(msg) || msg.ask !== "tool") {
 					return false
 				}
-				const parsedTool = JSON.parse(msg.text ?? "{}") as ChatTool
-				return parsedTool.approvalState !== "error"
+				try {
+					if (msg.text === "" || msg.text === "{}") {
+						throw new Error("Tool message text is empty or invalid JSON")
+					}
+					const parsedTool = JSON.parse(msg.text ?? "{}") as ChatTool
+					return parsedTool.approvalState !== "error"
+				} catch (e) {
+					return false
+				}
 			})
 
 		// Update tool request if exists and not already approved
@@ -258,6 +265,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				this.state = TaskState.COMPLETED
 			}
 		})
+		void this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
@@ -519,15 +527,35 @@ export class TaskExecutor extends TaskExecutorUtils {
 			const completionAttempted = currentToolResults.find((result) => result?.name === "attempt_completion")
 
 			if (completionAttempted) {
+				const resultContent =
+					typeof completionAttempted.result === "string"
+						? completionAttempted.result
+						: completionAttempted.result.map((r) => isTextBlock(r) && r.text).join(" ")
 				await this.stateManager.addToApiConversationHistory({
 					role: "user",
-					content: completionAttempted.result,
+					content:
+						resultContent.trim() === ""
+							? [{ type: "text", text: "User is pleased with the results" }]
+							: completionAttempted.result,
 				})
-				await this.stateManager.addToApiConversationHistory({
-					role: "assistant",
-					content: [{ type: "text", text: "Task completed successfully." }],
-				})
-				this.state = TaskState.COMPLETED
+				if (resultContent.trim() === "") {
+					await this.stateManager.addToApiConversationHistory({
+						role: "assistant",
+						content: [{ type: "text", text: "Task completed successfully." }],
+					})
+					this.state = TaskState.COMPLETED
+				} else {
+					this.state = TaskState.WAITING_FOR_API
+					this.currentUserContent = [
+						{
+							type: "text",
+							text:
+								resultContent ??
+								`The user is not pleased with the results. Use the feedback they provided to successfully complete the task, and then attempt completion again.`,
+						},
+					]
+					await this.makeClaudeRequest()
+				}
 			} else {
 				this.state = TaskState.WAITING_FOR_API
 				this.currentUserContent = currentToolResults.flatMap((result) => {

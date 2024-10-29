@@ -13,7 +13,7 @@ export class WriteFileTool extends BaseAgentTool {
 	public diffViewProvider: DiffViewProvider
 	private isProcessingFinalContent: boolean = false
 	private lastUpdateTime: number = 0
-	private readonly UPDATE_INTERVAL = 10 // Approximately 60 FPS
+	private readonly UPDATE_INTERVAL = 33 // Approximately 60 FPS
 	private skipWriteAnimation: boolean = false
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
@@ -32,6 +32,14 @@ export class WriteFileTool extends BaseAgentTool {
 	}
 
 	public async handlePartialUpdate(relPath: string, content: string): Promise<void> {
+		if (this.skipWriteAnimation) {
+			this.params.updateAsk(
+				"tool",
+				{ tool: { tool: "write_to_file", content, path: relPath, ts: this.ts, approvalState: "loading" } },
+				this.ts
+			)
+			return
+		}
 		if (this.isProcessingFinalContent || this.skipWriteAnimation) {
 			return
 		}

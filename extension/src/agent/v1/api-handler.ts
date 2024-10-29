@@ -335,7 +335,7 @@ ${this.customInstructions.trim()}
 
 		const contextWindow = this.api.getModel().info.contextWindow
 
-		if (totalTokens >= contextWindow * 0.9) {
+		if (totalTokens >= contextWindow * 0.75) {
 			const truncatedMessages = truncateHalfConversation(history)
 			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 		}

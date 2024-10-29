@@ -279,7 +279,7 @@ const ChatScreen: React.FC<{
 				projectType={projectType ?? "landingPage"}
 				onPreFill={(text) => console.log("Pre-filled text:", text)}
 			/> */}
-			<div className="flex flex-col items-center justify-start p-2 sm:p-4 relative">
+			<div className="flex flex-col items-center justify-start pb-0 mb-0 p-2 sm:p-4 relative h-full">
 				<Card className="w-full max-w-screen-lg border-0 border-unset bg-transparent flex-grow overflow-auto">
 					<CardHeader>
 						<CardTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-center">
@@ -311,7 +311,7 @@ const ChatScreen: React.FC<{
 								initial="hidden"
 								animate="visible"
 								exit="exit"
-								className={showHistory ? "" : "grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4"}>
+								className={showHistory ? "" : "grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 "}>
 								{showHistory
 									? taskHistory
 									: quickStartOptions.map((option, index) => (

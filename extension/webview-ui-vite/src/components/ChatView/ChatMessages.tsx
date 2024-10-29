@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from "react"
+import React, { useRef, useEffect, useState, useCallback, useMemo } from "react"
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso"
 import { ChevronDown } from "lucide-react"
 import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
@@ -10,136 +10,194 @@ import { Button } from "../ui/button"
 interface ChatMessagesProps {
 	visibleMessages: ClaudeMessage[]
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
-	handleSendStdin: (text: string) => void
 	taskId: number
 }
 
-const ChatMessages: React.FC<ChatMessagesProps> = ({
-	taskId,
-	visibleMessages,
-	syntaxHighlighterStyle,
-	handleSendStdin,
-}) => {
+// Increased threshold for better bottom detection
+const SCROLL_THRESHOLD = 33
+const SCROLL_DEBOUNCE = 1
+
+// Memoized message renderer component
+const MessageRenderer = React.memo(
+	({
+		message,
+		index,
+		total,
+		syntaxHighlighterStyle,
+		nextMessage,
+	}: {
+		message: ClaudeMessage
+		index: number
+		total: number
+		syntaxHighlighterStyle: SyntaxHighlighterStyle
+		nextMessage?: ClaudeMessage
+	}) => {
+		const isLast = index === total - 1
+
+		return isV1ClaudeMessage(message) ? (
+			<ChatRowV1
+				message={message}
+				syntaxHighlighterStyle={syntaxHighlighterStyle}
+				isLast={isLast}
+				nextMessage={nextMessage as V1ClaudeMessage | undefined}
+			/>
+		) : (
+			<ChatRow
+				message={message}
+				syntaxHighlighterStyle={syntaxHighlighterStyle}
+				isLast={isLast}
+				nextMessage={nextMessage}
+			/>
+		)
+	}
+)
+
+MessageRenderer.displayName = "MessageRenderer"
+
+const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, syntaxHighlighterStyle }) => {
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
-	// Start with atBottom false to prevent initial auto-scroll
-	const [atBottom, setAtBottom] = useState(false)
+	const [atBottom, setAtBottom] = useState(true)
 	const [userScrolled, setUserScrolled] = useState(false)
 	const lastMessageCountRef = useRef(visibleMessages.length)
 	const isInitialMount = useRef(true)
+	const scrollTimeoutRef = useRef<NodeJS.Timeout>()
 
-	const scrollToBottom = useCallback(() => {
-		virtuosoRef.current?.scrollToIndex({
-			index: "LAST",
-			behavior: "auto",
-			align: "end",
-		})
-		setUserScrolled(false)
+	// Memoize scroll handlers to prevent recreating on every render
+	const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+		if (virtuosoRef.current) {
+			virtuosoRef.current.scrollToIndex({
+				index: "LAST",
+				behavior: behavior === "auto" ? "auto" : "smooth",
+				align: "end",
+			})
+			setUserScrolled(false)
+			setAtBottom(true)
+		}
 	}, [])
 
 	const followOutput = useCallback(() => {
-		// Only follow if not initial mount and conditions are met
-		if (!isInitialMount.current && atBottom && !userScrolled) {
+		// More aggressive auto-scroll behavior
+		if (!userScrolled || atBottom) {
 			return "smooth"
 		}
 		return false
 	}, [atBottom, userScrolled])
 
+	// Debounced scroll handler
 	const handleScroll = useCallback((event: Event) => {
-		if (event.isTrusted) {
+		if (!event.isTrusted) return
+
+		if (scrollTimeoutRef.current) {
+			clearTimeout(scrollTimeoutRef.current)
+		}
+
+		scrollTimeoutRef.current = setTimeout(() => {
 			setUserScrolled(true)
 			isInitialMount.current = false
-		}
+		}, SCROLL_DEBOUNCE)
 	}, [])
 
 	const handleAtBottomStateChange = useCallback((bottom: boolean) => {
 		setAtBottom(bottom)
+		if (bottom) {
+			setUserScrolled(false)
+		}
 	}, [])
 
+	// Handle new messages
 	useEffect(() => {
 		const newMessageCount = visibleMessages.length
 		const messageAdded = newMessageCount > lastMessageCountRef.current
 
-		if (!isInitialMount.current && atBottom && messageAdded && !userScrolled) {
-			console.log("Scrolling to bottom")
-			virtuosoRef.current?.scrollToIndex({
-				index: newMessageCount - 1,
-				behavior: "smooth",
-				align: "end",
-			})
+		if (!isInitialMount.current && messageAdded) {
+			// More aggressive scroll behavior for new messages
+			if (!userScrolled || atBottom) {
+				scrollToBottom("smooth")
+			}
 		}
 
 		lastMessageCountRef.current = newMessageCount
-	}, [visibleMessages, atBottom, userScrolled])
+	}, [visibleMessages.length, atBottom, userScrolled, scrollToBottom])
 
-	// Reset initial mount flag when taskId changes
+	// Reset state when task changes
 	useEffect(() => {
 		isInitialMount.current = true
-	}, [taskId])
+		setUserScrolled(false)
+		setAtBottom(true)
+		lastMessageCountRef.current = visibleMessages.length
+		// Ensure we start at bottom for new tasks
+		setTimeout(() => scrollToBottom(), 0)
+	}, [taskId, visibleMessages.length, scrollToBottom])
 
-	console.log("visibleMessages", visibleMessages)
+	// Cleanup
+	useEffect(() => {
+		return () => {
+			if (scrollTimeoutRef.current) {
+				clearTimeout(scrollTimeoutRef.current)
+			}
+		}
+	}, [])
+
+	// Memoize scroll event handlers setup
+	const scrollerRefCallback = useCallback(
+		(ref: HTMLElement | Window | null) => {
+			if (ref) {
+				ref.addEventListener("wheel", handleScroll)
+				ref.addEventListener("touchmove", handleScroll)
+				ref.addEventListener("keydown", handleScroll)
+				return () => {
+					ref.removeEventListener("wheel", handleScroll)
+					ref.removeEventListener("touchmove", handleScroll)
+					ref.removeEventListener("keydown", handleScroll)
+				}
+			}
+			return
+		},
+		[handleScroll]
+	)
+
+	// Memoize item content renderer
+	const itemContent = useCallback(
+		(index: number, message: ClaudeMessage) => (
+			<div key={message.ts} className="mb-0">
+				<MessageRenderer
+					message={message}
+					index={index}
+					total={visibleMessages.length}
+					syntaxHighlighterStyle={syntaxHighlighterStyle}
+					nextMessage={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
+				/>
+			</div>
+		),
+		[visibleMessages, syntaxHighlighterStyle]
+	)
 
 	return (
-		<div className="relative h-full">
+		<div className="relative overflow-auto flex flex-col flex-1 ">
 			<Virtuoso
 				ref={virtuosoRef}
-				data={visibleMessages.filter((msg) => {
-					if (msg.ask === "resume_completed_task" || msg.ask === "resume_task") {
-						console.log("Filtering out resume task message")
-						return false
-					}
-					return true
-				})}
+				data={visibleMessages}
 				followOutput={followOutput}
-				initialTopMostItemIndex={0} // Start at top
-				atBottomStateChange={handleAtBottomStateChange}
-				atBottomThreshold={40}
-				scrollerRef={(ref) => {
-					if (ref) {
-						ref.addEventListener("wheel", handleScroll)
-						ref.addEventListener("touchmove", handleScroll)
-						ref.addEventListener("keydown", handleScroll)
-						return () => {
-							ref.removeEventListener("wheel", handleScroll)
-							ref.removeEventListener("touchmove", handleScroll)
-							ref.removeEventListener("keydown", handleScroll)
-						}
-					}
+				initialTopMostItemIndex={{
+					index: "LAST",
+					align: "end",
 				}}
-				itemContent={(index, message) => (
-					<div key={message.ts}>
-						{isV1ClaudeMessage(message) ? (
-							<ChatRowV1
-								message={message}
-								syntaxHighlighterStyle={syntaxHighlighterStyle}
-								isLast={index === visibleMessages.length - 1}
-								handleSendStdin={handleSendStdin}
-								nextMessage={
-									index < visibleMessages.length - 1
-										? (visibleMessages[index + 1] as V1ClaudeMessage)
-										: undefined
-								}
-							/>
-						) : (
-							<ChatRow
-								message={message}
-								syntaxHighlighterStyle={syntaxHighlighterStyle}
-								isLast={index === visibleMessages.length - 1}
-								nextMessage={
-									index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined
-								}
-								handleSendStdin={handleSendStdin}
-							/>
-						)}
-					</div>
-				)}
+				atBottomStateChange={handleAtBottomStateChange}
+				atBottomThreshold={SCROLL_THRESHOLD}
+				scrollerRef={scrollerRefCallback}
+				itemContent={itemContent}
+				overscan={20}
+				increaseViewportBy={{ top: 250, bottom: 250 }}
+				// alignToBottom
+				defaultItemHeight={100}
 			/>
-			{!atBottom && (
+			{!atBottom && userScrolled && (
 				<Button
 					id="scroll-to-bottom"
-					onClick={scrollToBottom}
+					onClick={() => scrollToBottom("smooth")}
 					size="icon"
 					variant="secondary"
-					className="fixed bottom-36 right-4 rounded-full"
+					className="fixed bottom-36 right-4 rounded-full shadow-lg hover:shadow-xl transition-shadow"
 					aria-label="Scroll to bottom">
 					<ChevronDown size={24} />
 				</Button>
@@ -148,4 +206,11 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 	)
 }
 
-export default ChatMessages
+// Memoize the entire component
+export default React.memo(ChatMessages, (prevProps, nextProps) => {
+	return (
+		prevProps.taskId === nextProps.taskId &&
+		prevProps.visibleMessages === nextProps.visibleMessages &&
+		prevProps.syntaxHighlighterStyle === nextProps.syntaxHighlighterStyle
+	)
+})

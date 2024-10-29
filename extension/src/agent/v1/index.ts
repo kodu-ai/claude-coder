@@ -182,6 +182,11 @@ export class KoduDev {
 				if (m.ask === "tool" && m.type === "ask") {
 					try {
 						const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
+						if (typeof parsedTool === "object" && parsedTool.tool === "attempt_completion") {
+							parsedTool.approvalState = "approved"
+							m.text = JSON.stringify(parsedTool)
+							return
+						}
 						if (
 							typeof parsedTool === "object" &&
 							(parsedTool.approvalState === "pending" ||
@@ -190,11 +195,11 @@ export class KoduDev {
 						) {
 							const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
 							if (toolsToSkip.includes(parsedTool.tool)) {
-								parsedTool.approvalState = "pending"
+								parsedTool.approvalState = "error"
 								m.text = JSON.stringify(parsedTool)
 								return
 							}
-							parsedTool.approvalState = "rejected"
+							parsedTool.approvalState = "error"
 							parsedTool.error = "Task was interrupted before this tool call could be completed."
 							m.text = JSON.stringify(parsedTool)
 						}

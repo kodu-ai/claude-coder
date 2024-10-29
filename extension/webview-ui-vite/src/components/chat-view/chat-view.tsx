@@ -85,7 +85,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 					prev.enableButtons !== updates.enableButtons ||
 					prev.primaryButtonText !== updates.primaryButtonText ||
 					prev.secondaryButtonText !== updates.secondaryButtonText ||
-					prev.claudeAsk !== updates.claudeAsk
+					prev.claudeAsk !== updates.claudeAsk ||
+					prev.textAreaDisabled !== updates.textAreaDisabled
 
 				if (!shouldUpdate) return prev
 				return { ...prev, ...updates }
@@ -101,7 +102,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 					"enableButtons" in updates ||
 					"primaryButtonText" in updates ||
 					"secondaryButtonText" in updates ||
-					"claudeAsk" in updates
+					"claudeAsk" in updates ||
+					"textAreaDisabled" in updates
 				) {
 					updateButtonState(updates)
 				} else {
@@ -111,7 +113,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 		},
 		[updateButtonState]
 	)
-	useChatMessageHandling(messages, handleButtonStateUpdate, setAttachments)
 
 	const { shouldDisableImages, handlePaste } = useImageHandling(selectedModelSupportsImages, state, updateState)
 
@@ -135,6 +136,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	}, [task?.ts])
 
 	const modifiedMessages = useMemo(() => combineApiRequests(combineCommandSequences(messages.slice(1))), [messages])
+	useChatMessageHandling(messages, handleButtonStateUpdate, setAttachments)
 
 	const apiMetrics = useMemo(() => getApiMetrics(modifiedMessages), [modifiedMessages])
 
@@ -143,8 +145,13 @@ const ChatView: React.FC<ChatViewProps> = ({
 			// remove any funky empty messages
 			if (
 				message.ask === "tool" &&
-				(message.text === "" || message.text === "{}" || !message.text?.includes("tool:"))
+				(message.text === "" || message.text === "{}" || !message.text?.includes('tool":'))
 			) {
+				console.log(
+					`message.text: ${message.text === ""} | message.text === "{}": ${
+						message.text === "{}"
+					} | !message.text?.includes("tool:"): ${!message.text?.includes('tool":')}`
+				)
 				return false
 			}
 			if (
@@ -204,7 +211,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 						attachements: attachments,
 					})
 				}
-				console.log("Sending message", text, state.selectedImages)
 				updateState({
 					inputValue: "",
 					textAreaDisabled: true,
@@ -283,29 +289,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 		})
 	}, [state.claudeAsk, updateState])
 
-	const handleSendStdin = useCallback(
-		(text: string) => {
-			if (state.claudeAsk === "command_output") {
-				vscode.postMessage({
-					type: "askResponse",
-					askResponse: "messageResponse",
-					text: COMMAND_STDIN_STRING + text,
-				})
-				updateState({ claudeAsk: undefined })
-			}
-		},
-		[state.claudeAsk, updateState]
-	)
-
 	return (
 		<div
-			className={`chat-container ${isHidden ? "hidden" : ""}`}
+			className={`h-full chat-container ${isHidden ? "hidden" : ""}`}
 			style={{
-				position: "fixed",
-				top: 0,
-				left: 0,
-				right: 0,
-				bottom: 0,
 				display: isHidden ? "none" : "flex",
 				flexDirection: "column",
 				overflow: "hidden",
@@ -338,7 +325,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 							taskId={task.ts}
 							visibleMessages={visibleMessages}
 							syntaxHighlighterStyle={syntaxHighlighterStyle}
-							handleSendStdin={handleSendStdin}
 						/>
 					</>
 				) : (
@@ -359,7 +345,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 						/>
 					</>
 				)}
-
+			</div>
+			<div className="mb-0 mt-auto">
 				<ButtonSection
 					primaryButtonText={state.primaryButtonText}
 					secondaryButtonText={state.secondaryButtonText}
@@ -369,18 +356,16 @@ const ChatView: React.FC<ChatViewProps> = ({
 					handleSecondaryButtonClick={handleSecondaryButtonClick}
 				/>
 
-				<div className="mt-auto">
-					<ChatInput
-						state={state}
-						updateState={updateState}
-						onSendMessage={handleSendMessage}
-						shouldDisableImages={shouldDisableImages}
-						handlePaste={handlePaste}
-						isRequestRunning={isMessageRunning}
-						isInTask={!!task}
-						isHidden={isHidden}
-					/>
-				</div>
+				<ChatInput
+					state={state}
+					updateState={updateState}
+					onSendMessage={handleSendMessage}
+					shouldDisableImages={shouldDisableImages}
+					handlePaste={handlePaste}
+					isRequestRunning={isMessageRunning}
+					isInTask={!!task}
+					isHidden={isHidden}
+				/>
 			</div>
 		</div>
 	)

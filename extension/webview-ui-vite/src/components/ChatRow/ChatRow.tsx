@@ -15,7 +15,6 @@ interface ChatRowProps {
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
 	nextMessage?: ClaudeMessage
 	isLast: boolean
-	handleSendStdin: (text: string) => void
 }
 
 const APIRequestMessage: React.FC<{
@@ -121,8 +120,7 @@ const UserFeedbackDiffMessage: React.FC<{
 const CommandMessage: React.FC<{
 	message: ClaudeMessage
 	isCommandExecuting: boolean
-	handleSendStdin: (text: string) => void
-}> = React.memo(({ message, isCommandExecuting, handleSendStdin }) => {
+}> = React.memo(({ message, isCommandExecuting }) => {
 	const [icon, title] = IconAndTitle({ type: "command", isCommandExecuting })
 	const splitMessage = (text: string) => {
 		const outputIndex = text.indexOf(COMMAND_OUTPUT_STRING)
@@ -144,14 +142,14 @@ const CommandMessage: React.FC<{
 			</h3>
 			<Terminal
 				rawOutput={command + (output ? "\n" + output : "")}
-				handleSendStdin={handleSendStdin}
+				handleSendStdin={(s) => {}}
 				shouldAllowInput={!!isCommandExecuting && output.length > 0}
 			/>
 		</>
 	)
 })
 
-const ChatRow: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, nextMessage, isLast, handleSendStdin }) => {
+const ChatRow: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, nextMessage, isLast }) => {
 	const isCommandExecuting = !!(
 		isLast &&
 		nextMessage?.ask === "command" &&
@@ -272,13 +270,7 @@ const ChatRow: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, next
 							/>
 						)
 					case "command":
-						return (
-							<CommandMessage
-								message={message}
-								isCommandExecuting={isCommandExecuting}
-								handleSendStdin={handleSendStdin}
-							/>
-						)
+						return <CommandMessage message={message} isCommandExecuting={isCommandExecuting} />
 					case "completion_result":
 						if (message.text) {
 							const [icon, title] = IconAndTitle({

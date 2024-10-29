@@ -19,7 +19,6 @@ interface ChatRowProps {
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
 	nextMessage?: V1ClaudeMessage
 	isLast: boolean
-	handleSendStdin: (text: string) => void
 }
 
 /**

@@ -45,7 +45,16 @@ export class AskManager {
 
 		// Reject current ask if exists
 		if (this.currentAsk) {
-			await this.updateState(this.currentAskId!, "tool", undefined, "error")
+			const askData = this.stateManager.getMessageById(this.currentAskId!)
+			if (askData) {
+				const tool = (askData.ask === "tool" ? JSON.parse(askData.text ?? "{}") : undefined) as ChatTool
+
+				tool.approvalState = "error"
+				tool.error = "Tool was aborted"
+				await this.updateState(this.currentAskId!, "tool", tool, "error")
+			} else {
+				await this.updateState(this.currentAskId!, "tool", undefined, "error")
+			}
 			this.currentAsk.reject(abortError)
 			this.currentAsk = null
 			this.currentAskId = null
