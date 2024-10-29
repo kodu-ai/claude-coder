@@ -229,7 +229,9 @@ export class AskManager {
 	}
 
 	private isToolAskResponse(id: number): boolean {
-		if (!this.currentAsk) return false
+		if (!this.currentAsk) {
+			return false
+		}
 
 		for (const [toolId, askId] of this.pendingToolAsks.entries()) {
 			if (askId === id && this.currentAsk.toolId === toolId) {
@@ -240,7 +242,9 @@ export class AskManager {
 	}
 
 	private resolveCurrentAsk(response: ClaudeAskResponse, text?: string, images?: string[]) {
-		if (!this.currentAsk) return
+		if (!this.currentAsk) {
+			return
+		}
 
 		const result: AskResponse = { response, text, images }
 		this.currentAsk.resolve(result)
@@ -249,8 +253,14 @@ export class AskManager {
 		this.currentAskId = null
 	}
 
+	public hasActiveAsk(): boolean {
+		return !!this.currentAsk
+	}
+
 	private resolveToolAsk(id: number, response: ClaudeAskResponse, text?: string, images?: string[]) {
-		if (!this.currentAsk) return
+		if (!this.currentAsk) {
+			return
+		}
 
 		const result: AskResponse = { response, text, images }
 		this.currentAsk.resolve(result)

@@ -31,7 +31,7 @@ export class ChunkProcessor {
 
 		// Ensure final processing occurs after all chunks have been processed
 		while (this.isProcessing || this.chunkQueue.length > 0) {
-			await new Promise((resolve) => setTimeout(resolve, 10))
+			await new Promise((resolve) => setTimeout(resolve, 5))
 		}
 
 		if (this.endOfStreamReceived) {

@@ -76,11 +76,11 @@ export class DiffViewProvider {
 	private lastUserInteraction: number = 0
 	private static readonly SCROLL_THROTTLE = 100 // ms
 	private static readonly USER_INTERACTION_TIMEOUT = 1000 // ms
-	private static readonly SCROLL_THRESHOLD = 5 // lines from bottom to re-enable auto-scroll
+	private static readonly SCROLL_THRESHOLD = 10 // lines from bottom to re-enable auto-scroll
 	private static modifiedContentProvider: ModifiedContentProvider
 	private disposables: vscode.Disposable[] = []
 
-	constructor(private cwd: string, koduDev: KoduDev, private updateInterval: number = 16) {
+	constructor(private cwd: string, koduDev: KoduDev, private updateInterval: number = 6) {
 		this.koduDev = koduDev
 
 		if (!DiffViewProvider.modifiedContentProvider) {

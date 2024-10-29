@@ -12,9 +12,8 @@ import { getErrorMessage } from "../types/errors"
 import { AskManager } from "./ask-manager"
 import { ChatTool } from "../../../shared/new-tools"
 
-// Constants for buffer management
-const BUFFER_FLUSH_INTERVAL = 10 // ms
-const BUFFER_SIZE_THRESHOLD = 15 // characters
+// Constants for buffer management - modified for instant output
+const BUFFER_SIZE_THRESHOLD = 1 // Reduced to 1 character for near-instant output
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -26,9 +25,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private isAborting: boolean = false
 	private streamPaused: boolean = false
 	private textBuffer: string = ""
-	private askManager: AskManager
-	private flushTimeout: NodeJS.Timeout | null = null
-	private lastFlushTime: number = 0
+	public askManager: AskManager
 	private currentReplyId: number | null = null
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
@@ -69,7 +66,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 	public resumeStream() {
 		if (this.streamPaused) {
 			this.streamPaused = false
-			this.lastFlushTime = Date.now() // Reset flush timer on resume
 		}
 	}
 
@@ -78,33 +74,12 @@ export class TaskExecutor extends TaskExecutorUtils {
 			return
 		}
 
-		const now = Date.now()
-		const timeSinceLastFlush = now - this.lastFlushTime
-
-		// Clear any existing timeout
-		if (this.flushTimeout) {
-			clearTimeout(this.flushTimeout)
-			this.flushTimeout = null
-		}
-
-		// If forced, buffer is large enough, or enough time has passed, flush immediately
-		if (force || this.textBuffer.length >= BUFFER_SIZE_THRESHOLD || timeSinceLastFlush >= BUFFER_FLUSH_INTERVAL) {
+		// If forced or buffer size threshold reached, flush immediately
+		if (force || this.textBuffer.length >= BUFFER_SIZE_THRESHOLD) {
 			const contentToFlush = this.textBuffer
 			this.textBuffer = "" // Clear buffer before async operations
 			await this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush)
 			await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-			this.lastFlushTime = now
-		} else if (!this.streamPaused) {
-			// Only schedule new flush if stream is not paused
-			this.flushTimeout = setTimeout(async () => {
-				if (this.textBuffer.trim() && !this.streamPaused) {
-					const contentToFlush = this.textBuffer
-					this.textBuffer = ""
-					await this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush)
-					await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-					this.lastFlushTime = Date.now()
-				}
-			}, BUFFER_FLUSH_INTERVAL - timeSinceLastFlush)
 		}
 	}
 
@@ -252,12 +227,14 @@ export class TaskExecutor extends TaskExecutorUtils {
 			})
 		}
 
-		await this.ask("resume_task", {
+		this.ask("resume_task", {
 			question:
 				"Task was interrupted before the last response could be generated. Would you like to resume the task?",
 		}).then((res) => {
 			if (res.response === "yesButtonTapped") {
 				this.state = TaskState.WAITING_FOR_API
+				this.isAborting = false
+				this.resetState()
 				this.currentUserContent = [
 					{ type: "text", text: "Let's continue with the task, from where we left off." },
 				]
@@ -271,16 +248,16 @@ export class TaskExecutor extends TaskExecutorUtils {
 					const formattedImages = formatImagesIntoBlocks(res.images)
 					newContent.push(...formattedImages)
 				}
+				this.say("user_feedback", res.text, res.images)
 				this.currentUserContent = newContent
 				this.state = TaskState.WAITING_FOR_API
+				this.isAborting = false
+				this.resetState()
 				this.makeClaudeRequest()
 			} else {
 				this.state = TaskState.COMPLETED
 			}
 		})
-
-		// Update the provider state
-		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
@@ -300,7 +277,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.abortController = new AbortController()
 			this.streamPaused = false
 			this.textBuffer = ""
-			this.lastFlushTime = Date.now()
 			this.currentReplyId = null
 
 			if (this.consecutiveErrorCount >= 3) {
@@ -491,10 +467,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 					await this.toolExecutor.waitForToolProcessing()
 
 					// Flush any remaining text
-					if (this.flushTimeout) {
-						clearTimeout(this.flushTimeout)
-						this.flushTimeout = null
-					}
 					await this.flushTextBuffer(currentReplyId, true)
 					this.currentReplyId = null
 
@@ -512,10 +484,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 	}
 
 	private async resetState() {
-		if (this.flushTimeout) {
-			clearTimeout(this.flushTimeout)
-			this.flushTimeout = null
-		}
 		this.abortController?.abort()
 		this.isRequestCancelled = false
 		this.abortController = null
@@ -523,9 +491,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.state = TaskState.WAITING_FOR_USER
 		this.streamPaused = false
 		this.textBuffer = ""
-		this.lastFlushTime = Date.now()
 		this.currentReplyId = null
-		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	private async finishProcessingResponse(assistantResponses: ApiHistoryItem): Promise<void> {

@@ -41,7 +41,6 @@ export class KoduDev {
 	public isLastMessageFileEdit: boolean = false
 	public terminalManager: AdvancedTerminalManager
 	public providerRef: WeakRef<ExtensionProvider>
-	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
 	public isFirstMessage: boolean = true
 	private isAborting: boolean = false
@@ -103,7 +102,6 @@ export class KoduDev {
 		if (this.isAborting) {
 			return
 		}
-		console.log(`Is there a pending ask response? ${!!this.pendingAskResponse}`)
 		if (this.taskExecutor.state === TaskState.ABORTED && (text || images)) {
 			let textBlock: Anthropic.TextBlockParam = {
 				type: "text",
@@ -114,16 +112,10 @@ export class KoduDev {
 			await this.taskExecutor.newMessage([textBlock, ...imageBlocks])
 			return
 		}
-		if (this.pendingAskResponse) {
-			this.pendingAskResponse({ response: askResponse, text, images })
-			this.pendingAskResponse = null
-		} else if (this.stateManager.state.isHistoryItemResumed) {
-			// this is a bug
-		}
 		if (
 			(this.taskExecutor.state === TaskState.WAITING_FOR_USER || this.taskExecutor.state === TaskState.IDLE) &&
 			askResponse === "messageResponse" &&
-			!this.pendingAskResponse
+			!this.taskExecutor.askManager.hasActiveAsk()
 		) {
 			await this.taskExecutor.newMessage([
 				{
