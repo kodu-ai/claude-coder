@@ -12,7 +12,6 @@ export const useChatMessageHandling = (
 ) => {
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
-		console.log("message", message)
 		if (message.type === "enableTextAreas") {
 			updateState({
 				textAreaDisabled: false,
@@ -113,8 +112,10 @@ export const useChatMessageHandling = (
 						case "ask_followup_question":
 							updateState({
 								...baseState,
-								primaryButtonText: "Send",
-								secondaryButtonText: "Cancel",
+								textAreaDisabled: false,
+								enableButtons: false,
+								primaryButtonText: undefined,
+								secondaryButtonText: undefined,
 							})
 							break
 

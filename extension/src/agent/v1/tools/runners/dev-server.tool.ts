@@ -146,6 +146,7 @@ export class DevServerTool extends BaseAgentTool {
 						this.ts
 					)
 				}
+				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 				return formatToolResponse(
 					`${errorMsg}${text ? `\n<user_feedback>${text}</user_feedback>` : ""}`,
 					images

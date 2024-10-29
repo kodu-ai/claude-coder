@@ -152,11 +152,11 @@ export class AskConsultantTool extends BaseAgentTool {
 						approvalState: "rejected",
 						query: this.params.input.query!,
 						ts: this.ts,
-						userFeedback: text,
 					},
 				},
 				this.ts
 			)
+			await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 
 			return formatToolResponse(formatGenericToolFeedback(text), images)
 		}

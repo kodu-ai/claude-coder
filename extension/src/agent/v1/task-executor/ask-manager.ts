@@ -16,6 +16,7 @@ export class AskManager {
 	private currentAsk: PendingAsk | null = null
 	private currentAskId: number | null = null
 	private pendingToolAsks: Map<string, number> = new Map()
+
 	private readonly readOnlyTools = [
 		"read_file",
 		"list_files",
@@ -37,6 +38,21 @@ export class AskManager {
 
 	constructor(stateManager: StateManager) {
 		this.stateManager = stateManager
+	}
+
+	public async abortPendingAsks(): Promise<void> {
+		const abortError = new Error("Task aborted")
+
+		// Reject current ask if exists
+		if (this.currentAsk) {
+			await this.updateState(this.currentAskId!, "tool", undefined, "error")
+			this.currentAsk.reject(abortError)
+			this.currentAsk = null
+			this.currentAskId = null
+		}
+
+		// Clear pending tool asks
+		this.pendingToolAsks.clear()
 	}
 
 	public async ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
@@ -63,7 +79,7 @@ export class AskManager {
 		return this.handleNewAsk(id, type, question, tool)
 	}
 
-	public handleResponse(id: number, response: ClaudeAskResponse, text?: string, images?: string[]) {
+	public handleResponse(id: number, response: ClaudeAskResponse, text?: string, images?: string[]): void {
 		// Try current ask first
 		if (this.isCurrentAsk(id)) {
 			this.resolveCurrentAsk(response, text, images)
@@ -120,14 +136,6 @@ export class AskManager {
 	}
 
 	private async handleNewAsk(id: number, type: ClaudeAsk, question?: string, tool?: ChatTool): Promise<AskResponse> {
-		// Resolve any existing ask first
-		if (this.currentAsk) {
-			// console.log(`Auto-resolving existing ask ${this.currentAskId} before creating new one`)
-			// this.currentAsk.resolve({ response: "messageResponse" })
-			this.currentAsk = null
-			this.currentAskId = null
-		}
-
 		// Create and store new ask message
 		const askMessage = this.createAskMessage(id, type, question, tool)
 		await this.updateState(id, type, tool)

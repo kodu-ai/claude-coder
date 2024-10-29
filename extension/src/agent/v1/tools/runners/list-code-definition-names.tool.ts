@@ -81,7 +81,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 						},
 						this.ts
 					)
-
+					await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 					return formatToolResponse(await formatGenericToolFeedback(text), images)
 				}
 				return "The user denied this operation."

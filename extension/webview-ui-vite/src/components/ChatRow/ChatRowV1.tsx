@@ -205,7 +205,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, ne
 
 			{/* Tool content container - always at the bottom */}
 			{toolContent && (
-				<div className={cn("tool-content", textContent ? "mt-4 pt-4 border-t border-border" : "")}>
+				<div className={cn("tool-content", textContent ? "mt-4 pt-4 border-t border-border" : "mb-2")}>
 					{toolContent}
 				</div>
 			)}

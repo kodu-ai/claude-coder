@@ -14,7 +14,7 @@ import { ChatTool } from "../../../shared/new-tools"
 
 // Constants for buffer management
 const BUFFER_FLUSH_INTERVAL = 10 // ms
-const BUFFER_SIZE_THRESHOLD = 50 // characters
+const BUFFER_SIZE_THRESHOLD = 15 // characters
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -168,14 +168,22 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.logState("Aborting task")
 			const now = Date.now()
 
-			// Cancel the current request
-			await this.cancelCurrentRequest()
+			// first make the state to aborted
+			this.state = TaskState.ABORTED
+			this.abortController?.abort()
+			this.isRequestCancelled = true
+
+			// First reject any pending asks to prevent tools from continuing
+			await this.askManager.abortPendingAsks()
 
 			// Cleanup tool executor
 			await this.toolExecutor.abortTask()
 
 			// Reset state
 			await this.resetState()
+
+			// Cancel the current request
+			await this.cancelCurrentRequest()
 
 			this.logState(`Task aborted in ${Date.now() - now}ms`)
 		} finally {
@@ -244,7 +252,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			})
 		}
 
-		this.ask("resume_task", {
+		await this.ask("resume_task", {
 			question:
 				"Task was interrupted before the last response could be generated. Would you like to resume the task?",
 		}).then((res) => {

@@ -120,8 +120,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const task = useMemo(() => (messages.length > 0 ? messages[0] : undefined), [messages])
 
 	useEffect(() => {
-		console.log("Task changed", task)
-		if (!task) {
+		if (!task?.ts) {
 			// reset state when task is cleared
 			updateState({
 				inputValue: "",
@@ -129,9 +128,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 				selectedImages: [],
 				claudeAsk: undefined,
 				enableButtons: false,
+				primaryButtonText: undefined,
+				secondaryButtonText: undefined,
 			})
 		}
-	}, [task])
+	}, [task?.ts])
 
 	const modifiedMessages = useMemo(() => combineApiRequests(combineCommandSequences(messages.slice(1))), [messages])
 
@@ -196,13 +197,15 @@ const ChatView: React.FC<ChatViewProps> = ({
 						attachements: attachments,
 					})
 				}
-
+				console.log("Sending message", text, state.selectedImages)
 				updateState({
 					inputValue: "",
 					textAreaDisabled: true,
 					selectedImages: [],
 					claudeAsk: undefined,
 					enableButtons: false,
+					primaryButtonText: undefined,
+					secondaryButtonText: undefined,
 				})
 				setAttachments([])
 			}

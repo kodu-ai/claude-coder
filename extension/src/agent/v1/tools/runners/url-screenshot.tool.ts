@@ -11,10 +11,18 @@ import { ChatTool } from "../../../../shared/new-tools"
 
 export class UrlScreenshotTool extends BaseAgentTool {
 	protected params: AgentToolParams
+	private abortController: AbortController
+	private isAborting: boolean = false
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
+		this.abortController = new AbortController()
+	}
+
+	override async abortToolExecution(): Promise<void> {
+		this.isAborting = true
+		this.abortController.abort()
 	}
 
 	async execute(): Promise<ToolResponse> {
@@ -23,56 +31,102 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			return await this.onBadInputReceived()
 		}
 
-		const confirmation = await this.askToolExecConfirmation()
-		if (confirmation.response !== "yesButtonTapped") {
-			this.params.updateAsk(
-				"tool",
-				{
-					tool: {
-						tool: "url_screenshot",
-						approvalState: "rejected",
-						url: url!,
-						ts: this.ts,
-					},
-				},
-				this.ts
-			)
-			return await this.onExecDenied(confirmation)
-		}
-
 		try {
-			this.params.updateAsk(
+			// Create a promise that resolves when aborted
+			const abortPromise = new Promise<ToolResponse>((_, reject) => {
+				this.abortController.signal.addEventListener("abort", () => {
+					reject(new Error("Tool execution was aborted"))
+				})
+			})
+
+			// Create the main execution promise
+			const execPromise = this.executeWithConfirmation(url)
+
+			// Race between execution and abort
+			return await Promise.race([execPromise, abortPromise])
+		} catch (err) {
+			if (this.isAborting) {
+				await this.cleanup()
+				return "Operation was aborted"
+			}
+			throw err
+		}
+	}
+
+	private async executeWithConfirmation(url: string): Promise<ToolResponse> {
+		try {
+			const confirmation = await this.askToolExecConfirmation()
+
+			// Check if aborted during confirmation
+			if (this.abortController.signal.aborted) {
+				throw new Error("Tool execution was aborted")
+			}
+
+			if (confirmation.response !== "yesButtonTapped") {
+				await this.params.updateAsk(
+					"tool",
+					{
+						tool: {
+							tool: "url_screenshot",
+							approvalState: "rejected",
+							url,
+							ts: this.ts,
+						},
+					},
+					this.ts
+				)
+				return await this.onExecDenied(confirmation)
+			}
+
+			await this.params.updateAsk(
 				"tool",
 				{ tool: { tool: "url_screenshot", approvalState: "loading", url, ts: this.ts } },
 				this.ts
 			)
+
+			// Check if aborted before browser launch
+			if (this.abortController.signal.aborted) {
+				throw new Error("Tool execution was aborted")
+			}
+
 			const browserManager = this.koduDev.browserManager
 			await browserManager.launchBrowser()
+
+			// Check if aborted before screenshot
+			if (this.abortController.signal.aborted) {
+				await browserManager.closeBrowser()
+				throw new Error("Tool execution was aborted")
+			}
+
 			const { buffer, logs } = await browserManager.urlToScreenshotAndLogs(url)
+
+			// Check if aborted before saving
+			if (this.abortController.signal.aborted) {
+				await browserManager.closeBrowser()
+				throw new Error("Tool execution was aborted")
+			}
+
 			await browserManager.closeBrowser()
 
 			const relPath = `${url.replace(/[^a-zA-Z0-9]/g, "_")}-${Date.now()}.jpeg`
 			const absolutePath = path.resolve(this.cwd, relPath)
 
-			// const compressedBuffer = await sharp(Buffer.from(buffer)).webp({ quality: 20 }).toBuffer()
 			const imageToBase64 = buffer.toString("base64")
 			await fs.writeFile(absolutePath, buffer)
-
-			await this.relaySuccessfulResponse({ absolutePath, imageToBase64 })
 
 			const textBlock: Anthropic.TextBlockParam = {
 				type: "text",
 				text: `
-				The screenshot was saved to file path: ${absolutePath}.
-				Here is the updated browser logs, THIS IS THE ONLY RELEVANT INFORMATION, all previous logs are irrelevant:
-				<browser_logs>
-				You should only care about mission critical errors, you shouldn't care about warnings or info logs.
-				YOU SHOULD ONLY care about errors that mention there is a clear error like a missing import or a syntax error.
-				<log>
-				${logs}
-				</log>
-				</browser_logs>
-				`,
+                The screenshot was saved to file path: ${absolutePath}.
+                Here is the updated browser logs, THIS IS THE ONLY RELEVANT INFORMATION, all previous logs are irrelevant:
+                <browser_logs>
+                You should only care about mission critical errors, you shouldn't care about warnings or info logs.
+                YOU SHOULD ONLY care about errors that mention there is a clear error like a missing import or a syntax error.
+                <log>
+                ${logs}
+                </log>
+                </browser_logs>
+                `,
 			}
 			const imageBlock: Anthropic.ImageBlockParam = {
 				type: "image",
@@ -82,7 +136,13 @@ export class UrlScreenshotTool extends BaseAgentTool {
 					data: imageToBase64,
 				},
 			}
-			this.params.updateAsk(
+
+			// Final abort check before completing
+			if (this.abortController.signal.aborted) {
+				throw new Error("Tool execution was aborted")
+			}
+
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -95,22 +155,20 @@ export class UrlScreenshotTool extends BaseAgentTool {
 				},
 				this.ts
 			)
+
 			return [imageBlock, textBlock]
 		} catch (err) {
-			this.params.updateAsk(
-				"tool",
-				{
-					tool: {
-						tool: "url_screenshot",
-						approvalState: "error",
-						url: url!,
-						error: `Screenshot failed with error: ${err}`,
-						ts: this.ts,
-					},
-				},
-				this.ts
-			)
-			return `Screenshot failed with error: ${err}`
+			// Always cleanup browser on any error
+			await this.cleanup()
+			throw err
+		}
+	}
+
+	private async cleanup() {
+		try {
+			await this.koduDev.browserManager.closeBrowser()
+		} catch (err) {
+			console.error("Error during cleanup:", err)
 		}
 	}
 
@@ -121,15 +179,18 @@ export class UrlScreenshotTool extends BaseAgentTool {
 		)
 
 		return `Error: Missing value for required parameter 'url'. Please retry with complete response.
-			A good example of a web_search tool call is:
-			{
-				"tool": "url_screenshot",
-				"url": "How to import jotai in a react project",
-			}
-			Please try again with the correct url, you are not allowed to search without a url.`
+            A good example of a web_search tool call is:
+            {
+                "tool": "url_screenshot",
+                "url": "How to import jotai in a react project",
+            }
+            Please try again with the correct url, you are not allowed to search without a url.`
 	}
 
 	private async askToolExecConfirmation(): Promise<AskConfirmationResponse> {
+		if (this.abortController.signal.aborted) {
+			throw new Error("Tool execution was aborted")
+		}
 		return await this.params.ask!(
 			"tool",
 			{
@@ -148,7 +209,6 @@ export class UrlScreenshotTool extends BaseAgentTool {
 		const { response, text, images } = confirmation
 
 		if (response === "messageResponse") {
-			// await this.params.say("user_feedback", text, images)
 			await this.params.updateAsk(
 				"tool",
 				{
@@ -162,20 +222,10 @@ export class UrlScreenshotTool extends BaseAgentTool {
 				},
 				this.ts
 			)
+			await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 			return formatToolResponse(formatGenericToolFeedback(text), images)
 		}
 
 		return "The user denied this operation."
-	}
-
-	private async relaySuccessfulResponse(data: Record<string, string>) {
-		const message = JSON.stringify({
-			tool: "url_screenshot",
-			url: data.absolutePath,
-			base64Image: data.imageToBase64,
-			ts: this.ts,
-		} as ChatTool)
-
-		await this.params.say("tool", message)
 	}
 }

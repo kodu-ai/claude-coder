@@ -55,6 +55,22 @@ export abstract class TaskExecutorUtils {
 
 	public async updateAsk(type: ClaudeAsk, data: AskDetails, askTs: number): Promise<void> {
 		const { question, tool } = data
+		// check if there is an existing ask message with the same ts if not create a new one
+		if (!this.stateManager.getMessageById(askTs)) {
+			const askMessage: V1ClaudeMessage = {
+				ts: askTs,
+				type: "ask",
+				ask: type,
+				text: question ? question : tool ? JSON.stringify(tool) : "",
+				v: 1,
+				status: tool?.approvalState,
+				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
+			}
+
+			await this.stateManager.addToClaudeMessages(askMessage)
+			await this.updateWebview()
+			return
+		}
 		const askMessage: V1ClaudeMessage = {
 			ts: askTs,
 			type: "ask",

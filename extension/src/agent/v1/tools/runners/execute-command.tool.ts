@@ -111,6 +111,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					},
 					this.ts
 				)
+				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 				return this.formatToolResponseWithImages(await this.formatToolDeniedFeedback(text), images)
 			}
 			return await this.formatToolDenied()

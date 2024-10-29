@@ -62,21 +62,6 @@ export class WriteFileTool extends BaseAgentTool {
 				throw new Error("Missing required parameters 'path' or 'content'")
 			}
 
-			// Initial loading state
-			await this.params.updateAsk(
-				"tool",
-				{
-					tool: {
-						tool: "write_to_file",
-						content: content,
-						approvalState: "loading",
-						path: relPath,
-						ts: this.ts,
-					},
-				},
-				this.ts
-			)
-
 			// Show changes in diff view
 			await this.showChangesInDiffView(relPath, content)
 
@@ -107,6 +92,7 @@ export class WriteFileTool extends BaseAgentTool {
 							approvalState: "rejected",
 							path: relPath,
 							ts: this.ts,
+							userFeedback: text,
 						},
 					},
 					this.ts
@@ -114,6 +100,7 @@ export class WriteFileTool extends BaseAgentTool {
 				if (response === "noButtonTapped") {
 					return formatToolResponse("Write operation cancelled by user.")
 				}
+				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 				return formatToolResponse(text ?? "Write operation cancelled by user.", images)
 			}
 
