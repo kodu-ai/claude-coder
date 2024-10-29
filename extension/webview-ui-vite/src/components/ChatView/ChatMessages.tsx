@@ -76,12 +76,15 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 		isInitialMount.current = true
 	}, [taskId])
 
+	console.log("visibleMessages", visibleMessages)
+
 	return (
 		<div className="relative h-full">
 			<Virtuoso
 				ref={virtuosoRef}
 				data={visibleMessages.filter((msg) => {
 					if (msg.ask === "resume_completed_task" || msg.ask === "resume_task") {
+						console.log("Filtering out resume task message")
 						return false
 					}
 					return true
@@ -89,7 +92,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 				followOutput={followOutput}
 				initialTopMostItemIndex={0} // Start at top
 				atBottomStateChange={handleAtBottomStateChange}
-				atBottomThreshold={24}
+				atBottomThreshold={40}
 				scrollerRef={(ref) => {
 					if (ref) {
 						ref.addEventListener("wheel", handleScroll)

@@ -221,12 +221,21 @@ export class KoduDev {
 				lastClaudeMessage.ask === "tool" &&
 				(JSON.parse(lastClaudeMessage.text ?? "{}") as ChatTool).tool === "attempt_completion")
 
-		let askType: ClaudeAsk = isCompleted ? "resume_completed_task" : "resume_task"
-
 		await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
-		let { response, text, images } = await this.taskExecutor.ask(
-			isCompleted ? "resume_completed_task" : "resume_task"
+		const ts = Date.now()
+		let { response, text, images } = await this.taskExecutor.askWithId(
+			isCompleted ? "resume_completed_task" : "resume_task",
+			undefined,
+			ts
 		)
+
+		// remove the last ask after it's been answered
+		const modifiedClaudeMessagesAfterResume = await this.stateManager.getSavedClaudeMessages()
+		const lastAskIndex = modifiedClaudeMessagesAfterResume.findIndex((m) => m.ts === ts)
+		if (lastAskIndex !== -1) {
+			modifiedClaudeMessagesAfterResume.splice(lastAskIndex, 1)
+		}
+		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessagesAfterResume)
 
 		let newUserContent: UserContent = []
 		if (response === "messageResponse") {

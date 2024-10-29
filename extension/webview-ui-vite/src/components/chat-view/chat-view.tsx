@@ -140,6 +140,13 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	const visibleMessages = useMemo(() => {
 		return modifiedMessages.filter((message) => {
+			// remove any funky empty messages
+			if (
+				message.ask === "tool" &&
+				(message.text === "" || message.text === "{}" || !message.text?.includes("tool:"))
+			) {
+				return false
+			}
 			if (
 				(message.ask === "completion_result" && message.text === "") ||
 				["resume_task", "resume_completed_task"].includes(message.ask!)
