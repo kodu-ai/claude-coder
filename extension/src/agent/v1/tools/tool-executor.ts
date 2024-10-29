@@ -28,6 +28,7 @@ interface ToolContext {
 	tool: BaseAgentTool
 	status: "pending" | "processing" | "completed" | "error"
 	error?: Error
+	result?: ToolResponse
 }
 
 export class ToolExecutor {
@@ -65,10 +66,10 @@ export class ToolExecutor {
 			setRunningProcessId: this.setRunningProcessId.bind(this),
 		}
 	}
-	public hasActiveTools() {
-		// check if the queue is idle
 
-		return this.queue.size > 0
+	public hasActiveTools(): boolean {
+		const hasQueuedTools = this.queue.size > 0
+		return hasQueuedTools
 	}
 
 	private createTool(params: AgentToolParams): BaseAgentTool {
@@ -157,21 +158,29 @@ export class ToolExecutor {
 	}
 
 	public async waitForToolProcessing(): Promise<void> {
-		// wait for all tool context to be completed
-		await pWaitFor(() => {
-			const hasPendingToolsContext = Array.from(this.toolContexts.values()).every(
-				(context) => context.status === "completed"
+		await pWaitFor(async () => {
+			const contexts = Array.from(this.toolContexts.values())
+			const allCompleted = contexts.every(
+				(context) => context.status === "completed" && context.result !== undefined
 			)
-			const hasItemsInQueue = this.queue.size > 0
-			console.log(
-				`Waiting for tool processing: hasPendingToolsContext: ${hasPendingToolsContext}, hasItemsInQueue: ${hasItemsInQueue}`
-			)
-			return hasPendingToolsContext && !hasItemsInQueue
+			const queueEmpty = this.queue.size === 0
+
+			console.log("[ToolExecutor] Waiting for tools:", {
+				queueSize: this.queue.size,
+				contexts: contexts.map((ctx) => ({
+					id: ctx.id,
+					tool: ctx.tool.name,
+					status: ctx.status,
+					hasResult: ctx.result !== undefined,
+				})),
+			})
+
+			return allCompleted && queueEmpty
 		})
 	}
 
 	private async handleToolUpdate(id: string, toolName: string, params: any, ts: number): Promise<void> {
-		console.log(`Handling tool update: ${toolName}`)
+		console.log(`[ToolExecutor] Handling tool update: ${toolName}`)
 		if (this.isAborting) {
 			return
 		}
@@ -206,7 +215,7 @@ export class ToolExecutor {
 	}
 
 	private async handleToolEnd(id: string, toolName: string, params: any): Promise<void> {
-		console.log(`Handling tool end: ${toolName}`)
+		console.log(`[ToolExecutor] Handling tool end: ${toolName}`)
 		if (this.isAborting) {
 			console.log(`Tool is aborting, skipping tool: ${toolName}`)
 			return
@@ -233,21 +242,26 @@ export class ToolExecutor {
 		context.tool.updateParams(params)
 		context.tool.updateIsFinal(true)
 
-		console.log(`Updating tool final status: ${toolName}`)
+		console.log(`[ToolExecutor] Updating tool final status: ${toolName}`)
 		await this.updateToolStatus(context, params, context.tool.ts)
 
 		// Execute tool
-		console.log(`Adding tool to queue: ${toolName} ready to execute`)
-		this.queue.add(() => this.processTool(context!))
+		console.log(`[ToolExecutor] Adding tool to queue: ${toolName}`)
+		await this.queue.add(async () => {
+			const result = await this.processTool(context!)
+			context!.result = result
+			this.toolResults.push({ name: context!.tool.name, result })
+		})
 	}
 
 	private async handleToolError(id: string, toolName: string, error: Error, ts: number): Promise<void> {
-		console.error(`Error processing tool: ${id}`, error)
+		console.error(`[ToolExecutor] Error processing tool: ${id}`, error)
 
 		const context = this.toolContexts.get(id)
 		if (context) {
 			context.status = "error"
 			context.error = error
+			context.result = `Error: ${error.message}`
 		}
 
 		await this.koduDev.taskExecutor.updateAsk(
@@ -281,20 +295,21 @@ export class ToolExecutor {
 		)
 	}
 
-	private async processTool(context: ToolContext): Promise<void> {
-		console.log(`Processing tool: ${context.tool.name} in queue`)
+	private async processTool(context: ToolContext): Promise<ToolResponse> {
+		console.log(`[ToolExecutor] Processing tool: ${context.tool.name}`)
 		if (this.isAborting) {
-			console.log(`Tool is aborting, skipping tool: ${context.tool.name} in queue`)
-			return
+			console.log(`Tool is aborting, skipping tool: ${context.tool.name}`)
+			return "Tool execution was interrupted"
 		}
 
-		console.log(`Waiting for tool to be final: ${context.tool.name}`)
+		console.log(`[ToolExecutor] Waiting for tool to be final: ${context.tool.name}`)
 		await pWaitFor(() => context.tool.isFinal)
 
 		try {
 			context.status = "processing"
 			const now = Date.now()
-			console.log(`Executing tool: ${context.tool.name} at ${now}`)
+			console.log(`[ToolExecutor] Executing tool: ${context.tool.name} at ${now}`)
+
 			const result = await context.tool.execute({
 				name: context.tool.name as ToolName,
 				input: context.tool.paramsInput,
@@ -306,12 +321,12 @@ export class ToolExecutor {
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
 				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.koduDev.taskExecutor),
 			})
-			console.log(`Tool execution completed: ${context.tool.name} at ${Date.now()}`)
 
-			this.toolResults.push({ name: context.tool.name, result })
+			console.log(`[ToolExecutor] Tool execution completed: ${context.tool.name} at ${Date.now()}`)
 			context.status = "completed"
+			return result
 		} catch (error) {
-			console.error(`Error executing tool: ${context.tool.name}`, error)
+			console.error(`[ToolExecutor] Error executing tool: ${context.tool.name}`, error)
 			context.status = "error"
 			context.error = error as Error
 
@@ -331,20 +346,14 @@ export class ToolExecutor {
 				context.tool.ts
 			)
 
-			this.toolResults.push({
-				name: context.tool.name,
-				result: this.isAborting
-					? "Tool execution was interrupted"
-					: `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`,
-			})
-		} finally {
-			console.log(`Tool processing completed: ${context.tool.name}`)
-			context.status = "completed"
+			return this.isAborting
+				? "Tool execution was interrupted"
+				: `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`
 		}
 	}
 
 	public async resetToolState() {
-		console.log(`Current queue size: ${this.queue.size} before reset`)
+		console.log("[ToolExecutor] Resetting tool state")
 		await this.abortTask()
 		this.toolResults = []
 		this.queue.clear()

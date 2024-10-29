@@ -9,9 +9,11 @@ import { ClaudeSay, V1ClaudeMessage } from "@/shared/ExtensionMessage"
 export class StreamProcessor {
 	private streamPaused: boolean = false
 	private accumulatedText: string = ""
+	private bufferedContent: string = ""
 	private currentReplyId: number | null = null
 	private isRequestCancelled: boolean = false
 	private isAborting: boolean = false
+	private isProcessingTool: boolean = false
 
 	constructor(
 		private readonly stateManager: StateManager,
@@ -26,30 +28,53 @@ export class StreamProcessor {
 		private readonly updateWebview: () => Promise<void>
 	) {}
 
-	public pauseStream() {
-		if (!this.streamPaused) {
-			this.streamPaused = true
-			// Ensure any accumulated content is processed before pausing
-			if (this.currentReplyId !== null && this.accumulatedText) {
-				this.processAccumulatedText(this.currentReplyId)
-			}
-		}
-	}
-
-	public resumeStream() {
-		if (this.streamPaused) {
-			this.streamPaused = false
-		}
-	}
-
-	private async processAccumulatedText(currentReplyId: number) {
+	private async processAccumulatedText(currentReplyId: number): Promise<void> {
 		if (!this.accumulatedText.trim()) {
 			return
 		}
 
-		await this.stateManager.appendToClaudeMessage(currentReplyId, this.accumulatedText)
-		await this.updateWebview()
-		this.accumulatedText = ""
+		try {
+			this.isProcessingTool = true
+
+			// Let the tool parser handle the text and return any non-tool content
+			const nonToolText = await this.toolExecutor.processToolUse(this.accumulatedText)
+
+			// If we have a tool being processed, buffer any non-tool text
+			if (await this.toolExecutor.hasActiveTools()) {
+				if (nonToolText) {
+					this.bufferedContent += nonToolText
+				}
+
+				this.streamPaused = true
+
+				// Wait for current tool(s) to complete
+				await this.toolExecutor.waitForToolProcessing()
+
+				// Create new message section after tool processing
+				const newReplyId = await this.say("text", "", undefined, Date.now(), {
+					isSubMessage: true,
+				})
+				this.currentReplyId = newReplyId
+
+				// If we have buffered content, append it all at once
+				if (this.bufferedContent) {
+					await this.stateManager.appendToClaudeMessage(this.currentReplyId!, this.bufferedContent)
+					await this.updateWebview()
+					this.bufferedContent = ""
+				}
+
+				this.streamPaused = false
+			} else if (nonToolText) {
+				// Only append text if we're not processing any tools
+				await this.stateManager.appendToClaudeMessage(currentReplyId, nonToolText)
+				await this.updateWebview()
+			}
+
+			// Clear accumulated text after processing
+			this.accumulatedText = ""
+		} finally {
+			this.isProcessingTool = false
+		}
 	}
 
 	public async processStream(
@@ -118,32 +143,16 @@ export class StreamProcessor {
 							void this.stateManager.updateApiHistoryItem(startedReqId, apiHistoryItem)
 						}
 
-						// Process chunk only if stream is not paused
-						if (!this.streamPaused) {
-							// Accumulate text until we have a complete XML tag or enough non-XML content
+						if (this.streamPaused) {
+							// If stream is paused due to tool processing, buffer the content
+							this.bufferedContent += chunk.body.text
+						} else {
+							// Accumulate text
 							this.accumulatedText += chunk.body.text
 
-							// Process for tool use and get non-XML text
-							const nonXMLText = await this.toolExecutor.processToolUse(this.accumulatedText)
-							this.accumulatedText = "" // Clear accumulated text after processing
-
-							// If we got non-XML text, append it to Claude message
-							if (nonXMLText) {
-								void this.stateManager.appendToClaudeMessage(this.currentReplyId!, nonXMLText)
-								void this.updateWebview()
-							}
-
-							const hasActiveTools = await this.toolExecutor.hasActiveTools()
-							if (hasActiveTools) {
-								this.pauseStream()
-								// Wait for tool processing to complete
-								await this.toolExecutor.waitForToolProcessing()
-								// Resume stream after tool processing
-								this.resumeStream()
-								const newReplyId = await this.say("text", "", undefined, Date.now(), {
-									isSubMessage: true,
-								})
-								this.currentReplyId = newReplyId
+							// Only process if we're not already processing a tool
+							if (!this.isProcessingTool) {
+								await this.processAccumulatedText(this.currentReplyId!)
 							}
 						}
 					}
@@ -154,23 +163,26 @@ export class StreamProcessor {
 						return
 					}
 
-					// Process any remaining accumulated text
-					if (this.accumulatedText) {
-						const nonXMLText = await this.toolExecutor.processToolUse(this.accumulatedText)
-						if (nonXMLText) {
-							await this.stateManager.appendToClaudeMessage(currentReplyId, nonXMLText)
-							await this.updateWebview()
+					try {
+						// Process any remaining text
+						if (this.accumulatedText) {
+							await this.processAccumulatedText(this.currentReplyId!)
 						}
-					}
 
-					// Ensure all tools are processed
-					await this.toolExecutor.waitForToolProcessing()
+						// Wait for any remaining tools to complete
+						if (await this.toolExecutor.hasActiveTools()) {
+							await this.toolExecutor.waitForToolProcessing()
+						}
 
-					// Process any final text
-					if (this.accumulatedText) {
-						await this.processAccumulatedText(currentReplyId)
+						// Process any final buffered content after all tools complete
+						if (this.bufferedContent) {
+							await this.stateManager.appendToClaudeMessage(this.currentReplyId!, this.bufferedContent)
+							await this.updateWebview()
+							this.bufferedContent = ""
+						}
+					} finally {
+						this.currentReplyId = null
 					}
-					this.currentReplyId = null
 				},
 			})
 
@@ -189,5 +201,15 @@ export class StreamProcessor {
 
 	public setAborting(aborting: boolean) {
 		this.isAborting = aborting
+	}
+
+	public reset() {
+		this.streamPaused = false
+		this.accumulatedText = ""
+		this.bufferedContent = ""
+		this.currentReplyId = null
+		this.isRequestCancelled = false
+		this.isAborting = false
+		this.isProcessingTool = false
 	}
 }

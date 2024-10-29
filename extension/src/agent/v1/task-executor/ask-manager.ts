@@ -9,6 +9,7 @@ interface PendingAsk {
 	reject: (error: Error) => void
 	message: V1ClaudeMessage
 	toolId?: string
+	promise: Promise<AskResponse>
 }
 
 export class AskManager {
@@ -72,20 +73,12 @@ export class AskManager {
 			return
 		}
 
-		return new Promise<void>((resolve, reject) => {
-			const originalResolve = this.currentAsk!.resolve
-			const originalReject = this.currentAsk!.reject
-
-			this.currentAsk!.resolve = (value: AskResponse) => {
-				originalResolve(value)
-				resolve()
-			}
-
-			this.currentAsk!.reject = (error: Error) => {
-				originalReject(error)
-				reject(error)
-			}
-		})
+		try {
+			await this.currentAsk.promise
+		} catch (error) {
+			console.error("[AskManager] Error waiting for pending ask:", error)
+			throw error
+		}
 	}
 
 	public async ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
@@ -188,16 +181,14 @@ export class AskManager {
 	private async handleExistingAskUpdate(askTs: number, type: ClaudeAsk, tool?: ChatTool): Promise<AskResponse> {
 		console.log("[AskManager] Updating existing ask", { askTs, type, tool: tool?.tool })
 		await this.updateState(askTs, type, tool)
-		return new Promise<AskResponse>((resolve, reject) => {
-			if (this.currentAsk) {
-				this.currentAsk.resolve = resolve
-				this.currentAsk.reject = reject
-				console.log("[AskManager] Updated existing ask handlers", { askTs })
-			} else {
-				console.log("[AskManager] No current ask to update, resolving immediately", { askTs })
-				resolve({ response: "messageResponse" })
-			}
-		})
+
+		if (!this.currentAsk) {
+			console.log("[AskManager] No current ask to update, resolving immediately", { askTs })
+			return { response: "messageResponse" }
+		}
+
+		// Return the existing promise to ensure proper awaiting
+		return this.currentAsk.promise
 	}
 
 	private async handleNewAsk(id: number, type: ClaudeAsk, question?: string, tool?: ChatTool): Promise<AskResponse> {
@@ -213,23 +204,32 @@ export class AskManager {
 		const askMessage = this.createAskMessage(id, type, question, tool)
 		await this.updateState(id, type, tool)
 
-		return new Promise<AskResponse>((resolve, reject) => {
-			this.currentAsk = {
-				resolve,
-				reject,
-				message: askMessage,
-				toolId: tool?.ts?.toString(),
-			}
-			this.currentAskId = id
+		let resolvePromise: (value: AskResponse) => void
+		let rejectPromise: (error: Error) => void
 
-			console.log("[AskManager] Created new ask", {
-				id,
-				type,
-				question,
-				tool: tool?.tool,
-				toolId: tool?.ts,
-			})
+		const promise = new Promise<AskResponse>((resolve, reject) => {
+			resolvePromise = resolve
+			rejectPromise = reject
 		})
+
+		this.currentAsk = {
+			resolve: resolvePromise!,
+			reject: rejectPromise!,
+			message: askMessage,
+			toolId: tool?.ts?.toString(),
+			promise,
+		}
+		this.currentAskId = id
+
+		console.log("[AskManager] Created new ask", {
+			id,
+			type,
+			question,
+			tool: tool?.tool,
+			toolId: tool?.ts,
+		})
+
+		return promise
 	}
 
 	private createAskMessage(id: number, type: ClaudeAsk, question?: string, tool?: ChatTool): V1ClaudeMessage {

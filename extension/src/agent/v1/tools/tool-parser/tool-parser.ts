@@ -177,7 +177,9 @@ export class ToolParser {
 	}
 
 	private handleTag(tag: string): void {
-		if (!this.currentContext) return
+		if (!this.currentContext) {
+			return
+		}
 
 		const isClosingTag = tag.startsWith("</")
 		const tagContent = isClosingTag ? tag.slice(2, -1) : tag.slice(1, -1)
@@ -199,7 +201,9 @@ export class ToolParser {
 	}
 
 	private handleOpeningTag(tagName: string): void {
-		if (!this.currentContext) return
+		if (!this.currentContext) {
+			return
+		}
 
 		if (this.currentContext.currentParam) {
 			if (tagName === this.currentContext.currentParam) {
@@ -218,7 +222,9 @@ export class ToolParser {
 	}
 
 	private handleClosingTag(tagName: string): void {
-		if (!this.currentContext) return
+		if (!this.currentContext) {
+			return
+		}
 
 		if (tagName === this.currentContext.toolName && this.tagStack.length === 0) {
 			this.currentContext.nestingLevel--
@@ -252,6 +258,7 @@ export class ToolParser {
 	private finalizeTool(context: Context): void {
 		const toolSchema = this.toolSchemas.find((schema) => schema.name === context.toolName)
 		if (!toolSchema) {
+			console.error(`Unknown tool: ${context.toolName}`)
 			this.onToolError?.(context.id, context.toolName, new Error(`Unknown tool: ${context.toolName}`), context.ts)
 			return
 		}
@@ -261,6 +268,7 @@ export class ToolParser {
 			this.onToolEnd?.(context.id, context.toolName, validatedParams, context.ts)
 			console.log(`Tool is done: ${context.toolName} validatedParams:`, validatedParams)
 		} catch (error) {
+			console.error(`Validation error: ${error}`)
 			if (error instanceof z.ZodError) {
 				this.onToolError?.(
 					context.id,

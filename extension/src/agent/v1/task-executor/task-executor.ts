@@ -322,7 +322,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private async resetState() {
 		this.abortController?.abort()
 		this.isRequestCancelled = false
-		this.streamProcessor.setRequestCancelled(false)
+		this.streamProcessor.reset()
 		this.abortController = null
 		this.consecutiveErrorCount = 0
 		this.state = TaskState.WAITING_FOR_USER
