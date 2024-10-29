@@ -1,7 +1,7 @@
-import React, { KeyboardEvent, useState } from "react"
-import Thumbnails from "../Thumbnails/Thumbnails"
-import { Button } from "../ui/button"
-import InputV1 from "./InputV1"
+import React, { KeyboardEvent, useState } from 'react'
+import Thumbnails from '../Thumbnails/Thumbnails'
+import { Button } from '../ui/button'
+import InputV1 from './InputV1'
 
 interface InputAreaProps {
 	inputRef: React.RefObject<HTMLTextAreaElement>
@@ -41,16 +41,13 @@ const InputArea: React.FC<InputAreaProps> = ({
 	const [_, setIsTextAreaFocused] = useState(false)
 
 	return (
-		<>
+		<div className="fixed bottom-0 left-0 right-0 bg-background border-t">
 			<div
-				className="flex flex-col gap-2"
+				className="flex flex-col gap-2 relative p-4"
 				style={{
-					padding: "8px 16px",
 					opacity: textAreaDisabled ? 0.5 : 1,
-					position: "relative",
-					display: "flex",
-					marginTop: 0,
-				}}>
+				}}
+			>
 				<InputV1
 					isRequestRunning={isRequestRunning}
 					thumbnailsHeight={thumbnailsHeight}
@@ -69,26 +66,21 @@ const InputArea: React.FC<InputAreaProps> = ({
 						setImages={setSelectedImages}
 						onHeightChange={handleThumbnailsHeightChange}
 						style={{
-							position: "absolute",
-							paddingTop: 4,
-							bottom: 14,
-							left: 22,
-							right: 67,
+							position: 'absolute',
+							bottom: '16px',
+							left: '22px',
+							right: '67px',
 						}}
 					/>
 				)}
 				<div
+					className="absolute right-5 flex items-center h-full"
 					style={{
-						position: "absolute",
-						right: 20,
-						display: "flex",
-						alignItems: "flex-center",
-						height: "calc(100% - 80px)",
-						marginTop: 30,
-						marginBottom: 30,
-						bottom: 10,
-					}}>
-					<div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2 }}>
+						top: '50%',
+						transform: 'translateY(-50%)',
+					}}
+				>
+					<div className="flex items-center gap-2">
 						<Button
 							tabIndex={0}
 							disabled={shouldDisableImages}
@@ -97,7 +89,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 							size="icon"
 							aria-label="Attach Images"
 							onClick={selectImages}
-							style={{ marginRight: "2px" }}>
+						>
 							<span className="codicon codicon-device-camera" style={{ fontSize: 16 }}></span>
 						</Button>
 						<Button
@@ -107,13 +99,14 @@ const InputArea: React.FC<InputAreaProps> = ({
 							className="!p-1 h-6 w-6"
 							size="icon"
 							aria-label="Send Message"
-							onClick={handleSendMessage}>
+							onClick={handleSendMessage}
+						>
 							<span className="codicon codicon-send" style={{ fontSize: 16 }}></span>
 						</Button>
 					</div>
 				</div>
 			</div>
-		</>
+		</div>
 	)
 }
 

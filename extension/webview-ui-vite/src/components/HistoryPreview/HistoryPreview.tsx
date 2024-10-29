@@ -1,5 +1,5 @@
-import React from "react"
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
+import React from "react"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { vscode } from "../../utils/vscode"
 import TaskCard from "./TaskCard"
@@ -16,7 +16,7 @@ const HistoryPreview: React.FC<HistoryPreviewProps> = ({ showHistoryView }) => {
 	}
 
 	return (
-		<section className="border-b-0">
+		<section className="border-b-0 mb-24">
 			<h3 className="flex-line uppercase text-alt">
 				<span className="codicon codicon-history text-alt" />
 				Recent Tasks
