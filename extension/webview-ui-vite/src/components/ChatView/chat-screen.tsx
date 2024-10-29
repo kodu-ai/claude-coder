@@ -336,22 +336,6 @@ const ChatScreen: React.FC<{
 						</AnimatePresence>
 					</CardContent>
 				</Card>
-				{/* <AnimatePresence>
-					<motion.div
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: 20 }}
-						transition={{ duration: 0.3 }}
-						className="sticky bottom-2 mr-auto">
-						<Button
-							onClick={() => setShowHistory(false)}
-							variant="outline"
-							size="sm"
-							className="w-fit flex items-center justify-center">
-							<ArrowLeft className="w-4 h-4 mr-2" /> Back
-						</Button>
-					</motion.div>
-				</AnimatePresence> */}
 			</div>
 		</>
 	)

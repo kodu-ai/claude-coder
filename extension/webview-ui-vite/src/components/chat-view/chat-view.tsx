@@ -362,7 +362,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 					handleSecondaryButtonClick={handleSecondaryButtonClick}
 				/>
 
-				<div className="mt-2">
+				<div className="mt-auto">
 					<ChatInput
 						state={state}
 						updateState={updateState}
