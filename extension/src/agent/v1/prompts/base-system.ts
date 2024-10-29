@@ -382,7 +382,7 @@ Great we need to start a server we are on ${cwd.toPosix()} and the server is loc
 
 
 Maximize Tool Usage:
-Efficient Tool Calls: Use one tool call per message and always wait for user confirmation before proceeding. Each tool use must be deliberate and purposeful.
+Efficient Tool Calls: If it logically makes sense, use multiple tool calls in one message (up to a maximum of six). For example, read multiple files at once if they are needed simultaneously.
 Avoid Redundancy: Do not repeat tool calls unnecessarily. Each tool use should advance your progress toward the task's completion.
 CRITICAL! *Avoid Unnecessary reads: If you already have the content of a file, do not read it again using the read_file tool, unless you suspect the content has changed, or you need to verify the content.*
 *File content stays the same unless the user explicitly tells you it has changed, when you use write_to_file tool, that is the new content of the file, you should not read the file again to verify the content, unless the user tells you the content has changed.*
@@ -487,7 +487,7 @@ export const criticalMsg = `
 - Think about the current step and the next step.
 - If you are writing to a file write the entire content of the file, even if it hasn't been modified and write the entire implementation, no placeholders, leaving comments like // TODO: Implement edit functionality will hurt you as you might forget to implement it.
 - do one step at a time, remember that the user will have to confirm each action before you can proceed.
-- read files must be done one at a time, with user confirmation between each read operation.
+- read files generally can be done in bulk so if you need to do multiple reads, you can do them in one response.
 - Remember that every tool you call has to go through the user first, you can't assume the outcome of a tool call, thus you must always wait for the user to confirm the result of the tool call before proceeding.
   * so if you are calling a tool you must wait for the user to confirm the content of the file before proceeding, the user might reject it or give you feedback that you need to address.
   * for example you called the read_file tool, you don't know the content of the file unless the user confirms and give you the content of the file in the next message.
