@@ -302,9 +302,7 @@ export const useChatMessageHandling = (
 		}
 		if (lastMessage?.say === "error" || lastMessage?.say === "api_req_started") {
 			handleSayMessage(lastMessage)
-		} else if (lastAskMessage && !lastMessage.say) {
-			handleAskMessage(lastAskMessage)
-		} else if (lastAskMessage && isToolPendingApproval(lastAskMessage)) {
+		} else if (lastAskMessage) {
 			handleAskMessage(lastAskMessage)
 		} else if (!lastMessage && !lastAskMessage) {
 			updateState({

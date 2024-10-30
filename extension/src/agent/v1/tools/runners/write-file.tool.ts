@@ -13,7 +13,7 @@ export class WriteFileTool extends BaseAgentTool {
 	public diffViewProvider: DiffViewProvider
 	private isProcessingFinalContent: boolean = false
 	private lastUpdateTime: number = 0
-	private readonly UPDATE_INTERVAL = 30
+	private readonly UPDATE_INTERVAL = 8
 	private skipWriteAnimation: boolean = false
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {

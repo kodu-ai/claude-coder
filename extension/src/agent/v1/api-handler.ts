@@ -317,10 +317,10 @@ ${this.customInstructions.trim()}
 		const lastMessage = history[history.length - 2]
 
 		if (shouldAddCriticalMsg && isLastMessageFromUser && Array.isArray(lastMessage.content)) {
-			lastMessage.content.push({
-				type: "text",
-				text: criticalMsg,
-			})
+			// lastMessage.content.push({
+			// 	type: "text",
+			// 	text: criticalMsg,
+			// })
 		}
 
 		const isFirstRequest = provider.getKoduDev()?.isFirstMessage ?? false

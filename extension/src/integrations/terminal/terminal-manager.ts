@@ -505,7 +505,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 							data = outputBetweenSequences + "\n" + data
 						}
 						// }
-						// // data = stripAnsi(data)
+						data = stripAnsi(data)
 						// let lines = data.split("\n")
 						// if (lines.length > 0) {
 						// 	lines[0] = lines[0].replace(/[^\x20-\x7E]/g, "")
