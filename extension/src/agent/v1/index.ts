@@ -41,7 +41,6 @@ export class KoduDev {
 	public isLastMessageFileEdit: boolean = false
 	public terminalManager: AdvancedTerminalManager
 	public providerRef: WeakRef<ExtensionProvider>
-	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
 	public isFirstMessage: boolean = true
 	private isAborting: boolean = false
@@ -103,38 +102,19 @@ export class KoduDev {
 		if (this.isAborting) {
 			return
 		}
-		console.log(`Is there a pending ask response? ${!!this.pendingAskResponse}`)
-		if (this.taskExecutor.state === TaskState.ABORTED && (text || images)) {
-			let textBlock: Anthropic.TextBlockParam = {
-				type: "text",
-				text: text ?? "",
-			}
-			let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
-			console.log(`current api history: ${JSON.stringify(this.stateManager.state.apiConversationHistory)}`)
-			await this.taskExecutor.newMessage([textBlock, ...imageBlocks])
+		console.log(`Is there a pending ask response? ${!!this.taskExecutor.askManager.pendingPromise}`)
+		if (this.taskExecutor.askManager.pendingPromise) {
+			this.taskExecutor.handleAskResponse(askResponse, text, images)
 			return
 		}
-		if (this.pendingAskResponse) {
-			this.pendingAskResponse({ response: askResponse, text, images })
-			this.pendingAskResponse = null
-		} else if (this.stateManager.state.isHistoryItemResumed) {
-			// this is a bug
+		let textBlock: Anthropic.TextBlockParam = {
+			type: "text",
+			text: text ?? "",
 		}
-		if (
-			(this.taskExecutor.state === TaskState.WAITING_FOR_USER || this.taskExecutor.state === TaskState.IDLE) &&
-			askResponse === "messageResponse" &&
-			!this.pendingAskResponse
-		) {
-			await this.taskExecutor.newMessage([
-				{
-					type: "text",
-					text: text ?? "",
-				},
-				...formatImagesIntoBlocks(images),
-			])
-			return
-		}
-		this.taskExecutor.handleAskResponse(askResponse, text, images)
+		let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
+		console.log(`current api history: ${JSON.stringify(this.stateManager.state.apiConversationHistory)}`)
+		await this.taskExecutor.newMessage([textBlock, ...imageBlocks])
+		return
 	}
 	private async startTask(task?: string, images?: string[]): Promise<void> {
 		if (this.isAborting) {
@@ -331,23 +311,6 @@ export class KoduDev {
 		} finally {
 			this.isAborting = false
 		}
-	}
-
-	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false): Promise<ToolResponse> {
-		if (this.isAborting) {
-			throw new Error("Cannot execute tool while aborting")
-		}
-		const now = Date.now()
-		return this.toolExecutor.executeTool({
-			name,
-			input,
-			id: now.toString(),
-			ts: now,
-			isLastWriteToFile,
-			ask: this.taskExecutor.ask.bind(this.taskExecutor),
-			say: this.taskExecutor.say.bind(this.taskExecutor),
-			updateAsk: this.taskExecutor.updateAsk.bind(this.taskExecutor),
-		})
 	}
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {

@@ -26,7 +26,7 @@ export class WriteFileTool extends BaseAgentTool {
 	}
 
 	override async execute(): Promise<ToolResponse> {
-		await pWaitFor(() => this.isFinal, { interval: 20 })
+		await pWaitFor(() => this.isFinal, { interval: 10 })
 		const result = await this.processFileWrite()
 		return result
 	}
@@ -50,7 +50,7 @@ export class WriteFileTool extends BaseAgentTool {
 			}
 		}
 
-		await this.diffViewProvider.update(content, false)
+		this.diffViewProvider.update(content, false)
 		this.lastUpdateTime = currentTime
 	}
 
@@ -152,7 +152,7 @@ export class WriteFileTool extends BaseAgentTool {
 	private async showChangesInDiffView(relPath: string, content: string): Promise<void> {
 		content = this.preprocessContent(content)
 
-		if (!this.diffViewProvider.isEditing) {
+		if (!this.diffViewProvider.isDiffViewOpen()) {
 			await this.diffViewProvider.open(relPath)
 		}
 
@@ -165,7 +165,7 @@ export class WriteFileTool extends BaseAgentTool {
 	}
 
 	override async abortToolExecution(): Promise<void> {
-		console.log("Aborting WriteFileTool execution")
+		console.log(`Aborting tool: ${this.constructor.name}`)
 		await this.diffViewProvider.revertChanges()
 	}
 

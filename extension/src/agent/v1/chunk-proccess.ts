@@ -10,9 +10,8 @@ interface ChunkProcessorCallbacks {
 
 export class ChunkProcessor {
 	private callbacks: ChunkProcessorCallbacks
-	private chunkQueue: koduSSEResponse[] = []
-	private isProcessing = false
 	private endOfStreamReceived = false
+	private lastChunk: koduSSEResponse | null = null
 
 	constructor(callbacks: ChunkProcessorCallbacks) {
 		this.callbacks = callbacks
@@ -20,41 +19,24 @@ export class ChunkProcessor {
 
 	async processStream(stream: AsyncGenerator<koduSSEResponse, any, unknown>) {
 		for await (const chunk of stream) {
+			// Store the last chunk for final processing
+			this.lastChunk = chunk
+
+			// Handle end of stream signals immediately
 			if (chunk.code === 1 || chunk.code === -1) {
 				this.endOfStreamReceived = true
 				await this.callbacks.onImmediateEndOfStream(chunk)
+				continue
 			}
 
-			this.chunkQueue.push(chunk)
-			this.processNextChunk()
+			// Process chunk synchronously
+			if (chunk.code === 2) {
+				await this.callbacks.onChunk(chunk)
+			}
 		}
 
-		// Ensure final processing occurs after all chunks have been processed
-		while (this.isProcessing || this.chunkQueue.length > 0) {
-			await new Promise((resolve) => setTimeout(resolve, 10))
-		}
-
-		if (this.endOfStreamReceived) {
-			const lastChunk = this.chunkQueue[this.chunkQueue.length - 1]
-			await this.callbacks.onFinalEndOfStream(lastChunk)
-		}
-	}
-
-	private async processNextChunk() {
-		if (this.isProcessing || this.chunkQueue.length === 0) {
-			return
-		}
-
-		this.isProcessing = true
-		const chunk = this.chunkQueue.shift()!
-
-		try {
-			await this.callbacks.onChunk(chunk)
-		} catch (error) {
-			console.error("Error processing chunk:", error)
-		} finally {
-			this.isProcessing = false
-			this.processNextChunk()
+		if (this.endOfStreamReceived && this.lastChunk) {
+			await this.callbacks.onFinalEndOfStream(this.lastChunk)
 		}
 	}
 }

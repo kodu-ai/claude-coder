@@ -1,20 +1,15 @@
 import { ClaudeAsk, ClaudeMessage, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
-import { KODU_ERROR_CODES, KoduError, koduSSEResponse } from "../../../shared/kodu"
+import { KODU_ERROR_CODES, KoduError } from "../../../shared/kodu"
 import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
-import { ChunkProcessor } from "../chunk-proccess"
 import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
 import { ApiHistoryItem, ToolResponse, UserContent } from "../types"
 import { AskDetails, AskResponse, TaskError, TaskState, TaskExecutorUtils } from "./utils"
 import { formatImagesIntoBlocks, isTextBlock } from "../utils"
-import { getErrorMessage } from "../types/errors"
 import { AskManager } from "./ask-manager"
 import { ChatTool } from "../../../shared/new-tools"
-
-// Constants for buffer management
-const BUFFER_FLUSH_INTERVAL = 10 // ms
-const BUFFER_SIZE_THRESHOLD = 15 // characters
+import { StreamProcessor } from "./stream-processor"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -24,17 +19,19 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private abortController: AbortController | null = null
 	private consecutiveErrorCount: number = 0
 	private isAborting: boolean = false
-	private streamPaused: boolean = false
-	private textBuffer: string = ""
-	private askManager: AskManager
-	private flushTimeout: NodeJS.Timeout | null = null
-	private lastFlushTime: number = 0
-	private currentReplyId: number | null = null
+	public askManager: AskManager
+	private streamProcessor: StreamProcessor
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
 		this.toolExecutor = toolExecutor
 		this.askManager = new AskManager(stateManager)
+		this.streamProcessor = new StreamProcessor(
+			stateManager,
+			toolExecutor,
+			this.say.bind(this),
+			async () => await this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+		)
 	}
 
 	protected getState(): TaskState {
@@ -53,58 +50,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 		const lastAskMessage = [...this.stateManager.state.claudeMessages].reverse().find((msg) => msg.type === "ask")
 		if (lastAskMessage) {
 			this.askManager.handleResponse(lastAskMessage.ts, response, text, images)
-		}
-	}
-
-	public pauseStream() {
-		if (!this.streamPaused) {
-			this.streamPaused = true
-			// Ensure any buffered content is flushed before pausing
-			if (this.currentReplyId !== null) {
-				this.flushTextBuffer(this.currentReplyId, true)
-			}
-		}
-	}
-
-	public resumeStream() {
-		if (this.streamPaused) {
-			this.streamPaused = false
-			this.lastFlushTime = Date.now() // Reset flush timer on resume
-		}
-	}
-
-	private async flushTextBuffer(currentReplyId?: number | null, force: boolean = false) {
-		if (!this.textBuffer.trim() || !currentReplyId) {
-			return
-		}
-
-		const now = Date.now()
-		const timeSinceLastFlush = now - this.lastFlushTime
-
-		// Clear any existing timeout
-		if (this.flushTimeout) {
-			clearTimeout(this.flushTimeout)
-			this.flushTimeout = null
-		}
-
-		// If forced, buffer is large enough, or enough time has passed, flush immediately
-		if (force || this.textBuffer.length >= BUFFER_SIZE_THRESHOLD || timeSinceLastFlush >= BUFFER_FLUSH_INTERVAL) {
-			const contentToFlush = this.textBuffer
-			this.textBuffer = "" // Clear buffer before async operations
-			await this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush)
-			await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-			this.lastFlushTime = now
-		} else if (!this.streamPaused) {
-			// Only schedule new flush if stream is not paused
-			this.flushTimeout = setTimeout(async () => {
-				if (this.textBuffer.trim() && !this.streamPaused) {
-					const contentToFlush = this.textBuffer
-					this.textBuffer = ""
-					await this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush)
-					await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-					this.lastFlushTime = Date.now()
-				}
-			}, BUFFER_FLUSH_INTERVAL - timeSinceLastFlush)
 		}
 	}
 
@@ -164,6 +109,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 
 		this.isAborting = true
+		this.streamProcessor.setAborting(true)
 		try {
 			this.logState("Aborting task")
 			const now = Date.now()
@@ -188,6 +134,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.logState(`Task aborted in ${Date.now() - now}ms`)
 		} finally {
 			this.isAborting = false
+			this.streamProcessor.setAborting(false)
 		}
 	}
 
@@ -203,6 +150,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 		this.logState("Cancelling current request")
 		this.isRequestCancelled = true
+		this.streamProcessor.setRequestCancelled(true)
 		this.abortController?.abort()
 		this.state = TaskState.ABORTED
 
@@ -252,17 +200,26 @@ export class TaskExecutor extends TaskExecutorUtils {
 			})
 		}
 
-		await this.ask("resume_task", {
+		this.isAborting = false
+		this.ask("resume_task", {
 			question:
 				"Task was interrupted before the last response could be generated. Would you like to resume the task?",
 		}).then((res) => {
 			if (res.response === "yesButtonTapped") {
 				this.state = TaskState.WAITING_FOR_API
+				this.abortController = new AbortController()
+				this.isRequestCancelled = false
+				this.isAborting = false
 				this.currentUserContent = [
 					{ type: "text", text: "Let's continue with the task, from where we left off." },
 				]
 				this.makeClaudeRequest()
+				return
 			} else if ((res.response === "noButtonTapped" && res.text) || res.images) {
+				this.state = TaskState.WAITING_FOR_API
+				this.abortController = new AbortController()
+				this.isRequestCancelled = false
+				this.isAborting = false
 				const newContent: UserContent = []
 				if (res.text) {
 					newContent.push({ type: "text", text: res.text })
@@ -271,6 +228,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 					const formattedImages = formatImagesIntoBlocks(res.images)
 					newContent.push(...formattedImages)
 				}
+				this.say("user_feedback", res.text, res.images)
 				this.currentUserContent = newContent
 				this.state = TaskState.WAITING_FOR_API
 				this.makeClaudeRequest()
@@ -278,9 +236,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 				this.state = TaskState.COMPLETED
 			}
 		})
-
-		// Update the provider state
-		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
@@ -297,11 +252,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 			// Reset states
 			await this.toolExecutor.resetToolState()
 			this.isRequestCancelled = false
+			this.streamProcessor.setRequestCancelled(false)
 			this.abortController = new AbortController()
-			this.streamPaused = false
-			this.textBuffer = ""
-			this.lastFlushTime = Date.now()
-			this.currentReplyId = null
 
 			if (this.consecutiveErrorCount >= 3) {
 				await this.ask("resume_task", {
@@ -336,7 +288,23 @@ export class TaskExecutor extends TaskExecutorUtils {
 			}
 
 			this.state = TaskState.PROCESSING_RESPONSE
-			await this.processApiResponse(stream, startedReqId)
+
+			const apiHistoryItem: ApiHistoryItem = {
+				role: "assistant",
+				ts: startedReqId,
+				content: [
+					{
+						type: "text",
+						text: "the response was interrupted in the middle of processing",
+					},
+				],
+			}
+			await this.stateManager.addToApiConversationHistory(apiHistoryItem)
+
+			await this.streamProcessor.processStream(stream, startedReqId, apiHistoryItem)
+			console.log(`Stream ended for request ${startedReqId} at ${Date.now()}`)
+			console.log(`Stream tool results: ${JSON.stringify(await this.toolExecutor.getToolResults())}`)
+			await this.finishProcessingResponse(apiHistoryItem)
 		} catch (error) {
 			if (!this.isRequestCancelled && !this.isAborting) {
 				if (error instanceof KoduError) {
@@ -360,172 +328,14 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 	}
 
-	private async processApiResponse(
-		stream: AsyncGenerator<koduSSEResponse, any, unknown>,
-		startedReqId: number
-	): Promise<void> {
-		if (this.state !== TaskState.PROCESSING_RESPONSE || this.isRequestCancelled || this.isAborting) {
-			return
-		}
-
-		try {
-			this.logState("Processing API response")
-			const currentReplyId = await this.say("text", "", undefined, Date.now(), { isSubMessage: true })
-			this.currentReplyId = currentReplyId
-
-			const apiHistoryItem: ApiHistoryItem = {
-				role: "assistant",
-				ts: startedReqId,
-				content: [
-					{
-						type: "text",
-						text: "the response was interrupted in the middle of processing",
-					},
-				],
-			}
-			await this.stateManager.addToApiConversationHistory(apiHistoryItem)
-
-			let accumulatedText = ""
-
-			const processor = new ChunkProcessor({
-				onImmediateEndOfStream: async (chunk) => {
-					if (this.isRequestCancelled || this.isAborting) {
-						return
-					}
-
-					if (chunk.code === 1) {
-						const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
-							chunk.body.internal
-						await this.stateManager.updateClaudeMessage(startedReqId, {
-							...this.stateManager.getMessageById(startedReqId)!,
-							apiMetrics: {
-								cost: chunk.body.internal.cost,
-								inputTokens,
-								outputTokens,
-								inputCacheRead: cacheReadInputTokens,
-								inputCacheWrite: cacheCreationInputTokens,
-							},
-							isDone: true,
-							isFetching: false,
-						})
-						await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-					}
-
-					if (chunk.code === -1) {
-						await this.stateManager.updateClaudeMessage(startedReqId, {
-							...this.stateManager.getMessageById(startedReqId)!,
-							isDone: true,
-							isFetching: false,
-							errorText: chunk.body.msg ?? "Internal Server Error",
-							isError: true,
-						})
-						await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-						throw new KoduError({ code: chunk.body.status ?? 500 })
-					}
-				},
-
-				onChunk: async (chunk) => {
-					if (this.isRequestCancelled || this.isAborting) {
-						return
-					}
-
-					if (chunk.code === 2) {
-						// Update API history first
-						if (Array.isArray(apiHistoryItem.content) && isTextBlock(apiHistoryItem.content[0])) {
-							apiHistoryItem.content[0].text =
-								apiHistoryItem.content[0].text ===
-								"the response was interrupted in the middle of processing"
-									? chunk.body.text
-									: apiHistoryItem.content[0].text + chunk.body.text
-							await this.stateManager.updateApiHistoryItem(startedReqId, apiHistoryItem)
-						}
-
-						// Process chunk only if stream is not paused
-						if (!this.streamPaused) {
-							// Accumulate text until we have a complete XML tag or enough non-XML content
-							accumulatedText += chunk.body.text
-
-							// Process for tool use and get non-XML text
-							const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
-							accumulatedText = "" // Clear accumulated text after processing
-
-							// If we got non-XML text, add it to buffer
-							if (nonXMLText) {
-								this.textBuffer += nonXMLText
-								// Only flush buffer if we're not paused
-								await this.flushTextBuffer(this.currentReplyId)
-							}
-
-							// If tool processing started, pause the stream
-							if (this.toolExecutor.hasActiveTools()) {
-								// Ensure any buffered content is flushed before pausing
-								await this.flushTextBuffer(this.currentReplyId, true)
-								this.pauseStream()
-								// Wait for tool processing to complete
-								await this.toolExecutor.waitForToolProcessing()
-								// Resume stream after tool processing
-								this.resumeStream()
-								const newReplyId = await this.say("text", "", undefined, Date.now(), {
-									isSubMessage: true,
-								})
-								this.currentReplyId = newReplyId
-							}
-						}
-					}
-				},
-
-				onFinalEndOfStream: async () => {
-					if (this.isRequestCancelled || this.isAborting) {
-						return
-					}
-
-					// Process any remaining accumulated text
-					if (accumulatedText) {
-						const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
-						if (nonXMLText) {
-							this.textBuffer += nonXMLText
-						}
-					}
-
-					// Ensure all tools are processed
-					await this.toolExecutor.waitForToolProcessing()
-
-					// Flush any remaining text
-					if (this.flushTimeout) {
-						clearTimeout(this.flushTimeout)
-						this.flushTimeout = null
-					}
-					await this.flushTextBuffer(currentReplyId, true)
-					this.currentReplyId = null
-
-					await this.finishProcessingResponse(apiHistoryItem)
-				},
-			})
-
-			await processor.processStream(stream)
-		} catch (error) {
-			if (this.isRequestCancelled || this.isAborting) {
-				throw error
-			}
-			throw error
-		}
-	}
-
 	private async resetState() {
-		if (this.flushTimeout) {
-			clearTimeout(this.flushTimeout)
-			this.flushTimeout = null
-		}
 		this.abortController?.abort()
 		this.isRequestCancelled = false
+		this.streamProcessor.reset()
 		this.abortController = null
 		this.currentUserContent = null
 		this.consecutiveErrorCount = 0
 		this.state = TaskState.WAITING_FOR_USER
-		this.streamPaused = false
-		this.textBuffer = ""
-		this.lastFlushTime = Date.now()
-		this.currentReplyId = null
 		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 

@@ -2,24 +2,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { AlertCircle, Globe, Search } from "lucide-react"
 import React, { useEffect, useState } from "react"
 
-import { ToolAddons, ToolBlock, ToolStatus } from "../ToolRenderV1"
+import { ToolAddons, ToolBlock } from "../ToolRenderV1"
 
-import {
-	AskConsultantTool,
-	AskFollowupQuestionTool,
-	AttemptCompletionTool,
-	ChatTool,
-	ExecuteCommandTool,
-	ListCodeDefinitionNamesTool,
-	ListFilesTool,
-	ReadFileTool,
-	SearchFilesTool,
-	ServerRunnerTool,
-	UpsertMemoryTool,
-	UrlScreenshotTool,
-	WriteToFileTool,
-	WebSearchTool,
-} from "../../../../../src/shared/new-tools"
+import { WebSearchTool } from "../../../../../src/shared/new-tools"
 
 type EnhancedWebSearchBlockProps = WebSearchTool & ToolAddons
 

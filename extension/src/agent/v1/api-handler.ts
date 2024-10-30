@@ -386,7 +386,6 @@ ${this.customInstructions.trim()}
 			cache_read_input_tokens
 		)
 		console.log(`API REQUEST FINISHED: ${apiCost} tokens used data:`, response)
-
 		amplitudeTracker.taskRequest({
 			taskId: state?.currentTaskId!,
 			model: this.getModelId(),

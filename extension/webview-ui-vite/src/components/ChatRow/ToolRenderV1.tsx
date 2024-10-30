@@ -47,7 +47,7 @@ import { ScrollArea, ScrollBar } from "../ui/scroll-area"
 import { atom, useAtom } from "jotai"
 import { Textarea } from "../ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
-import { EnhancedWebSearchBlock } from "./Tools/WebSearchTool"
+import { EnhancedWebSearchBlock } from "./Tools/web-search-tool"
 
 type ApprovalState = ToolStatus
 export type ToolAddons = {

@@ -37,7 +37,7 @@ export class ReadFileTool extends BaseAgentTool {
 			const absolutePath = path.resolve(this.cwd, relPath)
 			const content = await extractTextFromFile(absolutePath)
 
-			const { response, text, images } = await ask!(
+			const { response, text, images } = await ask(
 				"tool",
 				{
 					tool: {
