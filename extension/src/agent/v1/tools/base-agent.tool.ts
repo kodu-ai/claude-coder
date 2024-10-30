@@ -96,4 +96,8 @@ export abstract class BaseAgentTool {
 			setRunningProcessId: this.setRunningProcessId,
 		}
 	}
+
+	protected logger(message: string, level: "info" | "warn" | "error" = "info") {
+		console[level](`[${this.name}] ${message}`)
+	}
 }

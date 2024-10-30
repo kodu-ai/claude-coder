@@ -34,9 +34,12 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const { openOutOfCreditDialog, shouldOpenOutOfCreditDialog } = useOutOfCreditDialog()
 	const [state, setState] = useAtom(chatState)
 
-	const updateState = useCallback((updates: Partial<ChatState>) => {
-		setState((prev) => ({ ...prev, ...updates }))
-	}, [])
+	const updateState = useCallback(
+		(updates: Partial<ChatState>) => {
+			setState((prev) => ({ ...prev, ...updates }))
+		},
+		[setState]
+	)
 
 	// Use the useSelectImages hook to handle image selection
 	useSelectImages()
@@ -57,6 +60,12 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	const handleClaudeAskResponse = useCallback(
 		(text: string) => {
+			// reset the of the buttons
+			updateState({
+				primaryButtonText: undefined,
+				secondaryButtonText: undefined,
+				enableButtons: false,
+			})
 			vscode.postMessage({
 				type: "askResponse",
 				askResponse: "messageResponse",
@@ -64,7 +73,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 				images: state.selectedImages,
 			})
 		},
-		[state]
+		[state.selectedImages, updateState]
 	)
 
 	const updateButtonState = useCallback((updates: Partial<ChatState>) => {

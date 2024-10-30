@@ -303,7 +303,8 @@ export class DevServerTool extends BaseAgentTool {
 
 				// If server is ready, resolve
 				if (startData.serverReady) {
-					resolve()
+					// give it a little time to ensure server is fully ready and logs are captured
+					setTimeout(() => resolve(), 1000)
 				}
 			})
 
@@ -337,9 +338,6 @@ export class DevServerTool extends BaseAgentTool {
 					throw new Error("Server start timeout")
 				}),
 			])
-
-			// Small delay to ensure all output is captured
-			await delay(300)
 
 			const devServer = TerminalRegistry.getDevServer(terminalInfo.id)
 			const serverUrl = devServer?.url

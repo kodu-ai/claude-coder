@@ -188,7 +188,8 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, ne
 	const toolContent = renderToolContent()
 
 	if (!textContent && !toolContent) {
-		return null
+		// to prevent virtuso yelling at us
+		return <div className="hidden">{message.text}</div>
 	}
 
 	return (

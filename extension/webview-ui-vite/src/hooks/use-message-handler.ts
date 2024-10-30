@@ -41,7 +41,6 @@ export const useChatMessageHandling = (
 	const handleAskMessage = useCallback(
 		(message: ClaudeMessage) => {
 			if (!isV1ClaudeMessage(message)) return
-			console.log(`Handling ask message: ${message.ask}`)
 
 			const toolStateMap: Record<string, Partial<ChatState>> = {
 				request_limit_reached: {

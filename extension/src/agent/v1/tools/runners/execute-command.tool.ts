@@ -44,14 +44,6 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		return this.executeShellTerminal(command)
 	}
 
-	private cleanOutput(output: string): string {
-		return output
-			.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "") // ANSI escape sequences
-			.replace(/\x1b\]633;.*?\x07/g, "") // Terminal integration sequences
-			.replace(/\r/g, "") // Carriage returns
-			.trim()
-	}
-
 	private isApprovedState(state: EarlyExitState): state is "approved" {
 		return state === "approved"
 	}
@@ -149,7 +141,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		let earlyExit: EarlyExitState = "pending"
 
 		process.on("line", async (line) => {
-			const cleanedLine = this.cleanOutput(line)
+			const cleanedLine = line
 			if (cleanedLine) {
 				this.output += cleanedLine + "\n"
 				if (!didContinue || this.isApprovedState(earlyExit)) {
@@ -204,7 +196,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					if (!completed) {
 						console.log("Command timed out after", COMMAND_TIMEOUT, "ms")
 					}
-				})
+				}),
 			])
 
 			// Ensure all output is processed
