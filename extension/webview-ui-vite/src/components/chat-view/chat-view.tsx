@@ -246,7 +246,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 			case "tool":
 			case "resume_task":
 				console.log("Primary button tapped")
-				vscode.postMessage({ type: "askResponse", askResponse: "yesButtonTapped", text: undefined })
+				vscode.postMessage({
+					type: "askResponse",
+					askResponse: "yesButtonTapped",
+					text: "Let's resume the task from where we left",
+				})
 				if (state.claudeAsk === "tool") {
 					return
 				}

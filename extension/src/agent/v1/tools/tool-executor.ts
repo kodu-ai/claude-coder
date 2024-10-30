@@ -322,5 +322,6 @@ export class ToolExecutor {
 
 	public async resetToolState() {
 		await this.abortTask()
+		this.toolResults = []
 	}
 }

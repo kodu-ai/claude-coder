@@ -108,6 +108,13 @@ export class KoduDev {
 				text: text ?? "",
 			}
 			let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
+			if (textBlock.text.trim() === "" && imageBlocks.length > 1) {
+				textBlock.text =
+					"Please check the images below for more information and continue the task from where we left off."
+			}
+			if (textBlock.text.trim() === "") {
+				textBlock.text = "Please continue the task from where we left off."
+			}
 			console.log(`current api history: ${JSON.stringify(this.stateManager.state.apiConversationHistory)}`)
 			await this.taskExecutor.newMessage([textBlock, ...imageBlocks])
 			return
@@ -120,7 +127,10 @@ export class KoduDev {
 			await this.taskExecutor.newMessage([
 				{
 					type: "text",
-					text: text ?? "",
+					text:
+						text ?? images?.length
+							? "Please check the images below for more information."
+							: "Continue the task.",
 				},
 				...formatImagesIntoBlocks(images),
 			])

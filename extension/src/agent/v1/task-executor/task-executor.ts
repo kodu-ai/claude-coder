@@ -11,6 +11,7 @@ import { formatImagesIntoBlocks, isTextBlock } from "../utils"
 import { getErrorMessage } from "../types/errors"
 import { AskManager } from "./ask-manager"
 import { ChatTool } from "../../../shared/new-tools"
+import { images } from "mammoth"
 
 // Constants for buffer management - modified for instant output
 const BUFFER_SIZE_THRESHOLD = 5 // Reduced to 1 character for near-instant output
@@ -92,7 +93,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.isRequestCancelled = false
 		this.abortController = new AbortController()
 		this.currentUserContent = message
-		await this.say("user_feedback", message[0].type === "text" ? message[0].text : "New message")
+		const images = message.filter((item) => item.type === "image").map((item) => item.source.data)
+
+		await this.say("user_feedback", message[0].type === "text" ? message[0].text : "New message", images)
 		await this.makeClaudeRequest()
 	}
 
@@ -286,6 +289,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.streamPaused = false
 			this.textBuffer = ""
 			this.currentReplyId = null
+
+			// fix any weird user content
+			this.currentUserContent = this.fixUserContent(this.currentUserContent)
 
 			if (this.consecutiveErrorCount >= 3) {
 				await this.ask("resume_task", {
@@ -550,8 +556,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 						{
 							type: "text",
 							text:
-								resultContent ??
-								`The user is not pleased with the results. Use the feedback they provided to successfully complete the task, and then attempt completion again.`,
+								resultContent.trim() === ""
+									? "The user is not pleased with the results. Use the feedback they provided to successfully complete the task, and then attempt completion again."
+									: resultContent,
 						},
 					]
 					await this.makeClaudeRequest()
@@ -560,9 +567,22 @@ export class TaskExecutor extends TaskExecutorUtils {
 				this.state = TaskState.WAITING_FOR_API
 				this.currentUserContent = currentToolResults.flatMap((result) => {
 					if (typeof result.result === "string") {
-						return [{ type: "text", text: result.result }]
+						return [
+							{
+								type: "text",
+								text:
+									result.result.trim().length > 0
+										? result.result
+										: "The tool did not return any output.",
+							},
+						]
 					}
-					return result.result
+					return result.result.map((r) => {
+						if (isTextBlock(r) && r.text.trim().length === 0) {
+							r.text = "The tool did not return any output."
+						}
+						return r
+					})
 				})
 				await this.makeClaudeRequest()
 			}
@@ -611,5 +631,25 @@ export class TaskExecutor extends TaskExecutorUtils {
 		} else {
 			this.state = TaskState.COMPLETED
 		}
+	}
+
+	/**
+	 * @description corrects the user content to prevent any issues with the API.
+	 * @param content the content that will be sent to API as a USER message in the AI conversation
+	 * @returns fixed user content format to prevent any issues with the API
+	 */
+	private fixUserContent(content: UserContent): UserContent {
+		if (content.length === 0) {
+			return [{ type: "text", text: "The user didn't provide any content, please continue" }]
+		}
+		return content.map((item) => {
+			if (item.type === "text" && item.text.trim().length === 0) {
+				return { type: "text", text: "The user didn't provide any content, please continue" }
+			}
+			if (isTextBlock(item) && item.text.trim().length === 0) {
+				return { type: "text", text: "The user didn't provide any content, please continue" }
+			}
+			return item
+		})
 	}
 }
