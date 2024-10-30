@@ -70,6 +70,7 @@ export class DiffViewProvider {
 	public isEditing: boolean = false
 	public relPath?: string
 	private originalUri?: vscode.Uri
+	private isFinalReached: boolean = false
 	private modifiedUri?: vscode.Uri
 	private koduDev: KoduDev
 	public lastEditPosition?: vscode.Position
@@ -225,24 +226,17 @@ export class DiffViewProvider {
 			this.logger("<update>: Diff editor not initialized", "error")
 			return
 		}
+		if (this.isFinalReached) {
+			return
+		}
 
 		if (isFinal) {
-			if (this.updateTimeout) {
-				clearTimeout(this.updateTimeout)
-				this.updateTimeout = null
-			}
+			this.isFinalReached = true
 			await this.applyUpdate(accumulatedContent)
 			await this.finalizeDiff()
 			return
 		}
-
-		if (this.updateTimeout) {
-			clearTimeout(this.updateTimeout)
-		}
-
-		this.updateTimeout = setTimeout(async () => {
-			await this.applyUpdate(accumulatedContent)
-		}, this.updateInterval)
+		await this.applyUpdate(accumulatedContent)
 	}
 
 	private async applyUpdate(content: string): Promise<void> {
@@ -335,6 +329,7 @@ export class DiffViewProvider {
 		this.streamedContent = ""
 		this.lastEditPosition = undefined
 		this.lastScrollTime = 0
+		this.isFinalReached = false
 		this.isAutoScrollEnabled = true
 		this.lastUserInteraction = 0
 	}
@@ -361,20 +356,34 @@ export class DiffViewProvider {
 			// Write file with error handling
 			try {
 				// before writing to file make sure it's not dirty
-				const doc = await vscode.workspace.openTextDocument(uri)
-				if (doc.isDirty) {
-					await doc.save()
+				try {
+					const doc = await vscode.workspace.openTextDocument(uri)
+					if (doc.isDirty) {
+						await doc.save()
+					}
+					// Show the document to ensure it’s the active editor
+					const editor = await vscode.window.showTextDocument(doc)
+					// Close the active editor
+					await vscode.commands.executeCommand("workbench.action.closeActiveEditor")
+				} catch (e) {
+					this.logger(
+						`While saving to doc encountered a doc that is non existent meaning it's a new file`,
+						"warn"
+					)
 				}
 				// update the file with the edited content
 				await vscode.workspace.fs.writeFile(uri, Buffer.from(editedContent))
 				// we save the file after writing to it
-				await doc.save()
+				await vscode.workspace.save(uri)
 			} catch (error) {
 				throw new Error(`Failed to write file: ${error instanceof Error ? error.message : String(error)}`)
 			}
 
 			// Close diff views
 			await this.closeAllDiffViews()
+
+			// open document again
+			await vscode.window.showTextDocument(uri)
 
 			// Compare contents and create patch if needed
 			const normalizedEditedContent = editedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
