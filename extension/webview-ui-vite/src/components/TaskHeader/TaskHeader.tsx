@@ -80,40 +80,26 @@ export default function TaskHeader({
 						</TooltipContent>
 					</Tooltip>
 					<div className="basis-full flex">
-						<AnimatePresence mode="wait">
-							<motion.div
-								key={currentTask?.name ?? currentTask?.task ?? task.text}
-								initial={{ opacity: 0.6 }}
-								animate={{ opacity: 1 }}
-								exit={{ opacity: 0.6 }}
-								className="w-full"
-								transition={{ duration: 0.2 }}>
-								<TaskText text={currentTask?.name ?? currentTask?.task ?? task.text} />
-							</motion.div>
-						</AnimatePresence>
+						<div key={currentTask?.name ?? currentTask?.task ?? task.text} className="w-full">
+							<TaskText text={currentTask?.name ?? currentTask?.task ?? task.text} />
+						</div>
 					</div>
 				</div>
 
 				<CollapsibleContent className="flex flex-col pt-1 gap-2">
-					<AnimatePresence mode="wait">
-						<motion.div
-							className="flex flex-col pt-1 gap-2 w-full"
-							key={currentTask?.name ?? currentTask?.task ?? task.text}
-							initial={{ opacity: 0.6 }}
-							animate={{ opacity: 1 }}
-							exit={{ opacity: 0.6 }}
-							transition={{ duration: 0.5 }}>
-							{task.images && task.images.length > 0 && <Thumbnails images={task.images} />}
-							<TokenInfo
-								tokensIn={tokensIn}
-								tokensOut={tokensOut}
-								doesModelSupportPromptCache={doesModelSupportPromptCache}
-								cacheWrites={cacheWrites}
-								cacheReads={cacheReads}
-								totalCost={totalCost}
-							/>
-						</motion.div>
-					</AnimatePresence>
+					<div
+						className="flex flex-col pt-1 gap-2 w-full"
+						key={currentTask?.name ?? currentTask?.task ?? task.text}>
+						{task.images && task.images.length > 0 && <Thumbnails images={task.images} />}
+						<TokenInfo
+							tokensIn={tokensIn}
+							tokensOut={tokensOut}
+							doesModelSupportPromptCache={doesModelSupportPromptCache}
+							cacheWrites={cacheWrites}
+							cacheReads={cacheReads}
+							totalCost={totalCost}
+						/>
+					</div>
 					<CreditsInfo koduCredits={koduCredits} vscodeUriScheme={vscodeUriScheme} />
 				</CollapsibleContent>
 			</Collapsible>

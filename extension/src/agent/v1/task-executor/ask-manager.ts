@@ -16,6 +16,7 @@ export class AskManager {
 	private currentAsk: PendingAsk | null = null
 	private currentAskId: number | null = null
 	private pendingToolAsks: Map<string, number> = new Map()
+
 	private readonly readOnlyTools = [
 		"read_file",
 		"list_files",
@@ -37,6 +38,35 @@ export class AskManager {
 
 	constructor(stateManager: StateManager) {
 		this.stateManager = stateManager
+	}
+
+	public async abortPendingAsks(): Promise<void> {
+		const abortError = new Error("Task aborted")
+
+		// Reject current ask if exists
+		if (this.currentAsk) {
+			const askData = this.stateManager.getMessageById(this.currentAskId!)
+			if (askData) {
+				try {
+					const tool = (askData.ask === "tool" ? JSON.parse(askData.text ?? "{}") : undefined) as ChatTool
+
+					tool.approvalState = "error"
+					tool.error = "Tool was aborted"
+					await this.updateState(this.currentAskId!, "tool", tool, "error")
+				} catch (err) {
+					console.error("Error in abortPendingAsks:", err)
+					await this.updateState(this.currentAskId!, "tool", undefined, "error")
+				}
+			} else {
+				await this.updateState(this.currentAskId!, "tool", undefined, "error")
+			}
+			this.currentAsk.reject(abortError)
+			this.currentAsk = null
+			this.currentAskId = null
+		}
+
+		// Clear pending tool asks
+		this.pendingToolAsks.clear()
 	}
 
 	public async ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
@@ -63,7 +93,7 @@ export class AskManager {
 		return this.handleNewAsk(id, type, question, tool)
 	}
 
-	public handleResponse(id: number, response: ClaudeAskResponse, text?: string, images?: string[]) {
+	public handleResponse(id: number, response: ClaudeAskResponse, text?: string, images?: string[]): void {
 		// Try current ask first
 		if (this.isCurrentAsk(id)) {
 			this.resolveCurrentAsk(response, text, images)
@@ -120,14 +150,6 @@ export class AskManager {
 	}
 
 	private async handleNewAsk(id: number, type: ClaudeAsk, question?: string, tool?: ChatTool): Promise<AskResponse> {
-		// Resolve any existing ask first
-		if (this.currentAsk) {
-			// console.log(`Auto-resolving existing ask ${this.currentAskId} before creating new one`)
-			// this.currentAsk.resolve({ response: "messageResponse" })
-			this.currentAsk = null
-			this.currentAskId = null
-		}
-
 		// Create and store new ask message
 		const askMessage = this.createAskMessage(id, type, question, tool)
 		await this.updateState(id, type, tool)
@@ -221,7 +243,9 @@ export class AskManager {
 	}
 
 	private isToolAskResponse(id: number): boolean {
-		if (!this.currentAsk) return false
+		if (!this.currentAsk) {
+			return false
+		}
 
 		for (const [toolId, askId] of this.pendingToolAsks.entries()) {
 			if (askId === id && this.currentAsk.toolId === toolId) {
@@ -232,7 +256,9 @@ export class AskManager {
 	}
 
 	private resolveCurrentAsk(response: ClaudeAskResponse, text?: string, images?: string[]) {
-		if (!this.currentAsk) return
+		if (!this.currentAsk) {
+			return
+		}
 
 		const result: AskResponse = { response, text, images }
 		this.currentAsk.resolve(result)
@@ -241,8 +267,14 @@ export class AskManager {
 		this.currentAskId = null
 	}
 
+	public hasActiveAsk(): boolean {
+		return !!this.currentAsk
+	}
+
 	private resolveToolAsk(id: number, response: ClaudeAskResponse, text?: string, images?: string[]) {
-		if (!this.currentAsk) return
+		if (!this.currentAsk) {
+			return
+		}
 
 		const result: AskResponse = { response, text, images }
 		this.currentAsk.resolve(result)

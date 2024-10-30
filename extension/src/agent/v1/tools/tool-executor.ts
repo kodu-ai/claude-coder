@@ -130,6 +130,16 @@ export class ToolExecutor {
 					})
 				}
 
+				// Capture interrupted tool results before cleanup
+				for (const context of this.toolContexts.values()) {
+					if (context.status === "processing") {
+						this.toolResults.push({
+							name: context.tool.name,
+							result: "Tool execution was interrupted",
+						})
+					}
+				}
+
 				const cancelPromises = Array.from(this.toolContexts.values()).map((context) =>
 					context.tool
 						.abortToolExecution()
@@ -140,7 +150,6 @@ export class ToolExecutor {
 				await this.queue.onIdle()
 
 				this.toolContexts.clear()
-				this.toolResults = []
 			}
 
 			await cleanup()
@@ -187,9 +196,9 @@ export class ToolExecutor {
 		// Handle partial updates for write file tool
 		if (context.tool instanceof WriteFileTool && params.path && params.content) {
 			await context.tool.handlePartialUpdate(params.path, params.content)
+		} else {
+			await this.updateToolStatus(context, params, ts)
 		}
-
-		await this.updateToolStatus(context, params, ts)
 	}
 
 	private async handleToolEnd(id: string, toolName: string, params: any): Promise<void> {
@@ -232,7 +241,7 @@ export class ToolExecutor {
 			context.error = error
 		}
 
-		await this.koduDev.taskExecutor.askWithId(
+		await this.koduDev.taskExecutor.updateAsk(
 			"tool",
 			{
 				// @ts-expect-error - not typedd correctly
@@ -248,21 +257,19 @@ export class ToolExecutor {
 		)
 	}
 
-	private async updateToolStatus(context: ToolContext, params: any, ts: number): Promise<void> {
-		if (context.tool instanceof WriteFileTool && !context.tool.diffViewProvider.isEditing) {
-			await this.koduDev.taskExecutor.askWithId(
-				"tool",
-				{
-					tool: {
-						tool: context.tool.name,
-						...params,
-						ts,
-						approvalState: "loading",
-					},
+	private updateToolStatus(context: ToolContext, params: any, ts: number) {
+		this.koduDev.taskExecutor.updateAsk(
+			"tool",
+			{
+				tool: {
+					tool: context.tool.name,
+					...params,
+					ts,
+					approvalState: "loading",
 				},
-				ts
-			)
-		}
+			},
+			ts
+		)
 	}
 
 	private async processTool(context: ToolContext): Promise<void> {
@@ -292,9 +299,12 @@ export class ToolExecutor {
 			console.error(`Error executing tool: ${context.tool.name}`, error)
 			context.status = "error"
 			context.error = error as Error
+
+			// Add error result to toolResults
+			const errorMessage = error instanceof Error ? error.message : `unknown error for tool ${context.tool.name}`
 			this.toolResults.push({
 				name: context.tool.name,
-				result: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+				result: this.isAborting ? "Tool execution was interrupted" : `Error: ${errorMessage}`,
 			})
 		} finally {
 			this.toolContexts.delete(context.id)
@@ -312,5 +322,6 @@ export class ToolExecutor {
 
 	public async resetToolState() {
 		await this.abortTask()
+		this.toolResults = []
 	}
 }

@@ -11,10 +11,10 @@ import { formatImagesIntoBlocks, isTextBlock } from "../utils"
 import { getErrorMessage } from "../types/errors"
 import { AskManager } from "./ask-manager"
 import { ChatTool } from "../../../shared/new-tools"
+import { images } from "mammoth"
 
-// Constants for buffer management
-const BUFFER_FLUSH_INTERVAL = 10 // ms
-const BUFFER_SIZE_THRESHOLD = 50 // characters
+// Constants for buffer management - modified for instant output
+const BUFFER_SIZE_THRESHOLD = 5 // Reduced to 1 character for near-instant output
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -26,9 +26,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private isAborting: boolean = false
 	private streamPaused: boolean = false
 	private textBuffer: string = ""
-	private askManager: AskManager
-	private flushTimeout: NodeJS.Timeout | null = null
-	private lastFlushTime: number = 0
+	public askManager: AskManager
 	private currentReplyId: number | null = null
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
@@ -66,10 +64,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 	}
 
-	public resumeStream() {
+	public async resumeStream() {
 		if (this.streamPaused) {
 			this.streamPaused = false
-			this.lastFlushTime = Date.now() // Reset flush timer on resume
 		}
 	}
 
@@ -78,34 +75,24 @@ export class TaskExecutor extends TaskExecutorUtils {
 			return
 		}
 
-		const now = Date.now()
-		const timeSinceLastFlush = now - this.lastFlushTime
-
-		// Clear any existing timeout
-		if (this.flushTimeout) {
-			clearTimeout(this.flushTimeout)
-			this.flushTimeout = null
-		}
-
-		// If forced, buffer is large enough, or enough time has passed, flush immediately
-		if (force || this.textBuffer.length >= BUFFER_SIZE_THRESHOLD || timeSinceLastFlush >= BUFFER_FLUSH_INTERVAL) {
-			const contentToFlush = this.textBuffer
-			this.textBuffer = "" // Clear buffer before async operations
+		// If forced or buffer size threshold reached, flush immediately
+		const contentToFlush = this.textBuffer
+		this.textBuffer = "" // Clear buffer before async operations
+		// check if there is an ask that is ahead of the current reply if so then we need to create a new reply to have the text in proper order (TEXT > TOOL > TEXT)
+		const lastAskTs = this.stateManager.state.claudeMessages
+			.slice()
+			.reverse()
+			.find((msg) => msg.type === "ask")?.ts
+		const contentWithoutNewLines = contentToFlush.replace(/\n/g, "")
+		if (lastAskTs && lastAskTs > currentReplyId && contentWithoutNewLines.trim().length > 0) {
+			console.log("Creating new reply to flush text buffer")
+			this.currentReplyId = await this.say("text", contentToFlush ?? "", undefined, Date.now(), {
+				isSubMessage: true,
+			})
+		} else {
 			await this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush)
-			await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-			this.lastFlushTime = now
-		} else if (!this.streamPaused) {
-			// Only schedule new flush if stream is not paused
-			this.flushTimeout = setTimeout(async () => {
-				if (this.textBuffer.trim() && !this.streamPaused) {
-					const contentToFlush = this.textBuffer
-					this.textBuffer = ""
-					await this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush)
-					await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
-					this.lastFlushTime = Date.now()
-				}
-			}, BUFFER_FLUSH_INTERVAL - timeSinceLastFlush)
 		}
+		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	public async newMessage(message: UserContent) {
@@ -117,7 +104,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.isRequestCancelled = false
 		this.abortController = new AbortController()
 		this.currentUserContent = message
-		await this.say("user_feedback", message[0].type === "text" ? message[0].text : "New message")
+		const images = message.filter((item) => item.type === "image").map((item) => item.source.data)
+
+		await this.say("user_feedback", message[0].type === "text" ? message[0].text : "New message", images)
 		await this.makeClaudeRequest()
 	}
 
@@ -168,14 +157,22 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.logState("Aborting task")
 			const now = Date.now()
 
-			// Cancel the current request
-			await this.cancelCurrentRequest()
+			// first make the state to aborted
+			this.state = TaskState.ABORTED
+			this.abortController?.abort()
+			this.isRequestCancelled = true
+
+			// First reject any pending asks to prevent tools from continuing
+			await this.askManager.abortPendingAsks()
 
 			// Cleanup tool executor
 			await this.toolExecutor.abortTask()
 
 			// Reset state
 			await this.resetState()
+
+			// Cancel the current request
+			await this.cancelCurrentRequest()
 
 			this.logState(`Task aborted in ${Date.now() - now}ms`)
 		} finally {
@@ -211,8 +208,15 @@ export class TaskExecutor extends TaskExecutorUtils {
 				if (!isV1ClaudeMessage(msg) || msg.ask !== "tool") {
 					return false
 				}
-				const parsedTool = JSON.parse(msg.text ?? "{}") as ChatTool
-				return parsedTool.approvalState !== "error"
+				try {
+					if (msg.text === "" || msg.text === "{}") {
+						throw new Error("Tool message text is empty or invalid JSON")
+					}
+					const parsedTool = JSON.parse(msg.text ?? "{}") as ChatTool
+					return parsedTool.approvalState !== "error"
+				} catch (e) {
+					return false
+				}
 			})
 
 		// Update tool request if exists and not already approved
@@ -250,6 +254,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}).then((res) => {
 			if (res.response === "yesButtonTapped") {
 				this.state = TaskState.WAITING_FOR_API
+				this.isAborting = false
+				this.resetState()
 				this.currentUserContent = [
 					{ type: "text", text: "Let's continue with the task, from where we left off." },
 				]
@@ -263,16 +269,17 @@ export class TaskExecutor extends TaskExecutorUtils {
 					const formattedImages = formatImagesIntoBlocks(res.images)
 					newContent.push(...formattedImages)
 				}
+				this.say("user_feedback", res.text, res.images)
 				this.currentUserContent = newContent
 				this.state = TaskState.WAITING_FOR_API
+				this.isAborting = false
+				this.resetState()
 				this.makeClaudeRequest()
 			} else {
 				this.state = TaskState.COMPLETED
 			}
 		})
-
-		// Update the provider state
-		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+		await this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
@@ -292,8 +299,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.abortController = new AbortController()
 			this.streamPaused = false
 			this.textBuffer = ""
-			this.lastFlushTime = Date.now()
 			this.currentReplyId = null
+
+			// fix any weird user content
+			this.currentUserContent = this.fixUserContent(this.currentUserContent)
 
 			if (this.consecutiveErrorCount >= 3) {
 				await this.ask("resume_task", {
@@ -318,7 +327,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 			const stream = this.stateManager.apiManager.createApiStreamRequest(
 				this.stateManager.state.apiConversationHistory,
-				this.abortController?.signal
+				this.abortController?.signal,
+				this.abortController
 			)
 
 			if (this.isRequestCancelled || this.isAborting) {
@@ -345,7 +355,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 					return
 				}
 				// @ts-expect-error
-				await this.handleApiError(new TaskError({ type: "UNKNOWN_ERROR", message: error.message }))
+				await this.handleApiError(new TaskError({ type: "NETWORK_ERROR", message: error.message }))
 			} else {
 				console.log("[TaskExecutor] Request was cancelled, ignoring error")
 			}
@@ -449,6 +459,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 							}
 
 							// If tool processing started, pause the stream
+							// this is actually not working ZZZ - need to fix this
 							if (this.toolExecutor.hasActiveTools()) {
 								// Ensure any buffered content is flushed before pausing
 								await this.flushTextBuffer(this.currentReplyId, true)
@@ -456,11 +467,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 								// Wait for tool processing to complete
 								await this.toolExecutor.waitForToolProcessing()
 								// Resume stream after tool processing
-								this.resumeStream()
-								const newReplyId = await this.say("text", "", undefined, Date.now(), {
-									isSubMessage: true,
-								})
-								this.currentReplyId = newReplyId
+								await this.resumeStream()
 							}
 						}
 					}
@@ -483,10 +490,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 					await this.toolExecutor.waitForToolProcessing()
 
 					// Flush any remaining text
-					if (this.flushTimeout) {
-						clearTimeout(this.flushTimeout)
-						this.flushTimeout = null
-					}
 					await this.flushTextBuffer(currentReplyId, true)
 					this.currentReplyId = null
 
@@ -504,10 +507,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 	}
 
 	private async resetState() {
-		if (this.flushTimeout) {
-			clearTimeout(this.flushTimeout)
-			this.flushTimeout = null
-		}
 		this.abortController?.abort()
 		this.isRequestCancelled = false
 		this.abortController = null
@@ -515,9 +514,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.state = TaskState.WAITING_FOR_USER
 		this.streamPaused = false
 		this.textBuffer = ""
-		this.lastFlushTime = Date.now()
 		this.currentReplyId = null
-		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	private async finishProcessingResponse(assistantResponses: ApiHistoryItem): Promise<void> {
@@ -545,22 +542,56 @@ export class TaskExecutor extends TaskExecutorUtils {
 			const completionAttempted = currentToolResults.find((result) => result?.name === "attempt_completion")
 
 			if (completionAttempted) {
+				const resultContent =
+					typeof completionAttempted.result === "string"
+						? completionAttempted.result
+						: completionAttempted.result.map((r) => isTextBlock(r) && r.text).join(" ")
 				await this.stateManager.addToApiConversationHistory({
 					role: "user",
-					content: completionAttempted.result,
+					content:
+						resultContent.trim() === ""
+							? [{ type: "text", text: "User is pleased with the results" }]
+							: completionAttempted.result,
 				})
-				await this.stateManager.addToApiConversationHistory({
-					role: "assistant",
-					content: [{ type: "text", text: "Task completed successfully." }],
-				})
-				this.state = TaskState.COMPLETED
+				if (resultContent.trim() === "") {
+					await this.stateManager.addToApiConversationHistory({
+						role: "assistant",
+						content: [{ type: "text", text: "Task completed successfully." }],
+					})
+					this.state = TaskState.COMPLETED
+				} else {
+					this.state = TaskState.WAITING_FOR_API
+					this.currentUserContent = [
+						{
+							type: "text",
+							text:
+								resultContent.trim() === ""
+									? "The user is not pleased with the results. Use the feedback they provided to successfully complete the task, and then attempt completion again."
+									: resultContent,
+						},
+					]
+					await this.makeClaudeRequest()
+				}
 			} else {
 				this.state = TaskState.WAITING_FOR_API
 				this.currentUserContent = currentToolResults.flatMap((result) => {
 					if (typeof result.result === "string") {
-						return [{ type: "text", text: result.result }]
+						return [
+							{
+								type: "text",
+								text:
+									result.result.trim().length > 0
+										? result.result
+										: "The tool did not return any output.",
+							},
+						]
 					}
-					return result.result
+					return result.result.map((r) => {
+						if (isTextBlock(r) && r.text.trim().length === 0) {
+							r.text = "The tool did not return any output."
+						}
+						return r
+					})
 				})
 				await this.makeClaudeRequest()
 			}
@@ -600,6 +631,58 @@ export class TaskExecutor extends TaskExecutorUtils {
 			await this.say(error.type === "PAYMENT_REQUIRED" ? "payment_required" : "unauthorized", error.message)
 			return
 		}
+		const modifiedClaudeMessages = this.stateManager.state.claudeMessages.slice()
+		// update previous messages to ERROR
+		modifiedClaudeMessages.forEach((m) => {
+			if (isV1ClaudeMessage(m)) {
+				m.isDone = true
+				if (m.say === "api_req_started" && m.isFetching) {
+					m.isFetching = false
+					m.isDone = true
+					m.isError = true
+					m.errorText = error.message ?? "Task was interrupted before this API request could be completed."
+				}
+				if (m.isFetching) {
+					m.isFetching = false
+
+					m.errorText = error.message ?? "Task was interrupted before this API request could be completed."
+					// m.isAborted = "user"
+					m.isError = true
+				}
+				if (m.ask === "tool" && m.type === "ask") {
+					try {
+						const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
+						if (typeof parsedTool === "object" && parsedTool.tool === "attempt_completion") {
+							parsedTool.approvalState = "approved"
+							m.text = JSON.stringify(parsedTool)
+							return
+						}
+						if (
+							typeof parsedTool === "object" &&
+							(parsedTool.approvalState === "pending" ||
+								parsedTool.approvalState === undefined ||
+								parsedTool.approvalState === "loading")
+						) {
+							const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
+							if (toolsToSkip.includes(parsedTool.tool)) {
+								parsedTool.approvalState = "error"
+								m.text = JSON.stringify(parsedTool)
+								return
+							}
+							parsedTool.approvalState = "error"
+							parsedTool.error = "Task was interrupted before this tool call could be completed."
+							m.text = JSON.stringify(parsedTool)
+						}
+					} catch (err) {
+						m.text = "{}"
+						m.errorText = "Task was interrupted before this tool call could be completed."
+						m.isError = true
+					}
+				}
+			}
+		})
+		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessages)
+		this.stateManager.state.claudeMessages = await this.stateManager.getSavedClaudeMessages()
 
 		const { response } = await this.ask("api_req_failed", { question: error.message })
 		if (response === "yesButtonTapped" || response === "messageResponse") {
@@ -609,5 +692,25 @@ export class TaskExecutor extends TaskExecutorUtils {
 		} else {
 			this.state = TaskState.COMPLETED
 		}
+	}
+
+	/**
+	 * @description corrects the user content to prevent any issues with the API.
+	 * @param content the content that will be sent to API as a USER message in the AI conversation
+	 * @returns fixed user content format to prevent any issues with the API
+	 */
+	private fixUserContent(content: UserContent): UserContent {
+		if (content.length === 0) {
+			return [{ type: "text", text: "The user didn't provide any content, please continue" }]
+		}
+		return content.map((item) => {
+			if (item.type === "text" && item.text.trim().length === 0) {
+				return { type: "text", text: "The user didn't provide any content, please continue" }
+			}
+			if (isTextBlock(item) && item.text.trim().length === 0) {
+				return { type: "text", text: "The user didn't provide any content, please continue" }
+			}
+			return item
+		})
 	}
 }

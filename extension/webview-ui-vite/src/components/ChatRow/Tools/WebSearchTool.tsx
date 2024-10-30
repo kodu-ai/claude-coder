@@ -84,7 +84,7 @@ export const EnhancedWebSearchBlock: React.FC<EnhancedWebSearchBlockProps> = ({
 		<ToolBlock
 			tool="web_search"
 			icon={Globe}
-			title={approvalState === "loading" ? `Web Search - ${currentStep}` : "Web Search"}
+			title={approvalState === "loading" ? `Web Search` : "Web Search"}
 			variant={approvalState === "approved" ? "success" : "info"}
 			approvalState={approvalState}
 			onApprove={onApprove}
@@ -92,7 +92,7 @@ export const EnhancedWebSearchBlock: React.FC<EnhancedWebSearchBlockProps> = ({
 			ts={ts}>
 			<div className="text-xs flex flex-col gap-2">
 				<p>
-					<span className="font-semibold">Search query:</span> "{searchQuery}
+					<span className="font-semibold">Search query:</span> "{searchQuery}"
 				</p>
 				{baseLink && (
 					<p>

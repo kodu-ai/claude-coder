@@ -1,6 +1,6 @@
 import React, { useRef, useLayoutEffect } from "react"
 import { useWindowSize } from "react-use"
-import ThumbnailItem from "./ThumbnailItem"
+import { ThumbnailItem } from "./ThumbnailItem"
 
 interface ThumbnailsProps {
 	images: string[]
@@ -21,6 +21,7 @@ const Thumbnails: React.FC<ThumbnailsProps> = ({ images, style, setImages, onHei
 			}
 			onHeightChange?.(height)
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [images, width])
 
 	const handleDelete = (index: number) => {

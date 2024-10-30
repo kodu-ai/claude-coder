@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { ChatState, ChatViewProps } from "./chat"
-import { useAtom } from "jotai"
-import { attachmentsAtom, syntaxHighlighterAtom } from "./atoms"
+import { useAtom, useSetAtom } from "jotai"
+import { attachmentsAtom, chatState, selectedImagesAtom, syntaxHighlighterAtom } from "./atoms"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import { useChatMessageHandling } from "@/hooks/use-message-handler"
 import { useImageHandling } from "@/hooks/use-image-handler"
 import { useMessageRunning } from "@/hooks/use-message-running"
+import { useSelectImages } from "@/hooks/use-select-images"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
 import { combineCommandSequences, COMMAND_STDIN_STRING } from "../../../../src/shared/combineCommandSequences"
 import { getApiMetrics } from "../../../../src/shared/getApiMetrics"
@@ -31,22 +32,17 @@ const ChatView: React.FC<ChatViewProps> = ({
 	showHistoryView,
 }) => {
 	const { openOutOfCreditDialog, shouldOpenOutOfCreditDialog } = useOutOfCreditDialog()
-	const [state, setState] = useState<ChatState>({
-		inputValue: "",
-		textAreaDisabled: false,
-		selectedImages: [],
-		thumbnailsHeight: 0,
-		claudeAsk: undefined,
-		enableButtons: false,
-		primaryButtonText: undefined,
-		secondaryButtonText: undefined,
-		expandedRows: {},
-		isAbortingRequest: false,
-	})
+	const [state, setState] = useAtom(chatState)
 
-	const updateState = useCallback((updates: Partial<ChatState>) => {
-		setState((prev) => ({ ...prev, ...updates }))
-	}, [])
+	const updateState = useCallback(
+		(updates: Partial<ChatState>) => {
+			setState((prev) => ({ ...prev, ...updates }))
+		},
+		[setState]
+	)
+
+	// Use the useSelectImages hook to handle image selection
+	useSelectImages()
 
 	const [attachments, setAttachments] = useAtom(attachmentsAtom)
 	const [syntaxHighlighterStyle, setSyntaxHighlighterStyle] = useAtom(syntaxHighlighterAtom)
@@ -64,8 +60,12 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	const handleClaudeAskResponse = useCallback(
 		(text: string) => {
-			// if (!state.claudeAsk) return // Early return if no ask
-
+			// reset the of the buttons
+			updateState({
+				primaryButtonText: undefined,
+				secondaryButtonText: undefined,
+				enableButtons: false,
+			})
 			vscode.postMessage({
 				type: "askResponse",
 				askResponse: "messageResponse",
@@ -73,19 +73,18 @@ const ChatView: React.FC<ChatViewProps> = ({
 				images: state.selectedImages,
 			})
 		},
-		[state]
+		[state.selectedImages, updateState]
 	)
 
-	// Batch button state updates in a transition
 	const updateButtonState = useCallback((updates: Partial<ChatState>) => {
 		startTransition(() => {
 			setState((prev) => {
-				// Only update if values changed
 				const shouldUpdate =
 					prev.enableButtons !== updates.enableButtons ||
 					prev.primaryButtonText !== updates.primaryButtonText ||
 					prev.secondaryButtonText !== updates.secondaryButtonText ||
-					prev.claudeAsk !== updates.claudeAsk
+					prev.claudeAsk !== updates.claudeAsk ||
+					prev.textAreaDisabled !== updates.textAreaDisabled
 
 				if (!shouldUpdate) return prev
 				return { ...prev, ...updates }
@@ -93,7 +92,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 		})
 	}, [])
 
-	// Message handling with deferred updates
 	const handleButtonStateUpdate = useCallback(
 		(updates: Partial<ChatState>) => {
 			startTransition(() => {
@@ -101,7 +99,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 					"enableButtons" in updates ||
 					"primaryButtonText" in updates ||
 					"secondaryButtonText" in updates ||
-					"claudeAsk" in updates
+					"claudeAsk" in updates ||
+					"textAreaDisabled" in updates
 				) {
 					updateButtonState(updates)
 				} else {
@@ -111,7 +110,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 		},
 		[updateButtonState]
 	)
-	useChatMessageHandling(messages, handleButtonStateUpdate, setAttachments)
 
 	const { shouldDisableImages, handlePaste } = useImageHandling(selectedModelSupportsImages, state, updateState)
 
@@ -120,25 +118,37 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const task = useMemo(() => (messages.length > 0 ? messages[0] : undefined), [messages])
 
 	useEffect(() => {
-		console.log("Task changed", task)
-		if (!task) {
-			// reset state when task is cleared
+		if (!task?.ts) {
 			updateState({
 				inputValue: "",
 				textAreaDisabled: false,
 				selectedImages: [],
 				claudeAsk: undefined,
 				enableButtons: false,
+				primaryButtonText: undefined,
+				secondaryButtonText: undefined,
 			})
 		}
-	}, [task])
+	}, [task?.ts])
 
 	const modifiedMessages = useMemo(() => combineApiRequests(combineCommandSequences(messages.slice(1))), [messages])
+	useChatMessageHandling(messages, handleButtonStateUpdate, setAttachments)
 
 	const apiMetrics = useMemo(() => getApiMetrics(modifiedMessages), [modifiedMessages])
 
 	const visibleMessages = useMemo(() => {
 		return modifiedMessages.filter((message) => {
+			if (
+				message.ask === "tool" &&
+				(message.text === "" || message.text === "{}" || !message.text?.includes('tool":'))
+			) {
+				console.log(
+					`message.text: ${message.text === ""} | message.text === "{}": ${
+						message.text === "{}"
+					} | !message.text?.includes("tool:"): ${!message.text?.includes('tool":')}`
+				)
+				return false
+			}
 			if (
 				(message.ask === "completion_result" && message.text === "") ||
 				["resume_task", "resume_completed_task"].includes(message.ask!)
@@ -196,13 +206,14 @@ const ChatView: React.FC<ChatViewProps> = ({
 						attachements: attachments,
 					})
 				}
-
 				updateState({
 					inputValue: "",
 					textAreaDisabled: true,
 					selectedImages: [],
 					claudeAsk: undefined,
 					enableButtons: false,
+					primaryButtonText: undefined,
+					secondaryButtonText: undefined,
 				})
 				setAttachments([])
 			}
@@ -229,8 +240,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 			case "command_output":
 			case "tool":
 			case "resume_task":
-				console.log("Primary button tapped")
-				vscode.postMessage({ type: "askResponse", askResponse: "yesButtonTapped", text: undefined })
+				vscode.postMessage({
+					type: "askResponse",
+					askResponse: "yesButtonTapped",
+					text: "Let's resume the task from where we left",
+				})
 				if (state.claudeAsk === "tool") {
 					return
 				}
@@ -273,29 +287,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 		})
 	}, [state.claudeAsk, updateState])
 
-	const handleSendStdin = useCallback(
-		(text: string) => {
-			if (state.claudeAsk === "command_output") {
-				vscode.postMessage({
-					type: "askResponse",
-					askResponse: "messageResponse",
-					text: COMMAND_STDIN_STRING + text,
-				})
-				updateState({ claudeAsk: undefined })
-			}
-		},
-		[state.claudeAsk, updateState]
-	)
-
 	return (
 		<div
-			className={`chat-container ${isHidden ? "hidden" : ""}`}
+			className={`h-full chat-container ${isHidden ? "hidden" : ""}`}
 			style={{
-				position: "fixed",
-				top: 0,
-				left: 0,
-				right: 0,
-				bottom: 0,
 				display: isHidden ? "none" : "flex",
 				flexDirection: "column",
 				overflow: "hidden",
@@ -312,6 +307,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 				{task ? (
 					<>
 						<TaskHeader
+							key={`header-${task.ts}`}
 							task={task}
 							tokensIn={apiMetrics.totalTokensIn}
 							tokensOut={apiMetrics.totalTokensOut}
@@ -325,10 +321,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 							vscodeUriScheme={uriScheme}
 						/>
 						<ChatMessages
+							key={`messages-${task.ts}`}
 							taskId={task.ts}
 							visibleMessages={visibleMessages}
 							syntaxHighlighterStyle={syntaxHighlighterStyle}
-							handleSendStdin={handleSendStdin}
 						/>
 					</>
 				) : (
@@ -349,7 +345,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 						/>
 					</>
 				)}
-
+			</div>
+			<div className="mb-0 mt-auto">
 				<ButtonSection
 					primaryButtonText={state.primaryButtonText}
 					secondaryButtonText={state.secondaryButtonText}
@@ -359,18 +356,16 @@ const ChatView: React.FC<ChatViewProps> = ({
 					handleSecondaryButtonClick={handleSecondaryButtonClick}
 				/>
 
-				<div className="mt-2 border-t">
-					<ChatInput
-						state={state}
-						updateState={updateState}
-						onSendMessage={handleSendMessage}
-						shouldDisableImages={shouldDisableImages}
-						handlePaste={handlePaste}
-						isRequestRunning={isMessageRunning}
-						isInTask={!!task}
-						isHidden={isHidden}
-					/>
-				</div>
+				<ChatInput
+					state={state}
+					updateState={updateState}
+					onSendMessage={handleSendMessage}
+					shouldDisableImages={shouldDisableImages}
+					handlePaste={handlePaste}
+					isRequestRunning={isMessageRunning}
+					isInTask={!!task}
+					isHidden={isHidden}
+				/>
 			</div>
 		</div>
 	)

@@ -68,6 +68,7 @@ export class ReadFileTool extends BaseAgentTool {
 				)
 
 				if (response === "messageResponse") {
+					await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 					return formatToolResponse(formatGenericToolFeedback(text), images)
 				}
 

@@ -15,7 +15,14 @@ export enum TaskState {
 }
 
 export class TaskError extends Error {
-	type: "API_ERROR" | "TOOL_ERROR" | "USER_ABORT" | "UNKNOWN_ERROR" | "UNAUTHORIZED" | "PAYMENT_REQUIRED"
+	type:
+		| "API_ERROR"
+		| "TOOL_ERROR"
+		| "USER_ABORT"
+		| "UNKNOWN_ERROR"
+		| "UNAUTHORIZED"
+		| "PAYMENT_REQUIRED"
+		| "NETWORK_ERROR"
 	constructor({
 		type,
 		message,
@@ -55,6 +62,22 @@ export abstract class TaskExecutorUtils {
 
 	public async updateAsk(type: ClaudeAsk, data: AskDetails, askTs: number): Promise<void> {
 		const { question, tool } = data
+		// check if there is an existing ask message with the same ts if not create a new one
+		if (!this.stateManager.getMessageById(askTs)) {
+			const askMessage: V1ClaudeMessage = {
+				ts: askTs,
+				type: "ask",
+				ask: type,
+				text: question ? question : tool ? JSON.stringify(tool) : "",
+				v: 1,
+				status: tool?.approvalState,
+				autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
+			}
+
+			await this.stateManager.addToClaudeMessages(askMessage)
+			await this.updateWebview()
+			return
+		}
 		const askMessage: V1ClaudeMessage = {
 			ts: askTs,
 			type: "ask",

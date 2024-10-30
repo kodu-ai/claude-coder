@@ -3,6 +3,7 @@ import pWaitFor from "p-wait-for"
 import stripAnsi from "strip-ansi"
 import * as vscode from "vscode"
 import { arePathsEqual } from "../../utils/path-helpers"
+import delay from "delay"
 
 /*
 TerminalManager:
@@ -73,6 +74,7 @@ export class TerminalRegistry {
 		const terminal = vscode.window.createTerminal({
 			cwd,
 			name: name || "Kodu.AI",
+			isTransient: true,
 		})
 		const newInfo: TerminalInfo = {
 			terminal,
@@ -301,6 +303,7 @@ export class TerminalManager {
 	): TerminalProcessResultPromise {
 		terminalInfo.busy = true
 		terminalInfo.lastCommand = command
+
 		const process = new TerminalProcess()
 		this.processes.set(terminalInfo.id, process)
 
@@ -326,12 +329,18 @@ export class TerminalManager {
 				reject(error)
 			})
 		})
+		if (!terminalInfo.terminal.shellIntegration) {
+			console.log("No shell integration")
+			process.emit("no_shell_integration")
+		}
 
 		if (terminalInfo.terminal.shellIntegration) {
 			process.waitForShellIntegration = false
+			// first run to make a new line needed for zsh to work correctly
+			process.run(terminalInfo.terminal, "echo ''", terminalInfo.id)
 			process.run(terminalInfo.terminal, command, terminalInfo.id)
 		} else {
-			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 15_000 }).finally(() => {
+			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 10_000 }).finally(() => {
 				const existingProcess = this.processes.get(terminalInfo.id)
 				if (existingProcess && existingProcess.waitForShellIntegration) {
 					existingProcess.waitForShellIntegration = false
@@ -383,29 +392,29 @@ export class TerminalManager {
 			.map((t) => ({ id: t.id, name: t.name, lastCommand: t.lastCommand }))
 	}
 
-	getUnretrievedOutput(terminalId: number, updateRetrievedIndex: boolean = true): string {
-		if (!this.terminalIds.has(terminalId)) {
-			return ""
-		}
-		const process = this.processes.get(terminalId)
-		return process ? process.getUnretrievedOutput(updateRetrievedIndex) : ""
-	}
+	// getUnretrievedOutput(terminalId: number, updateRetrievedIndex: boolean = true): string {
+	// 	if (!this.terminalIds.has(terminalId)) {
+	// 		return ""
+	// 	}
+	// 	const process = this.processes.get(terminalId)
+	// 	return process ? process.getUnretrievedOutput(updateRetrievedIndex) : ""
+	// }
 
-	getPartialOutput(terminalId: number, fromLineIndex: number, toLineIndex?: number): string {
-		if (!this.terminalIds.has(terminalId)) {
-			return ""
-		}
-		const process = this.processes.get(terminalId)
-		return process ? process.getOutput(fromLineIndex, toLineIndex).join("\n") : ""
-	}
+	// getPartialOutput(terminalId: number, fromLineIndex: number, toLineIndex?: number): string {
+	// 	if (!this.terminalIds.has(terminalId)) {
+	// 		return ""
+	// 	}
+	// 	const process = this.processes.get(terminalId)
+	// 	return process ? process.getOutput(fromLineIndex, toLineIndex).join("\n") : ""
+	// }
 
-	getFullOutput(terminalId: number): string {
-		if (!this.terminalIds.has(terminalId)) {
-			return ""
-		}
-		const process = this.processes.get(terminalId)
-		return process ? process.getFullOutput().join("\n") : ""
-	}
+	// getFullOutput(terminalId: number): string {
+	// 	if (!this.terminalIds.has(terminalId)) {
+	// 		return ""
+	// 	}
+	// 	const process = this.processes.get(terminalId)
+	// 	return process ? process.getFullOutput().join("\n") : ""
+	// }
 
 	isProcessHot(terminalId: number): boolean {
 		const process = this.processes.get(terminalId)
@@ -473,6 +482,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 	isHot: boolean = false
 	private outputQueue: string[] = []
 	private processingOutput: boolean = false
+	private hotTimer: NodeJS.Timeout | null = null
 
 	async run(terminal: vscode.Terminal, command: string, terminalId: number) {
 		this.isHot = true
@@ -484,18 +494,62 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 				let didEmitEmptyLine = false
 
 				for await (let data of stream) {
-					data = this.cleanDataChunk(data)
-					if (!data.trim()) {
-						continue
+					if (isFirstChunk) {
+						const outputBetweenSequences = data.match(/\]633;C([\s\S]*?)\]633;D/)?.[1] || ""
+						const vscodeSequenceRegex = /\x1b\]633;.[^\x07]*\x07/g
+						const lastMatch = [...data.matchAll(vscodeSequenceRegex)].pop()
+						if (lastMatch?.index !== undefined) {
+							data = data.slice(lastMatch.index + lastMatch[0].length)
+						}
+						if (outputBetweenSequences.trim()) {
+							data = outputBetweenSequences + "\n" + data
+						}
+						// }
+						data = stripAnsi(data)
+						// let lines = data.split("\n")
+						// if (lines.length > 0) {
+						// 	lines[0] = lines[0].replace(/[^\x20-\x7E]/g, "")
+						// 	if (lines[0].length >= 2 && lines[0][0] === lines[0][1]) {
+						// 		lines[0] = lines[0].slice(1)
+						// 	}
+						// 	lines[0] = lines[0].replace(/^[^a-zA-Z0-9]*/, "")
+						// }
+						// data = lines.join("\n")
+					} else {
+						// data = stripAnsi(data)
 					}
 
-					await this.processDataChunk(data, command, isFirstChunk, terminalId)
-					isFirstChunk = false
+					if (!data.trim()) continue
 
-					if (!didEmitEmptyLine && this.fullOutput.length === 0) {
+					// Remove command echo
+					const lines = data.split("\n")
+					const filteredLines = lines.filter((line) => !command.includes(line.trim()))
+					data = filteredLines.join("\n")
+
+					// Handle hot state
+					this.isHot = true
+					if (this.hotTimer) clearTimeout(this.hotTimer)
+
+					const compilingMarkers = ["compiling", "building", "bundling"]
+					const markerNullifiers = ["compiled", "success", "finish"]
+					const isCompiling =
+						compilingMarkers.some((m) => data.toLowerCase().includes(m)) &&
+						!markerNullifiers.some((n) => data.toLowerCase().includes(n))
+
+					this.hotTimer = setTimeout(
+						() => {
+							this.isHot = false
+						},
+						isCompiling ? 15000 : 2000
+					)
+
+					if (!didEmitEmptyLine && this.fullOutput.length === 0 && data) {
 						await this.queueOutput("", terminalId)
 						didEmitEmptyLine = true
 					}
+
+					await this.emitIfEol(data, terminalId)
+					isFirstChunk = false
 				}
 
 				await this.processOutputQueue(terminalId)
@@ -519,23 +573,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 		}
 	}
 
-	private cleanDataChunk(data: string): string {
-		data = data.replace(/\x1b\]633;.*?\x07/g, "")
-		return stripAnsi(data)
-	}
-
-	private async processDataChunk(data: string, command: string, isFirstChunk: boolean, terminalId: number) {
-		if (isFirstChunk) {
-			const lines = data.split("\n")
-			const commandIndex = lines.findIndex((line) => line.trim() === command.trim())
-			if (commandIndex !== -1) {
-				lines.splice(commandIndex, 1)
-			}
-			data = lines.join("\n")
-		}
-		await this.emitIfEol(data, terminalId)
-	}
-
+	// Rest of your existing methods remain the same
 	private async queueOutput(line: string, terminalId: number) {
 		this.outputQueue.push(line)
 		await this.processOutputQueue(terminalId)
@@ -553,7 +591,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 				this.emit("line", line)
 				this.fullOutput.push(line)
 				TerminalRegistry.addOutput(terminalId, line + "\n")
-				await new Promise((resolve) => setTimeout(resolve, 0)) // Allow other events to process
+				await new Promise((resolve) => setTimeout(resolve, 0))
 			}
 		} finally {
 			this.processingOutput = false
@@ -578,29 +616,6 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 			}
 			this.buffer = ""
 		}
-	}
-
-	continue() {
-		this.emitRemainingBufferIfListening(-1)
-		this.isListening = false
-		this.removeAllListeners("line")
-		this.emit("continue")
-	}
-
-	getUnretrievedOutput(updateRetrievedIndex: boolean = true): string {
-		const unretrievedLines = this.fullOutput.slice(this.lastRetrievedLineIndex)
-		if (updateRetrievedIndex) {
-			this.lastRetrievedLineIndex = this.fullOutput.length
-		}
-		return unretrievedLines.join("\n")
-	}
-
-	getOutput(fromLineIndex: number = 0, toLineIndex?: number): string[] {
-		return this.fullOutput.slice(fromLineIndex, toLineIndex)
-	}
-
-	getFullOutput(): string[] {
-		return this.fullOutput.slice()
 	}
 }
 

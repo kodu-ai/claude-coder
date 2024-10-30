@@ -11,6 +11,7 @@ import * as diff from "diff"
 import { arePathsEqual } from "../../utils/path-helpers"
 import { KoduDev } from "../../agent/v1"
 import delay from "delay"
+import pWaitFor from "p-wait-for"
 
 export const DIFF_VIEW_URI_SCHEME = "claude-coder-diff"
 export const MODIFIED_URI_SCHEME = "claude-coder-modified"
@@ -41,7 +42,9 @@ class ModifiedContentProvider implements vscode.FileSystemProvider {
 
 	readFile(uri: vscode.Uri): Uint8Array {
 		const data = this.content.get(uri.toString())
-		if (!data) throw vscode.FileSystemError.FileNotFound(uri)
+		if (!data) {
+			throw vscode.FileSystemError.FileNotFound(uri)
+		}
 		return data
 	}
 
@@ -76,7 +79,7 @@ export class DiffViewProvider {
 	private lastUserInteraction: number = 0
 	private static readonly SCROLL_THROTTLE = 100 // ms
 	private static readonly USER_INTERACTION_TIMEOUT = 1000 // ms
-	private static readonly SCROLL_THRESHOLD = 5 // lines from bottom to re-enable auto-scroll
+	private static readonly SCROLL_THRESHOLD = 10 // lines from bottom to re-enable auto-scroll
 	private static modifiedContentProvider: ModifiedContentProvider
 	private disposables: vscode.Disposable[] = []
 
@@ -85,7 +88,16 @@ export class DiffViewProvider {
 
 		if (!DiffViewProvider.modifiedContentProvider) {
 			DiffViewProvider.modifiedContentProvider = new ModifiedContentProvider()
-			vscode.workspace.registerFileSystemProvider(MODIFIED_URI_SCHEME, DiffViewProvider.modifiedContentProvider)
+			try {
+				vscode.workspace.registerFileSystemProvider(
+					MODIFIED_URI_SCHEME,
+					DiffViewProvider.modifiedContentProvider
+				)
+			} catch (e) {
+				this.logger(`Failed to register file system provider: ${e}`, "error")
+				// critical error - should never happen
+				throw e
+			}
 		}
 	}
 
@@ -93,8 +105,6 @@ export class DiffViewProvider {
 		if (this.diffEditor) {
 			return
 		}
-		// close all open diff editors
-		await this.closeAllDiffViews()
 		this.isEditing = true
 		this.relPath = relPath
 		this.isAutoScrollEnabled = true
@@ -103,6 +113,7 @@ export class DiffViewProvider {
 		try {
 			this.originalContent = await fs.readFile(absolutePath, "utf-8")
 		} catch (error) {
+			this.logger(`Failed to read file: ${error}`, "error")
 			this.originalContent = ""
 		}
 
@@ -111,10 +122,14 @@ export class DiffViewProvider {
 	}
 
 	private checkScrollPosition(): boolean {
-		if (!this.diffEditor) return false
+		if (!this.diffEditor) {
+			return false
+		}
 
 		const visibleRanges = this.diffEditor.visibleRanges
-		if (visibleRanges.length === 0) return false
+		if (visibleRanges.length === 0) {
+			return false
+		}
 
 		const lastVisibleLine = visibleRanges[visibleRanges.length - 1].end.line
 		const totalLines = this.diffEditor.document.lineCount
@@ -161,38 +176,54 @@ export class DiffViewProvider {
 	}
 
 	private async openDiffEditor(relPath: string): Promise<void> {
-		await this.closeAllDiffViews()
 		const fileName = path.basename(relPath)
 
+		// Create original content URI
 		this.originalUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${fileName}`).with({
 			query: Buffer.from(this.originalContent).toString("base64"),
 		})
 
+		// Create modified content URI (initially empty)
 		this.modifiedUri = vscode.Uri.parse(`${MODIFIED_URI_SCHEME}:/${fileName}`)
 		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(""), {
 			create: true,
 			overwrite: true,
 		})
 
+		// Open diff editor with original and modified content
 		await vscode.commands.executeCommand(
 			"vscode.diff",
 			this.originalUri,
 			this.modifiedUri,
 			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Editable)`
 		)
-		const editor = vscode.window.activeTextEditor
+		await pWaitFor(
+			() =>
+				vscode.window.visibleTextEditors.some(
+					(e) => e.document.uri.toString() === this.modifiedUri!.toString()
+				),
+			{
+				interval: 20,
+				timeout: 300,
+			}
+		)
+		const editor = vscode.window.visibleTextEditors.find(
+			(e) => e.document.uri.toString() === this.modifiedUri!.toString()
+		)
+
 		if (editor && editor.document.uri.toString() === this.modifiedUri.toString()) {
 			this.diffEditor = editor
 		} else {
-			throw new Error("Failed to open diff editor")
+			this.logger("<openDiffEditor>: Failed to open diff editor", "error")
+			return
+			// throw new Error("Failed to open diff editor")
 		}
 	}
 
 	public async update(accumulatedContent: string, isFinal: boolean): Promise<void> {
 		if (!this.diffEditor || !this.modifiedUri) {
-			console.warn("Diff editor not initialized")
+			this.logger("<update>: Diff editor not initialized", "error")
 			return
-			throw new Error("Diff editor not initialized")
 		}
 
 		if (isFinal) {
@@ -216,6 +247,7 @@ export class DiffViewProvider {
 
 	private async applyUpdate(content: string): Promise<void> {
 		if (!this.diffEditor || !this.modifiedUri) {
+			this.logger("<applyUpdate>: Diff editor not initialized", "error")
 			return
 		}
 
@@ -238,7 +270,9 @@ export class DiffViewProvider {
 	}
 
 	private async scrollToBottom(): Promise<void> {
-		if (!this.diffEditor) return
+		if (!this.diffEditor) {
+			return
+		}
 
 		const lastLine = this.diffEditor.document.lineCount - 1
 		const lastCharacter = this.diffEditor.document.lineAt(lastLine).text.length
@@ -253,6 +287,7 @@ export class DiffViewProvider {
 			return
 		}
 
+		// do one last update to ensure the final content is displayed in the diff editor
 		await this.applyUpdate(this.streamedContent)
 		this.lastEditPosition = new vscode.Position(this.diffEditor.document.lineCount - 1, 0)
 		if (this.isAutoScrollEnabled) {
@@ -268,6 +303,7 @@ export class DiffViewProvider {
 		this.disposables.forEach((d) => d.dispose())
 		await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
 
+		// if the file was new and not saved, delete it
 		if (this.originalContent === "") {
 			const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
 			try {
@@ -303,30 +339,6 @@ export class DiffViewProvider {
 		this.lastUserInteraction = 0
 	}
 
-	public async acceptChanges(): Promise<void> {
-		if (!this.relPath) {
-			throw new Error("No file path set")
-		}
-		if (!this.diffEditor) {
-			console.warn("Diff editor not initialized")
-			await this.open(this.relPath!)
-		}
-
-		const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
-		await createDirectoriesForFile(uri.fsPath)
-		await vscode.workspace.fs.writeFile(uri, Buffer.from(this.streamedContent))
-
-		// Emit file change event to update timeline
-		if (DiffViewProvider.modifiedContentProvider) {
-			// @ts-expect-error - this not typed in vscode
-			DiffViewProvider.modifiedContentProvider._emitter.fire([{ type: vscode.FileChangeType.Changed, uri }])
-		}
-
-		this.isEditing = false
-		this.disposables.forEach((d) => d.dispose())
-		await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
-	}
-
 	public async saveChanges(): Promise<{ userEdits: string | undefined }> {
 		try {
 			if (!this.relPath) {
@@ -338,6 +350,7 @@ export class DiffViewProvider {
 			}
 
 			const updatedDocument = this.diffEditor.document
+
 			const editedContent = updatedDocument.getText()
 
 			const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
@@ -347,29 +360,17 @@ export class DiffViewProvider {
 
 			// Write file with error handling
 			try {
+				// before writing to file make sure it's not dirty
+				const doc = await vscode.workspace.openTextDocument(uri)
+				if (doc.isDirty) {
+					await doc.save()
+				}
+				// update the file with the edited content
 				await vscode.workspace.fs.writeFile(uri, Buffer.from(editedContent))
+				// we save the file after writing to it
+				await doc.save()
 			} catch (error) {
 				throw new Error(`Failed to write file: ${error instanceof Error ? error.message : String(error)}`)
-			}
-
-			// Try to open the file in editor if it's not visible
-			if (
-				!vscode.window.visibleTextEditors.some((editor) =>
-					arePathsEqual(editor.document.uri.fsPath, uri.fsPath)
-				)
-			) {
-				try {
-					const document = await vscode.workspace.openTextDocument(uri)
-					// save it to the editor
-					await document.save()
-					// if this is a new file, we need to
-					// save it to the workspace timeline
-					await vscode.window.showTextDocument(document, { preview: false })
-					await vscode.workspace.save(document.uri)
-				} catch (error) {
-					console.warn("Could not open saved file in editor:", error)
-					// Non-critical error, continue execution
-				}
 			}
 
 			// Close diff views
@@ -390,6 +391,7 @@ export class DiffViewProvider {
 
 			return { userEdits: undefined }
 		} catch (error) {
+			this.logger(`Failed to save changes: ${error}`, "error")
 			// Throw a more descriptive error
 			throw new Error(`Failed to save changes: ${error instanceof Error ? error.message : String(error)}`)
 		}
@@ -419,5 +421,9 @@ export class DiffViewProvider {
 				await vscode.window.tabGroups.close(tab)
 			}
 		}
+	}
+
+	private logger(message: string, level: "info" | "warn" | "error" = "info") {
+		console[level](`[DiffViewProvider] ${message}`)
 	}
 }

@@ -53,6 +53,7 @@ export class WebSearchTool extends BaseAgentTool {
 						baseLink,
 						approvalState: "rejected",
 						ts: this.ts,
+						userFeedback: text,
 					},
 				},
 				this.ts

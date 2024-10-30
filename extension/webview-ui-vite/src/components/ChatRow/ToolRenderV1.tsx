@@ -26,7 +26,7 @@ import {
 	Terminal,
 	XCircle,
 } from "lucide-react"
-import React, { useEffect, useRef, useState } from "react"
+import React, { memo, useEffect, useRef, useState } from "react"
 import {
 	AskConsultantTool,
 	AskFollowupQuestionTool,
@@ -69,84 +69,15 @@ type ToolBlockProps = {
 	variant: "default" | "primary" | "info" | "accent" | "info" | "success" | "info" | "destructive"
 } & ToolAddons
 
-const AnimatedButtonText: React.FC<{
-	feedback: string
-	onClick: () => void
-}> = ({ feedback, onClick }) => {
-	return (
-		<div className="relative flex justify-end">
-			<Button variant="outline" size="sm" onClick={onClick} className="relative overflow-hidden min-w-[160px]">
-				<AnimatePresence mode="wait">
-					<motion.span
-						key={feedback.length > 0 ? "with-feedback" : "without-feedback"}
-						initial={{
-							position: "absolute",
-							opacity: 0,
-							x: 5,
-						}}
-						animate={{
-							position: "relative",
-							opacity: 1,
-							x: 0,
-						}}
-						exit={{
-							position: "absolute",
-							opacity: 0,
-							x: -5,
-						}}
-						transition={{
-							duration: 0.15,
-							ease: "easeOut",
-						}}
-						className="block whitespace-nowrap">
-						{feedback.length > 0 ? "Reject with feedback" : "Reject without feedback"}
-					</motion.span>
-				</AnimatePresence>
-			</Button>
-		</div>
-	)
-}
-
-const currentRejectAtom = atom<{
-	id: number | undefined
-	feedback: string
-	showFeedback: boolean
-}>({
-	id: undefined,
-	feedback: "",
-	showFeedback: false,
-})
-
-const feedbackAtom = atom(
-	(get) => get(currentRejectAtom).feedback,
-	(get, set, newFeedback: string) => {
-		const current = get(currentRejectAtom)
-		set(currentRejectAtom, {
-			...current,
-			feedback: newFeedback,
-		})
-	}
-)
-
 export const ToolBlock: React.FC<ToolBlockProps> = ({
 	icon: Icon,
 	title,
-	ts,
-	tool,
 	children,
 	variant,
 	isSubMsg,
 	approvalState,
-	onApprove,
-	onReject,
 	userFeedback,
 }) => {
-	const [currentReject, setCurrentReject] = useAtom(currentRejectAtom)
-	const textAreaRef = useRef<HTMLTextAreaElement>(null)
-	const [feedback, setFeedback] = useAtom(feedbackAtom)
-	const buttonContainerRef = useRef<HTMLDivElement>(null)
-	const showFeedback = currentReject.id === ts && currentReject.showFeedback
-
 	variant =
 		approvalState === "loading"
 			? "info"
@@ -163,33 +94,7 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 		loading: <LoaderPinwheel className="w-5 h-5 text-info animate-spin" />,
 		feedback: <MessageCircleReply className="w-5 h-5 text-destructive" />,
 	}
-	const avoidRenderingApprovalTools: ChatTool["tool"][] = ["ask_followup_question"]
 
-	const handleReject = () => {
-		if (onReject) {
-			onReject(feedback)
-		}
-		setCurrentReject({ id: ts, showFeedback: true, feedback: "" })
-	}
-	useEffect(() => {
-		if (showFeedback) {
-			// Small delay to ensure animation has started
-			const timer = setTimeout(() => {
-				if (textAreaRef.current) {
-					textAreaRef.current.focus()
-				}
-				if (buttonContainerRef.current) {
-					// margin-top of 2
-					buttonContainerRef.current.scrollIntoView({
-						behavior: "smooth",
-						block: "end",
-					})
-				}
-			}, 100) // Adjust timeout as needed
-
-			return () => clearTimeout(timer)
-		}
-	}, [showFeedback])
 	if (!approvalState) {
 		return null
 	}
@@ -225,61 +130,6 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 				)}
 			</div>
 			<div className="text-sm">{children}</div>
-			{/** 
-			approvalState === "pending" && !avoidRenderingApprovalTools.includes(tool) && (
-				<div className="mt-2">
-					<AnimatePresence mode="wait">
-						{!showFeedback ? (
-							<motion.div
-								initial={{ opacity: 0 }}
-								animate={{ opacity: 1 }}
-								exit={{ opacity: 0 }}
-								className="flex justify-end space-x-1">
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => setCurrentReject({ id: ts, showFeedback: true, feedback: "" })}>
-									Deny
-								</Button>
-								<Button variant="outline" size="sm" onClick={onApprove}>
-									Accept
-								</Button>
-							</motion.div>
-						) : (
-							<motion.div
-								initial={{ opacity: 0, height: 0 }}
-								animate={{ opacity: 1, height: "auto" }}
-								exit={{ opacity: 0, height: 0 }}
-								className="space-y-2">
-								<Textarea
-									ref={textAreaRef}
-									value={feedback}
-									onChange={(e) => setFeedback(e.target.value)}
-									placeholder="Why are you denying this action? Your feedback helps improve future recommendations."
-									className="w-full resize-none"
-									rows={3}
-								/>
-								<div className="flex justify-end space-x-1">
-									<AnimatedButtonText onClick={handleReject} feedback={feedback} />
-								</div>
-								<div ref={buttonContainerRef} className="h-2 w-0" />
-							</motion.div>
-						)}
-					</AnimatePresence>
-				</div>
-			)*/}
-
-			{userFeedback && (
-				<motion.div
-					initial={{ opacity: 0, height: 0 }}
-					animate={{ opacity: 1, height: "auto" }}
-					exit={{ opacity: 0, height: 0 }}
-					className="overflow-hidden">
-					<div className="mt-3 pt-3 border-t border-border">
-						<p className="text-sm text-muted-foreground">{userFeedback}</p>
-					</div>
-				</motion.div>
-			)}
 		</div>
 	)
 }
@@ -585,93 +435,100 @@ const textVariants = {
 	visible: { opacity: 1, y: 0 },
 }
 
-export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = ({
-	path,
-	content,
-	approvalState,
-	onApprove,
-	onReject,
-	tool,
-	ts,
-	...rest
-}) => {
-	content = content ?? ""
-	const [visibleContent, setVisibleContent] = useState<string[]>([])
-	const [totalLines, setTotalLines] = useState(0)
-	const isStreaming = approvalState === "loading"
-	const scrollAreaRef = useRef<HTMLDivElement>(null)
-	const lastChunkRef = useRef<HTMLPreElement>(null)
-	const animationCompleteCountRef = useRef(0)
+export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
+	({ path, content, approvalState, onApprove, onReject, tool, ts, ...rest }) => {
+		content = content ?? ""
+		const [visibleContent, setVisibleContent] = useState<string[]>([])
+		const [totalLines, setTotalLines] = useState(0)
+		const isStreaming = approvalState === "loading"
+		const scrollAreaRef = useRef<HTMLDivElement>(null)
+		const lastChunkRef = useRef<HTMLPreElement>(null)
+		const animationCompleteCountRef = useRef(0)
 
-	useEffect(() => {
-		const text = content ?? ""
-		setTotalLines(text.split("\n").length)
+		useEffect(() => {
+			const text = content ?? ""
+			setTotalLines(text.split("\n").length)
 
-		if (isStreaming) {
-			const chunks = text.match(new RegExp(`.{1,${CHUNK_SIZE * 2}}`, "g")) || []
-			setVisibleContent(chunks)
-		} else {
-			setVisibleContent([text])
-		}
+			if (isStreaming) {
+				const chunks = text.match(new RegExp(`.{1,${CHUNK_SIZE * 2}}`, "g")) || []
+				setVisibleContent(chunks)
+			} else {
+				setVisibleContent([text])
+			}
 
-		// Reset the animation complete count when content changes
-		animationCompleteCountRef.current = 0
-	}, [content, isStreaming])
+			// Reset the animation complete count when content changes
+			animationCompleteCountRef.current = 0
+		}, [content, isStreaming])
 
-	return (
-		<ToolBlock
-			{...rest}
-			ts={ts}
-			tool={tool}
-			icon={Edit}
-			title="Write to File"
-			variant="info"
-			approvalState={approvalState}
-			onApprove={onApprove}
-			onReject={onReject}>
-			<p className="text-xs mb-1">
-				<span className="font-semibold">File:</span> {path}
-			</p>
-			<ScrollArea viewProps={{ ref: scrollAreaRef }} className="h-24 rounded border bg-background p-2">
-				<ScrollBar orientation="vertical" />
-				<ScrollBar orientation="horizontal" />
-				<div className="relative">
-					{isStreaming && (
-						<motion.div
-							className="sticky left-0 top-0 w-full h-1 bg-primary"
-							initial={{ scaleX: 0 }}
-							animate={{ scaleX: 1 }}
-							transition={{
-								repeat: Infinity,
-								duration: 2,
-								ease: "linear",
-							}}
-						/>
-					)}
-					<AnimatePresence>
-						{visibleContent.map((chunk, index) => (
-							<motion.pre
-								key={index}
-								ref={index === visibleContent.length - 1 ? lastChunkRef : null}
-								variants={textVariants}
-								initial="hidden"
-								animate="visible"
-								transition={{ duration: 0.3, delay: index * 0.03 }}
-								className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
-								{index === 0 ? chunk.trim() : chunk}
-							</motion.pre>
-						))}
-					</AnimatePresence>
+		return (
+			<ToolBlock
+				{...rest}
+				ts={ts}
+				tool={tool}
+				icon={Edit}
+				title="Write to File"
+				variant="info"
+				approvalState={approvalState}
+				onApprove={onApprove}
+				onReject={onReject}>
+				<p className="text-xs mb-1">
+					<span className="font-semibold">File:</span> {path}
+				</p>
+				<ScrollArea viewProps={{ ref: scrollAreaRef }} className="h-24 rounded border bg-background p-2">
+					<ScrollBar orientation="vertical" />
+					<ScrollBar orientation="horizontal" />
+					<div className="relative">
+						{isStreaming && (
+							<motion.div
+								className="sticky left-0 top-0 w-full h-1 bg-primary"
+								initial={{ scaleX: 0 }}
+								animate={{ scaleX: 1 }}
+								transition={{
+									repeat: Infinity,
+									duration: 2,
+									ease: "linear",
+								}}
+							/>
+						)}
+						{!isStreaming ? (
+							<pre className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
+								{content?.trim() ?? ""}
+							</pre>
+						) : (
+							<AnimatePresence>
+								{visibleContent.map((chunk, index) => (
+									<motion.pre
+										key={index}
+										ref={index === visibleContent.length - 1 ? lastChunkRef : null}
+										variants={textVariants}
+										initial="hidden"
+										animate="visible"
+										transition={{ duration: 0.3, delay: index * 0.03 }}
+										className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
+										{index === 0 ? chunk.trim() : chunk}
+									</motion.pre>
+								))}
+							</AnimatePresence>
+						)}
+					</div>
+				</ScrollArea>
+				<div className="mt-2 flex justify-between items-center">
+					<span className="text-xs text-muted-foreground">
+						{isStreaming ? "Streaming..." : `Completed: ${totalLines} lines written`}
+					</span>
 				</div>
-			</ScrollArea>
-			<div className="mt-2 flex justify-between items-center">
-				<span className="text-xs text-muted-foreground">
-					{isStreaming ? "Streaming..." : `Completed: ${totalLines} lines written`}
-				</span>
-			</div>
-		</ToolBlock>
-	)
-}
+			</ToolBlock>
+		)
+	},
+	(prevProps, nextProps) => {
+		return (
+			prevProps.approvalState === nextProps.approvalState &&
+			prevProps.content === nextProps.content &&
+			prevProps.ts === nextProps.ts &&
+			prevProps.path === nextProps.path
+		)
+	}
+)
 export const AskFollowupQuestionBlock: React.FC<AskFollowupQuestionTool & ToolAddons> = ({
 	question,
 	approvalState,

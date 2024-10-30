@@ -44,14 +44,6 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		return this.executeShellTerminal(command)
 	}
 
-	private cleanOutput(output: string): string {
-		return output
-			.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "") // ANSI escape sequences
-			.replace(/\x1b\]633;.*?\x07/g, "") // Terminal integration sequences
-			.replace(/\r/g, "") // Carriage returns
-			.trim()
-	}
-
 	private isApprovedState(state: EarlyExitState): state is "approved" {
 		return state === "approved"
 	}
@@ -96,7 +88,6 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			)
 
 			if (response === "messageResponse" && !this.alwaysAllowWriteOnly) {
-				// await say("user_feedback", text, images)
 				await this.params.updateAsk(
 					"tool",
 					{
@@ -111,6 +102,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					},
 					this.ts
 				)
+				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 				return this.formatToolResponseWithImages(await this.formatToolDeniedFeedback(text), images)
 			}
 			return await this.formatToolDenied()
@@ -131,27 +123,14 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			this.ts
 		)
 
-		let retryCount = 0
 		let process: TerminalProcessResultPromise | null = null
 
-		while (retryCount < MAX_RETRIES) {
-			try {
-				const terminalInfo = await terminalManager.getOrCreateTerminal(this.cwd)
-				terminalInfo.terminal.show()
+		const terminalInfo = await terminalManager.getOrCreateTerminal(this.cwd)
+		terminalInfo.terminal.show()
 
-				process = terminalManager.runCommand(terminalInfo, command, {
-					autoClose: this.koduDev.getStateManager().autoCloseTerminal ?? false,
-				})
-
-				break
-			} catch (error) {
-				retryCount++
-				if (retryCount === MAX_RETRIES) {
-					throw error
-				}
-				await delay(1000 * retryCount) // Exponential backoff
-			}
-		}
+		process = terminalManager.runCommand(terminalInfo, command, {
+			autoClose: this.koduDev.getStateManager().autoCloseTerminal ?? false,
+		})
 
 		if (!process) {
 			throw new Error("Failed to create terminal process after retries")
@@ -162,7 +141,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		let earlyExit: EarlyExitState = "pending"
 
 		process.on("line", async (line) => {
-			const cleanedLine = this.cleanOutput(line)
+			const cleanedLine = line
 			if (cleanedLine) {
 				this.output += cleanedLine + "\n"
 				if (!didContinue || this.isApprovedState(earlyExit)) {
@@ -190,9 +169,16 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		})
 
 		let completed = false
-		process.once("completed", () => {
-			earlyExit = "approved"
-			completed = true
+		const completionPromise = new Promise<void>((resolve) => {
+			process!.once("completed", () => {
+				earlyExit = "approved"
+				completed = true
+				resolve()
+			})
+		})
+
+		process.on("error", async (error) => {
+			console.log(`Error in process: ${error}`)
 		})
 
 		process.once("no_shell_integration", async () => {
@@ -202,27 +188,19 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			)
 		})
 
-		let earlyExitPromise = delay(COMMAND_TIMEOUT)
-		if (!this.alwaysAllowWriteOnly) {
-			earlyExitPromise = this.params.updateAsk(
-				"tool",
-				{
-					tool: {
-						tool: "execute_command",
-						command,
-						approvalState: "loading",
-						ts: this.ts,
-						earlyExit,
-						isSubMsg: this.params.isSubMsg,
-					},
-				},
-				this.ts
-			)
-		}
-
 		try {
-			await Promise.race([earlyExitPromise, process])
-			// await delay(300) // Small delay to ensure final output is captured
+			// Wait for either completion or timeout
+			await Promise.race([
+				completionPromise,
+				delay(COMMAND_TIMEOUT).then(() => {
+					if (!completed) {
+						console.log("Command timed out after", COMMAND_TIMEOUT, "ms")
+					}
+				}),
+			])
+
+			// Ensure all output is processed
+			await delay(300)
 
 			await updateAsk(
 				"tool",
@@ -241,13 +219,12 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			)
 
 			let toolRes = "The command has been executed."
-			if (this.isApprovedState(earlyExit) && completed) {
+			if (completed) {
 				toolRes = "Command execution completed successfully."
 			}
 
 			if ((userFeedback?.text && userFeedback.text.length) || userFeedback?.images?.length) {
 				toolRes += `\n\nUser feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
-				// await say("user_feedback", userFeedback.text, userFeedback.images)
 				await this.params.updateAsk(
 					"tool",
 					{

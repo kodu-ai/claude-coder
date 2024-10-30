@@ -279,8 +279,8 @@ const ChatScreen: React.FC<{
 				projectType={projectType ?? "landingPage"}
 				onPreFill={(text) => console.log("Pre-filled text:", text)}
 			/> */}
-			<div className="flex flex-col items-center justify-start h-[calc(100%_-_24px)] p-2 sm:p-4 mb-auto mt-2 relative">
-				<Card className="w-full max-w-screen-lg border-0 border-unset bg-transparent">
+			<div className="flex flex-col items-center justify-start pb-0 mb-0 p-2 sm:p-4 relative h-full">
+				<Card className="w-full max-w-screen-lg border-0 border-unset bg-transparent flex-grow overflow-auto">
 					<CardHeader>
 						<CardTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-center">
 							<motion.div
@@ -311,7 +311,7 @@ const ChatScreen: React.FC<{
 								initial="hidden"
 								animate="visible"
 								exit="exit"
-								className={showHistory ? "" : "grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4"}>
+								className={showHistory ? "" : "grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 "}>
 								{showHistory
 									? taskHistory
 									: quickStartOptions.map((option, index) => (
@@ -336,22 +336,6 @@ const ChatScreen: React.FC<{
 						</AnimatePresence>
 					</CardContent>
 				</Card>
-				{/* <AnimatePresence>
-					<motion.div
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: 20 }}
-						transition={{ duration: 0.3 }}
-						className="sticky bottom-2 mr-auto">
-						<Button
-							onClick={() => setShowHistory(false)}
-							variant="outline"
-							size="sm"
-							className="w-fit flex items-center justify-center">
-							<ArrowLeft className="w-4 h-4 mr-2" /> Back
-						</Button>
-					</motion.div>
-				</AnimatePresence> */}
 			</div>
 		</>
 	)

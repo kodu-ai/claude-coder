@@ -13,7 +13,7 @@ export class WriteFileTool extends BaseAgentTool {
 	public diffViewProvider: DiffViewProvider
 	private isProcessingFinalContent: boolean = false
 	private lastUpdateTime: number = 0
-	private readonly UPDATE_INTERVAL = 33 // Approximately 60 FPS
+	private readonly UPDATE_INTERVAL = 8
 	private skipWriteAnimation: boolean = false
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
@@ -26,30 +26,42 @@ export class WriteFileTool extends BaseAgentTool {
 	}
 
 	override async execute(): Promise<ToolResponse> {
-		await pWaitFor(() => this.isFinal, { interval: 20 })
 		const result = await this.processFileWrite()
 		return result
 	}
 
 	public async handlePartialUpdate(relPath: string, content: string): Promise<void> {
-		if (this.isProcessingFinalContent || this.skipWriteAnimation) {
+		// this might happen because the diff view are not instant.
+		if (this.isProcessingFinalContent) {
+			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
+			return
+		}
+		// if the user has skipped the write animation, we don't need to show the diff view until we reach the final state
+		if (this.skipWriteAnimation) {
+			this.params.updateAsk(
+				"tool",
+				{ tool: { tool: "write_to_file", content, path: relPath, ts: this.ts, approvalState: "loading" } },
+				this.ts
+			)
 			return
 		}
 
 		const currentTime = Date.now()
+		// don't push too many updates to the diff view provider to avoid performance issues
 		if (currentTime - this.lastUpdateTime < this.UPDATE_INTERVAL) {
 			return
 		}
 
 		if (!this.diffViewProvider.isDiffViewOpen()) {
 			try {
+				// this actually opens the diff view but might take an extra few ms to be considered open requires interval check
+				// it can take up to 300ms to open the diff view
 				await this.diffViewProvider.open(relPath)
 			} catch (e) {
-				console.error("Error opening file: ", e)
+				this.logger("Error opening diff view: " + e, "error")
 				return
 			}
 		}
-
 		await this.diffViewProvider.update(content, false)
 		this.lastUpdateTime = currentTime
 	}
@@ -61,21 +73,8 @@ export class WriteFileTool extends BaseAgentTool {
 			if (!relPath || !content) {
 				throw new Error("Missing required parameters 'path' or 'content'")
 			}
-
-			// Initial loading state
-			await this.params.updateAsk(
-				"tool",
-				{
-					tool: {
-						tool: "write_to_file",
-						content: content,
-						approvalState: "loading",
-						path: relPath,
-						ts: this.ts,
-					},
-				},
-				this.ts
-			)
+			// switch to final state asap
+			this.isProcessingFinalContent = true
 
 			// Show changes in diff view
 			await this.showChangesInDiffView(relPath, content)
@@ -107,6 +106,7 @@ export class WriteFileTool extends BaseAgentTool {
 							approvalState: "rejected",
 							path: relPath,
 							ts: this.ts,
+							userFeedback: text,
 						},
 					},
 					this.ts
@@ -114,6 +114,7 @@ export class WriteFileTool extends BaseAgentTool {
 				if (response === "noButtonTapped") {
 					return formatToolResponse("Write operation cancelled by user.")
 				}
+				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 				return formatToolResponse(text ?? "Write operation cancelled by user.", images)
 			}
 
@@ -155,7 +156,9 @@ export class WriteFileTool extends BaseAgentTool {
 			)
 		} catch (error) {
 			console.error("Error in processFileWrite:", error)
-			return formatToolResponse(`Error: ${error instanceof Error ? error.message : String(error)}`)
+			return formatToolResponse(
+				`Write to File Error With:${error instanceof Error ? error.message : String(error)}`
+			)
 		} finally {
 			this.isProcessingFinalContent = false
 			this.diffViewProvider.isEditing = false
@@ -165,7 +168,7 @@ export class WriteFileTool extends BaseAgentTool {
 	private async showChangesInDiffView(relPath: string, content: string): Promise<void> {
 		content = this.preprocessContent(content)
 
-		if (!this.diffViewProvider.isEditing) {
+		if (!this.diffViewProvider.isDiffViewOpen()) {
 			await this.diffViewProvider.open(relPath)
 		}
 

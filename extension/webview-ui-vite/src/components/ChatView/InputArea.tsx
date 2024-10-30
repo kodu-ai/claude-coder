@@ -63,20 +63,18 @@ const InputArea: React.FC<InputAreaProps> = ({
 					onBlur={() => setIsTextAreaFocused(false)}
 					onPaste={handlePaste}
 				/>
-				{selectedImages.length > 0 && (
-					<Thumbnails
-						images={selectedImages}
-						setImages={setSelectedImages}
-						onHeightChange={handleThumbnailsHeightChange}
-						style={{
-							position: "absolute",
-							paddingTop: 4,
-							bottom: 14,
-							left: 22,
-							right: 67,
-						}}
-					/>
-				)}
+				<Thumbnails
+					images={selectedImages}
+					setImages={setSelectedImages}
+					onHeightChange={handleThumbnailsHeightChange}
+					style={{
+						position: "absolute",
+						paddingTop: 4,
+						bottom: 14,
+						left: 22,
+						right: 67,
+					}}
+				/>
 				<div
 					style={{
 						position: "absolute",

@@ -30,6 +30,35 @@ export class DevServerTool extends BaseAgentTool {
 		/module not found/i,
 	]
 
+	private static readonly SERVER_READY_PATTERNS = [
+		/ready|started|listening|running/i,
+		/compiled successfully/i,
+		/webpack \d+\.\d+\.\d+/i,
+		/development server/i,
+		/local:/i,
+		/localhost:/i,
+		/127\.0\.0\.1:/i,
+		/starting development server/i,
+		/starting local server/i,
+		/starting server/i,
+		/server started/i,
+		/server running/i,
+		/server listening/i,
+		/dev server running/i,
+		/Serving HTTP on/i,
+		/Server running at/i,
+		/Server listening at/i,
+		/Server started at/i,
+		/vite/i,
+		/next/i,
+		/nuxt/i,
+		/remix/i,
+		/webpack/i,
+		/parcel/i,
+		/esbuild/i,
+		/rollup/i,
+	]
+
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
@@ -128,7 +157,6 @@ export class DevServerTool extends BaseAgentTool {
 					commandToRun ? ` with command "${commandToRun}"` : ""
 				}`
 				if (text) {
-					// await say("user_feedback", text, images)
 					await this.params.updateAsk(
 						"tool",
 						{
@@ -139,13 +167,13 @@ export class DevServerTool extends BaseAgentTool {
 								commandType,
 								commandToRun,
 								serverName,
-								// output: text,
 								userFeedback: text,
 							},
 						},
 						this.ts
 					)
 				}
+				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 				return formatToolResponse(
 					`${errorMsg}${text ? `\n<user_feedback>${text}</user_feedback>` : ""}`,
 					images
@@ -255,15 +283,43 @@ export class DevServerTool extends BaseAgentTool {
 
 		const startData = {
 			urlFound: false,
+			serverReady: false,
 			hasError: false,
 			errorMessage: "",
 			logs: [] as string[],
 			timeout: false,
 		}
 
-		serverProcess.on("line", (line) => {
-			startData.logs.push(line)
-			this.processServerOutput(line, startData, terminalInfo.id)
+		// Create a promise that resolves when the server is ready or errors
+		const completionPromise = new Promise<void>((resolve, reject) => {
+			serverProcess.on("line", (line) => {
+				startData.logs.push(line)
+				this.processServerOutput(line, startData, terminalInfo.id)
+
+				// If we found an error, reject immediately
+				if (startData.hasError) {
+					reject(new Error(startData.errorMessage))
+				}
+
+				// If server is ready, resolve
+				if (startData.serverReady) {
+					// give it a little time to ensure server is fully ready and logs are captured
+					setTimeout(() => resolve(), 1000)
+				}
+			})
+
+			serverProcess.once("completed", () => {
+				if (!startData.hasError && !startData.serverReady) {
+					startData.serverReady = true
+					resolve()
+				}
+			})
+
+			serverProcess.on("error", (error) => {
+				startData.hasError = true
+				startData.errorMessage = error.message
+				reject(error)
+			})
 		})
 
 		serverProcess.on("no_shell_integration", () => {
@@ -274,13 +330,10 @@ export class DevServerTool extends BaseAgentTool {
 		})
 
 		try {
+			// Wait for either completion or timeout
 			await Promise.race([
-				serverProcess,
-				pWaitFor(() => startData.urlFound || startData.hasError, { timeout: 15_000 }).catch(() => {
-					startData.timeout = true
-					throw new Error("Server start timeout")
-				}),
-				delay(15_000).then(() => {
+				completionPromise,
+				delay(30000).then(() => {
 					startData.timeout = true
 					throw new Error("Server start timeout")
 				}),
@@ -301,19 +354,21 @@ export class DevServerTool extends BaseAgentTool {
                 </error_logs>`
 			}
 
-			if (serverUrl) {
+			// Mark server as running if we've detected it's ready
+			if (startData.serverReady) {
 				TerminalRegistry.updateDevServerStatus(terminalInfo.id, "running")
 				await this.updateToolState("approved", "start", command, serverName, logs.join("\n"))
-				return `Server "${serverName}" started successfully at ${serverUrl}
+				return `Server "${serverName}" started successfully${serverUrl ? ` at ${serverUrl}` : ""}
                 
                 <server_logs>
                 ${logs.join("\n")}
                 </server_logs>`
 			}
 
-			TerminalRegistry.updateDevServerStatus(terminalInfo.id, "error", "No URL detected")
+			// If we get here, something unexpected happened
+			TerminalRegistry.updateDevServerStatus(terminalInfo.id, "error", "Server state unclear")
 			await this.updateToolState("error", "start", command, serverName, logs.join("\n"))
-			return `Server "${serverName}" start attempt timed out. No URL detected.
+			return `Server "${serverName}" state is unclear. Please check the logs:
             
             <server_logs>
             ${logs.join("\n")}
@@ -341,7 +396,12 @@ export class DevServerTool extends BaseAgentTool {
 			return
 		}
 
-		// Check for URL/port
+		// Check for server ready patterns
+		if (!startData.serverReady && DevServerTool.SERVER_READY_PATTERNS.some((pattern) => pattern.test(line))) {
+			startData.serverReady = true
+		}
+
+		// Check for URL/port if not found yet
 		if (!startData.urlFound) {
 			const urlMatch = line.match(/(https?:\/\/[^\s]+)/i)
 			if (urlMatch) {

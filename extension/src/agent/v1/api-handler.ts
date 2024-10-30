@@ -196,7 +196,8 @@ ${this.customInstructions.trim()}
 	 */
 	async *createApiStreamRequest(
 		apiConversationHistory: Anthropic.MessageParam[],
-		abortSignal?: AbortSignal | null
+		abortSignal?: AbortSignal | null,
+		abortController?: AbortController
 	): AsyncGenerator<koduSSEResponse> {
 		const provider = this.providerRef.deref()
 		if (!provider) {
@@ -221,6 +222,16 @@ ${this.customInstructions.trim()}
 			apiConversationHistoryCopy = apiConversationHistoryCopy.slice(0, apiConversationHistoryCopy.length - 1)
 		}
 
+		let lastMessageAt = 0
+		const TIMEOUT_MS = 5000 // 5 seconds
+		const checkInactivity = setInterval(() => {
+			const timeSinceLastMessage = Date.now() - lastMessageAt
+			if (lastMessageAt > 0 && timeSinceLastMessage > TIMEOUT_MS) {
+				abortController?.abort()
+				return
+			}
+		}, 1000)
+
 		try {
 			const stream = await this.api.createMessageStream(
 				systemPrompt.trim(),
@@ -231,10 +242,28 @@ ${this.customInstructions.trim()}
 			)
 
 			for await (const chunk of stream) {
+				if (chunk.code === 1 || chunk.code === -1) {
+					clearInterval(checkInactivity)
+				}
+				lastMessageAt = Date.now()
 				yield* this.processStreamChunk(chunk)
 			}
 		} catch (error) {
+			if (error instanceof Error && error.message === "aborted") {
+				// this is an abort error
+				error = new KoduError({
+					code: 1,
+				})
+			}
+			if (error instanceof AxiosError) {
+				// this is a timeout error
+				error = new KoduError({
+					code: 1,
+				})
+			}
 			this.handleStreamError(error)
+		} finally {
+			clearInterval(checkInactivity)
 		}
 	}
 
@@ -288,10 +317,10 @@ ${this.customInstructions.trim()}
 		const lastMessage = history[history.length - 2]
 
 		if (shouldAddCriticalMsg && isLastMessageFromUser && Array.isArray(lastMessage.content)) {
-			lastMessage.content.push({
-				type: "text",
-				text: criticalMsg,
-			})
+			// lastMessage.content.push({
+			// 	type: "text",
+			// 	text: criticalMsg,
+			// })
 		}
 
 		const isFirstRequest = provider.getKoduDev()?.isFirstMessage ?? false
@@ -335,7 +364,7 @@ ${this.customInstructions.trim()}
 
 		const contextWindow = this.api.getModel().info.contextWindow
 
-		if (totalTokens >= contextWindow * 0.9) {
+		if (totalTokens >= contextWindow * 0.75) {
 			const truncatedMessages = truncateHalfConversation(history)
 			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 		}

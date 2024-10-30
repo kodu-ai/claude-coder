@@ -1,5 +1,5 @@
 import { ToolResponse } from "../../types"
-import { formatToolResponse } from "../../utils"
+import { formatToolResponse, isTextBlock } from "../../utils"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
 import { ExecuteCommandTool } from "./execute-command.tool"
@@ -31,6 +31,7 @@ export class AttemptCompletionTool extends BaseAgentTool {
 		}
 
 		let resultToSend = result
+		let commandOutput: ToolResponse | undefined
 		if (command) {
 			const executeCommandParams: AgentToolParams = {
 				...this.params,
@@ -39,11 +40,7 @@ export class AttemptCompletionTool extends BaseAgentTool {
 				ts: Date.now(), // add a timestamp to the command to ensure it is unique and goes to next msg
 			}
 
-			const commandResult = await new ExecuteCommandTool(executeCommandParams, this.options).execute()
-
-			if (commandResult) {
-				return commandResult
-			}
+			commandOutput = await new ExecuteCommandTool(executeCommandParams, this.options).execute()
 		}
 
 		const { response, text, images } = await ask(
@@ -64,7 +61,17 @@ export class AttemptCompletionTool extends BaseAgentTool {
 
 		await say("user_feedback", text ?? "", images)
 		return formatToolResponse(
-			`The user is not pleased with the results. Use the feedback they provided to successfully complete the task, and then attempt completion again.\n<feedback>\n${text}\n</feedback>`,
+			`The user is not pleased with the results. Use the feedback they provided to successfully complete the task, and then attempt completion again.\n
+			${
+				commandOutput
+					? `<commandOutput>\n${
+							typeof commandOutput === "string"
+								? commandOutput
+								: commandOutput.map((output) => (isTextBlock(output) ? output.text : "")).join("\n")
+					  }\n</commandOutput>\n`
+					: ""
+			}
+			<feedback>\n${text}\n</feedback>`,
 			images
 		)
 	}

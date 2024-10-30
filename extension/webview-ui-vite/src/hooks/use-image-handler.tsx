@@ -1,6 +1,6 @@
 import { ChatState } from "@/components/chat-view/chat"
 import { useCallback } from "react"
-const MAX_IMAGES_PER_MESSAGE = 4 as const
+export const MAX_IMAGES_PER_MESSAGE = 4 as const
 
 export const useImageHandling = (
 	selectedModelSupportsImages: boolean,

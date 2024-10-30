@@ -365,6 +365,7 @@ export class KoduHandler implements ApiHandler {
 							console.error("Network / API ERROR")
 							// we should yield the error and not throw it
 						}
+
 						yield eventData
 					}
 				}

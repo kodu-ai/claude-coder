@@ -41,7 +41,6 @@ export class KoduDev {
 	public isLastMessageFileEdit: boolean = false
 	public terminalManager: AdvancedTerminalManager
 	public providerRef: WeakRef<ExtensionProvider>
-	private pendingAskResponse: ((value: AskResponse) => void) | null = null
 	public browserManager: BrowserManager
 	public isFirstMessage: boolean = true
 	private isAborting: boolean = false
@@ -103,32 +102,35 @@ export class KoduDev {
 		if (this.isAborting) {
 			return
 		}
-		console.log(`Is there a pending ask response? ${!!this.pendingAskResponse}`)
 		if (this.taskExecutor.state === TaskState.ABORTED && (text || images)) {
 			let textBlock: Anthropic.TextBlockParam = {
 				type: "text",
 				text: text ?? "",
 			}
 			let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
+			if (textBlock.text.trim() === "" && imageBlocks.length > 1) {
+				textBlock.text =
+					"Please check the images below for more information and continue the task from where we left off."
+			}
+			if (textBlock.text.trim() === "") {
+				textBlock.text = "Please continue the task from where we left off."
+			}
 			console.log(`current api history: ${JSON.stringify(this.stateManager.state.apiConversationHistory)}`)
 			await this.taskExecutor.newMessage([textBlock, ...imageBlocks])
 			return
 		}
-		if (this.pendingAskResponse) {
-			this.pendingAskResponse({ response: askResponse, text, images })
-			this.pendingAskResponse = null
-		} else if (this.stateManager.state.isHistoryItemResumed) {
-			// this is a bug
-		}
 		if (
 			(this.taskExecutor.state === TaskState.WAITING_FOR_USER || this.taskExecutor.state === TaskState.IDLE) &&
 			askResponse === "messageResponse" &&
-			!this.pendingAskResponse
+			!this.taskExecutor.askManager.hasActiveAsk()
 		) {
 			await this.taskExecutor.newMessage([
 				{
 					type: "text",
-					text: text ?? "",
+					text:
+						text ?? images?.length
+							? "Please check the images below for more information."
+							: "Continue the task.",
 				},
 				...formatImagesIntoBlocks(images),
 			])
@@ -190,6 +192,11 @@ export class KoduDev {
 				if (m.ask === "tool" && m.type === "ask") {
 					try {
 						const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
+						if (typeof parsedTool === "object" && parsedTool.tool === "attempt_completion") {
+							parsedTool.approvalState = "approved"
+							m.text = JSON.stringify(parsedTool)
+							return
+						}
 						if (
 							typeof parsedTool === "object" &&
 							(parsedTool.approvalState === "pending" ||
@@ -198,11 +205,11 @@ export class KoduDev {
 						) {
 							const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
 							if (toolsToSkip.includes(parsedTool.tool)) {
-								parsedTool.approvalState = "pending"
+								parsedTool.approvalState = "error"
 								m.text = JSON.stringify(parsedTool)
 								return
 							}
-							parsedTool.approvalState = "rejected"
+							parsedTool.approvalState = "error"
 							parsedTool.error = "Task was interrupted before this tool call could be completed."
 							m.text = JSON.stringify(parsedTool)
 						}
@@ -229,12 +236,21 @@ export class KoduDev {
 				lastClaudeMessage.ask === "tool" &&
 				(JSON.parse(lastClaudeMessage.text ?? "{}") as ChatTool).tool === "attempt_completion")
 
-		let askType: ClaudeAsk = isCompleted ? "resume_completed_task" : "resume_task"
-
 		await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
-		let { response, text, images } = await this.taskExecutor.ask(
-			isCompleted ? "resume_completed_task" : "resume_task"
+		const ts = Date.now()
+		let { response, text, images } = await this.taskExecutor.askWithId(
+			isCompleted ? "resume_completed_task" : "resume_task",
+			undefined,
+			ts
 		)
+
+		// remove the last ask after it's been answered
+		const modifiedClaudeMessagesAfterResume = await this.stateManager.getSavedClaudeMessages()
+		const lastAskIndex = modifiedClaudeMessagesAfterResume.findIndex((m) => m.ts === ts)
+		if (lastAskIndex !== -1) {
+			modifiedClaudeMessagesAfterResume.splice(lastAskIndex, 1)
+		}
+		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessagesAfterResume)
 
 		let newUserContent: UserContent = []
 		if (response === "messageResponse") {

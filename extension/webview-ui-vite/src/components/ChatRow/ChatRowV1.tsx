@@ -19,7 +19,6 @@ interface ChatRowProps {
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
 	nextMessage?: V1ClaudeMessage
 	isLast: boolean
-	handleSendStdin: (text: string) => void
 }
 
 /**
@@ -33,7 +32,6 @@ const removeThinking = (text?: string) => {
 
 const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, nextMessage }) => {
 	message.text = removeThinking(message.text!)
-
 	const renderTextContent = () => {
 		switch (message.type) {
 			case "say":
@@ -190,7 +188,8 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, ne
 	const toolContent = renderToolContent()
 
 	if (!textContent && !toolContent) {
-		return null
+		// to prevent virtuso yelling at us
+		return <div className="hidden">{message.text}</div>
 	}
 
 	return (
@@ -205,7 +204,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, ne
 
 			{/* Tool content container - always at the bottom */}
 			{toolContent && (
-				<div className={cn("tool-content", textContent ? "mt-4 pt-4 border-t border-border" : "")}>
+				<div className={cn("tool-content", textContent ? "mt-4 pt-4 border-t border-border" : "mb-2")}>
 					{toolContent}
 				</div>
 			)}
