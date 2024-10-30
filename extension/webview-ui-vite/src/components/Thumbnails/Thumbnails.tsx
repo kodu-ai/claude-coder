@@ -1,6 +1,6 @@
 import React, { useRef, useLayoutEffect } from "react"
 import { useWindowSize } from "react-use"
-import ThumbnailItem from "./ThumbnailItem"
+import { ThumbnailItem } from "./ThumbnailItem"
 
 interface ThumbnailsProps {
 	images: string[]
