@@ -32,7 +32,6 @@ const removeThinking = (text?: string) => {
 
 const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, nextMessage }) => {
 	message.text = removeThinking(message.text!)
-	console.log("message", message)
 	const renderTextContent = () => {
 		switch (message.type) {
 			case "say":

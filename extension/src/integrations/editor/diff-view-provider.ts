@@ -41,7 +41,9 @@ class ModifiedContentProvider implements vscode.FileSystemProvider {
 
 	readFile(uri: vscode.Uri): Uint8Array {
 		const data = this.content.get(uri.toString())
-		if (!data) throw vscode.FileSystemError.FileNotFound(uri)
+		if (!data) {
+			throw vscode.FileSystemError.FileNotFound(uri)
+		}
 		return data
 	}
 
@@ -111,10 +113,14 @@ export class DiffViewProvider {
 	}
 
 	private checkScrollPosition(): boolean {
-		if (!this.diffEditor) return false
+		if (!this.diffEditor) {
+			return false
+		}
 
 		const visibleRanges = this.diffEditor.visibleRanges
-		if (visibleRanges.length === 0) return false
+		if (visibleRanges.length === 0) {
+			return false
+		}
 
 		const lastVisibleLine = visibleRanges[visibleRanges.length - 1].end.line
 		const totalLines = this.diffEditor.document.lineCount
@@ -184,7 +190,8 @@ export class DiffViewProvider {
 		if (editor && editor.document.uri.toString() === this.modifiedUri.toString()) {
 			this.diffEditor = editor
 		} else {
-			throw new Error("Failed to open diff editor")
+			return
+			// throw new Error("Failed to open diff editor")
 		}
 	}
 
@@ -238,7 +245,9 @@ export class DiffViewProvider {
 	}
 
 	private async scrollToBottom(): Promise<void> {
-		if (!this.diffEditor) return
+		if (!this.diffEditor) {
+			return
+		}
 
 		const lastLine = this.diffEditor.document.lineCount - 1
 		const lastCharacter = this.diffEditor.document.lineAt(lastLine).text.length

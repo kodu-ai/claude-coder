@@ -47,11 +47,16 @@ export class AskManager {
 		if (this.currentAsk) {
 			const askData = this.stateManager.getMessageById(this.currentAskId!)
 			if (askData) {
-				const tool = (askData.ask === "tool" ? JSON.parse(askData.text ?? "{}") : undefined) as ChatTool
+				try {
+					const tool = (askData.ask === "tool" ? JSON.parse(askData.text ?? "{}") : undefined) as ChatTool
 
-				tool.approvalState = "error"
-				tool.error = "Tool was aborted"
-				await this.updateState(this.currentAskId!, "tool", tool, "error")
+					tool.approvalState = "error"
+					tool.error = "Tool was aborted"
+					await this.updateState(this.currentAskId!, "tool", tool, "error")
+				} catch (err) {
+					console.error("Error in abortPendingAsks:", err)
+					await this.updateState(this.currentAskId!, "tool", undefined, "error")
+				}
 			} else {
 				await this.updateState(this.currentAskId!, "tool", undefined, "error")
 			}

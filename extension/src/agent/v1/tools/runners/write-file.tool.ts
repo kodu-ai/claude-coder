@@ -32,15 +32,15 @@ export class WriteFileTool extends BaseAgentTool {
 	}
 
 	public async handlePartialUpdate(relPath: string, content: string): Promise<void> {
+		if (this.isProcessingFinalContent) {
+			return
+		}
 		if (this.skipWriteAnimation) {
 			this.params.updateAsk(
 				"tool",
 				{ tool: { tool: "write_to_file", content, path: relPath, ts: this.ts, approvalState: "loading" } },
 				this.ts
 			)
-			return
-		}
-		if (this.isProcessingFinalContent || this.skipWriteAnimation) {
 			return
 		}
 
@@ -72,6 +72,8 @@ export class WriteFileTool extends BaseAgentTool {
 
 			// Show changes in diff view
 			await this.showChangesInDiffView(relPath, content)
+
+			this.isProcessingFinalContent = true
 
 			// Ask for user approval
 			console.log("Asking for user approval")

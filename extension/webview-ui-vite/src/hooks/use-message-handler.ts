@@ -5,46 +5,26 @@ import { ChatTool } from "../../../src/shared/new-tools"
 import { Resource } from "../../../src/shared/WebviewMessage"
 import { useEvent } from "react-use"
 
+const isToolPendingApproval = (message: ClaudeMessage) => {
+	try {
+		if (!isV1ClaudeMessage(message)) return false
+		const tool = JSON.parse(message.text || "{}") as ChatTool
+		return tool.approvalState === "pending"
+	} catch (err) {
+		return false
+	}
+}
+
 export const useChatMessageHandling = (
 	messages: ClaudeMessage[],
 	updateState: (updates: Partial<ChatState>) => void,
 	setAttachments: (attachments: Resource[]) => void
 ) => {
-	const pendingUpdatesRef = useRef<Partial<ChatState>>({})
-	const timeoutRef = useRef<NodeJS.Timeout>()
-	const lastHandledMessageRef = useRef<{ ts: number; type: string }>()
-
-	// Batch state updates
-	const batchUpdateState = useCallback(
-		(updates: Partial<ChatState>) => {
-			pendingUpdatesRef.current = { ...pendingUpdatesRef.current, ...updates }
-
-			if (timeoutRef.current) {
-				clearTimeout(timeoutRef.current)
-			}
-
-			timeoutRef.current = setTimeout(() => {
-				updateState(pendingUpdatesRef.current)
-				pendingUpdatesRef.current = {}
-			}, 0)
-		},
-		[updateState]
-	)
-
-	// Cleanup timeout on unmount
-	useEffect(() => {
-		return () => {
-			if (timeoutRef.current) {
-				clearTimeout(timeoutRef.current)
-			}
-		}
-	}, [])
-
 	const handleMessage = useCallback(
 		(event: MessageEvent) => {
 			const message: ExtensionMessage = event.data
 			if (message.type === "enableTextAreas") {
-				batchUpdateState({
+				updateState({
 					textAreaDisabled: false,
 					claudeAsk: undefined,
 					enableButtons: false,
@@ -53,7 +33,7 @@ export const useChatMessageHandling = (
 				})
 			}
 		},
-		[batchUpdateState]
+		[updateState]
 	)
 
 	useEvent("message", handleMessage)
@@ -61,6 +41,7 @@ export const useChatMessageHandling = (
 	const handleAskMessage = useCallback(
 		(message: ClaudeMessage) => {
 			if (!isV1ClaudeMessage(message)) return
+			console.log(`Handling ask message: ${message.ask}`)
 
 			const toolStateMap: Record<string, Partial<ChatState>> = {
 				request_limit_reached: {
@@ -140,15 +121,25 @@ export const useChatMessageHandling = (
 					claudeAsk: "tool",
 					enableButtons: tool.approvalState === "pending" ? true : false,
 				}
+				if (tool.tool === "attempt_completion" && tool.approvalState === "approved") {
+					updateState({
+						...baseState,
+						enableButtons: true,
+						textAreaDisabled: false,
+						claudeAsk: "completion_result",
+						primaryButtonText: "Start New Task",
+						secondaryButtonText: undefined,
+					})
+					return
+				}
 
 				if (tool.approvalState !== "pending" && tool.tool !== "attempt_completion") {
-					batchUpdateState({
+					updateState({
 						...baseState,
 						enableButtons: false,
 						primaryButtonText: undefined,
 						secondaryButtonText: undefined,
 					})
-					lastHandledMessageRef.current = { ts: message.ts, type: "ask" }
 					return
 				}
 				if (tool.approvalState !== "pending") {
@@ -229,15 +220,17 @@ export const useChatMessageHandling = (
 					secondaryButtonText: "Cancel",
 				}
 
-				batchUpdateState(updates)
+				console.log(`Updating state for tool: ${tool.tool}`)
+				console.log(updates)
+				updateState(updates)
 			} else {
 				const updates = toolStateMap[message.ask ?? ""]
 				if (updates) {
-					batchUpdateState(updates)
+					updateState(updates)
 				}
 			}
 		},
-		[batchUpdateState]
+		[updateState]
 	)
 
 	const handleSayMessage = useCallback(
@@ -270,12 +263,10 @@ export const useChatMessageHandling = (
 
 			const updates = sayStateMap[message.say!]
 			if (updates) {
-				batchUpdateState(updates)
+				updateState(updates)
 			}
-
-			lastHandledMessageRef.current = { ts: message.ts, type: "say" }
 		},
-		[batchUpdateState]
+		[updateState]
 	)
 
 	useEffect(() => {
@@ -306,24 +297,18 @@ export const useChatMessageHandling = (
 								primaryButtonText: "Start New Task",
 								secondaryButtonText: undefined,
 						  }
-				batchUpdateState(updates)
-				lastHandledMessageRef.current = { ts: lastAskMessage.ts, type: "ask" }
+				updateState(updates)
 				return
 			}
 		}
-
-		// Skip if message already handled
-		// if (lastMessage && handledTs.includes(lastMessage.ts)) {
-		// 	return
-		// }
-
-		// Handle messages based on type and recency
 		if (lastMessage?.say === "error" || lastMessage?.say === "api_req_started") {
 			handleSayMessage(lastMessage)
-		} else if (lastAskMessage) {
+		} else if (lastAskMessage && !lastMessage.say) {
+			handleAskMessage(lastAskMessage)
+		} else if (lastAskMessage && isToolPendingApproval(lastAskMessage)) {
 			handleAskMessage(lastAskMessage)
 		} else if (!lastMessage && !lastAskMessage) {
-			batchUpdateState({
+			updateState({
 				textAreaDisabled: false,
 				claudeAsk: undefined,
 				enableButtons: false,

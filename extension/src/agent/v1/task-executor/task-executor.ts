@@ -64,7 +64,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 	}
 
-	public resumeStream() {
+	public async resumeStream() {
 		if (this.streamPaused) {
 			this.streamPaused = false
 		}
@@ -76,12 +76,23 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 
 		// If forced or buffer size threshold reached, flush immediately
-		if (force || this.textBuffer.length >= BUFFER_SIZE_THRESHOLD) {
-			const contentToFlush = this.textBuffer
-			this.textBuffer = "" // Clear buffer before async operations
+		const contentToFlush = this.textBuffer
+		this.textBuffer = "" // Clear buffer before async operations
+		// check if there is an ask that is ahead of the current reply if so then we need to create a new reply to have the text in proper order (TEXT > TOOL > TEXT)
+		const lastAskTs = this.stateManager.state.claudeMessages
+			.slice()
+			.reverse()
+			.find((msg) => msg.type === "ask")?.ts
+		const contentWithoutNewLines = contentToFlush.replace(/\n/g, "")
+		if (lastAskTs && lastAskTs > currentReplyId && contentWithoutNewLines.trim().length > 0) {
+			console.log("Creating new reply to flush text buffer")
+			this.currentReplyId = await this.say("text", contentToFlush ?? "", undefined, Date.now(), {
+				isSubMessage: true,
+			})
+		} else {
 			await this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush)
-			await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 		}
+		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	public async newMessage(message: UserContent) {
@@ -448,6 +459,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 							}
 
 							// If tool processing started, pause the stream
+							// this is actually not working ZZZ - need to fix this
 							if (this.toolExecutor.hasActiveTools()) {
 								// Ensure any buffered content is flushed before pausing
 								await this.flushTextBuffer(this.currentReplyId, true)
@@ -455,11 +467,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 								// Wait for tool processing to complete
 								await this.toolExecutor.waitForToolProcessing()
 								// Resume stream after tool processing
-								this.resumeStream()
-								const newReplyId = await this.say("text", "", undefined, Date.now(), {
-									isSubMessage: true,
-								})
-								this.currentReplyId = newReplyId
+								await this.resumeStream()
 							}
 						}
 					}

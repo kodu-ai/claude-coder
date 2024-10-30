@@ -298,6 +298,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 				{task ? (
 					<>
 						<TaskHeader
+							key={`header-${task.ts}`}
 							task={task}
 							tokensIn={apiMetrics.totalTokensIn}
 							tokensOut={apiMetrics.totalTokensOut}
@@ -311,6 +312,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 							vscodeUriScheme={uriScheme}
 						/>
 						<ChatMessages
+							key={`messages-${task.ts}`}
 							taskId={task.ts}
 							visibleMessages={visibleMessages}
 							syntaxHighlighterStyle={syntaxHighlighterStyle}

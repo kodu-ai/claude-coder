@@ -242,6 +242,9 @@ ${this.customInstructions.trim()}
 			)
 
 			for await (const chunk of stream) {
+				if (chunk.code === 1 || chunk.code === -1) {
+					clearInterval(checkInactivity)
+				}
 				lastMessageAt = Date.now()
 				yield* this.processStreamChunk(chunk)
 			}

@@ -159,7 +159,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, sy
 	// Memoize item content renderer
 	const itemContent = useCallback(
 		(index: number, message: ClaudeMessage) => (
-			<div key={message.ts} className="mb-0">
+			<div key={`list-item-${message.ts}`} className="mb-0">
 				<MessageRenderer
 					message={message}
 					index={index}
@@ -173,23 +173,31 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, sy
 	)
 
 	return (
-		<div className="relative overflow-auto flex flex-col flex-1 ">
+		<div className="relative overflow-hidden h-full flex flex-col flex-1 ">
 			<Virtuoso
+				key={`virtuoso-${taskId}`}
 				ref={virtuosoRef}
-				data={visibleMessages}
+				data={visibleMessages.filter((message) => {
+					if ((message.text?.length ?? 0) > 0 || (message.images?.length ?? 0) > 0) {
+						return true
+					}
+					return false
+				})}
+				style={{ height: "100%" }}
 				followOutput={followOutput}
 				initialTopMostItemIndex={{
 					index: "LAST",
+					behavior: "smooth",
 					align: "end",
 				}}
 				atBottomStateChange={handleAtBottomStateChange}
 				atBottomThreshold={SCROLL_THRESHOLD}
 				scrollerRef={scrollerRefCallback}
 				itemContent={itemContent}
-				overscan={20}
-				increaseViewportBy={{ top: 250, bottom: 250 }}
+				overscan={50}
+				increaseViewportBy={{ top: 400, bottom: 400 }}
 				// alignToBottom
-				defaultItemHeight={100}
+				defaultItemHeight={400}
 			/>
 			{!atBottom && userScrolled && (
 				<Button
