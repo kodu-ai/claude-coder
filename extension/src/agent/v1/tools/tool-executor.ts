@@ -119,14 +119,28 @@ export class ToolExecutor {
 
 			const cleanup = async () => {
 				if (this.runningProcessId) {
-					await new Promise<void>((resolve) => {
+					await new Promise<void>((resolve, reject) => {
+						const timeout = setTimeout(() => {
+							reject(new Error("Process kill timeout"))
+						}, 5000) // 5 second timeout
+
 						treeKill(this.runningProcessId!, "SIGTERM", (err) => {
+							clearTimeout(timeout)
 							if (err) {
 								console.error("Error killing process:", err)
 							}
 							this.runningProcessId = undefined
 							resolve()
 						})
+					}).catch(error => {
+						console.error("Failed to kill process:", error)
+						// Force kill as fallback
+						try {
+							treeKill(this.runningProcessId!, "SIGKILL")
+						} catch (e) {
+							console.error("Force kill failed:", e)
+						}
+						this.runningProcessId = undefined
 					})
 				}
 
@@ -281,6 +295,9 @@ export class ToolExecutor {
 
 		try {
 			context.status = "processing"
+			if (this.isAborting) {
+				return
+			}
 			const result = await context.tool.execute({
 				name: context.tool.name as ToolName,
 				input: context.tool.paramsInput,
@@ -321,6 +338,7 @@ export class ToolExecutor {
 	}
 
 	public async resetToolState() {
+		this.toolResults = []
 		await this.abortTask()
 	}
 }
