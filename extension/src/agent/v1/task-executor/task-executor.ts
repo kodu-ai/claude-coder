@@ -519,6 +519,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.abortController?.abort()
 		this.isRequestCancelled = false
 		this.abortController = null
+		this.currentUserContent = null
 		this.consecutiveErrorCount = 0
 		this.state = TaskState.WAITING_FOR_USER
 		this.streamPaused = false
