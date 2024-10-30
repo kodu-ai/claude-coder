@@ -268,7 +268,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				this.state = TaskState.COMPLETED
 			}
 		})
-		void this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+		await this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
@@ -316,7 +316,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 			const stream = this.stateManager.apiManager.createApiStreamRequest(
 				this.stateManager.state.apiConversationHistory,
-				this.abortController?.signal
+				this.abortController?.signal,
+				this.abortController
 			)
 
 			if (this.isRequestCancelled || this.isAborting) {
@@ -343,7 +344,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 					return
 				}
 				// @ts-expect-error
-				await this.handleApiError(new TaskError({ type: "UNKNOWN_ERROR", message: error.message }))
+				await this.handleApiError(new TaskError({ type: "NETWORK_ERROR", message: error.message }))
 			} else {
 				console.log("[TaskExecutor] Request was cancelled, ignoring error")
 			}
@@ -622,6 +623,58 @@ export class TaskExecutor extends TaskExecutorUtils {
 			await this.say(error.type === "PAYMENT_REQUIRED" ? "payment_required" : "unauthorized", error.message)
 			return
 		}
+		const modifiedClaudeMessages = this.stateManager.state.claudeMessages.slice()
+		// update previous messages to ERROR
+		modifiedClaudeMessages.forEach((m) => {
+			if (isV1ClaudeMessage(m)) {
+				m.isDone = true
+				if (m.say === "api_req_started" && m.isFetching) {
+					m.isFetching = false
+					m.isDone = true
+					m.isError = true
+					m.errorText = error.message ?? "Task was interrupted before this API request could be completed."
+				}
+				if (m.isFetching) {
+					m.isFetching = false
+
+					m.errorText = error.message ?? "Task was interrupted before this API request could be completed."
+					// m.isAborted = "user"
+					m.isError = true
+				}
+				if (m.ask === "tool" && m.type === "ask") {
+					try {
+						const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
+						if (typeof parsedTool === "object" && parsedTool.tool === "attempt_completion") {
+							parsedTool.approvalState = "approved"
+							m.text = JSON.stringify(parsedTool)
+							return
+						}
+						if (
+							typeof parsedTool === "object" &&
+							(parsedTool.approvalState === "pending" ||
+								parsedTool.approvalState === undefined ||
+								parsedTool.approvalState === "loading")
+						) {
+							const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
+							if (toolsToSkip.includes(parsedTool.tool)) {
+								parsedTool.approvalState = "error"
+								m.text = JSON.stringify(parsedTool)
+								return
+							}
+							parsedTool.approvalState = "error"
+							parsedTool.error = "Task was interrupted before this tool call could be completed."
+							m.text = JSON.stringify(parsedTool)
+						}
+					} catch (err) {
+						m.text = "{}"
+						m.errorText = "Task was interrupted before this tool call could be completed."
+						m.isError = true
+					}
+				}
+			}
+		})
+		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessages)
+		this.stateManager.state.claudeMessages = await this.stateManager.getSavedClaudeMessages()
 
 		const { response } = await this.ask("api_req_failed", { question: error.message })
 		if (response === "yesButtonTapped" || response === "messageResponse") {

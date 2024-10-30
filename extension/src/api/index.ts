@@ -46,14 +46,17 @@ export interface ApiHandler {
 
 	abortRequest(): void
 
-	sendWebSearchRequest?(searchQuery: string, baseLink?: string, abortSignal?: AbortSignal): AsyncIterable<WebSearchResponseDto>
+	sendWebSearchRequest?(
+		searchQuery: string,
+		baseLink?: string,
+		abortSignal?: AbortSignal
+	): AsyncIterable<WebSearchResponseDto>
 
 	sendUrlScreenshotRequest?(url: string): Promise<Blob>
 
 	sendAskConsultantRequest?(query: string): Promise<AskConsultantResponseDto>
 
 	sendSummarizeRequest?(text: string, command: string): Promise<SummaryResponseDto>
-
 }
 
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {

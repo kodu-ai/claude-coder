@@ -21,6 +21,7 @@ const Thumbnails: React.FC<ThumbnailsProps> = ({ images, style, setImages, onHei
 			}
 			onHeightChange?.(height)
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [images, width])
 
 	const handleDelete = (index: number) => {

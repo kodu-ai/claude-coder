@@ -15,7 +15,14 @@ export enum TaskState {
 }
 
 export class TaskError extends Error {
-	type: "API_ERROR" | "TOOL_ERROR" | "USER_ABORT" | "UNKNOWN_ERROR" | "UNAUTHORIZED" | "PAYMENT_REQUIRED"
+	type:
+		| "API_ERROR"
+		| "TOOL_ERROR"
+		| "USER_ABORT"
+		| "UNKNOWN_ERROR"
+		| "UNAUTHORIZED"
+		| "PAYMENT_REQUIRED"
+		| "NETWORK_ERROR"
 	constructor({
 		type,
 		message,
