@@ -144,7 +144,8 @@ export class DevServerTool extends BaseAgentTool {
 						result = await this.restartServer(terminalManager, commandToRun!, serverName)
 						break
 					case "getLogs":
-						result = await this.getLogs(serverName)
+						const lines = parseInt(input.lines!)
+						result = await this.getLogs(serverName, lines)
 						break
 					default:
 						result = `Unknown commandType: ${commandType}`
@@ -452,19 +453,20 @@ export class DevServerTool extends BaseAgentTool {
 		return `${stopResult}\n${startResult}`
 	}
 
-	private async getLogs(serverName: string): Promise<string> {
+	private async getLogs(serverName: string, lines: number): Promise<string> {
 		const devServer = TerminalRegistry.getDevServerByName(serverName)
 		if (!devServer) {
 			return `No server named "${serverName}" is currently running. No logs available.`
 		}
 
 		const logs = devServer.logs || []
-		await this.updateToolState("approved", "getLogs", undefined, serverName, logs.join("\n"))
+		const logLines = lines === -1 ? logs : logs.slice(-lines)
+		await this.updateToolState("approved", "getLogs", undefined, serverName, logLines.join("\n"))
 
 		return `Server Logs for "${serverName}":
-        
+
         <server_logs>
-        ${logs.join("\n")}
+        ${logLines.join("\n")}
         </server_logs>`
 	}
 }
