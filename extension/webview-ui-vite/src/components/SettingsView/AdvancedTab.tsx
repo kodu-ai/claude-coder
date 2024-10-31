@@ -49,6 +49,20 @@ const AdvancedTab: React.FC = () => {
 					onCheckedChange={handleAutoSkipWriteChange}
 				/>
 			</div>
+
+			<div className="space-y-2">
+				<Label htmlFor="custom-instructions" className="text-xs font-medium">
+					Custom Instructions
+				</Label>
+				<Textarea
+					id="custom-instructions"
+					placeholder="e.g. 'Run unit tests at the end', 'Use TypeScript with async/await'"
+					value={customInstructions}
+					onChange={(e) => setCustomInstructions(e.target.value)}
+					className="min-h-[60px] text-xs"
+				/>
+			</div>
+
 			<SystemPromptVariants />
 		</div>
 	)

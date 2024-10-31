@@ -75,8 +75,8 @@ export function useSettingsState() {
 
 	const handleSaveSystemPrompt = useCallback((variant: SystemPromptVariant) => {
 		setSystemPromptVariants((prev) => {
-			const updatedVariants = prev.map((v) => v.id === variant.id ? variant : v)
-			if (!prev.find(v => v.id === variant.id)) {
+			const updatedVariants = prev.map((v) => (v.id === variant.id ? variant : v))
+			if (!prev.find((v) => v.id === variant.id)) {
 				updatedVariants.push(variant)
 			}
 			vscode.postMessage({ type: "systemPromptVariants", variants: updatedVariants })

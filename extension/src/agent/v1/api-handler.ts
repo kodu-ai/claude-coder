@@ -13,7 +13,7 @@ import { koduModels } from "../../shared/api"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { koduSSEResponse, KoduError } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
-import { truncateHalfConversation } from "../../utils/context-management"
+import { estimateTokenCount, truncateHalfConversation } from "../../utils/context-management"
 import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
 import { ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
@@ -36,28 +36,6 @@ interface StringDifference {
 	index: number
 	char1: string
 	char2: string
-}
-
-/**
- * Estimates token count from a message
- * Uses heuristic of 3 characters ≈ 1 token, and images ≈ 2000 tokens
- * @param message - The message to analyze
- * @returns Estimated token count
- */
-const estimateTokenCount = (message: Anthropic.MessageParam): number => {
-	if (typeof message.content === "string") {
-		return Math.round(message.content.length / 3)
-	}
-
-	const textContent = message.content
-		.filter((block) => block.type === "text")
-		.map((block) => block.text)
-		.join("")
-
-	const textTokens = Math.round(textContent.length / 3)
-	const imageTokens = message.content.filter((block) => block.type === "image").length * 2000
-
-	return textTokens + imageTokens
 }
 
 /**
@@ -111,6 +89,10 @@ export class ApiManager {
 	 */
 	public getModelId(): string {
 		return this.api.getModel().id
+	}
+
+	public getModelInfo() {
+		return this.api.getModel().info
 	}
 
 	/**
@@ -209,8 +191,8 @@ ${this.customInstructions.trim()}
 		const technicalBackground = state?.technicalBackground ?? "no-technical"
 		const isImageSupported = koduModels[this.getModelId()].supportsImages
 		const systemPromptVariants = state?.systemPromptVariants || []
-		const activeVariant = systemPromptVariants.length > 0 ? systemPromptVariants[0] : null
-
+		const activeVariantId = state?.activeSystemPromptVariantId
+		const activeVariant = systemPromptVariants.find((variant) => variant.id === activeVariantId)
 		const customInstructions = this.formatCustomInstructions()
 		let systemPrompt = ""
 
@@ -335,11 +317,19 @@ ${this.customInstructions.trim()}
 
 		const lastMessage = history[history.length - 2]
 
-		if (shouldAddCriticalMsg && isLastMessageFromUser && Array.isArray(lastMessage.content)) {
-			// lastMessage.content.push({
-			// 	type: "text",
-			// 	text: criticalMsg,
-			// })
+		const shouldAppendCriticalMsg =
+			(await this.providerRef.deref()?.getState())?.activeSystemPromptVariantId === "m-11-1-2024"
+
+		if (
+			shouldAddCriticalMsg &&
+			isLastMessageFromUser &&
+			Array.isArray(lastMessage.content) &&
+			shouldAppendCriticalMsg
+		) {
+			lastMessage.content.push({
+				type: "text",
+				text: criticalMsg,
+			})
 		}
 
 		const isFirstRequest = provider.getKoduDev()?.isFirstMessage ?? false

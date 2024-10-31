@@ -11,4 +11,5 @@ export type HistoryItem = {
 	dirAbsolutePath?: string
 	memory?: string
 	isRepoInitialized?: boolean
+	currentTokens?: number
 }

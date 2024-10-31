@@ -76,7 +76,9 @@ export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
 	claudeMessages: get(claudeMessagesAtom),
 	taskHistory: get(taskHistoryAtom),
+	currentContextWindow: get(currentContextWindowAtom),
 	useUdiff: get(useUdiffAtom),
+	currentContextTokens: get(currentContextTokensAtom),
 	currentTask: get(currentTaskAtom),
 	currentTaskId: get(currentTaskIdAtom),
 	shouldShowAnnouncement: get(shouldShowAnnouncementAtom),
@@ -108,6 +110,12 @@ didHydrateStateAtom.debugLabel = "didHydrateState"
 export const showSettingsAtom = atom(false)
 showSettingsAtom.debugLabel = "showSettings"
 
+const currentContextTokensAtom = atom(0)
+currentContextTokensAtom.debugLabel = "currentContextTokens"
+
+const currentContextWindowAtom = atom(0)
+currentContextWindowAtom.debugLabel = "currentContextWindow"
+
 export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 	const setVersion = useSetAtom(versionAtom)
 	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
@@ -128,7 +136,9 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setFingerprint = useSetAtom(fingerprintAtom)
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setUriScheme = useSetAtom(uriSchemeAtom)
+	const setCurrentContextWindow = useSetAtom(currentContextWindowAtom)
 	const setDidHydrateState = useSetAtom(didHydrateStateAtom)
+	const setCurrentContextTokens = useSetAtom(currentContextTokensAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 	const setExtensionName = useSetAtom(extensionNameAtom)
@@ -149,11 +159,13 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setTaskHistory(message.state.taskHistory)
 			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)
 			setShouldShowKoduPromo(message.state.shouldShowKoduPromo)
+			setCurrentContextTokens(message.state.currentContextTokens)
 			setApiConfiguration(message.state.apiConfiguration)
 			setActiveSystemPromptVariantId(message.state.activeSystemPromptVariantId)
 			setMaxRequestsPerTask(message.state.maxRequestsPerTask)
 			setCustomInstructions(message.state.customInstructions)
 			setAlwaysAllowReadOnly(!!message.state.alwaysAllowReadOnly)
+			setCurrentContextWindow(message.state.currentContextWindow)
 			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
 			setUser(message.state.user)
 			setExtensionName(message.state.extensionName)

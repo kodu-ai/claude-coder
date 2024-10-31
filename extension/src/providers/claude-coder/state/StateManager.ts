@@ -8,6 +8,7 @@ import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { ExtensionState } from "../../../shared/ExtensionMessage"
 import { SystemPromptVariant } from "@/shared/SystemPromptVariant"
+import { estimateTokenCount, estimateTokenCountFromMessages } from "@/utils/context-management"
 export class StateManager {
 	private globalStateManager: GlobalStateManager
 	private secretStateManager: SecretStateManager
@@ -40,6 +41,7 @@ export class StateManager {
 			autoCloseTerminal,
 			skipWriteAnimation,
 			systemPromptVariants,
+			activeSystemPromptVariantId,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.globalStateManager.getGlobalState("browserModelId"),
@@ -60,10 +62,18 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("autoCloseTerminal"),
 			this.globalStateManager.getGlobalState("skipWriteAnimation"),
 			this.globalStateManager.getGlobalState("systemPromptVariants"),
+			this.globalStateManager.getGlobalState("activeSystemPromptVariantId"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
 		const currentClaudeMessage = this.context.getKoduDev()?.getStateManager()?.state.claudeMessages
+		const currentApiHistory = await this.context.getKoduDev()?.getStateManager()?.getSavedApiConversationHistory()
+		const tokens = estimateTokenCountFromMessages(currentApiHistory ?? [])
+		const currentContextWindow = this.context
+			.getKoduDev()
+			?.getStateManager()
+			?.apiManager.getModelInfo()?.contextWindow
+
 		return {
 			apiConfiguration: {
 				apiModelId,
@@ -76,6 +86,7 @@ export class StateManager {
 			customInstructions,
 			technicalBackground,
 			systemPromptVariants,
+			activeSystemPromptVariantId,
 			experimentalTerminal:
 				experimentalTerminal === undefined || experimentalTerminal === null ? true : experimentalTerminal,
 			currentTaskId,
@@ -93,6 +104,8 @@ export class StateManager {
 			useUdiff: useUdiff ?? false,
 			autoCloseTerminal: autoCloseTerminal ?? false,
 			skipWriteAnimation: skipWriteAnimation ?? false,
+			currentContextWindow: currentContextWindow ?? 0,
+			currentContextTokens: tokens ?? 0,
 		} satisfies ExtensionState
 	}
 
@@ -167,6 +180,9 @@ export class StateManager {
 
 	setSystemPromptVariants(value: SystemPromptVariant[]) {
 		return this.globalStateManager.updateGlobalState("systemPromptVariants", value)
+	}
+	setActiveSystemPromptVariantId(value: string | undefined) {
+		return this.globalStateManager.updateGlobalState("activeSystemPromptVariantId", value)
 	}
 
 	setAlwaysAllowReadOnly(value: boolean) {

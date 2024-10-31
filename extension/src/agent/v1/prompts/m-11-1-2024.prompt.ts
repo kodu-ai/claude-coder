@@ -475,17 +475,6 @@ DOING SOMETHING LIKE THIS BREAKS THE TOOL'S FUNCTIONALITY:
 </critical_context>
 `
 
-export function addCustomInstructions(customInstructions: string): string {
-	return `
-====
-
-USER'S CUSTOM INSTRUCTIONS
-
-The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
-
-${customInstructions.trim()}`
-}
-
 export const criticalMsg = `
 <most_important_context>
 # PLANNING:
@@ -545,3 +534,8 @@ It will make you more efficient and better at debugging your code and writing hi
 - You control the writing the user is a machine that can only understand the tools you provide, you must always respond with a tool call.
 </most_important_context>
 `
+
+export default {
+	prompt: BASE_SYSTEM_PROMPT,
+	criticalMsg: criticalMsg,
+}

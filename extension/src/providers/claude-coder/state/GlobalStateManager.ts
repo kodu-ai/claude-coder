@@ -2,6 +2,8 @@ import * as vscode from "vscode"
 import { HistoryItem } from "../../../shared/HistoryItem"
 import { ApiModelId, KoduModelId } from "../../../shared/api"
 import { SystemPromptVariant } from "../../../shared/SystemPromptVariant"
+import * as path from "path"
+import { getCwd } from "@/agent/v1/utils"
 
 type User = {
 	email: string
@@ -35,14 +37,53 @@ export type GlobalState = {
 
 export class GlobalStateManager {
 	constructor(private context: vscode.ExtensionContext) {
-		// Initialize default system prompt variants if none exist
-		const variants = this.getGlobalState("systemPromptVariants")
-		if (!variants || variants.length === 0) {
-			import("../../../agent/v1/prompts/default-system-prompts").then(({ defaultSystemPrompts }) => {
-				this.updateGlobalState("systemPromptVariants", defaultSystemPrompts)
-				// Set the first variant as active by default
-				this.updateGlobalState("activeSystemPromptVariantId", defaultSystemPrompts[0].id)
-			})
+		this.initializeSystemPrompts()
+	}
+
+	private async initializeSystemPrompts() {
+		try {
+			// Initialize default system prompt variants if none exist
+			const activeId = this.getGlobalState("activeSystemPromptVariantId")
+
+			// Import and update prompt files
+			const promptFiles = {
+				"m-11-1-2024": () => import("../../../agent/v1/prompts/m-11-1-2024.prompt"),
+				"c-11-1-2024": () => import("../../../agent/v1/prompts/c-11-1-2024.prompt"),
+			}
+
+			const variants: SystemPromptVariant[] = []
+
+			for (const [id, importFn] of Object.entries(promptFiles)) {
+				try {
+					const module = await importFn()
+					const name = id
+						.replace(/[-_]/g, " ")
+						.split(" ")
+						.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+						.join(" ")
+					const content = await module.default.prompt(
+						getCwd(),
+						true,
+						this.getGlobalState("technicalBackground")
+					)
+
+					variants.push({
+						id,
+						name,
+						content,
+					})
+				} catch (error) {
+					console.error(`Error importing prompt file ${id}:`, error)
+				}
+			}
+			// set the system prompt variants
+			await this.updateGlobalState("systemPromptVariants", variants)
+			// now check if the active system prompt variant is set and is valid otherwise set m-11-1-2024 as the active system prompt variant
+			if (!activeId || !variants.find((v) => v.id === activeId)) {
+				await this.updateGlobalState("activeSystemPromptVariantId", "m-11-1-2024")
+			}
+		} catch (error) {
+			console.error("Error initializing system prompts:", error)
 		}
 	}
 
@@ -65,7 +106,7 @@ export class GlobalStateManager {
 		const activeId = this.getGlobalState("activeSystemPromptVariantId")
 		if (!variants || !activeId) return undefined
 
-		const activeVariant = variants.find(v => v.id === activeId)
+		const activeVariant = variants.find((v) => v.id === activeId)
 		return activeVariant?.content
 	}
 }

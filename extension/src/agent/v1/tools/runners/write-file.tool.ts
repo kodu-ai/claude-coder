@@ -8,6 +8,7 @@ import { DiffViewProvider } from "../../../../integrations/editor/diff-view-prov
 import { fileExistsAtPath } from "../../../../utils/path-helpers"
 import pWaitFor from "p-wait-for"
 import delay from "delay"
+import { DiagnosticsHandler } from "../../handlers"
 
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -121,6 +122,7 @@ export class WriteFileTool extends BaseAgentTool {
 			// Save changes and handle user edits
 			const fileExists = await this.checkFileExists(relPath)
 			const { userEdits } = await this.diffViewProvider.saveChanges()
+			this.koduDev.getStateManager().addErrorPath(relPath)
 
 			// Final approval state
 			await this.params.updateAsk(

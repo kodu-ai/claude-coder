@@ -108,6 +108,7 @@ export class WebviewManager {
 		const state = await this.provider.getStateManager().getState()
 		const koduDevState = this.provider.getKoduDev()?.getStateManager().state
 		const extensionName = this.provider.getContext().extension?.packageJSON?.name
+
 		return {
 			...state,
 			version: this.provider.getContext().extension?.packageJSON?.version ?? "",
@@ -339,6 +340,10 @@ export class WebviewManager {
 							await this.provider.getApiManager().updateApiConfiguration(message.apiConfiguration)
 							await this.postStateToWebview()
 						}
+						break
+					case "activeSystemPromptVariant":
+						await this.provider.getStateManager().setActiveSystemPromptVariantId(message.variantId)
+						await this.postStateToWebview()
 						break
 					case "autoCloseTerminal":
 						await this.provider.getStateManager().setAutoCloseTerminal(message.bool)

@@ -1,15 +1,13 @@
-import React, { useState, useEffect, useRef } from "react"
-import { Button } from "@/components/ui/button"
+import React from "react"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Plus, Save, Trash2, Eye, EyeOff, Pencil, Check, Power } from "lucide-react"
+import { Power } from "lucide-react"
 import { useSettingsState } from "../../hooks/useSettingsState"
-import { SystemPromptVariant } from "../../../../src/shared/SystemPromptVariant"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Button } from "@/components/ui/button"
+import { ScrollArea, ScrollBar } from "../ui/scroll-area"
 
 const systemVariables = [
 	{
@@ -34,222 +32,14 @@ const systemVariables = [
 	},
 ]
 
-const HighlightedTextarea: React.FC<{
-	id: string
-	value: string
-	onChange: (value: string) => void
-	disabled?: boolean
-	className?: string
-	showVariableBadges?: boolean
-}> = ({ id, value, onChange, disabled, className, showVariableBadges = false }) => {
-	const textareaRef = useRef<HTMLTextAreaElement>(null)
-	const [cursorPosition, setCursorPosition] = useState<number>(0)
-
-	useEffect(() => {
-		if (textareaRef.current) {
-			textareaRef.current.setSelectionRange(cursorPosition, cursorPosition)
-		}
-	}, [value, cursorPosition])
-
-	const getHighlightedContent = (text: string) => {
-		let highlightedContent = text
-		systemVariables.forEach(({ name }) => {
-			highlightedContent = highlightedContent.replace(
-				new RegExp(`(${name})`, "gi"),
-				`<span style="color: rgb(251 146 60);">$1</span>`
-			)
-		})
-		return highlightedContent
-	}
-
-	const insertVariable = (variable: string) => {
-		if (textareaRef.current) {
-			const start = textareaRef.current.selectionStart
-			const end = textareaRef.current.selectionEnd
-			const text = textareaRef.current.value
-			const before = text.substring(0, start)
-			const after = text.substring(end)
-
-			const newText = `${before}${variable}${after}`
-			onChange(newText)
-
-			const newCursorPos = start + variable.length
-			setCursorPosition(newCursorPos)
-		}
-	}
-
-	return (
-		<div className="relative min-h-[100px] font-mono text-xs">
-			<div
-				className="absolute inset-0 whitespace-pre-wrap p-3 pointer-events-none break-all"
-				dangerouslySetInnerHTML={{
-					__html: getHighlightedContent(value),
-				}}
-			/>
-			<textarea
-				ref={textareaRef}
-				id={id}
-				value={value}
-				onChange={(e) => {
-					setCursorPosition(e.target.selectionStart)
-					onChange(e.target.value)
-				}}
-				disabled={disabled}
-				className={`absolute inset-0 bg-transparent text-transparent caret-foreground selection:bg-accent selection:text-accent-foreground resize-none p-3 ${className}`}
-				style={{ caretColor: "var(--foreground)" }}
-			/>
-			{showVariableBadges && (
-				<div className="absolute bottom-2 right-2 flex gap-1">
-					{systemVariables.map(({ name }) => (
-						<Badge
-							key={name}
-							variant="outline"
-							className="text-xs cursor-pointer hover:bg-accent"
-							onClick={() => insertVariable(name)}>
-							{name}
-						</Badge>
-					))}
-				</div>
-			)}
-		</div>
-	)
-}
-
 const SystemPromptVariants: React.FC = () => {
-	const {
-		systemPromptVariants,
-		handleSaveSystemPrompt,
-		handleDeleteSystemPrompt,
-		handleSetActiveVariant,
-		activeVariantId,
-	} = useSettingsState()
-	const [editMode, setEditMode] = useState<string | null>(null)
-	const [showPreview, setShowPreview] = useState<string | null>(null)
-	const [isAddingNew, setIsAddingNew] = useState(false)
-	const [newVariantName, setNewVariantName] = useState("")
-	const [newVariantContent, setNewVariantContent] = useState("")
-
-	const handleAddNewVariant = () => {
-		if (!newVariantName || !newVariantContent) return
-
-		handleSaveSystemPrompt({
-			id: Date.now().toString(),
-			name: newVariantName,
-			content: newVariantContent,
-		})
-
-		setNewVariantName("")
-		setNewVariantContent("")
-		setIsAddingNew(false)
-	}
-
-	const insertVariable = (textAreaId: string, variable: string) => {
-		const textarea = document.getElementById(textAreaId) as HTMLTextAreaElement
-		if (textarea) {
-			const start = textarea.selectionStart
-			const end = textarea.selectionEnd
-			const text = textarea.value
-			const before = text.substring(0, start)
-			const after = text.substring(end)
-
-			const newText = `${before}${variable}${after}`
-			if (editMode) {
-				const variant = systemPromptVariants?.find((v) => v.id === editMode)
-				if (variant) {
-					handleSaveSystemPrompt({
-						...variant,
-						content: newText,
-					})
-				}
-			}
-		}
-	}
-
-	const highlightSystemVariables = (content: string) => {
-		let highlightedContent = content
-		systemVariables.forEach(({ name }) => {
-			highlightedContent = highlightedContent.replace(
-				new RegExp(`(${name})`, "gi"),
-				`<span class="text-orange-400 font-semibold">$1</span>`
-			)
-		})
-		return <div dangerouslySetInnerHTML={{ __html: highlightedContent }} className="whitespace-pre-wrap" />
-	}
+	const { systemPromptVariants, handleSetActiveVariant, activeVariantId } = useSettingsState()
 
 	return (
 		<div className="space-y-4">
-			<div className="flex items-center justify-between mb-4">
-				<div className="flex flex-col gap-2">
-					<Label className="text-sm font-medium">System Prompt Variables</Label>
-					<div className="flex flex-wrap gap-2">
-						<TooltipProvider>
-							{systemVariables.map(({ name, label, description }) => (
-								<Tooltip key={name}>
-									<TooltipTrigger asChild>
-										<Badge
-											variant="outline"
-											className="text-xs cursor-pointer hover:bg-accent"
-											onClick={() => {
-												if (editMode) {
-													insertVariable(`textarea-${editMode}`, name)
-												} else if (isAddingNew) {
-													insertVariable("new-variant-textarea", name)
-												}
-											}}>
-											{label}: <span className="text-orange-400 ml-1">{name}</span>
-										</Badge>
-									</TooltipTrigger>
-									<TooltipContent>
-										<p>{description}</p>
-									</TooltipContent>
-								</Tooltip>
-							))}
-						</TooltipProvider>
-					</div>
-				</div>
-				<Button variant="outline" size="sm" onClick={() => setIsAddingNew(true)} disabled={isAddingNew}>
-					<Plus className="h-4 w-4 mr-2" />
-					Add Variant
-				</Button>
+			<div className="flex flex-col gap-2">
+				<Label className="text-sm font-medium">Choose your System Prompt Variant</Label>
 			</div>
-
-			{isAddingNew && (
-				<Card className="p-4">
-					<div className="space-y-4">
-						<div className="space-y-2">
-							<Label>System Prompt Content</Label>
-							<Input
-								placeholder="Variant Name"
-								value={newVariantName}
-								onChange={(e) => setNewVariantName(e.target.value)}
-							/>
-						</div>
-						<div className="relative border rounded-md">
-							<HighlightedTextarea
-								id="new-variant-textarea"
-								value={newVariantContent}
-								onChange={setNewVariantContent}
-								className="rounded-md"
-								showVariableBadges={true}
-							/>
-						</div>
-						<div className="flex justify-end gap-2">
-							<Button
-								variant="outline"
-								onClick={() => {
-									setIsAddingNew(false)
-									setNewVariantName("")
-									setNewVariantContent("")
-								}}>
-								Cancel
-							</Button>
-							<Button onClick={handleAddNewVariant} disabled={!newVariantName || !newVariantContent}>
-								Add Variant
-							</Button>
-						</div>
-					</div>
-				</Card>
-			)}
 
 			<Accordion type="single" collapsible className="space-y-2">
 				{systemPromptVariants?.map((variant) => (
@@ -257,28 +47,14 @@ const SystemPromptVariants: React.FC = () => {
 						<AccordionTrigger className="px-4 py-2 hover:no-underline">
 							<div className="flex items-center justify-between w-full">
 								<div className="flex items-center gap-2">
-									{editMode === variant.id ? (
-										<Input
-											value={variant.name}
-											onChange={(e) => {
-												handleSaveSystemPrompt({
-													...variant,
-													name: e.target.value,
-												})
-											}}
-											className="text-sm font-medium w-48"
-											onClick={(e) => e.stopPropagation()}
-										/>
-									) : (
-										<div className="flex items-center gap-2">
-											<span className="text-sm font-medium">{variant.name}</span>
-											{activeVariantId === variant.id && (
-												<Badge variant="secondary" className="text-xs">
-													Active
-												</Badge>
-											)}
-										</div>
-									)}
+									<div className="flex items-center gap-2">
+										<span className="text-sm font-medium">{variant.name}</span>
+										{activeVariantId === variant.id && (
+											<Badge variant="secondary" className="text-xs">
+												Active
+											</Badge>
+										)}
+									</div>
 								</div>
 								<div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
 									<Button
@@ -306,62 +82,19 @@ const SystemPromptVariants: React.FC = () => {
 											</Tooltip>
 										</TooltipProvider>
 									</Button>
-									<Button
-										variant="ghost"
-										size="icon"
-										onClick={() => setShowPreview(showPreview === variant.id ? null : variant.id)}>
-										{showPreview === variant.id ? (
-											<EyeOff className="h-4 w-4" />
-										) : (
-											<Eye className="h-4 w-4" />
-										)}
-									</Button>
-									<Button
-										variant={editMode === variant.id ? "secondary" : "ghost"}
-										size="icon"
-										onClick={() => {
-											if (editMode === variant.id) {
-												setEditMode(null)
-											} else {
-												setEditMode(variant.id)
-											}
-										}}>
-										{editMode === variant.id ? (
-											<Check className="h-4 w-4" />
-										) : (
-											<Pencil className="h-4 w-4" />
-										)}
-									</Button>
-									<Button
-										variant="ghost"
-										size="icon"
-										onClick={() => handleDeleteSystemPrompt(variant.id)}>
-										<Trash2 className="h-4 w-4" />
-									</Button>
 								</div>
 							</div>
 						</AccordionTrigger>
 						<AccordionContent className="px-4 pb-2">
-							{showPreview === variant.id ? (
-								<div className="mt-2 text-xs font-mono bg-muted p-4 rounded-md">
-									{highlightSystemVariables(variant.content)}
-								</div>
-							) : (
-								<div className="relative border rounded-md mt-2">
-									<HighlightedTextarea
-										id={`textarea-${variant.id}`}
-										value={variant.content}
-										onChange={(value) => {
-											handleSaveSystemPrompt({
-												...variant,
-												content: value,
-											})
-										}}
-										disabled={editMode !== variant.id}
-										showVariableBadges={editMode === variant.id}
-									/>
-								</div>
-							)}
+							<div className="text-xs font-mono bg-muted px-2 rounded-md">
+								<ScrollArea
+									viewProps={{
+										className: "max-h-[240px]",
+									}}>
+									<pre className="whitespace-pre-wrap">{variant.content}</pre>
+									<ScrollBar />
+								</ScrollArea>
+							</div>
 						</AccordionContent>
 					</AccordionItem>
 				))}
