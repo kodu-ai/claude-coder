@@ -2,24 +2,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { AlertCircle, Globe, Search } from "lucide-react"
 import React, { useEffect, useState } from "react"
 
-import { ToolAddons, ToolBlock, ToolStatus } from "../ToolRenderV1"
+import { ToolAddons, ToolBlock } from "../ToolRenderV1"
 
-import {
-	AskConsultantTool,
-	AskFollowupQuestionTool,
-	AttemptCompletionTool,
-	ChatTool,
-	ExecuteCommandTool,
-	ListCodeDefinitionNamesTool,
-	ListFilesTool,
-	ReadFileTool,
-	SearchFilesTool,
-	ServerRunnerTool,
-	UpsertMemoryTool,
-	UrlScreenshotTool,
-	WriteToFileTool,
-	WebSearchTool,
-} from "../../../../../src/shared/new-tools"
+import { WebSearchTool } from "../../../../../src/shared/new-tools"
 
 type EnhancedWebSearchBlockProps = WebSearchTool & ToolAddons
 
@@ -27,6 +12,7 @@ export const EnhancedWebSearchBlock: React.FC<EnhancedWebSearchBlockProps> = ({
 	searchQuery,
 	baseLink,
 	browserModel,
+	browserMode,
 	content,
 	streamType,
 	approvalState,
@@ -91,10 +77,16 @@ export const EnhancedWebSearchBlock: React.FC<EnhancedWebSearchBlockProps> = ({
 			onApprove={onApprove}
 			onReject={onReject}
 			ts={ts}>
-			<div className="text-xs flex flex-col gap-2">
+			<div className="text-xs flex flex-col gap-1">
 				<p>
 					<span className="font-semibold">Search query:</span> "{searchQuery}"
 				</p>
+				{browserMode && (
+					<p>
+						<span className="font-semibold">Mode:</span>{" "}
+						{browserMode === "api_docs" ? "API Docs" : "Generic"}
+					</p>
+				)}
 				{baseLink && (
 					<p>
 						<span className="font-semibold">Starting from:</span>{" "}
@@ -105,7 +97,7 @@ export const EnhancedWebSearchBlock: React.FC<EnhancedWebSearchBlockProps> = ({
 				)}
 				{browserModel && (
 					<p>
-						<span className="font-semibold">Browser model:</span>{" "}
+						<span className="font-semibold">Model:</span>{" "}
 						{browserModel === "fast" ? "Claude 3.5 Haiku" : "Claude 3.5 Sonnet"}
 					</p>
 				)}

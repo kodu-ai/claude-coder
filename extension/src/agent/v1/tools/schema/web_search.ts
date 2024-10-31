@@ -42,22 +42,32 @@ const schema = z.object({
 		.describe(
 			"The browser model to use for the search. Use 'smart' for slower but smarter search, use 'fast' for faster but less smart search."
 		),
+	browserMode: z
+		.enum(["api_docs", "generic"])
+		.default("generic")
+		.optional()
+		.describe(
+			"The browser mode to use for the search. Use 'generic' to search the web. Use 'api_docs' when you want to search API docs."
+		),
 })
 
 const examples = [
 	`<tool name="web_search">
   <searchQuery>Latest advancements in AI technology</searchQuery>
   <browserModel>smart</browserModel>
+  <browserMode>generic</browserMode>
 </tool>`,
 
 	`<tool name="web_search">
   <searchQuery>How to optimize React applications?</searchQuery>
   <baseLink>https://reactjs.org/docs/optimizing-performance.html</baseLink>
   <browserModel>smart</browserModel>
+  <browserMode>generic</browserMode>
 </tool>`,
 
 	`<tool name="web_search">
-  <searchQuery>Best practices for REST API design</searchQuery>
+  <searchQuery>Zustand state management API setter function</searchQuery>
+  <browserMode>api_docs</browserMode>
 </tool>`,
 
 	`<tool name="web_search">

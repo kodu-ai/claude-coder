@@ -1,4 +1,5 @@
-import { ToolResponse } from "../../types"
+import assert from "assert"
+import { ToolName, ToolResponse } from "../../types"
 import { BaseAgentTool } from "../base-agent.tool"
 import type { AgentToolOptions, AgentToolParams } from "../types"
 
@@ -14,19 +15,17 @@ export class WebSearchTool extends BaseAgentTool {
 
 	async execute(): Promise<ToolResponse> {
 		const { say, ask, updateAsk, input } = this.params
-		const { searchQuery, baseLink, browserModel = "fast" } = input
+		const { searchQuery, baseLink } = input
+		const browserMode = input.browserMode ?? "generic"
+		const browserModel = input.browserModel ?? "fast"
 
-		if (!searchQuery) {
-			await say("error", "Claude tried to use `web_search` without required parameter `searchQuery`. Retrying...")
-
-			return `Error: Missing value for required parameter 'searchQuery'. Please retry with complete response.
-				A good example of a web_search tool call is:
-				{
-					"tool": "web_search",
-					"searchQuery": "How to import jotai in a react project",
-					"baseLink": "https://jotai.org/docs/introduction"
-				}
-				Please try again with the correct searchQuery, you are not allowed to search without a searchQuery.`
+		if (
+			!searchQuery ||
+			!browserMode ||
+			!["api_docs", "generic"].includes(browserMode) ||
+			!["smart", "fast"].includes(browserModel)
+		) {
+			return this.onBadInputReceived()
 		}
 
 		const { response, text, images } = await ask(
@@ -37,6 +36,7 @@ export class WebSearchTool extends BaseAgentTool {
 					searchQuery,
 					baseLink,
 					browserModel,
+					browserMode,
 					approvalState: "pending",
 					ts: this.ts,
 				},
@@ -53,6 +53,7 @@ export class WebSearchTool extends BaseAgentTool {
 						searchQuery,
 						baseLink,
 						browserModel,
+						browserMode,
 						approvalState: "rejected",
 						ts: this.ts,
 						userFeedback: text,
@@ -76,6 +77,7 @@ export class WebSearchTool extends BaseAgentTool {
 						searchQuery,
 						baseLink,
 						browserModel,
+						browserMode,
 						approvalState: "loading",
 						ts: this.ts,
 					},
@@ -107,6 +109,7 @@ export class WebSearchTool extends BaseAgentTool {
 								searchQuery,
 								baseLink,
 								browserModel,
+								browserMode,
 								content: chunk.content,
 								streamType: chunk.type,
 								approvalState: "loading",
@@ -126,6 +129,7 @@ export class WebSearchTool extends BaseAgentTool {
 								tool: "web_search",
 								searchQuery,
 								browserModel,
+								browserMode,
 								baseLink,
 								approvalState: "error",
 								error: "Web search was aborted",
@@ -146,6 +150,7 @@ export class WebSearchTool extends BaseAgentTool {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
+						browserMode,
 						browserModel,
 						approvalState: "approved",
 						ts: this.ts,
@@ -162,6 +167,7 @@ export class WebSearchTool extends BaseAgentTool {
 					tool: {
 						tool: "web_search",
 						browserModel,
+						browserMode,
 						searchQuery: searchQuery ?? "",
 						baseLink: baseLink ?? "",
 						approvalState: "error",
@@ -173,6 +179,24 @@ export class WebSearchTool extends BaseAgentTool {
 			)
 			return `Web search failed with error: ${err}`
 		}
+	}
+
+	private async onBadInputReceived(): Promise<ToolResponse> {
+		await this.params.say(
+			"error",
+			"Claude tried to use `web_search` without required parameter `searchQuery` or `browserMode`. Retrying..."
+		)
+
+		return `Error: Missing value for required parameter 'searchQuery' or 'browserMode'. Please retry with complete response.
+			A good example of a web_search tool call is:
+			{
+				"tool": "web_search",
+				"searchQuery": "How to import jotai in a react project",
+				"baseLink": "https://jotai.org/docs/introduction",
+				"browserMode": "api_docs",
+				"browserModel": "smart"
+			}
+			Please try again with the correct searchQuery, you are not allowed to search without a searchQuery.`
 	}
 
 	public override abortToolExecution(): Promise<void> {
