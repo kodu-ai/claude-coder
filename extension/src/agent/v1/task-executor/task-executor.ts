@@ -450,6 +450,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 							// Process for tool use and get non-XML text
 							const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
 							accumulatedText = "" // Clear accumulated text after processing
+							console.log(`[TaskExecutor]: acc content: [${nonXMLText}] | ${Date.now()}`)
 
 							// If we got non-XML text, add it to buffer
 							if (nonXMLText) {
@@ -460,12 +461,18 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 							// If tool processing started, pause the stream
 							// this is actually not working ZZZ - need to fix this
+							console.log(
+								`[TaskExecutor]: this.toolExecutor.hasActiveTools(${this.toolExecutor.hasActiveTools()}) | ${Date.now()}`
+							)
 							if (this.toolExecutor.hasActiveTools()) {
 								// Ensure any buffered content is flushed before pausing
 								await this.flushTextBuffer(this.currentReplyId, true)
 								this.pauseStream()
+								console.log(`[TaskExecutor]: acc content: [${accumulatedText}] | ${Date.now()}`)
+								console.log(`[TaskExecutor]: stream status: [${this.streamPaused}] | ${Date.now()}`)
 								// Wait for tool processing to complete
 								await this.toolExecutor.waitForToolProcessing()
+								console.log(`[TaskExecutor]: stream status: [${this.streamPaused}] | ${Date.now()}`)
 								// Resume stream after tool processing
 								await this.resumeStream()
 							}
