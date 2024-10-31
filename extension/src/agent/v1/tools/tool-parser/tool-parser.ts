@@ -21,6 +21,8 @@ interface Context {
 	content: string
 	nestingLevel: number
 	paramNestingLevel: Record<string, number>
+	paramBuffer: Record<string, string> // Buffer for parameter values
+	lastUpdateLength: Record<string, number> // Track last update length for each param
 }
 
 interface ToolParserConstructor {
@@ -37,6 +39,7 @@ export class ToolParser {
 	private isInTag: boolean = false
 	private isInTool: boolean = false
 	private nonToolBuffer: string = ""
+	private readonly UPDATE_THRESHOLD = 50 // Send update every N characters
 	public onToolUpdate?: ToolUpdateCallback
 	public onToolEnd?: ToolEndCallback
 	public onToolError?: ToolErrorCallback
@@ -53,11 +56,6 @@ export class ToolParser {
 		this.onToolClosingError = onToolClosingError
 	}
 
-	// file>\n\nI wrote
-	// ...
-	// it!\n\n<wr
-	// ...
-	// ile>\n\nI wrote it!
 	appendText(text: string): string {
 		for (const char of text) {
 			this.processChar(char)
@@ -128,6 +126,8 @@ export class ToolParser {
 				content: "",
 				nestingLevel: 1,
 				paramNestingLevel: {},
+				paramBuffer: {},
+				lastUpdateLength: {},
 			}
 			this.onToolUpdate?.(id, tagName, {}, ts)
 		} else {
@@ -138,21 +138,49 @@ export class ToolParser {
 	private handleBufferContent(): void {
 		if (this.buffer && this.currentContext) {
 			if (this.currentContext.currentParam) {
-				if (!this.currentContext.params[this.currentContext.currentParam]) {
-					this.currentContext.params[this.currentContext.currentParam] = ""
+				// Initialize buffers if needed
+				if (!this.currentContext.paramBuffer[this.currentContext.currentParam]) {
+					this.currentContext.paramBuffer[this.currentContext.currentParam] = ""
+					this.currentContext.lastUpdateLength[this.currentContext.currentParam] = 0
 				}
-				this.currentContext.params[this.currentContext.currentParam] += this.buffer
-				this.onToolUpdate?.(
-					this.currentContext.id,
-					this.currentContext.toolName,
-					{ ...this.currentContext.params },
-					this.currentContext.ts
-				)
+
+				// Add to parameter buffer
+				this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
+
+				// Check if we should send an update
+				const currentLength = this.currentContext.paramBuffer[this.currentContext.currentParam].length
+				const lastUpdateLength = this.currentContext.lastUpdateLength[this.currentContext.currentParam]
+
+				if (currentLength - lastUpdateLength >= this.UPDATE_THRESHOLD) {
+					this.sendProgressUpdate()
+				}
 			} else {
 				this.currentContext.content += this.buffer
 			}
 			this.buffer = ""
 		}
+	}
+
+	private sendProgressUpdate(): void {
+		if (!this.currentContext) return
+
+		// Update the params with current buffer content
+		if (this.currentContext.currentParam) {
+			this.currentContext.params[this.currentContext.currentParam] =
+				this.currentContext.paramBuffer[this.currentContext.currentParam]
+
+			// Update the last update length
+			this.currentContext.lastUpdateLength[this.currentContext.currentParam] =
+				this.currentContext.paramBuffer[this.currentContext.currentParam].length
+		}
+
+		// Send the update
+		this.onToolUpdate?.(
+			this.currentContext.id,
+			this.currentContext.toolName,
+			{ ...this.currentContext.params },
+			this.currentContext.ts
+		)
 	}
 
 	private handleTag(tag: string): void {
@@ -178,13 +206,13 @@ export class ToolParser {
 				this.currentContext.paramNestingLevel[tagName] =
 					(this.currentContext.paramNestingLevel[tagName] || 0) + 1
 			}
-			// Add the tag as content
-			this.currentContext.params[this.currentContext.currentParam] += this.buffer
+			// Add the tag to the buffer
+			this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
 		} else if (this.toolSchemas.some((schema) => schema.name === tagName)) {
 			// This is a nested tool tag
 			this.currentContext.nestingLevel++
 			if (this.currentContext.currentParam) {
-				this.currentContext.params[this.currentContext.currentParam] += this.buffer
+				this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
 			} else {
 				this.currentContext.content += this.buffer
 			}
@@ -192,7 +220,9 @@ export class ToolParser {
 			// This is a new parameter
 			this.currentContext.currentParam = tagName
 			this.currentContext.paramNestingLevel[tagName] = 1
+			this.currentContext.paramBuffer[tagName] = ""
 			this.currentContext.params[tagName] = ""
+			this.currentContext.lastUpdateLength[tagName] = 0
 		}
 	}
 
@@ -202,13 +232,18 @@ export class ToolParser {
 		if (tagName === this.currentContext.toolName) {
 			this.currentContext.nestingLevel--
 			if (this.currentContext.nestingLevel === 0) {
+				// Send final update with complete content
+				if (this.currentContext.currentParam) {
+					this.currentContext.params[this.currentContext.currentParam] =
+						this.currentContext.paramBuffer[this.currentContext.currentParam]
+				}
 				this.finalizeTool(this.currentContext)
 				this.isInTool = false
 				this.currentContext = null
 			} else {
 				// This is a nested closing tool tag
 				if (this.currentContext.currentParam) {
-					this.currentContext.params[this.currentContext.currentParam] += this.buffer
+					this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
 				} else {
 					this.currentContext.content += this.buffer
 				}
@@ -219,15 +254,20 @@ export class ToolParser {
 
 			// Only clear the current parameter if we're at the root level
 			if (this.currentContext.paramNestingLevel[tagName] === 0) {
+				// Send final update for this parameter
+				this.currentContext.params[this.currentContext.currentParam] =
+					this.currentContext.paramBuffer[this.currentContext.currentParam]
+				this.sendProgressUpdate()
+
 				this.currentContext.currentParam = ""
 				delete this.currentContext.paramNestingLevel[tagName]
 			} else {
-				// This is a nested closing tag, add it as content
-				this.currentContext.params[this.currentContext.currentParam] += this.buffer
+				// This is a nested closing tag, add it to buffer
+				this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
 			}
 		} else if (this.currentContext.currentParam) {
 			// This is some other closing tag inside a parameter
-			this.currentContext.params[this.currentContext.currentParam] += this.buffer
+			this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
 		}
 	}
 

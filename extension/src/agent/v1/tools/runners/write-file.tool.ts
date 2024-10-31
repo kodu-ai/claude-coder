@@ -39,7 +39,7 @@ export class WriteFileTool extends BaseAgentTool {
 		}
 		// if the user has skipped the write animation, we don't need to show the diff view until we reach the final state
 		if (this.skipWriteAnimation) {
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{ tool: { tool: "write_to_file", content, path: relPath, ts: this.ts, approvalState: "loading" } },
 				this.ts
@@ -80,8 +80,6 @@ export class WriteFileTool extends BaseAgentTool {
 			// Show changes in diff view
 			await this.showChangesInDiffView(relPath, content)
 
-			// Ask for user approval
-			console.log("Asking for user approval")
 			const { response, text, images } = await this.params.ask(
 				"tool",
 				{
