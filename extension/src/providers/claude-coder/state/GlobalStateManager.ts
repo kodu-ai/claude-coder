@@ -17,6 +17,7 @@ export type GlobalState = {
 	lastShownAnnouncementId: string | undefined
 	customInstructions: string | undefined
 	apiModelId: KoduModelId | undefined
+	browserModelId: string | undefined
 	useUdiff: boolean | undefined
 	alwaysAllowReadOnly: boolean | undefined
 	alwaysAllowWriteOnly: boolean | undefined

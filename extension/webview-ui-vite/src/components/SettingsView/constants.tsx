@@ -10,6 +10,7 @@ export const models: Record<
 		comingSoon?: boolean
 		isRecommended?: boolean
 		isHardWorker?: boolean
+		isBrowserModel?: boolean
 	}
 > = {
 	"claude-3-5-sonnet-20240620": {
@@ -17,14 +18,17 @@ export const models: Record<
 		label: "Claude 3.5 Sonnet",
 		isRecommended: true,
 		isHardWorker: true,
+		isBrowserModel: true,
 	},
 	"claude-3-opus-20240229": {
 		...koduModels["claude-3-opus-20240229"],
 		label: "Claude 3 Opus",
+		isBrowserModel: false,
 	},
 	"claude-3-haiku-20240307": {
 		...koduModels["claude-3-haiku-20240307"],
 		label: "Claude 3 Haiku",
+		isBrowserModel: true,
 	},
 }
 

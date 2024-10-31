@@ -7,6 +7,9 @@ import { GlobalState } from "../../../src/providers/claude-coder/state/GlobalSta
 export function useSettingsState() {
 	const extensionState = useExtensionState()
 	const [model, setModel] = useState(extensionState.apiConfiguration?.apiModelId || "claude-3-5-sonnet-20240620")
+	const [browserModel, setBrowserModel] = useState(
+		extensionState.apiConfiguration?.browserModelId || "claude-3-haiku-20240307"
+	)
 	const [technicalLevel, setTechnicalLevel] = useState(extensionState.technicalBackground)
 	const [readOnly, setReadOnly] = useState(extensionState.alwaysAllowReadOnly || false)
 	const [autoCloseTerminal, setAutoCloseTerminal] = useState(extensionState.autoCloseTerminal || false)
@@ -48,6 +51,11 @@ export function useSettingsState() {
 		vscode.postMessage({ type: "apiConfiguration", apiConfiguration: { apiModelId: newModel } })
 	}, [])
 
+	const handleBrowserModelChange = useCallback((newModel: typeof model) => {
+		setBrowserModel(newModel!)
+		vscode.postMessage({ type: "apiConfiguration", apiConfiguration: { browserModelId: newModel } })
+	}, [])
+
 	const handleSetReadOnly = useCallback((checked: boolean) => {
 		setReadOnly(checked)
 		vscode.postMessage({ type: "alwaysAllowReadOnly", bool: checked })
@@ -66,6 +74,7 @@ export function useSettingsState() {
 
 	return {
 		model,
+		browserModel,
 		technicalLevel,
 		readOnly,
 		autoCloseTerminal,
@@ -76,6 +85,7 @@ export function useSettingsState() {
 		handleExperimentalFeatureChange,
 		handleTechnicalLevelChange,
 		handleModelChange,
+		handleBrowserModelChange,
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
 		setCustomInstructions,

@@ -4,6 +4,7 @@ export interface ApiHandlerOptions {
 	koduApiKey?: string
 	koduEmail?: string
 	apiModelId?: KoduModelId
+	browserModelId?: string
 	apiKey?: string // anthropic
 	openRouterApiKey?: string
 	awsAccessKey?: string

@@ -78,7 +78,14 @@ export const UserInfoSection: React.FC = () => {
 }
 
 export const PreferencesTab: React.FC = () => {
-	const { model, technicalLevel, handleModelChange, handleTechnicalLevelChange } = useSettingsState()
+	const {
+		model,
+		technicalLevel,
+		handleModelChange,
+		handleTechnicalLevelChange,
+		browserModel,
+		handleBrowserModelChange,
+	} = useSettingsState()
 
 	return (
 		<div className="space-y-4">
@@ -125,6 +132,27 @@ export const PreferencesTab: React.FC = () => {
 					</SelectContent>
 				</Select>
 				<ModelDetails model={model} />
+			</div>
+
+			<div className="space-y-2">
+				<Label htmlFor="browser-model-select" className="text-sm">
+					Browser Model <em className="text-xs text-muted-foreground">(used for web searches)</em>
+				</Label>
+				<Select value={browserModel} onValueChange={handleBrowserModelChange}>
+					<SelectTrigger id="browser-model-select" className="w-full">
+						<SelectValue placeholder="Select a model" />
+					</SelectTrigger>
+					<SelectContent>
+						{Object.entries(models).flatMap(
+							([key, value]) =>
+								value.isBrowserModel && (
+									<SelectItem key={key} value={key} disabled={value.disabled}>
+										{value.label} {value.comingSoon && "(Coming Soon)"}
+									</SelectItem>
+								)
+						)}
+					</SelectContent>
+				</Select>
 			</div>
 		</div>
 	)

@@ -414,6 +414,7 @@ export class KoduHandler implements ApiHandler {
 		searchQuery: string,
 		baseLink?: string,
 		browserModel?: string,
+		browserMode?: string,
 		abortSignal?: AbortSignal
 	): AsyncIterable<WebSearchResponseDto> {
 		const response = await axios.post(
@@ -422,6 +423,7 @@ export class KoduHandler implements ApiHandler {
 				searchQuery,
 				baseLink,
 				browserModel,
+				browserMode,
 			},
 			{
 				headers: {

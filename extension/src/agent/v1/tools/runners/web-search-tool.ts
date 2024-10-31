@@ -17,14 +17,8 @@ export class WebSearchTool extends BaseAgentTool {
 		const { say, ask, updateAsk, input } = this.params
 		const { searchQuery, baseLink } = input
 		const browserMode = input.browserMode ?? "generic"
-		const browserModel = input.browserModel ?? "fast"
 
-		if (
-			!searchQuery ||
-			!browserMode ||
-			!["api_docs", "generic"].includes(browserMode) ||
-			!["smart", "fast"].includes(browserModel)
-		) {
+		if (!searchQuery || !browserMode || !["api_docs", "generic"].includes(browserMode)) {
 			return this.onBadInputReceived()
 		}
 
@@ -35,7 +29,6 @@ export class WebSearchTool extends BaseAgentTool {
 					tool: "web_search",
 					searchQuery,
 					baseLink,
-					browserModel,
 					browserMode,
 					approvalState: "pending",
 					ts: this.ts,
@@ -52,7 +45,6 @@ export class WebSearchTool extends BaseAgentTool {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
-						browserModel,
 						browserMode,
 						approvalState: "rejected",
 						ts: this.ts,
@@ -76,7 +68,6 @@ export class WebSearchTool extends BaseAgentTool {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
-						browserModel,
 						browserMode,
 						approvalState: "loading",
 						ts: this.ts,
@@ -85,10 +76,18 @@ export class WebSearchTool extends BaseAgentTool {
 				this.ts
 			)
 
-			const result = this.koduDev
-				.getApiManager()
-				.getApi()
-				?.sendWebSearchRequest?.(searchQuery, baseLink, browserModel, this.abortController.signal)
+			const browserModel = this.koduDev.providerRef
+				.deref()
+				?.getGlobalStateManager()
+				.getGlobalState("browserModelId")
+			const api = this.koduDev.getApiManager().getApi()
+			const result = await api?.sendWebSearchRequest?.(
+				searchQuery,
+				baseLink,
+				browserModel,
+				browserMode,
+				this.abortController.signal
+			)
 
 			if (!result) {
 				throw new Error("Unable to read response")
@@ -108,7 +107,6 @@ export class WebSearchTool extends BaseAgentTool {
 								tool: "web_search",
 								searchQuery,
 								baseLink,
-								browserModel,
 								browserMode,
 								content: chunk.content,
 								streamType: chunk.type,
@@ -128,7 +126,6 @@ export class WebSearchTool extends BaseAgentTool {
 							tool: {
 								tool: "web_search",
 								searchQuery,
-								browserModel,
 								browserMode,
 								baseLink,
 								approvalState: "error",
@@ -151,7 +148,6 @@ export class WebSearchTool extends BaseAgentTool {
 						searchQuery,
 						baseLink,
 						browserMode,
-						browserModel,
 						approvalState: "approved",
 						ts: this.ts,
 					},
@@ -166,7 +162,6 @@ export class WebSearchTool extends BaseAgentTool {
 				{
 					tool: {
 						tool: "web_search",
-						browserModel,
 						browserMode,
 						searchQuery: searchQuery ?? "",
 						baseLink: baseLink ?? "",
