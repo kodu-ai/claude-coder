@@ -4,6 +4,21 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.9.20]
+
+-   [NEW]: Web search tool settings, allowing you to control which model the tool uses.
+-   [NEW]: Updated search categories in the Web Search tool for better search results.
+-   [NEW]: Improved performance for Diff view.
+-   [NEW]: Ability to select system prompts (will gradually expand on this feature).
+-   [NEW]: Context window manager to view the current task's context memory.
+-   [NEW]: Server runner tool now maintains the presence of recent logs and all logs.
+-   [FIX]: Stabilized rendering and removed race conditions in the code.
+-   [FIX]: Improved streaming functionality to work properly with one tool at a time.
+-   [FIX]: Enhanced diagnostics for better feedback when editing files.
+-   [FIX]: Execute command and server runner now work correctly.
+-   [FIX]: More graceful error handling to prevent program crashes or corrupted tasks.
+-   [ADJUSTMENT]: System prompt now better obeys user requests and truncates code less often.
+
 ## [1.9.19]
 
 -   [FIX]: prompt caching, reduce cost.
