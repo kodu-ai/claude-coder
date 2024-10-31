@@ -269,11 +269,11 @@ ${this.customInstructions.trim()}
 			}
 			this.handleStreamError(error)
 		} finally {
-				// Update the UI with the request running state
-				this.providerRef.deref()?.getWebviewManager().postMessageToWebview({
-					type: "requestStatus",
-					isRunning: false,
-				})
+			// Update the UI with the request running state
+			this.providerRef.deref()?.getWebviewManager().postMessageToWebview({
+				type: "requestStatus",
+				isRunning: false,
+			})
 			clearInterval(checkInactivity)
 		}
 	}

@@ -3,6 +3,7 @@ import { useExtensionState } from "../context/ExtensionStateContext"
 import { vscode } from "../utils/vscode"
 import useDebounce from "./use-debounce"
 import { GlobalState } from "../../../src/providers/claude-coder/state/GlobalStateManager"
+import { SystemPromptVariant } from "../../../src/shared/SystemPromptVariant"
 
 export function useSettingsState() {
 	const extensionState = useExtensionState()
@@ -20,6 +21,9 @@ export function useSettingsState() {
 	})
 	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
 	const [autoSkipWrite, setAutoSkipWrite] = useState(extensionState.skipWriteAnimation || false)
+	const [systemPromptVariants, setSystemPromptVariants] = useState<SystemPromptVariant[]>(
+		extensionState.systemPromptVariants || []
+	)
 
 	const handleAutoSkipWriteChange = useCallback((checked: boolean) => {
 		setAutoSkipWrite(checked)
@@ -66,6 +70,23 @@ export function useSettingsState() {
 		vscode.postMessage({ type: "autoCloseTerminal", bool: checked })
 	}, [])
 
+	const handleSaveSystemPrompt = useCallback((variant: SystemPromptVariant) => {
+		setSystemPromptVariants((prev) => {
+			const newVariants = prev.filter((v) => v.id !== variant.id)
+			const updatedVariants = [...newVariants, variant]
+			vscode.postMessage({ type: "systemPromptVariants", variants: updatedVariants })
+			return updatedVariants
+		})
+	}, [])
+
+	const handleDeleteSystemPrompt = useCallback((id: string) => {
+		setSystemPromptVariants((prev) => {
+			const newVariants = prev.filter((v) => v.id !== id)
+			vscode.postMessage({ type: "systemPromptVariants", variants: newVariants })
+			return newVariants
+		})
+	}, [])
+
 	useDebounce(customInstructions, 250, (val) => {
 		if (val === extensionState.customInstructions) return
 		extensionState.setCustomInstructions(val)
@@ -81,6 +102,7 @@ export function useSettingsState() {
 		experimentalFeatureStates,
 		customInstructions,
 		autoSkipWrite,
+		systemPromptVariants,
 		handleAutoSkipWriteChange,
 		handleExperimentalFeatureChange,
 		handleTechnicalLevelChange,
@@ -89,5 +111,7 @@ export function useSettingsState() {
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
 		setCustomInstructions,
+		handleSaveSystemPrompt,
+		handleDeleteSystemPrompt,
 	}
 }

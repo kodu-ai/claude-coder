@@ -1,6 +1,7 @@
 import * as vscode from "vscode"
 import { HistoryItem } from "../../../shared/HistoryItem"
 import { ApiModelId, KoduModelId } from "../../../shared/api"
+import { SystemPromptVariant } from "../../../shared/SystemPromptVariant"
 
 type User = {
 	email: string
@@ -28,6 +29,7 @@ export type GlobalState = {
 	experimentalTerminal: boolean | undefined
 	skipWriteAnimation: boolean | undefined
 	technicalBackground: "no-technical" | "technical" | "developer" | undefined
+	systemPromptVariants: SystemPromptVariant[] | undefined
 }
 
 export class GlobalStateManager {
