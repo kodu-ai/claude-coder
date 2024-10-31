@@ -204,7 +204,6 @@ Usage:
 <searchQuery>Your search query here</searchQuery>
 <browserMode>api_docs or generic</browserMode>
 <baseLink>Base link for search (optional)</baseLink>
-<browserModel>smart or fast (optional)</browserModel>
 </web_search>
 
 # Tool Use Examples
