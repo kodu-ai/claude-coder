@@ -337,7 +337,6 @@ export class TerminalManager {
 		if (terminalInfo.terminal.shellIntegration) {
 			process.waitForShellIntegration = false
 			// first run to make a new line needed for zsh to work correctly
-			process.run(terminalInfo.terminal, "echo ''", terminalInfo.id)
 			process.run(terminalInfo.terminal, command, terminalInfo.id)
 		} else {
 			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 10_000 }).finally(() => {
@@ -516,7 +515,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 						// }
 						// data = lines.join("\n")
 					} else {
-						// data = stripAnsi(data)
+						data = stripAnsi(data)
 					}
 
 					if (!data.trim()) continue
@@ -600,12 +599,8 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 
 	private async emitIfEol(chunk: string, terminalId: number) {
 		this.buffer += chunk
-		let lineEndIndex: number
-		while ((lineEndIndex = this.buffer.indexOf("\n")) !== -1) {
-			let line = this.buffer.slice(0, lineEndIndex).trimEnd()
-			await this.queueOutput(line, terminalId)
-			this.buffer = this.buffer.slice(lineEndIndex + 1)
-		}
+
+		await this.queueOutput(chunk, terminalId)
 	}
 
 	private async emitRemainingBufferIfListening(terminalId: number) {
