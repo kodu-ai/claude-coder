@@ -1,9 +1,9 @@
-// type that represents json data that is sent from extension to webview, called ExtensionMessage and has 'type' enum which can be 'plusButtonTapped' or 'settingsButtonTapped' or 'hello'
-
 import type { GlobalState } from "../providers/claude-coder/state/GlobalStateManager"
 import { ApiConfiguration } from "./api"
 import { HistoryItem } from "./HistoryItem"
 import { ChatTool } from "./new-tools"
+import { SystemPromptVariant } from "./SystemPromptVariant"
+
 interface FileTreeItem {
 	id: string
 	depth: number
@@ -116,6 +116,7 @@ export interface ExtensionState {
 	autoCloseTerminal: boolean
 	shouldShowKoduPromo: boolean
 	fingerprint?: string
+	systemPromptVariants?: SystemPromptVariant[]
 }
 
 type V0ClaudeMessage = {
