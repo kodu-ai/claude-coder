@@ -339,7 +339,7 @@ export class TerminalManager {
 			// first run to make a new line needed for zsh to work correctly
 			process.run(terminalInfo.terminal, command, terminalInfo.id)
 		} else {
-			// vscode recommends 3 seconds to wait for shell integration to be ready if not it's not available, we made it 5 for safety
+			// vscode recommends 3 seconds to wait for shell integration to be ready if not it's not available
 			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 5_000 }).finally(() => {
 				const existingProcess = this.processes.get(terminalInfo.id)
 				if (existingProcess && existingProcess.waitForShellIntegration) {
@@ -348,9 +348,9 @@ export class TerminalManager {
 						existingProcess.run(terminalInfo.terminal, command, terminalInfo.id)
 					} else {
 						terminalInfo.terminal.sendText(command, true)
-						existingProcess.emit("completed")
-						existingProcess.emit("continue")
 						existingProcess.emit("no_shell_integration")
+						existingProcess.emit("continue")
+						existingProcess.emit("completed")
 					}
 				}
 			})
@@ -493,6 +493,12 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 				let isFirstChunk = true
 				let didEmitEmptyLine = false
 
+				const noShellTimeout = setTimeout(() => {
+					this.emit("no_shell_integration")
+					this.emit("continue")
+					this.emit("completed")
+				}, 3000)
+
 				for await (let data of stream) {
 					if (isFirstChunk) {
 						const outputBetweenSequences = data.match(/\]633;C([\s\S]*?)\]633;D/)?.[1] || ""
@@ -517,9 +523,8 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 					} else {
 						data = stripAnsi(data)
 					}
-
+					clearTimeout(noShellTimeout)
 					if (!data.trim()) continue
-
 					// Remove command echo but preserve line updates
 					const lines = data.split(/[\n\r]+/)
 					const filteredLines = lines.filter((line) => {

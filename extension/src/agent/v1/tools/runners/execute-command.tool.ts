@@ -155,6 +155,29 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					completed = true
 					resolve()
 				})
+				process.once("no_shell_integration", async () => {
+					await say("shell_integration_warning")
+					await updateAsk(
+						"tool",
+						{
+							tool: {
+								tool: "execute_command",
+								command,
+								output: this.output,
+								approvalState: "error",
+								ts: this.ts,
+								error: "Shell integration is not available, cannot read output.",
+								earlyExit: undefined,
+								isSubMsg: this.params.isSubMsg,
+							},
+						},
+						this.ts
+					)
+					shellIntegrationWarningShown = true
+					completed = true
+					earlyExit = "approved"
+					resolve()
+				})
 			})
 			process.on("line", async (line) => {
 				const cleanedLine = line
@@ -187,26 +210,6 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				console.log(`Error in process: ${error}`)
 			})
 
-			process.once("no_shell_integration", async () => {
-				await say("shell_integration_warning")
-				await updateAsk(
-					"tool",
-					{
-						tool: {
-							tool: "execute_command",
-							command,
-							output: this.output,
-							approvalState: "error",
-							ts: this.ts,
-							error: "Shell integration is not available, cannot read output.",
-							earlyExit: undefined,
-							isSubMsg: this.params.isSubMsg,
-						},
-					},
-					this.ts
-				)
-				shellIntegrationWarningShown = true
-			})
 			// Wait for either completion or timeout
 			await Promise.race([
 				completionPromise,
