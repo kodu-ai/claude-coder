@@ -1,10 +1,6 @@
-import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
-import React, { useState, useCallback, useRef, useEffect, memo, useDeferredValue } from "react"
-import { Button } from "../ui/button"
-import { motion, AnimatePresence } from "framer-motion"
 import { vscode } from "@/utils/vscode"
-import { AlertCircle } from "lucide-react"
-import { useTransition } from "react"
+import { useCallback, useTransition } from "react"
+import { Button } from "../ui/button"
 
 interface ButtonSectionProps {
 	primaryButtonText: string | undefined
@@ -23,79 +19,49 @@ function ButtonSection({
 	isRequestRunning,
 	handleSecondaryButtonClick,
 }: ButtonSectionProps) {
-	const [isAborting, setIsAborting] = useState(false)
 	const [isPending, startTransition] = useTransition()
-
-	// Defer button text updates to avoid flicker
-	const deferredPrimaryText = useDeferredValue(primaryButtonText)
-	const deferredSecondaryText = useDeferredValue(secondaryButtonText)
-	const deferredEnableButtons = useDeferredValue(enableButtons)
-
-	const showAbortButton = isRequestRunning && !deferredEnableButtons
-	const showActionButtons = deferredEnableButtons && (deferredPrimaryText || deferredSecondaryText)
-
-	useEffect(() => {
-		if (isRequestRunning) {
-			setIsAborting(false)
-		}
-	}, [isRequestRunning])
 
 	const handleAbort = useCallback(() => {
 		startTransition(() => {
-			setIsAborting(true)
 			vscode.postMessage({ type: "cancelCurrentRequest" })
 		})
 	}, [])
 
-	const handlePrimaryClick = useCallback(() => {
-		startTransition(() => {
-			handlePrimaryButtonClick()
-		})
-	}, [handlePrimaryButtonClick])
+	if (!primaryButtonText && !isRequestRunning) return null
 
-	const handleSecondaryClick = useCallback(() => {
-		startTransition(() => {
-			handleSecondaryButtonClick()
-		})
-	}, [handleSecondaryButtonClick])
-
-	if (!showAbortButton && !showActionButtons) return null
-
-	return (
-		<div className="flex flex-col gap-2 px-4 pt-2">
-			{showAbortButton && (
+	if (isRequestRunning && !secondaryButtonText) {
+		return (
+			<div className="z-50 flex flex-col gap-2 space-x-2 px-4 pt-2">
 				<Button
-					disabled={isAborting || isPending}
-					onClick={handleAbort}
-					className="w-full"
-					variant="destructive">
+					size="sm"
+					className="transition-colors duration-200 ease-in-out"
+					variant="destructive"
+					disabled={!enableButtons && !isRequestRunning}
+					onClick={handleAbort}>
 					Abort Request
 				</Button>
-			)}
+			</div>
+		)
+	}
 
-			{showActionButtons && (
-				<div className="flex flex-1 w-full">
-					{deferredPrimaryText && (
-						<Button
-							size="sm"
-							disabled={!deferredEnableButtons || isPending}
-							className={`flex-1 ${deferredSecondaryText ? "mr-1.5" : ""}`}
-							onClick={handlePrimaryClick}>
-							{deferredPrimaryText}
-						</Button>
-					)}
-					{deferredSecondaryText && (
-						<Button
-							size="sm"
-							variant="secondary"
-							disabled={!deferredEnableButtons || isPending}
-							className="flex-1 ml-1.5"
-							onClick={handleSecondaryClick}>
-							{deferredSecondaryText}
-						</Button>
-					)}
-				</div>
-			)}
+	return (
+		<div className="z-50 grid grid-cols-2 gap-2 px-4 pt-2">
+				<Button
+					size="sm"
+					className={!secondaryButtonText ? "col-span-2" : ""}
+					disabled={!enableButtons || isPending}
+					onClick={() => startTransition(() => handlePrimaryButtonClick())}>
+					{primaryButtonText}
+				</Button>
+				{secondaryButtonText && (
+					<Button
+						size="sm"
+						variant="secondary"
+						disabled={!enableButtons || isPending}
+						onClick={() => startTransition(() => handleSecondaryButtonClick())}>
+						{secondaryButtonText}
+					</Button>
+				)}
 		</div>
 	)
 }
