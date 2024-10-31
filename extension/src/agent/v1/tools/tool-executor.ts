@@ -22,6 +22,7 @@ import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
 import { ChatTool } from "../../../shared/new-tools"
 import { DevServerTool } from "./runners/dev-server.tool"
+import delay from "delay"
 
 interface ToolContext {
 	id: string
@@ -167,8 +168,17 @@ export class ToolExecutor {
 		return this.toolParser.appendText(text)
 	}
 
+	public async waitForToolProcessing(): Promise<void> {
+		// use pwaitfor to wait for the queue to be idle
+		await pWaitFor(() => this.queue.size === 0 && this.queue.pending === 0, { interval: 10 })
+	}
+
 	private async handleToolUpdate(id: string, toolName: string, params: any, ts: number): Promise<void> {
-		if (this.isAborting) {
+		// check if any other tool is processing or pending if so skip the update for now
+		const ifAnyToolisProcessing = Array.from(this.toolContexts.values()).some(
+			(context) => context.status === "processing" || (context.status === "pending" && context.id !== id)
+		)
+		if (this.isAborting || ifAnyToolisProcessing) {
 			return
 		}
 
@@ -309,11 +319,6 @@ export class ToolExecutor {
 		} finally {
 			this.toolContexts.delete(context.id)
 		}
-	}
-
-	public async waitForToolProcessing(): Promise<void> {
-		// use pwaitfor to wait for the queue to be idle
-		await pWaitFor(() => this.queue.size === 0 && this.queue.pending === 0, { interval: 10 })
 	}
 
 	public getToolResults(): { name: string; result: ToolResponse }[] {

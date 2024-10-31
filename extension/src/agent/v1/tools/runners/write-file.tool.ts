@@ -7,6 +7,7 @@ import { BaseAgentTool } from "../base-agent.tool"
 import { DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
 import { fileExistsAtPath } from "../../../../utils/path-helpers"
 import pWaitFor from "p-wait-for"
+import delay from "delay"
 
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -96,7 +97,6 @@ export class WriteFileTool extends BaseAgentTool {
 			)
 
 			if (response !== "yesButtonTapped") {
-				await this.diffViewProvider.revertChanges()
 				await this.params.updateAsk(
 					"tool",
 					{
@@ -111,6 +111,8 @@ export class WriteFileTool extends BaseAgentTool {
 					},
 					this.ts
 				)
+				await this.diffViewProvider.revertChanges()
+
 				if (response === "noButtonTapped") {
 					return formatToolResponse("Write operation cancelled by user.")
 				}
@@ -156,6 +158,21 @@ export class WriteFileTool extends BaseAgentTool {
 			)
 		} catch (error) {
 			console.error("Error in processFileWrite:", error)
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "write_to_file",
+						content: this.params.input.content ?? "",
+						approvalState: "error",
+						path: this.params.input.path ?? "",
+						ts: this.ts,
+						error: `Failed to write to file`,
+					},
+				},
+				this.ts
+			)
+
 			return formatToolResponse(
 				`Write to File Error With:${error instanceof Error ? error.message : String(error)}`
 			)

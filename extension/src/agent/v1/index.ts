@@ -378,10 +378,14 @@ export class KoduDev {
 		}</dev_server_running>\n`
 		if (isDevServerRunning) {
 			for (const server of devServers) {
+				const logs = server.logs.slice(-30)
 				const serverName = server.terminalInfo.name
 				devServerSection += `<dev_server_info>\n`
 				devServerSection += `<server_name>${serverName}</server_name>\n`
 				devServerSection += `<dev_server_url>${server.url}</dev_server_url>\n`
+				devServerSection += `<dev_server_logs>${
+					logs.length === 0 ? "No logs" : logs.join("\n")
+				}</dev_server_logs>\n`
 				devServerSection += `</dev_server_info>\n`
 			}
 		} else {
@@ -435,6 +439,7 @@ export class KoduDev {
 		if (newErrors.length === 0) {
 			details += "\n(No diagnostics errors)"
 		} else {
+			console.log("[ENVIRONMENT DETAILS] New errors found", newErrors.map((diag) => diag.errorString).join("\n"))
 			details += `The following errors are present in the current task you have been working on. this is the only errors that are present if you seen previous linting errors they have been resolved.\n`
 			details += `<linter_errors>\n`
 			details += newErrors.map((diag) => diag.errorString).join("\n")
