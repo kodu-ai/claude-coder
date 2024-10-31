@@ -238,11 +238,13 @@ const ChatView: React.FC<ChatViewProps> = ({
 			case "command_output":
 			case "tool":
 			case "resume_task":
-				vscode.postMessage({
-					type: "askResponse",
-					askResponse: "yesButtonTapped",
-					text: "Let's resume the task from where we left",
-				})
+				setTimeout(() => {
+					vscode.postMessage({
+						type: "askResponse",
+						askResponse: "yesButtonTapped",
+						text: "Let's resume the task from where we left off",
+					})
+				}, 100)
 				if (state.claudeAsk === "tool") {
 					return
 				}
