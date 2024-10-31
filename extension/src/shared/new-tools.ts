@@ -70,6 +70,7 @@ export interface WebSearchTool {
 	baseLink?: string
 	content?: string
 	browserModel?: "smart" | "fast"
+	browserMode?: "api_docs" | "generic"
 	streamType?: "start" | "explore" | "summarize" | "end"
 }
 

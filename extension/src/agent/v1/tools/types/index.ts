@@ -28,6 +28,7 @@ export type ToolInput = {
 	query?: string
 	baseLink?: string
 	browserModel?: "smart" | "fast"
+	browserMode?: "api_docs" | "generic"
 	url?: string
 }
 
