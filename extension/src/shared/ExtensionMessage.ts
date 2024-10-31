@@ -58,6 +58,11 @@ export type EnableTextAreasMessage = {
 	type: "enableTextAreas"
 }
 
+export type RequestStatus = {
+	type: "requestStatus"
+	isRunning: boolean
+}
+
 // webview will hold state
 export type ExtensionMessage =
 	| {
@@ -84,6 +89,7 @@ export type ExtensionMessage =
 	| CommandExecutionResponse
 	| EnableTextAreasMessage
 	| HideCommandBlockMessage
+	| RequestStatus
 
 export interface ExtensionState {
 	version: string

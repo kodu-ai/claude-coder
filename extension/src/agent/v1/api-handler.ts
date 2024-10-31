@@ -233,6 +233,12 @@ ${this.customInstructions.trim()}
 		}, 1000)
 
 		try {
+			// Update the UI with the request running state
+			this.providerRef.deref()?.getWebviewManager().postMessageToWebview({
+				type: "requestStatus",
+				isRunning: true,
+			})
+
 			const stream = await this.api.createMessageStream(
 				systemPrompt.trim(),
 				apiConversationHistoryCopy,
@@ -263,6 +269,11 @@ ${this.customInstructions.trim()}
 			}
 			this.handleStreamError(error)
 		} finally {
+				// Update the UI with the request running state
+				this.providerRef.deref()?.getWebviewManager().postMessageToWebview({
+					type: "requestStatus",
+					isRunning: false,
+				})
 			clearInterval(checkInactivity)
 		}
 	}
