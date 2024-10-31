@@ -61,7 +61,7 @@ export const APIRequestMessage: React.FC<{
 			<div className="flex-line">
 				{icon}
 				{title}
-				{cost && (
+				{/* {cost && (
 					<Tooltip>
 						<TooltipContent className="bg-secondary text-secondary-foreground">
 							<div className="space-y-2">
@@ -86,7 +86,7 @@ export const APIRequestMessage: React.FC<{
 							<code className="text-light">${Number(cost)?.toFixed(4)}</code>
 						</TooltipTrigger>
 					</Tooltip>
-				)}
+				)} */}
 				<div className={`ml-2 ${className}`}>{status}</div>
 				<div className="flex-1" />
 				<AnimatePresence mode="wait"></AnimatePresence>

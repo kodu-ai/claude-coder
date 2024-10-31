@@ -6,9 +6,6 @@ import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
 import { DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
 import { fileExistsAtPath } from "../../../../utils/path-helpers"
-import pWaitFor from "p-wait-for"
-import delay from "delay"
-import { DiagnosticsHandler } from "../../handlers"
 
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams

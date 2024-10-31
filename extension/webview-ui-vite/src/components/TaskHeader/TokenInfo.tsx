@@ -23,9 +23,8 @@ const TokenInfo: React.FC<TokenInfoProps> = ({
 	currentContextTokens,
 	currentContextWindow,
 }) => {
-	const contextPercentage = currentContextWindow
-		? Math.round((currentContextTokens ?? 0 / currentContextWindow) * 100)
-		: 0
+	currentContextTokens = currentContextTokens ?? 0
+	const contextPercentage = currentContextWindow ? Math.round((currentContextTokens / currentContextWindow) * 100) : 0
 
 	return (
 		<div className="flex flex-col gap-1 p-1 sm:gap-1.5 sm:p-1.5 rounded-lg bg-background/95">
