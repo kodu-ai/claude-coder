@@ -10,29 +10,28 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 const systemVariables = [
-	{ 
-		name: "cwd", 
+	{
+		name: "cwd",
 		label: "Current Directory",
-		description: "The current working directory where commands will be executed"
+		description: "The current working directory where commands will be executed",
 	},
-	{ 
-		name: "tools", 
+	{
+		name: "tools",
 		label: "Available Tools",
-		description: "List of all available tools that can be used to accomplish tasks"
+		description: "List of all available tools that can be used to accomplish tasks",
 	},
-	{ 
-		name: "technicalLevel", 
+	{
+		name: "technicalLevel",
 		label: "Technical Level",
-		description: "The user's technical expertise level (no-technical, technical, or developer)"
+		description: "The user's technical expertise level (no-technical, technical, or developer)",
 	},
-	{ 
-		name: "sysInfo", 
+	{
+		name: "sysInfo",
 		label: "System Info",
-		description: "Information about the user's operating system and environment"
-	}
+		description: "Information about the user's operating system and environment",
+	},
 ]
 
 const HighlightedTextarea: React.FC<{
@@ -56,7 +55,7 @@ const HighlightedTextarea: React.FC<{
 		let highlightedContent = text
 		systemVariables.forEach(({ name }) => {
 			highlightedContent = highlightedContent.replace(
-				new RegExp(`(${name})`, 'gi'),
+				new RegExp(`(${name})`, "gi"),
 				`<span style="color: rgb(251 146 60);">$1</span>`
 			)
 		})
@@ -70,10 +69,10 @@ const HighlightedTextarea: React.FC<{
 			const text = textareaRef.current.value
 			const before = text.substring(0, start)
 			const after = text.substring(end)
-			
+
 			const newText = `${before}${variable}${after}`
 			onChange(newText)
-			
+
 			const newCursorPos = start + variable.length
 			setCursorPosition(newCursorPos)
 		}
@@ -82,9 +81,9 @@ const HighlightedTextarea: React.FC<{
 	return (
 		<div className="relative min-h-[100px] font-mono text-xs">
 			<div
-				className="absolute inset-0 whitespace-pre-wrap p-3 pointer-events-none"
-				dangerouslySetInnerHTML={{ 
-					__html: getHighlightedContent(value)
+				className="absolute inset-0 whitespace-pre-wrap p-3 pointer-events-none break-all"
+				dangerouslySetInnerHTML={{
+					__html: getHighlightedContent(value),
 				}}
 			/>
 			<textarea
@@ -97,7 +96,7 @@ const HighlightedTextarea: React.FC<{
 				}}
 				disabled={disabled}
 				className={`absolute inset-0 bg-transparent text-transparent caret-foreground selection:bg-accent selection:text-accent-foreground resize-none p-3 ${className}`}
-				style={{ caretColor: 'var(--foreground)' }}
+				style={{ caretColor: "var(--foreground)" }}
 			/>
 			{showVariableBadges && (
 				<div className="absolute bottom-2 right-2 flex gap-1">
@@ -106,8 +105,7 @@ const HighlightedTextarea: React.FC<{
 							key={name}
 							variant="outline"
 							className="text-xs cursor-pointer hover:bg-accent"
-							onClick={() => insertVariable(name)}
-						>
+							onClick={() => insertVariable(name)}>
 							{name}
 						</Badge>
 					))}
@@ -118,12 +116,18 @@ const HighlightedTextarea: React.FC<{
 }
 
 const SystemPromptVariants: React.FC = () => {
-	const { systemPromptVariants, handleSaveSystemPrompt, handleDeleteSystemPrompt, handleSetActiveVariant, activeVariantId } = useSettingsState()
-	const [newVariantName, setNewVariantName] = useState("")
-	const [newVariantContent, setNewVariantContent] = useState("")
+	const {
+		systemPromptVariants,
+		handleSaveSystemPrompt,
+		handleDeleteSystemPrompt,
+		handleSetActiveVariant,
+		activeVariantId,
+	} = useSettingsState()
 	const [editMode, setEditMode] = useState<string | null>(null)
 	const [showPreview, setShowPreview] = useState<string | null>(null)
-	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+	const [isAddingNew, setIsAddingNew] = useState(false)
+	const [newVariantName, setNewVariantName] = useState("")
+	const [newVariantContent, setNewVariantContent] = useState("")
 
 	const handleAddNewVariant = () => {
 		if (!newVariantName || !newVariantContent) return
@@ -136,7 +140,7 @@ const SystemPromptVariants: React.FC = () => {
 
 		setNewVariantName("")
 		setNewVariantContent("")
-		setIsAddDialogOpen(false)
+		setIsAddingNew(false)
 	}
 
 	const insertVariable = (textAreaId: string, variable: string) => {
@@ -147,18 +151,16 @@ const SystemPromptVariants: React.FC = () => {
 			const text = textarea.value
 			const before = text.substring(0, start)
 			const after = text.substring(end)
-			
+
 			const newText = `${before}${variable}${after}`
 			if (editMode) {
-				const variant = systemPromptVariants?.find(v => v.id === editMode)
+				const variant = systemPromptVariants?.find((v) => v.id === editMode)
 				if (variant) {
 					handleSaveSystemPrompt({
 						...variant,
-						content: newText
+						content: newText,
 					})
 				}
-			} else {
-				setNewVariantContent(newText)
 			}
 		}
 	}
@@ -167,7 +169,7 @@ const SystemPromptVariants: React.FC = () => {
 		let highlightedContent = content
 		systemVariables.forEach(({ name }) => {
 			highlightedContent = highlightedContent.replace(
-				new RegExp(`(${name})`, 'gi'),
+				new RegExp(`(${name})`, "gi"),
 				`<span class="text-orange-400 font-semibold">$1</span>`
 			)
 		})
@@ -184,17 +186,16 @@ const SystemPromptVariants: React.FC = () => {
 							{systemVariables.map(({ name, label, description }) => (
 								<Tooltip key={name}>
 									<TooltipTrigger asChild>
-										<Badge 
-											variant="outline" 
+										<Badge
+											variant="outline"
 											className="text-xs cursor-pointer hover:bg-accent"
 											onClick={() => {
 												if (editMode) {
 													insertVariable(`textarea-${editMode}`, name)
-												} else {
-													insertVariable('new-variant-textarea', name)
+												} else if (isAddingNew) {
+													insertVariable("new-variant-textarea", name)
 												}
-											}}
-										>
+											}}>
 											{label}: <span className="text-orange-400 ml-1">{name}</span>
 										</Badge>
 									</TooltipTrigger>
@@ -206,49 +207,50 @@ const SystemPromptVariants: React.FC = () => {
 						</TooltipProvider>
 					</div>
 				</div>
-				<Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-					<DialogTrigger asChild>
-						<Button variant="outline" size="sm">
-							<Plus className="h-4 w-4 mr-2" />
-							Add Variant
-						</Button>
-					</DialogTrigger>
-					<DialogContent className="sm:max-w-[800px]">
-						<DialogHeader>
-							<DialogTitle>Add New System Prompt Variant</DialogTitle>
-						</DialogHeader>
-						<div className="space-y-4 mt-4">
-							<div className="space-y-2">
-								<Label>Variant Name</Label>
-								<Input
-									placeholder="Enter variant name..."
-									value={newVariantName}
-									onChange={(e) => setNewVariantName(e.target.value)}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label>System Prompt Content</Label>
-								<div className="relative border rounded-md">
-									<HighlightedTextarea
-										id="new-variant-textarea"
-										value={newVariantContent}
-										onChange={setNewVariantContent}
-										className="min-h-[300px] rounded-md"
-										showVariableBadges={true}
-									/>
-								</div>
-							</div>
+				<Button variant="outline" size="sm" onClick={() => setIsAddingNew(true)} disabled={isAddingNew}>
+					<Plus className="h-4 w-4 mr-2" />
+					Add Variant
+				</Button>
+			</div>
+
+			{isAddingNew && (
+				<Card className="p-4">
+					<div className="space-y-4">
+						<div className="space-y-2">
+							<Label>System Prompt Content</Label>
+							<Input
+								placeholder="Variant Name"
+								value={newVariantName}
+								onChange={(e) => setNewVariantName(e.target.value)}
+							/>
+						</div>
+						<div className="relative border rounded-md">
+							<HighlightedTextarea
+								id="new-variant-textarea"
+								value={newVariantContent}
+								onChange={setNewVariantContent}
+								className="rounded-md"
+								showVariableBadges={true}
+							/>
+						</div>
+						<div className="flex justify-end gap-2">
 							<Button
-								onClick={handleAddNewVariant}
-								disabled={!newVariantName || !newVariantContent}
-								className="w-full">
+								variant="outline"
+								onClick={() => {
+									setIsAddingNew(false)
+									setNewVariantName("")
+									setNewVariantContent("")
+								}}>
+								Cancel
+							</Button>
+							<Button onClick={handleAddNewVariant} disabled={!newVariantName || !newVariantContent}>
 								Add Variant
 							</Button>
 						</div>
-					</DialogContent>
-				</Dialog>
-			</div>
-			
+					</div>
+				</Card>
+			)}
+
 			<Accordion type="single" collapsible className="space-y-2">
 				{systemPromptVariants?.map((variant) => (
 					<AccordionItem key={variant.id} value={variant.id} className="border rounded-lg">
@@ -271,7 +273,9 @@ const SystemPromptVariants: React.FC = () => {
 										<div className="flex items-center gap-2">
 											<span className="text-sm font-medium">{variant.name}</span>
 											{activeVariantId === variant.id && (
-												<Badge variant="secondary" className="text-xs">Active</Badge>
+												<Badge variant="secondary" className="text-xs">
+													Active
+												</Badge>
 											)}
 										</div>
 									)}
@@ -287,11 +291,17 @@ const SystemPromptVariants: React.FC = () => {
 											<Tooltip>
 												<TooltipTrigger asChild>
 													<span className="sr-only">
-														{activeVariantId === variant.id ? "Active Variant" : "Set as Active"}
+														{activeVariantId === variant.id
+															? "Active Variant"
+															: "Set as Active"}
 													</span>
 												</TooltipTrigger>
 												<TooltipContent>
-													<p>{activeVariantId === variant.id ? "Active Variant" : "Set as Active"}</p>
+													<p>
+														{activeVariantId === variant.id
+															? "Active Variant"
+															: "Set as Active"}
+													</p>
 												</TooltipContent>
 											</Tooltip>
 										</TooltipProvider>
