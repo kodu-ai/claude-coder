@@ -6,6 +6,7 @@ import { TerminalManager, TerminalRegistry } from "../../../../integrations/term
 import pWaitFor from "p-wait-for"
 import delay from "delay"
 import { ChatTool, ServerRunnerTool } from "../../../../shared/new-tools"
+import { shellIntegrationErrorOutput } from "./execute-command.tool"
 
 interface UpdateAskParams {
 	tool: string
@@ -269,6 +270,7 @@ export class DevServerTool extends BaseAgentTool {
 
 	private async startServer(terminalManager: TerminalManager, command: string, serverName: string): Promise<string> {
 		if (TerminalRegistry.isDevServerRunningByName(serverName)) {
+			await this.updateToolState("approved", "start", command, serverName)
 			return `Server "${serverName}" is already running.`
 		}
 
@@ -289,6 +291,7 @@ export class DevServerTool extends BaseAgentTool {
 			logs: [] as string[],
 			timeout: false,
 		}
+		let shellIntegrationWarningShown = false
 
 		// Create a promise that resolves when the server is ready or errors
 		const completionPromise = new Promise<void>((resolve, reject) => {
@@ -320,13 +323,11 @@ export class DevServerTool extends BaseAgentTool {
 				startData.errorMessage = error.message
 				reject(error)
 			})
-		})
-
-		serverProcess.on("no_shell_integration", () => {
-			this.params.say("shell_integration_warning")
-			throw new Error(
-				"Shell integration not available, to run commands in the terminal the user must enable shell integration. Otherwise, commands will not run."
-			)
+			serverProcess.on("no_shell_integration", () => {
+				this.params.say("shell_integration_warning")
+				shellIntegrationWarningShown = true
+				reject(new Error(shellIntegrationErrorOutput))
+			})
 		})
 
 		try {
@@ -338,6 +339,9 @@ export class DevServerTool extends BaseAgentTool {
 					throw new Error("Server start timeout")
 				}),
 			])
+			if (shellIntegrationWarningShown) {
+				throw new Error(shellIntegrationErrorOutput)
+			}
 
 			const devServer = TerminalRegistry.getDevServer(terminalInfo.id)
 			const serverUrl = devServer?.url

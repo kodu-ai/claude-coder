@@ -18,6 +18,11 @@ const MAX_RETRIES = 3
 
 type EarlyExitState = "approved" | "rejected" | "pending"
 
+export const shellIntegrationErrorOutput = `Shell integration not available, to run commands in the terminal the user must enable shell integration.
+right now the command has been executed but the output cannot be read, unless the user enables shell integration.
+currently can only run commands without output, to run commands with output the user must enable shell integration tell the user to enable shell integration to run commands with output.
+`
+
 export class ExecuteCommandTool extends BaseAgentTool {
 	protected params: AgentToolParams
 	private execaTerminalManager: ExecaTerminalManager
@@ -140,55 +145,68 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		let didContinue = false
 		let earlyExit: EarlyExitState = "pending"
 
-		process.on("line", async (line) => {
-			const cleanedLine = line
-			if (cleanedLine) {
-				this.output += cleanedLine + "\n"
-				if (!didContinue || this.isApprovedState(earlyExit)) {
-					try {
-						await updateAsk(
-							"tool",
-							{
-								tool: {
-									tool: "execute_command",
-									command,
-									output: this.output,
-									approvalState: "loading",
-									ts: this.ts,
-									earlyExit,
-									isSubMsg: this.params.isSubMsg,
-								},
-							},
-							this.ts
-						)
-					} catch (error) {
-						console.error("Failed to update output:", error)
-					}
-				}
-			}
-		})
-
 		let completed = false
-		const completionPromise = new Promise<void>((resolve) => {
-			process!.once("completed", () => {
-				earlyExit = "approved"
-				completed = true
-				resolve()
-			})
-		})
-
-		process.on("error", async (error) => {
-			console.log(`Error in process: ${error}`)
-		})
-
-		process.once("no_shell_integration", async () => {
-			await say("shell_integration_warning")
-			throw new Error(
-				"No shell integration, cannot run commands please enable shell integration otherwise commands will not run."
-			)
-		})
+		let shellIntegrationWarningShown = false
 
 		try {
+			const completionPromise = new Promise<void>((resolve) => {
+				process!.once("completed", () => {
+					earlyExit = "approved"
+					completed = true
+					resolve()
+				})
+			})
+			process.on("line", async (line) => {
+				const cleanedLine = line
+				if (cleanedLine) {
+					this.output += cleanedLine + "\n"
+					if (!didContinue || this.isApprovedState(earlyExit)) {
+						try {
+							await updateAsk(
+								"tool",
+								{
+									tool: {
+										tool: "execute_command",
+										command,
+										output: this.output,
+										approvalState: "loading",
+										ts: this.ts,
+										earlyExit,
+										isSubMsg: this.params.isSubMsg,
+									},
+								},
+								this.ts
+							)
+						} catch (error) {
+							console.error("Failed to update output:", error)
+						}
+					}
+				}
+			})
+			process.on("error", async (error) => {
+				console.log(`Error in process: ${error}`)
+			})
+
+			process.once("no_shell_integration", async () => {
+				await say("shell_integration_warning")
+				await updateAsk(
+					"tool",
+					{
+						tool: {
+							tool: "execute_command",
+							command,
+							output: this.output,
+							approvalState: "error",
+							ts: this.ts,
+							error: "Shell integration is not available, cannot read output.",
+							earlyExit: undefined,
+							isSubMsg: this.params.isSubMsg,
+						},
+					},
+					this.ts
+				)
+				shellIntegrationWarningShown = true
+			})
 			// Wait for either completion or timeout
 			await Promise.race([
 				completionPromise,
@@ -201,6 +219,9 @@ export class ExecuteCommandTool extends BaseAgentTool {
 
 			// Ensure all output is processed
 			await delay(300)
+			if (shellIntegrationWarningShown) {
+				return await this.formatToolResponseWithImages(shellIntegrationErrorOutput)
+			}
 
 			await updateAsk(
 				"tool",
