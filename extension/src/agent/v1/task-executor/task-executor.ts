@@ -442,6 +442,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 						}
 
 						// Process chunk only if stream is not paused
+						// if the stream is paused we will accumulate the text and process the tool information
+						// the order is critical, don't change it if you don't know what you are doing
 						if (!this.streamPaused) {
 							// Accumulate text until we have a complete XML tag or enough non-XML content
 							accumulatedText += chunk.body.text
@@ -450,15 +452,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 							const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
 							accumulatedText = "" // Clear accumulated text after processing
 
-							// If we got non-XML text, add it to buffer
-							if (nonXMLText) {
-								this.textBuffer += nonXMLText
-								// Only flush buffer if we're not paused
-								await this.flushTextBuffer(this.currentReplyId)
-							}
-
 							// If tool processing started, pause the stream
-							// this is actually not working ZZZ - need to fix this
+							// this will be trigger when a tool called execute
 							if (this.toolExecutor.hasActiveTools()) {
 								// Ensure any buffered content is flushed before pausing
 								await this.flushTextBuffer(this.currentReplyId, true)
@@ -468,10 +463,17 @@ export class TaskExecutor extends TaskExecutorUtils {
 								// Resume stream after tool processing
 								await this.resumeStream()
 							}
+
+							// If we got non-XML text, add it to buffer
+							// this must be at the end to prevent leaking non-XML text when a tool is called
+							if (nonXMLText) {
+								this.textBuffer += nonXMLText
+								// Only flush buffer if we're not paused
+								await this.flushTextBuffer(this.currentReplyId)
+							}
 						}
 					}
 				},
-
 				onFinalEndOfStream: async () => {
 					if (this.isRequestCancelled || this.isAborting) {
 						return
