@@ -208,9 +208,17 @@ ${this.customInstructions.trim()}
 		const creativeMode = state?.creativeMode ?? "normal"
 		const technicalBackground = state?.technicalBackground ?? "no-technical"
 		const isImageSupported = koduModels[this.getModelId()].supportsImages
+		const systemPromptVariants = state?.systemPromptVariants || []
+		const activeVariant = systemPromptVariants.length > 0 ? systemPromptVariants[0] : null
 
 		const customInstructions = this.formatCustomInstructions()
-		const systemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), isImageSupported, technicalBackground)
+		let systemPrompt = ""
+
+		if (activeVariant) {
+			systemPrompt = activeVariant.content
+		} else {
+			systemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), isImageSupported, technicalBackground)
+		}
 
 		// Process conversation history and manage context window
 		await this.processConversationHistory(apiConversationHistory)

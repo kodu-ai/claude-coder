@@ -7,6 +7,7 @@ import { SecretStateManager } from "./SecretStateManager"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { ExtensionState } from "../../../shared/ExtensionMessage"
+import { SystemPromptVariant } from "@/shared/SystemPromptVariant"
 export class StateManager {
 	private globalStateManager: GlobalStateManager
 	private secretStateManager: SecretStateManager
@@ -38,6 +39,7 @@ export class StateManager {
 			technicalBackground,
 			autoCloseTerminal,
 			skipWriteAnimation,
+			systemPromptVariants,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.globalStateManager.getGlobalState("browserModelId"),
@@ -57,6 +59,7 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("technicalBackground"),
 			this.globalStateManager.getGlobalState("autoCloseTerminal"),
 			this.globalStateManager.getGlobalState("skipWriteAnimation"),
+			this.globalStateManager.getGlobalState("systemPromptVariants"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -72,6 +75,7 @@ export class StateManager {
 			lastShownAnnouncementId,
 			customInstructions,
 			technicalBackground,
+			systemPromptVariants,
 			experimentalTerminal:
 				experimentalTerminal === undefined || experimentalTerminal === null ? true : experimentalTerminal,
 			currentTaskId,
@@ -159,6 +163,10 @@ export class StateManager {
 
 	setCustomInstructions(value: string | undefined) {
 		return this.globalStateManager.updateGlobalState("customInstructions", value)
+	}
+
+	setSystemPromptVariants(value: SystemPromptVariant[]) {
+		return this.globalStateManager.updateGlobalState("systemPromptVariants", value)
 	}
 
 	setAlwaysAllowReadOnly(value: boolean) {

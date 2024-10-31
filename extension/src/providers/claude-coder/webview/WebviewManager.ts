@@ -344,6 +344,10 @@ export class WebviewManager {
 						await this.provider.getStateManager().setAutoCloseTerminal(message.bool)
 						await this.postStateToWebview()
 						break
+					case "systemPromptVariants":
+						await this.provider.getStateManager().setSystemPromptVariants(message.variants)
+						await this.postStateToWebview()
+						break
 					case "maxRequestsPerTask":
 						await this.provider
 							.getStateManager()

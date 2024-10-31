@@ -1,5 +1,6 @@
 import { ApiConfiguration } from "../api"
 import { GlobalState } from "../providers/claude-coder/state/GlobalStateManager"
+import { SystemPromptVariant } from "./SystemPromptVariant"
 
 export type Resource =
 	| { id: string; type: "file" | "folder"; name: string }
@@ -116,8 +117,14 @@ export type autoCloseTerminalMessage = {
 	bool: boolean
 }
 
+export type systemPromptVariantsMessage = {
+	type: "systemPromptVariants"
+	variants: SystemPromptVariant[]
+}
+
 export type WebviewMessage =
 	| updateGlobalStateMessage
+	| systemPromptVariantsMessage
 	| ToolFeedbackAllMessage
 	| ToolFeedbackMessage
 	| experimentalTerminalMessage
