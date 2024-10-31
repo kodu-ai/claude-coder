@@ -41,7 +41,8 @@ const HighlightedTextarea: React.FC<{
 	onChange: (value: string) => void
 	disabled?: boolean
 	className?: string
-}> = ({ id, value, onChange, disabled, className }) => {
+	showVariableBadges?: boolean
+}> = ({ id, value, onChange, disabled, className, showVariableBadges = false }) => {
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const [cursorPosition, setCursorPosition] = useState<number>(0)
 
@@ -60,6 +61,22 @@ const HighlightedTextarea: React.FC<{
 			)
 		})
 		return highlightedContent
+	}
+
+	const insertVariable = (variable: string) => {
+		if (textareaRef.current) {
+			const start = textareaRef.current.selectionStart
+			const end = textareaRef.current.selectionEnd
+			const text = textareaRef.current.value
+			const before = text.substring(0, start)
+			const after = text.substring(end)
+			
+			const newText = `${before}${variable}${after}`
+			onChange(newText)
+			
+			const newCursorPos = start + variable.length
+			setCursorPosition(newCursorPos)
+		}
 	}
 
 	return (
@@ -82,6 +99,20 @@ const HighlightedTextarea: React.FC<{
 				className={`absolute inset-0 bg-transparent text-transparent caret-foreground selection:bg-accent selection:text-accent-foreground resize-none p-3 ${className}`}
 				style={{ caretColor: 'var(--foreground)' }}
 			/>
+			{showVariableBadges && (
+				<div className="absolute bottom-2 right-2 flex gap-1">
+					{systemVariables.map(({ name }) => (
+						<Badge
+							key={name}
+							variant="outline"
+							className="text-xs cursor-pointer hover:bg-accent"
+							onClick={() => insertVariable(name)}
+						>
+							{name}
+						</Badge>
+					))}
+				</div>
+			)}
 		</div>
 	)
 }
@@ -182,23 +213,30 @@ const SystemPromptVariants: React.FC = () => {
 							Add Variant
 						</Button>
 					</DialogTrigger>
-					<DialogContent>
+					<DialogContent className="sm:max-w-[800px]">
 						<DialogHeader>
 							<DialogTitle>Add New System Prompt Variant</DialogTitle>
 						</DialogHeader>
-						<div className="space-y-4">
-							<Input
-								placeholder="Variant Name"
-								value={newVariantName}
-								onChange={(e) => setNewVariantName(e.target.value)}
-							/>
-							<div className="relative border rounded-md">
-								<HighlightedTextarea
-									id="new-variant-textarea"
-									value={newVariantContent}
-									onChange={setNewVariantContent}
-									className="min-h-[200px] rounded-md"
+						<div className="space-y-4 mt-4">
+							<div className="space-y-2">
+								<Label>Variant Name</Label>
+								<Input
+									placeholder="Enter variant name..."
+									value={newVariantName}
+									onChange={(e) => setNewVariantName(e.target.value)}
 								/>
+							</div>
+							<div className="space-y-2">
+								<Label>System Prompt Content</Label>
+								<div className="relative border rounded-md">
+									<HighlightedTextarea
+										id="new-variant-textarea"
+										value={newVariantContent}
+										onChange={setNewVariantContent}
+										className="min-h-[300px] rounded-md"
+										showVariableBadges={true}
+									/>
+								</div>
 							</div>
 							<Button
 								onClick={handleAddNewVariant}
@@ -310,6 +348,7 @@ const SystemPromptVariants: React.FC = () => {
 											})
 										}}
 										disabled={editMode !== variant.id}
+										showVariableBadges={editMode === variant.id}
 									/>
 								</div>
 							)}
