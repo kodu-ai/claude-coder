@@ -79,6 +79,7 @@ export type ServerRunnerTool = {
 	commandType?: "start" | "stop" | "restart" | "getLogs"
 	output?: string
 	commandToRun?: string
+	lines?: string
 }
 
 export type UrlScreenshotTool = {

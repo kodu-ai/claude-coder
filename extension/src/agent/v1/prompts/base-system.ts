@@ -67,7 +67,7 @@ YOU MUST GIVE A NAME FOR EACH SERVER INSTANCE YOU START, SO YOU CAN KEEP TRACK O
 You must always provide all the parameters for this tool.
 Parameters:
 - commandToRun: (optional) The CLI command to start the server. This should be valid for the current operating system. Ensure the command is properly formatted and has the correct path to the directory you want to serve (relative to the current working directory ${cwd.toPosix()}).
-- commandType: (required) The type of command to run. Use 'start' to start the server, 'stop' to stop it, 'restart' to restart it, or 'getLogs' to retrieve logs from the server.
+- commandType: (required) The type of command to run. Use 'start' to start the server, 'stop' to stop it, 'restart' to restart it, or 'getLogs' to retrieve logs from the server. You can also pass the parameter 'lines' to specify the number of lines to retrieve from the logs. You must use the lines arguent when the current output spans accross multiple pages or in the case of encountering errors 
 - serverName: (required) The name of the terminal to use for the operation. This is used to identify the terminal instance where the server is running.
 Usage:
 <server_runner_tool>

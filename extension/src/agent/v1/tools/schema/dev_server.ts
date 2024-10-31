@@ -52,6 +52,7 @@ const schema = z.object({
 		.describe(
 			"The specific command to execute for the operation. For 'start' and 'restart', this is typically the command to start your dev server (e.g., 'npm run dev'). For 'stop', it's the command to stop the server. For 'getLogs', this can be left empty."
 		),
+	lines: z.string().default("-1").optional().describe("The number of lines to retrieve from the logs."),
 })
 
 const examples = [
@@ -73,6 +74,12 @@ const examples = [
 	`<tool name="dev_server">
   <commandType>getLogs</commandType>
   <commandToRun></commandToRun>
+</tool>`,
+
+	`<tool name="dev_server">
+  <commandType>getLogs</commandType>
+  <commandToRun></commandToRun>
+  <lines>10</lines>
 </tool>`,
 ]
 
