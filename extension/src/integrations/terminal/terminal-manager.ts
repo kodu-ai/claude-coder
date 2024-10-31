@@ -339,7 +339,8 @@ export class TerminalManager {
 			// first run to make a new line needed for zsh to work correctly
 			process.run(terminalInfo.terminal, command, terminalInfo.id)
 		} else {
-			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 10_000 }).finally(() => {
+			// vscode recommends 3 seconds to wait for shell integration to be ready if not it's not available, we made it 5 for safety
+			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 5_000 }).finally(() => {
 				const existingProcess = this.processes.get(terminalInfo.id)
 				if (existingProcess && existingProcess.waitForShellIntegration) {
 					existingProcess.waitForShellIntegration = false
