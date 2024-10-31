@@ -339,7 +339,8 @@ export class TerminalManager {
 			// first run to make a new line needed for zsh to work correctly
 			process.run(terminalInfo.terminal, command, terminalInfo.id)
 		} else {
-			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 10_000 }).finally(() => {
+			// vscode recommends 3 seconds to wait for shell integration to be ready if not it's not available, we made it 5 for safety
+			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 5_000 }).finally(() => {
 				const existingProcess = this.processes.get(terminalInfo.id)
 				if (existingProcess && existingProcess.waitForShellIntegration) {
 					existingProcess.waitForShellIntegration = false
@@ -503,26 +504,28 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 						if (outputBetweenSequences.trim()) {
 							data = outputBetweenSequences + "\n" + data
 						}
-						// }
 						data = stripAnsi(data)
-						// let lines = data.split("\n")
-						// if (lines.length > 0) {
-						// 	lines[0] = lines[0].replace(/[^\x20-\x7E]/g, "")
-						// 	if (lines[0].length >= 2 && lines[0][0] === lines[0][1]) {
-						// 		lines[0] = lines[0].slice(1)
-						// 	}
-						// 	lines[0] = lines[0].replace(/^[^a-zA-Z0-9]*/, "")
-						// }
-						// data = lines.join("\n")
+						let lines = data.split(/[\n\r]+/) // Split on both \n and \r
+						if (lines.length > 0) {
+							lines[0] = lines[0].replace(/[^\x20-\x7E]/g, "")
+							if (lines[0].length >= 2 && lines[0][0] === lines[0][1]) {
+								lines[0] = lines[0].slice(1)
+							}
+							lines[0] = lines[0].replace(/^[^a-zA-Z0-9]*/, "")
+						}
+						data = lines.join("\n")
 					} else {
 						data = stripAnsi(data)
 					}
 
 					if (!data.trim()) continue
 
-					// Remove command echo
-					const lines = data.split("\n")
-					const filteredLines = lines.filter((line) => !command.includes(line.trim()))
+					// Remove command echo but preserve line updates
+					const lines = data.split(/[\n\r]+/)
+					const filteredLines = lines.filter((line) => {
+						const trimmedLine = line.trim()
+						return trimmedLine && !command.includes(trimmedLine)
+					})
 					data = filteredLines.join("\n")
 
 					// Handle hot state
@@ -598,11 +601,46 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 	}
 
 	private async emitIfEol(chunk: string, terminalId: number) {
+		// If we already have content in buffer and receiving new chunk,
+		// emit the existing buffer first
+		if (this.buffer && chunk) {
+			const existingLine = this.buffer.trim()
+			if (existingLine) {
+				await this.queueOutput(existingLine, terminalId)
+			}
+			this.buffer = ""
+		}
+
 		this.buffer += chunk
 
-		await this.queueOutput(chunk, terminalId)
-	}
+		// Handle carriage returns
+		if (this.buffer.includes("\r")) {
+			const lines = this.buffer.split("\r")
+			const line = lines[lines.length - 1].trim()
+			if (line) {
+				await this.queueOutput(line, terminalId)
+			}
+			this.buffer = ""
+			return
+		}
 
+		// Handle newlines
+		let lineEndIndex: number
+		while ((lineEndIndex = this.buffer.indexOf("\n")) !== -1) {
+			const line = this.buffer.slice(0, lineEndIndex).trim()
+			if (line) {
+				await this.queueOutput(line, terminalId)
+			}
+			this.buffer = this.buffer.slice(lineEndIndex + 1)
+		}
+
+		// If we have content in buffer without any line endings,
+		// and it's a complete line, emit it
+		if (this.buffer.trim()) {
+			await this.queueOutput(this.buffer.trim(), terminalId)
+			this.buffer = ""
+		}
+	}
 	private async emitRemainingBufferIfListening(terminalId: number) {
 		if (this.buffer && this.isListening) {
 			const remainingBuffer = this.buffer.trim()

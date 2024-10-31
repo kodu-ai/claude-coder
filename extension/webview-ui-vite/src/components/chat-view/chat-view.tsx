@@ -138,15 +138,13 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	const visibleMessages = useMemo(() => {
 		return modifiedMessages.filter((message) => {
+			if (message.say === "shell_integration_warning") {
+				return true
+			}
 			if (
 				message.ask === "tool" &&
 				(message.text === "" || message.text === "{}" || !message.text?.includes('tool":'))
 			) {
-				console.log(
-					`message.text: ${message.text === ""} | message.text === "{}": ${
-						message.text === "{}"
-					} | !message.text?.includes("tool:"): ${!message.text?.includes('tool":')}`
-				)
 				return false
 			}
 			if (

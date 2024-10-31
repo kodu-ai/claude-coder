@@ -85,7 +85,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 			.find((msg) => msg.type === "ask")?.ts
 		const contentWithoutNewLines = contentToFlush.replace(/\n/g, "")
 		if (lastAskTs && lastAskTs > currentReplyId && contentWithoutNewLines.trim().length > 0) {
-			console.log("Creating new reply to flush text buffer")
 			this.currentReplyId = await this.say("text", contentToFlush ?? "", undefined, Date.now(), {
 				isSubMessage: true,
 			})

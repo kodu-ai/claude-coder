@@ -53,6 +53,11 @@ export class ToolParser {
 		this.onToolClosingError = onToolClosingError
 	}
 
+	// file>\n\nI wrote
+	// ...
+	// it!\n\n<wr
+	// ...
+	// ile>\n\nI wrote it!
 	appendText(text: string): string {
 		for (const char of text) {
 			this.processChar(char)
@@ -267,23 +272,23 @@ export class ToolParser {
 
 export default ToolParser
 
-const parser = new ToolParser(
-	tools.map((t) => t.schema),
-	{
-		onToolUpdate: (id, toolName, params, ts) => {
-			console.log("Update:", { id, toolName, params, ts })
-		},
-		onToolEnd: (id, toolName, params, ts) => {
-			console.log("End:", { id, toolName, params, ts })
-		},
-		onToolError: (id, toolName, error, ts) => {
-			console.error("Error:", { id, toolName, error, ts })
-		},
-		onToolClosingError: (error) => {
-			console.error("Closing Error:", error)
-		},
-	}
-)
+// const parser = new ToolParser(
+// 	tools.map((t) => t.schema),
+// 	{
+// 		onToolUpdate: (id, toolName, params, ts) => {
+// 			console.log(params.content)
+// 		},
+// 		onToolEnd: (id, toolName, params, ts) => {
+// 			console.log("End:", { id, toolName, params, ts })
+// 		},
+// 		onToolError: (id, toolName, error, ts) => {
+// 			console.error("Error:", { id, toolName, error, ts })
+// 		},
+// 		onToolClosingError: (error) => {
+// 			console.error("Closing Error:", error)
+// 		},
+// 	}
+// )
 
 // const input = `<thinking>
 // I need to create a markdown file explaining the 5 most commonly used HTML tags and their use cases. This will be helpful for beginners learning HTML.
