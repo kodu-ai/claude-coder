@@ -69,6 +69,7 @@ export interface WebSearchTool {
 	searchQuery: string
 	baseLink?: string
 	content?: string
+	browserModel?: "smart" | "fast"
 	streamType?: "start" | "explore" | "summarize" | "end"
 }
 

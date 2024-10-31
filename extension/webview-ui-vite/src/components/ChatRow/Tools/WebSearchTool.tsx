@@ -26,6 +26,7 @@ type EnhancedWebSearchBlockProps = WebSearchTool & ToolAddons
 export const EnhancedWebSearchBlock: React.FC<EnhancedWebSearchBlockProps> = ({
 	searchQuery,
 	baseLink,
+	browserModel,
 	content,
 	streamType,
 	approvalState,
@@ -100,6 +101,12 @@ export const EnhancedWebSearchBlock: React.FC<EnhancedWebSearchBlockProps> = ({
 						<a href={baseLink} target="_blank" rel="noopener noreferrer" className="text-primary">
 							{baseLink}
 						</a>
+					</p>
+				)}
+				{browserModel && (
+					<p>
+						<span className="font-semibold">Browser model:</span>{" "}
+						{browserModel === "fast" ? "Claude 3.5 Haiku" : "Claude 3.5 Sonnet"}
 					</p>
 				)}
 			</div>

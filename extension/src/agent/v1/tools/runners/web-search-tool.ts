@@ -14,7 +14,7 @@ export class WebSearchTool extends BaseAgentTool {
 
 	async execute(): Promise<ToolResponse> {
 		const { say, ask, updateAsk, input } = this.params
-		const { searchQuery, baseLink } = input
+		const { searchQuery, baseLink, browserModel = "fast" } = input
 
 		if (!searchQuery) {
 			await say("error", "Claude tried to use `web_search` without required parameter `searchQuery`. Retrying...")
@@ -36,6 +36,7 @@ export class WebSearchTool extends BaseAgentTool {
 					tool: "web_search",
 					searchQuery,
 					baseLink,
+					browserModel,
 					approvalState: "pending",
 					ts: this.ts,
 				},
@@ -51,6 +52,7 @@ export class WebSearchTool extends BaseAgentTool {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
+						browserModel,
 						approvalState: "rejected",
 						ts: this.ts,
 						userFeedback: text,
@@ -73,6 +75,7 @@ export class WebSearchTool extends BaseAgentTool {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
+						browserModel,
 						approvalState: "loading",
 						ts: this.ts,
 					},
@@ -83,7 +86,7 @@ export class WebSearchTool extends BaseAgentTool {
 			const result = this.koduDev
 				.getApiManager()
 				.getApi()
-				?.sendWebSearchRequest?.(searchQuery, baseLink, this.abortController.signal)
+				?.sendWebSearchRequest?.(searchQuery, baseLink, browserModel, this.abortController.signal)
 
 			if (!result) {
 				throw new Error("Unable to read response")
@@ -103,6 +106,7 @@ export class WebSearchTool extends BaseAgentTool {
 								tool: "web_search",
 								searchQuery,
 								baseLink,
+								browserModel,
 								content: chunk.content,
 								streamType: chunk.type,
 								approvalState: "loading",
@@ -121,6 +125,7 @@ export class WebSearchTool extends BaseAgentTool {
 							tool: {
 								tool: "web_search",
 								searchQuery,
+								browserModel,
 								baseLink,
 								approvalState: "error",
 								error: "Web search was aborted",
@@ -141,6 +146,7 @@ export class WebSearchTool extends BaseAgentTool {
 						tool: "web_search",
 						searchQuery,
 						baseLink,
+						browserModel,
 						approvalState: "approved",
 						ts: this.ts,
 					},
@@ -155,6 +161,7 @@ export class WebSearchTool extends BaseAgentTool {
 				{
 					tool: {
 						tool: "web_search",
+						browserModel,
 						searchQuery: searchQuery ?? "",
 						baseLink: baseLink ?? "",
 						approvalState: "error",

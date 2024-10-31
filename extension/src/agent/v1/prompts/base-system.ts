@@ -194,10 +194,11 @@ Usage:
 </ask_consultant>
 
 ## web_search
-Description: Request to perform a web search for the specified query. This tool searches the web for information related to the query and provides relevant results that can help you gain insights, find solutions, or explore new ideas related to the task at hand.
+Description: Request to perform a web search for the specified query. This tool searches the web for information related to the query and provides relevant results that can help you gain insights, find solutions, or explore new ideas related to the task at hand. Since this tool uses an LLM to understand the web results, you can also specify which model to use with the browser using the 'browserModel' parameter.
 Parameters:
 - searchQuery: (required) The query to search the web for. This should be a clear and concise search query.
 - baseLink: (optional) The base link to use for the search. If provided, the search will be performed using the specified base link.
+- browserModel: (optional) The browser model to use for the search. Use 'smart' for slower but smarter, deeper search, use 'fast' for faster but less smart search or with things which are readily available on the web.
 Usage:
 <web_search>
 <searchQuery>Your search query here</searchQuery>
