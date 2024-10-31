@@ -24,6 +24,9 @@ export function useSettingsState() {
 	const [systemPromptVariants, setSystemPromptVariants] = useState<SystemPromptVariant[]>(
 		extensionState.systemPromptVariants || []
 	)
+	const [activeVariantId, setActiveVariantId] = useState<string | null>(
+		extensionState.activeSystemPromptVariantId || (systemPromptVariants[0]?.id ?? null)
+	)
 
 	const handleAutoSkipWriteChange = useCallback((checked: boolean) => {
 		setAutoSkipWrite(checked)
@@ -72,19 +75,35 @@ export function useSettingsState() {
 
 	const handleSaveSystemPrompt = useCallback((variant: SystemPromptVariant) => {
 		setSystemPromptVariants((prev) => {
-			const newVariants = prev.filter((v) => v.id !== variant.id)
-			const updatedVariants = [...newVariants, variant]
+			const updatedVariants = prev.map((v) => v.id === variant.id ? variant : v)
+			if (!prev.find(v => v.id === variant.id)) {
+				updatedVariants.push(variant)
+			}
 			vscode.postMessage({ type: "systemPromptVariants", variants: updatedVariants })
 			return updatedVariants
 		})
 	}, [])
 
-	const handleDeleteSystemPrompt = useCallback((id: string) => {
-		setSystemPromptVariants((prev) => {
-			const newVariants = prev.filter((v) => v.id !== id)
-			vscode.postMessage({ type: "systemPromptVariants", variants: newVariants })
-			return newVariants
-		})
+	const handleDeleteSystemPrompt = useCallback(
+		(id: string) => {
+			setSystemPromptVariants((prev) => {
+				const newVariants = prev.filter((v) => v.id !== id)
+				vscode.postMessage({ type: "systemPromptVariants", variants: newVariants })
+				// If we're deleting the active variant, set the first available one as active
+				if (id === activeVariantId) {
+					const newActiveId = newVariants[0]?.id ?? null
+					setActiveVariantId(newActiveId)
+					vscode.postMessage({ type: "activeSystemPromptVariant", variantId: newActiveId })
+				}
+				return newVariants
+			})
+		},
+		[activeVariantId]
+	)
+
+	const handleSetActiveVariant = useCallback((variantId: string) => {
+		setActiveVariantId(variantId)
+		vscode.postMessage({ type: "activeSystemPromptVariant", variantId })
 	}, [])
 
 	useDebounce(customInstructions, 250, (val) => {
@@ -103,6 +122,7 @@ export function useSettingsState() {
 		customInstructions,
 		autoSkipWrite,
 		systemPromptVariants,
+		activeVariantId,
 		handleAutoSkipWriteChange,
 		handleExperimentalFeatureChange,
 		handleTechnicalLevelChange,
@@ -113,5 +133,6 @@ export function useSettingsState() {
 		setCustomInstructions,
 		handleSaveSystemPrompt,
 		handleDeleteSystemPrompt,
+		handleSetActiveVariant,
 	}
 }

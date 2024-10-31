@@ -63,6 +63,9 @@ skipWriteAnimationAtom.debugLabel = "skipWriteAnimation"
 const systemPromptVariantsAtom = atom<SystemPromptVariant[]>([])
 systemPromptVariantsAtom.debugLabel = "systemPromptVariants"
 
+const activeSystemPromptVariantIdAtom = atom<string | undefined>(undefined)
+activeSystemPromptVariantIdAtom.debugLabel = "activeSystemPromptVariantId"
+
 const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	const currentTaskId = get(currentTaskIdAtom)
 	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
@@ -86,6 +89,7 @@ export const extensionStateAtom = atom((get) => ({
 	skipWriteAnimation: get(skipWriteAnimationAtom),
 	technicalBackground: get(technicalBackgroundAtom),
 	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
+	activeSystemPromptVariantId: get(activeSystemPromptVariantIdAtom),
 	autoCloseTerminal: get(autoCloseTerminalAtom),
 	fpjsKey: get(fpjsKeyAtom),
 	extensionName: get(extensionNameAtom),
@@ -120,6 +124,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setThemeName = useSetAtom(themeNameAtom)
 	const setCurrentIdTask = useSetAtom(currentTaskIdAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
+	const setActiveSystemPromptVariantId = useSetAtom(activeSystemPromptVariantIdAtom)
 	const setFingerprint = useSetAtom(fingerprintAtom)
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setUriScheme = useSetAtom(uriSchemeAtom)
@@ -145,6 +150,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)
 			setShouldShowKoduPromo(message.state.shouldShowKoduPromo)
 			setApiConfiguration(message.state.apiConfiguration)
+			setActiveSystemPromptVariantId(message.state.activeSystemPromptVariantId)
 			setMaxRequestsPerTask(message.state.maxRequestsPerTask)
 			setCustomInstructions(message.state.customInstructions)
 			setAlwaysAllowReadOnly(!!message.state.alwaysAllowReadOnly)
@@ -190,6 +196,7 @@ export const useExtensionState = () => {
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
+	const setActiveSystemPromptVariantId = useSetAtom(activeSystemPromptVariantIdAtom)
 	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
@@ -209,6 +216,7 @@ export const useExtensionState = () => {
 		setAlwaysAllowWriteOnly,
 		setCreativeMode,
 		setAlwaysAllowReadOnly,
+		setActiveSystemPromptVariantId,
 		setShowAnnouncement: setShouldShowAnnouncement,
 		setSystemPromptVariants,
 	}

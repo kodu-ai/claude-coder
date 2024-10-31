@@ -95,6 +95,11 @@ export type CommandInputMessage = {
 	input: string
 }
 
+export type activeSystemPromptVariantMessage = {
+	type: "activeSystemPromptVariant"
+	variantId: string
+}
+
 export type ToolFeedbackMessage = {
 	type: "toolFeedback"
 	toolId: number
@@ -142,6 +147,7 @@ export type WebviewMessage =
 	| UpdateTaskHistoryMessage
 	| ExecuteCommandMessage
 	| CommandInputMessage
+	| activeSystemPromptVariantMessage
 	| {
 			type:
 				| "skipWriteAnimation"

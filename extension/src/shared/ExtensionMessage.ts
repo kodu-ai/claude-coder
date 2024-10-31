@@ -111,6 +111,7 @@ export interface ExtensionState {
 	extensionName?: string
 	currentTaskId?: string
 	claudeMessages: ClaudeMessage[]
+	activeSystemPromptVariantId?: string
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean
 	autoCloseTerminal: boolean
