@@ -8,9 +8,18 @@ type SecretKey = "koduApiKey"
 export class ApiManager {
 	constructor(private context: ExtensionProvider) {}
 
-	async updateApiConfiguration(apiConfiguration: { apiModelId?: KoduModelId; koduApiKey?: string }) {
-		const { apiModelId, koduApiKey } = apiConfiguration
-		await this.context.getGlobalStateManager().updateGlobalState("apiModelId", apiModelId)
+	async updateApiConfiguration(apiConfiguration: {
+		apiModelId?: KoduModelId
+		koduApiKey?: string
+		browserModelId?: string
+	}) {
+		const { apiModelId, koduApiKey, browserModelId } = apiConfiguration
+		if (apiModelId) {
+			await this.context.getGlobalStateManager().updateGlobalState("apiModelId", apiModelId)
+		}
+		if (browserModelId) {
+			await this.context.getGlobalStateManager().updateGlobalState("browserModelId", browserModelId)
+		}
 		if (koduApiKey) {
 			await this.context.getSecretStateManager().updateSecretState("koduApiKey", koduApiKey)
 		}

@@ -15,6 +15,7 @@ export interface ApiHandlerMessageResponse {
 export type ApiConfiguration = {
 	koduApiKey?: string
 	apiModelId?: KoduModelId
+	browserModelId?: string
 }
 export const bugReportSchema = z.object({
 	description: z.string(),
@@ -50,6 +51,7 @@ export interface ApiHandler {
 		searchQuery: string,
 		baseLink?: string,
 		browserModel?: string,
+		browserMode?: string,
 		abortSignal?: AbortSignal
 	): AsyncIterable<WebSearchResponseDto>
 

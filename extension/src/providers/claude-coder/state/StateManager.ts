@@ -21,6 +21,7 @@ export class StateManager {
 	async getState() {
 		const [
 			apiModelId,
+			browserModelId,
 			koduApiKey,
 			user,
 			maxRequestsPerTask,
@@ -39,6 +40,7 @@ export class StateManager {
 			skipWriteAnimation,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
+			this.globalStateManager.getGlobalState("browserModelId"),
 			this.secretStateManager.getSecretState("koduApiKey"),
 			this.globalStateManager.getGlobalState("user"),
 			this.globalStateManager.getGlobalState("maxRequestsPerTask"),
@@ -63,6 +65,7 @@ export class StateManager {
 			apiConfiguration: {
 				apiModelId,
 				koduApiKey,
+				browserModelId,
 			},
 			user,
 			maxRequestsPerTask,
