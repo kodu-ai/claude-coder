@@ -49,6 +49,7 @@ export interface ApiHandler {
 	sendWebSearchRequest?(
 		searchQuery: string,
 		baseLink?: string,
+		browserModel?: string,
 		abortSignal?: AbortSignal
 	): AsyncIterable<WebSearchResponseDto>
 

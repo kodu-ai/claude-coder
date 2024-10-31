@@ -27,6 +27,7 @@ export type ToolInput = {
 	searchQuery?: string
 	query?: string
 	baseLink?: string
+	browserModel?: "smart" | "fast"
 	url?: string
 }
 
