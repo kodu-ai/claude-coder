@@ -13,7 +13,7 @@ import { WebviewMessage } from "../../../../shared/WebviewMessage"
 import { ChatTool } from "../../../../shared/new-tools"
 import { TerminalProcessResultPromise } from "../../../../integrations/terminal/terminal-manager"
 
-const COMMAND_TIMEOUT = 45000 // 45 seconds
+const COMMAND_TIMEOUT = 90_000 // 90 seconds
 const MAX_RETRIES = 3
 
 type EarlyExitState = "approved" | "rejected" | "pending"
