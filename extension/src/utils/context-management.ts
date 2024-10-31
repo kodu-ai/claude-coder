@@ -24,3 +24,34 @@ export function truncateHalfConversation(
 
 	return truncatedMessages
 }
+
+/**
+ * Estimates token count from a message
+ * Uses heuristic of 3 characters ≈ 1 token, and images ≈ 2000 tokens
+ * @param message - The message to analyze
+ * @returns Estimated token count
+ */
+export const estimateTokenCount = (message: Anthropic.MessageParam): number => {
+	if (typeof message.content === "string") {
+		return Math.round(message.content.length / 3)
+	}
+
+	const textContent = message.content
+		.filter((block) => block.type === "text")
+		.map((block) => block.text)
+		.join("")
+
+	const textTokens = Math.round(textContent.length / 3)
+	const imageTokens = message.content.filter((block) => block.type === "image").length * 2000
+
+	return textTokens + imageTokens
+}
+
+/**
+ * Estimates token count from messages
+ * @param messages estimate token count from messages
+ * @returns estimated token count
+ */
+export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.MessageParam[]): number => {
+	return messages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
+}

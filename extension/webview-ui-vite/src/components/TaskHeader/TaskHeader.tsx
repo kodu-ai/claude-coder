@@ -41,7 +41,7 @@ export default function TaskHeader({
 	koduCredits,
 	vscodeUriScheme,
 }: TaskHeaderProps) {
-	const { currentTaskId, currentTask } = useExtensionState()
+	const { currentTaskId, currentTask, currentContextTokens, currentContextWindow } = useExtensionState()
 	const [isOpen, setIsOpen] = React.useState(true)
 
 	const handleDownload = () => {
@@ -98,6 +98,8 @@ export default function TaskHeader({
 							cacheWrites={cacheWrites}
 							cacheReads={cacheReads}
 							totalCost={totalCost}
+							currentContextTokens={currentContextTokens}
+							currentContextWindow={currentContextWindow}
 						/>
 					</div>
 					<CreditsInfo koduCredits={koduCredits} vscodeUriScheme={vscodeUriScheme} />

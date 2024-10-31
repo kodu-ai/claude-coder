@@ -1,5 +1,6 @@
 import { ApiConfiguration } from "../api"
 import { GlobalState } from "../providers/claude-coder/state/GlobalStateManager"
+import { SystemPromptVariant } from "./SystemPromptVariant"
 
 export type Resource =
 	| { id: string; type: "file" | "folder"; name: string }
@@ -94,6 +95,11 @@ export type CommandInputMessage = {
 	input: string
 }
 
+export type activeSystemPromptVariantMessage = {
+	type: "activeSystemPromptVariant"
+	variantId: string
+}
+
 export type ToolFeedbackMessage = {
 	type: "toolFeedback"
 	toolId: number
@@ -116,8 +122,14 @@ export type autoCloseTerminalMessage = {
 	bool: boolean
 }
 
+export type systemPromptVariantsMessage = {
+	type: "systemPromptVariants"
+	variants: SystemPromptVariant[]
+}
+
 export type WebviewMessage =
 	| updateGlobalStateMessage
+	| systemPromptVariantsMessage
 	| ToolFeedbackAllMessage
 	| ToolFeedbackMessage
 	| experimentalTerminalMessage
@@ -135,6 +147,7 @@ export type WebviewMessage =
 	| UpdateTaskHistoryMessage
 	| ExecuteCommandMessage
 	| CommandInputMessage
+	| activeSystemPromptVariantMessage
 	| {
 			type:
 				| "skipWriteAnimation"

@@ -108,6 +108,7 @@ export class WebviewManager {
 		const state = await this.provider.getStateManager().getState()
 		const koduDevState = this.provider.getKoduDev()?.getStateManager().state
 		const extensionName = this.provider.getContext().extension?.packageJSON?.name
+
 		return {
 			...state,
 			version: this.provider.getContext().extension?.packageJSON?.version ?? "",
@@ -340,8 +341,16 @@ export class WebviewManager {
 							await this.postStateToWebview()
 						}
 						break
+					case "activeSystemPromptVariant":
+						await this.provider.getStateManager().setActiveSystemPromptVariantId(message.variantId)
+						await this.postStateToWebview()
+						break
 					case "autoCloseTerminal":
 						await this.provider.getStateManager().setAutoCloseTerminal(message.bool)
+						await this.postStateToWebview()
+						break
+					case "systemPromptVariants":
+						await this.provider.getStateManager().setSystemPromptVariants(message.variants)
 						await this.postStateToWebview()
 						break
 					case "maxRequestsPerTask":

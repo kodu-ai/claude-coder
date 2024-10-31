@@ -6,6 +6,7 @@ import { vscode } from "../utils/vscode"
 import { ApiConfiguration } from "../../../src/api/index"
 import { HistoryItem } from "../../../src/shared/HistoryItem"
 import type { GlobalState } from "../../../src/providers/claude-coder/state/GlobalStateManager"
+import { SystemPromptVariant } from "../../../src/shared/SystemPromptVariant"
 
 // Define atoms for each piece of state
 const technicalBackgroundAtom = atom<GlobalState["technicalBackground"] | undefined>(undefined)
@@ -59,6 +60,12 @@ useUdiffAtom.debugLabel = "useUdiff"
 const skipWriteAnimationAtom = atom(false)
 skipWriteAnimationAtom.debugLabel = "skipWriteAnimation"
 
+const systemPromptVariantsAtom = atom<SystemPromptVariant[]>([])
+systemPromptVariantsAtom.debugLabel = "systemPromptVariants"
+
+const activeSystemPromptVariantIdAtom = atom<string | undefined>(undefined)
+activeSystemPromptVariantIdAtom.debugLabel = "activeSystemPromptVariantId"
+
 const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	const currentTaskId = get(currentTaskIdAtom)
 	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
@@ -69,7 +76,9 @@ export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
 	claudeMessages: get(claudeMessagesAtom),
 	taskHistory: get(taskHistoryAtom),
+	currentContextWindow: get(currentContextWindowAtom),
 	useUdiff: get(useUdiffAtom),
+	currentContextTokens: get(currentContextTokensAtom),
 	currentTask: get(currentTaskAtom),
 	currentTaskId: get(currentTaskIdAtom),
 	shouldShowAnnouncement: get(shouldShowAnnouncementAtom),
@@ -82,6 +91,7 @@ export const extensionStateAtom = atom((get) => ({
 	skipWriteAnimation: get(skipWriteAnimationAtom),
 	technicalBackground: get(technicalBackgroundAtom),
 	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
+	activeSystemPromptVariantId: get(activeSystemPromptVariantIdAtom),
 	autoCloseTerminal: get(autoCloseTerminalAtom),
 	fpjsKey: get(fpjsKeyAtom),
 	extensionName: get(extensionNameAtom),
@@ -89,6 +99,7 @@ export const extensionStateAtom = atom((get) => ({
 	user: get(userAtom),
 	alwaysAllowWriteOnly: get(alwaysAllowApproveOnlyAtom),
 	creativeMode: get(creativeModeAtom),
+	systemPromptVariants: get(systemPromptVariantsAtom),
 }))
 extensionStateAtom.debugLabel = "extensionState"
 
@@ -98,6 +109,12 @@ didHydrateStateAtom.debugLabel = "didHydrateState"
 
 export const showSettingsAtom = atom(false)
 showSettingsAtom.debugLabel = "showSettings"
+
+const currentContextTokensAtom = atom(0)
+currentContextTokensAtom.debugLabel = "currentContextTokens"
+
+const currentContextWindowAtom = atom(0)
+currentContextWindowAtom.debugLabel = "currentContextWindow"
 
 export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 	const setVersion = useSetAtom(versionAtom)
@@ -115,14 +132,18 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setThemeName = useSetAtom(themeNameAtom)
 	const setCurrentIdTask = useSetAtom(currentTaskIdAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
+	const setActiveSystemPromptVariantId = useSetAtom(activeSystemPromptVariantIdAtom)
 	const setFingerprint = useSetAtom(fingerprintAtom)
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setUriScheme = useSetAtom(uriSchemeAtom)
+	const setCurrentContextWindow = useSetAtom(currentContextWindowAtom)
 	const setDidHydrateState = useSetAtom(didHydrateStateAtom)
+	const setCurrentContextTokens = useSetAtom(currentContextTokensAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 	const setExtensionName = useSetAtom(extensionNameAtom)
 	const setFpjsKey = useSetAtom(fpjsKeyAtom)
+	const setSystemPromptVariants = useSetAtom(systemPromptVariantsAtom)
 
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
@@ -138,10 +159,13 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setTaskHistory(message.state.taskHistory)
 			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)
 			setShouldShowKoduPromo(message.state.shouldShowKoduPromo)
+			setCurrentContextTokens(message.state.currentContextTokens)
 			setApiConfiguration(message.state.apiConfiguration)
+			setActiveSystemPromptVariantId(message.state.activeSystemPromptVariantId)
 			setMaxRequestsPerTask(message.state.maxRequestsPerTask)
 			setCustomInstructions(message.state.customInstructions)
 			setAlwaysAllowReadOnly(!!message.state.alwaysAllowReadOnly)
+			setCurrentContextWindow(message.state.currentContextWindow)
 			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
 			setUser(message.state.user)
 			setExtensionName(message.state.extensionName)
@@ -154,6 +178,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setFingerprint(message.state.fingerprint)
 			setUriScheme(message.state.uriScheme)
 			setCreativeMode(message.state.creativeMode ?? "normal")
+			setSystemPromptVariants(message.state.systemPromptVariants ?? [])
 		}
 		if (message.type === "action" && message.action === "koduCreditsFetched") {
 			setUser(message.user)
@@ -183,11 +208,13 @@ export const useExtensionState = () => {
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
+	const setActiveSystemPromptVariantId = useSetAtom(activeSystemPromptVariantIdAtom)
 	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
+	const setSystemPromptVariants = useSetAtom(systemPromptVariantsAtom)
 
 	return {
 		...state,
@@ -201,6 +228,8 @@ export const useExtensionState = () => {
 		setAlwaysAllowWriteOnly,
 		setCreativeMode,
 		setAlwaysAllowReadOnly,
+		setActiveSystemPromptVariantId,
 		setShowAnnouncement: setShouldShowAnnouncement,
+		setSystemPromptVariants,
 	}
 }

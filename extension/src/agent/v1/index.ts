@@ -373,13 +373,18 @@ export class KoduDev {
 		}</dev_server_running>\n`
 		if (isDevServerRunning) {
 			for (const server of devServers) {
-				const logs = server.logs.slice(-30)
+				const logs = server.logs.slice(-15)
 				const serverName = server.terminalInfo.name
 				devServerSection += `<dev_server_info>\n`
 				devServerSection += `<server_name>${serverName}</server_name>\n`
 				devServerSection += `<dev_server_url>${server.url}</dev_server_url>\n`
 				devServerSection += `<dev_server_logs>${
-					logs.length === 0 ? "No logs" : logs.join("\n")
+					logs.length === 0
+						? "No logs"
+						: `
+					You have a total of ${logs.length} logs. Here are the last 15 logs
+					if you want to get the full logs use the dev_server tool.
+					:\n` + logs.join("\n")
 				}</dev_server_logs>\n`
 				devServerSection += `</dev_server_info>\n`
 			}
@@ -428,6 +433,7 @@ export class KoduDev {
 			return acc
 		}, {} as NonNullable<typeof this.stateManager.historyErrors>)
 		this.stateManager.historyErrors = taskErrorsRecord
+		console.log(`[ENVIRONMENT DETAILS] New errors found`, newErrors.map((diag) => diag.errorString).join("\n"))
 
 		// map the diagnostics to the original file path
 		details += "\n\n# CURRENT ERRORS (Linter Errors)"
