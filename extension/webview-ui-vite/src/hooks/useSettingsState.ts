@@ -1,9 +1,9 @@
-import { useState, useCallback } from "react"
+import { useCallback, useState } from "react"
+import { GlobalState } from "../../../src/providers/claude-coder/state/GlobalStateManager"
+import { SystemPromptVariant } from "../../../src/shared/SystemPromptVariant"
 import { useExtensionState } from "../context/ExtensionStateContext"
 import { vscode } from "../utils/vscode"
 import useDebounce from "./use-debounce"
-import { GlobalState } from "../../../src/providers/claude-coder/state/GlobalStateManager"
-import { SystemPromptVariant } from "../../../src/shared/SystemPromptVariant"
 
 export function useSettingsState() {
 	const extensionState = useExtensionState()
@@ -106,11 +106,14 @@ export function useSettingsState() {
 		vscode.postMessage({ type: "activeSystemPromptVariant", variantId })
 	}, [])
 
-	useDebounce(customInstructions, 250, (val) => {
+	const handleCustomInstructionsChange = useCallback((val: string) => {
 		if (val === extensionState.customInstructions) return
-		extensionState.setCustomInstructions(val)
-		vscode.postMessage({ type: "customInstructions", text: val })
-	})
+			setCustomInstructions(val)
+			extensionState.setCustomInstructions(val)
+			vscode.postMessage({ type: "customInstructions", text: val })
+		},
+		[extensionState.customInstructions]
+	)
 
 	return {
 		model,
@@ -130,9 +133,9 @@ export function useSettingsState() {
 		handleBrowserModelChange,
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
-		setCustomInstructions,
 		handleSaveSystemPrompt,
 		handleDeleteSystemPrompt,
 		handleSetActiveVariant,
+		handleCustomInstructionsChange,
 	}
 }
