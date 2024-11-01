@@ -4,6 +4,10 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.9.21]
+
+-   [FIX]: @debug command now working properly
+
 ## [1.9.20]
 
 -   [NEW]: Web search tool settings, allowing you to control which model the tool uses.
