@@ -24,7 +24,20 @@ type EnhancedFileTreeProps = {
 const MAX_SELECTED_ITEMS = 50
 
 export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: EnhancedFileTreeProps) {
-	const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
+	const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => {
+		const getAllFolderIds = (nodes: FileNode[]): string[] => {
+			return nodes.reduce<string[]>((acc, node) => {
+				if (node.type === "folder") {
+					acc.push(node.id)
+					if (node.children) {
+						acc.push(...getAllFolderIds(node.children))
+					}
+				}
+				return acc
+			}, [])
+		}
+		return new Set(getAllFolderIds(initialFiles))
+	})
 	const [filter, setFilter] = useState("")
 	const [showMaxError, setShowMaxError] = useState(false)
 
@@ -45,26 +58,35 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 		return node.children.filter((child) => child.type === "file").map((child) => child.id)
 	}
 
+	const getAllFileIds = (node: FileNode): string[] => {
+		if (node.type === "file") return [node.id]
+		if (!node.children) return []
+		return node.children.reduce<string[]>((acc, child) => {
+			return [...acc, ...getAllFileIds(child)]
+		}, [])
+	}
+
 	const toggleSelect = (id: string, node: FileNode) => {
 		const newSelectedItems = new Set(value)
-		const firstDepthChildren = getFirstDepthChildren(node)
 
 		if (node.type === "folder") {
-			const allChildrenSelected = firstDepthChildren.every((childId) => newSelectedItems.has(childId))
+			const allDescendantFiles = getAllFileIds(node)
+			const allChildrenSelected = allDescendantFiles.every((childId) => newSelectedItems.has(childId))
+
 			if (allChildrenSelected) {
-				// Unselect all children
-				firstDepthChildren.forEach((childId) => newSelectedItems.delete(childId))
+				// Unselect all descendants
+				allDescendantFiles.forEach((childId) => newSelectedItems.delete(childId))
 			} else {
-				// Select all children
-				if (newSelectedItems.size + firstDepthChildren.length <= MAX_SELECTED_ITEMS) {
-					firstDepthChildren.forEach((childId) => newSelectedItems.add(childId))
+				// Select all descendants
+				if (newSelectedItems.size + allDescendantFiles.length <= MAX_SELECTED_ITEMS) {
+					allDescendantFiles.forEach((childId) => newSelectedItems.add(childId))
 				} else {
 					setShowMaxError(true)
 					return
 				}
 			}
 		} else {
-			// Toggle selection for files
+			// Toggle selection for files (unchanged)
 			if (newSelectedItems.has(id)) {
 				newSelectedItems.delete(id)
 			} else if (newSelectedItems.size < MAX_SELECTED_ITEMS) {
@@ -81,19 +103,23 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 
 	const filterFiles = useCallback(
 		(node: FileNode): FileNode | null => {
-			const matchesFilter = node.name.toLowerCase().includes(filter.toLowerCase())
-			if (matchesFilter) {
-				return { ...node, matchReason: "direct" }
-			}
+			const matchesFilter = node.id.toLowerCase().includes(filter.toLowerCase())
+
 			if (node.type === "folder" && node.children) {
 				const filteredChildren = node.children
 					.map(filterFiles)
 					.filter((child): child is FileNode => child !== null)
-				if (filteredChildren.length > 0) {
-					return { ...node, children: filteredChildren, matchReason: "childMatch" }
+
+				if (matchesFilter || filteredChildren.length > 0) {
+					return {
+						...node,
+						children: filteredChildren,
+						matchReason: matchesFilter ? "direct" : "childMatch",
+					}
 				}
 			}
-			return null
+
+			return matchesFilter ? { ...node, matchReason: "direct" } : null
 		},
 		[filter]
 	)
@@ -146,15 +172,27 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 			const areAllChildrenSelected =
 				firstDepthChildren.length > 0 && firstDepthChildren.every((childId) => value.has(childId))
 
+			const highlightText = (text: string) => {
+				if (!filter) return text
+				const parts = text.split(new RegExp(`(${filter})`, "i"))
+				return parts.map((part, i) =>
+					part.toLowerCase() === filter.toLowerCase() ? (
+						<span key={i} className="bg-primary/40">
+							{part}
+						</span>
+					) : (
+						part
+					)
+				)
+			}
+
 			return (
 				<div
-					className={`flex items-center space-x-2 py-1 px-2 hover:bg-accent hover:text-accent-foreground cursor-pointer ${
+					className={`flex items-center gap-2 px-2 py-1 hover:bg-accent hover:text-accent-foreground cursor-pointer ${
 						isSelected || (node.type === "folder" && areAllChildrenSelected)
 							? "bg-primary text-primary-foreground"
 							: ""
 					} ${node.matchReason === "childMatch" ? "opacity-70" : ""}`}
-					style={{ paddingLeft: `${node.depth * 1.5 + 0.5}rem` }}
-					onClick={() => node.type === "folder" && toggleFolder(node.id)}
 					onKeyDown={(e) => handleKeyDown(e, node)}
 					tabIndex={0}
 					role="button"
@@ -165,7 +203,7 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 						onCheckedChange={() => toggleSelect(node.id, node)}
 						onClick={(e) => e.stopPropagation()}
 					/>
-					{node.type === "folder" && (
+					{/* {node.type === "folder" && (
 						<div className="w-4 h-4 flex items-center justify-center">
 							<motion.div
 								initial={false}
@@ -174,21 +212,23 @@ export default function EnhancedFileTree({ initialFiles, onItemSelect, value }: 
 								<ChevronRight className="w-4 h-4" />
 							</motion.div>
 						</div>
-					)}
+					)} */}
 					{node.type === "folder" ? (
 						<Folder className="w-4 h-4 text-primary" />
 					) : (
 						<File className="w-4 h-4" />
 					)}
-					<span>{node.name}</span>
+					<span>{highlightText(node.id)}</span>
 				</div>
 			)
 		},
-		[expandedFolders, value, toggleFolder, toggleSelect]
+		[expandedFolders, value, toggleFolder, toggleSelect, filter]
 	)
 
+	console.log({ filteredFiles, flattenedFiles, flattenFileTree })
+
 	return (
-		<div className="w-full max-w-md mx-auto p-4 bg-background text-foreground rounded-lg shadow">
+		<div className="w-fullp-4 bg-background text-foreground rounded-lg shadow">
 			<div className="mb-4 relative">
 				<Input
 					type="text"
