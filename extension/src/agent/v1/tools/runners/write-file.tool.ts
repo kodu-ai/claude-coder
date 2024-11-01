@@ -1,11 +1,11 @@
 import * as path from "path"
+import { DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
 import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { fileExistsAtPath } from "../../../../utils/path-helpers"
 import { ToolResponse } from "../../types"
 import { formatToolResponse, getCwd, getReadablePath } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
-import { DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
-import { fileExistsAtPath } from "../../../../utils/path-helpers"
+import { AgentToolOptions, AgentToolParams } from "../types"
 
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -112,8 +112,11 @@ export class WriteFileTool extends BaseAgentTool {
 				if (response === "noButtonTapped") {
 					return formatToolResponse("Write operation cancelled by user.")
 				}
+				// If not a yes or no, the user provided feedback (wrote in the input)
 				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-				return formatToolResponse(text ?? "Write operation cancelled by user.", images)
+				return formatToolResponse(
+					`The user denied the write operation and provided the following feedback: ${text}`
+				)
 			}
 
 			// Save changes and handle user edits

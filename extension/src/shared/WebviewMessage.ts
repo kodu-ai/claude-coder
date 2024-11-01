@@ -127,6 +127,11 @@ export type systemPromptVariantsMessage = {
 	variants: SystemPromptVariant[]
 }
 
+export type customInstructionsMessage = {
+	type: "customInstructions"
+	text: string
+}
+
 export type WebviewMessage =
 	| updateGlobalStateMessage
 	| systemPromptVariantsMessage
@@ -148,12 +153,12 @@ export type WebviewMessage =
 	| ExecuteCommandMessage
 	| CommandInputMessage
 	| activeSystemPromptVariantMessage
+	| customInstructionsMessage
 	| {
 			type:
 				| "skipWriteAnimation"
 				| "cancelCurrentRequest"
 				| "maxRequestsPerTask"
-				| "customInstructions"
 				| "alwaysAllowReadOnly"
 				| "webviewDidLaunch"
 				| "newTask"

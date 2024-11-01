@@ -1,6 +1,6 @@
-import React from "react"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import React, { useEffect } from "react"
 import { useSettingsState } from "../../hooks/useSettingsState"
 import { ExperimentalFeatureItem } from "./experimental-feature-item"
 import SystemPromptVariants from "./SystemPromptVariants"
@@ -14,7 +14,7 @@ const AdvancedTab: React.FC = () => {
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
 		handleAutoSkipWriteChange,
-		setCustomInstructions,
+		handleCustomInstructionsChange,
 	} = useSettingsState()
 
 	return (
@@ -58,7 +58,7 @@ const AdvancedTab: React.FC = () => {
 					id="custom-instructions"
 					placeholder="e.g. 'Run unit tests at the end', 'Use TypeScript with async/await'"
 					value={customInstructions}
-					onChange={(e) => setCustomInstructions(e.target.value)}
+					onChange={(e) => handleCustomInstructionsChange(e.target.value)}
 					className="min-h-[60px] text-xs"
 				/>
 			</div>
