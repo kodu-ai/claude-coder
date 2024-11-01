@@ -40,7 +40,11 @@ export class KoduDev {
 	public isFirstMessage: boolean = true
 	private isAborting: boolean = false
 
-	constructor(options: KoduDevOptions) {
+	constructor(
+		options: KoduDevOptions & {
+			noTask?: boolean
+		}
+	) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
 		this.stateManager = new StateManager(options)
 		this.providerRef = new WeakRef(provider)
@@ -70,6 +74,9 @@ export class KoduDev {
 		if (historyItem?.dirAbsolutePath) {
 		}
 
+		if (options.noTask) {
+			return
+		}
 		if (historyItem) {
 			this.stateManager.state.isHistoryItem = true
 			this.resumeTaskFromHistory()
@@ -133,7 +140,7 @@ export class KoduDev {
 		}
 		this.taskExecutor.handleAskResponse(askResponse, text, images)
 	}
-	private async startTask(task?: string, images?: string[]): Promise<void> {
+	public async startTask(task?: string, images?: string[]): Promise<void> {
 		if (this.isAborting) {
 			throw new Error("Cannot start task while aborting")
 		}

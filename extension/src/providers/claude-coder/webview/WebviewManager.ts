@@ -13,9 +13,10 @@ import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
-import { KoduDevState } from "../../../agent/v1/types"
+import { KoduDevState, UserContent } from "../../../agent/v1/types"
 import { ExecaTerminalManager } from "../../../integrations/terminal/execa-terminal-manager"
-import { cwd } from "../../../agent/v1/utils"
+import { cwd, getPotentiallyRelevantDetails } from "../../../agent/v1/utils"
+import Anthropic from "@anthropic-ai/sdk"
 
 interface FileTreeItem {
 	id: string
@@ -459,7 +460,8 @@ export class WebviewManager {
 	}
 
 	private async handleDebugInstruction(): Promise<void> {
-		const agent = this.provider.getKoduDev()
+		let agent = this.provider.getKoduDev()
+		let noTask = false
 		const openFolders = vscode.workspace.workspaceFolders
 		if (!openFolders) {
 			vscode.window.showErrorMessage("No open workspaces, please open a workspace.")
@@ -472,10 +474,24 @@ export class WebviewManager {
 		}
 
 		if (!agent) {
-			return
+			// create a new task
+			await this.provider.initWithNoTask()
+			agent = this.provider.getKoduDev()!
+			noTask = true
+		}
+		// now get diagnostics for all the open tabs
+		const openTabs = vscode.window.visibleTextEditors
+		for (const tab of openTabs) {
+			agent.getStateManager().addErrorPath(tab.document.uri.fsPath)
 		}
 
 		const problemsString = "Check system logs for more information."
+		if (noTask) {
+			const task = `I am working on debugging issues related to the open tabs in my workspace. I've attached the diagnostics for the open tabs. Please provide a step-by-step approach to analyze and resolve any potential issues or inefficiencies based on the provided information. Focus on clarity and actionable steps, and suggest best practices where applicable.`
+
+			await agent.startTask(task)
+			return
+		}
 		return await agent.taskExecutor.handleAskResponse("messageResponse", problemsString)
 	}
 }

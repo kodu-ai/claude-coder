@@ -3,7 +3,7 @@ import { HistoryItem } from "../../../shared/HistoryItem"
 import { ApiModelId, KoduModelId } from "../../../shared/api"
 import { SystemPromptVariant } from "../../../shared/SystemPromptVariant"
 import * as path from "path"
-import { getCwd } from "@/agent/v1/utils"
+import { getCwd } from "../../../agent/v1/utils"
 
 type User = {
 	email: string

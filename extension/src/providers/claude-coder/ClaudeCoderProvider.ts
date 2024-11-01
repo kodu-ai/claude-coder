@@ -124,6 +124,23 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 		})
 	}
 
+	async initWithNoTask() {
+		await this.taskManager.clearTask()
+		const state = await this.stateManager.getState()
+		this.koduDev = new KoduDev({
+			provider: this,
+			apiConfiguration: { ...state.apiConfiguration, koduApiKey: state.apiConfiguration.koduApiKey },
+			maxRequestsPerTask: state.maxRequestsPerTask,
+			customInstructions: state.customInstructions,
+			alwaysAllowReadOnly: state.alwaysAllowReadOnly,
+			alwaysAllowWriteOnly: state.alwaysAllowWriteOnly,
+			experimentalTerminal: state.experimentalTerminal,
+			skipWriteAnimation: state.skipWriteAnimation,
+			autoCloseTerminal: state.autoCloseTerminal,
+			noTask: true,
+		})
+	}
+
 	getKoduDev() {
 		return this.koduDev
 	}

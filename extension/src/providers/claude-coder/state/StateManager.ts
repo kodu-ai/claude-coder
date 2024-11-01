@@ -7,8 +7,9 @@ import { SecretStateManager } from "./SecretStateManager"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { ExtensionState } from "../../../shared/ExtensionMessage"
-import { SystemPromptVariant } from "@/shared/SystemPromptVariant"
-import { estimateTokenCount, estimateTokenCountFromMessages } from "@/utils/context-management"
+import { SystemPromptVariant } from "../../../shared/SystemPromptVariant"
+import { estimateTokenCount, estimateTokenCountFromMessages } from "../../../utils/context-management"
+
 export class StateManager {
 	private globalStateManager: GlobalStateManager
 	private secretStateManager: SecretStateManager
