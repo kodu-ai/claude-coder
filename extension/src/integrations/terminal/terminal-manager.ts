@@ -1,7 +1,6 @@
-import { EventEmitter } from "events"
-import * as vscode from "vscode"
-import { arePathsEqual } from "../../utils/path-helpers"
-import {execa } from "execa"
+import { EventEmitter } from "events";
+import * as vscode from "vscode";
+import { arePathsEqual } from "../../utils/path-helpers";
 
 /*
 TerminalManager:
@@ -568,56 +567,76 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 			terminalId
 		});
 		
-		this.isHot = true
+		this.isHot = true;
+
 		try {
-			// First try shell integration
-			if (terminal.shellIntegration && terminal.shellIntegration.executeCommand) {
+			if (terminal.shellIntegration) {
 				console.log('[TerminalProcess.run] Using shell integration');
-				const execution = terminal.shellIntegration.executeCommand(command);
 				
-				// Also run with execa to capture output
-				const shellCmd = process.platform === "win32" ? ["cmd", "/c"] : ["sh", "-c"];
-				const subprocess = execa(shellCmd[0], [...shellCmd.slice(1), command], {
-					cwd: terminal.shellIntegration?.cwd?.fsPath || process.cwd(),
-					env: process.env,
-					stripFinalNewline: false,
-					buffer: false, // Stream output instead of buffering
-				});
-
-				// Handle stdout
-				subprocess.stdout?.on("data", (data: Buffer) => {
-					const lines = data.toString().split("\n");
-					for (const line of lines) {
-						if (line.trim()) {
-							console.log('[TerminalProcess.run] Output line:', line.trim());
-							this.emit("line", line.trim());
-							this.fullOutput.push(line.trim());
-							TerminalRegistry.addOutput(terminalId, line.trim() + "\n");
-						}
-					}
-				});
-
-				// Handle stderr
-				subprocess.stderr?.on("data", (data: Buffer) => {
-					const lines = data.toString().split("\n");
-					for (const line of lines) {
-						if (line.trim()) {
-							console.log('[TerminalProcess.run] Error line:', line.trim());
-							this.emit("line", line.trim());
-							this.fullOutput.push(line.trim());
-							TerminalRegistry.addOutput(terminalId, line.trim() + "\n");
-						}
-					}
-				});
-
+				// Get the current working directory
+				let cwd: string;
 				try {
-					await subprocess;
-				} catch (error) {
-					if (error instanceof Error) {
-						console.error('[TerminalProcess.run] Subprocess error:', error);
-					}
+					const terminalCwd = terminal.shellIntegration?.cwd;
+					cwd = typeof terminalCwd === 'string' ? terminalCwd : process.cwd();
+				} catch (e) {
+					cwd = process.cwd();
 				}
 
+				// Create task execution
+				const task = new vscode.Task(
+					{ type: 'shell' },
+					vscode.TaskScope.Workspace,
+					'Command Execution',
+					'shell',
+					new vscode.ShellExecution(command)
+				);
+
+				const execution = await vscode.tasks.executeTask(task);
+				
+				return new Promise<void>((resolve, reject) => {
+					const disposable = vscode.tasks.onDidEndTaskProcess(e => {
+						if (e.execution === execution) {
+							console.log('[TerminalProcess.run] Task completed:', {
+								exitCode: e.exitCode,
+								command
+							});
+							
+							disposable.dispose();
+							this.isHot = false;
+							this.isListening = false;
+							this.emit("completed");
+							this.emit("continue");
+							
+							if (e.exitCode === 0) {
+								resolve();
+							} else {
+								reject(new Error(`Task failed with exit code ${e.exitCode}`));
+							}
+						}
+					});
+
+					// Handle task output
+					const outputDisposable = vscode.window.onDidWriteTerminalData(e => {
+						if (e.terminal === terminal) {
+							const lines = e.data.split('\n');
+							for (const line of lines) {
+								if (line.trim()) {
+									this.emit("line", line.trim());
+									this.fullOutput.push(line.trim());
+									TerminalRegistry.addOutput(terminalId, line.trim() + "\n");
+								}
+							}
+						}
+					});
+
+					// Cleanup on task end
+					execution.task.definition.problemMatchers = [];
+					vscode.tasks.onDidEndTask(e => {
+						if (e.execution === execution) {
+							outputDisposable.dispose();
+						}
+					});
+				});
 			} else {
 				console.log('[TerminalProcess.run] No shell integration, falling back to sendText');
 				terminal.sendText(command, true);
@@ -628,11 +647,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 			if (error instanceof Error) {
 				this.emit("error", error);
 			}
-		} finally {
-			this.isHot = false;
-			this.isListening = false;
-			this.emit("completed");
-			this.emit("continue");
+			throw error;
 		}
 	}
 
