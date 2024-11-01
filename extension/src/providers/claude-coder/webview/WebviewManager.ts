@@ -479,6 +479,9 @@ export class WebviewManager {
 			agent = this.provider.getKoduDev()!
 			noTask = true
 		}
+		vscode.window.showInformationMessage(
+			"Debugging open tabs in workspace. if you want to debug a specific tab, please open it."
+		)
 		// now get diagnostics for all the open tabs
 		const openTabs = vscode.window.visibleTextEditors
 		for (const tab of openTabs) {
@@ -492,6 +495,7 @@ export class WebviewManager {
 			await agent.startTask(task)
 			return
 		}
-		return await agent.taskExecutor.handleAskResponse("messageResponse", problemsString)
+		// flag this is legacy it should actually be handled by the task executor
+		return await agent.handleWebviewAskResponse("messageResponse", problemsString)
 	}
 }

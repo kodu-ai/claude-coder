@@ -4,6 +4,10 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.9.22]
+
+-   [FIX]: @debug was triggering wrong internal command.
+
 ## [1.9.21]
 
 -   [FIX]: @debug command now working properly
