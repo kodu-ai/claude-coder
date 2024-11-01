@@ -1,9 +1,7 @@
 import { EventEmitter } from "events"
-import pWaitFor from "p-wait-for"
-import stripAnsi from "strip-ansi"
 import * as vscode from "vscode"
 import { arePathsEqual } from "../../utils/path-helpers"
-import delay from "delay"
+import {execa } from "execa"
 
 /*
 TerminalManager:
@@ -269,10 +267,12 @@ export class TerminalManager {
 	private terminalIds: Set<number> = new Set()
 	private processes: Map<number, TerminalProcess> = new Map()
 	private disposables: vscode.Disposable[] = []
+	private shellIntegrationStatus: Map<number, boolean> = new Map() // Track shell integration status per terminal
 
 	constructor() {
 		let disposable: vscode.Disposable | undefined
 		try {
+			// Listen for shell execution events
 			disposable = (vscode.window as vscode.Window).onDidStartTerminalShellExecution?.(async (e) => {
 				e?.execution?.read()
 			})
@@ -282,6 +282,16 @@ export class TerminalManager {
 		if (disposable) {
 			this.disposables.push(disposable)
 		}
+
+		// Add shell integration change listener
+		const shellIntegrationDisposable = vscode.window.onDidChangeTerminalShellIntegration((terminal) => {
+			const terminalInfo = TerminalRegistry.getAllTerminals().find((t) => t.terminal === terminal.terminal)
+			if (terminalInfo) {
+				console.log(`Shell integration changed for terminal ${terminalInfo.id}:`, terminal.shellIntegration)
+				this.shellIntegrationStatus.set(terminalInfo.id, !!terminal.shellIntegration)
+			}
+		})
+		this.disposables.push(shellIntegrationDisposable)
 
 		// Listen for terminal close events
 		const closeDisposable = vscode.window.onDidCloseTerminal((closedTerminal) => {
@@ -296,11 +306,60 @@ export class TerminalManager {
 		this.disposables.push(closeDisposable)
 	}
 
+	private async waitForShellIntegration(terminalInfo: TerminalInfo): Promise<boolean> {
+		return new Promise((resolve) => {
+			console.log(`[waitForShellIntegration] Starting for terminal ${terminalInfo.id}`);
+			
+			// If shell integration is already available, resolve immediately
+			if (terminalInfo.terminal.shellIntegration) {
+				console.log(`[waitForShellIntegration] Shell integration already available for terminal ${terminalInfo.id}`, terminalInfo.terminal.shellIntegration);
+				this.shellIntegrationStatus.set(terminalInfo.id, true)
+				resolve(true)
+				return
+			}
+
+			// Set up the shell integration change listener
+			const disposable = vscode.window.onDidChangeTerminalShellIntegration((terminal) => {
+				console.log(`[ShellIntegrationChange] Event triggered for a terminal`, {
+					expectedId: terminalInfo.id,
+					hasShellIntegration: !!terminal.terminal.shellIntegration,
+					isMatchingTerminal: terminal.terminal === terminalInfo.terminal
+				});
+
+				if (terminal.terminal === terminalInfo.terminal) {
+					console.log(`[ShellIntegrationChange] Shell integration activated for terminal ${terminalInfo.id}`, terminal.terminal.shellIntegration);
+					this.shellIntegrationStatus.set(terminalInfo.id, true)
+					clearTimeout(timeoutId)
+					disposable.dispose()
+					resolve(true)
+				}
+			})
+
+			// Set up timeout
+			const timeoutId = setTimeout(() => {
+				console.log(`[waitForShellIntegration] Timeout reached for terminal ${terminalInfo.id}`);
+				disposable.dispose()
+				if (!this.shellIntegrationStatus.get(terminalInfo.id)) {
+					console.log(`[waitForShellIntegration] No shell integration available after timeout for terminal ${terminalInfo.id}`);
+					this.shellIntegrationStatus.set(terminalInfo.id, false)
+					resolve(false)
+				} else {
+					console.log(`[waitForShellIntegration] Shell integration was set during timeout for terminal ${terminalInfo.id}`);
+				}
+			}, 5000)
+		})
+	}
+
 	runCommand(
 		terminalInfo: TerminalInfo,
 		command: string,
 		options?: { autoClose?: boolean }
 	): TerminalProcessResultPromise {
+		console.log(`[runCommand] Starting command execution for terminal ${terminalInfo.id}`, {
+			hasShellIntegration: !!terminalInfo.terminal.shellIntegration,
+			command
+		});
+
 		terminalInfo.busy = true
 		terminalInfo.lastCommand = command
 
@@ -315,10 +374,53 @@ export class TerminalManager {
 			}
 		})
 
-		process.once("no_shell_integration", () => {
-			console.log(`No shell integration available for terminal ${terminalInfo.id}`)
-			process.emit("no_shell_integration")
-		})
+		if (terminalInfo.terminal.shellIntegration) {
+			console.log(`[runCommand] Using existing shell integration for terminal ${terminalInfo.id}`);
+			process.waitForShellIntegration = false
+			process.run(terminalInfo.terminal, command, terminalInfo.id)
+		} else {
+			console.log(`[runCommand] Waiting for shell integration for terminal ${terminalInfo.id}`);
+			process.waitForShellIntegration = true
+			
+			this.waitForShellIntegration(terminalInfo).then((hasShellIntegration) => {
+				console.log(`[runCommand] Shell integration wait completed`, {
+					terminalId: terminalInfo.id,
+					hasShellIntegration,
+					hasProcess: this.processes.has(terminalInfo.id),
+					currentShellIntegration: !!terminalInfo.terminal.shellIntegration
+				});
+
+				const existingProcess = this.processes.get(terminalInfo.id)
+				if (!existingProcess || !existingProcess.waitForShellIntegration) {
+					console.log(`[runCommand] Process no longer waiting for shell integration`, {
+						terminalId: terminalInfo.id,
+						hasProcess: !!existingProcess
+					});
+					return
+				}
+
+				existingProcess.waitForShellIntegration = false
+				
+				if (hasShellIntegration && terminalInfo.terminal.shellIntegration) {
+					console.log(`[runCommand] Running command with shell integration`, {
+						terminalId: terminalInfo.id,
+						command
+					});
+					existingProcess.run(terminalInfo.terminal, command, terminalInfo.id)
+				} else {
+					console.log(`[runCommand] Falling back to basic terminal`, {
+						terminalId: terminalInfo.id,
+						command
+					});
+					existingProcess.emit("no_shell_integration")
+					terminalInfo.terminal.sendText(command, true)
+					setTimeout(() => {
+						existingProcess.emit("completed")
+						existingProcess.emit("continue")
+					}, 100)
+				}
+			})
+		}
 
 		const promise = new Promise<void>((resolve, reject) => {
 			process.once("continue", () => {
@@ -329,32 +431,6 @@ export class TerminalManager {
 				reject(error)
 			})
 		})
-		if (!terminalInfo.terminal.shellIntegration) {
-			console.log("No shell integration")
-			process.emit("no_shell_integration")
-		}
-
-		if (terminalInfo.terminal.shellIntegration) {
-			process.waitForShellIntegration = false
-			// first run to make a new line needed for zsh to work correctly
-			process.run(terminalInfo.terminal, command, terminalInfo.id)
-		} else {
-			// vscode recommends 3 seconds to wait for shell integration to be ready if not it's not available
-			pWaitFor(() => terminalInfo.terminal.shellIntegration !== undefined, { timeout: 5_000 }).finally(() => {
-				const existingProcess = this.processes.get(terminalInfo.id)
-				if (existingProcess && existingProcess.waitForShellIntegration) {
-					existingProcess.waitForShellIntegration = false
-					if (terminalInfo.terminal.shellIntegration) {
-						existingProcess.run(terminalInfo.terminal, command, terminalInfo.id)
-					} else {
-						terminalInfo.terminal.sendText(command, true)
-						existingProcess.emit("no_shell_integration")
-						existingProcess.emit("continue")
-						existingProcess.emit("completed")
-					}
-				}
-			})
-		}
 
 		return mergePromise(process, promise)
 	}
@@ -459,6 +535,7 @@ export class TerminalManager {
 		this.closeAllTerminals()
 		this.terminalIds.clear()
 		this.processes.clear()
+		this.shellIntegrationStatus.clear() // Clear shell integration status
 		this.disposables.forEach((disposable) => disposable.dispose())
 		this.disposables = []
 		console.log(`TerminalManager disposed in ${Date.now() - now}ms`)
@@ -485,98 +562,77 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 	private hotTimer: NodeJS.Timeout | null = null
 
 	async run(terminal: vscode.Terminal, command: string, terminalId: number) {
+		console.log('[TerminalProcess.run] Starting command execution:', {
+			hasShellIntegration: !!terminal.shellIntegration,
+			command,
+			terminalId
+		});
+		
 		this.isHot = true
 		try {
+			// First try shell integration
 			if (terminal.shellIntegration && terminal.shellIntegration.executeCommand) {
-				const execution = terminal.shellIntegration.executeCommand(command)
-				const stream = execution.read()
-				let isFirstChunk = true
-				let didEmitEmptyLine = false
+				console.log('[TerminalProcess.run] Using shell integration');
+				const execution = terminal.shellIntegration.executeCommand(command);
+				
+				// Also run with execa to capture output
+				const shellCmd = process.platform === "win32" ? ["cmd", "/c"] : ["sh", "-c"];
+				const subprocess = execa(shellCmd[0], [...shellCmd.slice(1), command], {
+					cwd: terminal.shellIntegration?.cwd?.fsPath || process.cwd(),
+					env: process.env,
+					stripFinalNewline: false,
+					buffer: false, // Stream output instead of buffering
+				});
 
-				const noShellTimeout = setTimeout(() => {
-					this.emit("no_shell_integration")
-					this.emit("continue")
-					this.emit("completed")
-				}, 3000)
-
-				for await (let data of stream) {
-					if (isFirstChunk) {
-						const outputBetweenSequences = data.match(/\]633;C([\s\S]*?)\]633;D/)?.[1] || ""
-						const vscodeSequenceRegex = /\x1b\]633;.[^\x07]*\x07/g
-						const lastMatch = [...data.matchAll(vscodeSequenceRegex)].pop()
-						if (lastMatch?.index !== undefined) {
-							data = data.slice(lastMatch.index + lastMatch[0].length)
+				// Handle stdout
+				subprocess.stdout?.on("data", (data: Buffer) => {
+					const lines = data.toString().split("\n");
+					for (const line of lines) {
+						if (line.trim()) {
+							console.log('[TerminalProcess.run] Output line:', line.trim());
+							this.emit("line", line.trim());
+							this.fullOutput.push(line.trim());
+							TerminalRegistry.addOutput(terminalId, line.trim() + "\n");
 						}
-						if (outputBetweenSequences.trim()) {
-							data = outputBetweenSequences + "\n" + data
-						}
-						data = stripAnsi(data)
-						let lines = data.split(/[\n\r]+/) // Split on both \n and \r
-						if (lines.length > 0) {
-							lines[0] = lines[0].replace(/[^\x20-\x7E]/g, "")
-							if (lines[0].length >= 2 && lines[0][0] === lines[0][1]) {
-								lines[0] = lines[0].slice(1)
-							}
-							lines[0] = lines[0].replace(/^[^a-zA-Z0-9]*/, "")
-						}
-						data = lines.join("\n")
-					} else {
-						data = stripAnsi(data)
 					}
-					clearTimeout(noShellTimeout)
-					if (!data.trim()) continue
-					// Remove command echo but preserve line updates
-					const lines = data.split(/[\n\r]+/)
-					const filteredLines = lines.filter((line) => {
-						const trimmedLine = line.trim()
-						return trimmedLine && !command.includes(trimmedLine)
-					})
-					data = filteredLines.join("\n")
+				});
 
-					// Handle hot state
-					this.isHot = true
-					if (this.hotTimer) clearTimeout(this.hotTimer)
-
-					const compilingMarkers = ["compiling", "building", "bundling"]
-					const markerNullifiers = ["compiled", "success", "finish"]
-					const isCompiling =
-						compilingMarkers.some((m) => data.toLowerCase().includes(m)) &&
-						!markerNullifiers.some((n) => data.toLowerCase().includes(n))
-
-					this.hotTimer = setTimeout(
-						() => {
-							this.isHot = false
-						},
-						isCompiling ? 15000 : 2000
-					)
-
-					if (!didEmitEmptyLine && this.fullOutput.length === 0 && data) {
-						await this.queueOutput("", terminalId)
-						didEmitEmptyLine = true
+				// Handle stderr
+				subprocess.stderr?.on("data", (data: Buffer) => {
+					const lines = data.toString().split("\n");
+					for (const line of lines) {
+						if (line.trim()) {
+							console.log('[TerminalProcess.run] Error line:', line.trim());
+							this.emit("line", line.trim());
+							this.fullOutput.push(line.trim());
+							TerminalRegistry.addOutput(terminalId, line.trim() + "\n");
+						}
 					}
+				});
 
-					await this.emitIfEol(data, terminalId)
-					isFirstChunk = false
+				try {
+					await subprocess;
+				} catch (error) {
+					if (error instanceof Error) {
+						console.error('[TerminalProcess.run] Subprocess error:', error);
+					}
 				}
 
-				await this.processOutputQueue(terminalId)
-				await this.emitRemainingBufferIfListening(terminalId)
 			} else {
-				terminal.sendText(command, true)
-				this.emit("no_shell_integration")
+				console.log('[TerminalProcess.run] No shell integration, falling back to sendText');
+				terminal.sendText(command, true);
+				this.emit("no_shell_integration");
 			}
 		} catch (error) {
+			console.error('[TerminalProcess.run] Error:', error);
 			if (error instanceof Error) {
-				this.emit("error", error)
+				this.emit("error", error);
 			}
-			console.error(`Error in terminal process:`, error)
 		} finally {
-			this.isHot = false
-			await this.processOutputQueue(terminalId)
-			await this.emitRemainingBufferIfListening(terminalId)
-			this.isListening = false
-			this.emit("completed")
-			this.emit("continue")
+			this.isHot = false;
+			this.isListening = false;
+			this.emit("completed");
+			this.emit("continue");
 		}
 	}
 
