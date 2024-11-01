@@ -304,9 +304,14 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.currentUserContent = this.fixUserContent(this.currentUserContent)
 
 			if (this.consecutiveErrorCount >= 3) {
-				await this.ask("resume_task", {
+				const res = await this.ask("resume_task", {
 					question: "Claude has encountered an error 3 times in a row. Would you like to resume the task?",
 				})
+
+				if (res.response === "yesButtonTapped") {
+					this.resetState()
+					this.consecutiveErrorCount = 0
+				}
 			}
 
 			this.logState("Making Claude API request")
