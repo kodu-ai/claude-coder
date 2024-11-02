@@ -22,7 +22,7 @@ const FileDialog: React.FC<FileDialogProps> = ({
 }) => {
 	return (
 		<Dialog open={open} onOpenChange={onClose}>
-			<DialogContent className="max-w-[600px] w-[90vw] bg-background text-foreground">
+			<DialogContent className="max-w-[600px] w-[90vw] bg-background text-foreground px-4">
 				<DialogHeader>
 					<DialogTitle>Select Files and Folders</DialogTitle>
 					<DialogDescription>

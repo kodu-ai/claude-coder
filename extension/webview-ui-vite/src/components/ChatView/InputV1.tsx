@@ -181,6 +181,15 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 	return (
 		<>
 			<div className="relative w-full">
+				<MentionPopover
+					showPopover={showPopover}
+					setShowPopover={setShowPopover}
+					focusedIndex={focusedIndex}
+					setFocusedIndex={setFocusedIndex}
+					handleOpenDialog={handleOpenDialog}
+					// @ts-expect-error - event types are not the same but it's ok
+					handleKeyDown={handleKeyDown}
+				/>
 				<AttachedResources
 					onRemoveAll={() => setAttachedResources([])}
 					resources={attachedResources}
@@ -193,15 +202,6 @@ const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef)
 					onChange={handleTextareaChange}
 					onKeyDown={handleKeyDown}
 					setShowPopover={setShowPopover}
-				/>
-				<MentionPopover
-					showPopover={showPopover}
-					setShowPopover={setShowPopover}
-					focusedIndex={focusedIndex}
-					setFocusedIndex={setFocusedIndex}
-					handleOpenDialog={handleOpenDialog}
-					// @ts-expect-error - event types are not the same but it's ok
-					handleKeyDown={handleKeyDown}
 				/>
 			</div>
 
