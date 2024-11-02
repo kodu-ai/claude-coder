@@ -107,7 +107,7 @@ export class ApiManager {
 	 * @param apiConfiguration - New API configuration
 	 */
 	public updateApi(apiConfiguration: ApiConfiguration): void {
-		console.log("Updating API configuration", apiConfiguration)
+		this.log("info", "Updating API configuration", apiConfiguration)
 		this.api = buildApiHandler(apiConfiguration)
 	}
 
@@ -228,6 +228,11 @@ ${this.customInstructions.trim()}
 				type: "requestStatus",
 				isRunning: true,
 			})
+
+			// log the current conversation history
+			this.log("info", `Starting API request with system prompt:`, systemPrompt)
+			// log the last 2 messages
+			this.log("info", `Last 2 messages:`, apiConversationHistoryCopy.slice(-2))
 
 			const stream = await this.api.createMessageStream(
 				systemPrompt.trim(),
@@ -375,10 +380,11 @@ ${this.customInstructions.trim()}
 
 		if (totalTokens >= contextWindow * 0.75) {
 			const truncatedMessages = smartTruncation(history)
-			console.log(`API History before truncation:`, history)
-			console.log(`API History after truncation:`, truncatedMessages)
-			console.debug(`Total tokens before truncation: ${totalTokens}`)
-			console.debug(
+			this.log("info", `API History before truncation:`, history)
+			this.log("info", `Truncated messages:`, truncatedMessages)
+			this.log("info", `Total tokens before truncation: ${totalTokens}`)
+			this.log(
+				"info",
 				`Total tokens after truncation: ${estimateTokenCount(truncatedMessages[truncatedMessages.length - 1])}`
 			)
 
@@ -447,7 +453,7 @@ ${this.customInstructions.trim()}
 			cache_creation_input_tokens,
 			cache_read_input_tokens
 		)
-		console.log(`API REQUEST FINISHED: ${apiCost} tokens used data:`, response)
+		this.log("info", `API REQUEST FINISHED: ${apiCost} tokens used data:`, response)
 
 		amplitudeTracker.taskRequest({
 			taskId: state?.currentTaskId!,
@@ -517,5 +523,9 @@ ${this.customInstructions.trim()}
 		const outputCost = (model.outputPrice / 1_000_000) * outputTokens
 
 		return cacheWritesCost + cacheReadsCost + baseInputCost + outputCost
+	}
+
+	private log(status: "info" | "debug" | "error", message: string, ...args: any[]) {
+		console[status](`[API Manager] ${message}`, ...args)
 	}
 }
