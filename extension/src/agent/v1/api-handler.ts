@@ -13,7 +13,7 @@ import { koduModels } from "../../shared/api"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { koduSSEResponse, KoduError } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
-import { estimateTokenCount, truncateHalfConversation } from "../../utils/context-management"
+import { estimateTokenCount, smartTruncation, truncateHalfConversation } from "../../utils/context-management"
 import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
 import { ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
@@ -374,7 +374,31 @@ ${this.customInstructions.trim()}
 		const contextWindow = this.api.getModel().info.contextWindow
 
 		if (totalTokens >= contextWindow * 0.75) {
-			const truncatedMessages = truncateHalfConversation(history)
+			const truncatedMessages = smartTruncation(history)
+			console.log(`API History before truncation:`, history)
+			console.log(`API History after truncation:`, truncatedMessages)
+			console.debug(`Total tokens before truncation: ${totalTokens}`)
+			console.debug(
+				`Total tokens after truncation: ${estimateTokenCount(truncatedMessages[truncatedMessages.length - 1])}`
+			)
+
+			if (estimateTokenCount(truncatedMessages[truncatedMessages.length - 1]) >= contextWindow * 0.75) {
+				// we reached the end
+				await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
+				this.providerRef
+					.deref()
+					?.getKoduDev()
+					?.taskExecutor.say(
+						"chat_finished",
+						`The chat has reached the maximum token limit. Please create a new task to continue.`
+					)
+				return
+			}
+			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
+			await this.providerRef
+				.deref()
+				?.getKoduDev()
+				?.taskExecutor.say("chat_truncated", `The conversation has been truncated to prevent token overflow`)
 			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 		}
 	}

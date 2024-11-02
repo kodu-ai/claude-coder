@@ -8,6 +8,15 @@ import { HistoryItem } from "../../shared/HistoryItem"
 import { ClaudeMessage } from "../../shared/ExtensionMessage"
 
 export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>
+
+export type ToolResponseV2 = {
+	status: "success" | "error" | "rejected" | "feedback"
+	toolName: string
+	toolId: string
+	images?: string[]
+	text?: string
+}
+
 export type UserContent = Array<
 	Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam
 >

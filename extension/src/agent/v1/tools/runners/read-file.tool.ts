@@ -17,14 +17,14 @@ export class ReadFileTool extends BaseAgentTool {
 		this.params = params
 	}
 
-	async execute(): Promise<ToolResponse> {
+	async execute() {
 		const { input, ask, say } = this.params
 		const { path: relPath } = input
 
 		if (relPath === undefined) {
 			await say("error", "Claude tried to use read_file without value for required parameter 'path'. Retrying...")
 
-			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
+			const errorMsg = `Error: Missing value for required parameter 'path'. Please retry with complete response.
 			An example of a good readFile tool call is:
 			{
 				"tool": "read_file",
@@ -32,6 +32,7 @@ export class ReadFileTool extends BaseAgentTool {
 			}
 			Please try again with the correct path, you are not allowed to read files without a path.
 			`
+			return this.toolResponse("error", errorMsg)
 		}
 		try {
 			const absolutePath = path.resolve(this.cwd, relPath)
@@ -69,10 +70,10 @@ export class ReadFileTool extends BaseAgentTool {
 
 				if (response === "messageResponse") {
 					await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-					return formatToolResponse(formatGenericToolFeedback(text), images)
+					return this.toolResponse("feedback", text, images)
 				}
 
-				return "The user denied this operation."
+				return this.toolResponse("error", "Read operation cancelled by user.")
 			}
 			this.params.updateAsk(
 				"tool",
@@ -88,9 +89,9 @@ export class ReadFileTool extends BaseAgentTool {
 				this.ts
 			)
 			if (content.trim().length === 0) {
-				return "The file is empty."
+				return this.toolResponse("success", "The file is empty.")
 			}
-			return content.length > 0 ? content : "The file is empty."
+			return this.toolResponse("success", content.length > 0 ? content : "The file is empty.")
 		} catch (error) {
 			this.params.updateAsk(
 				"tool",
@@ -119,7 +120,7 @@ export class ReadFileTool extends BaseAgentTool {
 				`Error reading file:\n${(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)}`
 			)
 
-			return errorString
+			return this.toolResponse("error", errorString)
 		}
 	}
 }

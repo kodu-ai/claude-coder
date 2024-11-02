@@ -34,7 +34,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		this.execaTerminalManager = new ExecaTerminalManager()
 	}
 
-	override async execute(): Promise<ToolResponse> {
+	override async execute() {
 		const { input, say } = this.params
 		const { command } = input as { command?: string }
 
@@ -43,7 +43,10 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				"error",
 				"Claude tried to use execute_command without value for required parameter 'command'. Retrying..."
 			)
-			return `Error: Missing or empty command parameter. Please provide a valid command.`
+			return this.toolResponse(
+				"error",
+				`Error: Missing or empty command parameter. Please provide a valid command.`
+			)
 		}
 
 		return this.executeShellTerminal(command)
@@ -53,7 +56,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		return state === "approved"
 	}
 
-	private async executeShellTerminal(command: string): Promise<ToolResponse> {
+	private async executeShellTerminal(command: string) {
 		const { terminalManager } = this.koduDev
 		if (!(terminalManager instanceof AdvancedTerminalManager)) {
 			throw new Error("AdvancedTerminalManager is not available")
@@ -108,9 +111,9 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					this.ts
 				)
 				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-				return this.formatToolResponseWithImages(await this.formatToolDeniedFeedback(text), images)
+				return this.toolResponse("feedback", this.formatToolDeniedFeedback(text), images)
 			}
-			return await this.formatToolDenied()
+			return this.toolResponse("rejected", this.formatToolDenied())
 		}
 
 		// Set loading state
@@ -223,7 +226,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			// Ensure all output is processed
 			await delay(300)
 			if (shellIntegrationWarningShown) {
-				return await this.formatToolResponseWithImages(shellIntegrationErrorOutput)
+				return this.toolResponse("error", shellIntegrationErrorOutput)
 			}
 
 			await updateAsk(
@@ -268,7 +271,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			}
 
 			if (returnEmptyStringOnSuccess) {
-				return this.formatToolResponseWithImages("", [])
+				return this.toolResponse("success", "No output")
 			}
 
 			if (completed) {
@@ -277,7 +280,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				toolRes += `\n\nPartial output available:\n<output>\n${this.output || "No output"}\n</output>`
 			}
 
-			return await this.formatToolResponseWithImages(toolRes, userFeedback?.images)
+			return await this.toolResponse("success", toolRes, userFeedback?.images)
 		} catch (error) {
 			const errorMessage = (error as Error)?.message || JSON.stringify(serializeError(error), null, 2)
 			updateAsk(
@@ -295,29 +298,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			return await this.formatToolError(`Error executing command:\n${errorMessage}`)
+			return this.toolResponse("error", this.formatToolError(`Error executing command:\n${errorMessage}`))
 		}
-	}
-
-	private formatImagesIntoBlocks(images?: string[]): Anthropic.ImageBlockParam[] {
-		return (
-			images?.map((dataUrl) => {
-				const [rest, base64] = dataUrl.split(",")
-				const mimeType = rest.split(":")[1].split(";")[0]
-				return {
-					type: "image",
-					source: { type: "base64", media_type: mimeType, data: base64 },
-				} as Anthropic.ImageBlockParam
-			}) ?? []
-		)
-	}
-
-	private formatIntoToolResponse(text: string, images?: string[]): ToolResponse {
-		if (images?.length) {
-			const textBlock: Anthropic.TextBlockParam = { type: "text", text }
-			const imageBlocks = this.formatImagesIntoBlocks(images)
-			return [textBlock, ...imageBlocks]
-		}
-		return text
 	}
 }

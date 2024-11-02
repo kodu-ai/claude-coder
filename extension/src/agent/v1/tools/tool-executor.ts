@@ -1,5 +1,5 @@
 import treeKill from "tree-kill"
-import { ToolName, ToolResponse, UserContent } from "../types"
+import { ToolName, ToolResponse, ToolResponseV2, UserContent } from "../types"
 import { KoduDev } from ".."
 import { AgentToolOptions, AgentToolParams } from "./types"
 import {
@@ -39,7 +39,7 @@ export class ToolExecutor {
 	private readonly queue: PQueue
 
 	private toolContexts: Map<string, ToolContext> = new Map()
-	private toolResults: { name: string; result: ToolResponse }[] = []
+	private toolResults: { name: string; result: ToolResponseV2 }[] = []
 	private isAborting: boolean = false
 
 	constructor(options: AgentToolOptions) {
@@ -95,7 +95,7 @@ export class ToolExecutor {
 		return new ToolClass(params, this.options)
 	}
 
-	public async executeTool(params: AgentToolParams): Promise<ToolResponse> {
+	public async executeTool(params: AgentToolParams) {
 		if (this.isAborting) {
 			throw new Error("Cannot execute tool while aborting")
 		}
@@ -136,7 +136,12 @@ export class ToolExecutor {
 					if (context.status === "processing") {
 						this.toolResults.push({
 							name: context.tool.name,
-							result: "Tool execution was interrupted",
+							result: {
+								toolName: context.tool.name,
+								toolId: context.id,
+								status: "error",
+								text: "Tool execution was interrupted",
+							},
 						})
 					}
 				}
@@ -314,14 +319,19 @@ export class ToolExecutor {
 			const errorMessage = error instanceof Error ? error.message : `unknown error for tool ${context.tool.name}`
 			this.toolResults.push({
 				name: context.tool.name,
-				result: this.isAborting ? "Tool execution was interrupted" : `Error: ${errorMessage}`,
+				result: {
+					toolName: context.tool.name,
+					toolId: context.id,
+					status: "error",
+					text: this.isAborting ? "Tool execution was interrupted" : `Error: ${errorMessage}`,
+				},
 			})
 		} finally {
 			this.toolContexts.delete(context.id)
 		}
 	}
 
-	public getToolResults(): { name: string; result: ToolResponse }[] {
+	public getToolResults(): { name: string; result: ToolResponseV2 }[] {
 		return [...this.toolResults]
 	}
 

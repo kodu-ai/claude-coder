@@ -351,7 +351,7 @@ export class KoduDev {
 		}
 	}
 
-	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false): Promise<ToolResponse> {
+	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false) {
 		if (this.isAborting) {
 			throw new Error("Cannot execute tool while aborting")
 		}

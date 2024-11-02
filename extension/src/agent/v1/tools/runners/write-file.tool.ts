@@ -24,7 +24,7 @@ export class WriteFileTool extends BaseAgentTool {
 		}
 	}
 
-	override async execute(): Promise<ToolResponse> {
+	override async execute() {
 		const result = await this.processFileWrite()
 		return result
 	}
@@ -65,7 +65,7 @@ export class WriteFileTool extends BaseAgentTool {
 		this.lastUpdateTime = currentTime
 	}
 
-	private async processFileWrite(): Promise<ToolResponse> {
+	private async processFileWrite() {
 		try {
 			const { path: relPath, content } = this.params.input
 
@@ -110,13 +110,16 @@ export class WriteFileTool extends BaseAgentTool {
 				await this.diffViewProvider.revertChanges()
 
 				if (response === "noButtonTapped") {
-					return formatToolResponse("Write operation cancelled by user.")
+					// return formatToolResponse("Write operation cancelled by user.")
+					// return this.toolResponse("rejected", "Write operation cancelled by user.")
+					return this.toolResponse("rejected", "Write operation cancelled by user.")
 				}
 				// If not a yes or no, the user provided feedback (wrote in the input)
 				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-				return formatToolResponse(
-					`The user denied the write operation and provided the following feedback: ${text}`
-				)
+				// return formatToolResponse(
+				// 	`The user denied the write operation and provided the following feedback: ${text}`
+				// )
+				return this.toolResponse("feedback", text ?? "The user denied this operation.", images)
 			}
 
 			// Save changes and handle user edits
@@ -148,12 +151,20 @@ export class WriteFileTool extends BaseAgentTool {
 						diff: userEdits,
 					} as ClaudeSayTool)
 				)
-				return formatToolResponse(
+				// return formatToolResponse(
+				// 	`The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content has been successfully saved to ${relPath.toPosix()}. (Note: you don't need to re-write the file with these changes.)`
+				// )
+				return this.toolResponse(
+					"success",
 					`The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content has been successfully saved to ${relPath.toPosix()}. (Note: you don't need to re-write the file with these changes.)`
 				)
 			}
 
-			return formatToolResponse(
+			// return formatToolResponse(
+			// 	`The content was successfully saved to ${relPath.toPosix()}. Do not read the file again unless you forgot the content.`
+			// )
+			return this.toolResponse(
+				"success",
 				`The content was successfully saved to ${relPath.toPosix()}. Do not read the file again unless you forgot the content.`
 			)
 		} catch (error) {
@@ -173,7 +184,11 @@ export class WriteFileTool extends BaseAgentTool {
 				this.ts
 			)
 
-			return formatToolResponse(
+			// return formatToolResponse(
+			// 	`Write to File Error With:${error instanceof Error ? error.message : String(error)}`
+			// )
+			return this.toolResponse(
+				"error",
 				`Write to File Error With:${error instanceof Error ? error.message : String(error)}`
 			)
 		} finally {

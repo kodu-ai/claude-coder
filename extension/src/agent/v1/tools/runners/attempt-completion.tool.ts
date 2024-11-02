@@ -1,4 +1,4 @@
-import { ToolResponse } from "../../types"
+import { ToolResponse, ToolResponseV2 } from "../../types"
 import { formatToolResponse, isTextBlock } from "../../utils"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
@@ -12,7 +12,7 @@ export class AttemptCompletionTool extends BaseAgentTool {
 		this.params = params
 	}
 
-	async execute(): Promise<ToolResponse> {
+	async execute() {
 		const { input, ask, say } = this.params
 		const { result, command } = input
 
@@ -21,17 +21,18 @@ export class AttemptCompletionTool extends BaseAgentTool {
 				"error",
 				"Claude tried to use attempt_completion without value for required parameter 'result'. Retrying..."
 			)
-			return `Error: Missing value for required parameter 'result'. Please retry with complete response.
+			const errorMsg = `Error: Missing value for required parameter 'result'. Please retry with complete response.
 			An example of a good attemptCompletion tool call is:
 			{
 				"tool": "attempt_completion",
 				"result": "result to attempt completion with"
 			}
 			`
+			return this.toolResponse("error", errorMsg)
 		}
 
 		let resultToSend = result
-		let commandOutput: ToolResponse | undefined
+		let commandOutput: ToolResponseV2 | undefined
 		if (command) {
 			const executeCommandParams: AgentToolParams = {
 				...this.params,
@@ -56,21 +57,14 @@ export class AttemptCompletionTool extends BaseAgentTool {
 			this.ts
 		)
 		if (response === "yesButtonTapped") {
-			return ""
+			return this.toolResponse("success", `<answer>\nThe user is happy with the results\n</answer>`, images)
 		}
 
 		await say("user_feedback", text ?? "", images)
-		return formatToolResponse(
+		return this.toolResponse(
+			"feedback",
 			`The user is not pleased with the results. Use the feedback they provided to successfully complete the task, and then attempt completion again.\n
-			${
-				commandOutput
-					? `<commandOutput>\n${
-							typeof commandOutput === "string"
-								? commandOutput
-								: commandOutput.map((output) => (isTextBlock(output) ? output.text : "")).join("\n")
-					  }\n</commandOutput>\n`
-					: ""
-			}
+			${commandOutput?.text ? `<commandOutput>\n${commandOutput.text}\n</commandOutput>\n` : ""}
 			<feedback>\n${text}\n</feedback>`,
 			images
 		)

@@ -12,6 +12,7 @@ import { getErrorMessage } from "../types/errors"
 import { AskManager } from "./ask-manager"
 import { ChatTool } from "../../../shared/new-tools"
 import { images } from "mammoth"
+import { toolResponseToAIState } from "@/shared/format-tools"
 
 // Constants for buffer management - modified for instant output
 const BUFFER_SIZE_THRESHOLD = 5 // Reduced to 1 character for near-instant output
@@ -548,18 +549,11 @@ export class TaskExecutor extends TaskExecutorUtils {
 			const completionAttempted = currentToolResults.find((result) => result?.name === "attempt_completion")
 
 			if (completionAttempted) {
-				const resultContent =
-					typeof completionAttempted.result === "string"
-						? completionAttempted.result
-						: completionAttempted.result.map((r) => isTextBlock(r) && r.text).join(" ")
 				await this.stateManager.addToApiConversationHistory({
 					role: "user",
-					content:
-						resultContent.trim() === ""
-							? [{ type: "text", text: "User is pleased with the results" }]
-							: completionAttempted.result,
+					content: toolResponseToAIState(completionAttempted.result),
 				})
-				if (resultContent.trim() === "") {
+				if (completionAttempted.result.status === "success") {
 					await this.stateManager.addToApiConversationHistory({
 						role: "assistant",
 						content: [{ type: "text", text: "Task completed successfully." }],
@@ -567,37 +561,20 @@ export class TaskExecutor extends TaskExecutorUtils {
 					this.state = TaskState.COMPLETED
 				} else {
 					this.state = TaskState.WAITING_FOR_API
-					this.currentUserContent = [
-						{
-							type: "text",
-							text:
-								resultContent.trim() === ""
-									? "The user is not pleased with the results. Use the feedback they provided to successfully complete the task, and then attempt completion again."
-									: resultContent,
-						},
-					]
+					this.currentUserContent = toolResponseToAIState(completionAttempted.result)
+
 					await this.makeClaudeRequest()
 				}
 			} else {
 				this.state = TaskState.WAITING_FOR_API
-				this.currentUserContent = currentToolResults.flatMap((result) => {
-					if (typeof result.result === "string") {
-						return [
-							{
-								type: "text",
-								text:
-									result.result.trim().length > 0
-										? result.result
-										: "The tool did not return any output.",
-							},
-						]
+				this.currentUserContent = currentToolResults.flatMap(({ result }) => {
+					if (result) {
+						return toolResponseToAIState(result)
 					}
-					return result.result.map((r) => {
-						if (isTextBlock(r) && r.text.trim().length === 0) {
-							r.text = "The tool did not return any output."
-						}
-						return r
-					})
+					return {
+						type: "text",
+						text: `The tool did not return a valid response.`,
+					}
 				})
 				await this.makeClaudeRequest()
 			}

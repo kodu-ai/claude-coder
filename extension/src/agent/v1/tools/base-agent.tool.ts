@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { KoduDev } from ".."
-import { ToolResponse } from "../types"
+import { ToolResponse, ToolResponseV2 } from "../types"
 import { AgentToolOptions, AgentToolParams } from "./types"
 import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "../utils"
 
@@ -43,7 +43,7 @@ export abstract class BaseAgentTool {
 		return this.params.isFinal ?? false
 	}
 
-	abstract execute(params: AgentToolParams): Promise<ToolResponse>
+	abstract execute(params: AgentToolParams): Promise<ToolResponseV2>
 
 	public updateParams(input: AgentToolParams["input"]) {
 		this.params.input = input
@@ -53,14 +53,14 @@ export abstract class BaseAgentTool {
 		this.params.isFinal = isFinal
 	}
 
-	public async formatToolDeniedFeedback(feedback?: string) {
+	public formatToolDeniedFeedback(feedback?: string) {
 		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>`
 	}
-	async formatGenericToolFeedback(feedback?: string) {
-		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>\n\n${await getPotentiallyRelevantDetails()}`
+	formatGenericToolFeedback(feedback?: string) {
+		return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>`
 	}
 
-	public async formatToolDenied() {
+	public formatToolDenied() {
 		return `The user denied this operation.`
 	}
 
@@ -68,7 +68,7 @@ export abstract class BaseAgentTool {
 		return result // the successful result of the tool should never be manipulated, if we need to add details it should be as a separate user text block
 	}
 
-	public async formatToolError(error?: string) {
+	public formatToolError(error?: string) {
 		return `The tool execution failed with the following error:\n<error>\n${error}\n</error>`
 	}
 	public formatToolResponseWithImages(text: string, images?: string[]): ToolResponse {
@@ -85,6 +85,16 @@ export abstract class BaseAgentTool {
 	public async abortToolExecution() {
 		this.setRunningProcessId(undefined)
 		console.log(`Aborted tool execution for ${this.name} with id ${this.id}`)
+	}
+
+	protected toolResponse(status: ToolResponseV2["status"], text?: string, images?: string[]) {
+		return {
+			toolName: this.name,
+			toolId: this.id,
+			text,
+			images,
+			status,
+		}
 	}
 
 	protected get options(): AgentToolOptions {

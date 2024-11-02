@@ -2,7 +2,7 @@ import * as path from "path"
 import * as vscode from "vscode"
 import fs from "fs/promises"
 import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
-import { ToolResponse } from "../../types"
+import { ToolResponse, ToolResponseV2 } from "../../types"
 import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "../types"
@@ -25,7 +25,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 		this.abortController.abort()
 	}
 
-	async execute(): Promise<ToolResponse> {
+	async execute() {
 		const { url } = this.params.input
 		if (!url) {
 			return await this.onBadInputReceived()
@@ -33,7 +33,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 
 		try {
 			// Create a promise that resolves when aborted
-			const abortPromise = new Promise<ToolResponse>((_, reject) => {
+			const abortPromise = new Promise<ToolResponseV2>((_, reject) => {
 				this.abortController.signal.addEventListener("abort", () => {
 					reject(new Error("Tool execution was aborted"))
 				})
@@ -47,13 +47,13 @@ export class UrlScreenshotTool extends BaseAgentTool {
 		} catch (err) {
 			if (this.isAborting) {
 				await this.cleanup()
-				return "Operation was aborted"
+				return this.toolResponse("error", "The tool execution was aborted.")
 			}
 			throw err
 		}
 	}
 
-	private async executeWithConfirmation(url: string): Promise<ToolResponse> {
+	private async executeWithConfirmation(url: string) {
 		try {
 			const confirmation = await this.askToolExecConfirmation()
 
@@ -114,9 +114,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			const imageToBase64 = buffer.toString("base64")
 			await fs.writeFile(absolutePath, buffer)
 
-			const textBlock: Anthropic.TextBlockParam = {
-				type: "text",
-				text: `
+			const textBlock = `
                 The screenshot was saved to file path: ${absolutePath}.
                 Here is the updated browser logs, THIS IS THE ONLY RELEVANT INFORMATION, all previous logs are irrelevant:
                 <browser_logs>
@@ -126,16 +124,8 @@ export class UrlScreenshotTool extends BaseAgentTool {
                 ${logs}
                 </log>
                 </browser_logs>
-                `,
-			}
-			const imageBlock: Anthropic.ImageBlockParam = {
-				type: "image",
-				source: {
-					type: "base64",
-					media_type: "image/jpeg",
-					data: imageToBase64,
-				},
-			}
+                `
+			const imageBlock = [imageToBase64]
 
 			// Final abort check before completing
 			if (this.abortController.signal.aborted) {
@@ -156,7 +146,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 				this.ts
 			)
 
-			return [imageBlock, textBlock]
+			return this.toolResponse("success", textBlock, imageBlock)
 		} catch (err) {
 			// Always cleanup browser on any error
 			await this.cleanup()
@@ -178,13 +168,14 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			"Claude tried to use `url_screenshot` without required parameter `url`. Retrying..."
 		)
 
-		return `Error: Missing value for required parameter 'url'. Please retry with complete response.
+		const errMsg = `Error: Missing value for required parameter 'url'. Please retry with complete response.
             A good example of a web_search tool call is:
             {
                 "tool": "url_screenshot",
                 "url": "How to import jotai in a react project",
             }
             Please try again with the correct url, you are not allowed to search without a url.`
+		return this.toolResponse("error", errMsg)
 	}
 
 	private async askToolExecConfirmation(): Promise<AskConfirmationResponse> {
@@ -223,9 +214,9 @@ export class UrlScreenshotTool extends BaseAgentTool {
 				this.ts
 			)
 			await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-			return formatToolResponse(formatGenericToolFeedback(text), images)
+			return this.toolResponse("feedback", text ?? "The user denied this operation.", images)
 		}
 
-		return "The user denied this operation."
+		return this.toolResponse("rejected", "The user denied this operation.")
 	}
 }

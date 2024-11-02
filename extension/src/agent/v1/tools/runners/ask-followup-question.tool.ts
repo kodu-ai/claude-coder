@@ -11,7 +11,7 @@ export class AskFollowupQuestionTool extends BaseAgentTool {
 		this.params = params
 	}
 
-	async execute(): Promise<ToolResponse> {
+	async execute() {
 		const { input, ask, say } = this.params
 		const { question } = input
 
@@ -20,7 +20,7 @@ export class AskFollowupQuestionTool extends BaseAgentTool {
 				"error",
 				"Claude tried to use ask_followup_question without value for required parameter 'question'. Retrying..."
 			)
-			return `Error: Missing value for required parameter 'question'. Please retry with complete response.
+			const errorMsg = `Error: Missing value for required parameter 'question'. Please retry with complete response.
 			An example of a good askFollowupQuestion tool call is:
 			{
 				"tool": "ask_followup_question",
@@ -28,6 +28,7 @@ export class AskFollowupQuestionTool extends BaseAgentTool {
 			}
 			Please try again with the correct question, you are not allowed to ask followup questions without a question.
 			`
+			return this.toolResponse("error", errorMsg)
 		}
 
 		const { text, images } = await ask(
@@ -44,6 +45,6 @@ export class AskFollowupQuestionTool extends BaseAgentTool {
 		)
 		await say("user_feedback", text ?? "", images)
 
-		return formatToolResponse(`<answer>\n${text}\n</answer>`, images)
+		return this.toolResponse("success", `<answer>\n${text}\n</answer>`, images)
 	}
 }

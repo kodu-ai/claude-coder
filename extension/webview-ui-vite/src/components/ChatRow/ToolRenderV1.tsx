@@ -20,6 +20,7 @@ import {
 	MessageCircleReply,
 	Play,
 	RefreshCw,
+	Scissors,
 	Search,
 	Server,
 	Square,
@@ -233,6 +234,36 @@ export const DevServerToolBlock: React.FC<ServerRunnerTool & ToolAddons> = ({
 		</ToolBlock>
 	)
 }
+
+export const ChatTruncatedBlock = ({ ts }: { ts: number }) => (
+	<ToolBlock
+		ts={ts}
+		tool="write_to_file"
+		icon={Scissors}
+		title="Chat Truncated"
+		variant="info"
+		approvalState="approved"
+		isSubMsg={false}>
+		<div className="bg-secondary/20 p-3 rounded-md">
+			Message was truncated due to reaching the maximum context window. Previous content may be unavailable.
+		</div>
+	</ToolBlock>
+)
+
+export const ChatMaxWindowBlock = ({ ts }: { ts: number }) => (
+	<ToolBlock
+		icon={AlertCircle}
+		title="Maximum Context Reached"
+		variant="destructive"
+		approvalState="approved"
+		isSubMsg={false}
+		ts={ts}
+		tool="write_to_file">
+		<div className="bg-destructive/20 p-3 rounded-md">
+			Chat has reached the maximum possible window. Please start a new task to continue the conversation.
+		</div>
+	</ToolBlock>
+)
 
 export const ExecuteCommandBlock: React.FC<
 	ExecuteCommandTool &

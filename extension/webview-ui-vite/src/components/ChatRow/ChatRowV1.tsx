@@ -13,6 +13,7 @@ import {
 	UserFeedbackMessage,
 	UserFeedbackDiffMessage,
 } from "./ChatRowUtilts"
+import { ChatMaxWindowBlock, ChatTruncatedBlock } from "./ToolRenderV1"
 
 interface ChatRowProps {
 	message: V1ClaudeMessage
@@ -40,6 +41,10 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, ne
 						return <ErrorMsgComponent type="unauthorized" />
 					case "payment_required":
 						return <ErrorMsgComponent type="payment_required" />
+					case "chat_truncated":
+						return <ChatTruncatedBlock ts={message.ts} />
+					case "chat_finished":
+						return <ChatMaxWindowBlock ts={message.ts} />
 					case "api_req_started":
 						return (
 							<APIRequestMessage

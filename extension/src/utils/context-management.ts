@@ -1,3 +1,6 @@
+import { StateManager } from "@/agent/v1/state-manager"
+import { isImageBlock, isTextBlock } from "@/agent/v1/utils"
+import { truncateToolFromMsg } from "@/shared/format-tools"
 import { Anthropic } from "@anthropic-ai/sdk"
 
 /*
@@ -23,6 +26,25 @@ export function truncateHalfConversation(
 	truncatedMessages.push(...remainingMessages)
 
 	return truncatedMessages
+}
+
+/**
+ * truncates any tool call except the last 3 messages tool call results
+ */
+export function smartTruncation(messages: Anthropic.Messages.MessageParam[]): Anthropic.Messages.MessageParam[] {
+	return messages.map((msgs, index) => {
+		// if this is the last 8 messages, don't truncate
+		if (index >= messages.length - 8) {
+			return msgs
+		}
+		if (isImageBlock(msgs.content) || isTextBlock(msgs.content)) {
+			return {
+				...msgs,
+				content: truncateToolFromMsg([msgs.content]),
+			}
+		}
+		return msgs
+	})
 }
 
 /**

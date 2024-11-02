@@ -85,14 +85,14 @@ export class DevServerTool extends BaseAgentTool {
 		await this.params.updateAsk("tool", { tool: updateParams }, this.ts)
 	}
 
-	async execute(): Promise<ToolResponse> {
+	async execute() {
 		const { input, ask, say } = this.params
 		const { commandType, commandToRun, serverName } = input
 		const { terminalManager } = this.koduDev
 
 		if (!commandType || !serverName) {
 			await say("error", "Missing required parameters 'commandType' or 'serverName'")
-			return `Error: Missing required parameters. Please provide all required parameters:
+			const errorMsg = `Error: Missing required parameters. Please provide all required parameters:
             - commandType: ${commandType ? "✓" : "✗"}
             - serverName: ${serverName ? "✓" : "✗"}
             Example:
@@ -101,17 +101,19 @@ export class DevServerTool extends BaseAgentTool {
                 <commandToRun>npm run dev</commandToRun>
                 <serverName>my-dev-server</serverName>
             </server_runner_tool>`
+			return this.toolResponse("error", errorMsg)
 		}
 
 		if ((commandType === "start" || commandType === "restart") && !commandToRun) {
 			await say("error", "Missing required parameter 'commandToRun' for start/restart operation")
-			return `Error: Missing 'commandToRun' parameter for ${commandType} operation.
+			const errorMsg = `Error: Missing 'commandToRun' parameter for ${commandType} operation.
             Example:
             <server_runner_tool>
                 <commandType>${commandType}</commandType>
                 <commandToRun>npm run dev</commandToRun>
                 <serverName>${serverName}</serverName>
             </server_runner_tool>`
+			return this.toolResponse("error", errorMsg)
 		}
 
 		const { response, text, images } = await ask(
@@ -152,7 +154,7 @@ export class DevServerTool extends BaseAgentTool {
 						result = `Unknown commandType: ${commandType}`
 				}
 
-				return formatToolResponse(result, images)
+				return this.toolResponse("success", result, images)
 			} else {
 				await this.updateToolState("rejected", commandType, commandToRun, serverName)
 				const errorMsg = `Request rejected: ${commandType} operation for server "${serverName}"${
@@ -176,7 +178,8 @@ export class DevServerTool extends BaseAgentTool {
 					)
 				}
 				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-				return formatToolResponse(
+				return this.toolResponse(
+					"feedback",
 					`${errorMsg}${text ? `\n<user_feedback>${text}</user_feedback>` : ""}`,
 					images
 				)
@@ -189,7 +192,8 @@ export class DevServerTool extends BaseAgentTool {
 			const errorAnalysis = this.analyzeError((err as Error)?.message, logs)
 			TerminalRegistry.updateDevServerStatus(devServer?.terminalInfo.id || -1, "error", errorAnalysis.message)
 
-			return formatToolResponse(
+			return this.toolResponse(
+				"error",
 				`Error executing ${commandType} operation for server "${serverName}":
                 ${errorAnalysis.message}
                 

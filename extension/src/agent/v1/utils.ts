@@ -163,7 +163,7 @@ export function formatToolResponseText(toolName: string, params: Record<string, 
  * @returns Formatted feedback string
  */
 export function formatGenericToolFeedback(feedback?: string): string {
-	return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>\n\n${getPotentiallyRelevantDetails()}`
+	return `The user denied this operation and provided the following feedback:\n<feedback>\n${feedback}\n</feedback>`
 }
 
 /**
@@ -185,6 +185,13 @@ export function createToolMessage(tool: string, path: string, content: string, c
 export const isTextBlock = (block: any): block is Anthropic.TextBlockParam => {
 	if (typeof block === "object") {
 		return block.type === "text"
+	}
+	return false
+}
+
+export const isImageBlock = (block: any): block is Anthropic.ImageBlockParam => {
+	if (typeof block === "object") {
+		return block.type === "image"
 	}
 	return false
 }

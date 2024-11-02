@@ -13,7 +13,7 @@ export class WebSearchTool extends BaseAgentTool {
 		this.abortController = new AbortController()
 	}
 
-	async execute(): Promise<ToolResponse> {
+	async execute() {
 		const { say, ask, updateAsk, input } = this.params
 		const { searchQuery, baseLink } = input
 		const browserMode = input.browserMode ?? "generic"
@@ -55,9 +55,10 @@ export class WebSearchTool extends BaseAgentTool {
 			)
 			if (response === "messageResponse") {
 				await say("user_feedback", text, images)
-				return this.formatToolResponseWithImages(await this.formatGenericToolFeedback(text), images)
+				// return this.formatToolResponseWithImages(await this.formatGenericToolFeedback(text), images)
+				return this.toolResponse("feedback", text, images)
 			}
-			return this.formatToolDenied()
+			return this.toolResponse("rejected", "The user denied this operation.")
 		}
 
 		try {
@@ -135,7 +136,7 @@ export class WebSearchTool extends BaseAgentTool {
 						},
 						this.ts
 					)
-					return "Web search was aborted"
+					return this.toolResponse("error", "Web search was aborted")
 				}
 				throw err
 			}
@@ -155,7 +156,7 @@ export class WebSearchTool extends BaseAgentTool {
 				this.ts
 			)
 
-			return `Web search completed. Full content: ${fullContent}`
+			return this.toolResponse("success", fullContent)
 		} catch (err) {
 			await updateAsk(
 				"tool",
@@ -172,17 +173,17 @@ export class WebSearchTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			return `Web search failed with error: ${err}`
+			return this.toolResponse("error", `Web search failed with error: ${err}`)
 		}
 	}
 
-	private async onBadInputReceived(): Promise<ToolResponse> {
+	private async onBadInputReceived() {
 		await this.params.say(
 			"error",
 			"Claude tried to use `web_search` without required parameter `searchQuery` or `browserMode`. Retrying..."
 		)
 
-		return `Error: Missing value for required parameter 'searchQuery' or 'browserMode'. Please retry with complete response.
+		const errorMsg = `Error: Missing value for required parameter 'searchQuery' or 'browserMode'. Please retry with complete response.
 			A good example of a web_search tool call is:
 			{
 				"tool": "web_search",
@@ -192,6 +193,7 @@ export class WebSearchTool extends BaseAgentTool {
 				"browserModel": "smart"
 			}
 			Please try again with the correct searchQuery, you are not allowed to search without a searchQuery.`
+		return this.toolResponse("error", errorMsg)
 	}
 
 	public override abortToolExecution(): Promise<void> {

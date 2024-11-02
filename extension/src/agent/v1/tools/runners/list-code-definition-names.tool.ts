@@ -16,7 +16,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 		this.params = params
 	}
 
-	async execute(): Promise<ToolResponse> {
+	async execute() {
 		const { input, ask, say } = this.params
 		const { path: relDirPath } = input
 
@@ -25,7 +25,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 				"error",
 				"Claude tried to use list_code_definition_names without value for required parameter 'path'. Retrying..."
 			)
-			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
+			const errorMsg = `Error: Missing value for required parameter 'path'. Please retry with complete response.
 			an example of a good listCodeDefinitionNames tool call is:
 			{
 				"tool": "list_code_definition_names",
@@ -33,6 +33,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 			}
 			Please try again with the correct path, you are not allowed to list code definitions without a path.
 			`
+			return this.toolResponse("error", errorMsg)
 		}
 
 		try {
@@ -82,9 +83,9 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 						this.ts
 					)
 					await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-					return formatToolResponse(await formatGenericToolFeedback(text), images)
+					return this.toolResponse("feedback", formatGenericToolFeedback(text), images)
 				}
-				return "The user denied this operation."
+				return this.toolResponse("rejected", this.formatToolDenied())
 			}
 			this.params.updateAsk(
 				"tool",
@@ -99,7 +100,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			return result
+			return this.toolResponse("success", result)
 		} catch (error) {
 			const errorString = `Error parsing source code definitions: ${JSON.stringify(serializeError(error))}`
 			this.params.updateAsk(
@@ -116,7 +117,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool {
 				this.ts
 			)
 
-			return errorString
+			return this.toolResponse("error", errorString)
 		}
 	}
 }

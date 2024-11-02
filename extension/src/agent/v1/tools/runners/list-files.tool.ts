@@ -16,7 +16,7 @@ export class ListFilesTool extends BaseAgentTool {
 		this.params = params
 	}
 
-	async execute(): Promise<ToolResponse> {
+	async execute() {
 		const { input, ask, say } = this.params
 		const { path: relDirPath, recursive: recursiveRaw } = input
 
@@ -25,7 +25,7 @@ export class ListFilesTool extends BaseAgentTool {
 				"error",
 				"Claude tried to use list_files without value for required parameter 'path'. Retrying..."
 			)
-			return `Error: Missing value for required parameter 'path'. Please retry with complete response.
+			const errorMsg = `Error: Missing value for required parameter 'path'. Please retry with complete response.
 						A good example of a listFiles tool call is:
 			{
 				"tool": "list_files",
@@ -33,6 +33,7 @@ export class ListFilesTool extends BaseAgentTool {
 			}
 			Please try again with the correct path, you are not allowed to list files without a path.
 			`
+			return this.toolResponse("error", errorMsg)
 		}
 
 		try {
@@ -87,10 +88,10 @@ export class ListFilesTool extends BaseAgentTool {
 						this.ts
 					)
 					await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-					return formatToolResponse(formatGenericToolFeedback(text), images)
+					return this.toolResponse("feedback", formatGenericToolFeedback(text), images)
 				}
 
-				return "The user denied this operation."
+				return this.toolResponse("rejected", this.formatToolDenied())
 			}
 
 			this.params.updateAsk(
@@ -108,7 +109,7 @@ export class ListFilesTool extends BaseAgentTool {
 				this.ts
 			)
 
-			return result
+			return this.toolResponse("success", result)
 		} catch (error) {
 			this.params.updateAsk(
 				"tool",
@@ -131,7 +132,7 @@ export class ListFilesTool extends BaseAgentTool {
 				}`
 			)
 
-			return errorString
+			return this.toolResponse("error", errorString)
 		}
 	}
 

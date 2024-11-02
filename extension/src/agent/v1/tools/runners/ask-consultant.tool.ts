@@ -12,7 +12,7 @@ export class AskConsultantTool extends BaseAgentTool {
 		this.params = params
 	}
 
-	async execute(): Promise<ToolResponse> {
+	async execute() {
 		const { query } = this.params.input
 
 		if (!query) {
@@ -76,7 +76,8 @@ export class AskConsultantTool extends BaseAgentTool {
 					},
 					this.ts
 				)
-				return "Consultant failed to answer your question."
+				const errorMsg = `Consultant failed to answer your question.`
+				return this.toolResponse("error", errorMsg)
 			}
 
 			this.params.updateAsk(
@@ -92,8 +93,8 @@ export class AskConsultantTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-
-			return `This is the advice from the consultant: ${response.result}`
+			const result = `This is the advice from the consultant: ${response.result}`
+			return this.toolResponse("success", result)
 		} catch (err) {
 			this.params.updateAsk(
 				"tool",
@@ -108,7 +109,8 @@ export class AskConsultantTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			return `Consultant failed to answer your question with the error: ${err}`
+			const errorMsg = `Consultant failed to answer your question with the error: ${err}`
+			return this.toolResponse("error", errorMsg)
 		}
 	}
 
@@ -131,13 +133,14 @@ export class AskConsultantTool extends BaseAgentTool {
 			"Claude tried to use `ask_consultant` without required parameter `query`. Retrying..."
 		)
 
-		return `Error: Missing value for required parameter 'query'. Please retry with complete response.
-			A good example of a ask_consultant tool call is:
-			{
-				"tool": "ask_consultant",
-				"query": "I want to build a multiplayer game where 100 players would be playing together at once. What framework should I choose for the backend? I'm confused between Elixir and colyseus",
-			}
-			Please try again with the correct query, you are not allowed to search without a query.`
+		const errorMsg = `Error: Missing value for required parameter 'query'. Please retry with complete response.
+		A good example of a ask_consultant tool call is:
+		{
+			"tool": "ask_consultant",
+			"query": "I want to build a multiplayer game where 100 players would be playing together at once. What framework should I choose for the backend? I'm confused between Elixir and colyseus",
+		}
+		Please try again with the correct query, you are not allowed to search without a query.`
+		return this.toolResponse("error", errorMsg)
 	}
 
 	private async onExecDenied(confirmation: AskConfirmationResponse) {
@@ -158,9 +161,9 @@ export class AskConsultantTool extends BaseAgentTool {
 			)
 			await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 
-			return formatToolResponse(formatGenericToolFeedback(text), images)
+			return this.toolResponse("feedback", this.formatGenericToolFeedback(text), images)
 		}
 
-		return "The user denied this operation."
+		return this.toolResponse("rejected", this.formatGenericToolFeedback())
 	}
 }
