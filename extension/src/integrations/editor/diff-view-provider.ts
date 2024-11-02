@@ -163,6 +163,8 @@ export class DiffViewProvider {
 	private static readonly SCROLL_THRESHOLD = 10 // lines from bottom to re-enable auto-scroll
 	private static modifiedContentProvider: ModifiedContentProvider
 	private disposables: vscode.Disposable[] = []
+	private activeLineController?: DecorationController
+	private fadedOverlayController?: DecorationController
 
 	constructor(private cwd: string, koduDev: KoduDev, private updateInterval: number = 16) {
 		this.koduDev = koduDev
@@ -199,6 +201,10 @@ export class DiffViewProvider {
 		}
 
 		await this.openDiffEditor(relPath)
+		this.activeLineController = new DecorationController("activeLine", this.diffEditor!)
+		this.fadedOverlayController = new DecorationController("fadedOverlay", this.diffEditor!)
+
+		this.fadedOverlayController.addLines(0, this.diffEditor!.document.lineCount)
 		this.setupEventListeners()
 	}
 
@@ -302,7 +308,7 @@ export class DiffViewProvider {
 	}
 
 	public async update(accumulatedContent: string, isFinal: boolean): Promise<void> {
-		if (!this.diffEditor || !this.modifiedUri) {
+		if (!this.diffEditor || !this.modifiedUri || !this.activeLineController || !this.fadedOverlayController) {
 			this.logger("<update>: Diff editor not initialized", "error")
 			return
 		}
@@ -314,6 +320,8 @@ export class DiffViewProvider {
 			this.isFinalReached = true
 			await this.applyUpdate(accumulatedContent)
 			await this.finalizeDiff()
+			this.activeLineController.clear()
+			this.fadedOverlayController.clear()
 			return
 		}
 		await this.applyUpdate(accumulatedContent)
@@ -331,6 +339,13 @@ export class DiffViewProvider {
 			overwrite: true,
 		})
 		this.streamedContent = content
+
+		// Find the last modified line by comparing with previous content
+		const currentLine = this.diffEditor.document.lineCount - 1
+		if (this.activeLineController && this.fadedOverlayController) {
+			this.activeLineController.setActiveLine(currentLine)
+			this.fadedOverlayController.updateOverlayAfterLine(currentLine, this.diffEditor.document.lineCount)
+		}
 
 		const now = Date.now()
 		if (
@@ -412,6 +427,8 @@ export class DiffViewProvider {
 		this.isFinalReached = false
 		this.isAutoScrollEnabled = true
 		this.lastUserInteraction = 0
+		this.activeLineController = undefined
+		this.fadedOverlayController = undefined
 	}
 
 	public async saveChanges(): Promise<{ userEdits: string | undefined }> {
