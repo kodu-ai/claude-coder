@@ -1,6 +1,9 @@
 import { isToolResponseV2, toolResponseToAIState, truncateToolFromMsg, parseToolResponse } from "./format-tools"
 import { TextBlockParam, ImageBlockParam } from "@anthropic-ai/sdk/resources/messages.mjs"
 import type { ToolResponseV2 } from "../agent/v1/types"
+import { example } from "./format-tools.utils"
+import { smartTruncation } from "../utils/context-management"
+
 describe("Tool Response Utilities", () => {
 	describe("isToolResponseV2", () => {
 		it("should return true for valid ToolResponseV2 object", () => {
@@ -19,6 +22,12 @@ describe("Tool Response Utilities", () => {
 			expect(isToolResponseV2({ status: "success" })).toBe(false)
 			expect(isToolResponseV2({ toolName: "test" })).toBe(false)
 			expect(isToolResponseV2({ status: "success", toolName: "test" })).toBe(false) // Missing result
+		})
+	})
+
+	describe("example", () => {
+		it("should return a string", () => {
+			const msgs = smartTruncation(example)
 		})
 	})
 

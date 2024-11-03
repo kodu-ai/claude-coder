@@ -1,8 +1,9 @@
+import { ImageBlockParam, TextBlock, TextBlockParam } from "@anthropic-ai/sdk/resources/messages.mjs"
 import type { ToolResponseV2 } from "../agent/v1/types"
 
-import { ImageBlockParam, TextBlockParam } from "@anthropic-ai/sdk/resources/messages.mjs"
+type ContentBlock = TextBlock | ImageBlockParam | TextBlockParam
 
-export const isTextBlock = (block: any): block is TextBlockParam => {
+export const isTextBlock = (block: any): block is TextBlock => {
 	if (typeof block === "object") {
 		return block.type === "text"
 	}
@@ -20,11 +21,8 @@ export const isToolResponseV2 = (result: any): result is ToolResponseV2 => {
 }
 
 const rejectMsg = (msg: string) => `The Tool got rejected and returned the following message: ${msg}`
-
 const errorMsg = (msg: string) => `The Tool encountered an error and returned the following message: ${msg}`
-
 const feedbackMsg = (msg: string) => `The Tool returned the following feedback: ${msg}`
-
 const successMsg = (msg: string) => `The Tool was successful and returned the following message: ${msg}`
 
 const toolFeedbackToMsg = (result: ToolResponseV2["status"]) => {
@@ -40,19 +38,19 @@ const toolFeedbackToMsg = (result: ToolResponseV2["status"]) => {
 	}
 }
 
-export const toolResponseToAIState = (result: ToolResponseV2): Array<TextBlockParam | ImageBlockParam> => {
-	const blocks: Array<TextBlockParam | ImageBlockParam> = []
+export const toolResponseToAIState = (result: ToolResponseV2): ContentBlock[] => {
+	const blocks: ContentBlock[] = []
 	if (typeof result.text === "string") {
 		blocks.push({
 			type: "text",
 			text: `
-			<toolResponse>
-        <toolName>${result.toolName}</toolName>
-        <toolStatus>${result.status}</toolStatus>
-        <toolResult>${toolFeedbackToMsg(result.status)(result.text)}</toolResult>
-		${result.images?.length ? `check the images attached to the request` : ""}
-        </toolResponse>
-			`,
+            <toolResponse>
+            <toolName>${result.toolName}</toolName>
+            <toolStatus>${result.status}</toolStatus>
+            <toolResult>${toolFeedbackToMsg(result.status)(result.text)}</toolResult>
+            ${result.images?.length ? `check the images attached to the request` : ""}
+            </toolResponse>
+            `,
 		})
 	}
 	if (result.images?.length) {
@@ -104,30 +102,51 @@ function getBase64ImageType(base64String: string): ImageBlockParam["source"]["me
 }
 
 /**
- * takes a msg of TextBlockParam or ImageBlockParam and returns the text content without the tool result to truncate it
+ * Takes a msg of ContentBlock and returns the text content without the tool result to truncate it
  */
-export const truncateToolFromMsg = (
-	msgs: Array<TextBlockParam | ImageBlockParam>
-): Array<TextBlockParam | ImageBlockParam> => {
-	const blocks: Array<TextBlockParam | ImageBlockParam> = []
+export const truncateToolFromMsg = (msgs: ContentBlock[]): ContentBlock[] => {
+	const blocks: ContentBlock[] = []
 
 	for (const msg of msgs) {
-		if (isTextBlock(msg) && msg.text.includes("<toolResponse>")) {
-			// instead we going to parse the tool response and return the tool name and status
-			const toolResponse = parseToolResponse(msg.text)
-			blocks.push({
-				type: "text",
-				text: `
-				Tool Name: ${toolResponse.toolName} returned with status ${toolResponse.toolStatus} but the output was truncated to fit the context limit.
-				In case it was a read file or write you can get the latest content by calling the tool again.
-				`,
-			})
-			break
+		if (isTextBlock(msg)) {
+			if (msg.text.includes("<write_to_file>")) {
+				// find <content> tag and replace it with a placeholder
+				const contentStart = msg.text.indexOf("<content>")
+				const contentEnd = msg.text.indexOf("</content>")
+				if (contentStart !== -1 && contentEnd !== -1) {
+					const truncatedText = msg.text.substring(0, contentStart) + "<content> [Truncated] </content>"
+					blocks.push({
+						type: "text",
+						text: truncatedText,
+					})
+				}
+			}
+			if (msg.text.includes("<toolResponse>")) {
+				try {
+					// Parse the tool response and add truncated version
+					const toolResponse = parseToolResponse(msg.text)
+					blocks.push({
+						type: "text",
+						text: `[Truncated] Tool ${toolResponse.toolName} (${toolResponse.toolStatus})`,
+					})
+				} catch (error) {
+					// If parsing fails, add a generic truncated message
+					blocks.push({
+						type: "text",
+						text: "[Truncated] Tool response",
+					})
+				}
+			} else {
+				// Keep non-tool messages as is
+				blocks.push(msg)
+			}
+		} else if (msg.type === "image") {
+			// Keep image blocks
+			blocks.push(msg)
 		}
-		blocks.push(msg)
 	}
 
-	return []
+	return blocks
 }
 
 interface ToolResponse {

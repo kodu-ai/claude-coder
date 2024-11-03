@@ -12,7 +12,7 @@ import { getErrorMessage } from "../types/errors"
 import { AskManager } from "./ask-manager"
 import { ChatTool } from "../../../shared/new-tools"
 import { images } from "mammoth"
-import { toolResponseToAIState } from "@/shared/format-tools"
+import { toolResponseToAIState } from "../../../shared/format-tools"
 
 // Constants for buffer management - modified for instant output
 const BUFFER_SIZE_THRESHOLD = 5 // Reduced to 1 character for near-instant output

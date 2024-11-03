@@ -23,6 +23,7 @@ import { listFiles } from "../../parse-source-code"
 import { TaskExecutor } from "./task-executor/task-executor"
 import { TaskState } from "./task-executor/utils"
 import { ChatTool } from "../../shared/new-tools"
+import delay from "delay"
 
 // new KoduDev
 export class KoduDev {
@@ -379,6 +380,9 @@ export class KoduDev {
 			isDevServerRunning ? "SERVER IS RUNNING" : "SERVER IS NOT RUNNING!"
 		}</dev_server_running>\n`
 		if (isDevServerRunning) {
+			// TODO find if last msg contained either execute_command or write_to_file if so wait 5 seconds before getting the logs
+			// this is to ensure that the logs are up to date
+			await delay(5000)
 			for (const server of devServers) {
 				const logs = server.logs.slice(-15)
 				const serverName = server.terminalInfo.name

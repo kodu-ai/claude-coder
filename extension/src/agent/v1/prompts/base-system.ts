@@ -67,11 +67,18 @@ Parameters:
 - commandToRun: (optional) The CLI command to start the server. This should be valid for the current operating system. Ensure the command is properly formatted and has the correct path to the directory you want to serve (relative to the current working directory ${cwd.toPosix()}).
 - commandType: (required) The type of command to run. Use 'start' to start the server, 'stop' to stop it, 'restart' to restart it, or 'getLogs' to retrieve logs from the server.
 - serverName: (required) The name of the terminal to use for the operation. This is used to identify the terminal instance where the server is running.
+- lines: (optional) The number of lines to retrieve from the server logs. This is only required when the commandType is 'getLogs'.
 Usage:
 <server_runner_tool>
 <commandType>start</commandType>
 <commandToRun>cd frontend && npm run dev</commandToRun>
 <serverName>frontend</serverName>
+</server_runner_tool>
+or to get logs
+<server_runner_tool>
+<commandType>getLogs</commandType>
+<serverName>frontend</serverName>
+<lines>50</lines>
 </server_runner_tool>
 
 ## execute_command

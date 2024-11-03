@@ -229,8 +229,6 @@ ${this.customInstructions.trim()}
 				isRunning: true,
 			})
 
-			// log the current conversation history
-			this.log("info", `Starting API request with system prompt:`, systemPrompt)
 			// log the last 2 messages
 			this.log("info", `Last 2 messages:`, apiConversationHistoryCopy.slice(-2))
 
@@ -325,17 +323,17 @@ ${this.customInstructions.trim()}
 		const shouldAppendCriticalMsg =
 			(await this.providerRef.deref()?.getState())?.activeSystemPromptVariantId === "m-11-1-2024"
 
-		if (
-			shouldAddCriticalMsg &&
-			isLastMessageFromUser &&
-			Array.isArray(lastMessage.content) &&
-			shouldAppendCriticalMsg
-		) {
-			lastMessage.content.push({
-				type: "text",
-				text: criticalMsg,
-			})
-		}
+		// if (
+		// 	shouldAddCriticalMsg &&
+		// 	isLastMessageFromUser &&
+		// 	Array.isArray(lastMessage.content) &&
+		// 	shouldAppendCriticalMsg
+		// ) {
+		// 	lastMessage.content.push({
+		// 		type: "text",
+		// 		text: criticalMsg,
+		// 	})
+		// }
 
 		const isFirstRequest = provider.getKoduDev()?.isFirstMessage ?? false
 		const environmentDetails = await provider.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
@@ -378,17 +376,16 @@ ${this.customInstructions.trim()}
 
 		const contextWindow = this.api.getModel().info.contextWindow
 
-		if (totalTokens >= contextWindow * 0.75) {
+		// if (totalTokens >= contextWindow * 0.75) {
+		if (totalTokens >= 0.75 * contextWindow) {
 			const truncatedMessages = smartTruncation(history)
+			const newMemorySize = truncatedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
 			this.log("info", `API History before truncation:`, history)
 			this.log("info", `Truncated messages:`, truncatedMessages)
 			this.log("info", `Total tokens before truncation: ${totalTokens}`)
-			this.log(
-				"info",
-				`Total tokens after truncation: ${estimateTokenCount(truncatedMessages[truncatedMessages.length - 1])}`
-			)
+			this.log("info", `Total tokens after truncation: ${newMemorySize}`)
 
-			if (estimateTokenCount(truncatedMessages[truncatedMessages.length - 1]) >= contextWindow * 0.75) {
+			if (newMemorySize >= contextWindow * 0.75) {
 				// we reached the end
 				await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 				this.providerRef
@@ -405,7 +402,6 @@ ${this.customInstructions.trim()}
 				.deref()
 				?.getKoduDev()
 				?.taskExecutor.say("chat_truncated", `The conversation has been truncated to prevent token overflow`)
-			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 		}
 	}
 
