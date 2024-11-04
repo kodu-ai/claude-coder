@@ -98,6 +98,7 @@ export interface ExtensionState {
 	currentContextTokens: number
 	currentContextWindow: number
 	skipWriteAnimation?: boolean
+	autoSummarize?: boolean
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
 	technicalBackground?: "no-technical" | "technical" | "developer"

@@ -24,7 +24,7 @@ import {
 	Server,
 	Square,
 	Terminal,
-	XCircle
+	XCircle,
 } from "lucide-react"
 import React, { memo, useEffect, useRef, useState } from "react"
 import {
@@ -39,7 +39,7 @@ import {
 	SearchFilesTool,
 	ServerRunnerTool,
 	UrlScreenshotTool,
-	WriteToFileTool
+	WriteToFileTool,
 } from "../../../../src/shared/new-tools"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
@@ -233,13 +233,13 @@ export const DevServerToolBlock: React.FC<ServerRunnerTool & ToolAddons> = ({
 export const ChatTruncatedBlock = ({ ts, text }: { ts: number; text?: string }) => {
 	let before: number | undefined
 	let after: number | undefined
-	
+
 	try {
 		const parsed = JSON.parse(text ?? "{}")
 		before = parsed.before
 		after = parsed.after
 	} catch {
-		// Do nothing 
+		// Do nothing
 	}
 
 	const tokensSaved = before && after ? before - after : undefined
@@ -250,15 +250,15 @@ export const ChatTruncatedBlock = ({ ts, text }: { ts: number; text?: string }) 
 			ts={ts}
 			tool="write_to_file"
 			icon={Scissors}
-			title="Chat Truncated"
+			title="Chat Compressed"
 			variant="info"
 			approvalState="approved"
 			isSubMsg={false}>
 			<div className="space-y-4">
 				<div className="bg-secondary/20 p-3 rounded-md">
 					<p className="text-sm">
-						The conversation history was truncated due to reaching close to the maximum context window. Previous
-						content may be unavailable.
+						The conversation history was compressed before reaching the maximum context window. Previous
+						content may be unavailable, but the task can continue.
 					</p>
 				</div>
 
@@ -273,7 +273,9 @@ export const ChatTruncatedBlock = ({ ts, text }: { ts: number; text?: string }) 
 							</div>
 							<div className="flex items-center gap-2">
 								<span className="font-medium">Saved</span>
-								<span className="text-success">{tokensSaved?.toLocaleString()} ({reductionPercent}%)</span>
+								<span className="text-success">
+									{tokensSaved?.toLocaleString()} ({reductionPercent}%)
+								</span>
 							</div>
 						</div>
 					</div>
@@ -293,12 +295,8 @@ export const ChatMaxWindowBlock = ({ ts }: { ts: number }) => (
 		ts={ts}
 		tool="write_to_file">
 		<div className="bg-destructive/20 p-3 rounded-md">
-			<p className="text-sm font-medium">
-				This task has reached its maximum context limit and cannot continue.
-			</p>
-			<p className="text-sm mt-2">
-				Please start a new task to continue working. Your progress has been saved.
-			</p>
+			<p className="text-sm font-medium">This task has reached its maximum context limit and cannot continue.</p>
+			<p className="text-sm mt-2">Please start a new task to continue working. Your progress has been saved.</p>
 		</div>
 	</ToolBlock>
 )

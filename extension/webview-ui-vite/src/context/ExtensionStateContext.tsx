@@ -78,6 +78,7 @@ export const extensionStateAtom = atom((get) => ({
 	taskHistory: get(taskHistoryAtom),
 	currentContextWindow: get(currentContextWindowAtom),
 	useUdiff: get(useUdiffAtom),
+	autoSummarize: get(autoSummarizeAtom),
 	currentContextTokens: get(currentContextTokensAtom),
 	currentTask: get(currentTaskAtom),
 	currentTaskId: get(currentTaskIdAtom),
@@ -116,6 +117,9 @@ currentContextTokensAtom.debugLabel = "currentContextTokens"
 const currentContextWindowAtom = atom(0)
 currentContextWindowAtom.debugLabel = "currentContextWindow"
 
+const autoSummarizeAtom = atom(false)
+autoSummarizeAtom.debugLabel = "autoSummarize"
+
 export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 	const setVersion = useSetAtom(versionAtom)
 	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
@@ -126,6 +130,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setMaxRequestsPerTask = useSetAtom(maxRequestsPerTaskAtom)
 	const setCustomInstructions = useSetAtom(customInstructionsAtom)
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
+	const setAutoSummarize = useSetAtom(autoSummarizeAtom)
 	const setUser = useSetAtom(userAtom)
 	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
@@ -156,6 +161,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setCurrentIdTask(message.state.currentTaskId)
 			setClaudeMessages(message.state.claudeMessages)
 			setTechnicalBackground(message.state.technicalBackground)
+			setAutoSummarize(!!message.state.autoSummarize)
 			setTaskHistory(message.state.taskHistory)
 			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)
 			setShouldShowKoduPromo(message.state.shouldShowKoduPromo)
@@ -211,6 +217,7 @@ export const useExtensionState = () => {
 	const setActiveSystemPromptVariantId = useSetAtom(activeSystemPromptVariantIdAtom)
 	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
+	const setAutoSummarize = useSetAtom(autoSummarizeAtom)
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
@@ -227,6 +234,7 @@ export const useExtensionState = () => {
 		setCustomInstructions,
 		setAlwaysAllowWriteOnly,
 		setCreativeMode,
+		setAutoSummarize,
 		setAlwaysAllowReadOnly,
 		setActiveSystemPromptVariantId,
 		setShowAnnouncement: setShouldShowAnnouncement,

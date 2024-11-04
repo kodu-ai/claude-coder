@@ -13,7 +13,7 @@ import { koduModels } from "../../shared/api"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
-import { estimateTokenCount, smartTruncation } from "../../utils/context-management"
+import { estimateTokenCount, smartTruncation, truncateHalfConversation } from "../../utils/context-management"
 import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
 import { ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
@@ -70,6 +70,7 @@ export class ApiManager {
 	private api: ApiHandler
 	private customInstructions?: string
 	private providerRef: WeakRef<ExtensionProvider>
+	private currentSystemPrompt = ""
 
 	constructor(provider: ExtensionProvider, apiConfiguration: ApiConfiguration, customInstructions?: string) {
 		this.api = buildApiHandler(apiConfiguration)
@@ -185,7 +186,6 @@ ${this.customInstructions.trim()}
 		if (!provider) {
 			throw new Error("Provider reference has been garbage collected")
 		}
-
 		const state = await provider.getStateManager()?.getState()
 		const creativeMode = state?.creativeMode ?? "normal"
 		const technicalBackground = state?.technicalBackground ?? "no-technical"
@@ -201,15 +201,30 @@ ${this.customInstructions.trim()}
 		} else {
 			systemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), isImageSupported, technicalBackground)
 		}
+		this.currentSystemPrompt = systemPrompt
 
-		// Process conversation history and manage context window
-		await this.processConversationHistory(apiConversationHistory)
+		const executeRequest = async (conversationHistory: Anthropic.MessageParam[]) => {
+			// Process conversation history and manage context window
+			await this.processConversationHistory(conversationHistory)
 
-		let apiConversationHistoryCopy = apiConversationHistory.slice()
-		// remove the last message from it if it's assistant's message (it should be, because we add it before calling this function)
-		// this lets us always keep a pair of user and assistant messages in the history no matter what
-		if (apiConversationHistoryCopy[apiConversationHistoryCopy.length - 1].role === "assistant") {
-			apiConversationHistoryCopy = apiConversationHistoryCopy.slice(0, apiConversationHistoryCopy.length - 1)
+			let apiConversationHistoryCopy = conversationHistory.slice()
+			// remove the last message from it if it's assistant's message
+			if (apiConversationHistoryCopy[apiConversationHistoryCopy.length - 1].role === "assistant") {
+				apiConversationHistoryCopy = apiConversationHistoryCopy.slice(0, apiConversationHistoryCopy.length - 1)
+			}
+
+			// log the last 2 messages
+			this.log("info", `Last 2 messages:`, apiConversationHistoryCopy.slice(-2))
+
+			const stream = await this.api.createMessageStream(
+				systemPrompt.trim(),
+				apiConversationHistoryCopy,
+				creativeMode,
+				abortSignal,
+				customInstructions
+			)
+
+			return stream
 		}
 
 		let lastMessageAt = 0
@@ -229,36 +244,49 @@ ${this.customInstructions.trim()}
 				isRunning: true,
 			})
 
-			// log the last 2 messages
-			this.log("info", `Last 2 messages:`, apiConversationHistoryCopy.slice(-2))
+			let currentHistory = apiConversationHistory.slice()
+			let retryAttempt = 0
+			const MAX_RETRIES = 3
 
-			const stream = await this.api.createMessageStream(
-				systemPrompt.trim(),
-				apiConversationHistoryCopy,
-				creativeMode,
-				abortSignal,
-				customInstructions
-			)
+			while (retryAttempt <= MAX_RETRIES) {
+				try {
+					const stream = await executeRequest(currentHistory)
 
-			for await (const chunk of stream) {
-				if (chunk.code === 1 || chunk.code === -1) {
-					clearInterval(checkInactivity)
+					for await (const chunk of stream) {
+						if (chunk.code === 1) {
+							clearInterval(checkInactivity)
+							yield* this.processStreamChunk(chunk)
+							return
+						}
+
+						if (chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) {
+							// clear the interval
+							clearInterval(checkInactivity)
+							// Compress the context and retry
+							await this.manageContextWindow(currentHistory)
+							retryAttempt++
+							break // Break the for loop to retry with compressed history
+						}
+
+						lastMessageAt = Date.now()
+						yield* this.processStreamChunk(chunk)
+					}
+				} catch (streamError) {
+					if (streamError instanceof Error && streamError.message === "aborted") {
+						throw new KoduError({ code: 1 })
+					}
+					throw streamError
 				}
-				lastMessageAt = Date.now()
-				yield* this.processStreamChunk(chunk)
 			}
+
+			// If we've exhausted all retries
+			throw new Error("Maximum retry attempts reached for context compression")
 		} catch (error) {
 			if (error instanceof Error && error.message === "aborted") {
-				// this is an abort error
-				error = new KoduError({
-					code: 1,
-				})
+				error = new KoduError({ code: 1 })
 			}
 			if (error instanceof AxiosError) {
-				// this is a timeout error
-				error = new KoduError({
-					code: 1,
-				})
+				error = new KoduError({ code: 1 })
 			}
 			this.handleStreamError(error)
 		} finally {
@@ -296,9 +324,6 @@ ${this.customInstructions.trim()}
 
 		// Add environment details and critical messages if needed
 		await this.enrichConversationHistory(history, isLastMessageFromUser)
-
-		// Manage context window
-		await this.manageContextWindow(history)
 	}
 
 	/**
@@ -364,53 +389,60 @@ ${this.customInstructions.trim()}
 		if (!provider) {
 			return
 		}
-
+		const isAutoSummaryEnabled = provider.getKoduDev()?.getStateManager().autoSummarize ?? false
+		if (!isAutoSummaryEnabled) {
+			const updatedMesages = truncateHalfConversation(history)
+			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(updatedMesages)
+			return
+		}
 		const state = await provider.getStateManager()?.getState()
+		const systemPromptTokens = estimateTokenCount({
+			role: "assistant",
+			content: [{ type: "text", text: this.currentSystemPrompt ?? "" }],
+		})
 		const metrics = this.getApiMetrics(state?.claudeMessages || [])
 		const totalTokens =
 			metrics.inputTokens +
 			metrics.outputTokens +
 			metrics.inputCacheWrite +
 			metrics.inputCacheRead +
+			systemPromptTokens +
 			estimateTokenCount(history[history.length - 1])
 
-		const contextWindow = this.api.getModel().info.contextWindow
+		let contextWindow = this.api.getModel().info.contextWindow
 
-		// if (totalTokens >= contextWindow * 0.75) {
-		/// this we should actually get from the AI itself
-		if (totalTokens >= 0.75 * contextWindow) {
-			const truncatedMessages = smartTruncation(history)
-			const newMemorySize = truncatedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
-			this.log("info", `API History before truncation:`, history)
-			this.log("info", `Truncated messages:`, truncatedMessages)
-			this.log("info", `Total tokens before truncation: ${totalTokens}`)
-			this.log("info", `Total tokens after truncation: ${newMemorySize}`)
+		const truncatedMessages = smartTruncation(history)
+		const newMemorySize = truncatedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
+		this.log("info", `API History before truncation:`, history)
+		this.log("info", `Compressed messages:`, truncatedMessages)
+		this.log("info", `Total tokens before truncation: ${totalTokens}`)
+		this.log("info", `Total tokens after truncation: ${newMemorySize}`)
+		const maxPostTruncationTokens = contextWindow - 13_314 + this.api.getModel().info.maxTokens
 
-			// if this condition hit the task should be blocked
-			if (newMemorySize >= contextWindow * 0.75) {
-				// we reached the end
-				await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
-				this.providerRef
-					.deref()
-					?.getKoduDev()
-					?.taskExecutor.say(
-						"chat_finished",
-						`The chat has reached the maximum token limit. Please create a new task to continue.`
-					)
-				return
-			}
+		// if this condition hit the task should be blocked
+		if (newMemorySize >= maxPostTruncationTokens) {
+			// we reached the end
 			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
-			await this.providerRef
+			this.providerRef
 				.deref()
 				?.getKoduDev()
-				?.taskExecutor.say(	
-					"chat_truncated",
-					JSON.stringify({
-						before: totalTokens,
-						after: newMemorySize,
-					})
+				?.taskExecutor.say(
+					"chat_finished",
+					`The chat has reached the maximum token limit. Please create a new task to continue.`
 				)
+			return
 		}
+		await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
+		await this.providerRef
+			.deref()
+			?.getKoduDev()
+			?.taskExecutor.say(
+				"chat_truncated",
+				JSON.stringify({
+					before: totalTokens,
+					after: newMemorySize,
+				})
+			)
 	}
 
 	/**

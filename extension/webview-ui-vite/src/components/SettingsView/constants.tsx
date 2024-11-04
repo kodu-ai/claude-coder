@@ -30,6 +30,10 @@ export const models: Record<
 		label: "Claude 3 Haiku",
 		isBrowserModel: true,
 	},
+	"claude-3-5-haiku-20241022": {
+		...koduModels["claude-3-5-haiku-20241022"],
+		label: "Claude 3.5 Haiku",
+	},
 }
 
 export const experimentalFeatures: ExperimentalFeature[] = [
@@ -39,16 +43,17 @@ export const experimentalFeatures: ExperimentalFeature[] = [
 		description: "Claude will automatically try to solve tasks without asking for permission",
 	},
 	{
+		id: "autoSummarize",
+		label: "AutoSummarize Chat",
+		description:
+			"Automatically compress chat messages once context window is overflown while preserving the critical flow of the conversation",
+		disabled: false,
+		comingSoon: false,
+	},
+	{
 		id: "apiModelId",
 		label: "One Click Deployment",
 		description: "Deploy your projects with a single click",
-		disabled: true,
-		comingSoon: true,
-	},
-	{
-		id: "lastShownAnnouncementId",
-		label: "AutoSummarize Chat",
-		description: "Automatically generate summaries of your chat conversations",
 		disabled: true,
 		comingSoon: true,
 	},

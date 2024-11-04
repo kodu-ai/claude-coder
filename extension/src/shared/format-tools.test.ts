@@ -1,7 +1,7 @@
 import {
 	isToolResponseV2,
 	toolResponseToAIState,
-	truncateToolFromMsg,
+	compressToolFromMsg,
 	parseToolResponse,
 	isTextBlock,
 } from "./format-tools"
@@ -199,9 +199,9 @@ describe("Tool Response Utilities", () => {
 				},
 			]
 
-			const result = truncateToolFromMsg(msgs)
+			const result = compressToolFromMsg(msgs)
 			const textBlock = result[0] as TextBlockParam
-			expect(textBlock.text).toContain("[Truncated]")
+			expect(textBlock.text).toContain("[Compressed]")
 		})
 
 		it("should handle regular messages without tool response", () => {
@@ -212,7 +212,7 @@ describe("Tool Response Utilities", () => {
 				},
 			]
 
-			const result = truncateToolFromMsg(msgs)
+			const result = compressToolFromMsg(msgs)
 			expect(result).toHaveLength(1)
 		})
 	})
@@ -304,8 +304,8 @@ describe("Tool Response Utilities", () => {
 	// 					"export const config = { theme: 'dark' }")
 	// 			];
 
-	// 			const truncated = truncateToolFromMsg(mockConversation);
-	// 			console.log(truncated);
+	// 			const Compressed = truncateToolFromMsg(mockConversation);
+	// 			console.log(Compressed);
 	// 		});
 	// 	});
 })

@@ -1,5 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { truncateToolFromMsg } from "../shared/format-tools"
+import { compressToolFromMsg } from "../shared/format-tools"
 
 // Constants for better maintainability
 const MIN_MESSAGES_TO_KEEP = 4
@@ -47,7 +47,7 @@ export function truncateHalfConversation(
 /**
  * Truncates tool calls except for the most recent messages
  * @param messages Array of message parameters
- * @returns Truncated messages array
+ * @returns Compressed messages array
  */
 export function smartTruncation(messages: Anthropic.Messages.MessageParam[]): Anthropic.Messages.MessageParam[] {
 	if (!Array.isArray(messages) || messages.length === 0) {
@@ -80,7 +80,7 @@ export function smartTruncation(messages: Anthropic.Messages.MessageParam[]): An
 		// If content is an array, process each block
 		if (Array.isArray(msg.content)) {
 			// @ts-expect-error - correctly infers that msg is a MessageParam
-			const truncatedContent = truncateToolFromMsg(msg.content)
+			const truncatedContent = compressToolFromMsg(msg.content)
 			// Only update if truncation produced different content
 			if (truncatedContent.length > 0) {
 				return {

@@ -1,6 +1,7 @@
 import { ArrowRightCircle, DatabaseBackup, FileInput, FileOutput, FilePen, Gauge, PlusCircle } from "lucide-react"
 import React from "react"
 import { Progress } from "../ui/progress"
+import { useExtensionState } from "@/context/ExtensionStateContext"
 
 interface TokenInfoProps {
 	tokensIn: number

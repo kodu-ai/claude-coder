@@ -1,6 +1,6 @@
 import * as vscode from "vscode"
 import { HistoryItem } from "../../../shared/HistoryItem"
-import { ApiModelId, KoduModelId } from "../../../shared/api"
+import { ApiModelId, KoduModelId, koduModels } from "../../../shared/api"
 import { SystemPromptVariant } from "../../../shared/SystemPromptVariant"
 import * as path from "path"
 import { getCwd } from "../../../agent/v1/utils"
@@ -24,6 +24,7 @@ export type GlobalState = {
 	useUdiff: boolean | undefined
 	alwaysAllowReadOnly: boolean | undefined
 	alwaysAllowWriteOnly: boolean | undefined
+	autoSummarize: boolean | undefined
 	taskHistory: HistoryItem[] | undefined
 	shouldShowKoduPromo: boolean | undefined
 	creativeMode: CreativeMode | undefined
@@ -40,7 +41,7 @@ export class GlobalStateManager {
 		this.initializeSystemPrompts()
 	}
 
-	private async initializeSystemPrompts() {
+	public async initializeSystemPrompts() {
 		try {
 			// Initialize default system prompt variants if none exist
 			const activeId = this.getGlobalState("activeSystemPromptVariantId")
@@ -61,9 +62,11 @@ export class GlobalStateManager {
 						.split(" ")
 						.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 						.join(" ")
+					const modelId = await this.getGlobalState("apiModelId")
+					const supportImages = koduModels[(modelId as KoduModelId) ?? ""]?.supportsImages ?? false
 					const content = await module.default.prompt(
 						getCwd(),
-						true,
+						supportImages,
 						this.getGlobalState("technicalBackground")
 					)
 

@@ -39,14 +39,7 @@ export const ModelDetails: React.FC<ModelDetailsProps> = React.memo(({ model }) 
 						)}
 					</div>
 				</div>
-				<div className="space-y-1">
-					<div>Input Price: ${details.inputPrice} per million tokens</div>
-					<div>Output Price: ${details.outputPrice} per million tokens</div>
-					{details?.cacheWritesPrice && (
-						<div>Cache Writes: ${details.cacheWritesPrice} per million tokens</div>
-					)}
-					{details.cacheReadsPrice && <div>Cache Reads: ${details.cacheReadsPrice} per million tokens</div>}
-				</div>
+
 				<div className="flex flex-wrap gap-1 mt-2">
 					{details.isRecommended && (
 						<span className="px-2 py-1 bg-secondary text-secondary-foreground text-[11px] rounded-full">

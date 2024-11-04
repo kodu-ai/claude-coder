@@ -324,6 +324,13 @@ export class WebviewManager {
 					case "cancelCurrentRequest":
 						await this.provider.getKoduDev()?.taskExecutor.abortTask()
 						break
+					case "autoSummarize":
+						await this.provider.getStateManager().setAutoSummarize(message.bool)
+						if (this.provider.koduDev) {
+							this.provider.koduDev.getStateManager().setAutoSummarize(message.bool)
+						}
+						await this.postStateToWebview()
+						break
 					case "abortAutomode":
 						await this.provider.getTaskManager().clearTask()
 						await this.postStateToWebview()

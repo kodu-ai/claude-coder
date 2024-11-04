@@ -431,7 +431,7 @@ export class DiffViewProvider {
 		this.fadedOverlayController = undefined
 	}
 
-	public async saveChanges(): Promise<{ userEdits: string | undefined }> {
+	public async saveChanges(): Promise<{ userEdits: string | undefined; finalContent: string }> {
 		try {
 			if (!this.relPath) {
 				throw new Error("No file path set")
@@ -492,10 +492,10 @@ export class DiffViewProvider {
 					normalizedStreamedContent,
 					normalizedEditedContent
 				)
-				return { userEdits }
+				return { userEdits, finalContent: normalizedEditedContent }
 			}
 
-			return { userEdits: undefined }
+			return { userEdits: undefined, finalContent: normalizedEditedContent }
 		} catch (error) {
 			this.logger(`Failed to save changes: ${error}`, "error")
 			// Throw a more descriptive error

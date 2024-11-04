@@ -22,6 +22,7 @@ export class StateManager {
 	private _experimentalTerminal?: boolean
 	private _autoCloseTerminal?: boolean
 	private _skipWriteAnimation?: boolean
+	private _autoSummarize?: boolean
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -36,6 +37,7 @@ export class StateManager {
 			experimentalTerminal,
 			autoCloseTerminal,
 			skipWriteAnimation,
+			autoSummarize,
 		} = options
 		this._creativeMode = creativeMode ?? "normal"
 		this._providerRef = new WeakRef(provider)
@@ -102,6 +104,10 @@ export class StateManager {
 
 	get maxRequestsPerTask(): number {
 		return this._maxRequestsPerTask
+	}
+
+	get autoSummarize(): boolean | undefined {
+		return this._autoSummarize
 	}
 
 	get providerRef(): WeakRef<ExtensionProvider> {
@@ -284,6 +290,10 @@ export class StateManager {
 	async overwriteApiConversationHistory(newHistory: ApiHistoryItem[]) {
 		this.state.apiConversationHistory = newHistory
 		await this.saveApiConversationHistory()
+	}
+
+	async setAutoSummarize(newValue: boolean): Promise<void> {
+		this._autoSummarize = newValue
 	}
 
 	async saveApiConversationHistory() {

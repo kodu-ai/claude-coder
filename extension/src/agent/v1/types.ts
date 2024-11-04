@@ -25,6 +25,7 @@ export interface KoduDevOptions {
 	provider: ExtensionProvider
 	apiConfiguration: ApiConfiguration
 	maxRequestsPerTask?: number
+	autoSummarize?: boolean
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
 	experimentalTerminal?: boolean

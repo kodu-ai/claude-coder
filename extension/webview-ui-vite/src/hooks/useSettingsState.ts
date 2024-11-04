@@ -16,8 +16,8 @@ export function useSettingsState() {
 	const [autoCloseTerminal, setAutoCloseTerminal] = useState(extensionState.autoCloseTerminal || false)
 	const [experimentalFeatureStates, setExperimentalFeatureStates] = useState({
 		alwaysAllowWriteOnly: extensionState.alwaysAllowWriteOnly || false,
+		autoSummarize: extensionState.autoSummarize || false,
 		"one-click-deployment": false,
-		"auto-summarize-chat": false,
 	})
 	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
 	const [autoSkipWrite, setAutoSkipWrite] = useState(extensionState.skipWriteAnimation || false)
@@ -40,6 +40,10 @@ export function useSettingsState() {
 				if (featureId === "alwaysAllowWriteOnly") {
 					extensionState.setAlwaysAllowWriteOnly(checked)
 					vscode.postMessage({ type: "alwaysAllowWriteOnly", bool: checked })
+				}
+				if (featureId === "autoSummarize") {
+					extensionState.setAutoSummarize(checked)
+					vscode.postMessage({ type: "autoSummarize", bool: checked })
 				}
 				return newState
 			})
@@ -106,8 +110,9 @@ export function useSettingsState() {
 		vscode.postMessage({ type: "activeSystemPromptVariant", variantId })
 	}, [])
 
-	const handleCustomInstructionsChange = useCallback((val: string) => {
-		if (val === extensionState.customInstructions) return
+	const handleCustomInstructionsChange = useCallback(
+		(val: string) => {
+			if (val === extensionState.customInstructions) return
 			setCustomInstructions(val)
 			extensionState.setCustomInstructions(val)
 			vscode.postMessage({ type: "customInstructions", text: val })

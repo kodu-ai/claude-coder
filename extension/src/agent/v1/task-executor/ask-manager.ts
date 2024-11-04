@@ -11,6 +11,22 @@ interface PendingAsk {
 	toolId?: string
 }
 
+const safeParseJSON = (json: string): any => {
+	try {
+		return JSON.parse(json)
+	} catch (error) {
+		return null
+	}
+}
+
+const safeJsonStringify = (data: any): string => {
+	try {
+		return JSON.stringify(data)
+	} catch (error) {
+		return ""
+	}
+}
+
 export class AskManager {
 	private readonly stateManager: StateManager
 	private currentAsk: PendingAsk | null = null
@@ -48,7 +64,7 @@ export class AskManager {
 			const askData = this.stateManager.getMessageById(this.currentAskId!)
 			if (askData) {
 				try {
-					const tool = (askData.ask === "tool" ? JSON.parse(askData.text ?? "{}") : undefined) as ChatTool
+					const tool = (askData.ask === "tool" ? safeParseJSON(askData.text ?? "{}") : undefined) as ChatTool
 
 					tool.approvalState = "error"
 					tool.error = "Tool was aborted"
@@ -177,7 +193,7 @@ export class AskManager {
 			ts: id,
 			type: "ask",
 			ask: type,
-			text: question ? question : tool ? JSON.stringify(tool) : "",
+			text: question ? question : tool ? safeJsonStringify(tool) : "",
 			v: 1,
 			status: tool?.approvalState,
 			autoApproved: this.shouldAutoApprove(type, tool?.tool),
@@ -194,7 +210,7 @@ export class AskManager {
 			ts: id,
 			type: "ask",
 			ask: type,
-			text: tool ? JSON.stringify(tool) : "",
+			text: tool ? safeJsonStringify(tool) : "",
 			v: 1,
 			status: status === "approved" ? "approved" : tool?.approvalState,
 			autoApproved: status === "approved",

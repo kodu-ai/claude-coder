@@ -462,7 +462,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 							// this will be trigger when a tool called execute
 							if (this.toolExecutor.hasActiveTools()) {
 								// Ensure any buffered content is flushed before pausing
-								await this.flushTextBuffer(this.currentReplyId, true)
+								void this.flushTextBuffer(this.currentReplyId, true)
 								this.pauseStream()
 								// Wait for tool processing to complete
 								await this.toolExecutor.waitForToolProcessing()
@@ -474,8 +474,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 							// this must be at the end to prevent leaking non-XML text when a tool is called
 							if (nonXMLText) {
 								this.textBuffer += nonXMLText
+								this.logState("Text buffer updated: " + this.textBuffer)
 								// Only flush buffer if we're not paused
-								await this.flushTextBuffer(this.currentReplyId)
+								void this.flushTextBuffer(this.currentReplyId)
 							}
 						}
 					}

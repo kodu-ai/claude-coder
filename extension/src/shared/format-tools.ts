@@ -102,9 +102,9 @@ function getBase64ImageType(base64String: string): ImageBlockParam["source"]["me
 }
 
 /**
- * Takes a msg of ContentBlock and returns the text content without the tool result to truncate it
+ * Takes a msg of ContentBlock and returns the text content without the tool result to compress it
  */
-export const truncateToolFromMsg = (msgs: ContentBlock[]): ContentBlock[] => {
+export const compressToolFromMsg = (msgs: ContentBlock[]): ContentBlock[] => {
 	const blocks: ContentBlock[] = []
 
 	for (const msg of msgs) {
@@ -114,11 +114,11 @@ export const truncateToolFromMsg = (msgs: ContentBlock[]): ContentBlock[] => {
 				const contentStart = msg.text.indexOf("<content>")
 				const contentEnd = msg.text.indexOf("</content>")
 				if (contentStart !== -1 && contentEnd !== -1) {
-					// replace content with placeholder truncated and keep the existing text before and after the content
+					// replace content with placeholder Compressed and keep the existing text before and after the content
 					const textBeforeContent = msg.text.slice(0, contentStart)
 					const textAfterContent = msg.text.slice(contentEnd + "</content>".length)
 					const truncatedLength = contentEnd - contentStart
-					const truncatedContentReplace = `<content>Content Truncated (Original length:${truncatedLength})</content>`
+					const truncatedContentReplace = `<content>Content Compressed (Original length:${truncatedLength})</content>`
 					const truncatedText = textBeforeContent + truncatedContentReplace + textAfterContent
 					blocks.push({
 						type: "text",
@@ -129,17 +129,17 @@ export const truncateToolFromMsg = (msgs: ContentBlock[]): ContentBlock[] => {
 			}
 			if (msg.text.includes("<toolResponse>")) {
 				try {
-					// Parse the tool response and add truncated version
+					// Parse the tool response and add Compressed version
 					const toolResponse = parseToolResponse(msg.text)
 					blocks.push({
 						type: "text",
-						text: `[Truncated] Tool ${toolResponse.toolName} (${toolResponse.toolStatus})`,
+						text: `[Compressed] Tool ${toolResponse.toolName} (${toolResponse.toolStatus})`,
 					})
 				} catch (error) {
-					// If parsing fails, add a generic truncated message
+					// If parsing fails, add a generic Compressed message
 					blocks.push({
 						type: "text",
-						text: "[Truncated] Tool response errored",
+						text: "[Compressed] Tool response errored",
 					})
 				}
 			} else {

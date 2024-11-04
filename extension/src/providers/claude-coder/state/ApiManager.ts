@@ -23,6 +23,12 @@ export class ApiManager {
 		if (koduApiKey) {
 			await this.context.getSecretStateManager().updateSecretState("koduApiKey", koduApiKey)
 		}
+		await this.context.getGlobalStateManager().initializeSystemPrompts()
+	}
+
+	getCurrentModelInfo() {
+		const apiModelId = this.context.getGlobalStateManager().getGlobalState("apiModelId") as ApiModelId
+		return koduModels[apiModelId]
 	}
 
 	async initFreeTrialUser(visitorId: string) {

@@ -132,7 +132,13 @@ export type customInstructionsMessage = {
 	text: string
 }
 
+export type autoSummarizeMessage = {
+	type: "autoSummarize"
+	bool: boolean
+}
+
 export type WebviewMessage =
+	| autoSummarizeMessage
 	| updateGlobalStateMessage
 	| systemPromptVariantsMessage
 	| ToolFeedbackAllMessage

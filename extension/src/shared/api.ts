@@ -68,6 +68,16 @@ export const anthropicModels: Record<string, ModelInfo> = {
 		cacheWritesPrice: 0.3,
 		cacheReadsPrice: 0.03,
 	},
+	"claude-3-5-haiku-20241022": {
+		maxTokens: 8192,
+		contextWindow: 200_000,
+		supportsImages: false,
+		supportsPromptCache: true,
+		inputPrice: 1.0,
+		outputPrice: 5.0,
+		cacheWritesPrice: 1.25,
+		cacheReadsPrice: 0.1,
+	},
 } as const
 
 const grokModels: Record<string, ModelInfo> = {

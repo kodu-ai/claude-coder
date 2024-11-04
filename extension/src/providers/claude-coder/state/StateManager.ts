@@ -9,6 +9,8 @@ import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { ExtensionState } from "../../../shared/ExtensionMessage"
 import { SystemPromptVariant } from "../../../shared/SystemPromptVariant"
 import { estimateTokenCount, estimateTokenCountFromMessages } from "../../../utils/context-management"
+import { BASE_SYSTEM_PROMPT } from "@/agent/v1/prompts/m-11-1-2024.prompt"
+import { getCwd } from "@/agent/v1/utils"
 
 export class StateManager {
 	private globalStateManager: GlobalStateManager
@@ -43,6 +45,7 @@ export class StateManager {
 			skipWriteAnimation,
 			systemPromptVariants,
 			activeSystemPromptVariantId,
+			autoSummarize,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.globalStateManager.getGlobalState("browserModelId"),
@@ -64,12 +67,31 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("skipWriteAnimation"),
 			this.globalStateManager.getGlobalState("systemPromptVariants"),
 			this.globalStateManager.getGlobalState("activeSystemPromptVariantId"),
+			this.globalStateManager.getGlobalState("autoSummarize"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
 		const currentClaudeMessage = this.context.getKoduDev()?.getStateManager()?.state.claudeMessages
 		const currentApiHistory = await this.context.getKoduDev()?.getStateManager()?.getSavedApiConversationHistory()
-		const tokens = estimateTokenCountFromMessages(currentApiHistory ?? [])
+		const activeVariant = systemPromptVariants?.find((variant) => variant.id === activeSystemPromptVariantId)
+		let systemPrompt = ""
+
+		if (activeVariant) {
+			systemPrompt = activeVariant.content
+		} else {
+			const supportImages = this.apiManager.getCurrentModelInfo()?.supportsImages
+			systemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), supportImages ?? false, technicalBackground)
+		}
+		const systemPromptTokens = estimateTokenCount({
+			role: "assistant",
+			content: [
+				{
+					type: "text",
+					text: systemPrompt,
+				},
+			],
+		})
+		const tokens = estimateTokenCountFromMessages(currentApiHistory ?? []) + systemPromptTokens
 		const currentContextWindow = this.context
 			.getKoduDev()
 			?.getStateManager()
@@ -107,6 +129,7 @@ export class StateManager {
 			skipWriteAnimation: skipWriteAnimation ?? false,
 			currentContextWindow: currentContextWindow ?? 0,
 			currentContextTokens: tokens ?? 0,
+			autoSummarize: autoSummarize ?? false,
 		} satisfies ExtensionState
 	}
 
@@ -184,6 +207,10 @@ export class StateManager {
 	}
 	setActiveSystemPromptVariantId(value: string | undefined) {
 		return this.globalStateManager.updateGlobalState("activeSystemPromptVariantId", value)
+	}
+
+	setAutoSummarize(value: boolean) {
+		return this.globalStateManager.updateGlobalState("autoSummarize", value)
 	}
 
 	setAlwaysAllowReadOnly(value: boolean) {

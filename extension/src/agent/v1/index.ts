@@ -118,7 +118,6 @@ export class KoduDev {
 			if (textBlock.text.trim() === "") {
 				textBlock.text = "Please continue the task from where we left off."
 			}
-			console.log(`current api history: ${JSON.stringify(this.stateManager.state.apiConversationHistory)}`)
 			await this.taskExecutor.newMessage([textBlock, ...imageBlocks])
 			return
 		}
