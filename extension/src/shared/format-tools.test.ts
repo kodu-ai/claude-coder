@@ -1,8 +1,14 @@
-import { isToolResponseV2, toolResponseToAIState, truncateToolFromMsg, parseToolResponse } from "./format-tools"
+import {
+	isToolResponseV2,
+	toolResponseToAIState,
+	truncateToolFromMsg,
+	parseToolResponse,
+	isTextBlock,
+} from "./format-tools"
 import { TextBlockParam, ImageBlockParam } from "@anthropic-ai/sdk/resources/messages.mjs"
 import type { ToolResponseV2 } from "../agent/v1/types"
 import { example } from "./format-tools.utils"
-import { smartTruncation } from "../utils/context-management"
+import { estimateTokenCountFromMessages, smartTruncation } from "../utils/context-management"
 
 describe("Tool Response Utilities", () => {
 	describe("isToolResponseV2", () => {
@@ -27,7 +33,59 @@ describe("Tool Response Utilities", () => {
 
 	describe("example", () => {
 		it("should return a string", () => {
-			const msgs = smartTruncation(example)
+			const msgsBefore = example
+			const msgsAfter = smartTruncation(example)
+			const contentExtractor = (msg: string) => {
+				const firstIndex = msg.indexOf("<write_to_file>")
+				const lastIndex = msg.lastIndexOf("</write_to_file>")
+				return msg.slice(firstIndex, lastIndex)
+			}
+			const howManyWriteToFilesBefore = msgsBefore.reduce(
+				(acc, msg) => {
+					if (isTextBlock(msg) && msg.text.includes("<write_to_file>")) {
+						acc.totalWrites++
+						acc.totalWritesLength += contentExtractor(msg.text).length
+					}
+					if (Array.isArray(msg.content)) {
+						msg.content.forEach((subMsg) => {
+							if (isTextBlock(subMsg) && subMsg.text.includes("<write_to_file>")) {
+								acc.totalWrites++
+								acc.totalWritesLength += contentExtractor(subMsg.text).length
+							}
+						})
+					}
+					return acc
+				},
+				{
+					totalWrites: 0,
+					totalWritesLength: 0,
+				}
+			)
+			const howManyWriteToFilesAfter = msgsAfter.reduce(
+				(acc, msg) => {
+					if (isTextBlock(msg) && msg.text.includes("<write_to_file>")) {
+						acc.totalWrites++
+						acc.totalWritesLength += contentExtractor(msg.text).length
+					}
+					if (Array.isArray(msg.content)) {
+						msg.content.forEach((subMsg) => {
+							if (isTextBlock(subMsg) && subMsg.text.includes("<write_to_file>")) {
+								acc.totalWrites++
+								acc.totalWritesLength += contentExtractor(subMsg.text).length
+							}
+						})
+					}
+					return acc
+				},
+				{
+					totalWrites: 0,
+					totalWritesLength: 0,
+				}
+			)
+			console.log(`howManyWriteToFilesBefore: `, howManyWriteToFilesBefore)
+			console.log(`howManyWriteToFilesAfter: `, howManyWriteToFilesAfter)
+			console.log(`before token count: `, estimateTokenCountFromMessages(msgsBefore))
+			console.log(`after token count: `, estimateTokenCountFromMessages(msgsAfter))
 		})
 	})
 
@@ -218,37 +276,36 @@ describe("Tool Response Utilities", () => {
 		})
 	})
 
-// 	describe("truncateToolFromMsg with file operations", () => {
-// 		const createToolResponse = (toolName: string, status: string, filename: string, content: string) => ({
-// 			type: 'text' as const,
-// 			text: `
-// 				<toolResponse>
-// 					<toolName>${toolName}</toolName>
-// 					<toolStatus>${status}</toolStatus>
-// 					<toolResult>file: ${filename}\n${content}</toolResult>
-// 				</toolResponse>
-// 			`
-// 		});
+	// 	describe("truncateToolFromMsg with file operations", () => {
+	// 		const createToolResponse = (toolName: string, status: string, filename: string, content: string) => ({
+	// 			type: 'text' as const,
+	// 			text: `
+	// 				<toolResponse>
+	// 					<toolName>${toolName}</toolName>
+	// 					<toolStatus>${status}</toolStatus>
+	// 					<toolResult>file: ${filename}\n${content}</toolResult>
+	// 				</toolResponse>
+	// 			`
+	// 		});
 
-// 		it("should handle mixed tool operations", () => {
-// 			const mockConversation = [
-// 				createToolResponse("search_files", "success", "", "Found 3 files"),
-				
-// 				createToolResponse("write_to_file", "success", "Config.ts", 
-// 					"export const config = { theme: 'light' }"),
-				
-// 				createToolResponse("read_file", "success", "Config.ts", 
-// 					"export const config = { theme: 'light' }"),
-				
-// 				createToolResponse("list_directory", "success", "", "Listed ./src"),
-				
-// 				createToolResponse("write_to_file", "success", "Config.ts", 
-// 					"export const config = { theme: 'dark' }")
-// 			];
+	// 		it("should handle mixed tool operations", () => {
+	// 			const mockConversation = [
+	// 				createToolResponse("search_files", "success", "", "Found 3 files"),
 
-// 			const truncated = truncateToolFromMsg(mockConversation);
-// 			console.log(truncated);
-// 		});
-// 	});
+	// 				createToolResponse("write_to_file", "success", "Config.ts",
+	// 					"export const config = { theme: 'light' }"),
 
+	// 				createToolResponse("read_file", "success", "Config.ts",
+	// 					"export const config = { theme: 'light' }"),
+
+	// 				createToolResponse("list_directory", "success", "", "Listed ./src"),
+
+	// 				createToolResponse("write_to_file", "success", "Config.ts",
+	// 					"export const config = { theme: 'dark' }")
+	// 			];
+
+	// 			const truncated = truncateToolFromMsg(mockConversation);
+	// 			console.log(truncated);
+	// 		});
+	// 	});
 })

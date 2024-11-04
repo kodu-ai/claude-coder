@@ -114,11 +114,17 @@ export const truncateToolFromMsg = (msgs: ContentBlock[]): ContentBlock[] => {
 				const contentStart = msg.text.indexOf("<content>")
 				const contentEnd = msg.text.indexOf("</content>")
 				if (contentStart !== -1 && contentEnd !== -1) {
-					const truncatedText = msg.text.substring(0, contentStart) + "<content> [Truncated] </content>"
+					// replace content with placeholder truncated and keep the existing text before and after the content
+					const textBeforeContent = msg.text.slice(0, contentStart)
+					const textAfterContent = msg.text.slice(contentEnd + "</content>".length)
+					const truncatedLength = contentEnd - contentStart
+					const truncatedContentReplace = `<content>Content Truncated (Original length:${truncatedLength})</content>`
+					const truncatedText = textBeforeContent + truncatedContentReplace + textAfterContent
 					blocks.push({
 						type: "text",
 						text: truncatedText,
 					})
+					continue
 				}
 			}
 			if (msg.text.includes("<toolResponse>")) {
