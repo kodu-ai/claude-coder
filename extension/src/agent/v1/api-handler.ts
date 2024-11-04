@@ -399,19 +399,7 @@ ${this.customInstructions.trim()}
 					)
 				return
 			}
-			// Before : log the new conversation history from the provider (this.stateManager.state.apiConversationHistory)
-			this.log(
-				"info",
-				`OLD API conversation history:`,
-				provider.getKoduDev()?.getStateManager()?.state.apiConversationHistory
-			)
 			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
-			// After : log the new conversation history from the provider (this.stateManager.state.apiConversationHistory)
-			this.log(
-				"info",
-				`NEW API conversation history:`,
-				provider.getKoduDev()?.getStateManager()?.state.apiConversationHistory
-			)
 			await this.providerRef
 				.deref()
 				?.getKoduDev()
