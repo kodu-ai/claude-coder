@@ -316,24 +316,24 @@ ${this.customInstructions.trim()}
 		}
 
 		// Add critical messages every 4th message or the first message
-		const shouldAddCriticalMsg = (history.length % 4 === 0 && history.length > 4) || history.length === 2
+		const shouldAddCriticalMsg = (history.length % 8 === 0 && history.length > 8) || history.length === 2
 
 		const lastMessage = history[history.length - 2]
 
 		const shouldAppendCriticalMsg =
 			(await this.providerRef.deref()?.getState())?.activeSystemPromptVariantId === "m-11-1-2024"
 
-		// if (
-		// 	shouldAddCriticalMsg &&
-		// 	isLastMessageFromUser &&
-		// 	Array.isArray(lastMessage.content) &&
-		// 	shouldAppendCriticalMsg
-		// ) {
-		// 	lastMessage.content.push({
-		// 		type: "text",
-		// 		text: criticalMsg,
-		// 	})
-		// }
+		if (
+			shouldAddCriticalMsg &&
+			isLastMessageFromUser &&
+			Array.isArray(lastMessage.content) &&
+			shouldAppendCriticalMsg
+		) {
+			lastMessage.content.push({
+				type: "text",
+				text: criticalMsg,
+			})
+		}
 
 		const isFirstRequest = provider.getKoduDev()?.isFirstMessage ?? false
 		const environmentDetails = await provider.getKoduDev()?.getEnvironmentDetails(isFirstRequest)

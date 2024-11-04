@@ -444,10 +444,11 @@ export class KoduDev {
 			return acc
 		}, {} as NonNullable<typeof this.stateManager.historyErrors>)
 		this.stateManager.historyErrors = taskErrorsRecord
-		console.log(`[ENVIRONMENT DETAILS] New errors found`, newErrors.map((diag) => diag.errorString).join("\n"))
+		console.log(`[ENVIRONMENT DETAILS] Errors found`, newErrors.map((diag) => diag.errorString).join("\n"))
 
 		// map the diagnostics to the original file path
-		details += "\n\n# CURRENT ERRORS (Linter Errors)"
+		details +=
+			"\n\n# CURRENT ERRORS (Linter Errors) this is the only errors that are present if you seen previous linting errors they have been resolved."
 		if (newErrors.length === 0) {
 			details += "\n(No diagnostics errors)"
 		} else {
