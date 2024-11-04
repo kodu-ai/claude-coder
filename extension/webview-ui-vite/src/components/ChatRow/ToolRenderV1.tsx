@@ -250,14 +250,14 @@ export const ChatTruncatedBlock = ({ ts, text }: { ts: number; text?: string }) 
 			ts={ts}
 			tool="write_to_file"
 			icon={Scissors}
-			title="Chat Truncated"
+			title="Chat Summarized"
 			variant="info"
 			approvalState="approved"
 			isSubMsg={false}>
 			<div className="space-y-4">
 				<div className="bg-secondary/20 p-3 rounded-md">
 					<p className="text-sm">
-						The conversation history was truncated due to reaching close to the maximum context window. Previous
+						The conversation history was summarized due to reaching close to the maximum context window. Previous
 						content may be unavailable.
 					</p>
 				</div>
