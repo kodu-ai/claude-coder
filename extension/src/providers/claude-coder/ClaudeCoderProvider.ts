@@ -101,6 +101,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 			images,
 			experimentalTerminal: state.experimentalTerminal,
 			skipWriteAnimation: state.skipWriteAnimation,
+			autoSummarize: state.autoSummarize,
 			autoCloseTerminal: state.autoCloseTerminal,
 			creativeMode: state.creativeMode,
 			isDebug,
@@ -117,13 +118,13 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 			customInstructions: state.customInstructions,
 			alwaysAllowReadOnly: state.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: state.alwaysAllowWriteOnly,
+			autoSummarize: state.autoSummarize,
 			experimentalTerminal: state.experimentalTerminal,
 			skipWriteAnimation: state.skipWriteAnimation,
 			autoCloseTerminal: state.autoCloseTerminal,
 			historyItem,
 		})
 	}
-
 	async initWithNoTask() {
 		await this.taskManager.clearTask()
 		const state = await this.stateManager.getState()
@@ -137,6 +138,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 			experimentalTerminal: state.experimentalTerminal,
 			skipWriteAnimation: state.skipWriteAnimation,
 			autoCloseTerminal: state.autoCloseTerminal,
+			autoSummarize: state.autoSummarize,
 			noTask: true,
 		})
 	}

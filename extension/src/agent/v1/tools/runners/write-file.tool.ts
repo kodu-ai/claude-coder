@@ -283,7 +283,9 @@ export class WriteFileTool extends BaseAgentTool {
 			let toolMsg = `The content was successfully saved to ${relPath.toPosix()}. Do not read the file again unless you forgot the content.`
 			if (detectCodeOmission(content, finalContent)) {
 				console.log(`Truncated content detected in ${relPath} at ${this.ts}`)
-				toolMsg = `The content was successfully saved to ${relPath.toPosix()}, but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.`
+				toolMsg = `The content was successfully saved to ${relPath.toPosix()}, but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.
+				You dont need to read the file again as the content has been updated to your previous tool request content.
+				`
 			}
 
 			return this.toolResponse("success", toolMsg)

@@ -17,20 +17,18 @@ import ButtonSection from "../ChatView/ButtonSection"
 import ChatScreen from "../ChatView/chat-screen"
 import HistoryPreview from "../HistoryPreview/HistoryPreview"
 import KoduPromo from "../KoduPromo/KoduPromo"
-import Announcement from "../Announcement/Announcement"
 import ChatMessages from "../ChatView/ChatMessages"
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
 import TaskHeader from "../TaskHeader/TaskHeader"
 import { Button } from "../ui/button"
 import { AlertCircle } from "lucide-react"
+import AnnouncementBanner from "../ announcement-banner"
 
 const ChatView: React.FC<ChatViewProps> = ({
 	isHidden,
-	showAnnouncement,
 	selectedModelSupportsImages,
 	selectedModelSupportsPromptCache,
-	hideAnnouncement,
 	showHistoryView,
 }) => {
 	const { openOutOfCreditDialog, shouldOpenOutOfCreditDialog } = useOutOfCreditDialog()
@@ -50,14 +48,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const [attachments, setAttachments] = useAtom(attachmentsAtom)
 	const [syntaxHighlighterStyle, setSyntaxHighlighterStyle] = useAtom(syntaxHighlighterAtom)
 
-	const {
-		version,
-		claudeMessages: messages,
-		themeName: vscodeThemeName,
-		uriScheme,
-		shouldShowKoduPromo,
-		user,
-	} = useExtensionState()
+	const { claudeMessages: messages, themeName: vscodeThemeName, uriScheme, user } = useExtensionState()
 
 	const [isPending, startTransition] = useTransition()
 
@@ -168,9 +159,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 	}, [modifiedMessages])
 
 	useEffect(() => {
-		const hasMaxContext = visibleMessages.some(msg =>
-			msg.say === "chat_finished" ||
-			(msg.ask === "tool" && msg.text?.includes('"tool":"chat_finished"'))
+		const hasMaxContext = visibleMessages.some(
+			(msg) => msg.say === "chat_finished" || (msg.ask === "tool" && msg.text?.includes('"tool":"chat_finished"'))
 		)
 		setIsMaxContextReached(hasMaxContext)
 	}, [visibleMessages])
@@ -307,7 +297,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 				overflow: "hidden",
 			}}>
 			<div
-				className="chat-content"
+				className="chat-content relative"
 				style={{
 					borderTop: "1px solid var(--section-border)",
 					flex: "1 1 0%",
@@ -315,6 +305,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 					flexDirection: "column",
 					overflowY: "auto",
 				}}>
+				<AnnouncementBanner />
 				{task ? (
 					<>
 						<TaskHeader
@@ -340,16 +331,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 					</>
 				) : (
 					<>
-						{showAnnouncement && (
-							<Announcement
-								version={version}
-								hideAnnouncement={hideAnnouncement}
-								vscodeUriScheme={uriScheme}
-							/>
-						)}
-						{!showAnnouncement && shouldShowKoduPromo && (
-							<KoduPromo style={{ margin: "10px 15px -10px 15px" }} />
-						)}
 						<ChatScreen
 							taskHistory={<HistoryPreview showHistoryView={showHistoryView} />}
 							handleClick={handleSendMessage}
@@ -385,18 +366,16 @@ const ChatView: React.FC<ChatViewProps> = ({
 					<div className="flex flex-col gap-1">
 						<div className="flex items-center gap-2">
 							<AlertCircle className="h-4 w-4 text-destructive" />
-							<span className="text-sm font-bold">
-								Maximum context limit reached
-							</span>
+							<span className="text-sm font-bold">Maximum context limit reached</span>
 						</div>
 						<span className="text-sm">
-							The conversation has reached its context window limit and cannot continue further. To proceed, you'll need to start a new task. Don't worry - the tool will still have access to your project's files and structure in the new task.
+							The conversation has reached its context window limit and cannot continue further. To
+							proceed, you'll need to start a new task. Don't worry - the tool will still have access to
+							your project's files and structure in the new task.
 						</span>
 					</div>
 					<div className="flex justify-end">
-						<Button
-							variant="default"
-							onClick={() => vscode.postMessage({ type: "clearTask" })}>
+						<Button variant="default" onClick={() => vscode.postMessage({ type: "clearTask" })}>
 							Start New Task
 						</Button>
 					</div>
@@ -409,7 +388,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 export default React.memo(ChatView, (prevProps, nextProps) => {
 	return (
 		prevProps.isHidden === nextProps.isHidden &&
-		prevProps.showAnnouncement === nextProps.showAnnouncement &&
 		prevProps.selectedModelSupportsImages === nextProps.selectedModelSupportsImages &&
 		prevProps.selectedModelSupportsPromptCache === nextProps.selectedModelSupportsPromptCache
 	)

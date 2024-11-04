@@ -9,9 +9,8 @@ import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { ExtensionState } from "../../../shared/ExtensionMessage"
 import { SystemPromptVariant } from "../../../shared/SystemPromptVariant"
 import { estimateTokenCount, estimateTokenCountFromMessages } from "../../../utils/context-management"
-import { BASE_SYSTEM_PROMPT } from "@/agent/v1/prompts/m-11-1-2024.prompt"
-import { getCwd } from "@/agent/v1/utils"
-
+import { BASE_SYSTEM_PROMPT } from "../../../agent/v1/prompts/base-system"
+import { getCwd } from "../../../agent/v1/utils"
 export class StateManager {
 	private globalStateManager: GlobalStateManager
 	private secretStateManager: SecretStateManager

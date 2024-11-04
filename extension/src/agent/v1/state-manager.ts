@@ -40,6 +40,7 @@ export class StateManager {
 			autoSummarize,
 		} = options
 		this._creativeMode = creativeMode ?? "normal"
+		this._autoSummarize = autoSummarize
 		this._providerRef = new WeakRef(provider)
 		this._apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
 		this._alwaysAllowReadOnly = alwaysAllowReadOnly ?? false

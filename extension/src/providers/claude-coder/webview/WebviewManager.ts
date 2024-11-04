@@ -390,9 +390,10 @@ export class WebviewManager {
 						await this.postStateToWebview()
 						break
 					case "didCloseAnnouncement":
+						const packageJSON = this.provider.getContext().extension?.packageJSON
 						await this.provider
 							.getGlobalStateManager()
-							.updateGlobalState("lastShownAnnouncementId", WebviewManager.latestAnnouncementId)
+							.updateGlobalState("lastShownAnnouncementId", packageJSON?.version)
 						await this.postStateToWebview()
 						break
 					case "selectImages":

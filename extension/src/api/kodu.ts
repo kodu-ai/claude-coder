@@ -18,6 +18,7 @@ import {
 } from "../shared/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { ApiHistoryItem } from "../agent/v1"
+import { estimateTokenCountFromMessages } from "@/utils/context-management"
 
 const temperatures = {
 	creative: {
@@ -340,6 +341,18 @@ export class KoduHandler implements ApiHandler {
 			})
 		}
 
+		/* this can be used to enable auto summary quickly */
+		// const tokens = estimateTokenCountFromMessages(messages)
+		// if (tokens > 80_000) {
+		// 	// raise error as max context for testing
+		// 	yield {
+		// 		code: -1,
+		// 		body: {
+		// 			msg: "prompt is too long",
+		// 			status: 400,
+		// 		},
+		// 	}
+		// }
 		if (response.data) {
 			const reader = response.data
 			const decoder = new TextDecoder("utf-8")

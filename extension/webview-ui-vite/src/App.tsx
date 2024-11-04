@@ -15,25 +15,19 @@ import OnboardingDialog from "./components/onboarding"
 import OutOfCreditDialog from "./components/dialogs/out-of-credit-dialog"
 import SettingsPage from "./components/SettingsView/settings-tabs"
 import { useAtom, useAtomValue } from "jotai"
+import AnnouncementBanner from "./components/ announcement-banner"
 const queryClient = new QueryClient()
 
 const AppContent = () => {
 	const { apiConfiguration, user } = useExtensionState()
 	const [showSettings, setShowSettings] = useAtom(showSettingsAtom)
 	const [showHistory, setShowHistory] = useState(false)
-	const [showWelcome, setShowWelcome] = useState<boolean>(false)
-	const [showAnnouncement, setShowAnnouncement] = useState(false)
 
 	const handleMessage = useCallback((e: MessageEvent) => {
 		const message: ExtensionMessage = e.data
 		switch (message.type) {
 			case "state": {
-				const hasKey = !!message.state?.user
-				setShowWelcome(!hasKey)
 				// don't update showAnnouncement to false if shouldShowAnnouncement is false
-				if (message.state!.shouldShowAnnouncement) {
-					setShowAnnouncement(true)
-				}
 				break
 			}
 			case "action":
@@ -49,10 +43,6 @@ const AppContent = () => {
 					case "chatButtonTapped":
 						setShowSettings(false)
 						setShowHistory(false)
-						break
-					case "koduAuthenticated":
-						console.log(`koduAuthenticated`)
-						setShowWelcome(false)
 						break
 				}
 				break
@@ -78,13 +68,8 @@ const AppContent = () => {
 					setShowHistory(true)
 				}}
 				isHidden={showSettings || showHistory}
-				showAnnouncement={showAnnouncement}
 				selectedModelSupportsImages={selectedModelInfo.supportsImages}
 				selectedModelSupportsPromptCache={selectedModelInfo.supportsPromptCache}
-				hideAnnouncement={() => {
-					vscode.postMessage({ type: "didCloseAnnouncement" })
-					setShowAnnouncement(false)
-				}}
 			/>
 		</>
 	)

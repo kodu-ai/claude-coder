@@ -203,7 +203,9 @@ ${this.customInstructions.trim()}
 		}
 		this.currentSystemPrompt = systemPrompt
 
-		const executeRequest = async (conversationHistory: Anthropic.MessageParam[]) => {
+		const executeRequest = async () => {
+			const conversationHistory =
+				provider.koduDev?.getStateManager().state.apiConversationHistory || apiConversationHistory
 			// Process conversation history and manage context window
 			await this.processConversationHistory(conversationHistory)
 
@@ -244,13 +246,12 @@ ${this.customInstructions.trim()}
 				isRunning: true,
 			})
 
-			let currentHistory = apiConversationHistory.slice()
 			let retryAttempt = 0
 			const MAX_RETRIES = 3
 
 			while (retryAttempt <= MAX_RETRIES) {
 				try {
-					const stream = await executeRequest(currentHistory)
+					const stream = await executeRequest()
 
 					for await (const chunk of stream) {
 						if (chunk.code === 1) {
@@ -263,7 +264,7 @@ ${this.customInstructions.trim()}
 							// clear the interval
 							clearInterval(checkInactivity)
 							// Compress the context and retry
-							await this.manageContextWindow(currentHistory)
+							await this.manageContextWindow()
 							retryAttempt++
 							break // Break the for loop to retry with compressed history
 						}
@@ -382,14 +383,15 @@ ${this.customInstructions.trim()}
 
 	/**
 	 * Manages the context window to prevent token overflow
-	 * @param history - Conversation history to manage
 	 */
-	private async manageContextWindow(history: Anthropic.MessageParam[]): Promise<void> {
+	private async manageContextWindow(): Promise<void> {
 		const provider = this.providerRef.deref()
 		if (!provider) {
 			return
 		}
+		const history = provider.koduDev?.getStateManager().state.apiConversationHistory || []
 		const isAutoSummaryEnabled = provider.getKoduDev()?.getStateManager().autoSummarize ?? false
+		// can enable on and of auto summary
 		if (!isAutoSummaryEnabled) {
 			const updatedMesages = truncateHalfConversation(history)
 			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(updatedMesages)

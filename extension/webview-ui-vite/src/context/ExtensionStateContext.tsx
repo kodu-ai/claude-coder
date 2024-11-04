@@ -66,6 +66,9 @@ systemPromptVariantsAtom.debugLabel = "systemPromptVariants"
 const activeSystemPromptVariantIdAtom = atom<string | undefined>(undefined)
 activeSystemPromptVariantIdAtom.debugLabel = "activeSystemPromptVariantId"
 
+const lastShownAnnouncementIdAtom = atom<string | undefined>(undefined)
+lastShownAnnouncementIdAtom.debugLabel = "lastShownAnnouncementId"
+
 const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	const currentTaskId = get(currentTaskIdAtom)
 	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
@@ -75,6 +78,7 @@ const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
 	claudeMessages: get(claudeMessagesAtom),
+	lastShownAnnouncementId: get(lastShownAnnouncementIdAtom),
 	taskHistory: get(taskHistoryAtom),
 	currentContextWindow: get(currentContextWindowAtom),
 	useUdiff: get(useUdiffAtom),
@@ -132,6 +136,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setAutoSummarize = useSetAtom(autoSummarizeAtom)
 	const setUser = useSetAtom(userAtom)
+	const setLastShownAnnouncementId = useSetAtom(lastShownAnnouncementIdAtom)
 	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
 	const setThemeName = useSetAtom(themeNameAtom)
@@ -162,6 +167,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setClaudeMessages(message.state.claudeMessages)
 			setTechnicalBackground(message.state.technicalBackground)
 			setAutoSummarize(!!message.state.autoSummarize)
+			setLastShownAnnouncementId(message.state.lastShownAnnouncementId)
 			setTaskHistory(message.state.taskHistory)
 			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)
 			setShouldShowKoduPromo(message.state.shouldShowKoduPromo)
@@ -211,6 +217,7 @@ export const useExtensionState = () => {
 	const setApiConfiguration = useSetAtom(apiConfigurationAtom)
 	const setMaxRequestsPerTask = useSetAtom(maxRequestsPerTaskAtom)
 	const setCustomInstructions = useSetAtom(customInstructionsAtom)
+	const setLastShownAnnouncementId = useSetAtom(lastShownAnnouncementIdAtom)
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
@@ -226,6 +233,7 @@ export const useExtensionState = () => {
 	return {
 		...state,
 		setApiConfiguration,
+		setLastShownAnnouncementId,
 		setTechnicalBackground,
 		setMaxRequestsPerTask,
 		setSkipWriteAnimation,

@@ -4,6 +4,36 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.9.26] - 2024-11-05
+
+### Added
+
+-   Smart chat compression for improved memory management
+    -   Automatically compresses chat history while preserving context
+    -   Configurable compression settings
+-   Claude 3.5 Haiku model support to the available models list
+-   Code truncation detection in write_to_file tool
+    -   Auto-detection of AI code omissions
+    -   Automatic follow-up requests for complete implementations
+
+### Fixed
+
+-   Frontend stream synchronization with fast-streaming responses
+    -   Resolved performance bottlenecks in real-time message display
+    -   Improved buffer handling for high-speed responses
+-   Error handling for corrupted task objects
+    -   Added graceful error recovery
+    -   Improved error logging and diagnostics
+
+### Changed
+
+-   Memory management system now uses compression by default
+-   Stream handling architecture for better performance
+
+### Security
+
+-   Added validation for task objects to prevent corruption-based exploits
+
 ## [1.9.22]
 
 -   [FIX]: @debug was triggering wrong internal command.

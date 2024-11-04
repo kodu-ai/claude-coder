@@ -2,10 +2,8 @@ import { ClaudeAsk } from "../../../../src/shared/ExtensionMessage"
 
 export interface ChatViewProps {
 	isHidden: boolean
-	showAnnouncement: boolean
 	selectedModelSupportsImages: boolean
 	selectedModelSupportsPromptCache: boolean
-	hideAnnouncement: () => void
 	showHistoryView: () => void
 }
 

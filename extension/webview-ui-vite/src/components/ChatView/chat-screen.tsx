@@ -279,7 +279,7 @@ const ChatScreen: React.FC<{
 				projectType={projectType ?? "landingPage"}
 				onPreFill={(text) => console.log("Pre-filled text:", text)}
 			/> */}
-			<div className="flex flex-col items-center justify-start pb-0 mb-0 p-2 sm:p-4 relative h-full">
+			<div className="flex flex-col items-center justify-start pb-0 mb-0 p-2 sm:p-4 relative h-full overflow-hidden">
 				<Card className="w-full max-w-screen-lg border-0 border-unset bg-transparent flex-grow overflow-auto">
 					<CardHeader>
 						<CardTitle className="text-2xl sm:text-3xl md:text-4xl font-bold text-center">
