@@ -54,7 +54,7 @@ export function smartTruncation(messages: Anthropic.Messages.MessageParam[]): An
 		return messages
 	}
 
-	const truncatedMessages = messages.map((msg, index) => {
+	return messages.map((msg, index) => {
 		if (index >= messages.length - RECENT_MESSAGES_TO_PRESERVE) {
 			return msg
 		}
@@ -92,7 +92,6 @@ export function smartTruncation(messages: Anthropic.Messages.MessageParam[]): An
 
 		return msg
 	})
-	return truncatedMessages
 }
 
 /**
