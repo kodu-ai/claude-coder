@@ -7,13 +7,13 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { AxiosError } from "axios"
 import { findLast } from "lodash"
-import { ApiHandler, ApiConfiguration, buildApiHandler } from "../../api"
+import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
 import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { koduModels } from "../../shared/api"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
-import { koduSSEResponse, KoduError } from "../../shared/kodu"
+import { KoduError, koduSSEResponse } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
-import { estimateTokenCount, smartTruncation, truncateHalfConversation } from "../../utils/context-management"
+import { estimateTokenCount, smartTruncation } from "../../utils/context-management"
 import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
 import { ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
@@ -399,11 +399,29 @@ ${this.customInstructions.trim()}
 					)
 				return
 			}
+			// Before : log the new conversation history from the provider (this.stateManager.state.apiConversationHistory)
+			this.log(
+				"info",
+				`OLD API conversation history:`,
+				provider.getKoduDev()?.getStateManager()?.state.apiConversationHistory
+			)
 			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
+			// After : log the new conversation history from the provider (this.stateManager.state.apiConversationHistory)
+			this.log(
+				"info",
+				`NEW API conversation history:`,
+				provider.getKoduDev()?.getStateManager()?.state.apiConversationHistory
+			)
 			await this.providerRef
 				.deref()
 				?.getKoduDev()
-				?.taskExecutor.say("chat_truncated", `The conversation has been truncated to prevent token overflow`)
+				?.taskExecutor.say(	
+					"chat_truncated",
+					JSON.stringify({
+						before: totalTokens,
+						after: newMemorySize,
+					})
+				)
 		}
 	}
 

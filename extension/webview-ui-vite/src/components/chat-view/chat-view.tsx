@@ -22,6 +22,8 @@ import ChatMessages from "../ChatView/ChatMessages"
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
 import TaskHeader from "../TaskHeader/TaskHeader"
+import { Button } from "../ui/button"
+import { AlertCircle } from "lucide-react"
 
 const ChatView: React.FC<ChatViewProps> = ({
 	isHidden,
@@ -33,6 +35,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 }) => {
 	const { openOutOfCreditDialog, shouldOpenOutOfCreditDialog } = useOutOfCreditDialog()
 	const [state, setState] = useAtom(chatState)
+	const [isMaxContextReached, setIsMaxContextReached] = useState(false)
 
 	const updateState = useCallback(
 		(updates: Partial<ChatState>) => {
@@ -163,6 +166,14 @@ const ChatView: React.FC<ChatViewProps> = ({
 			return true
 		})
 	}, [modifiedMessages])
+
+	useEffect(() => {
+		const hasMaxContext = visibleMessages.some(msg =>
+			msg.say === "chat_finished" ||
+			(msg.ask === "tool" && msg.text?.includes('"tool":"chat_finished"'))
+		)
+		setIsMaxContextReached(hasMaxContext)
+	}, [visibleMessages])
 
 	useEffect(() => {
 		setSyntaxHighlighterStyle(vscDarkPlus)
@@ -346,27 +357,51 @@ const ChatView: React.FC<ChatViewProps> = ({
 					</>
 				)}
 			</div>
-			<div className="mb-0 mt-auto">
-				<ButtonSection
-					primaryButtonText={state.primaryButtonText}
-					secondaryButtonText={state.secondaryButtonText}
-					enableButtons={state.enableButtons}
-					isRequestRunning={isMessageRunning}
-					handlePrimaryButtonClick={handlePrimaryButtonClick}
-					handleSecondaryButtonClick={handleSecondaryButtonClick}
-				/>
+			{!isMaxContextReached && (
+				<div className="mb-0 mt-auto">
+					<ButtonSection
+						primaryButtonText={state.primaryButtonText}
+						secondaryButtonText={state.secondaryButtonText}
+						enableButtons={state.enableButtons}
+						isRequestRunning={isMessageRunning}
+						handlePrimaryButtonClick={handlePrimaryButtonClick}
+						handleSecondaryButtonClick={handleSecondaryButtonClick}
+					/>
 
-				<ChatInput
-					state={state}
-					updateState={updateState}
-					onSendMessage={handleSendMessage}
-					shouldDisableImages={shouldDisableImages}
-					handlePaste={handlePaste}
-					isRequestRunning={isMessageRunning}
-					isInTask={!!task}
-					isHidden={isHidden}
-				/>
-			</div>
+					<ChatInput
+						state={state}
+						updateState={updateState}
+						onSendMessage={handleSendMessage}
+						shouldDisableImages={shouldDisableImages}
+						handlePaste={handlePaste}
+						isRequestRunning={isMessageRunning}
+						isInTask={!!task}
+						isHidden={isHidden}
+					/>
+				</div>
+			)}
+			{isMaxContextReached && (
+				<div className="sticky bottom-0 w-full bg-destructive/10 border-t border-destructive/20 p-4 flex flex-col gap-4">
+					<div className="flex flex-col gap-1">
+						<div className="flex items-center gap-2">
+							<AlertCircle className="h-4 w-4 text-destructive" />
+							<span className="text-sm font-bold">
+								Maximum context limit reached
+							</span>
+						</div>
+						<span className="text-sm">
+							The conversation has reached its context window limit and cannot continue further. To proceed, you'll need to start a new task. Don't worry - the tool will still have access to your project's files and structure in the new task.
+						</span>
+					</div>
+					<div className="flex justify-end">
+						<Button
+							variant="default"
+							onClick={() => vscode.postMessage({ type: "clearTask" })}>
+							Start New Task
+						</Button>
+					</div>
+				</div>
+			)}
 		</div>
 	)
 }

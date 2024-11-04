@@ -1,6 +1,5 @@
-import { StateManager } from "../agent/v1/state-manager"
-import { truncateToolFromMsg } from "../shared/format-tools"
 import { Anthropic } from "@anthropic-ai/sdk"
+import { truncateToolFromMsg } from "../shared/format-tools"
 
 // Constants for better maintainability
 const MIN_MESSAGES_TO_KEEP = 4
@@ -55,8 +54,7 @@ export function smartTruncation(messages: Anthropic.Messages.MessageParam[]): An
 		return messages
 	}
 
-	return messages.map((msg, index) => {
-		// Preserve recent messages
+	const truncatedMessages = messages.map((msg, index) => {
 		if (index >= messages.length - RECENT_MESSAGES_TO_PRESERVE) {
 			return msg
 		}
@@ -94,6 +92,7 @@ export function smartTruncation(messages: Anthropic.Messages.MessageParam[]): An
 
 		return msg
 	})
+	return truncatedMessages
 }
 
 /**

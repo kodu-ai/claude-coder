@@ -142,10 +142,11 @@ describe("Tool Response Utilities", () => {
 			]
 
 			const result = truncateToolFromMsg(msgs)
-			expect(result).toHaveLength(0) // Based on your implementation returning empty array
+			const textBlock = result[0] as TextBlockParam
+			expect(textBlock.text).toContain("[Truncated]")
 		})
 
-		it("should handle messages without tool response", () => {
+		it("should handle regular messages without tool response", () => {
 			const msgs: Array<TextBlockParam | ImageBlockParam> = [
 				{
 					type: "text",
@@ -154,7 +155,7 @@ describe("Tool Response Utilities", () => {
 			]
 
 			const result = truncateToolFromMsg(msgs)
-			expect(result).toHaveLength(0) // Based on your implementation returning empty array
+			expect(result).toHaveLength(1)
 		})
 	})
 
@@ -216,4 +217,38 @@ describe("Tool Response Utilities", () => {
 			expect(result.toolResult).toBe("Test <nested>result</nested>")
 		})
 	})
+
+// 	describe("truncateToolFromMsg with file operations", () => {
+// 		const createToolResponse = (toolName: string, status: string, filename: string, content: string) => ({
+// 			type: 'text' as const,
+// 			text: `
+// 				<toolResponse>
+// 					<toolName>${toolName}</toolName>
+// 					<toolStatus>${status}</toolStatus>
+// 					<toolResult>file: ${filename}\n${content}</toolResult>
+// 				</toolResponse>
+// 			`
+// 		});
+
+// 		it("should handle mixed tool operations", () => {
+// 			const mockConversation = [
+// 				createToolResponse("search_files", "success", "", "Found 3 files"),
+				
+// 				createToolResponse("write_to_file", "success", "Config.ts", 
+// 					"export const config = { theme: 'light' }"),
+				
+// 				createToolResponse("read_file", "success", "Config.ts", 
+// 					"export const config = { theme: 'light' }"),
+				
+// 				createToolResponse("list_directory", "success", "", "Listed ./src"),
+				
+// 				createToolResponse("write_to_file", "success", "Config.ts", 
+// 					"export const config = { theme: 'dark' }")
+// 			];
+
+// 			const truncated = truncateToolFromMsg(mockConversation);
+// 			console.log(truncated);
+// 		});
+// 	});
+
 })
