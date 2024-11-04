@@ -133,7 +133,7 @@ export const truncateToolFromMsg = (msgs: ContentBlock[]): ContentBlock[] => {
 					// If parsing fails, add a generic truncated message
 					blocks.push({
 						type: "text",
-						text: "[Truncated] Tool response",
+						text: "[Truncated] Tool response errored",
 					})
 				}
 			} else {
