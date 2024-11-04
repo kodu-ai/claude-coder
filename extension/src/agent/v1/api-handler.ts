@@ -377,6 +377,7 @@ ${this.customInstructions.trim()}
 		const contextWindow = this.api.getModel().info.contextWindow
 
 		// if (totalTokens >= contextWindow * 0.75) {
+		/// this we should actually get from the AI itself
 		if (totalTokens >= 0.75 * contextWindow) {
 			const truncatedMessages = smartTruncation(history)
 			const newMemorySize = truncatedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
@@ -385,6 +386,7 @@ ${this.customInstructions.trim()}
 			this.log("info", `Total tokens before truncation: ${totalTokens}`)
 			this.log("info", `Total tokens after truncation: ${newMemorySize}`)
 
+			// if this condition hit the task should be blocked
 			if (newMemorySize >= contextWindow * 0.75) {
 				// we reached the end
 				await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
