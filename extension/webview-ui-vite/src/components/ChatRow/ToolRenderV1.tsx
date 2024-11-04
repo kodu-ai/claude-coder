@@ -276,9 +276,6 @@ export const ChatTruncatedBlock = ({ ts, text }: { ts: number; text?: string }) 
 								<span className="text-success">{tokensSaved?.toLocaleString()} ({reductionPercent}%)</span>
 							</div>
 						</div>
-						<p className="text-xs text-muted-foreground italic">
-							Future requests will cost approximately {reductionPercent}% less ✨
-						</p>
 					</div>
 				)}
 			</div>
