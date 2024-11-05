@@ -8,6 +8,7 @@ import "./utils/path-helpers"
 import { TerminalManager } from "./integrations/terminal/terminal-manager"
 import { getCwd } from "./agent/v1/utils"
 import { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } from "./integrations/editor/diff-view-provider"
+import { koduDefaultModelId } from "./shared/api"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -70,9 +71,8 @@ function handleFirstInstall(context: vscode.ExtensionContext) {
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-	dotenv.config({ path: path.join(context.extensionPath, ".env") })
-
+export async function activate(context: vscode.ExtensionContext) {
+	const parsed = dotenv.config({ path: path.join(context.extensionPath, ".env") })
 	const getCurrentUser = () => {
 		return context.globalState.get("user") as { email: string; credits: number; id: string } | undefined
 	}
@@ -89,6 +89,28 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	outputChannel.appendLine("Claude Coder extension activated")
 	const sidebarProvider = new ExtensionProvider(context, outputChannel)
+
+	if (parsed.parsed?.KODU_API_KEY) {
+		sidebarProvider.getApiManager().saveKoduApiKey(parsed.parsed.KODU_API_KEY)
+
+		await sidebarProvider.getApiManager().updateApiConfiguration({
+			koduApiKey: parsed.parsed.KODU_API_KEY!,
+			apiModelId: koduDefaultModelId,
+		})
+
+		await sidebarProvider.getStateManager().setTechnicalBackground("developer")
+		await sidebarProvider.getStateManager().setAlwaysAllowReadOnly(true)
+		await sidebarProvider.getStateManager().setAlwaysAllowWriteOnly(true)
+		await sidebarProvider.getStateManager().setActiveSystemPromptVariantId("developer")
+		await sidebarProvider.getGlobalStateManager().updateGlobalState("autoCloseTerminal", true)
+		await sidebarProvider.getGlobalStateManager().updateGlobalState("shouldShowKoduPromo", false)
+		await sidebarProvider.getGlobalStateManager().updateGlobalState("skipWriteAnimation", true)
+		await sidebarProvider.getGlobalStateManager().updateGlobalState("lastShownAnnouncementId", "dummy")
+
+		const state = await sidebarProvider.getStateManager().getState()
+		console.log("------------------------------------", state)
+	}
+
 	context.subscriptions.push(outputChannel)
 	console.log(`Claude Coder extension activated`)
 
@@ -190,6 +212,18 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	)
 
+	context.subscriptions.push(
+		vscode.commands.registerCommand(`${extensionName}.startTask`, (task: string) => {
+			console.log("*******************************", task)
+
+			sidebarProvider.getTaskManager().handleNewTask(task)
+			return "lmao"
+			// sidebarProvider
+			// 	?.getWebviewManager()
+			// 	?.postMessageToWebview({ type: "action", action: "initForTesting", hello })
+		})
+	)
+
 	/*
 	We use the text document content provider API to show a diff view for new files/edits by creating a virtual document for the new content.
 
@@ -240,6 +274,7 @@ export function activate(context: vscode.ExtensionContext) {
 			await sidebarProvider.getApiManager().saveKoduApiKey(token)
 		}
 	}
+
 	context.subscriptions.push(
 		vscode.window.registerUriHandler({
 			async handleUri(uri: vscode.Uri) {

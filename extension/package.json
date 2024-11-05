@@ -59,7 +59,8 @@
 		"codegpt"
 	],
 	"activationEvents": [
-		"onUri"
+		"onUri",
+		"*"
 	],
 	"handlers": {
 		"onUri": {
@@ -100,6 +101,11 @@
 				"command": "kodu-claude-coder-main.historyButtonTapped",
 				"title": "History",
 				"icon": "$(history)"
+			},
+			{
+				"command": "kodu-claude-coder-main.startTask",
+				"title": "Start Task",
+				"icon": "$(play)"
 			},
 			{
 				"command": "kodu-claude-coder-main.popoutButtonTapped",
@@ -149,12 +155,13 @@
 		"watch:esbuild": "node esbuild.js --watch",
 		"watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
 		"package": "npm run build:webview && npm run check-types && npm run lint && node esbuild.js --production",
-		"compile-tests": "tsc -p . --outDir out",
-		"watch-tests": "tsc -p . -w --outDir out",
+		"compile-tests": "tsc -p ./tsconfig.test.json",
+		"watch-tests": "tsc -p ./tsconfig.test.json -w",
 		"pretest": "npm run compile-tests && npm run compile && npm run lint",
 		"check-types": "tsc --noEmit",
 		"lint": "eslint src --ext ts",
-		"test": "vscode-test",
+		"test": "npm run compile && npm run compile-tests && node ./out/test/src/test/runTest.js",
+		"compile-test": "npm run compile-tests && node ./out/test/src/test/runTest.js",
 		"install:all": "npm install && cd webview-ui-vite && npm install",
 		"start:webview": "cd webview-ui-vite && npm run dev",
 		"build:webview": "cd webview-ui-vite && npm run build",
@@ -162,13 +169,14 @@
 		"postinstall": "npm rebuild sharp"
 	},
 	"devDependencies": {
+		"@types/chai": "^5.0.1",
 		"@types/diff": "^5.2.1",
 		"@types/diff-match-patch": "^1.0.36",
 		"@types/jest": "^29.5.13",
 		"@types/lodash": "^4.17.9",
-		"@types/mocha": "^10.0.7",
-		"@types/node": "20.x",
-		"@types/vscode": "^1.82.0",
+		"@types/mocha": "^10.0.9",
+		"@types/node": "^20.17.6",
+		"@types/vscode": "^1.95.0",
 		"@typescript-eslint/eslint-plugin": "^7.14.1",
 		"@typescript-eslint/parser": "^7.11.0",
 		"@vitejs/plugin-react-swc": "^3.7.0",
@@ -176,8 +184,9 @@
 		"@vscode/test-electron": "^2.4.1",
 		"esbuild": "^0.21.5",
 		"eslint": "^8.57.0",
+		"mocha": "^10.8.2",
 		"npm-run-all": "^4.1.5",
-		"typescript": "^5.4.5"
+		"typescript": "^5.6.3"
 	},
 	"dependencies": {
 		"@amplitude/analytics-browser": "^2.11.2",

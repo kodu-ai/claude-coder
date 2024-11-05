@@ -76,6 +76,7 @@ export type ExtensionMessage =
 				| "didBecomeVisible"
 				| "koduAuthenticated"
 				| "koduCreditsFetched"
+				| "startTask"
 
 			state?: ExtensionState
 			images?: string[]
