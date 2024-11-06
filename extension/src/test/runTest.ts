@@ -10,20 +10,17 @@ async function main() {
 		const extensionTestsPath = path.resolve(__dirname, "./suite/index")
 
 		const testWorkspace = path.resolve(__dirname, "../../../../")
-		const firstArg = process.argv[2]
+		const firstArg = path.resolve(__dirname, "../../../../" + process.argv[2])
 
-		let params = {
+		console.log(firstArg)
+
+		await runTests({
 			extensionDevelopmentPath,
 			extensionTestsPath,
 			launchArgs: [firstArg ?? testWorkspace],
-		} as any
-
-		if (os.platform() === "linux") {
-			params["vscodeExecutablePath"] = "/app/VSCode-linux-arm64/bin/code"
-		}
-
-		await runTests(params)
+		})
 	} catch (err) {
+		console.error(err)
 		console.error("Failed to run tests")
 		process.exit(1)
 	}

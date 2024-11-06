@@ -59,8 +59,7 @@
 		"codegpt"
 	],
 	"activationEvents": [
-		"onUri",
-		"*"
+		"onUri"
 	],
 	"handlers": {
 		"onUri": {
@@ -155,13 +154,13 @@
 		"watch:esbuild": "node esbuild.js --watch",
 		"watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
 		"package": "npm run build:webview && npm run check-types && npm run lint && node esbuild.js --production",
-		"compile-tests": "tsc -p ./tsconfig.test.json",
-		"watch-tests": "tsc -p ./tsconfig.test.json -w",
+		"compile:tests": "tsc -p ./tsconfig.test.json",
+		"watch:tests": "tsc -p ./tsconfig.test.json -w",
 		"pretest": "npm run compile-tests && npm run compile && npm run lint",
 		"check-types": "tsc --noEmit",
 		"lint": "eslint src --ext ts",
 		"test": "npm run compile && npm run compile-tests && node ./out/test/src/test/runTest.js",
-		"compile-test": "npm run compile-tests && node ./out/test/src/test/runTest.js",
+		"compiled-tests": "npm run compile:tests && node ./out/test/src/test/runTest.js",
 		"exec-test": "node ./out/test/src/test/runTest.js",
 		"install:all": "npm install && cd webview-ui-vite && npm install",
 		"start:webview": "cd webview-ui-vite && npm run dev",

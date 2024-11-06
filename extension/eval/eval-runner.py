@@ -3,7 +3,6 @@ import subprocess
 import json
 import os
 import sys
-
 # URL to fetch the dataset
 DATASET_URL = "https://datasets-server.huggingface.co/rows?dataset=princeton-nlp%2FSWE-bench_Lite&config=default&split=dev&offset=0&length=100"
 
@@ -32,7 +31,7 @@ def clone_repo_at_commit(repo_url, repo_dir, commit_hash):
 
 def run_kodu_cli(directory):
     """Run kodu-cli with the problem statement."""
-    subprocess.run(["bash", "-c", "npm run exec-test"], check=True, cwd="extension")
+    subprocess.run(["bash", "-c", "cd ../extension && npm run exec-test " + directory], check=True)
 
 
 def main():
@@ -60,18 +59,25 @@ def main():
     row = dataset["rows"][problem_id]["row"]
 
     repo_url = f"https://github.com/{row['repo']}"
-    repo_dir = row["repo"].replace("/", "_")
+    repo_dir = str(problem_id) + "_" + row["repo"].replace("/", "_")
+
+    # Delete repo directory if it exists
+
     base_commit = row["base_commit"]
     test_patch = row["test_patch"]
     problem_statement = row["problem_statement"]
     # Write problem statement to a file
-    problem_file = "problem_statement.txt"
-    with open(problem_file, "w") as f:
-        f.write(problem_statement)
+    problem_file = "00_problem_statements/" + repo_dir + ".txt"
+
+    if not os.path.exists(repo_dir):
+        clone_repo_at_commit(repo_url, repo_dir, base_commit)
+
+    if not os.path.exists(problem_file):
+        with open(problem_file, "w") as f:
+            f.write(problem_statement)
     print(f"Problem statement written to {problem_file}")
 
 
-    clone_repo_at_commit(repo_url, repo_dir, base_commit)
     run_kodu_cli(repo_dir)
 
 if __name__ == "__main__":

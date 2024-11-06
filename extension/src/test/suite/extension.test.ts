@@ -16,14 +16,17 @@ suite("Extension Test Suite", () => {
 	})
 
 	test("All commands are registered", async () => {
+		// blackmagicfuckery, but works
+		const folder = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0)
+		const lastFolder = folder?.split("/").at(-1)
+		const problemStatement = await vscode.workspace.fs.readFile(
+			vscode.Uri.file(folder + `./../../tests/00_problem_statements/${lastFolder}.txt`)
+		)
+		const problemStatementString = problemStatement.toString()
+
 		// Read problem statement file
-		const fs = require("fs")
-		const problemStatement = fs.readFileSync("../problem_statement.txt", "utf8")
-		console.log("Problem statement:", problemStatement)
+		const result = await vscode.commands.executeCommand("kodu-claude-coder-main.startTask", problemStatementString)
 
-		const result = await vscode.commands.executeCommand("kodu-claude-coder-main.startTask", problemStatement)
-		console.log("result", result)
-
-		// await new Promise((resolve) => setTimeout(resolve, 100000)) // Sleep for 60 seconds
+		await new Promise((resolve) => setTimeout(resolve, 100000)) // Sleep for 60 seconds
 	})
 })
