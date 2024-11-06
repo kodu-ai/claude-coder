@@ -162,6 +162,7 @@
 		"lint": "eslint src --ext ts",
 		"test": "npm run compile && npm run compile-tests && node ./out/test/src/test/runTest.js",
 		"compile-test": "npm run compile-tests && node ./out/test/src/test/runTest.js",
+		"exec-test": "node ./out/test/src/test/runTest.js",
 		"install:all": "npm install && cd webview-ui-vite && npm install",
 		"start:webview": "cd webview-ui-vite && npm run dev",
 		"build:webview": "cd webview-ui-vite && npm run build",
