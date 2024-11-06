@@ -282,7 +282,13 @@ ${this.customInstructions.trim()}
 
 			// Only throw if we've exhausted all retries
 			if (retryAttempt > MAX_RETRIES) {
-				throw new Error("Maximum retry attempts reached for context compression")
+				await this.providerRef
+				.deref()
+				?.getKoduDev()
+				?.taskExecutor.say(
+					"chat_finished",
+					`The chat has reached the maximum token limit. Please create a new task to continue.`
+				)
 			}
 		} catch (error) {
 			if (error instanceof Error && error.message === "aborted") {
@@ -433,15 +439,8 @@ ${this.customInstructions.trim()}
 		// if this condition hit the task should be blocked (the compression failed to get the context window under the limit)
 		// if the new memory is inferior to the max post truncation tokens, we don't enter this block
 		if (newMemorySize >= maxPostTruncationTokens) {
-			// we reached the end
-			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
-			this.providerRef
-				.deref()
-				?.getKoduDev()
-				?.taskExecutor.say(
-					"chat_finished",
-					`The chat has reached the maximum token limit. Please create a new task to continue.`
-				)
+			// we reached the end of the task, the compression failed to get the context window under the limit (hard block)
+			// await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 			return
 		}
 
