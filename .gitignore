@@ -8,3 +8,5 @@ webview-ui-vite/node_modules
 .env.local
 
 eval/env
+eval_data
+eval_output

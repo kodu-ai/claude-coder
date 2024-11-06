@@ -102,13 +102,13 @@ export async function activate(context: vscode.ExtensionContext) {
 		await sidebarProvider.getStateManager().setAlwaysAllowReadOnly(true)
 		await sidebarProvider.getStateManager().setAlwaysAllowWriteOnly(true)
 		await sidebarProvider.getStateManager().setActiveSystemPromptVariantId("developer")
+		await sidebarProvider
+			.getStateManager()
+			.setCustomInstructions("when you think the task is complete, just write a done.txt file with the text done")
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("autoCloseTerminal", true)
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("shouldShowKoduPromo", false)
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("skipWriteAnimation", true)
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("lastShownAnnouncementId", "dummy")
-
-		const state = await sidebarProvider.getStateManager().getState()
-		console.log("------------------------------------", state)
 	}
 
 	context.subscriptions.push(outputChannel)

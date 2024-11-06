@@ -8,25 +8,43 @@ suite("Extension Test Suite", () => {
 	let extension: vscode.Extension<any>
 
 	before(async () => {
-		// Activate the extension before running tests
 		extension = vscode.extensions.getExtension("kodu-ai.claude-dev-experimental")!
 		await extension.activate()
 
-		await new Promise((resolve) => setTimeout(resolve, 5000)) // Sleep for 5 seconds
+		await new Promise((resolve) => setTimeout(resolve, 5000))
 	})
 
 	test("All commands are registered", async () => {
 		// blackmagicfuckery, but works
 		const folder = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0)
 		const lastFolder = folder?.split("/").at(-1)
+
 		const problemStatement = await vscode.workspace.fs.readFile(
-			vscode.Uri.file(folder + `./../../tests/00_problem_statements/${lastFolder}.txt`)
+			vscode.Uri.file(folder + `./../../eval_data/00_problem_statements/${lastFolder}.json`)
 		)
-		const problemStatementString = problemStatement.toString()
+		const testCase = JSON.parse(problemStatement.toString())
 
-		// Read problem statement file
-		const result = await vscode.commands.executeCommand("kodu-claude-coder-main.startTask", problemStatementString)
+		const failToPassText =
+			"These failing test cases would pass if the problem is resolved:\n" + testCase["FAIL_TO_PASS"]
+		const passToPassText =
+			"These passing test cases sould continue to pass after your solution:\n" + testCase["PASS_TO_PASS"]
+		const task =
+			"You have to solve this problem in this repository:\n" +
+			testCase["problem_statement"] +
+			"\n\n" +
+			failToPassText +
+			"\n\n" +
+			passToPassText
 
-		await new Promise((resolve) => setTimeout(resolve, 100000)) // Sleep for 60 seconds
+		await vscode.commands.executeCommand("kodu-claude-coder-main.startTask", task)
+
+		// Watch for done.txt file being written
+		// This is a hack to wait for the extension to finish
+		const watcher = vscode.workspace.createFileSystemWatcher("**/done.txt")
+		watcher.onDidCreate(() => {
+			process.exit(0)
+		})
+
+		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 5)) // Sleep for 5 minutes
 	})
 })

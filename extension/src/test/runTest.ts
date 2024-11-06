@@ -10,9 +10,7 @@ async function main() {
 		const extensionTestsPath = path.resolve(__dirname, "./suite/index")
 
 		const testWorkspace = path.resolve(__dirname, "../../../../")
-		const firstArg = path.resolve(__dirname, "../../../../" + process.argv[2])
-
-		console.log(firstArg)
+		const firstArg = path.resolve(process.cwd(), "../eval_data/" + process.argv[2])
 
 		await runTests({
 			extensionDevelopmentPath,
