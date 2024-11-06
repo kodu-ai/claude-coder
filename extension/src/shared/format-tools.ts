@@ -131,6 +131,11 @@ export const compressToolFromMsg = (msgs: ContentBlock[]): ContentBlock[] => {
 				try {
 					// Parse the tool response and add Compressed version
 					const toolResponse = parseToolResponse(msg.text)
+					// If the tool response tool name is "ask_followup_question", skip compression
+					if (toolResponse.toolName === "ask_followup_question") {
+						blocks.push(msg)
+						continue
+					}
 					blocks.push({
 						type: "text",
 						text: `[Compressed] Tool ${toolResponse.toolName} (${toolResponse.toolStatus})`,
