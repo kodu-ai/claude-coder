@@ -260,10 +260,10 @@ ${this.customInstructions.trim()}
 							return
 						}
 
+						// If the request yielded a chunk with error code -1 and the error message includes "prompt is too long", 
+						// then the context window is too large and we need to compress the context and retry.
 						if (chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) {
-							// clear the interval
 							clearInterval(checkInactivity)
-							// Compress the context and retry
 							await this.manageContextWindow()
 							retryAttempt++
 							break // Break the for loop to retry with compressed history
@@ -272,6 +272,7 @@ ${this.customInstructions.trim()}
 						lastMessageAt = Date.now()
 						yield* this.processStreamChunk(chunk)
 					}
+					return
 				} catch (streamError) {
 					if (streamError instanceof Error && streamError.message === "aborted") {
 						throw new KoduError({ code: 1 })
@@ -280,8 +281,10 @@ ${this.customInstructions.trim()}
 				}
 			}
 
-			// If we've exhausted all retries
-			throw new Error("Maximum retry attempts reached for context compression")
+			// Only throw if we've exhausted all retries
+			if (retryAttempt > MAX_RETRIES) {
+				throw new Error("Maximum retry attempts reached for context compression")
+			}
 		} catch (error) {
 			if (error instanceof Error && error.message === "aborted") {
 				error = new KoduError({ code: 1 })
