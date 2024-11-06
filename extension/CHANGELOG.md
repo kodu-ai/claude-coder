@@ -4,6 +4,28 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.10.0] - 2024-11-07
+
+### Added
+
+-   New chat compression algorithm for new chats
+    -   Improved memory efficiency
+    -   Better context preservation
+-   Enhanced streaming UI implementation
+
+### Fixed
+
+-   Edge case stream corruption issues
+-   Image format handling
+-   Chat truncation prevention mechanisms
+
+### Changed
+
+-   Improved overall extension performance
+    -   Reduced memory footprint
+    -   Faster response times
+    -   Better resource utilization
+
 ## [1.9.26] - 2024-11-05
 
 ### Added

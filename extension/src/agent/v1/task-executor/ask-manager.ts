@@ -218,12 +218,14 @@ export class AskManager {
 
 		try {
 			if (this.stateManager.getMessageById(id)) {
-				await this.stateManager.updateClaudeMessage(id, message)
+				// we can void the promise here as we don't need to wait for the state to be updated
+				void this.stateManager.updateClaudeMessage(id, message)
 			} else {
 				await this.stateManager.addToClaudeMessages(message)
 			}
 
-			await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+			// we can void the promise here as we don't need to wait for the state to be updated
+			void this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 		} catch (error) {
 			console.error("Error in updateState:", error)
 			throw error

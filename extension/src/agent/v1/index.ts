@@ -71,6 +71,11 @@ export class KoduDev {
 			claudeMessages: [],
 			abort: false,
 		})
+		amplitudeTracker.updateUserSettings({
+			AlwaysAllowReads: this.stateManager.alwaysAllowReadOnly,
+			AutomaticMode: this.stateManager.alwaysAllowWriteOnly,
+			AutoSummarize: this.stateManager.autoSummarize,
+		})
 
 		if (historyItem?.dirAbsolutePath) {
 		}

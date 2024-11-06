@@ -257,6 +257,7 @@ ${this.customInstructions.trim()}
 						if (chunk.code === 1) {
 							clearInterval(checkInactivity)
 							yield* this.processStreamChunk(chunk)
+							// will this return return otuside the loop? or outside of the function?
 							return
 						}
 
@@ -264,7 +265,11 @@ ${this.customInstructions.trim()}
 							// clear the interval
 							clearInterval(checkInactivity)
 							// Compress the context and retry
-							await this.manageContextWindow()
+							const result = await this.manageContextWindow()
+							if (result === "chat_finished") {
+								// if the chat is finsihed, throw an error
+								throw new KoduError({ code: 413 })
+							}
 							retryAttempt++
 							break // Break the for loop to retry with compressed history
 						}
@@ -384,10 +389,10 @@ ${this.customInstructions.trim()}
 	/**
 	 * Manages the context window to prevent token overflow
 	 */
-	private async manageContextWindow(): Promise<void> {
+	private async manageContextWindow(): Promise<"chat_finished" | "compressed"> {
 		const provider = this.providerRef.deref()
 		if (!provider) {
-			return
+			throw new Error("Provider reference has been garbage collected")
 		}
 		const history = provider.koduDev?.getStateManager().state.apiConversationHistory || []
 		const isAutoSummaryEnabled = provider.getKoduDev()?.getStateManager().autoSummarize ?? false
@@ -395,7 +400,7 @@ ${this.customInstructions.trim()}
 		if (!isAutoSummaryEnabled) {
 			const updatedMesages = truncateHalfConversation(history)
 			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(updatedMesages)
-			return
+			return "compressed"
 		}
 		const state = await provider.getStateManager()?.getState()
 		const systemPromptTokens = estimateTokenCount({
@@ -432,7 +437,7 @@ ${this.customInstructions.trim()}
 					"chat_finished",
 					`The chat has reached the maximum token limit. Please create a new task to continue.`
 				)
-			return
+			return "chat_finished"
 		}
 		await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 		await this.providerRef
@@ -445,6 +450,7 @@ ${this.customInstructions.trim()}
 					after: newMemorySize,
 				})
 			)
+		return "compressed"
 	}
 
 	/**

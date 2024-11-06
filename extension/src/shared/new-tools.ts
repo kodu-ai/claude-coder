@@ -132,3 +132,5 @@ export type ChatTool = (
 	error?: string
 	userFeedback?: string
 }
+
+export type ToolName = ChatTool["tool"]

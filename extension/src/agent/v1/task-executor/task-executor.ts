@@ -90,9 +90,11 @@ export class TaskExecutor extends TaskExecutorUtils {
 				isSubMessage: true,
 			})
 		} else {
-			await this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush)
+			void Promise.all([
+				this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush),
+				this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview(),
+			])
 		}
-		await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 	}
 
 	public async newMessage(message: UserContent) {
@@ -453,7 +455,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 						if (!this.streamPaused) {
 							// Accumulate text until we have a complete XML tag or enough non-XML content
 							accumulatedText += chunk.body.text
-
+							// check if this chunk is inside tool
+							const isChunkInsideTool = this.toolExecutor.isParserInToolTag()
 							// Process for tool use and get non-XML text
 							const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
 							accumulatedText = "" // Clear accumulated text after processing
@@ -461,22 +464,28 @@ export class TaskExecutor extends TaskExecutorUtils {
 							// If tool processing started, pause the stream
 							// this will be trigger when a tool called execute
 							if (this.toolExecutor.hasActiveTools()) {
-								// Ensure any buffered content is flushed before pausing
-								void this.flushTextBuffer(this.currentReplyId, true)
+								// if we are inside tool tag we should flush the buffer only after the tool processing is done
+								if (!isChunkInsideTool) {
+									await this.flushTextBuffer(this.currentReplyId, true)
+								}
+								// pause
 								this.pauseStream()
 								// Wait for tool processing to complete
 								await this.toolExecutor.waitForToolProcessing()
 								// Resume stream after tool processing
 								await this.resumeStream()
+								const lastAskTs = this.stateManager.state.claudeMessages
+									.slice()
+									.reverse()
+									.find((msg) => msg.type === "ask")?.ts
 							}
 
 							// If we got non-XML text, add it to buffer
 							// this must be at the end to prevent leaking non-XML text when a tool is called
 							if (nonXMLText) {
 								this.textBuffer += nonXMLText
-								this.logState("Text buffer updated: " + this.textBuffer)
 								// Only flush buffer if we're not paused
-								void this.flushTextBuffer(this.currentReplyId)
+								await this.flushTextBuffer(this.currentReplyId)
 							}
 						}
 					}
@@ -486,19 +495,16 @@ export class TaskExecutor extends TaskExecutorUtils {
 						return
 					}
 
-					// Process any remaining accumulated text
-					if (accumulatedText) {
-						const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
-						if (nonXMLText) {
-							this.textBuffer += nonXMLText
-						}
-					}
+					// // Process any remaining accumulated text
+					// if (accumulatedText) {
+					// 	const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
+					// 	if (nonXMLText) {
+					// 		this.textBuffer += nonXMLText
+					// 	}
+					// }
 
 					// Ensure all tools are processed
 					await this.toolExecutor.waitForToolProcessing()
-
-					// Flush any remaining text
-					await this.flushTextBuffer(currentReplyId, true)
 					this.currentReplyId = null
 
 					await this.finishProcessingResponse(apiHistoryItem)
@@ -550,9 +556,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 			const completionAttempted = currentToolResults.find((result) => result?.name === "attempt_completion")
 
 			if (completionAttempted) {
+				const content = toolResponseToAIState(completionAttempted.result)
 				await this.stateManager.addToApiConversationHistory({
 					role: "user",
-					content: toolResponseToAIState(completionAttempted.result),
+					content,
 				})
 				if (completionAttempted.result.status === "success") {
 					await this.stateManager.addToApiConversationHistory({

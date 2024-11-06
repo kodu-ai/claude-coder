@@ -9,7 +9,9 @@ import { findLastIndex } from "../../utils"
 import { ApiManager } from "./api-handler"
 import { DEFAULT_MAX_REQUESTS_PER_TASK } from "./constants"
 import { ApiHistoryItem, ClaudeMessage, KoduDevOptions, KoduDevState } from "./types"
-
+import { createWriteStream } from "fs"
+// import { amplitudeTracker } from "@/utils/amplitude"
+import { amplitudeTracker } from "../../utils/amplitude"
 export class StateManager {
 	private _state: KoduDevState
 	private _apiManager: ApiManager
@@ -185,6 +187,15 @@ export class StateManager {
 
 	public setAlwaysAllowReadOnly(newValue: boolean): void {
 		this._alwaysAllowReadOnly = newValue
+		this.updateAmplitudeSettings()
+	}
+
+	private updateAmplitudeSettings() {
+		amplitudeTracker.updateUserSettings({
+			AlwaysAllowReads: this.alwaysAllowReadOnly,
+			AutomaticMode: this.alwaysAllowWriteOnly,
+			AutoSummarize: this.autoSummarize,
+		})
 	}
 
 	public setCreativeMode(newMode: "creative" | "normal" | "deterministic"): void {
@@ -193,6 +204,7 @@ export class StateManager {
 
 	public setAlwaysAllowWriteOnly(newValue: boolean): void {
 		this._alwaysAllowWriteOnly = newValue
+		this.updateAmplitudeSettings()
 	}
 
 	private async ensureTaskDirectoryExists(): Promise<string> {
@@ -206,15 +218,24 @@ export class StateManager {
 	}
 
 	async getSavedApiConversationHistory(): Promise<Anthropic.MessageParam[]> {
-		const filePath = path.join(await this.ensureTaskDirectoryExists(), "api_conversation_history.json")
-		const fileExists = await fs
-			.access(filePath)
-			.then(() => true)
-			.catch(() => false)
-		if (fileExists) {
-			return JSON.parse(await fs.readFile(filePath, "utf8"))
+		// no need to read from file if we already have the history in memory
+		if (this.state.apiConversationHistory.length > 0) {
+			return this.state.apiConversationHistory
 		}
-		return []
+		try {
+			const filePath = path.join(await this.ensureTaskDirectoryExists(), "api_conversation_history.json")
+			const fileExists = await fs
+				.access(filePath)
+				.then(() => true)
+				.catch(() => false)
+			if (fileExists) {
+				return JSON.parse(await fs.readFile(filePath, "utf8"))
+			}
+			return []
+		} catch (err) {
+			console.error("Failed to get saved API conversation history:", err)
+			return []
+		}
 	}
 
 	async getCleanedClaudeMessages(): Promise<ClaudeMessage[]> {
@@ -295,18 +316,37 @@ export class StateManager {
 
 	async setAutoSummarize(newValue: boolean): Promise<void> {
 		this._autoSummarize = newValue
+		this.updateAmplitudeSettings()
 	}
 
 	async saveApiConversationHistory() {
 		try {
 			const filePath = path.join(await this.ensureTaskDirectoryExists(), "api_conversation_history.json")
-			await fs.writeFile(filePath, JSON.stringify(this.state.apiConversationHistory))
+
+			// Use writeStream for better performance with large files
+			const writeStream = createWriteStream(filePath, {
+				flags: "w",
+				encoding: "utf8",
+				mode: 0o666,
+			})
+
+			writeStream.write(JSON.stringify(this.state.apiConversationHistory, null, 2))
+			await new Promise((resolve, reject) => {
+				writeStream.end((err: Error) => {
+					if (err) reject(err)
+					else resolve(null)
+				})
+			})
 		} catch (error) {
 			console.error("Failed to save API conversation history:", error)
+			throw error // Or handle according to your error strategy
 		}
 	}
 
 	async getSavedClaudeMessages(): Promise<ClaudeMessage[]> {
+		if (this.state.claudeMessages.length > 0) {
+			return this.state.claudeMessages
+		}
 		const filePath = path.join(await this.ensureTaskDirectoryExists(), "claude_messages.json")
 		const fileExists = await fs
 			.access(filePath)

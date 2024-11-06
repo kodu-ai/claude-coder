@@ -26,7 +26,7 @@ export default function AnnouncementBanner() {
 				<div className="flex items-start justify-between">
 					<div className="flex items-center gap-2">
 						<AlertCircle className="h-5 w-5 text-primary" />
-						<h2 className="text-sm font-semibold">Latest Updates (v1.9.26)</h2>
+						<h2 className="text-sm font-semibold">Latest Updates (v1.10.0)</h2>
 					</div>
 					<Button
 						variant="ghost"
@@ -40,17 +40,17 @@ export default function AnnouncementBanner() {
 
 				<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>• Smart chat compression for improved memory management</p>
-						<p>• Claude 3.5 Haiku model support added to available models</p>
-						<p>• Code truncation detection with auto-follow up requests</p>
-						<p>• Frontend stream synchronization improvements</p>
+						<p>• Enhanced streaming UI implementation</p>
+						<p>• New chat compression algorithm for improved memory usage</p>
+						<p>• Fixed edge case stream corruption issues</p>
+						<p>• Improved chat truncation prevention</p>
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>• Enhanced error handling for corrupted task objects</p>
-						<p>• Compression-based memory management by default</p>
-						<p>• Improved stream handling architecture</p>
-						<p>• Added task validation for security improvements</p>
+						<p>• Fixed image format handling</p>
+						<p>• Reduced overall memory footprint</p>
+						<p>• Enhanced response times</p>
+						<p>• Optimized resource utilization</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">

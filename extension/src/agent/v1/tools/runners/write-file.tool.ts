@@ -134,7 +134,7 @@ export class WriteFileTool extends BaseAgentTool {
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
-		this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev, this.UPDATE_INTERVAL)
+		this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev)
 		if (!!this.koduDev.getStateManager().skipWriteAnimation) {
 			this.skipWriteAnimation = true
 		}
@@ -145,7 +145,13 @@ export class WriteFileTool extends BaseAgentTool {
 		return result
 	}
 
-	public async handlePartialUpdate(relPath: string, content: string): Promise<void> {
+	/**
+	 *
+	 * @param relPath - relative path of the file
+	 * @param acculmatedContent - the accumulated content to be written to the file
+	 * @returns
+	 */
+	public async handlePartialUpdate(relPath: string, acculmatedContent: string): Promise<void> {
 		// this might happen because the diff view are not instant.
 		if (this.isProcessingFinalContent) {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
@@ -155,7 +161,15 @@ export class WriteFileTool extends BaseAgentTool {
 		if (this.skipWriteAnimation) {
 			await this.params.updateAsk(
 				"tool",
-				{ tool: { tool: "write_to_file", content, path: relPath, ts: this.ts, approvalState: "loading" } },
+				{
+					tool: {
+						tool: "write_to_file",
+						content: acculmatedContent,
+						path: relPath,
+						ts: this.ts,
+						approvalState: "loading",
+					},
+				},
 				this.ts
 			)
 			return
@@ -177,7 +191,7 @@ export class WriteFileTool extends BaseAgentTool {
 				return
 			}
 		}
-		await this.diffViewProvider.update(content, false)
+		await this.diffViewProvider.update(acculmatedContent, false)
 		this.lastUpdateTime = currentTime
 	}
 

@@ -82,8 +82,9 @@ export function activate(context: vscode.ExtensionContext) {
 	//console.log('Congratulations, your extension "claude coder" is now active!')
 	outputChannel = vscode.window.createOutputChannel("Claude Coder")
 	const user = getCurrentUser()
+	const version = context.extension.packageJSON.version ?? "0.0.0"
 	amplitudeTracker
-		.initialize(context.globalState, !!user, vscode.env.sessionId, context.extension.id, user?.id)
+		.initialize(context.globalState, !!user, vscode.env.sessionId, context.extension.id, version, user?.id)
 		.then(() => {
 			handleFirstInstall(context)
 		})

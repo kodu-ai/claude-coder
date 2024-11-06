@@ -166,9 +166,9 @@ export class ToolExecutor {
 		}
 	}
 
-	public async processToolUse(text: string): Promise<string> {
+	public async processToolUse(text: string) {
 		if (this.isAborting) {
-			return text
+			return { output: text }
 		}
 		return this.toolParser.appendText(text)
 	}
@@ -285,6 +285,10 @@ export class ToolExecutor {
 			},
 			ts
 		)
+	}
+
+	public isParserInToolTag() {
+		return this.toolParser.isInToolTag
 	}
 
 	private async processTool(context: ToolContext): Promise<void> {
