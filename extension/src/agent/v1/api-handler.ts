@@ -272,7 +272,6 @@ ${this.customInstructions.trim()}
 						lastMessageAt = Date.now()
 						yield* this.processStreamChunk(chunk)
 					}
-					return
 				} catch (streamError) {
 					if (streamError instanceof Error && streamError.message === "aborted") {
 						throw new KoduError({ code: 1 })
@@ -415,16 +414,24 @@ ${this.customInstructions.trim()}
 			estimateTokenCount(history[history.length - 1])
 
 		let contextWindow = this.api.getModel().info.contextWindow
+		// Check if the context window needs to be compressed, if so compress it otherwise do nothing
+		const maxPostTruncationTokens = contextWindow - 13_314 + this.api.getModel().info.maxTokens
+
+		if (totalTokens > maxPostTruncationTokens) {
+			return
+		}
+
+		// Continue because we need to compress the context window to fit within the limit
 
 		const truncatedMessages = smartTruncation(history)
 		const newMemorySize = truncatedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
+
 		this.log("info", `API History before truncation:`, history)
 		this.log("info", `Compressed messages:`, truncatedMessages)
-		this.log("info", `Total tokens before truncation: ${totalTokens}`)
-		this.log("info", `Total tokens after truncation: ${newMemorySize}`)
-		const maxPostTruncationTokens = contextWindow - 13_314 + this.api.getModel().info.maxTokens
+		this.log("info", `Context window truncation: Messages ${history.length} → ${truncatedMessages.length}, Tokens ${totalTokens} → ${newMemorySize} (${Math.round((newMemorySize/totalTokens)*100)}% of original size)`)
 
-		// if this condition hit the task should be blocked
+		// if this condition hit the task should be blocked (the compression failed to get the context window under the limit)
+		// if the new memory is inferior to the max post truncation tokens, we don't enter this block
 		if (newMemorySize >= maxPostTruncationTokens) {
 			// we reached the end
 			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
@@ -437,6 +444,7 @@ ${this.customInstructions.trim()}
 				)
 			return
 		}
+
 		await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 		await this.providerRef
 			.deref()
