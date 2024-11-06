@@ -42,9 +42,10 @@ suite("Extension Test Suite", () => {
 		// This is a hack to wait for the extension to finish
 		const watcher = vscode.workspace.createFileSystemWatcher("**/done.txt")
 		watcher.onDidCreate(() => {
+			console.log("Done file created, exiting")
 			process.exit(0)
 		})
 
-		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 5)) // Sleep for 5 minutes
+		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 20)) // Sleep for 20 minutes
 	})
 })
