@@ -10,3 +10,4 @@ webview-ui-vite/node_modules
 eval/env
 eval_data
 eval_output
+eval_logs

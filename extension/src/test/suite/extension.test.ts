@@ -25,7 +25,9 @@ suite("Extension Test Suite", () => {
 		const testCase = JSON.parse(problemStatement.toString())
 
 		const failToPassText =
-			"These failing test cases would pass if the problem is resolved:\n" + testCase["FAIL_TO_PASS"]
+			"These failing test cases would pass if the problem is resolved:\n" +
+			testCase["FAIL_TO_PASS"] +
+			"If these failing test cases dont exist in the repository, you can create them."
 		const passToPassText =
 			"These passing test cases sould continue to pass after your solution:\n" + testCase["PASS_TO_PASS"]
 		const task =

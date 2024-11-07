@@ -105,7 +105,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		await sidebarProvider
 			.getStateManager()
 			.setCustomInstructions(
-				"when you think the task is complete, just write a done.txt file with the text done. also if you're working on a python repo, always execute commands in a virtual environment"
+				"Do not ask any followup questions. When working on a python repo, always execute commands in a virtual environment"
 			)
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("autoCloseTerminal", true)
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("shouldShowKoduPromo", false)
