@@ -10,6 +10,7 @@ import {
 	ChevronUp,
 	Code,
 	Edit,
+	FileIcon,
 	FileText,
 	FolderTree,
 	HelpCircle,
@@ -24,8 +25,9 @@ import {
 	Server,
 	Square,
 	Terminal,
-	XCircle,
+	XCircle
 } from "lucide-react"
+import { Highlight, themes } from 'prism-react-renderer'
 import React, { memo, useEffect, useRef, useState } from "react"
 import {
 	AskConsultantTool,
@@ -60,7 +62,7 @@ export type ToolAddons = {
 }
 type ToolBlockProps = {
 	icon: React.FC<React.SVGProps<SVGSVGElement>>
-	title: string
+	title: React.ReactNode
 	children: React.ReactNode
 	tool: ChatTool["tool"]
 	variant: "default" | "primary" | "info" | "accent" | "info" | "success" | "info" | "destructive"
@@ -79,10 +81,10 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 		approvalState === "loading"
 			? "info"
 			: approvalState === "error" || approvalState === "rejected"
-			? "destructive"
-			: approvalState === "approved"
-			? "success"
-			: variant
+				? "destructive"
+				: approvalState === "approved"
+					? "success"
+					: variant
 	const stateIcons = {
 		pending: <AlertCircle className="w-5 h-5 text-info" />,
 		approved: <CheckCircle className="w-5 h-5 text-success" />,
@@ -303,9 +305,9 @@ export const ChatMaxWindowBlock = ({ ts }: { ts: number }) => (
 
 export const ExecuteCommandBlock: React.FC<
 	ExecuteCommandTool &
-		ToolAddons & {
-			hasNextMessage?: boolean
-		}
+	ToolAddons & {
+		hasNextMessage?: boolean
+	}
 > = ({ command, output, approvalState, onApprove, tool, ts, onReject, ...rest }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
 
@@ -527,6 +529,31 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 			animationCompleteCountRef.current = 0
 		}, [content, isStreaming])
 
+		// Get file extension to determine icon
+		const fileExt = path.split('.').pop()?.toLowerCase() || ''
+		const getLanguage = (fileExt: string) => {
+			switch (fileExt) {
+				case 'js':
+				case 'jsx':
+					return 'javascript'
+				case 'ts':
+				case 'tsx':
+					return 'typescript'
+				case 'py':
+					return 'python'
+				case 'html':
+					return 'html'
+				case 'css':
+					return 'css'
+				case 'json':
+					return 'json'
+				default:
+					return 'typescript'
+			}
+		}
+
+		const language = getLanguage(fileExt)
+
 		return (
 			<ToolBlock
 				{...rest}
@@ -558,9 +585,22 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 							/>
 						)}
 						{!isStreaming ? (
-							<pre className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
-								{content?.trim() ?? ""}
-							</pre>
+							<Highlight
+								theme={themes.vsDark}
+								code={content?.trim() ?? ''}
+								language={language}>
+								{({ className, style, tokens, getLineProps, getTokenProps }) => (
+									<pre className={`${className} text-xs`} style={style}>
+										{tokens.map((line, i) => (
+											<div key={i} {...getLineProps({ line })}>
+												{line.map((token, key) => (
+													<span key={key} {...getTokenProps({ token })} />
+												))}
+											</div>
+										))}
+									</pre>
+								)}
+							</Highlight>
 						) : (
 							<AnimatePresence>
 								{visibleContent.map((chunk, index) => (
