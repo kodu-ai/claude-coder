@@ -56,6 +56,8 @@ def make_dirs_if_not_exist():
 
     if not os.path.exists("eval_data"):
         os.makedirs("eval_data")
+    if not os.path.exists("eval_data/00_problem_statements"):
+        os.makedirs("eval_data/00_problem_statements")
 
     if not os.path.exists("eval_logs"):
         os.makedirs("eval_logs")
