@@ -129,15 +129,14 @@ export class WriteFileTool extends BaseAgentTool {
 	private isProcessingFinalContent: boolean = false
 	private lastUpdateTime: number = 0
 	private readonly UPDATE_INTERVAL = 8
-	private skipWriteAnimation: boolean = false
+	private skipWriteAnimation: boolean = true
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 		this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev)
-		if (!!this.koduDev.getStateManager().skipWriteAnimation) {
-			this.skipWriteAnimation = true
-		}
+		// Enable to make the write animation dependent on the user's preference
+	// 	this.skipWriteAnimation = this.koduDev.getStateManager().skipWriteAnimation
 	}
 
 	override async execute() {
