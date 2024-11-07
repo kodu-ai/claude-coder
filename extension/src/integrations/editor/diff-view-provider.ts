@@ -157,7 +157,7 @@ export class DiffViewProvider {
 	private isAutoScrollEnabled: boolean = true
 	private lastUserInteraction: number = 0
 	private static readonly SCROLL_THROTTLE = 100 // ms
-	private static readonly USER_INTERACTION_TIMEOUT = 1000 // ms
+	private static readonly USER_INTERACTION_TIMEOUT = 2000 // ms
 	private static readonly SCROLL_THRESHOLD = 10 // lines from bottom to re-enable auto-scroll
 	private static modifiedContentProvider: ModifiedContentProvider
 	private disposables: vscode.Disposable[] = []
@@ -217,8 +217,11 @@ export class DiffViewProvider {
 		}
 
 		const lastVisibleLine = visibleRanges[visibleRanges.length - 1].end.line
+		const firstVisibleLine = visibleRanges[0].start.line
 		const totalLines = this.diffEditor.document.lineCount
-		return totalLines - lastVisibleLine <= DiffViewProvider.SCROLL_THRESHOLD
+		
+		const viewportSize = lastVisibleLine - firstVisibleLine
+		return totalLines - lastVisibleLine <= Math.max(DiffViewProvider.SCROLL_THRESHOLD, viewportSize * 0.5)
 	}
 
 	private setupEventListeners(): void {
@@ -354,8 +357,12 @@ export class DiffViewProvider {
 		const now = Date.now()
 		if (
 			this.isAutoScrollEnabled &&
-			now - this.lastScrollTime >= DiffViewProvider.SCROLL_THROTTLE &&
-			(now - this.lastUserInteraction >= DiffViewProvider.USER_INTERACTION_TIMEOUT || this.checkScrollPosition())
+			(now - this.lastScrollTime >= DiffViewProvider.SCROLL_THROTTLE) &&
+			(
+				now - this.lastUserInteraction >= DiffViewProvider.USER_INTERACTION_TIMEOUT || 
+				this.checkScrollPosition() ||
+				!this.lastScrollTime // Always scroll on first update
+			)
 		) {
 			await this.scrollToBottom()
 			this.lastScrollTime = now
@@ -369,10 +376,15 @@ export class DiffViewProvider {
 
 		const lastLine = this.diffEditor.document.lineCount - 1
 		const lastCharacter = this.diffEditor.document.lineAt(lastLine).text.length
-		const range = new vscode.Range(lastLine, lastCharacter, lastLine, lastCharacter)
+		const range = new vscode.Range(lastLine, 0, lastLine, lastCharacter)
 
-		// Use less aggressive reveal type
-		this.diffEditor.revealRange(range, vscode.TextEditorRevealType.Default)
+		// Use more aggressive reveal type when auto-scrolling is enabled
+		this.diffEditor.revealRange(
+			range,
+			this.isAutoScrollEnabled 
+				? vscode.TextEditorRevealType.InCenterIfOutsideViewport
+				: vscode.TextEditorRevealType.Default
+		)
 	}
 
 	private async finalizeDiff(): Promise<void> {
