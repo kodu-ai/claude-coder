@@ -3,15 +3,13 @@
  * THIS LETS KODU STREAM DIFF IN MEMORY AND SHOW IT IN VS CODE
  * ALSO IT UPDATES THE WORKSPACE TIMELINE WITH THE CHANGES
  */
-import * as vscode from "vscode"
-import * as path from "path"
-import * as fs from "fs/promises"
-import { createDirectoriesForFile } from "../../utils/fs"
 import * as diff from "diff"
-import { arePathsEqual } from "../../utils/path-helpers"
-import { KoduDev } from "../../agent/v1"
-import delay from "delay"
+import * as fs from "fs/promises"
 import pWaitFor from "p-wait-for"
+import * as path from "path"
+import * as vscode from "vscode"
+import { KoduDev } from "../../agent/v1"
+import { createDirectoriesForFile } from "../../utils/fs"
 
 export const DIFF_VIEW_URI_SCHEME = "claude-coder-diff"
 export const MODIFIED_URI_SCHEME = "claude-coder-modified"
@@ -333,19 +331,25 @@ export class DiffViewProvider {
 			return
 		}
 
+		// Ensure content ends with newline
+		const normalizedContent = content.endsWith('\n') ? content : content + '\n'
+
 		// Update content with proper options to maintain file history
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(content), {
+		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(normalizedContent), {
 			create: false,
 			overwrite: true,
 		})
-		this.streamedContent = content
+		this.streamedContent = normalizedContent
 
-		// Find the last modified line by comparing with previous content
+		// Find the last modified line
 		const currentLine = this.diffEditor.document.lineCount - 1
 		if (this.activeLineController && this.fadedOverlayController) {
 			this.activeLineController.setActiveLine(currentLine)
 			this.fadedOverlayController.updateOverlayAfterLine(currentLine, this.diffEditor.document.lineCount)
 		}
+
+		// Force a flush by ensuring the content is written and visible
+		await vscode.workspace.fs.writeFile(this.modifiedUri, Buffer.from(normalizedContent))
 
 		const now = Date.now()
 		if (
