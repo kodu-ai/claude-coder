@@ -8,11 +8,13 @@ import time
 import signal
 
 # URL to fetch the dataset
-DATASET_URL = "https://datasets-server.huggingface.co/rows?dataset=princeton-nlp%2FSWE-bench_Lite&config=default&split=dev&offset=0&length=100"
+DATASET_URL = "https://datasets-server.huggingface.co/rows?dataset=princeton-nlp%2FSWE-bench_Lite&config=default&split=test&offset=0&length=100"
 
 def main():
     dataset = fetch_dataset()
     problem_id = sys.argv[1] if len(sys.argv) > 1 else os.getenv("PROBLEM_ID", "0")
+
+    make_dirs_if_not_exist()
 
     try:
         problem_id = int(problem_id)
@@ -48,6 +50,17 @@ def main():
     sys.exit()
 
 
+def make_dirs_if_not_exist():
+    if not os.path.exists("eval_output"):
+        os.makedirs("eval_output")
+
+    if not os.path.exists("eval_data"):
+        os.makedirs("eval_data")
+
+    if not os.path.exists("eval_logs"):
+        os.makedirs("eval_logs")
+
+
 def fetch_dataset():
     """Fetch the dataset using requests."""
     response = requests.get(DATASET_URL)
@@ -60,11 +73,14 @@ def fetch_dataset():
 def clone_repo_at_commit(repo_url, repo_dir, commit_hash):
     """Clone the repository at the specified commit."""
 
-    # Stash any changes in the existing repo if it exists
+    # # Stash any changes in the existing repo if it exists
+    # if os.path.exists(repo_dir):
+    #     subprocess.run(["git", "stash",], cwd=repo_dir, check=True)
+    #     subprocess.run(["git", "clean", "-f"], cwd=repo_dir, check=True)
+    #     return
+
     if os.path.exists(repo_dir):
-        subprocess.run(["git", "stash",], cwd=repo_dir, check=True)
-        subprocess.run(["git", "clean", "-f"], cwd=repo_dir, check=True)
-        return
+        subprocess.run(["rm", "-rf", repo_dir], check=True)
 
     try:
         if not os.path.exists(repo_dir):
