@@ -5,12 +5,13 @@ import { vscode } from "@/utils/vscode"
 import { AnimatePresence, motion } from "framer-motion"
 import {
 	AlertCircle,
+	Check,
 	CheckCircle,
 	ChevronDown,
 	ChevronUp,
 	Code,
+	Copy,
 	Edit,
-	FileIcon,
 	FileText,
 	FolderTree,
 	HelpCircle,
@@ -18,6 +19,7 @@ import {
 	LoaderPinwheel,
 	MessageCircle,
 	MessageCircleReply,
+	MessageSquare,
 	Play,
 	RefreshCw,
 	Scissors,
@@ -66,6 +68,7 @@ type ToolBlockProps = {
 	children: React.ReactNode
 	tool: ChatTool["tool"]
 	variant: "default" | "primary" | "info" | "accent" | "info" | "success" | "info" | "destructive"
+	actions?: React.ReactNode
 } & ToolAddons
 
 export const ToolBlock: React.FC<ToolBlockProps> = ({
@@ -76,6 +79,7 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 	isSubMsg,
 	approvalState,
 	userFeedback,
+	actions,
 }) => {
 	variant =
 		approvalState === "loading"
@@ -113,20 +117,20 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 				},
 				isSubMsg && "!-mt-5"
 			)}>
-			<div className="flex items-center justify-between mb-2">
-				<div className="flex items-center">
-					<Icon className={cn("w-5 h-5 mr-2", `text-${variant}`)} />
-					<h3 className="text-sm font-semibold">{title}</h3>
+			<div className="flex items-center mb-2">
+				<Icon className={cn("w-5 h-5 mr-2", `text-${variant}`)} />
+				<h3 className="text-sm font-semibold">{title}</h3>
+				<div className="flex items-center gap-2 ml-auto">
+					{actions}
+					{userFeedback ? (
+						<Tooltip>
+							<TooltipTrigger>{stateIcons["feedback"]}</TooltipTrigger>
+							<TooltipContent side="left">The tool got rejected with feedback</TooltipContent>
+						</Tooltip>
+					) : (
+						stateIcons[approvalState]
+					)}
 				</div>
-
-				{userFeedback ? (
-					<Tooltip>
-						<TooltipTrigger>{stateIcons["feedback"]}</TooltipTrigger>
-						<TooltipContent side="left">The tool got rejected with feedback</TooltipContent>
-					</Tooltip>
-				) : (
-					stateIcons[approvalState]
-				)}
 			</div>
 			<div className="text-sm">{children}</div>
 		</div>
@@ -552,6 +556,27 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 			}
 		}
 
+		const actions = <div className="flex gap-1 ml-auto">
+			<button
+				className="p-1 hover:bg-muted rounded-sm"
+				title="Copy"
+				onClick={() => navigator.clipboard.writeText(content)}>
+				<Copy className="h-3 w-3" />
+			</button>
+			<button
+				className="p-1 hover:bg-muted rounded-sm"
+				title="Apply changes"
+				onClick={() => onApprove && onApprove()}>
+				<Check className="h-3 w-3" />
+			</button>
+			<button
+				className="p-1 hover:bg-muted rounded-sm"
+				title="Give feedback"
+				onClick={() => onReject && onReject("I don't like this")}>
+				<MessageSquare className="h-3 w-3" />
+			</button>
+		</div>
+
 		const language = getLanguage(fileExt)
 
 		return (
@@ -560,70 +585,53 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 				ts={ts}
 				tool={tool}
 				icon={Edit}
-				title="Write to File"
-				variant="info"
+				title={
+					<div className="flex items-center w-full">
+						<span className="font-semibold">{path}</span>
+					</div>
+				}
+				actions={actions}
+				variant={approvalState === "approved" ? "success" : "info"}
 				approvalState={approvalState}
 				onApprove={onApprove}
 				onReject={onReject}>
-				<p className="text-xs mb-1">
-					<span className="font-semibold">File:</span> {path}
-				</p>
-				<ScrollArea viewProps={{ ref: scrollAreaRef }} className="h-24 rounded border bg-background p-2">
-					<ScrollBar orientation="vertical" />
-					<ScrollBar orientation="horizontal" />
-					<div className="relative">
-						{isStreaming && (
-							<motion.div
-								className="sticky left-0 top-0 w-full h-1 bg-primary"
-								initial={{ scaleX: 0 }}
-								animate={{ scaleX: 1 }}
-								transition={{
-									repeat: Infinity,
-									duration: 2,
-									ease: "linear",
-								}}
-							/>
-						)}
-						{!isStreaming ? (
-							<Highlight
-								theme={themes.vsDark}
-								code={content?.trim() ?? ''}
-								language={language}>
-								{({ className, style, tokens, getLineProps, getTokenProps }) => (
-									<pre className={`${className} text-xs`} style={style}>
-										{tokens.map((line, i) => (
-											<div key={i} {...getLineProps({ line })}>
-												{line.map((token, key) => (
-													<span key={key} {...getTokenProps({ token })} />
-												))}
-											</div>
-										))}
-									</pre>
-								)}
-							</Highlight>
-						) : (
-							<AnimatePresence>
-								{visibleContent.map((chunk, index) => (
-									<motion.pre
-										key={index}
-										ref={index === visibleContent.length - 1 ? lastChunkRef : null}
-										variants={textVariants}
-										initial="hidden"
-										animate="visible"
-										transition={{ duration: 0.3, delay: index * 0.03 }}
-										className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
-										{index === 0 ? chunk.trim() : chunk}
-									</motion.pre>
-								))}
-							</AnimatePresence>
-						)}
-					</div>
-				</ScrollArea>
-				<div className="mt-2 flex justify-between items-center">
-					<span className="text-xs text-muted-foreground">
-						{isStreaming ? "Streaming..." : `Completed: ${totalLines} lines written`}
-					</span>
-				</div>
+				{!isStreaming ? (
+					<ScrollArea viewProps={{ ref: scrollAreaRef }} className="max-h-96">
+						<ScrollBar orientation="vertical" />
+						<ScrollBar orientation="horizontal" />
+						<Highlight
+							theme={themes.vsDark}
+							code={content}
+							language={language}>
+							{({ className, style, tokens, getLineProps, getTokenProps }) => (
+								<pre className={`${className} text-xs`} style={style}>
+									{tokens.map((line, i) => (
+										<div key={i} {...getLineProps({ line })}>
+											{line.map((token, key) => (
+												<span key={key} {...getTokenProps({ token })} />
+											))}
+										</div>
+									))}
+								</pre>
+							)}
+						</Highlight>
+					</ScrollArea>
+				) : (
+					<AnimatePresence>
+						{visibleContent.map((chunk, index) => (
+							<motion.pre
+								key={index}
+								ref={index === visibleContent.length - 1 ? lastChunkRef : null}
+								variants={textVariants}
+								initial="hidden"
+								animate="visible"
+								transition={{ duration: 0.3, delay: index * 0.03 }}
+								className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
+								{index === 0 ? chunk.trim() : chunk}
+							</motion.pre>
+						))}
+					</AnimatePresence>
+				)}
 			</ToolBlock>
 		)
 	},
