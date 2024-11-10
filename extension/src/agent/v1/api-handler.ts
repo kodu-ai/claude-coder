@@ -189,8 +189,9 @@ ${this.customInstructions.trim()}
 			},
 		]
 
-		const lastWord = previousResponse.split(" ").pop()
-		const isRequringSpace = lastWord?.endsWith(" ") ?? false
+		const nChars = 5
+		// we take the last n characters of the previous response
+		const lastWord = previousResponse.slice(-nChars)
 
 		// Add a continuation prompt
 		updatedHistory.push({
@@ -209,11 +210,7 @@ ${this.customInstructions.trim()}
 				reader.result === "string")
 			
 				The idea is to continue from the last word you were writing without repeating any previous content or starting over.
-				be aware of spacing if you need a space at the beginning of the word please include it (${
-					isRequringSpace
-						? "there is a space at the end of the last word"
-						: "there is no space at the end of the last word"
-				}).
+				be aware of spacing if you need a space at the beginning of the word please include it.
 				for example:
 				<write_to_file>
 				<content> if
