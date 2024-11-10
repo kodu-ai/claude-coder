@@ -13,6 +13,8 @@ import { AskManager } from "./ask-manager"
 import { ChatTool } from "../../../shared/new-tools"
 import { images } from "mammoth"
 import { toolResponseToAIState } from "../../../shared/format-tools"
+import { chunk } from "lodash"
+import { writeToFileTool } from "../tools/schema"
 
 // Constants for buffer management - modified for instant output
 const BUFFER_SIZE_THRESHOLD = 5 // Reduced to 1 character for near-instant output
@@ -490,7 +492,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 						}
 					}
 				},
-				onFinalEndOfStream: async () => {
+				onFinalEndOfStream: async (chunk) => {
 					if (this.isRequestCancelled || this.isAborting) {
 						return
 					}

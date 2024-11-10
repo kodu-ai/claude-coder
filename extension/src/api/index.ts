@@ -27,7 +27,6 @@ export interface ApiHandler {
 	createMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
-		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null,
 		customInstructions?: string,
 		userMemory?: string,

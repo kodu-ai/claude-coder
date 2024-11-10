@@ -234,14 +234,12 @@ export class KoduHandler implements ApiHandler {
 	async *createMessageStream(
 		systemPrompt: string,
 		messages: ApiHistoryItem[],
-		creativeMode?: "normal" | "creative" | "deterministic",
 		abortSignal?: AbortSignal | null,
 		customInstructions?: string,
 		userMemory?: string,
 		environmentDetails?: string
 	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
-		const creativitySettings = temperatures[creativeMode ?? "normal"]
 
 		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = []
 
@@ -305,6 +303,7 @@ export class KoduHandler implements ApiHandler {
 		// Build request body
 		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
 			model: modelId,
+			// max_tokens: 500, // enable this for dedbugging continuous generation
 			max_tokens: this.getModel().info.maxTokens,
 			system,
 			messages: messagesToCache,

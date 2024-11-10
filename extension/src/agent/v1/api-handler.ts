@@ -17,7 +17,7 @@ import { estimateTokenCount, smartTruncation, truncateHalfConversation } from ".
 import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
 import { ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
-
+import * as vscode from "vscode"
 /**
  * Interface for tracking API usage metrics
  */
@@ -171,6 +171,126 @@ ${this.customInstructions.trim()}
 		return (lastV1Message as V1ClaudeMessage)?.apiMetrics || defaultMetrics
 	}
 
+	async *continueGeneration(
+		systemPrompt: string,
+		conversationHistory: Anthropic.MessageParam[],
+		abortSignal: AbortSignal | null | undefined,
+		customInstructions: string | undefined,
+		previousResponse: string
+	): AsyncGenerator<koduSSEResponse> {
+		// toast that we are continuing the generation
+		vscode.window.showInformationMessage(`Reached max tokens, continuing the generation...`)
+		// Create a new conversation history with the partial response
+		const updatedHistory: Anthropic.MessageParam[] = [
+			...conversationHistory,
+			{
+				role: "assistant",
+				content: [{ type: "text", text: previousResponse }],
+			},
+		]
+
+		const lastWord = previousResponse.split(" ").pop()
+		const isRequringSpace = lastWord?.endsWith(" ") ?? false
+
+		// Add a continuation prompt
+		updatedHistory.push({
+			role: "user",
+			content: [
+				{
+					type: "text",
+					text: `
+				You were inturrupted in the middle of your response.
+				if youre in a middle of a tool call, please continue from where you left off don't write the whole tool just continue from the last word.
+				If for example you were cutoff in the middle of a write to file:
+				<write_to_file>
+				<content> if (typeof reader.
+
+				You should pick up from the last word so the continuation would be:
+				reader.result === "string")
+			
+				The idea is to continue from the last word you were writing without repeating any previous content or starting over.
+				be aware of spacing if you need a space at the beginning of the word please include it (${
+					isRequringSpace
+						? "there is a space at the end of the last word"
+						: "there is no space at the end of the last word"
+				}).
+				for example:
+				<write_to_file>
+				<content> if
+
+				the continuation would be:
+				if (result === "string")
+
+				Don't ever write something like this:
+				    <thinking>
+				I was interrupted in the middle of a write_to_file tool call. I was writing the App.tsx content and was cut off at:
+				"return ("
+
+				I'll continue from there, maintaining proper indentation and code structure.
+				</thinking>
+
+				INSTEAD YOU MUST ALWAYS PICK UP FROM THE LAST WORD YOU WERE WRITING DONT WRITE ANYTHING ELSE.
+				SO ALWAYS START AGAIN BY WRITING YOUR LAST WORD THEN CONTINUE WRITING THE REST OF THE RESPONSE.
+
+				Word to pick up from:
+				\`\`\`${lastWord}\`\`\`
+				`,
+				},
+			],
+		})
+
+		// Create a new stream with the updated history
+		const stream = await this.api.createMessageStream(
+			systemPrompt.trim(),
+			updatedHistory,
+			abortSignal,
+			customInstructions
+		)
+
+		let isFirstChunk = false
+
+		// Process the continuation stream
+		for await (const chunk of stream) {
+			if (chunk.code === 1 && chunk.body.anthropic.stop_reason === "max_tokens") {
+				if (isTextBlock(chunk.body.anthropic.content[0])) {
+					// remove the last word if it's identical to the last word we picked up from
+					if (lastWord) {
+						// only replace the first occurance of the last word
+						const findIndex = chunk.body.anthropic.content[0].text.indexOf(lastWord)
+						if (findIndex > -1) {
+							chunk.body.anthropic.content[0].text = chunk.body.anthropic.content[0].text.replace(
+								lastWord,
+								""
+							)
+						}
+					}
+					const partialResponse = chunk.body.anthropic.content[0].text
+					yield* this.continueGeneration(
+						systemPrompt,
+						updatedHistory,
+						abortSignal,
+						customInstructions,
+						partialResponse
+					)
+				}
+
+				// If we hit max tokens again, recursively continue
+				return
+			}
+
+			// content chunk
+			if (chunk.code === 2 && !isFirstChunk) {
+				isFirstChunk = true
+				// if it was the first chunk we need to remove the last word
+				if (lastWord) {
+					chunk.body.text = chunk.body.text.replace(lastWord, "")
+				}
+			}
+
+			yield chunk
+		}
+	}
+
 	/**
 	 * Creates a streaming API request
 	 * @param apiConversationHistory - Conversation history
@@ -187,7 +307,6 @@ ${this.customInstructions.trim()}
 			throw new Error("Provider reference has been garbage collected")
 		}
 		const state = await provider.getStateManager()?.getState()
-		const creativeMode = state?.creativeMode ?? "normal"
 		const technicalBackground = state?.technicalBackground ?? "no-technical"
 		const isImageSupported = koduModels[this.getModelId()].supportsImages
 		const systemPromptVariants = state?.systemPromptVariants || []
@@ -221,16 +340,18 @@ ${this.customInstructions.trim()}
 			const stream = await this.api.createMessageStream(
 				systemPrompt.trim(),
 				apiConversationHistoryCopy,
-				creativeMode,
 				abortSignal,
 				customInstructions
 			)
 
-			return stream
+			return {
+				stream,
+				apiConversationHistoryCopy,
+			}
 		}
 
 		let lastMessageAt = 0
-		const TIMEOUT_MS = 5000 // 5 seconds
+		const TIMEOUT_MS = 30_000 // 30 seconds
 		const checkInactivity = setInterval(() => {
 			const timeSinceLastMessage = Date.now() - lastMessageAt
 			if (lastMessageAt > 0 && timeSinceLastMessage > TIMEOUT_MS) {
@@ -251,17 +372,70 @@ ${this.customInstructions.trim()}
 
 			while (retryAttempt <= MAX_RETRIES) {
 				try {
-					const stream = await executeRequest()
+					const { stream, apiConversationHistoryCopy } = await executeRequest()
 
 					for await (const chunk of stream) {
 						if (chunk.code === 1) {
 							clearInterval(checkInactivity)
+							if (chunk.code === 1 && chunk.body.anthropic.stop_reason === "max_tokens") {
+								if (isTextBlock(chunk.body.anthropic.content[0])) {
+									// Store the original response
+									const originalResponse = chunk.body.anthropic.content[0].text
+
+									// Continue generation
+									const continueStream = this.continueGeneration(
+										systemPrompt.trim(),
+										apiConversationHistoryCopy,
+										abortSignal,
+										customInstructions,
+										chunk.body.anthropic.content[0].text
+									)
+
+									// Create a modified chunk with the merged content
+									let mergedChunk = { ...chunk }
+
+									for await (const continueChunk of continueStream) {
+										if (continueChunk.code === 1) {
+											// Merge the responses when we get the final chunk
+											if (
+												isTextBlock(continueChunk.body.anthropic.content[0]) &&
+												isTextBlock(mergedChunk.body.anthropic.content[0])
+											) {
+												mergedChunk.body.anthropic.content[0].text =
+													originalResponse + continueChunk.body.anthropic.content[0].text
+
+												// Merge usage statistics
+												mergedChunk.body.anthropic.usage = {
+													input_tokens:
+														chunk.body.anthropic.usage.input_tokens +
+														continueChunk.body.anthropic.usage.input_tokens,
+													output_tokens:
+														chunk.body.anthropic.usage.output_tokens +
+														continueChunk.body.anthropic.usage.output_tokens,
+													cache_creation_input_tokens:
+														(chunk.body.anthropic.usage.cache_creation_input_tokens ?? 0) +
+														(continueChunk.body.anthropic.usage
+															.cache_creation_input_tokens ?? 0),
+													cache_read_input_tokens:
+														(chunk.body.anthropic.usage.cache_read_input_tokens ?? 0) +
+														(continueChunk.body.anthropic.usage.cache_read_input_tokens ??
+															0),
+												}
+											}
+											yield* this.processStreamChunk(mergedChunk)
+											return
+										}
+										yield continueChunk
+									}
+								}
+							}
 							yield* this.processStreamChunk(chunk)
-							// will this return return otuside the loop? or outside of the function?
 							return
 						}
 
 						if (chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) {
+							// info tht the prompt is too long
+							vscode.window.showInformationMessage(`Prompt is too long compressing the context...`)
 							// clear the interval
 							clearInterval(checkInactivity)
 							// Compress the context and retry

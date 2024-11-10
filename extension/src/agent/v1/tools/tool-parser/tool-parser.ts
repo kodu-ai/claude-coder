@@ -77,6 +77,10 @@ export class ToolParser {
 		}
 	}
 
+	public currentTool() {
+		return this.currentContext
+	}
+
 	private processNonToolChar(char: string): void {
 		if (char === "<") {
 			this.isInTag = true

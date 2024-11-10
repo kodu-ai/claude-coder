@@ -287,6 +287,10 @@ export class ToolExecutor {
 		)
 	}
 
+	public currentParserTool() {
+		return this.toolParser.currentTool()
+	}
+
 	public isParserInToolTag() {
 		return this.toolParser.isInToolTag
 	}
