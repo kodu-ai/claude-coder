@@ -103,18 +103,32 @@ Usage:
 </read_file>
 
 ## write_to_file
-Description: Request to write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. Always provide the full intended content of the file, without any truncation. This tool will automatically create any directories needed to write the file.
+Description: Request to write content to a file at the specified path. If the file exists, provide a unified diff (udiff) in the 'udiff' parameter representing the changes to be made. If the file doesn't exist, provide the full intended content of the file in the 'content' parameter, without any truncation. This tool will automatically create any directories needed to write the file.
 Parameters:
 - path: (required) The path of the file to write to (relative to the current working directory ${cwd.toPosix()})
-- content: (required) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN.
+- content: (required when creating a new file) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN.
+- udiff: (required when modifying an existing file) The unified diff representing the changes to be made to the existing file.
+
 Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...' if you are writing code to a file, you must provide the complete code, no placeholders, no partial updates, you must write all the code!
 Usage:
+**Creating a new file:**
+
 <write_to_file>
 <path>File path here</path>
 <content>
 Complete file content here
 </content>
 </write_to_file>
+
+**Modifying an existing file:**
+
+<write_to_file>
+<path>File path here</path>
+<udiff>
+Unified diff here
+</udiff>
+</write_to_file>
+
 
 ## search_files
 Description: Request to perform a regex search across files in a specified directory, providing context-rich results. This tool searches for patterns or specific content across multiple files, displaying each match with encapsulating context.
@@ -469,17 +483,50 @@ Key notes:
 
 Write to file critical instructions:
 <write_to_file>
-before writing to a file you should ask yourself the following question in <thinking></thinking> tags:
-Did I read the file before? if not, you should read the file before writing to it.
-Did the user provide the content of the file in the previous messages? if yes, you should not read the file again, you should use the content provided by the user in the write_to_file tool.
-Did i write to the file before? if yes, you should not write to the file again unless the user tells you the content has changed.
-YOU MUST NEVER TRUNCATE THE CONTENT OF A FILE WHEN USING THE write_to_file TOOL.
-ALWAYS PROVIDE THE COMPLETE CONTENT OF THE FILE IN YOUR RESPONSE.
-ALWAYS INCLUDE THE FULL CONTENT OF THE FILE, EVEN IF IT HASN'T BEEN MODIFIED.
-DOING SOMETHING LIKE THIS BREAKS THE TOOL'S FUNCTIONALITY:
-// ... (previous code remains unchanged) or // your implementation here or /* Existing CSS code... */
+Before writing to a file, you should ask yourself the following questions within <thinking></thinking> tags:
+
+- Did I read the file before? If not, you should read the file using the "read_file" tool before writing to it.
+- Did the user provide the content of the file in previous messages? If yes, you should use that content when generating the "udiff" and may not need to read the file again.
+- Did I write to the file before? If yes, ensure you have the latest content from your previous write or consider re-reading the file to confirm.
+
+When modifying an existing file:
+
+- **Always** provide your changes as a unified diff ("udiff") in the "<udiff>" parameter.
+- **Ensure** that the "udiff" is in a format compatible with the "diff" package to guarantee compatibility when applying patches.
+- **Do not** use the "<content>" parameter when modifying existing files.
+- Generate the "udiff" based on the latest content of the file to ensure accuracy.
+- **Never** overwrite the entire file content when only partial changes are needed.
+- **Ensure** your "udiff" is correctly formatted and applies cleanly to the current file content.
+- **Avoid** including placeholders or truncated code in your diffs. The "udiff" should precisely represent your intended changes.
+
+When creating a new file:
+
+- Provide the complete content of the file in the "<content>" parameter.
+- **Always** include the full content of the new file without omissions.
+
+**Important Note:**
+
+- When generating the "udiff", make sure it is compatible with the "diff" package used to apply the patches. This means using the standard unified diff format, including correct headers and context lines.
+
+Examples of incorrect usage that break the tool's functionality:
+
+- Providing incomplete diffs or diffs that cannot be applied due to incorrect formatting.
+- Using placeholders like "// ... (previous code remains unchanged)", "// your implementation here", or "/* Existing CSS code... */" in your diffs or content.
+- Overwriting an existing file entirely when only partial changes are intended.
+
+Summary:
+
+- **Always** read the file before modifying it, unless you are certain you have the latest content.
+- **Always** generate and provide accurate 'udiffs' when modifying existing files.
+- **Ensure** the "udiff" is compatible with the "diff" package to prevent any compatibility issues.
+- **Always** provide the complete content when creating new files.
+- **Do not** truncate or partially update files without using "udiff".
+- **Do not** include placeholders or omit critical parts of the code.
+
 </write_to_file>
 </critical_context>
+
+
 `
 
 export function addCustomInstructions(customInstructions: string): string {

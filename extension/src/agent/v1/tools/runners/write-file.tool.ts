@@ -1,4 +1,5 @@
 import * as path from "path"
+import { applyPatch } from "diff"
 import { DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
 import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
 import { fileExistsAtPath } from "../../../../utils/path-helpers"
@@ -6,6 +7,7 @@ import { ToolResponse } from "../../types"
 import { formatToolResponse, getCwd, getReadablePath } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../types"
+import fs from "fs"
 
 /**
  * Detects potential AI-generated code omissions in the given file content.
@@ -183,27 +185,54 @@ export class WriteFileTool extends BaseAgentTool {
 
 	private async processFileWrite() {
 		try {
-			const { path: relPath, content } = this.params.input
+			const { path: relPath, content, udiff } = this.params.input
 
-			if (!relPath || !content) {
-				throw new Error("Missing required parameters 'path' or 'content'")
+			if (!relPath) {
+				throw new Error("Missing required parameter 'path'")
 			}
-			// switch to final state asap
+
+			// Switch to final state ASAP
 			this.isProcessingFinalContent = true
 
+			const absolutePath = path.resolve(getCwd(), relPath)
+			const fileExists = await this.checkFileExists(relPath)
+
+			let newContent: string
+
+			if (fileExists) {
+				if (!udiff) {
+					throw new Error("File exists, but 'udiff' parameter is missing")
+				}
+
+				// Read existing file content
+				const originalContent = await fs.promises.readFile(absolutePath, "utf-8")
+
+				// Apply the diff
+				const patchedContent = applyPatch(originalContent, udiff)
+				if (patchedContent === false) {
+					throw new Error("Failed to apply the diff")
+				}
+				newContent = patchedContent
+			} else {
+				if (!content) {
+					throw new Error("File does not exist, but 'content' parameter is missing")
+				}
+				newContent = content
+			}
+
 			// Show changes in diff view
-			await this.showChangesInDiffView(relPath, content)
+			await this.showChangesInDiffView(relPath, newContent)
 
 			const { response, text, images } = await this.params.ask(
 				"tool",
 				{
 					tool: {
 						tool: "write_to_file",
-						content: content,
+						content: newContent,
 						approvalState: "pending",
 						path: relPath,
-						ts: this.ts,
-					},
+						ts: this.ts
+					}
 				},
 				this.ts
 			)
@@ -214,7 +243,7 @@ export class WriteFileTool extends BaseAgentTool {
 					{
 						tool: {
 							tool: "write_to_file",
-							content: content,
+							content: newContent,
 							approvalState: "rejected",
 							path: relPath,
 							ts: this.ts,
@@ -239,7 +268,6 @@ export class WriteFileTool extends BaseAgentTool {
 			}
 
 			// Save changes and handle user edits
-			const fileExists = await this.checkFileExists(relPath)
 			const { userEdits, finalContent } = await this.diffViewProvider.saveChanges()
 			this.koduDev.getStateManager().addErrorPath(relPath)
 
@@ -249,7 +277,7 @@ export class WriteFileTool extends BaseAgentTool {
 				{
 					tool: {
 						tool: "write_to_file",
-						content: content,
+						content: newContent,
 						approvalState: "approved",
 						path: relPath,
 						ts: this.ts,
@@ -281,7 +309,7 @@ export class WriteFileTool extends BaseAgentTool {
 			// )
 
 			let toolMsg = `The content was successfully saved to ${relPath.toPosix()}. Do not read the file again unless you forgot the content.`
-			if (detectCodeOmission(content, finalContent)) {
+			if (detectCodeOmission(content || "", finalContent)) {
 				console.log(`Truncated content detected in ${relPath} at ${this.ts}`)
 				toolMsg = `The content was successfully saved to ${relPath.toPosix()}, but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.
 				You dont need to read the file again as the content has been updated to your previous tool request content.
