@@ -45,18 +45,35 @@ Usage:
 </read_file>
 
 ## write_to_file
-Description: Request to write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. Always provide the full intended content of the file, without any truncation. This tool will automatically create any directories needed to write the file.
+Description: Request to write content to a file at the specified path. If the file exists, provide a unified diff (udiff) in the <udiff> parameter representing the changes to be made. If the file doesn't exist, provide the full intended content of the file in the 'content' parameter, without any truncation. This tool will automatically create any directories needed to write the file.
 Parameters:
 - path: (required) The path of the file to write to (relative to the current working directory ${cwd.toPosix()})
-- content: (required) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN.
-Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...' if you are writing code to a file, you must provide the complete code, no placeholders, no partial updates, you must write all the code!
+- content: (required when creating a new file) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN.
+- udiff: (required when modifying an existing file) The unified diff representing the changes to be made to the existing file.
+
+Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...' if you are writing code to a new file, you must provide the complete code, no placeholders, no partial updates, you must write all the code! In case it's an update to a file **MUST** include the <diff> parameter and not include the <content> parameter.
+###IMPORTANT##:
+When modifying an existing file, **NEVER** include the <content> parameter. Instead, provide the unified diff representing the changes to be made to the existing file.
+
 Usage:
+***Creating a new file:***
+
 <write_to_file>
 <path>File path here</path>
 <content>
 Complete file content here
 </content>
 </write_to_file>
+
+***Modifying an existing file:***
+
+<write_to_file>
+<path>File path here</path>
+<udiff>
+Unified diff here
+</udiff>
+</write_to_file>
+
 
 ## search_files
 Description: Request to perform a regex search across files in a specified directory, providing context-rich results. This tool searches for patterns or specific content across multiple files, displaying each match with encapsulating context.

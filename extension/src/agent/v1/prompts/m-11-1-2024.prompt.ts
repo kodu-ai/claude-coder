@@ -144,6 +144,7 @@ Self reflect when encountering errors, think about what went wrong, what errors 
 Example of Q/A in thinking tags:
 - Did I read the file before writing to it? (yes/no)
 - Did I write to the file before? (yes/no)
+- Do I need to generate a udiff for my changes ? (yes the file is not a new file/no the file is a new file)
 - Did the user provide the content of the file? (yes/no)
 - Do I have the last content of the file either from the user or from a previous read_file tool use or from write_to_file tool? Yes write_to_file | Yes read_file | Yes user provided | No, I don't have the last content of the file
 - What is the current step? (e.g., I need to read the file to understand its content)
@@ -237,15 +238,47 @@ Key notes:
 
 Write to file critical instructions:
 <write_to_file>
-before writing to a file you should ask yourself the following question in <thinking></thinking> tags:
-Did I read the file before? if not, you should read the file before writing to it.
-Did the user provide the content of the file in the previous messages? if yes, you should not read the file again, you should use the content provided by the user in the write_to_file tool.
-Did i write to the file before? if yes, you should not write to the file again unless the user tells you the content has changed.
-YOU MUST NEVER TRUNCATE THE CONTENT OF A FILE WHEN USING THE write_to_file TOOL.
-ALWAYS PROVIDE THE COMPLETE CONTENT OF THE FILE IN YOUR RESPONSE.
-ALWAYS INCLUDE THE FULL CONTENT OF THE FILE, EVEN IF IT HASN'T BEEN MODIFIED.
-DOING SOMETHING LIKE THIS BREAKS THE TOOL'S FUNCTIONALITY:
-// ... (previous code remains unchanged) or // your implementation here or /* Existing CSS code... */
+Before writing to a file, you should ask yourself the following questions within <thinking></thinking> tags:
+
+- Did I read the file before? If not, you should read the file using the "read_file" tool before writing to it.
+- Did the user provide the content of the file in previous messages? If yes, you should use that content when generating the "udiff" and may not need to read the file again.
+- Did I write to the file before? If yes, ensure you have the latest content from your previous write or consider re-reading the file to confirm.
+
+When modifying an existing file:
+
+- **Always** provide your changes as a unified diff ("udiff") in the "<udiff>" parameter.
+- **Ensure** that the "udiff" is in a format compatible with the "diff" package to guarantee compatibility when applying patches.
+- **Do not** use the "<content>" parameter when modifying existing files.
+- Generate the "udiff" based on the latest content of the file to ensure accuracy.
+- **Never** overwrite the entire file content when only partial changes are needed.
+- **Ensure** your "udiff" is correctly formatted and applies cleanly to the current file content.
+- **Avoid** including placeholders or truncated code in your diffs. The "udiff" should precisely represent your intended changes.
+
+When creating a new file:
+
+- Provide the complete content of the file in the "<content>" parameter.
+- **Always** include the full content of the new file without omissions.
+
+**Important Note:**
+
+- When answering the question 
+- When generating the "udiff", make sure it is compatible with the "diff" package used to apply the patches. This means using the standard unified diff format, including correct headers and context lines.
+
+Examples of incorrect usage that break the tool's functionality:
+
+- Providing incomplete diffs or diffs that cannot be applied due to incorrect formatting.
+- Using placeholders like "// ... (previous code remains unchanged)", "// your implementation here", or "/* Existing CSS code... */" in your diffs or content.
+- Overwriting an existing file entirely when only partial changes are intended.
+
+Summary:
+
+- **Always** read the file before modifying it, unless you are certain you have the latest content.
+- **Always** generate and provide accurate 'udiffs' when modifying existing files.
+- **Ensure** the "udiff" is compatible with the "diff" package to prevent any compatibility issues.
+- **Always** provide the complete content when creating new files.
+- **Do not** truncate or partially update files without using "udiff".
+- **Do not** include placeholders or omit critical parts of the code.
+
 </write_to_file>
 </critical_context>
 `
@@ -281,6 +314,45 @@ You should never truncate the content of a file, always return the complete cont
 - What is the file path relative to my current path current path: ${getCwd()}?
 - what are the current ERRORS in the file that I should be aware of?
 - is the project on /frontend/[...path] or something like this ? if so remember to use the correct path ${getCwd()}/frontend/[...path]
+
+# WRITE_TO_FILE (CRITICAL GUIDANCE FOR GENERATING UDIFF):
+Accurately generating <udiff> parameter when using the write_to_file tool is crucial to avoid errors and apply modifications correctly. Follow these structured steps:
+
+## Step-by-Step Checklist for Generating <udiff> parameter
+
+1. **Read the File (if Necessary)**:
+   - Did you read the file before writing to it? If not, use the read_file tool first to obtain the latest content, unless you already have it from previous steps or user input.
+   - Avoid unnecessary re-reads; only read again if the content is missing or changed.
+
+2. **Confirm the Latest Content**:
+   - Ensure you have the last content from either a previous read_file operation, user input, or a recent write_to_file tool call.
+
+3. **Avoid Placeholders**:
+   - Do **NOT** use placeholders such as '// ...' or comments like '// your implementation here'. The <udiff> parameter must reflect the actual and complete intended changes.
+
+4. **Ensure Correct <udiff> parameter Structure**:
+   - **Headers**: Include lines indicating the original and new state of the file, such as '--- a/file.js' and '+++ b/file.js'.
+   - **Context Lines**: Provide 2-3 lines of context above and below the change to maintain clarity and allow proper patching.
+   - **No Isolated Changes**: Do not create diffs that modify lines without surrounding context unless absolutely necessary.
+
+### Example of a Correct <udiff> parameter:
+Assuming you modify a line in 'src/example.js':
+
+--- a/src/example.js +++ b/src/example.js @@ -10,7 +10,7 @@ function exampleFunction() { const result = calculateResult();
+
+const x = 42;
+const x = 100; // Modified value for testing return x; }
+markdown
+Copy code
+
+### Common Issues to Avoid:
+- **Partial or Isolated Diffs**: Always include relevant context to ensure that changes are properly understood and applied.
+- **Repeated File Reads**: Do not re-read files unnecessarily. Use the content you already have unless changes occur.
+- **Missing Headers**: Always begin with '---' and '+++' lines that indicate the file's original and new state paths.
+- **Redundant Tool Calls**: Minimize unnecessary read_file and write_to_file operations to avoid errors and inefficiencies.
+
+This approach ensures accurate <udiff> parameter creation, minimizes mistakes, and prevents partial updates or unnecessary modifications.
+
 
 # IMPORTANT LINTING/ERRORS RULES:
 Only address critical errors, ignore non-critical linting errors like warning or eslint basic errors like missing semicolon, var is not allowed, any is not allowed, etc...
