@@ -49,7 +49,8 @@ export type ReadFileTool = {
 export type WriteToFileTool = {
 	tool: "write_to_file"
 	path: string
-	content: string
+	content?: string
+	udiff?: string
 }
 
 export type AskFollowupQuestionTool = {
