@@ -2,7 +2,6 @@
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { vscode } from "@/utils/vscode"
-import { AnimatePresence, motion } from "framer-motion"
 import {
 	AlertCircle,
 	Check,
@@ -509,7 +508,7 @@ const textVariants = {
 }
 
 export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
-	({ path, content, approvalState, onApprove, onReject, tool, ts, ...rest }) => {
+	({ path = '', content, approvalState, onApprove, onReject, tool, ts, ...rest }) => {
 		content = content ?? ""
 		const [visibleContent, setVisibleContent] = useState<string[]>([])
 		const [totalLines, setTotalLines] = useState(0)
@@ -534,7 +533,7 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 		}, [content, isStreaming])
 
 		// Get file extension to determine icon
-		const fileExt = path.split('.').pop()?.toLowerCase() || ''
+		const fileExt = path?.split('.')?.pop()?.toLowerCase() || ''
 		const getLanguage = (fileExt: string) => {
 			switch (fileExt) {
 				case 'js':
@@ -595,43 +594,26 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 				approvalState={approvalState}
 				onApprove={onApprove}
 				onReject={onReject}>
-				{!isStreaming ? (
-					<ScrollArea viewProps={{ ref: scrollAreaRef }} className="max-h-96">
-						<ScrollBar orientation="vertical" />
-						<ScrollBar orientation="horizontal" />
-						<Highlight
-							theme={themes.vsDark}
-							code={content}
-							language={language}>
-							{({ className, style, tokens, getLineProps, getTokenProps }) => (
-								<pre className={`${className} text-xs`} style={style}>
-									{tokens.map((line, i) => (
-										<div key={i} {...getLineProps({ line })}>
-											{line.map((token, key) => (
-												<span key={key} {...getTokenProps({ token })} />
-											))}
-										</div>
-									))}
-								</pre>
-							)}
-						</Highlight>
-					</ScrollArea>
-				) : (
-					<AnimatePresence>
-						{visibleContent.map((chunk, index) => (
-							<motion.pre
-								key={index}
-								ref={index === visibleContent.length - 1 ? lastChunkRef : null}
-								variants={textVariants}
-								initial="hidden"
-								animate="visible"
-								transition={{ duration: 0.3, delay: index * 0.03 }}
-								className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
-								{index === 0 ? chunk.trim() : chunk}
-							</motion.pre>
-						))}
-					</AnimatePresence>
-				)}
+				<ScrollArea className="max-h-96 w-full">
+					<Highlight
+						theme={themes.vsDark}
+						code={content}
+						language={language}>
+						{({ className, style, tokens, getLineProps, getTokenProps }) => (
+							<pre className={`${className} text-xs`} style={style}>
+								{tokens.map((line, i) => (
+									<div key={i} {...getLineProps({ line })}>
+										{line.map((token, key) => (
+											<span key={key} {...getTokenProps({ token })} />
+										))}
+									</div>
+								))}
+							</pre>
+						)}
+					</Highlight>
+					<ScrollBar orientation="vertical" />
+					<ScrollBar orientation="horizontal" />
+				</ScrollArea>
 			</ToolBlock>
 		)
 	},
