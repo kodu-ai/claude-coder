@@ -99,6 +99,121 @@ export class KoduHandler implements ApiHandler {
 		}
 	}
 
+	async fixUdiff(udiff: string, fileContent: string, relPath: string): Promise<string> {
+		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
+			model: "claude-3-5-haiku-20241022",
+			max_tokens: 8000,
+			temperature: 0.1,
+			top_p: 0.9,
+			system: [
+				{
+					type: "text",
+					text: `You're an expert software coder, who specializes in fixing code especially udiffs. You're tasked with fixing a udiff for a file.
+				The user will provide you with the original file content and the udiff to fix. Your job is to fix the udiff and provide the fixed udiff content.
+				You must only return the fixed udiff content. no other information is needed.
+				`,
+				},
+			],
+			messages: [
+				{
+					role: "user",
+					content: [
+						{
+							type: "text",
+							text: `Here is the original file content: <file>
+							<relPath>${relPath}</relPath>
+							<content>${fileContent}</content>
+							</file>`,
+						},
+						{
+							type: "text",
+							text: `here is the udiff to check and fix: <udiff>${udiff}</udiff>`,
+						},
+						{
+							type: "text",
+							text: "Please check the udiff and output the fixed udiff content make sure to have the correct line numbers and content",
+						},
+					],
+				},
+			],
+		}
+		const response = await axios.post(
+			getKoduInferenceUrl(),
+			{
+				...requestBody,
+				temperature: 0.1,
+				top_p: 0.9,
+			},
+			{
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
+				},
+				responseType: "stream",
+				timeout: 60_000,
+			}
+		)
+
+		if (response.status !== 200) {
+			if (response.status in koduErrorMessages) {
+				throw new KoduError({
+					code: response.status as keyof typeof koduErrorMessages,
+				})
+			}
+			throw new KoduError({
+				code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT,
+			})
+		}
+
+		let finalContent = ""
+		if (response.data) {
+			const reader = response.data
+			const decoder = new TextDecoder("utf-8")
+			let finalResponse: Extract<koduSSEResponse, { code: 1 }> | null = null
+			let partialResponse: Extract<koduSSEResponse, { code: 2 }> | null = null
+			let buffer = ""
+
+			for await (const chunk of reader) {
+				buffer += decoder.decode(chunk, { stream: true })
+				const lines = buffer.split("\n\n")
+				buffer = lines.pop() || ""
+				for (const line of lines) {
+					if (line.startsWith("data: ")) {
+						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
+						if (eventData.code === 2) {
+							// -> Happens to the current message
+							// We have a partial response, so we need to add it to the message shown to the user and refresh the UI
+						}
+						if (eventData.code === 0) {
+						} else if (eventData.code === 1) {
+							finalContent =
+								eventData.body.anthropic.content[0].type === "text"
+									? eventData.body.anthropic.content[0].text
+									: ""
+							finalResponse = eventData
+						} else if (eventData.code === -1) {
+							console.error("Network / API ERROR")
+							// we should yield the error and not throw it
+						}
+						console.log("eventData", eventData.body)
+					}
+				}
+
+				if (finalResponse) {
+					break
+				}
+			}
+
+			if (!finalResponse) {
+				throw new KoduError({
+					code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT,
+				})
+			}
+		}
+
+		return finalContent
+	}
+
 	async *createBaseMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],

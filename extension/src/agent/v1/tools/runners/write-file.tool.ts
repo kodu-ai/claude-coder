@@ -206,9 +206,14 @@ export class WriteFileTool extends BaseAgentTool {
 
 				// Read existing file content
 				const originalContent = await fs.promises.readFile(absolutePath, "utf-8")
+				const fixedUdiff = await this.sescondPass(originalContent)
+				console.log(`udiff: ${udiff}`)
+				console.log("fixedUdiff", fixedUdiff)
 
 				// Apply the diff
-				const patchedContent = applyPatch(originalContent, udiff)
+				const patchedContent = applyPatch(originalContent, fixedUdiff, {
+					fuzzFactor: 3,
+				})
 				if (patchedContent === false) {
 					throw new Error("Failed to apply the diff")
 				}
@@ -231,8 +236,8 @@ export class WriteFileTool extends BaseAgentTool {
 						content: newContent,
 						approvalState: "pending",
 						path: relPath,
-						ts: this.ts
-					}
+						ts: this.ts,
+					},
 				},
 				this.ts
 			)
@@ -355,6 +360,13 @@ export class WriteFileTool extends BaseAgentTool {
 		}
 
 		await this.diffViewProvider.update(content, true)
+	}
+
+	private async sescondPass(originalContent: string) {
+		// run a second pass of the udiff and then create a finalized udiff with the perfect content.
+		return await this.koduDev
+			.getApiManager()
+			.fixUdiff(this.paramsInput.udiff!, originalContent, this.paramsInput.path!)
 	}
 
 	private async checkFileExists(relPath: string): Promise<boolean> {
