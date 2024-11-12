@@ -365,12 +365,19 @@ RULES
 - don't assume you have the latest documentation of packages, some stuff have changed or added since your training, if the user provides a link to the documentation, you must use the link to get the latest documentation.
   * also, if you need api docs for a package, you can use the web_search tool to search for the package api docs, but you must provide a very clear search query to get the correct api docs (e.g. "next14 server component docs", e.g "openai chatgpt 4 api docs", etc.)
 - Before writing to a file you must first write inside thinking tags the following questions and answers:
-  - Is this a new file? (yes/no)
-  - Did i read the file before writing to it? (yes/no)
-  - Did i write to the file before? (yes/no)
+  - Did I read the file before writing to it? (yes/no)
+  - Did I write to the file before? (yes/no)
   - Did the user provide the content of the file? (yes/no)
-  - Do i have the last content of the file either from the user or from a previous read_file tool use or from write_to_file tool? Yes write_to_file | Yes read_file | Yes user provided | No i don't have the last content of the file
-  - Do I need to generate a udiff for my changes ? (yes the file is not a new file/no the file is a new file)
+  - Do I have the latest content of the file from any of these sources?
+    - Previous write_to_file operation
+    - Previous read_file operation
+    - User-provided content
+    - No, I don't have the latest content
+  - Do I need to generate a udiff? (yes/no)
+  - Ask yourself the question: "Do I really need to read the file again?".		
+  - What is the target file path relative to the current working directory: ${getCwd()}?
+  - What are the current ERRORS in the file that I should be aware of?
+  - Is the project on /frontend/[...path] or something like this ? If so, remember to use the correct path ${getCwd()}/frontend/[...path]
 
   ====
 
@@ -411,7 +418,11 @@ Example of Q/A in thinking tags:
 - Did I read the file before writing to it? (yes/no)
 - Did I write to the file before? (yes/no)
 - Did the user provide the content of the file? (yes/no)
-- Do I have the last content of the file either from the user or from a previous read_file tool use or from write_to_file tool? Yes write_to_file | Yes read_file | Yes user provided | No, I don't have the last content of the file
+- Do I have the latest content of the file from any of these sources?
+  - Previous write_to_file operation
+  - Previous read_file operation
+  - User-provided content
+  - No, I don't have the latest content
 - What is the current step? (e.g., I need to read the file to understand its content)
 - What is the next step? (e.g., I will write the updated content to the file)
 - What information do I need to proceed? (e.g., I need the updated content of the file from the user)
@@ -506,9 +517,9 @@ Write to file critical instructions:
 <write_to_file>
 Before writing to a file, you should ask yourself the following questions within <thinking></thinking> tags:
 
-- Did I read the file before? If not, you should read the file using the "read_file" tool before writing to it.
-- Did the user provide the content of the file in previous messages? If yes, you should use that content when generating the "udiff" and may not need to read the file again.
-- Did I write to the file before? If yes, ensure you have the latest content from your previous write or consider re-reading the file to confirm.
+- Did I read the file before writing to it? If not, you should read the file using the "read_file" tool before writing to it. (yes/no)
+- Did the user provide the content of the file in previous messages? If yes, you should use that content when generating the "udiff" and may not need to read the file again. (yes/no)
+- Did I write to the file before? If yes, ensure you have the latest content from your previous write or consider re-reading the file to confirm. (yes/no)
 
 When modifying an existing file:
 
@@ -581,9 +592,10 @@ export const criticalMsg = `
 # RUNNING A SERVER:
 If you want to run a server, you must use the server_runner_tool tool, do not use the execute_command tool to start a server.
 
-# WRITE_TO_FILE (CRITICAL YOU MUST NEVER INST):
-You shouldn't never call read_file again, unless you don't have the content of the file in the conversation history, if you called write_to_file, the content you sent in <write_to_file> is the latest, you should never call read_file again unless the content is gone from the conversation history.
-You should never truncate the content of a file, when writing a new file, always return the complete content of the file in your, even if you didn't modify it (unless the file exists, then you must return only the udiffs).
+# WRITE_TO_FILE (CRITICAL INSTRUCTIONS):
+You should never call read_file again, unless you don't have the content of the file in the conversation history, if you called write_to_file, the content you sent in <write_to_file> is the latest, you should never call read_file again unless the content is gone from the conversation history.
+When writing to a new file, you should never truncate the content, always return the complete content of the file.
+If the file exists, you should always return the udiff of the changes you made to the file.
 ## Before writing to a file you must first write the following questions and answers:
 - Did i read the file before writing to it? (yes/no)
 - Did i write to the file before? (yes/no)
@@ -591,9 +603,9 @@ You should never truncate the content of a file, when writing a new file, always
 - Do i have the last content of the file either from the user or from a previous read_file tool use or from write_to_file tool? Yes write_to_file | Yes read_file | Yes user provided | No i don't have the last content of the file
 - Do I need to generate a udiff? (yes/no)
 - ask yourself the question: "Do I really need to read the file again?".		
-- What is the file path relative to my current path current path: ${getCwd()}?
+- What is the target file path relative to the current working directory: ${getCwd()}?
 - what are the current ERRORS in the file that I should be aware of?
-- is the project on /frontend/[...path] or something like this ? if so remember to use the correct path ${getCwd()}/frontend/[...path]
+- Is the target file within a frontend directory structure (e.g., /frontend/*)?" If so remember to use the correct path ${getCwd()}/frontend/[...path]
 
 # WRITE_TO_FILE (CRITICAL GUIDANCE FOR GENERATING UDIFF):
 Accurately generating <udiff> parameter when using the write_to_file tool is crucial to avoid errors and apply modifications correctly. Follow these structured steps:
