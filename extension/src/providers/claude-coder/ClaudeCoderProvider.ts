@@ -30,12 +30,12 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 
 	constructor(readonly context: vscode.ExtensionContext, private readonly outputChannel: vscode.OutputChannel) {
 		this.outputChannel.appendLine("ExtensionProvider instantiated")
-		this.globalStateManager = new GlobalStateManager(context)
-		this.secretStateManager = new SecretStateManager(context)
+		this.globalStateManager = GlobalStateManager.getInstance(context)
+		this.secretStateManager = SecretStateManager.getInstance(context)
 		this.stateManager = new StateManager(this)
+		this.taskManager = TaskManager.getInstance(this)
+		this.apiManager = ApiManager.getInstance(this)
 		this.webviewManager = new WebviewManager(this)
-		this.taskManager = new TaskManager(this)
-		this.apiManager = new ApiManager(this)
 	}
 
 	async dispose() {

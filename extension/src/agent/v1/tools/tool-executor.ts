@@ -175,7 +175,7 @@ export class ToolExecutor {
 
 	public async waitForToolProcessing(): Promise<void> {
 		// use pwaitfor to wait for the queue to be idle
-		await pWaitFor(() => this.queue.size === 0 && this.queue.pending === 0, { interval: 10 })
+		await pWaitFor(() => this.queue.size === 0 && this.queue.pending === 0, { interval: 50 })
 	}
 
 	private async handleToolUpdate(id: string, toolName: string, params: any, ts: number): Promise<void> {

@@ -318,6 +318,10 @@ export class WebviewManager {
 					case "openExternalLink":
 						vscode.env.openExternal(vscode.Uri.parse(message.url))
 						break
+					case "isContinueGenerationEnabled":
+						await this.provider.getStateManager().setIsContinueGenerationEnabled(message.bool)
+						await this.postStateToWebview()
+						break
 					case "amplitude":
 						AmplitudeWebviewManager.handleMessage(message)
 						break

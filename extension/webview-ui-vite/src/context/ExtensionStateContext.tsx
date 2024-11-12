@@ -69,6 +69,9 @@ activeSystemPromptVariantIdAtom.debugLabel = "activeSystemPromptVariantId"
 const lastShownAnnouncementIdAtom = atom<string | undefined>(undefined)
 lastShownAnnouncementIdAtom.debugLabel = "lastShownAnnouncementId"
 
+const isContinueGenerationEnabledAtom = atom(false)
+isContinueGenerationEnabledAtom.debugLabel = "isContinueGenerationEnabled"
+
 const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	const currentTaskId = get(currentTaskIdAtom)
 	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
@@ -80,6 +83,7 @@ export const extensionStateAtom = atom((get) => ({
 	claudeMessages: get(claudeMessagesAtom),
 	lastShownAnnouncementId: get(lastShownAnnouncementIdAtom),
 	taskHistory: get(taskHistoryAtom),
+	isContinueGenerationEnabled: get(isContinueGenerationEnabledAtom),
 	currentContextWindow: get(currentContextWindowAtom),
 	useUdiff: get(useUdiffAtom),
 	autoSummarize: get(autoSummarizeAtom),
@@ -131,6 +135,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
 	const setShouldShowKoduPromo = useSetAtom(shouldShowKoduPromoAtom)
 	const setApiConfiguration = useSetAtom(apiConfigurationAtom)
+	const setIsContinueGenerationEnabled = useSetAtom(isContinueGenerationEnabledAtom)
 	const setMaxRequestsPerTask = useSetAtom(maxRequestsPerTaskAtom)
 	const setCustomInstructions = useSetAtom(customInstructionsAtom)
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
@@ -172,6 +177,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)
 			setShouldShowKoduPromo(message.state.shouldShowKoduPromo)
 			setCurrentContextTokens(message.state.currentContextTokens)
+			setIsContinueGenerationEnabled(!!message.state.isContinueGenerationEnabled)
 			setApiConfiguration(message.state.apiConfiguration)
 			setActiveSystemPromptVariantId(message.state.activeSystemPromptVariantId)
 			setMaxRequestsPerTask(message.state.maxRequestsPerTask)
@@ -229,7 +235,7 @@ export const useExtensionState = () => {
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 	const setSystemPromptVariants = useSetAtom(systemPromptVariantsAtom)
-
+	const setIsContinueGenerationEnabled = useSetAtom(isContinueGenerationEnabledAtom)
 	return {
 		...state,
 		setApiConfiguration,
@@ -238,6 +244,7 @@ export const useExtensionState = () => {
 		setMaxRequestsPerTask,
 		setSkipWriteAnimation,
 		setUseUdiff,
+		setIsContinueGenerationEnabled,
 		setAutoCloseTerminal,
 		setCustomInstructions,
 		setAlwaysAllowWriteOnly,

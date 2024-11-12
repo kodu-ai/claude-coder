@@ -100,6 +100,7 @@ export interface ExtensionState {
 	skipWriteAnimation?: boolean
 	autoSummarize?: boolean
 	customInstructions?: string
+	isContinueGenerationEnabled?: boolean
 	alwaysAllowReadOnly?: boolean
 	technicalBackground?: "no-technical" | "technical" | "developer"
 	useUdiff?: boolean
