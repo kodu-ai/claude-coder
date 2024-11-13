@@ -101,7 +101,7 @@ export class KoduHandler implements ApiHandler {
 
 	async fixUdiff(udiff: string, fileContent: string, relPath: string): Promise<string> {
 		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
-			model: "claude-3-5-haiku-20241022",
+			model: "claude-3-5-sonnet-20240620",
 			max_tokens: 8000,
 			temperature: 0.1,
 			top_p: 0.9,
@@ -111,6 +111,32 @@ export class KoduHandler implements ApiHandler {
 					text: `You're an expert software coder, who specializes in fixing code especially udiffs. You're tasked with fixing a udiff for a file.
 				The user will provide you with the original file content and the udiff to fix. Your job is to fix the udiff and provide the fixed udiff content.
 				You must only return the fixed udiff content. no other information is needed.
+				**PAY attention to the comment and the spacing between the comment and what it's commenting of the file.**
+				**ALWAYS** put the comments on top of desired change.
+				**ALWAYS** include preexisting comments with correct changes.
+				**ALWAYS** Make sure when doing applypatch of the changes with the original file, it will keep correct position.
+				**ALWAYS** Include header.
+				**REMEMBER** Header lines looks like this --- a/filename for the original state and +++ b/filename for the new state.
+				**RETURN** Only the fixed udiff content.
+				**NEVER** Add more content to the response more then the fixed udiff content
+			
+
+				#Example:
+				Original file content:
+				public class a {
+					def a() {}
+				}
+				Udiff:
+				@ -0,3 +1,4 @@ public class a {
+					// Added a new method
+					def b() {}
+				
+
+				Fixed udiff Response:
+				@ -0,3 +0,3 @@ public class a {
+					// Added a new method
+					def b() {}
+				
 				`,
 				},
 			],

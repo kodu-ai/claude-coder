@@ -1,5 +1,5 @@
 import * as path from "path"
-import { applyPatch } from "diff"
+import { applyPatch, parsePatch } from "diff"
 import { DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
 import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
 import { fileExistsAtPath } from "../../../../utils/path-helpers"
@@ -125,6 +125,15 @@ function detectCodeOmission(
 	}
 }
 
+
+interface DiffHunk {
+    originalStart: number;
+    originalCount: number;
+    newStart: number;
+    newCount: number;
+    lines: string[];
+}
+
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
 	public diffViewProvider: DiffViewProvider
@@ -183,6 +192,118 @@ export class WriteFileTool extends BaseAgentTool {
 		this.lastUpdateTime = currentTime
 	}
 
+	private parseUnifiedDiff(diff: string): DiffHunk[] {
+		const diffLines = diff.split('\n');
+		const hunks: DiffHunk[] = [];
+		let i = 0;
+	
+		while (i < diffLines.length) {
+			const line = diffLines[i];
+	
+			if (line.startsWith('@@')) {
+				const hunkHeaderRegex = /@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
+				const match = line.match(hunkHeaderRegex);
+	
+				if (match) {
+					const originalStart = parseInt(match[1], 10) - 1;
+					const originalCount = match[2] ? parseInt(match[2], 10) : 1;
+					const newStart = parseInt(match[3], 10) - 1;
+					const newCount = match[4] ? parseInt(match[4], 10) : 1;
+	
+					i++; // Move to the next line after the hunk header
+					const hunkLines: string[] = [];
+	
+					while (
+						i < diffLines.length &&
+						!diffLines[i].startsWith('@@') &&
+						!diffLines[i].startsWith('---') &&
+						!diffLines[i].startsWith('+++')
+					) {
+						hunkLines.push(diffLines[i]);
+						i++;
+					}
+	
+					hunks.push({
+						originalStart,
+						originalCount,
+						newStart,
+						newCount,
+						lines: hunkLines,
+					});
+				} else {
+					throw new Error(`Invalid hunk header at line ${i + 1}`);
+				}
+			} else {
+				i++;
+			}
+		}
+	
+		return hunks;
+	}
+
+	private applyUnifiedDiff(original: string, diff: string): string {
+		const originalLines = original.split('\n');
+		const hunks = this.parseUnifiedDiff(diff);
+		let outputLines: string[] = [];
+		let originalIndex = 0; // Index in the original file lines
+	
+		for (const hunk of hunks) {
+			// Copy unchanged lines before the hunk
+			// TODO: fix errors when the buffer line advances ahead of the original content line without advencing it
+			while (originalLines[originalIndex]!== hunk.lines[0].substring(1)) {
+				if (outputLines.length > 0 && outputLines[outputLines.length - 1] === originalLines[originalIndex]) {
+					// Skip duplicate lines
+					originalIndex++;
+					continue;
+				}
+				outputLines.push(originalLines[originalIndex]);
+				originalIndex++;
+			}
+	
+			let hunkLineIndex = 0;
+	
+			while (hunkLineIndex < hunk.lines.length) {
+				const line = hunk.lines[hunkLineIndex];
+	
+				if (line.startsWith('+')) {
+					// Added line
+					outputLines.push(line.substring(1)); // Remove the '+' sign
+				} else if (line.startsWith('-')) {
+					// Removed line
+					originalIndex++; // Skip the line in the original content
+				} else if (line.startsWith(' ')) {
+					// Context line
+					outputLines.push(line.substring(1));
+					originalIndex++;
+				} else {
+					if (hunkLineIndex !== hunk.lines.length - 1) {
+						if (line === "") {
+							outputLines.push(line);
+							originalIndex++;
+						} else {
+							throw new Error(`Invalid line in hunk: ${line}`);
+						}
+					} else {
+						if (line !== "") {
+							throw new Error(`Invalid line in hunk: ${line}`);
+						}
+					}
+				}
+	
+				hunkLineIndex++;
+			}
+		}
+	
+		// Copy any remaining lines from the original file
+		while (originalIndex < originalLines.length) {
+			outputLines.push(originalLines[originalIndex]);
+			originalIndex++;
+		}
+	
+		return outputLines.join('\n');
+	}
+	
+	
 	private async processFileWrite() {
 		try {
 			const { path: relPath, content, udiff } = this.params.input
@@ -206,18 +327,15 @@ export class WriteFileTool extends BaseAgentTool {
 
 				// Read existing file content
 				const originalContent = await fs.promises.readFile(absolutePath, "utf-8")
-				const fixedUdiff = await this.sescondPass(originalContent)
-				console.log(`udiff: ${udiff}`)
-				console.log("fixedUdiff", fixedUdiff)
-
+				// const fixedUdiff = await this.sescondPass(originalContent)
 				// Apply the diff
-				const patchedContent = applyPatch(originalContent, fixedUdiff, {
-					fuzzFactor: 3,
-				})
-				if (patchedContent === false) {
+				const patchedContentTest = this.applyUnifiedDiff(originalContent, udiff)
+
+				if (patchedContentTest === null) {
 					throw new Error("Failed to apply the diff")
 				}
-				newContent = patchedContent
+
+				newContent = patchedContentTest
 			} else {
 				if (!content) {
 					throw new Error("File does not exist, but 'content' parameter is missing")
