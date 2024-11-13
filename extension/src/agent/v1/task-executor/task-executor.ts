@@ -1,18 +1,16 @@
-import { ClaudeAsk, ClaudeMessage, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
+import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
+import { ClaudeAsk, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
+import { toolResponseToAIState } from "../../../shared/format-tools"
 import { KODU_ERROR_CODES, KoduError, koduSSEResponse } from "../../../shared/kodu"
+import { ChatTool } from "../../../shared/new-tools"
+import { ChunkProcessor } from "../chunk-proccess"
 import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
-import { ChunkProcessor } from "../chunk-proccess"
-import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
-import { ApiHistoryItem, ToolResponse, UserContent } from "../types"
-import { AskDetails, AskResponse, TaskError, TaskState, TaskExecutorUtils } from "./utils"
+import { ApiHistoryItem, UserContent } from "../types"
 import { formatImagesIntoBlocks, isTextBlock } from "../utils"
-import { getErrorMessage } from "../types/errors"
 import { AskManager } from "./ask-manager"
-import { ChatTool } from "../../../shared/new-tools"
-import { images } from "mammoth"
-import { toolResponseToAIState } from "../../../shared/format-tools"
+import { AskDetails, AskResponse, TaskError, TaskExecutorUtils, TaskState } from "./utils"
 
 // Constants for buffer management - modified for instant output
 const BUFFER_SIZE_THRESHOLD = 5 // Reduced to 1 character for near-instant output
@@ -450,41 +448,33 @@ export class TaskExecutor extends TaskExecutorUtils {
 						}
 
 						// Process chunk only if stream is not paused
-						// if the stream is paused we will accumulate the text and process the tool information
-						// the order is critical, don't change it if you don't know what you are doing
 						if (!this.streamPaused) {
 							// Accumulate text until we have a complete XML tag or enough non-XML content
 							accumulatedText += chunk.body.text
+							
 							// check if this chunk is inside tool
 							const isChunkInsideTool = this.toolExecutor.isParserInToolTag()
+							
+							// If we're transitioning into a tool tag, flush the buffer first
+							if (isChunkInsideTool && this.textBuffer.length > 0) {
+								await this.flushTextBuffer(this.currentReplyId, true)
+								this.textBuffer = ""
+							}
+							
 							// Process for tool use and get non-XML text
 							const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
 							accumulatedText = "" // Clear accumulated text after processing
 
 							// If tool processing started, pause the stream
-							// this will be trigger when a tool called execute
 							if (this.toolExecutor.hasActiveTools()) {
-								// if we are inside tool tag we should flush the buffer only after the tool processing is done
-								if (!isChunkInsideTool) {
-									await this.flushTextBuffer(this.currentReplyId, true)
-								}
-								// pause
 								this.pauseStream()
-								// Wait for tool processing to complete
 								await this.toolExecutor.waitForToolProcessing()
-								// Resume stream after tool processing
+								// Clear any remaining text buffer after tool processing
+								this.textBuffer = ""
 								await this.resumeStream()
-								const lastAskTs = this.stateManager.state.claudeMessages
-									.slice()
-									.reverse()
-									.find((msg) => msg.type === "ask")?.ts
-							}
-
-							// If we got non-XML text, add it to buffer
-							// this must be at the end to prevent leaking non-XML text when a tool is called
-							if (nonXMLText) {
+							} else if (nonXMLText) {
+								// Only buffer non-XML text if we're not in a tool context
 								this.textBuffer += nonXMLText
-								// Only flush buffer if we're not paused
 								await this.flushTextBuffer(this.currentReplyId)
 							}
 						}
