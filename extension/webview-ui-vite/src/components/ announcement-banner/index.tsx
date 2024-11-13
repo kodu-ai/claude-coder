@@ -21,12 +21,12 @@ export default function AnnouncementBanner() {
 	if (lastShownAnnouncementId === version || isDismissed) return null
 
 	return (
-		<Card className="rounded-none stikcy top-0">
+		<Card className="rounded-none sticky top-0">
 			<CardContent className="p-4 rounded-none">
 				<div className="flex items-start justify-between">
 					<div className="flex items-center gap-2">
 						<AlertCircle className="h-5 w-5 text-primary" />
-						<h2 className="text-sm font-semibold">Latest Updates (v1.10.0)</h2>
+						<h2 className="text-sm font-semibold">Latest Updates (v1.11.0)</h2>
 					</div>
 					<Button
 						variant="ghost"
@@ -40,17 +40,17 @@ export default function AnnouncementBanner() {
 
 				<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>• Enhanced streaming UI implementation</p>
-						<p>• New chat compression algorithm for improved memory usage</p>
-						<p>• Fixed edge case stream corruption issues</p>
-						<p>• Improved chat truncation prevention</p>
+						<p>• New Diff View Algorithm with improved CPU performance</p>
+						<p>• Experimental Continuous Generation feature</p>
+						<p>• Fixed diff view crash issues</p>
+						<p>• Support for processing large files beyond context limits</p>
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>• Fixed image format handling</p>
-						<p>• Reduced overall memory footprint</p>
-						<p>• Enhanced response times</p>
-						<p>• Optimized resource utilization</p>
+						<p>• Enhanced stability in diff view processing</p>
+						<p>• Automatic request chaining for large files</p>
+						<p>• Optimized CPU resource usage</p>
+						<p>• Improved handling of context window limitations</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">

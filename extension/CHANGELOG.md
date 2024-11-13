@@ -4,6 +4,16 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.11.0] - 2024-11-14
+
+-   New Diff View Algorithm
+    -   Improved CPU usage
+    -   Eliminated edge cases causing diff view crashes during requests
+-   Experimental Continuous Generation
+    -   Models can now run beyond the max context window
+    -   Particularly useful for large files
+    -   Chains follow-up requests to continue generation (additional cost applies)
+
 ## [1.10.0] - 2024-11-07
 
 ### Added
