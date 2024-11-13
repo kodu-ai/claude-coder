@@ -26,6 +26,7 @@ export async function generateSpeech(
         // Use emotion to potentially override voice selection
         const selectedVoice = emotion ? mapEmotionToVoice(emotion).voice : voice;
 
+        // updated this line compared to the original
         const response = await openai.audio.speech.create({
             model: 'tts-1-hd',
             input: text,
@@ -328,6 +329,7 @@ export class RemoteAIExplain {
         return this.output;
     }
 
+    // small update here just added this comment
     async *fetchExplanation(args: FetchExplanationArgs): AsyncGenerator<ExplanationOutput, void, unknown> {
         const {
             inputText,

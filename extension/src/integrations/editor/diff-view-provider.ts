@@ -195,6 +195,7 @@ export class DiffViewProvider {
 		this.relPath = relPath
 		this.isAutoScrollEnabled = true
 		this.previousLines = [] // Reset previous lines
+
 		const absolutePath = path.resolve(this.cwd, relPath)
 
 		try {
