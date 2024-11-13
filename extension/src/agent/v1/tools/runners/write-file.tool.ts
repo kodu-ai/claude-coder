@@ -125,14 +125,14 @@ function detectCodeOmission(
 	}
 }
 
-
-interface DiffHunk {
-    originalStart: number;
-    originalCount: number;
-    newStart: number;
-    newCount: number;
-    lines: string[];
-}
+interface DiffLine {
+	type: 'context' | 'addition' | 'deletion';
+	content: string;
+  }
+  
+  interface DiffHunk {
+	lines: DiffLine[];
+  }
 
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -192,116 +192,173 @@ export class WriteFileTool extends BaseAgentTool {
 		this.lastUpdateTime = currentTime
 	}
 
+	private applyDiff(originalContent: string, diff: string): string {
+		const originalLines = originalContent.split('\n');
+		const hunks = this.parseUnifiedDiff(diff);
+	  
+		let resultLines = originalLines.slice(); // Create a copy to modify
+		let cumulativeOffset = 0; // Keeps track of the offset between originalLines and resultLines
+	  
+		for (const hunk of hunks) {
+		  // Extract matching sequence from the hunk (context and deletion lines up to the first addition)
+		  const matchingSequence = [];
+		  let foundAddition = false;
+		  for (const hunkLine of hunk.lines) {
+			if (hunkLine.type === 'addition') {
+			  foundAddition = true;
+			  break; // Stop at the first addition
+			} else if (hunkLine.type === 'context' || hunkLine.type === 'deletion') {
+			  matchingSequence.push(hunkLine.content);
+			}
+		  }
+	  
+		  // Find the position in originalLines
+		  const positionInOriginal = this.findBestMatchPosition(
+			originalLines,
+			matchingSequence,
+			0 // Always search from the beginning in originalLines
+		  );
+	  
+		  if (positionInOriginal !== -1) {
+			// Adjust position for resultLines
+			const positionInResult = positionInOriginal + cumulativeOffset;
+	  
+			// Apply the hunk at the adjusted position
+			const hunkResult = this.applyHunk(
+			  resultLines.slice(positionInResult),
+			  hunk.lines // Use all lines in the hunk for applying changes
+			);
+	  
+			// Replace the original lines with the modified lines
+			resultLines.splice(
+			  positionInResult,
+			  hunkResult.originalLineCount,
+			  ...hunkResult.modifiedLines
+			);
+	  
+			// Update cumulativeOffset based on changes in line count
+			cumulativeOffset += hunkResult.modifiedLines.length - hunkResult.originalLineCount;
+		  } else {
+			console.error('Failed to apply hunk: context not found in original content.');
+			throw new Error('Failed to apply hunk: context not found.');
+		  }
+		}
+	  
+		return resultLines.join('\n');
+	  }
+	  
+	  
+	  
+	  private findBestMatchPosition(
+		lines: string[],
+		matchingSequence: string[],
+		currentOffset: number,
+		maxSearchDistance: number = 500 // Optional: limit search range for performance
+	  ): number {
+		const totalLines = lines.length;
+		const sequenceLength = matchingSequence.length;
+		const searchLimit = Math.min(currentOffset + maxSearchDistance, totalLines - sequenceLength);
+		let bestMatchIndex = -1;
+		let bestMatchScore = -1;
+	  
+		for (let i = currentOffset; i <= searchLimit; i++) {
+		  let score = 0;
+		  for (let j = 0; j < sequenceLength; j++) {
+			if (lines[i + j] === matchingSequence[j]) {
+			  score++;
+			}
+		  }
+		  if (score > bestMatchScore) {
+			bestMatchScore = score;
+			bestMatchIndex = i;
+		  }
+	  
+		  // Early exit if perfect match is found
+		  if (score === sequenceLength) {
+			return i;
+		  }
+		}
+	  
+		// Define a threshold for acceptable matches (e.g., 90% of matching sequence)
+		const threshold = Math.floor(sequenceLength * 0.9);
+		if (bestMatchScore >= threshold) {
+		  return bestMatchIndex;
+		}
+	  
+		return -1; // No acceptable match found
+	  }
+
+	  
+	  private applyHunk(
+		lines: string[],
+		hunkLines: DiffLine[]
+	  ): { modifiedLines: string[]; originalLineCount: number } {
+		const modifiedLines: string[] = [];
+		let originalLineCount = 0;
+		let index = 0;
+	  
+		for (const hunkLine of hunkLines) {
+		  if (hunkLine.type === 'context' || hunkLine.type === 'deletion') {
+			// These lines should match the original lines
+			if (lines[index] !== hunkLine.content) {
+			  throw new Error(
+				`Hunk line does not match original content at line ${index + 1}: expected "${hunkLine.content}", found "${lines[index]}"`
+			  );
+			}
+			if (hunkLine.type === 'context') {
+			  // Context lines are kept
+			  modifiedLines.push(hunkLine.content);
+			}
+			// Move to the next line in the original content
+			index++;
+			originalLineCount++;
+		  } else if (hunkLine.type === 'addition') {
+			// Added lines are inserted into the modified content
+			modifiedLines.push(hunkLine.content);
+		  }
+		}
+	  
+		return { modifiedLines, originalLineCount };
+	  }
 	private parseUnifiedDiff(diff: string): DiffHunk[] {
 		const diffLines = diff.split('\n');
 		const hunks: DiffHunk[] = [];
 		let i = 0;
-	
+	  
 		while (i < diffLines.length) {
-			const line = diffLines[i];
-	
-			if (line.startsWith('@@')) {
-				const hunkHeaderRegex = /@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
-				const match = line.match(hunkHeaderRegex);
-	
-				if (match) {
-					const originalStart = parseInt(match[1], 10) - 1;
-					const originalCount = match[2] ? parseInt(match[2], 10) : 1;
-					const newStart = parseInt(match[3], 10) - 1;
-					const newCount = match[4] ? parseInt(match[4], 10) : 1;
-	
-					i++; // Move to the next line after the hunk header
-					const hunkLines: string[] = [];
-	
-					while (
-						i < diffLines.length &&
-						!diffLines[i].startsWith('@@') &&
-						!diffLines[i].startsWith('---') &&
-						!diffLines[i].startsWith('+++')
-					) {
-						hunkLines.push(diffLines[i]);
-						i++;
-					}
-	
-					hunks.push({
-						originalStart,
-						originalCount,
-						newStart,
-						newCount,
-						lines: hunkLines,
-					});
-				} else {
-					throw new Error(`Invalid hunk header at line ${i + 1}`);
-				}
-			} else {
-				i++;
+		  const line = diffLines[i];
+	  
+		  if (line.startsWith('@@')) {
+			i++; // Move to the next line after the hunk header
+			const hunkLines: DiffLine[] = [];
+	  
+			while (
+			  i < diffLines.length &&
+			  !diffLines[i].startsWith('@@') &&
+			  !diffLines[i].startsWith('---') &&
+			  !diffLines[i].startsWith('+++')
+			) {
+			  const diffLine = diffLines[i];
+			  if (diffLine.startsWith(' ')) {
+				hunkLines.push({ type: 'context', content: diffLine.substring(1) });
+			  } else if (diffLine.startsWith('+')) {
+				hunkLines.push({ type: 'addition', content: diffLine.substring(1) });
+			  } else if (diffLine.startsWith('-')) {
+				hunkLines.push({ type: 'deletion', content: diffLine.substring(1) });
+			  }
+			  i++;
 			}
+	  
+			hunks.push({ lines: hunkLines });
+		  } else {
+			i++;
+		  }
 		}
-	
+	  
 		return hunks;
-	}
+	  }
+	  
 
-	private applyUnifiedDiff(original: string, diff: string): string {
-		const originalLines = original.split('\n');
-		const hunks = this.parseUnifiedDiff(diff);
-		let outputLines: string[] = [];
-		let originalIndex = 0; // Index in the original file lines
-	
-		for (const hunk of hunks) {
-			// Copy unchanged lines before the hunk
-			// TODO: fix errors when the buffer line advances ahead of the original content line without advencing it
-			while (originalLines[originalIndex]!== hunk.lines[0].substring(1)) {
-				if (outputLines.length > 0 && outputLines[outputLines.length - 1] === originalLines[originalIndex]) {
-					// Skip duplicate lines
-					originalIndex++;
-					continue;
-				}
-				outputLines.push(originalLines[originalIndex]);
-				originalIndex++;
-			}
-	
-			let hunkLineIndex = 0;
-	
-			while (hunkLineIndex < hunk.lines.length) {
-				const line = hunk.lines[hunkLineIndex];
-	
-				if (line.startsWith('+')) {
-					// Added line
-					outputLines.push(line.substring(1)); // Remove the '+' sign
-				} else if (line.startsWith('-')) {
-					// Removed line
-					originalIndex++; // Skip the line in the original content
-				} else if (line.startsWith(' ')) {
-					// Context line
-					outputLines.push(line.substring(1));
-					originalIndex++;
-				} else {
-					if (hunkLineIndex !== hunk.lines.length - 1) {
-						if (line === "") {
-							outputLines.push(line);
-							originalIndex++;
-						} else {
-							throw new Error(`Invalid line in hunk: ${line}`);
-						}
-					} else {
-						if (line !== "") {
-							throw new Error(`Invalid line in hunk: ${line}`);
-						}
-					}
-				}
-	
-				hunkLineIndex++;
-			}
-		}
-	
-		// Copy any remaining lines from the original file
-		while (originalIndex < originalLines.length) {
-			outputLines.push(originalLines[originalIndex]);
-			originalIndex++;
-		}
-	
-		return outputLines.join('\n');
-	}
 	
 	
 	private async processFileWrite() {
@@ -329,7 +386,7 @@ export class WriteFileTool extends BaseAgentTool {
 				const originalContent = await fs.promises.readFile(absolutePath, "utf-8")
 				// const fixedUdiff = await this.sescondPass(originalContent)
 				// Apply the diff
-				const patchedContentTest = this.applyUnifiedDiff(originalContent, udiff)
+				const patchedContentTest = this.applyDiff(originalContent, udiff)
 
 				if (patchedContentTest === null) {
 					throw new Error("Failed to apply the diff")
