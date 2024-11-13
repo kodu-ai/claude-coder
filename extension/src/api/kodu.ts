@@ -307,8 +307,8 @@ export class KoduHandler implements ApiHandler {
 		// Build request body
 		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
 			model: modelId,
-			max_tokens: 1200,
-			// max_tokens: this.getModel().info.maxTokens,
+			// max_tokens: 1200,
+			max_tokens: this.getModel().info.maxTokens,
 			system,
 			messages: messagesToCache,
 			temperature: 0.1,

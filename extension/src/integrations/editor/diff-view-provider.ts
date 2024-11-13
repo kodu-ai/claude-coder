@@ -152,12 +152,12 @@ export class DiffViewProvider {
 	private originalUri?: vscode.Uri
 	private isFinalReached: boolean = false
 	private modifiedUri?: vscode.Uri
-	private koduDev: KoduDev
 	public lastEditPosition?: vscode.Position
 	private updateTimeout: NodeJS.Timeout | null = null
 	private lastScrollTime: number = 0
 	private isAutoScrollEnabled: boolean = true
 	private lastUserInteraction: number = 0
+	private previousLines: string[] = []
 	private static readonly SCROLL_THROTTLE = 100 // ms
 	private static readonly USER_INTERACTION_TIMEOUT = 1000 // ms
 	private static readonly SCROLL_THRESHOLD = 10 // lines from bottom to re-enable auto-scroll
@@ -165,10 +165,10 @@ export class DiffViewProvider {
 	private disposables: vscode.Disposable[] = []
 	private activeLineController?: DecorationController
 	private fadedOverlayController?: DecorationController
+	private currentDocument: string[] = []
+	private lastModifiedLine: number = 0
 
 	constructor(private cwd: string, koduDev: KoduDev, private updateInterval: number = 16) {
-		this.koduDev = koduDev
-
 		if (!DiffViewProvider.modifiedContentProvider) {
 			DiffViewProvider.modifiedContentProvider = new ModifiedContentProvider()
 			try {
@@ -184,43 +184,34 @@ export class DiffViewProvider {
 		}
 	}
 
-	public async open(relPath: string): Promise<void> {
+	public async open(relPath: string, isFinal?: boolean): Promise<void> {
 		if (this.diffEditor) {
 			return
 		}
+		this.previousLines = []
+		this.currentDocument = []
+		this.lastModifiedLine = 0
 		this.isEditing = true
 		this.relPath = relPath
 		this.isAutoScrollEnabled = true
+		this.previousLines = [] // Reset previous lines
 		const absolutePath = path.resolve(this.cwd, relPath)
 
 		try {
 			this.originalContent = await fs.readFile(absolutePath, "utf-8")
+			// Initialize previousLines with original content if it exists
+			this.previousLines = this.originalContent.split(/\r?\n/)
 		} catch (error) {
 			this.logger(`Failed to read file: ${error}`, "error")
 			this.originalContent = ""
 		}
 
-		await this.openDiffEditor(relPath)
+		await this.openDiffEditor(relPath, !!isFinal)
 		this.activeLineController = new DecorationController("activeLine", this.diffEditor!)
 		this.fadedOverlayController = new DecorationController("fadedOverlay", this.diffEditor!)
 
 		this.fadedOverlayController.addLines(0, this.diffEditor!.document.lineCount)
 		this.setupEventListeners()
-	}
-
-	private checkScrollPosition(): boolean {
-		if (!this.diffEditor) {
-			return false
-		}
-
-		const visibleRanges = this.diffEditor.visibleRanges
-		if (visibleRanges.length === 0) {
-			return false
-		}
-
-		const lastVisibleLine = visibleRanges[visibleRanges.length - 1].end.line
-		const totalLines = this.diffEditor.document.lineCount
-		return totalLines - lastVisibleLine <= DiffViewProvider.SCROLL_THRESHOLD
 	}
 
 	private setupEventListeners(): void {
@@ -262,7 +253,11 @@ export class DiffViewProvider {
 		}
 	}
 
-	private async openDiffEditor(relPath: string): Promise<void> {
+	public async openDiffEditor(relPath: string, isFinal?: boolean): Promise<void> {
+		// if it's already open return
+		// if (this.isDiffViewOpen()) {
+		// 	return
+		// }
 		const fileName = path.basename(relPath)
 
 		// Create original content URI
@@ -272,7 +267,7 @@ export class DiffViewProvider {
 
 		// Create modified content URI (initially empty)
 		this.modifiedUri = vscode.Uri.parse(`${MODIFIED_URI_SCHEME}:/${fileName}`)
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(""), {
+		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(this.originalContent ?? ""), {
 			create: true,
 			overwrite: true,
 		})
@@ -282,7 +277,15 @@ export class DiffViewProvider {
 			"vscode.diff",
 			this.originalUri,
 			this.modifiedUri,
-			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Editable)`
+			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Editable)`,
+			{
+				preview: true,
+				preserveFocus: false,
+				viewColumn: vscode.ViewColumn.Active,
+				tabOptions: {
+					readonly: true, // Makes the entire diff read-only
+				},
+			}
 		)
 		await pWaitFor(
 			() =>
@@ -324,7 +327,109 @@ export class DiffViewProvider {
 			this.fadedOverlayController.clear()
 			return
 		}
-		await this.applyUpdate(accumulatedContent)
+
+		await this.applyLineByLineUpdate(accumulatedContent)
+	}
+
+	private async applyLineByLineUpdate(content: string): Promise<void> {
+		if (!this.diffEditor || !this.modifiedUri) {
+			this.logger("<applyLineByLineUpdate>: Diff editor not initialized", "error")
+			return
+		}
+
+		// Split incoming content into lines
+		const newLines = content.split(/\r?\n/)
+
+		// Initialize current document content if needed
+		if (this.currentDocument.length === 0) {
+			const currentContent = this.diffEditor.document.getText()
+			this.currentDocument = currentContent ? currentContent.split(/\r?\n/) : []
+			this.previousLines = [...this.currentDocument]
+		}
+
+		// Quick check if content is identical
+		if (this.previousLines.join("\n") === newLines.join("\n")) {
+			return
+		}
+
+		// Compare line by line and only update what's necessary
+		for (let i = 0; i < newLines.length; i++) {
+			// If line is different or new, update it
+			if (i >= this.currentDocument.length || this.currentDocument[i] !== newLines[i]) {
+				// Handle case where we're adding new lines
+				if (i >= this.currentDocument.length) {
+					this.currentDocument[i] = newLines[i]
+				} else {
+					// Replace existing line
+					this.currentDocument[i] = newLines[i]
+				}
+				this.lastModifiedLine = i
+			}
+		}
+
+		// Create the final content string, preserving any remaining lines
+		const updatedContent = [
+			...this.currentDocument.slice(0, Math.max(newLines.length, this.currentDocument.length)),
+		].join("\n")
+
+		// Update content with proper options to maintain file history
+		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(updatedContent), {
+			create: false,
+			overwrite: true,
+		})
+		this.streamedContent = updatedContent
+
+		// Update decoration for the changed line
+		if (this.activeLineController && this.fadedOverlayController) {
+			this.activeLineController.setActiveLine(this.lastModifiedLine)
+			this.fadedOverlayController.updateOverlayAfterLine(
+				this.lastModifiedLine,
+				this.diffEditor.document.lineCount
+			)
+		}
+
+		// Handle auto-scrolling to the modified line
+		const now = Date.now()
+		if (
+			this.isAutoScrollEnabled &&
+			now - this.lastScrollTime >= DiffViewProvider.SCROLL_THROTTLE &&
+			(now - this.lastUserInteraction >= DiffViewProvider.USER_INTERACTION_TIMEOUT || this.checkScrollPosition())
+		) {
+			await this.scrollToModifiedLine()
+			this.lastScrollTime = now
+		}
+
+		// Store the current state for next comparison
+		this.previousLines = [...newLines]
+	}
+
+	private async scrollToModifiedLine(): Promise<void> {
+		if (!this.diffEditor) {
+			return
+		}
+
+		const line = Math.max(0, this.lastModifiedLine)
+		const range = new vscode.Range(line, 0, line, this.diffEditor.document.lineAt(line).text.length)
+
+		this.diffEditor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport)
+	}
+
+	private checkScrollPosition(): boolean {
+		if (!this.diffEditor) {
+			return false
+		}
+
+		const visibleRanges = this.diffEditor.visibleRanges
+		if (visibleRanges.length === 0) {
+			return false
+		}
+
+		const lastVisibleLine = visibleRanges[visibleRanges.length - 1].end.line
+		const firstVisibleLine = visibleRanges[0].start.line
+		return (
+			this.lastModifiedLine >= firstVisibleLine - DiffViewProvider.SCROLL_THRESHOLD &&
+			this.lastModifiedLine <= lastVisibleLine + DiffViewProvider.SCROLL_THRESHOLD
+		)
 	}
 
 	private async applyUpdate(content: string): Promise<void> {
@@ -372,8 +477,13 @@ export class DiffViewProvider {
 	}
 
 	private async finalizeDiff(): Promise<void> {
-		if (!this.diffEditor || !this.relPath) {
+		if (!this.relPath) {
 			return
+		}
+		console.log(`Finalizing diff for ${this.relPath}`)
+		await this.openDiffEditor(this.relPath, true)
+		if (!this.diffEditor) {
+			throw new Error("Failed to open final diff editor")
 		}
 
 		// do one last update to ensure the final content is displayed in the diff editor
@@ -418,6 +528,9 @@ export class DiffViewProvider {
 			clearTimeout(this.updateTimeout)
 			this.updateTimeout = null
 		}
+		this.previousLines = []
+		this.currentDocument = []
+		this.lastModifiedLine = 0
 		this.disposables.forEach((d) => d.dispose())
 		this.disposables = []
 		this.diffEditor = undefined
