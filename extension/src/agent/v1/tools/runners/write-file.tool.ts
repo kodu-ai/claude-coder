@@ -130,6 +130,7 @@ export class WriteFileTool extends BaseAgentTool {
 	private lastUpdateTime: number = 0
 	private readonly UPDATE_INTERVAL = 8
 	private skipWriteAnimation: boolean = false
+	private updateNumber: number = 0
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
@@ -157,6 +158,7 @@ export class WriteFileTool extends BaseAgentTool {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
 			return
 		}
+		this.updateNumber++
 		// if the user has skipped the write animation, we don't need to show the diff view until we reach the final state
 		if (this.skipWriteAnimation) {
 			await this.params.updateAsk(
@@ -181,7 +183,7 @@ export class WriteFileTool extends BaseAgentTool {
 			return
 		}
 
-		if (!this.diffViewProvider.isDiffViewOpen()) {
+		if (!this.diffViewProvider.isDiffViewOpen() && this.updateNumber === 1) {
 			try {
 				// this actually opens the diff view but might take an extra few ms to be considered open requires interval check
 				// it can take up to 300ms to open the diff view
@@ -336,9 +338,7 @@ export class WriteFileTool extends BaseAgentTool {
 	private async showChangesInDiffView(relPath: string, content: string): Promise<void> {
 		content = this.preprocessContent(content)
 
-		if (!this.diffViewProvider.isDiffViewOpen()) {
-			await this.diffViewProvider.open(relPath)
-		}
+		await this.diffViewProvider.openDiffEditor(relPath, true)
 
 		await this.diffViewProvider.update(content, true)
 	}

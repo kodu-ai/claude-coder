@@ -457,6 +457,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 							accumulatedText += chunk.body.text
 							// check if this chunk is inside tool
 							const isChunkInsideTool = this.toolExecutor.isParserInToolTag()
+
 							// Process for tool use and get non-XML text
 							const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
 							accumulatedText = "" // Clear accumulated text after processing

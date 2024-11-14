@@ -95,15 +95,6 @@ export class ToolExecutor {
 		return new ToolClass(params, this.options)
 	}
 
-	public async executeTool(params: AgentToolParams) {
-		if (this.isAborting) {
-			throw new Error("Cannot execute tool while aborting")
-		}
-
-		const tool = this.createTool(params)
-		return tool.execute(params)
-	}
-
 	public setRunningProcessId(pid: number | undefined) {
 		this.runningProcessId = pid
 	}
