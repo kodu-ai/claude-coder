@@ -18,6 +18,7 @@ import {
 } from "../shared/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { ApiHistoryItem } from "../agent/v1"
+import { GlobalStateManager } from "@/providers/claude-coder/state/GlobalStateManager"
 
 const temperatures = {
 	creative: {
@@ -121,6 +122,7 @@ export class KoduHandler implements ApiHandler {
 				const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 				requestBody = {
 					model: modelId,
+
 					max_tokens: this.getModel().info.maxTokens,
 					system: systemPrompt,
 					messages: messages.map((message, index) => {
@@ -305,13 +307,17 @@ export class KoduHandler implements ApiHandler {
 		// Build request body
 		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
 			model: modelId,
-			max_tokens: this.getModel().info.maxTokens,
+			max_tokens: 1200,
+			// max_tokens: this.getModel().info.maxTokens,
 			system,
 			messages: messagesToCache,
 			temperature: 0.1,
 			top_p: 0.9,
 		}
 		this.cancelTokenSource = axios.CancelToken.source()
+
+		const isContinueGenerationEnabled =
+			!!GlobalStateManager.getInstance().getGlobalState("isContinueGenerationEnabled")
 
 		const response = await axios.post(
 			getKoduInferenceUrl(),
@@ -322,6 +328,7 @@ export class KoduHandler implements ApiHandler {
 				headers: {
 					"Content-Type": "application/json",
 					"x-api-key": this.options.koduApiKey || "",
+					"continue-generation": isContinueGenerationEnabled ? "true" : "false",
 				},
 				responseType: "stream",
 				signal: abortSignal ?? undefined,
@@ -406,6 +413,7 @@ export class KoduHandler implements ApiHandler {
 		return {
 			model: this.getModel().id,
 			max_tokens: this.getModel().info.maxTokens,
+			// max_tokens: 1200,
 			system: "(see SYSTEM_PROMPT in src/agent/system-prompt.ts)",
 			messages: [{ conversation_history: "..." }, { role: "user", content: withoutImageData(userContent) }],
 			tools: "(see tools in src/agent/v1/tools/schema/index.ts)",

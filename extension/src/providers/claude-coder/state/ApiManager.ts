@@ -6,7 +6,22 @@ import { ExtensionProvider } from "../ClaudeCoderProvider"
 type SecretKey = "koduApiKey"
 
 export class ApiManager {
-	constructor(private context: ExtensionProvider) {}
+	private static instance: ApiManager | null = null
+	private context: ExtensionProvider
+
+	private constructor(context: ExtensionProvider) {
+		this.context = context
+	}
+
+	public static getInstance(context?: ExtensionProvider): ApiManager {
+		if (!ApiManager.instance) {
+			if (!context) {
+				throw new Error("ExtensionProvider context must be provided when creating the ApiManager instance")
+			}
+			ApiManager.instance = new ApiManager(context)
+		}
+		return ApiManager.instance
+	}
 
 	async updateApiConfiguration(apiConfiguration: {
 		apiModelId?: KoduModelId
@@ -52,9 +67,7 @@ export class ApiManager {
 				apiModelId:
 					modelId ?? this.context.getGlobalStateManager().getGlobalState("apiModelId") ?? koduDefaultModelId,
 			})
-		// await this.context.globalState.update("shouldShowKoduPromo", false)
 		const user = await this.fetchKoduUser(apiKey)
-		// await this.context.globalState.update("user", user)
 		await this.context.getGlobalStateManager().updateGlobalState("user", user)
 		await this.context.getWebviewManager().postStateToWebview()
 		console.log("Posted state to webview after saving Kodu API key")

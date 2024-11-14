@@ -137,7 +137,13 @@ export type autoSummarizeMessage = {
 	bool: boolean
 }
 
+export type isContinueGenerationEnabledMessage = {
+	type: "isContinueGenerationEnabled"
+	bool: boolean
+}
+
 export type WebviewMessage =
+	| isContinueGenerationEnabledMessage
 	| autoSummarizeMessage
 	| updateGlobalStateMessage
 	| systemPromptVariantsMessage

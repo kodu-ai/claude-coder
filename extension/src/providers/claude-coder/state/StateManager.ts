@@ -11,15 +11,19 @@ import { SystemPromptVariant } from "../../../shared/SystemPromptVariant"
 import { estimateTokenCount, estimateTokenCountFromMessages } from "../../../utils/context-management"
 import { BASE_SYSTEM_PROMPT } from "../../../agent/v1/prompts/base-system"
 import { getCwd } from "../../../agent/v1/utils"
+
+/**
+ * this at the current form can't be a singleton because it has dependicies on the KoduDev instance, and one extension can have multiple KoduDev instances
+ */
 export class StateManager {
 	private globalStateManager: GlobalStateManager
 	private secretStateManager: SecretStateManager
 	private apiManager: ApiManager
 
 	constructor(private context: ExtensionProvider) {
-		this.globalStateManager = new GlobalStateManager(context.context)
-		this.apiManager = new ApiManager(context)
-		this.secretStateManager = new SecretStateManager(context.context)
+		this.globalStateManager = GlobalStateManager.getInstance(context.context)
+		this.secretStateManager = SecretStateManager.getInstance(context.context)
+		this.apiManager = ApiManager.getInstance(context)
 	}
 
 	async getState() {
@@ -45,6 +49,7 @@ export class StateManager {
 			systemPromptVariants,
 			activeSystemPromptVariantId,
 			autoSummarize,
+			isContinueGenerationEnabled,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.globalStateManager.getGlobalState("browserModelId"),
@@ -67,6 +72,7 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("systemPromptVariants"),
 			this.globalStateManager.getGlobalState("activeSystemPromptVariantId"),
 			this.globalStateManager.getGlobalState("autoSummarize"),
+			this.globalStateManager.getGlobalState("isContinueGenerationEnabled"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -129,6 +135,7 @@ export class StateManager {
 			currentContextWindow: currentContextWindow ?? 0,
 			currentContextTokens: tokens ?? 0,
 			autoSummarize: autoSummarize ?? false,
+			isContinueGenerationEnabled: isContinueGenerationEnabled ?? false,
 		} satisfies ExtensionState
 	}
 
@@ -214,6 +221,10 @@ export class StateManager {
 
 	setAlwaysAllowReadOnly(value: boolean) {
 		return this.globalStateManager.updateGlobalState("alwaysAllowReadOnly", value)
+	}
+
+	setIsContinueGenerationEnabled(value: boolean) {
+		return this.globalStateManager.updateGlobalState("isContinueGenerationEnabled", value)
 	}
 
 	setAlwaysAllowWriteOnly(value: boolean) {
