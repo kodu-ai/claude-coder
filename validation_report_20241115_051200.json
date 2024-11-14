@@ -1,0 +1,105 @@
+{
+  "total_files": 14,
+  "valid_operations": 9,
+  "invalid_operations": 5,
+  "validation_details": [
+    {
+      "file": "output-1731615098243-6.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:11:53.599433"
+    },
+    {
+      "file": "output-1731615099857-5.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:11:53.726488"
+    },
+    {
+      "file": "output-1731615100130-13.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:11:53.709100"
+    },
+    {
+      "file": "output-1731615100145-9.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:11:53.767050"
+    },
+    {
+      "file": "output-1731615101012-14.txt",
+      "valid": false,
+      "reason": "unmatched code block with duplicate nested code block in handleClear method",
+      "timestamp": "2024-11-15T05:11:54.149182"
+    },
+    {
+      "file": "output-1731615101052-0.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:11:59.251699"
+    },
+    {
+      "file": "output-1731615101069-12.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag in img.src assignment",
+      "timestamp": "2024-11-15T05:11:54.122676"
+    },
+    {
+      "file": "output-1731615101768-10.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:11:53.865783"
+    },
+    {
+      "file": "output-1731615102682-7.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleClear method - missing closing brace for textFieldRef.current check",
+      "timestamp": "2024-11-15T05:11:54.155482"
+    },
+    {
+      "file": "output-1731615102821-3.txt",
+      "valid": false,
+      "reason": "unmatched code block - missing closing bracket for reader.onerror in handleImageUpload function",
+      "timestamp": "2024-11-15T05:11:54.165636"
+    },
+    {
+      "file": "output-1731615103947-11.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:11:53.683471"
+    },
+    {
+      "file": "output-1731615104704-8.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:11:53.723730"
+    },
+    {
+      "file": "output-1731615105428-2.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:11:53.815814"
+    },
+    {
+      "file": "output-1731615105620-4.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleGenderChange and handleEmojiUsageChange functions, missing closing braces and function definitions",
+      "timestamp": "2024-11-15T05:11:59.606635"
+    }
+  ],
+  "error_types": {
+    "unmatched code block with duplicate nested code block in handleClear method": 1,
+    "unmatched JSX closing tag in img.src assignment": 1,
+    "unmatched code block in handleClear method - missing closing brace for textFieldRef.current check": 1,
+    "unmatched code block - missing closing bracket for reader.onerror in handleImageUpload function": 1,
+    "unmatched code block in handleGenderChange and handleEmojiUsageChange functions, missing closing braces and function definitions": 1
+  },
+  "timing": {
+    "start_time": "2024-11-15T05:11:52.112644",
+    "end_time": "2024-11-15T05:11:59.606745",
+    "batch_times": [
+      7.454464912414551
+    ]
+  }
+}

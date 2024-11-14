@@ -1,0 +1,313 @@
+{
+  "total_files": 49,
+  "valid_operations": 47,
+  "invalid_operations": 2,
+  "validation_details": [
+    {
+      "file": "output-1731606518433-19.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:01.863952"
+    },
+    {
+      "file": "output-1731606547386-49.txt",
+      "valid": false,
+      "reason": "syntax error in buffer declaration - duplicate 'let buffer = ' statement",
+      "timestamp": "2024-11-15T02:51:02.776566"
+    },
+    {
+      "file": "output-1731606548403-17.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:01.958421"
+    },
+    {
+      "file": "output-1731606548655-28.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.602060"
+    },
+    {
+      "file": "output-1731606550565-34.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:01.961333"
+    },
+    {
+      "file": "output-1731606551586-29.txt",
+      "valid": false,
+      "reason": "syntax error: unexpected 'let' keyword in RemoteAIExplain.fetchExplanation method",
+      "timestamp": "2024-11-15T02:51:02.278424"
+    },
+    {
+      "file": "output-1731606554212-21.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:01.845393"
+    },
+    {
+      "file": "output-1731606556515-16.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:01.998392"
+    },
+    {
+      "file": "output-1731606556808-8.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:01.963187"
+    },
+    {
+      "file": "output-1731606560763-36.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.316387"
+    },
+    {
+      "file": "output-1731606562217-14.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.332366"
+    },
+    {
+      "file": "output-1731606562823-40.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:03.007862"
+    },
+    {
+      "file": "output-1731606566349-24.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.241455"
+    },
+    {
+      "file": "output-1731606569869-11.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.631387"
+    },
+    {
+      "file": "output-1731606569941-12.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.760861"
+    },
+    {
+      "file": "output-1731606572421-35.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.610752"
+    },
+    {
+      "file": "output-1731606573190-20.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:03.079984"
+    },
+    {
+      "file": "output-1731606573408-38.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.339706"
+    },
+    {
+      "file": "output-1731606574110-1.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.338245"
+    },
+    {
+      "file": "output-1731606576089-25.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.309147"
+    },
+    {
+      "file": "output-1731606576353-48.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.591793"
+    },
+    {
+      "file": "output-1731606577056-4.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.876385"
+    },
+    {
+      "file": "output-1731606577367-9.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.496318"
+    },
+    {
+      "file": "output-1731606579003-6.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.837865"
+    },
+    {
+      "file": "output-1731606579167-0.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.654118"
+    },
+    {
+      "file": "output-1731606579353-30.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.758517"
+    },
+    {
+      "file": "output-1731606579822-13.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.366933"
+    },
+    {
+      "file": "output-1731606579862-5.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.391011"
+    },
+    {
+      "file": "output-1731606580248-42.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.773032"
+    },
+    {
+      "file": "output-1731606580319-41.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:02.822117"
+    },
+    {
+      "file": "output-1731606581066-44.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:04.716620"
+    },
+    {
+      "file": "output-1731606581666-7.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:04.960659"
+    },
+    {
+      "file": "output-1731606582542-47.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.255511"
+    },
+    {
+      "file": "output-1731606583139-10.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:04.409829"
+    },
+    {
+      "file": "output-1731606583308-45.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:04.799006"
+    },
+    {
+      "file": "output-1731606583442-33.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.087410"
+    },
+    {
+      "file": "output-1731606583452-43.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.044103"
+    },
+    {
+      "file": "output-1731606583635-32.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.296654"
+    },
+    {
+      "file": "output-1731606583822-2.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:04.804038"
+    },
+    {
+      "file": "output-1731606584268-22.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.559566"
+    },
+    {
+      "file": "output-1731606585607-39.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.552399"
+    },
+    {
+      "file": "output-1731606586402-18.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.441961"
+    },
+    {
+      "file": "output-1731606589663-23.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.054645"
+    },
+    {
+      "file": "output-1731606591248-27.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.288480"
+    },
+    {
+      "file": "output-1731606591681-15.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.032419"
+    },
+    {
+      "file": "output-1731606592847-46.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.182911"
+    },
+    {
+      "file": "output-1731606593529-26.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.357353"
+    },
+    {
+      "file": "output-1731606593720-3.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.387288"
+    },
+    {
+      "file": "output-1731606596804-31.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T02:51:05.616253"
+    }
+  ],
+  "error_types": {
+    "syntax error in buffer declaration - duplicate 'let buffer = ' statement": 1,
+    "syntax error: unexpected 'let' keyword in RemoteAIExplain.fetchExplanation method": 1
+  },
+  "timing": {
+    "start_time": "2024-11-15T02:51:00.403873",
+    "end_time": "2024-11-15T02:51:05.616383",
+    "batch_times": [
+      2.627143621444702,
+      2.5361833572387695
+    ]
+  }
+}

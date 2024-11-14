@@ -1,0 +1,323 @@
+{
+  "total_files": 48,
+  "valid_operations": 28,
+  "invalid_operations": 20,
+  "validation_details": [
+    {
+      "file": "output-1731614501523-49.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleClear method - missing closing bracket and incomplete method implementation",
+      "timestamp": "2024-11-15T05:02:34.762614"
+    },
+    {
+      "file": "output-1731614501876-11.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.156122"
+    },
+    {
+      "file": "output-1731614502417-14.txt",
+      "valid": false,
+      "reason": "unmatched code block with duplicate closing braces and incomplete function definitions",
+      "timestamp": "2024-11-15T05:02:35.903326"
+    },
+    {
+      "file": "output-1731614502870-22.txt",
+      "valid": false,
+      "reason": "unmatched code block with broken syntax near line 300",
+      "timestamp": "2024-11-15T05:02:34.609559"
+    },
+    {
+      "file": "output-1731614503614-20.txt",
+      "valid": false,
+      "reason": "malformed code block with unmatched backticks in handleGenderChange and img.src assignment",
+      "timestamp": "2024-11-15T05:02:34.293389"
+    },
+    {
+      "file": "output-1731614504334-26.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.491949"
+    },
+    {
+      "file": "output-1731614504360-13.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:33.988567"
+    },
+    {
+      "file": "output-1731614505037-21.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.236368"
+    },
+    {
+      "file": "output-1731614505305-48.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.167385"
+    },
+    {
+      "file": "output-1731614505403-45.txt",
+      "valid": false,
+      "reason": "unmatched code block with broken syntax near line 300-310",
+      "timestamp": "2024-11-15T05:02:34.468215"
+    },
+    {
+      "file": "output-1731614506208-47.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.550562"
+    },
+    {
+      "file": "output-1731614506288-6.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.651869"
+    },
+    {
+      "file": "output-1731614506359-8.txt",
+      "valid": false,
+      "reason": "duplicate function definition for handleGenderChange",
+      "timestamp": "2024-11-15T05:02:34.530035"
+    },
+    {
+      "file": "output-1731614506863-40.txt",
+      "valid": false,
+      "reason": "unmatched code block with extra closing braces in AppContent component",
+      "timestamp": "2024-11-15T05:02:34.633572"
+    },
+    {
+      "file": "output-1731614506897-31.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.212831"
+    },
+    {
+      "file": "output-1731614507361-32.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.649904"
+    },
+    {
+      "file": "output-1731614507617-38.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.396548"
+    },
+    {
+      "file": "output-1731614507837-4.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.529978"
+    },
+    {
+      "file": "output-1731614507983-0.txt",
+      "valid": false,
+      "reason": "malformed code: unmatched closing brace in img.src assignment",
+      "timestamp": "2024-11-15T05:02:34.796360"
+    },
+    {
+      "file": "output-1731614508066-37.txt",
+      "valid": false,
+      "reason": "unmatched code block - missing closing brace for handleGenderChange function",
+      "timestamp": "2024-11-15T05:02:34.559874"
+    },
+    {
+      "file": "output-1731614508175-9.txt",
+      "valid": false,
+      "reason": "unmatched code block with duplicate lines and unclosed braces in handleClear and fileToBase64 methods",
+      "timestamp": "2024-11-15T05:02:35.105459"
+    },
+    {
+      "file": "output-1731614508242-5.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.331580"
+    },
+    {
+      "file": "output-1731614508300-1.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:40.488734"
+    },
+    {
+      "file": "output-1731614508414-23.txt",
+      "valid": false,
+      "reason": "unmatched code block with broken syntax near line with ```newGender and ```",
+      "timestamp": "2024-11-15T05:02:34.374432"
+    },
+    {
+      "file": "output-1731614508552-3.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.337484"
+    },
+    {
+      "file": "output-1731614508560-41.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:34.650980"
+    },
+    {
+      "file": "output-1731614508595-7.txt",
+      "valid": false,
+      "reason": "unmatched code block - missing closing bracket for textFieldRef.current check",
+      "timestamp": "2024-11-15T05:02:34.461561"
+    },
+    {
+      "file": "output-1731614508978-39.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:38.503606"
+    },
+    {
+      "file": "output-1731614509015-2.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:46.298679"
+    },
+    {
+      "file": "output-1731614509039-44.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:42.259624"
+    },
+    {
+      "file": "output-1731614509094-30.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:48.757052"
+    },
+    {
+      "file": "output-1731614509142-29.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:44.235314"
+    },
+    {
+      "file": "output-1731614509259-28.txt",
+      "valid": false,
+      "reason": "unmatched code block with duplicate closing braces and incomplete error handling in fileToBase64 function",
+      "timestamp": "2024-11-15T05:02:42.135065"
+    },
+    {
+      "file": "output-1731614509272-46.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:41.868014"
+    },
+    {
+      "file": "output-1731614509492-24.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:42.148706"
+    },
+    {
+      "file": "output-1731614509598-16.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag in resizeImage function, contains XML <write_to_file> block",
+      "timestamp": "2024-11-15T05:02:42.662905"
+    },
+    {
+      "file": "output-1731614509886-36.txt",
+      "valid": false,
+      "reason": "unmatched code block in fileToBase64 function - missing closing bracket and has an incomplete error handler",
+      "timestamp": "2024-11-15T05:02:42.348823"
+    },
+    {
+      "file": "output-1731614509975-34.txt",
+      "valid": false,
+      "reason": "unmatched code block in resizeImage function, missing closing brace and semicolon",
+      "timestamp": "2024-11-15T05:02:42.546546"
+    },
+    {
+      "file": "output-1731614510008-17.txt",
+      "valid": false,
+      "reason": "unmatched code block - missing closing brace for textFieldRef.current check",
+      "timestamp": "2024-11-15T05:02:42.455505"
+    },
+    {
+      "file": "output-1731614510160-25.txt",
+      "valid": false,
+      "reason": "unmatched code block - missing closing bracket for textFieldRef.current check",
+      "timestamp": "2024-11-15T05:02:43.536729"
+    },
+    {
+      "file": "output-1731614510350-43.txt",
+      "valid": false,
+      "reason": "unmatched code block in resizeImage function, missing closing brace and semicolon",
+      "timestamp": "2024-11-15T05:02:42.805708"
+    },
+    {
+      "file": "output-1731614510503-10.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:42.031027"
+    },
+    {
+      "file": "output-1731614511031-15.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:42.152169"
+    },
+    {
+      "file": "output-1731614511052-18.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:42.251252"
+    },
+    {
+      "file": "output-1731614511627-35.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:42.214436"
+    },
+    {
+      "file": "output-1731614512268-33.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:42.507375"
+    },
+    {
+      "file": "output-1731614513072-42.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:02:41.971899"
+    },
+    {
+      "file": "output-1731614514093-27.txt",
+      "valid": false,
+      "reason": "unmatched code block in resizeImage function - missing closing brace and syntax error",
+      "timestamp": "2024-11-15T05:02:42.380777"
+    }
+  ],
+  "error_types": {
+    "unmatched code block in handleClear method - missing closing bracket and incomplete method implementation": 1,
+    "unmatched code block with duplicate closing braces and incomplete function definitions": 1,
+    "unmatched code block with broken syntax near line 300": 1,
+    "malformed code block with unmatched backticks in handleGenderChange and img.src assignment": 1,
+    "unmatched code block with broken syntax near line 300-310": 1,
+    "duplicate function definition for handleGenderChange": 1,
+    "unmatched code block with extra closing braces in AppContent component": 1,
+    "malformed code: unmatched closing brace in img.src assignment": 1,
+    "unmatched code block - missing closing brace for handleGenderChange function": 1,
+    "unmatched code block with duplicate lines and unclosed braces in handleClear and fileToBase64 methods": 1,
+    "unmatched code block with broken syntax near line with ```newGender and ```": 1,
+    "unmatched code block - missing closing bracket for textFieldRef.current check": 2,
+    "unmatched code block with duplicate closing braces and incomplete error handling in fileToBase64 function": 1,
+    "unmatched JSX closing tag in resizeImage function, contains XML <write_to_file> block": 1,
+    "unmatched code block in fileToBase64 function - missing closing bracket and has an incomplete error handler": 1,
+    "unmatched code block in resizeImage function, missing closing brace and semicolon": 2,
+    "unmatched code block - missing closing brace for textFieldRef.current check": 1,
+    "unmatched code block in resizeImage function - missing closing brace and syntax error": 1
+  },
+  "timing": {
+    "start_time": "2024-11-15T05:02:32.408907",
+    "end_time": "2024-11-15T05:02:48.757220",
+    "batch_times": [
+      8.041519403457642,
+      8.2682466506958
+    ]
+  }
+}

@@ -304,11 +304,14 @@ export class KoduHandler implements ApiHandler {
 			return message
 		})
 
+		// randomMaxTokens between 2200 and 3000
+		// const rnd = Math.floor(Math.random() * 800) + 2200
+
 		// Build request body
 		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
 			model: modelId,
-			max_tokens: 1200,
-			// max_tokens: this.getModel().info.maxTokens,
+			// max_tokens: 1800,
+			max_tokens: this.getModel().info.maxTokens,
 			system,
 			messages: messagesToCache,
 			temperature: 0.1,
