@@ -194,58 +194,55 @@ export class WriteFileTool extends BaseAgentTool {
 
 	private applyDiff(originalContent: string, diff: string): string {
 		const originalLines = originalContent.split('\n');
-		const hunks = this.parseUnifiedDiff(diff);
-	  
 		let resultLines = originalLines.slice(); // Create a copy to modify
-		let cumulativeOffset = 0; // Keeps track of the offset between originalLines and resultLines
-	  
+		const hunks = this.parseUnifiedDiff(diff);
+		let cumulativeOffset = 0; // Tracks changes made to resultLines
+	
 		for (const hunk of hunks) {
-		  // Extract matching sequence from the hunk (context and deletion lines up to the first addition)
-		  const matchingSequence = [];
-		  let foundAddition = false;
-		  for (const hunkLine of hunk.lines) {
-			if (hunkLine.type === 'addition') {
-			  foundAddition = true;
-			  break; // Stop at the first addition
-			} else if (hunkLine.type === 'context' || hunkLine.type === 'deletion') {
-			  matchingSequence.push(hunkLine.content);
+			// Extract the context from the hunk (only context and deletion lines)
+			const matchingSequence = [];
+			for (const hunkLine of hunk.lines) {
+				if (hunkLine.type === 'context' || hunkLine.type === 'deletion') {
+					matchingSequence.push(hunkLine.content);
+				} else {
+					continue; // Stop once additions are encountered
+				}
 			}
-		  }
-	  
-		  // Find the position in originalLines
-		  const positionInOriginal = this.findBestMatchPosition(
-			originalLines,
-			matchingSequence,
-			0 // Always search from the beginning in originalLines
-		  );
-	  
-		  if (positionInOriginal !== -1) {
-			// Adjust position for resultLines
-			const positionInResult = positionInOriginal + cumulativeOffset;
-	  
-			// Apply the hunk at the adjusted position
-			const hunkResult = this.applyHunk(
-			  resultLines.slice(positionInResult),
-			  hunk.lines // Use all lines in the hunk for applying changes
+	
+			// Find the position in the original content
+			const positionInOriginal = this.findBestMatchPosition(
+				originalLines,
+				matchingSequence,
+				0 // Always search from the beginning of originalLines
 			);
-	  
-			// Replace the original lines with the modified lines
-			resultLines.splice(
-			  positionInResult,
-			  hunkResult.originalLineCount,
-			  ...hunkResult.modifiedLines
-			);
-	  
-			// Update cumulativeOffset based on changes in line count
-			cumulativeOffset += hunkResult.modifiedLines.length - hunkResult.originalLineCount;
-		  } else {
-			console.error('Failed to apply hunk: context not found in original content.');
-			throw new Error('Failed to apply hunk: context not found.');
-		  }
+	
+			if (positionInOriginal !== -1) {
+				// Calculate the corresponding position in resultLines using cumulativeOffset
+				const positionInResult = positionInOriginal + cumulativeOffset;
+	
+				// Apply the hunk changes to resultLines
+				const hunkResult = this.applyHunk(
+					resultLines.slice(positionInResult),
+					hunk.lines
+				);
+	
+				// Replace lines in resultLines
+				resultLines.splice(
+					positionInResult,
+					hunkResult.originalLineCount,
+					...hunkResult.modifiedLines
+				);
+	
+				// Update cumulativeOffset to reflect changes made
+				cumulativeOffset += hunkResult.modifiedLines.length - hunkResult.originalLineCount;
+			} else {
+				console.error('Failed to apply hunk: context not found in original content. Generated udiff wasn\'t accurate enough');
+				throw new Error('Failed to apply hunk: context not found. Generated udiff wasn\'t accurate enough');
+			}
 		}
-	  
+	
 		return resultLines.join('\n');
-	  }
+	}
 	  
 	  
 	  

@@ -264,7 +264,7 @@ When creating a new file:
 Examples of incorrect usage that break the tool's functionality:
 
 - Providing incomplete diffs or diffs that cannot be applied due to incorrect formatting.
-- Using placeholders like "// ... (previous code remains unchanged)", "// your implementation here", or "/* Existing CSS code... */" in your diffs or content.
+- IMPORTANT: Ensure that generating a <udiff> parameter includes both the removal of the original line and the addition of the modified line, as omitting either will crash the system (applies to any number of modified lines).- Using placeholders like "// ... (previous code remains unchanged)", "// your implementation here", or "/* Existing CSS code... */" in your diffs or content.
 - Overwriting an existing file entirely when only partial changes are intended.
 
 Summary:
