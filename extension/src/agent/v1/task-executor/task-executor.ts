@@ -452,30 +452,35 @@ export class TaskExecutor extends TaskExecutorUtils {
 							// Accumulate text until we have a complete XML tag or enough non-XML content
 							accumulatedText += chunk.body.text
 							
-							// check if this chunk is inside tool
-							const isChunkInsideTool = this.toolExecutor.isParserInToolTag()
-							
-							// If we're transitioning into a tool tag, flush the buffer first
-							if (isChunkInsideTool && this.textBuffer.length > 0) {
-								await this.flushTextBuffer(this.currentReplyId, true)
-								this.textBuffer = ""
-							}
+							// Check if this chunk contains a closing tool tag
+							const hasClosingTag = accumulatedText.includes('</');
+							const wasInTool = this.toolExecutor.hasActiveTools();
 							
 							// Process for tool use and get non-XML text
 							const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
+							
+							// If we were in a tool and now we're not, the chunk contained a closing tag
+							if (wasInTool && !this.toolExecutor.hasActiveTools()) {
+								// Extract text after the closing tag
+								const afterClosingTag = accumulatedText.split('</')[1]?.split('>')[1];
+								if (afterClosingTag) {
+									this.textBuffer += afterClosingTag;
+									await this.flushTextBuffer(this.currentReplyId);
+								}
+							} else if (!this.toolExecutor.hasActiveTools() && nonXMLText) {
+								// Handle normal text chunks
+								this.textBuffer += nonXMLText;
+								await this.flushTextBuffer(this.currentReplyId);
+							}
+							
 							accumulatedText = "" // Clear accumulated text after processing
 
 							// If tool processing started, pause the stream
 							if (this.toolExecutor.hasActiveTools()) {
 								this.pauseStream()
 								await this.toolExecutor.waitForToolProcessing()
-								// Clear any remaining text buffer after tool processing
 								this.textBuffer = ""
 								await this.resumeStream()
-							} else if (nonXMLText) {
-								// Only buffer non-XML text if we're not in a tool context
-								this.textBuffer += nonXMLText
-								await this.flushTextBuffer(this.currentReplyId)
 							}
 						}
 					}
