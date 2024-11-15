@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils"
 import { vscode } from "@/utils/vscode"
 import {
 	AlertCircle,
-	Check,
 	CheckCircle,
 	ChevronDown,
 	ChevronUp,
@@ -509,7 +508,7 @@ const textVariants = {
 
 export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 	({ path = '', content, approvalState, onApprove, onReject, tool, ts, ...rest }) => {
-		content = content ?? ""
+		content = (content ?? "").replace(/\t/g, '  ')
 		const [visibleContent, setVisibleContent] = useState<string[]>([])
 		const [totalLines, setTotalLines] = useState(0)
 		const isStreaming = approvalState === "loading"
@@ -564,12 +563,6 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 			</button>
 			<button
 				className="p-1 hover:bg-muted rounded-sm"
-				title="Apply changes"
-				onClick={() => onApprove && onApprove()}>
-				<Check className="h-3 w-3" />
-			</button>
-			<button
-				className="p-1 hover:bg-muted rounded-sm"
 				title="Give feedback"
 				onClick={() => onReject && onReject("I don't like this")}>
 				<MessageSquare className="h-3 w-3" />
@@ -594,26 +587,33 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 				approvalState={approvalState}
 				onApprove={onApprove}
 				onReject={onReject}>
-				<ScrollArea className="max-h-96 w-full">
+				<div className="relative max-h-[300px] overflow-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30">
 					<Highlight
 						theme={themes.vsDark}
 						code={content}
 						language={language}>
 						{({ className, style, tokens, getLineProps, getTokenProps }) => (
-							<pre className={`${className} text-xs`} style={style}>
+							<pre 
+								className={`${className} text-xs p-4`} 
+								style={{
+									...style,
+									margin: 0,
+									width: 'fit-content',
+									minWidth: '100%'
+								}}>
 								{tokens.map((line, i) => (
-									<div key={i} {...getLineProps({ line })}>
-										{line.map((token, key) => (
-											<span key={key} {...getTokenProps({ token })} />
-										))}
+									<div key={i} {...getLineProps({ line })} style={{ display: 'table-row' }}>
+										<span style={{ display: 'table-cell' }}>
+											{line.map((token, key) => (
+												<span key={key} {...getTokenProps({ token })} />
+											))}
+										</span>
 									</div>
 								))}
 							</pre>
 						)}
 					</Highlight>
-					<ScrollBar orientation="vertical" />
-					<ScrollBar orientation="horizontal" />
-				</ScrollArea>
+				</div>
 			</ToolBlock>
 		)
 	},
