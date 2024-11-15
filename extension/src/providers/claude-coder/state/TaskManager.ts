@@ -9,7 +9,11 @@ import { compressImages, downloadTask, selectImages } from "../../../utils"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 
 export class TaskManager {
-	constructor(private provider: ExtensionProvider) {}
+	private provider: ExtensionProvider
+
+	public constructor(provider: ExtensionProvider) {
+		this.provider = provider
+	}
 
 	async clearTask() {
 		const now = new Date()

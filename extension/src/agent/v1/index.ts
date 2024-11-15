@@ -71,6 +71,11 @@ export class KoduDev {
 			claudeMessages: [],
 			abort: false,
 		})
+		amplitudeTracker.updateUserSettings({
+			AlwaysAllowReads: this.stateManager.alwaysAllowReadOnly,
+			AutomaticMode: this.stateManager.alwaysAllowWriteOnly,
+			AutoSummarize: this.stateManager.autoSummarize,
+		})
 
 		if (historyItem?.dirAbsolutePath) {
 		}
@@ -349,23 +354,6 @@ export class KoduDev {
 		} finally {
 			this.isAborting = false
 		}
-	}
-
-	async executeTool(name: ToolName, input: ToolInput, isLastWriteToFile: boolean = false) {
-		if (this.isAborting) {
-			throw new Error("Cannot execute tool while aborting")
-		}
-		const now = Date.now()
-		return this.toolExecutor.executeTool({
-			name,
-			input,
-			id: now.toString(),
-			ts: now,
-			isLastWriteToFile,
-			ask: this.taskExecutor.ask.bind(this.taskExecutor),
-			say: this.taskExecutor.say.bind(this.taskExecutor),
-			updateAsk: this.taskExecutor.updateAsk.bind(this.taskExecutor),
-		})
 	}
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {

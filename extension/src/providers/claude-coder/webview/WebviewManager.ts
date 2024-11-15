@@ -42,11 +42,8 @@ const excludedDirectories = [
 
 export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
-	private execaTerminalManager: ExecaTerminalManager
 
-	constructor(private provider: ExtensionProvider) {
-		this.execaTerminalManager = new ExecaTerminalManager()
-	}
+	constructor(private provider: ExtensionProvider) {}
 
 	setupWebview(webviewView: vscode.WebviewView | vscode.WebviewPanel) {
 		webviewView.webview.options = {
@@ -318,6 +315,10 @@ export class WebviewManager {
 					case "openExternalLink":
 						vscode.env.openExternal(vscode.Uri.parse(message.url))
 						break
+					case "isContinueGenerationEnabled":
+						await this.provider.getStateManager().setIsContinueGenerationEnabled(message.bool)
+						await this.postStateToWebview()
+						break
 					case "amplitude":
 						AmplitudeWebviewManager.handleMessage(message)
 						break
@@ -444,21 +445,6 @@ export class WebviewManager {
 						break
 					case "debug":
 						await this.handleDebugInstruction()
-						break
-					case "executeCommand":
-						const callbackFunction = (
-							event: "error" | "exit" | "response",
-							commandId: number,
-							data: string
-						) => {
-							this.postMessageToWebview({
-								type: "commandExecutionResponse",
-								status: event,
-								payload: data,
-								commandId: commandId.toString(),
-							})
-						}
-						await this.execaTerminalManager.executeCommand(message, callbackFunction)
 						break
 				}
 			},

@@ -1,5 +1,7 @@
 import { ImageBlockParam, TextBlock, TextBlockParam } from "@anthropic-ai/sdk/resources/messages.mjs"
 import type { ToolResponseV2 } from "../agent/v1/types"
+import { ToolName } from "./new-tools"
+import { base64StringToImageBlock } from "./format-images"
 
 type ContentBlock = TextBlock | ImageBlockParam | TextBlockParam
 
@@ -59,20 +61,14 @@ export const toolResponseToAIState = (result: ToolResponseV2): ContentBlock[] =>
 			text: `Images attached to the request:`,
 		})
 		result.images.forEach((image) => {
-			blocks.push({
-				type: "image",
-				source: {
-					data: image,
-					media_type: getBase64ImageType(image) || "image/jpeg",
-					type: "base64",
-				},
-			})
+			const imageBlock = base64StringToImageBlock(image)
+			blocks.push(imageBlock)
 		})
 	}
 	return blocks
 }
 
-function getBase64ImageType(base64String: string): ImageBlockParam["source"]["media_type"] | null {
+export function getBase64ImageType(base64String: string): ImageBlockParam["source"]["media_type"] | null {
 	// Remove data URL prefix if it exists
 	const base64 = base64String.replace(/^data:image\/\w+;base64,/, "")
 
@@ -106,7 +102,7 @@ function getBase64ImageType(base64String: string): ImageBlockParam["source"]["me
  */
 export const compressToolFromMsg = (msgs: ContentBlock[]): ContentBlock[] => {
 	const blocks: ContentBlock[] = []
-
+	const compressedTools: ToolName[] = ["write_to_file", "read_file"]
 	for (const msg of msgs) {
 		if (isTextBlock(msg)) {
 			if (msg.text.includes("<write_to_file>")) {
@@ -131,6 +127,11 @@ export const compressToolFromMsg = (msgs: ContentBlock[]): ContentBlock[] => {
 				try {
 					// Parse the tool response and add Compressed version
 					const toolResponse = parseToolResponse(msg.text)
+					if (!compressedTools.includes(toolResponse.toolName as ToolName)) {
+						// Keep non-compressible tools as is
+						blocks.push(msg)
+						continue
+					}
 					blocks.push({
 						type: "text",
 						text: `[Compressed] Tool ${toolResponse.toolName} (${toolResponse.toolStatus})`,

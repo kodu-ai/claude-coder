@@ -4,6 +4,42 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.11.1] - 2024-11-15
+
+-   Fix opening Kodu on a new tab
+
+## [1.11.0] - 2024-11-14
+
+-   New Diff View Algorithm
+    -   Improved CPU usage
+    -   Eliminated edge cases causing diff view crashes during requests
+-   Experimental Continuous Generation
+    -   Models can now run beyond the max context window
+    -   Particularly useful for large files
+    -   Chains follow-up requests to continue generation (additional cost applies)
+
+## [1.10.0] - 2024-11-07
+
+### Added
+
+-   New chat compression algorithm for new chats
+    -   Improved memory efficiency
+    -   Better context preservation
+-   Enhanced streaming UI implementation
+
+### Fixed
+
+-   Edge case stream corruption issues
+-   Image format handling
+-   Chat truncation prevention mechanisms
+
+### Changed
+
+-   Improved overall extension performance
+    -   Reduced memory footprint
+    -   Faster response times
+    -   Better resource utilization
+
 ## [1.9.26] - 2024-11-05
 
 ### Added

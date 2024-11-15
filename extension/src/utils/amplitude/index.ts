@@ -21,10 +21,12 @@ export class AmplitudeTracker {
 	private initialized: boolean = false
 	private sessionId: string | undefined
 	private extensionName: string | undefined
+	private extensionVersion: string | undefined
 	private ip: string | undefined
 	private globalState: vscode.Memento | undefined
 	private currentTaskRequestCount = 0
 	private sessionTaskRequestCount = 0
+	private userSettings: object | undefined
 	private constructor() {}
 
 	public static getInstance(): AmplitudeTracker {
@@ -39,6 +41,7 @@ export class AmplitudeTracker {
 		isLoggedIn: boolean,
 		sessionId: string,
 		extensionName: string,
+		extensionVersion: string,
 		userId?: string
 	): Promise<void> {
 		if (this.initialized) {
@@ -50,6 +53,7 @@ export class AmplitudeTracker {
 		this.sessionId = sessionId
 		this.extensionName = extensionName
 		this.sessionTaskRequestCount = 0
+		this.extensionVersion = extensionVersion
 
 		const userIp = await getUserIP()
 		this.ip = userIp
@@ -60,6 +64,10 @@ export class AmplitudeTracker {
 		this.updateUserState(isLoggedIn, userId)
 		this.initialized = true
 		console.log(`AmplitudeTracker initialized with user ID: ${this.currentUserId}`)
+	}
+
+	public updateUserSettings(object: object): void {
+		this.userSettings = object
 	}
 
 	public updateUserState(isLoggedIn: boolean, userId?: string): void {
@@ -171,14 +179,17 @@ export class AmplitudeTracker {
 			device_id: this.getDeviceId(),
 			event_properties: eventProperties,
 			user_properties: {
+				...(this.userSettings || {}),
 				...userProperties,
 			},
 			...(this.ip ? { ip_address: this.ip } : {}),
 			user_id: this.currentUserId,
+
 			platform: this.extensionName,
 			os_name: osName(),
 			extra: {
 				extensionName: this.extensionName,
+				extensionVersion: this.extensionVersion,
 				sessionId: this.sessionId,
 				platform: "vscode",
 			},

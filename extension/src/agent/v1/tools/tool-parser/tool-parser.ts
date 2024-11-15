@@ -56,6 +56,10 @@ export class ToolParser {
 		this.onToolClosingError = onToolClosingError
 	}
 
+	get isInToolTag(): boolean {
+		return this.isInTool
+	}
+
 	appendText(text: string): string {
 		for (const char of text) {
 			this.processChar(char)

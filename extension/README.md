@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=kodu-ai.kodu" target="_blank"><strong>Download Extension</strong></a> | <a href="https://discord.gg/Fn97SD34qk" target="_blank"><strong>Join the Discord</strong></a>
+  <a href="https://marketplace.visualstudio.com/items/kodu-ai.claude-dev-experimental" target="_blank"><strong>Download Extension</strong></a> | <a href="https://discord.gg/Fn97SD34qk" target="_blank"><strong>Join the Discord</strong></a>
 </p>
 
 # 👋 Hey there !

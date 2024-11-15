@@ -18,7 +18,8 @@ import {
 } from "../shared/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { ApiHistoryItem } from "../agent/v1"
-import { estimateTokenCountFromMessages } from "@/utils/context-management"
+// import { GlobalStateManager } from "@/providers/claude-coder/state/GlobalStateManager"
+import { GlobalStateManager } from "../providers/claude-coder/state/GlobalStateManager"
 
 const temperatures = {
 	creative: {
@@ -263,6 +264,7 @@ export class KoduHandler implements ApiHandler {
 				const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 				requestBody = {
 					model: modelId,
+
 					max_tokens: this.getModel().info.maxTokens,
 					system: systemPrompt,
 					messages: messages.map((message, index) => {
@@ -444,9 +446,13 @@ export class KoduHandler implements ApiHandler {
 			return message
 		})
 
+		// randomMaxTokens between 2200 and 3000
+		// const rnd = Math.floor(Math.random() * 800) + 2200
+
 		// Build request body
 		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
 			model: modelId,
+			// max_tokens: 1800,
 			max_tokens: this.getModel().info.maxTokens,
 			system,
 			messages: messagesToCache,
@@ -454,6 +460,9 @@ export class KoduHandler implements ApiHandler {
 			top_p: 0.9,
 		}
 		this.cancelTokenSource = axios.CancelToken.source()
+
+		const isContinueGenerationEnabled =
+			!!GlobalStateManager.getInstance().getGlobalState("isContinueGenerationEnabled")
 
 		const response = await axios.post(
 			getKoduInferenceUrl(),
@@ -464,6 +473,7 @@ export class KoduHandler implements ApiHandler {
 				headers: {
 					"Content-Type": "application/json",
 					"x-api-key": this.options.koduApiKey || "",
+					"continue-generation": isContinueGenerationEnabled ? "true" : "false",
 				},
 				responseType: "stream",
 				signal: abortSignal ?? undefined,
@@ -545,9 +555,13 @@ export class KoduHandler implements ApiHandler {
 		>
 	): any {
 		// if use udf
+		// randomMaxTokens between 2200 and 3000
+		// const rnd = Math.floor(Math.random() * 800) + 2200
+
 		return {
 			model: this.getModel().id,
 			max_tokens: this.getModel().info.maxTokens,
+			// max_tokens: Math.max(rnd, 2200),
 			system: "(see SYSTEM_PROMPT in src/agent/system-prompt.ts)",
 			messages: [{ conversation_history: "..." }, { role: "user", content: withoutImageData(userContent) }],
 			tools: "(see tools in src/agent/v1/tools/schema/index.ts)",

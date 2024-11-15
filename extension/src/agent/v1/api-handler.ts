@@ -17,6 +17,8 @@ import { estimateTokenCount, smartTruncation, truncateHalfConversation } from ".
 import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
 import { ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
+import { writeFile } from "fs/promises"
+import path from "path"
 
 /**
  * Interface for tracking API usage metrics
@@ -221,6 +223,45 @@ ${this.customInstructions.trim()}
 
 			// log the last 2 messages
 			this.log("info", `Last 2 messages:`, apiConversationHistoryCopy.slice(-2))
+			const RUN_MULTIPLE_LOGS = false
+
+			if (RUN_MULTIPLE_LOGS) {
+				const extraRuns = 0
+				// we will only log to disk the results of the run and make it all in the background we will not yield the results
+				const backgroundJob = async () => {
+					const promises = Array.from({ length: extraRuns }, async (_, i) => {
+						console.log(`Running background job ${i}`)
+						const stream = await this.api.createMessageStream(
+							systemPrompt.trim(),
+							apiConversationHistoryCopy,
+							creativeMode,
+							abortSignal,
+							customInstructions
+						)
+						for await (const chunk of stream) {
+							if (chunk.code === 1) {
+								// write to disk the output content
+								// @ts-expect-error
+								const content = chunk.body.anthropic?.content[0].text as string
+								const fileName = `output-${Date.now()}-${i}.txt`
+								// write it to the current directory at logs/output-<timestamp>.txt
+								const absolutePath = path.join(__dirname, "logs", "continue-generation", fileName)
+								console.log(`Writing to disk: ${absolutePath}`)
+								await writeFile(absolutePath, content, "utf-8")
+								return
+							}
+						}
+					})
+					await Promise.all(promises)
+				}
+				backgroundJob()
+					.then(() => {
+						console.log("Background job finished")
+					})
+					.catch((error) => {
+						console.error("Background job failed", error)
+					})
+			}
 
 			const stream = await this.api.createMessageStream(
 				systemPrompt.trim(),
@@ -261,6 +302,7 @@ ${this.customInstructions.trim()}
 						if (chunk.code === 1) {
 							clearInterval(checkInactivity)
 							yield* this.processStreamChunk(chunk)
+							// will this return return otuside the loop? or outside of the function?
 							return
 						}
 
@@ -268,7 +310,11 @@ ${this.customInstructions.trim()}
 							// clear the interval
 							clearInterval(checkInactivity)
 							// Compress the context and retry
-							await this.manageContextWindow()
+							const result = await this.manageContextWindow()
+							if (result === "chat_finished") {
+								// if the chat is finsihed, throw an error
+								throw new KoduError({ code: 413 })
+							}
 							retryAttempt++
 							break // Break the for loop to retry with compressed history
 						}
@@ -388,10 +434,10 @@ ${this.customInstructions.trim()}
 	/**
 	 * Manages the context window to prevent token overflow
 	 */
-	private async manageContextWindow(): Promise<void> {
+	private async manageContextWindow(): Promise<"chat_finished" | "compressed"> {
 		const provider = this.providerRef.deref()
 		if (!provider) {
-			return
+			throw new Error("Provider reference has been garbage collected")
 		}
 		const history = provider.koduDev?.getStateManager().state.apiConversationHistory || []
 		const isAutoSummaryEnabled = provider.getKoduDev()?.getStateManager().autoSummarize ?? false
@@ -399,7 +445,7 @@ ${this.customInstructions.trim()}
 		if (!isAutoSummaryEnabled) {
 			const updatedMesages = truncateHalfConversation(history)
 			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(updatedMesages)
-			return
+			return "compressed"
 		}
 		const state = await provider.getStateManager()?.getState()
 		const systemPromptTokens = estimateTokenCount({
@@ -436,7 +482,7 @@ ${this.customInstructions.trim()}
 					"chat_finished",
 					`The chat has reached the maximum token limit. Please create a new task to continue.`
 				)
-			return
+			return "chat_finished"
 		}
 		await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 		await this.providerRef
@@ -449,6 +495,7 @@ ${this.customInstructions.trim()}
 					after: newMemorySize,
 				})
 			)
+		return "compressed"
 	}
 
 	/**

@@ -95,15 +95,6 @@ export class ToolExecutor {
 		return new ToolClass(params, this.options)
 	}
 
-	public async executeTool(params: AgentToolParams) {
-		if (this.isAborting) {
-			throw new Error("Cannot execute tool while aborting")
-		}
-
-		const tool = this.createTool(params)
-		return tool.execute(params)
-	}
-
 	public setRunningProcessId(pid: number | undefined) {
 		this.runningProcessId = pid
 	}
@@ -166,16 +157,16 @@ export class ToolExecutor {
 		}
 	}
 
-	public async processToolUse(text: string): Promise<string> {
+	public async processToolUse(text: string) {
 		if (this.isAborting) {
-			return text
+			return { output: text }
 		}
 		return this.toolParser.appendText(text)
 	}
 
 	public async waitForToolProcessing(): Promise<void> {
 		// use pwaitfor to wait for the queue to be idle
-		await pWaitFor(() => this.queue.size === 0 && this.queue.pending === 0, { interval: 10 })
+		await pWaitFor(() => this.queue.size === 0 && this.queue.pending === 0, { interval: 50 })
 	}
 
 	private async handleToolUpdate(id: string, toolName: string, params: any, ts: number): Promise<void> {
@@ -290,6 +281,10 @@ export class ToolExecutor {
 			},
 			ts
 		)
+	}
+
+	public isParserInToolTag() {
+		return this.toolParser.isInToolTag
 	}
 
 	private async processTool(context: ToolContext): Promise<void> {

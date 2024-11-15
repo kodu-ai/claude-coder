@@ -30,6 +30,7 @@ export type GlobalState = {
 	creativeMode: CreativeMode | undefined
 	autoCloseTerminal: boolean | undefined
 	experimentalTerminal: boolean | undefined
+	isContinueGenerationEnabled: boolean | undefined
 	skipWriteAnimation: boolean | undefined
 	technicalBackground: "no-technical" | "technical" | "developer" | undefined
 	systemPromptVariants: SystemPromptVariant[] | undefined
@@ -37,8 +38,22 @@ export type GlobalState = {
 }
 
 export class GlobalStateManager {
-	constructor(private context: vscode.ExtensionContext) {
+	private static instance: GlobalStateManager | null = null
+	private context: vscode.ExtensionContext
+
+	private constructor(context: vscode.ExtensionContext) {
+		this.context = context
 		this.initializeSystemPrompts()
+	}
+
+	public static getInstance(context?: vscode.ExtensionContext): GlobalStateManager {
+		if (!GlobalStateManager.instance) {
+			if (!context) {
+				throw new Error("Context must be provided when creating the GlobalStateManager instance")
+			}
+			GlobalStateManager.instance = new GlobalStateManager(context)
+		}
+		return GlobalStateManager.instance
 	}
 
 	public async initializeSystemPrompts() {

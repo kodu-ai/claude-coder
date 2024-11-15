@@ -30,12 +30,12 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 
 	constructor(readonly context: vscode.ExtensionContext, private readonly outputChannel: vscode.OutputChannel) {
 		this.outputChannel.appendLine("ExtensionProvider instantiated")
-		this.globalStateManager = new GlobalStateManager(context)
-		this.secretStateManager = new SecretStateManager(context)
+		this.globalStateManager = GlobalStateManager.getInstance(context)
+		this.secretStateManager = SecretStateManager.getInstance(context)
 		this.stateManager = new StateManager(this)
-		this.webviewManager = new WebviewManager(this)
 		this.taskManager = new TaskManager(this)
-		this.apiManager = new ApiManager(this)
+		this.apiManager = ApiManager.getInstance(this)
+		this.webviewManager = new WebviewManager(this)
 	}
 
 	async dispose() {
@@ -125,6 +125,10 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 			historyItem,
 		})
 	}
+
+	/**
+	 * useful to initialize the provider without a task (e.g. when the user opens the extension for the first time and you want to test some functionality)
+	 */
 	async initWithNoTask() {
 		await this.taskManager.clearTask()
 		const state = await this.stateManager.getState()

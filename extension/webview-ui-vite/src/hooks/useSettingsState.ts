@@ -18,6 +18,7 @@ export function useSettingsState() {
 		alwaysAllowWriteOnly: extensionState.alwaysAllowWriteOnly || false,
 		autoSummarize: extensionState.autoSummarize || false,
 		"one-click-deployment": false,
+		isContinueGenerationEnabled: extensionState.isContinueGenerationEnabled || false,
 	})
 	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
 	const [autoSkipWrite, setAutoSkipWrite] = useState(extensionState.skipWriteAnimation || false)
@@ -44,6 +45,10 @@ export function useSettingsState() {
 				if (featureId === "autoSummarize") {
 					extensionState.setAutoSummarize(checked)
 					vscode.postMessage({ type: "autoSummarize", bool: checked })
+				}
+				if (featureId === "isContinueGenerationEnabled") {
+					extensionState.setIsContinueGenerationEnabled(checked)
+					vscode.postMessage({ type: "isContinueGenerationEnabled", bool: checked })
 				}
 				return newState
 			})
