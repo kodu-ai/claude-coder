@@ -5,14 +5,14 @@ import { z } from "zod"
  * @tool write_to_file
  * @description Write content to a file at the specified path. This tool has two modes of operation:
  * 1. **Creating a New File**: Provide the full intended content using the `content` parameter. The file will be created if it does not exist.
- * 2. **Modifying an Existing File**: Provide a unified diff (`udiff`) representing the changes to be made. This ensures minimal and precise modifications to existing files.
- * If the file exists, use the `udiff` parameter to describe the changes. If the file doesn't exist, use the `content` parameter to create it with the provided content.
- * Always provide the full content or accurate diffs. Never truncate content or use placeholders.
+ * 2. **Modifying an Existing File**: Provide changes using `SEARCH/REPLACE` blocks to precisely describe modifications to existing files.
+ * If the file exists, use the `diff` parameter to describe the changes. If the file doesn't exist, use the `content` parameter to create it with the provided content.
+ * Always provide the full content or accurate changes using `SEARCH/REPLACE` blocks. Never truncate content or use placeholders.
  * @schema
  * {
- *   path: string;        // The path of the file to write to.
- *   content?: string;    // The complete content to write to the file when creating a new file.
- *   udiff?: string;      // The unified diff representing changes to be made to an existing file.
+ *   path: string;     // The path of the file to write to.
+ *   content?: string; // The complete content to write to the file when creating a new file.
+ *   diff?: string;    // The `SEARCH/REPLACE` blocks representing changes to be made to an existing file.
  * }
  * @example (Creating a new file)
  * ```xml
@@ -25,66 +25,148 @@ import { z } from "zod"
  * ```xml
  * <tool name="write_to_file">
  *   <path>/scripts/setup.sh</path>
- *   <udiff>
- * --- a/scripts/setup.sh
- * +++ b/scripts/setup.sh
- * @@ -1,2 +1,2 @@
- * -echo "Setting up environment"
- * +echo "Initializing environment"
- * </udiff>
+ *   <diff>
+ * <scripts/setup.sh
+ * <<<<<<< SEARCH
+ * echo "Setting up environment"
+ * =======
+ * echo "Initializing environment"
+ * >>>>>>> REPLACE
+ * </diff>
  * </tool>
  * ```
  */
 const schema = z.object({
-	path: z
-	  .string()
-	  .describe("The path of the file to write to (relative to the current working directory)."),
-	content: z
-	  .string()
-	  .describe(
-		"The full content to write to the file when creating a new file. Always provide the complete content without any truncation."
-	  )
-	  .optional(),
-	udiff: z
-	  .string()
-	  .describe(
-		"The unified diff representing the changes to be made to an existing file. This must be formatted correctly, including headers and context lines."
-	  )
-	  .optional(),
-  });
+  path: z
+    .string()
+    .describe("The path of the file to write to (relative to the current working directory)."),
+  content: z
+    .string()
+    .describe(
+      "The full content to write to the file when creating a new file. Always provide the complete content without any truncation."
+    )
+    .optional(),
+  diff: z
+    .string()
+    .describe(
+      "The `SEARCH/REPLACE` blocks representing the changes to be made to an existing file. These blocks must be formatted correctly, matching exact existing content for `SEARCH` and precise modifications for `REPLACE`."
+    )
+    .optional(),
+});
 
 const examples = [
-  `<tool name="write_to_file">
+  `<write_to_file>
   <path>/notes/todo.txt</path>
   <content>Buy groceries\nCall Alice</content>
-</tool>`,
+</write_to_file>`,
 
-  `<tool name="write_to_file">
+  `<write_to_file>
   <path>/scripts/setup.sh</path>
-  <udiff>
---- a/scripts/setup.sh
-+++ b/scripts/setup.sh
-@@ -1,2 +1,2 @@
--echo "Setting up environment"
-+echo "Initializing environment"
-</udiff>
-</tool>`,
+  <diff>
+SEARCH
+echo "Setting up environment"
+=======
+REPLACE
+echo "Initializing environment"
+</diff>
+</write_to_file>`,
 
-  `<tool name="write_to_file">
+  `<write_to_file>
   <path>/data/config.json</path>
-  <udiff>
---- a/data/config.json
-+++ b/data/config.json
-@@ -2,7 +2,7 @@
+  <diff>
+SEARCH
 {
   "version": "1.0.0",
-- "debug": false,
-+ "debug": true,
+  "debug": false,
   "features": ["feature1", "feature2"]
 }
-</udiff>
-</tool>`,
+=======
+REPLACE
+{
+  "version": "1.0.0",
+  "debug": true,
+  "features": ["feature1", "feature2"]
+}
+</diff>
+</write_to_file>`,
+
+  `<write_to_file>
+  <path>src/example.js</path>
+  <diff>
+SEARCH
+const x = 42;
+=======
+REPLACE
+const x = 100; // Modified value for testing
+</diff>
+</write_to_file>`,
+
+  `<write_to_file>
+  <path>mathweb/flask/app.py</path>
+  <diff>
+SEARCH
+from flask import Flask
+=======
+REPLACE
+import math
+from flask import Flask
+</diff>
+</write_to_file>`,
+
+  `<write_to_file>
+  <path>mathweb/flask/app.py</path>
+  <diff>
+SEARCH
+def factorial(n):
+    "compute factorial"
+
+    if n == 0:
+        return 1
+    else:
+        return n * factorial(n-1)
+
+=======
+REPLACE
+
+</diff>
+</write_to_file>`,
+
+  `<write_to_file>
+  <path>mathweb/flask/app.py</path>
+  <diff>
+SEARCH
+    return str(factorial(n))
+=======
+REPLACE
+    return str(math.factorial(n))
+</diff>
+</write_to_file>`,
+
+  `<write_to_file>
+  <path>hello.py</path>
+  <content>
+def hello():
+    "print a greeting"
+
+    print("hello")
+</content>
+</write_to_file>`,
+
+  `<write_to_file>
+  <path>main.py</path>
+  <diff>
+SEARCH
+def hello():
+    "print a greeting"
+
+    print("hello")
+=======
+REPLACE
+from hello import hello
+</diff>
+</write_to_file>`
 ];
+
 
 export const writeToFileTool = {
   schema: {

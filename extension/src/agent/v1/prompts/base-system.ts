@@ -103,33 +103,230 @@ Usage:
 </read_file>
 
 ## write_to_file
-Description: Request to write content to a file at the specified path. If the file exists, provide a unified diff (udiff) in the <udiff> parameter representing the changes to be made. If the file doesn't exist, provide the full intended content of the file in the 'content' parameter, without any truncation. This tool will automatically create any directories needed to write the file.
+Description: Request to write content to a file at the specified path. If the file exists, provide the changes using 'SEARCH/REPLACE' blocks to clearly indicate modifications. If the file doesn't exist, provide the full intended content of the file in the 'content' parameter, without any truncation. This tool will automatically create any directories needed to write the file.
 Parameters:
 - path: (required) The path of the file to write to (relative to the current working directory ${cwd.toPosix()})
 - content: (required when creating a new file) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN.
-- udiff: (required when modifying an existing file) The unified diff representing the changes to be made to the existing file.
+- diff: (required when modifying an existing file) The 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly, and each 'REPLACE' block should provide the intended changes.
 
-Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...' if you are writing code to a new file, you must provide the complete code, no placeholders, no partial updates, you must write all the code! In case it's an update to a file **MUST** include the <diff> parameter and not include the <content> parameter.
-###IMPORTANT##:
-When modifying an existing file, **NEVER** include the <content> parameter. Instead, provide the unified diff representing the changes to be made to the existing file.
+Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...'. If you are writing code to a new file, you must provide the complete code, no placeholders, no partial updates; you must write all the code! When modifying an existing file, **MUST** use the 'diff' parameter and not include the 'content' parameter.
 
-Usage:
-***Creating a new file:***
+### IMPORTANT ###
+When modifying an existing file, **NEVER** include the 'content' parameter. Instead, provide the 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file inside the <diff> parameter
+
+### WRITE_TO_FILE (CRITICAL GUIDANCE FOR USING SEARCH/REPLACE):
+
+Accurately generating 'SEARCH/REPLACE' blocks when using the write_to_file tool is crucial to avoid errors and ensure modifications are correctly applied. Follow these structured steps:
+
+## Step-by-Step Checklist for Generating 'SEARCH/REPLACE' Blocks:
+
+1. **Read the File (if Necessary)**:
+   - Did you read the file before writing to it? If not, use the 'read_file' tool first to obtain the latest content, unless you already have it from previous steps or user input.
+   - Avoid unnecessary re-reads; only read again if the content is missing or has changed.
+
+2. **Confirm the Latest Content**:
+   - Ensure you have the last content from either a previous 'read_file' operation, user input, or a recent 'write_to_file' tool call.
+
+3. **Avoid Placeholders**:
+   - Do **NOT** use placeholders such as '// ...' or comments like '/ your implementation here'. The 'REPLACE' section must reflect the actual and complete intended changes.
+
+4. **Consistent 'SEARCH/REPLACE' Blocks**:
+   - Use 'SEARCH/REPLACE' blocks when modifying existing files.
+   - Each 'SEARCH' block must exactly match existing content. Any deviation may lead to errors.
+   - Separate the 'SEARCH' and 'REPLACE' blocks with '======='.
+   - When creating a new file, provide complete content using '<content>.
+
+5. **ENSURE** that the SEARCH block contains at least 5 contiguous lines of code or additional context, such as comments, from the original file. This approach improves the reliability of matching and minimizes unintended changes during modification.
+  - Always strive to capture surrounding lines that help uniquely identify the location of your intended change.
+  - Contextual lines may include comments, whitespace, and code directly before or after the target change to ensure a robust match.
+  - When in doubt, prioritize including more lines for context while maintaining SEARCH sections that are concise and relevant to avoid overwhelming matches.
+
+
+-- Example 1: Modifying a Variable in a File
 
 <write_to_file>
-<path>File path here</path>
+<path>src/example.js</path>
+<diff>
+SEARCH
+// Some preceding lines for context
+const a = 10;
+const b = 20;
+const c = 30;
+const x = 42;
+const y = 50;
+=======
+REPLACE
+// Some preceding lines for context
+const a = 10;
+const b = 20;
+const c = 30;
+const x = 100; // Modified value for testing
+const y = 50;
+</diff>
+</write_to_file>
+
+-- Example 2: Adding an Import Statement and Removing a Function
+
+-- 1. Adding an import:
+
+<write_to_file>
+<path>mathweb/flask/app.py</path>
+<diff>
+SEARCH
+from flask import Flask
+# Additional context lines for matching
+def my_function():
+    pass
+
+class Example:
+    def __init__(self):
+        pass
+=======
+REPLACE
+import math
+from flask import Flask
+# Additional context lines for matching
+def my_function():
+    pass
+
+class Example:
+    def __init__(self):
+        pass
+</diff>
+</write_to_file>
+
+-- 2. Removing an existing function:
+
+<write_to_file>
+<path>mathweb/flask/app.py</path>
+<diff>
+SEARCH
+def factorial(n):
+    "compute factorial"
+
+    if n == 0:
+        return 1
+    else:
+        return n * factorial(n-1)
+
+# Context lines for better match
+def another_function():
+    print("This is a test")
+=======
+REPLACE
+# Context lines for better match
+def another_function():
+    print("This is a test")
+</diff>
+</write_to_file>
+
+-- Example 3: Updating a Function Call
+
+<write_to_file>
+<path>mathweb/flask/app.py</path>
+<diff>
+SEARCH
+# Contextual code for better matching
+def process_number(n):
+    result = n * 2
+    return str(factorial(n))
+
+# More context if necessary
+def another_function_call():
+    pass
+=======
+REPLACE
+# Contextual code for better matching
+def process_number(n):
+    result = n * 2
+    return str(math.factorial(n))
+
+# More context if necessary
+def another_function_call():
+    pass
+</diff>
+</write_to_file>
+
+-- Example 4: Creating a New File
+
+<write_to_file>
+<path>hello.py</path>
 <content>
-Complete file content here
+def hello():
+    "print a greeting"
+
+    print("hello")
 </content>
 </write_to_file>
 
-***Modifying an existing file:***
+-- Example 5: Modifying an Existing File to Import a Function
 
 <write_to_file>
-<path>File path here</path>
-<udiff>
-Unified diff here
-</udiff>
+<path>main.py</path>
+<diff>
+SEARCH
+# Some context before the function
+def hello():
+    "print a greeting"
+
+    print("hello")
+
+# Additional context after the function
+class HelloWorld:
+    def greet(self):
+        pass
+=======
+REPLACE
+# Some context before the function
+from hello import hello
+
+# Additional context after the function
+class HelloWorld:
+    def greet(self):
+        pass
+</diff>
+</write_to_file>
+
+-- Example 6: Multiple Hunks in a Single File
+
+<write_to_file>
+<path>src/example.js</path>
+<diff>
+SEARCH
+// Context for first change
+const greet = () => {
+    console.log("Hello, world!");
+};
+const a = 1;
+const b = 2;
+=======
+REPLACE
+// Context for first change
+const greet = () => {
+    console.log("Hello, OpenAI!");
+};
+const a = 1;
+const b = 2;
+
+SEARCH
+// Context for second change
+function add(a, b) {
+    return a + b;
+}
+const c = 3;
+const d = 4;
+=======
+REPLACE
+// Context for second change
+function add(a, b) {
+    // Perform addition and log result
+    const result = a + b;
+    console.log("Result: " + result);
+    return result;
+}
+const c = 3;
+const d = 4;
+</diff>
 </write_to_file>
 
 
@@ -283,23 +480,6 @@ Explanation: In this example we finished creating a node.js server file, and now
 <serverName>node-server</serverName>
 </server_runner_tool>
 
-## Example 4: Requesting to modify a file
-Explanation: When using the write_to_file tool to modify an existing file, provide a udiff that describes the exact changes. A udiff consists of:
-
-Header lines: --- a/filename for the original state and +++ b/filename for the new state.
-Change body: Starts with @@ -start,length +start,length @@ to specify line numbers. Lines with - show deletions, and lines with + show additions. Context lines (no - or +) show surrounding unchanged lines.
-
-<write_to_file>
-  <path>/scripts/setup.sh</path>
-  <udiff>
---- a/scripts/setup.sh
-+++ b/scripts/setup.sh
-@@ -1,2 +1,2 @@
--echo "Setting up environment"
-+echo "Initializing environment"
-</udiff>
-</write_to_file>
-
 # Tool Use Guidelines
 
 1. In <thinking> tags, assess what information you already have and what information you need to proceed with the task.
@@ -373,7 +553,7 @@ RULES
     - Previous read_file operation
     - User-provided content
     - No, I don't have the latest content
-  - Do I need to generate a udiff? (yes/no)
+  - Do I need to generate a diff? (yes/no)
   - Ask yourself the question: "Do I really need to read the file again?".		
   - What is the target file path relative to the current working directory: ${getCwd()}?
   - What are the current ERRORS in the file that I should be aware of?
@@ -517,19 +697,19 @@ Write to file critical instructions:
 <write_to_file>
 Before writing to a file, you should ask yourself the following questions within <thinking></thinking> tags:
 
-- Did I read the file before writing to it? If not, you should read the file using the "read_file" tool before writing to it. (yes/no)
-- Did the user provide the content of the file in previous messages? If yes, you should use that content when generating the "udiff" and may not need to read the file again. (yes/no)
-- Did I write to the file before? If yes, ensure you have the latest content from your previous write or consider re-reading the file to confirm. (yes/no)
+- Did I read the file before? If not, you should read the file using the "read_file" tool before writing to it.
+- Did the user provide the content of the file in previous messages? If yes, you should use that content when generating the "diff" and may not need to read the file again.
+- Did I write to the file before? If yes, ensure you have the latest content from your previous write or consider re-reading the file to confirm.
 
 When modifying an existing file:
-
-- **Always** provide your changes as a unified diff ("udiff") in the "<udiff>" parameter.
-- **Ensure** that the "udiff" is in a format compatible with the "diff" package to guarantee compatibility when applying patches.
-- **Do not** use the "<content>" parameter when modifying existing files.
-- Generate the "udiff" based on the latest content of the file to ensure accuracy.
-- **Never** overwrite the entire file content when only partial changes are needed.
-- **Ensure** your "udiff" is correctly formatted and applies cleanly to the current file content.
-- **Avoid** including placeholders or truncated code in your diffs. The "udiff" should precisely represent your intended changes.
+- **Always** use the 'SEARCH/REPLACE' methodology as follows:
+  1. Specify the *FULL* file path alone on a line (verbatim, with no quotes or extra formatting).
+  2. Start a code fence with the appropriate language.
+  3. Use a 'SEARCH' block containing the contiguous lines that need to change.
+  4. Include a '=======' dividing line between the old and new content.
+  5. Provide a 'REPLACE' block with the new content.
+  6. Close the code fence.
+- Ensure every 'SEARCH' section exactly matches existing content in the file to prevent unintended replacements.
 
 When creating a new file:
 
@@ -538,22 +718,22 @@ When creating a new file:
 
 **Important Note:**
 
-- When answering the question 
-- When generating the "udiff", make sure it is compatible with the "diff" package used to apply the patches. This means using the standard unified diff format, including correct headers and context lines.
+- Once user approval is received, **do not** double-check the content or assume additional verification is necessary. You should continue the task as instructed.
+- When generating the "diff", make sure it is compatible with the SEARCH/REPLACE format.
 
 Examples of incorrect usage that break the tool's functionality:
-
-- Providing incomplete diffs or diffs that cannot be applied due to incorrect formatting.
-- Using placeholders like "// ... (previous code remains unchanged)", "// your implementation here", or "/* Existing CSS code... */" in your diffs or content.
+- Providing incomplete diffs.
+- Missing SEARCH/REPLACE/======= Key words meaning that the format response is incorrect.
 - Overwriting an existing file entirely when only partial changes are intended.
 
 Summary:
 
 - **Always** read the file before modifying it, unless you are certain you have the latest content.
-- **Always** generate and provide accurate 'udiffs' when modifying existing files.
-- **Ensure** the "udiff" is compatible with the "diff" package to prevent any compatibility issues.
+- **Always** generate and provide accurate 'diffs' when modifying existing files.
+- **Ensure** the "diff" is compatible with the examples giving.
+- **Always** make sure that you have the following key words with the following order SEARCH will always appear first, then the =======, and lastly the REPLACE code block
 - **Always** provide the complete content when creating new files.
-- **Do not** truncate or partially update files without using "udiff".
+- **Do not** truncate or partially update files without using "diff" using the SEARCH/REPLACE fromat.
 - **Do not** include placeholders or omit critical parts of the code.
 
 </write_to_file>
@@ -595,55 +775,55 @@ If you want to run a server, you must use the server_runner_tool tool, do not us
 # WRITE_TO_FILE (CRITICAL INSTRUCTIONS):
 You should never call read_file again, unless you don't have the content of the file in the conversation history, if you called write_to_file, the content you sent in <write_to_file> is the latest, you should never call read_file again unless the content is gone from the conversation history.
 When writing to a new file, you should never truncate the content, always return the complete content of the file.
-If the file exists, you should always return the udiff of the changes you made to the file.
 ## Before writing to a file you must first write the following questions and answers:
 - Did i read the file before writing to it? (yes/no)
 - Did i write to the file before? (yes/no)
 - Did the user provide the content of the file? (yes/no)
 - Do i have the last content of the file either from the user or from a previous read_file tool use or from write_to_file tool? Yes write_to_file | Yes read_file | Yes user provided | No i don't have the last content of the file
-- Do I need to generate a udiff? (yes/no)
+- Do I need to generate a diff? (yes/no)
 - ask yourself the question: "Do I really need to read the file again?".		
 - What is the target file path relative to the current working directory: ${getCwd()}?
 - what are the current ERRORS in the file that I should be aware of?
 - Is the target file within a frontend directory structure (e.g., /frontend/*)?" If so remember to use the correct path ${getCwd()}/frontend/[...path]
 
-# WRITE_TO_FILE (CRITICAL GUIDANCE FOR GENERATING UDIFF):
-Accurately generating <udiff> parameter when using the write_to_file tool is crucial to avoid errors and apply modifications correctly. Follow these structured steps:
+### WRITE_TO_FILE (CRITICAL GUIDANCE FOR CREATING SEARCH/REPLACE):
 
-## Step-by-Step Checklist for Generating <udiff> parameter
+Accurately generating 'SEARCH/REPLACE' blocks when using the write_to_file tool is crucial to avoid errors and ensure modifications are correctly applied. Follow these structured steps:
+
+## Step-by-Step Checklist for Generating 'SEARCH/REPLACE' Blocks:
 
 1. **Read the File (if Necessary)**:
-   - Did you read the file before writing to it? If not, use the read_file tool first to obtain the latest content, unless you already have it from previous steps or user input.
-   - Avoid unnecessary re-reads; only read again if the content is missing or changed.
+   - Did you read the file before writing to it? If not, use the 'read_file' tool first to obtain the latest content, unless you already have it from previous steps or user input.
+   - Avoid unnecessary re-reads; only read again if the content is missing or has changed.
 
 2. **Confirm the Latest Content**:
-   - Ensure you have the last content from either a previous read_file operation, user input, or a recent write_to_file tool call.
+   - Ensure you have the last content from either a previous 'read_file' operation, user input, or a recent 'write_to_file' tool call.
 
 3. **Avoid Placeholders**:
-   - Do **NOT** use placeholders such as '// ...' or comments like '// your implementation here'. The <udiff> parameter must reflect the actual and complete intended changes.
+   - Do **NOT** use placeholders such as '// ...' or comments like '/ your implementation here'. The 'REPLACE' section must reflect the actual and complete intended changes.
+   
+4. **Consistent 'SEARCH/REPLACE' Blocks**:
+   - Use 'SEARCH/REPLACE' blocks when modifying existing files.
+   - Each 'SEARCH' block must exactly match existing content. Any deviation may lead to errors.
+   - Separate the 'SEARCH' block and the 'REPLACE' block with '======='.
+   - When creating a new file, provide complete content using '<content>.
+  
+5. **ENSURE** that the SEARCH block contains at least 5 contiguous lines of code or additional context, such as comments, from the original file. This approach improves the reliability of matching and minimizes unintended changes during modification.
+  - Always strive to capture surrounding lines that help uniquely identify the location of your intended change.
+  - Contextual lines may include comments, whitespace, and code directly before or after the target change to ensure a robust match.
+  - When in doubt, prioritize including more lines for context while maintaining SEARCH sections that are concise and relevant to avoid overwhelming matches.
 
-4. **Ensure Correct <udiff> parameter Structure**:
-   - **Headers**: Include lines indicating the original and new state of the file, such as '--- a/file.js' and '+++ b/file.js'.
-   - **Context Lines**: Provide 2-3 lines of context above and below the change to maintain clarity and allow proper patching.
-   - **No Isolated Changes**: Do not create diffs that modify lines without surrounding context unless absolutely necessary.
+7. **FINALLY** after generating the SERACH/REPLACE code block is correct by seeing that you have a SEARCH followed by context lines, followed by '=======', and then followed by the REPLACE block.
 
-### Example of a Correct <udiff> parameter:
-Assuming you modify a line in 'src/example.js':
 
---- a/src/example.js +++ b/src/example.js @@ -10,7 +10,7 @@ function exampleFunction() { const result = calculateResult();
 
-const x = 42;
-const x = 100; // Modified value for testing return x; }
-markdown
-Copy code
-
-### Common Issues to Avoid:
-- **Partial or Isolated Diffs**: Always include relevant context to ensure that changes are properly understood and applied.
-- **Repeated File Reads**: Do not re-read files unnecessarily. Use the content you already have unless changes occur.
-- **Missing Headers**: Always begin with '---' and '+++' lines that indicate the file's original and new state paths.
-- **Redundant Tool Calls**: Minimize unnecessary read_file and write_to_file operations to avoid errors and inefficiencies.
-
-This approach ensures accurate <udiff> parameter creation, minimizes mistakes, and prevents partial updates or unnecessary modifications.
+Common Issues to Avoid:
+ALWAYES make sure your SEARCH blocks start with the SEARCH block followed by '=======', followed by the REPLACE block.
+Partial or Isolated Changes: Always include relevant context lines to ensure that changes are properly understood and applied.
+Incorrect SEARCH Blocks: The SEARCH section must exactly match the existing file content, character for character, including whitespace and comments.
+Repeated File Reads: Avoid unnecessary re-reads; use the content you already have unless changes occur.
+Inaccurate File Paths: Ensure you specify the correct full file path for every SEARCH/REPLACE block.
+This approach ensures accurate modifications, minimizes mistakes, and prevents partial updates or unintended changes. Always adhere to the exact SEARCH/REPLACE block format for any file modifications.
 
 
 # IMPORTANT LINTING/ERRORS RULES:

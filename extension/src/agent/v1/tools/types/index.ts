@@ -19,6 +19,7 @@ export type ToolInput = {
 	isFinal?: boolean
 	regex?: string
 	udiff?: string
+	diff?: string
 	filePattern?: string
 	recursive?: string
 	command?: string

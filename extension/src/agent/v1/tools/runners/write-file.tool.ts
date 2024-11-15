@@ -1,5 +1,4 @@
 import * as path from "path"
-import { applyPatch, parsePatch } from "diff"
 import { DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
 import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
 import { fileExistsAtPath } from "../../../../utils/path-helpers"
@@ -8,6 +7,7 @@ import { formatToolResponse, getCwd, getReadablePath } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import fs from "fs"
+import { SequenceMatcher } from 'difflib';
 
 /**
  * Detects potential AI-generated code omissions in the given file content.
@@ -125,440 +125,330 @@ function detectCodeOmission(
 	}
 }
 
-interface DiffLine {
-	type: 'context' | 'addition' | 'deletion';
-	content: string;
-  }
-  
-  interface DiffHunk {
-	lines: DiffLine[];
-  }
+interface EditBlock {
+  path: string;
+  searchContent: string;
+  replaceContent: string;
+}
 
 export class WriteFileTool extends BaseAgentTool {
-	protected params: AgentToolParams
-	public diffViewProvider: DiffViewProvider
-	private isProcessingFinalContent: boolean = false
-	private lastUpdateTime: number = 0
-	private readonly UPDATE_INTERVAL = 8
-	private skipWriteAnimation: boolean = false
+  protected params: AgentToolParams
+  public diffViewProvider: DiffViewProvider
+  private isProcessingFinalContent: boolean = false
+  private lastUpdateTime: number = 0
+  private readonly UPDATE_INTERVAL = 8
+  private skipWriteAnimation: boolean = false
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-		this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev, this.UPDATE_INTERVAL)
-		if (!!this.koduDev.getStateManager().skipWriteAnimation) {
-			this.skipWriteAnimation = true
-		}
+  constructor(params: AgentToolParams, options: AgentToolOptions) {
+    super(options)
+    this.params = params
+    this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev, this.UPDATE_INTERVAL)
+    if (!!this.koduDev.getStateManager().skipWriteAnimation) {
+      this.skipWriteAnimation = true
+    }
+  }
+
+  override async execute() {
+    const result = await this.processFileWrite()
+    return result
+  }
+
+  public async handlePartialUpdate(relPath: string, content: string): Promise<void> {
+	// this might happen because the diff view are not instant.
+	if (this.isProcessingFinalContent) {
+		this.logger("Skipping partial update because the tool is processing the final content.", "warn")
+		return
+	}
+	// if the user has skipped the write animation, we don't need to show the diff view until we reach the final state
+	if (this.skipWriteAnimation) {
+		await this.params.updateAsk(
+			"tool",
+			{ tool: { tool: "write_to_file", content, path: relPath, ts: this.ts, approvalState: "loading" } },
+			this.ts
+		)
+		return
 	}
 
-	override async execute() {
-		const result = await this.processFileWrite()
-		return result
+	const currentTime = Date.now()
+	// don't push too many updates to the diff view provider to avoid performance issues
+	if (currentTime - this.lastUpdateTime < this.UPDATE_INTERVAL) {
+		return
 	}
 
-	public async handlePartialUpdate(relPath: string, content: string): Promise<void> {
-		// this might happen because the diff view are not instant.
-		if (this.isProcessingFinalContent) {
-			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
-			return
-		}
-		// if the user has skipped the write animation, we don't need to show the diff view until we reach the final state
-		if (this.skipWriteAnimation) {
-			await this.params.updateAsk(
-				"tool",
-				{ tool: { tool: "write_to_file", content, path: relPath, ts: this.ts, approvalState: "loading" } },
-				this.ts
-			)
-			return
-		}
-
-		const currentTime = Date.now()
-		// don't push too many updates to the diff view provider to avoid performance issues
-		if (currentTime - this.lastUpdateTime < this.UPDATE_INTERVAL) {
-			return
-		}
-
-		if (!this.diffViewProvider.isDiffViewOpen()) {
-			try {
-				// this actually opens the diff view but might take an extra few ms to be considered open requires interval check
-				// it can take up to 300ms to open the diff view
-				await this.diffViewProvider.open(relPath)
-			} catch (e) {
-				this.logger("Error opening diff view: " + e, "error")
-				return
-			}
-		}
-		await this.diffViewProvider.update(content, false)
-		this.lastUpdateTime = currentTime
-	}
-
-	private applyDiff(originalContent: string, diff: string): string {
-		const originalLines = originalContent.split('\n');
-		let resultLines = originalLines.slice(); // Create a copy to modify
-		const hunks = this.parseUnifiedDiff(diff);
-		let cumulativeOffset = 0; // Tracks changes made to resultLines
-	
-		for (const hunk of hunks) {
-			// Extract the context from the hunk (only context and deletion lines)
-			const matchingSequence = [];
-			for (const hunkLine of hunk.lines) {
-				if (hunkLine.type === 'context' || hunkLine.type === 'deletion') {
-					matchingSequence.push(hunkLine.content);
-				} else {
-					continue; // Stop once additions are encountered
-				}
-			}
-	
-			// Find the position in the original content
-			const positionInOriginal = this.findBestMatchPosition(
-				originalLines,
-				matchingSequence,
-				0 // Always search from the beginning of originalLines
-			);
-	
-			if (positionInOriginal !== -1) {
-				// Calculate the corresponding position in resultLines using cumulativeOffset
-				const positionInResult = positionInOriginal + cumulativeOffset;
-	
-				// Apply the hunk changes to resultLines
-				const hunkResult = this.applyHunk(
-					resultLines.slice(positionInResult),
-					hunk.lines
-				);
-	
-				// Replace lines in resultLines
-				resultLines.splice(
-					positionInResult,
-					hunkResult.originalLineCount,
-					...hunkResult.modifiedLines
-				);
-	
-				// Update cumulativeOffset to reflect changes made
-				cumulativeOffset += hunkResult.modifiedLines.length - hunkResult.originalLineCount;
-			} else {
-				console.error('Failed to apply hunk: context not found in original content. Generated udiff wasn\'t accurate enough');
-				throw new Error('Failed to apply hunk: context not found. Generated udiff wasn\'t accurate enough');
-			}
-		}
-	
-		return resultLines.join('\n');
-	}
-	  
-	  
-	  
-	  private findBestMatchPosition(
-		lines: string[],
-		matchingSequence: string[],
-		currentOffset: number,
-		maxSearchDistance: number = 500 // Optional: limit search range for performance
-	  ): number {
-		const totalLines = lines.length;
-		const sequenceLength = matchingSequence.length;
-		const searchLimit = Math.min(currentOffset + maxSearchDistance, totalLines - sequenceLength);
-		let bestMatchIndex = -1;
-		let bestMatchScore = -1;
-	  
-		for (let i = currentOffset; i <= searchLimit; i++) {
-		  let score = 0;
-		  for (let j = 0; j < sequenceLength; j++) {
-			if (lines[i + j] === matchingSequence[j]) {
-			  score++;
-			}
-		  }
-		  if (score > bestMatchScore) {
-			bestMatchScore = score;
-			bestMatchIndex = i;
-		  }
-	  
-		  // Early exit if perfect match is found
-		  if (score === sequenceLength) {
-			return i;
-		  }
-		}
-	  
-		// Define a threshold for acceptable matches (e.g., 90% of matching sequence)
-		const threshold = Math.floor(sequenceLength * 0.9);
-		if (bestMatchScore >= threshold) {
-		  return bestMatchIndex;
-		}
-	  
-		return -1; // No acceptable match found
-	  }
-
-	  
-	  private applyHunk(
-		lines: string[],
-		hunkLines: DiffLine[]
-	  ): { modifiedLines: string[]; originalLineCount: number } {
-		const modifiedLines: string[] = [];
-		let originalLineCount = 0;
-		let index = 0;
-	  
-		for (const hunkLine of hunkLines) {
-		  if (hunkLine.type === 'context' || hunkLine.type === 'deletion') {
-			// These lines should match the original lines
-			if (lines[index] !== hunkLine.content) {
-			  throw new Error(
-				`Hunk line does not match original content at line ${index + 1}: expected "${hunkLine.content}", found "${lines[index]}"`
-			  );
-			}
-			if (hunkLine.type === 'context') {
-			  // Context lines are kept
-			  modifiedLines.push(hunkLine.content);
-			}
-			// Move to the next line in the original content
-			index++;
-			originalLineCount++;
-		  } else if (hunkLine.type === 'addition') {
-			// Added lines are inserted into the modified content
-			modifiedLines.push(hunkLine.content);
-		  }
-		}
-	  
-		return { modifiedLines, originalLineCount };
-	  }
-	private parseUnifiedDiff(diff: string): DiffHunk[] {
-		const diffLines = diff.split('\n');
-		const hunks: DiffHunk[] = [];
-		let i = 0;
-	  
-		while (i < diffLines.length) {
-		  const line = diffLines[i];
-	  
-		  if (line.startsWith('@@')) {
-			i++; // Move to the next line after the hunk header
-			const hunkLines: DiffLine[] = [];
-	  
-			while (
-			  i < diffLines.length &&
-			  !diffLines[i].startsWith('@@') &&
-			  !diffLines[i].startsWith('---') &&
-			  !diffLines[i].startsWith('+++')
-			) {
-			  const diffLine = diffLines[i];
-			  if (diffLine.startsWith(' ')) {
-				hunkLines.push({ type: 'context', content: diffLine.substring(1) });
-			  } else if (diffLine.startsWith('+')) {
-				hunkLines.push({ type: 'addition', content: diffLine.substring(1) });
-			  } else if (diffLine.startsWith('-')) {
-				hunkLines.push({ type: 'deletion', content: diffLine.substring(1) });
-			  }
-			  i++;
-			}
-	  
-			hunks.push({ lines: hunkLines });
-		  } else {
-			i++;
-		  }
-		}
-	  
-		return hunks;
-	  }
-	  
-
-	
-	
-	private async processFileWrite() {
+	if (!this.diffViewProvider.isDiffViewOpen()) {
 		try {
-			const { path: relPath, content, udiff } = this.params.input
-
-			if (!relPath) {
-				throw new Error("Missing required parameter 'path'")
-			}
-
-			// Switch to final state ASAP
-			this.isProcessingFinalContent = true
-
-			const absolutePath = path.resolve(getCwd(), relPath)
-			const fileExists = await this.checkFileExists(relPath)
-
-			let newContent: string
-
-			if (fileExists) {
-				if (!udiff) {
-					throw new Error("File exists, but 'udiff' parameter is missing")
-				}
-
-				// Read existing file content
-				const originalContent = await fs.promises.readFile(absolutePath, "utf-8")
-				// const fixedUdiff = await this.sescondPass(originalContent)
-				// Apply the diff
-				const patchedContentTest = this.applyDiff(originalContent, udiff)
-
-				if (patchedContentTest === null) {
-					throw new Error("Failed to apply the diff")
-				}
-
-				newContent = patchedContentTest
-			} else {
-				if (!content) {
-					throw new Error("File does not exist, but 'content' parameter is missing")
-				}
-				newContent = content
-			}
-
-			// Show changes in diff view
-			await this.showChangesInDiffView(relPath, newContent)
-
-			const { response, text, images } = await this.params.ask(
-				"tool",
-				{
-					tool: {
-						tool: "write_to_file",
-						content: newContent,
-						approvalState: "pending",
-						path: relPath,
-						ts: this.ts,
-					},
-				},
-				this.ts
-			)
-
-			if (response !== "yesButtonTapped") {
-				await this.params.updateAsk(
-					"tool",
-					{
-						tool: {
-							tool: "write_to_file",
-							content: newContent,
-							approvalState: "rejected",
-							path: relPath,
-							ts: this.ts,
-							userFeedback: text,
-						},
-					},
-					this.ts
-				)
-				await this.diffViewProvider.revertChanges()
-
-				if (response === "noButtonTapped") {
-					// return formatToolResponse("Write operation cancelled by user.")
-					// return this.toolResponse("rejected", "Write operation cancelled by user.")
-					return this.toolResponse("rejected", "Write operation cancelled by user.")
-				}
-				// If not a yes or no, the user provided feedback (wrote in the input)
-				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-				// return formatToolResponse(
-				// 	`The user denied the write operation and provided the following feedback: ${text}`
-				// )
-				return this.toolResponse("feedback", text ?? "The user denied this operation.", images)
-			}
-
-			// Save changes and handle user edits
-			const { userEdits, finalContent } = await this.diffViewProvider.saveChanges()
-			this.koduDev.getStateManager().addErrorPath(relPath)
-
-			// Final approval state
-			await this.params.updateAsk(
-				"tool",
-				{
-					tool: {
-						tool: "write_to_file",
-						content: newContent,
-						approvalState: "approved",
-						path: relPath,
-						ts: this.ts,
-					},
-				},
-				this.ts
-			)
-
-			if (userEdits) {
-				await this.params.say(
-					"user_feedback_diff",
-					JSON.stringify({
-						tool: fileExists ? "editedExistingFile" : "newFileCreated",
-						path: getReadablePath(getCwd(), relPath),
-						diff: userEdits,
-					} as ClaudeSayTool)
-				)
-				// return formatToolResponse(
-				// 	`The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content has been successfully saved to ${relPath.toPosix()}. (Note: you don't need to re-write the file with these changes.)`
-				// )
-				return this.toolResponse(
-					"success",
-					`The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content has been successfully saved to ${relPath.toPosix()}. (Note: you don't need to re-write the file with these changes.)`
-				)
-			}
-
-			// return formatToolResponse(
-			// 	`The content was successfully saved to ${relPath.toPosix()}. Do not read the file again unless you forgot the content.`
-			// )
-
-			let toolMsg = `The content was successfully saved to ${relPath.toPosix()}. Do not read the file again unless you forgot the content.`
-			if (detectCodeOmission(content || "", finalContent)) {
-				console.log(`Truncated content detected in ${relPath} at ${this.ts}`)
-				toolMsg = `The content was successfully saved to ${relPath.toPosix()}, but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.
-				You dont need to read the file again as the content has been updated to your previous tool request content.
-				`
-			}
-
-			return this.toolResponse("success", toolMsg)
-		} catch (error) {
-			console.error("Error in processFileWrite:", error)
-			this.params.updateAsk(
-				"tool",
-				{
-					tool: {
-						tool: "write_to_file",
-						content: this.params.input.content ?? "",
-						approvalState: "error",
-						path: this.params.input.path ?? "",
-						ts: this.ts,
-						error: `Failed to write to file`,
-					},
-				},
-				this.ts
-			)
-
-			// return formatToolResponse(
-			// 	`Write to File Error With:${error instanceof Error ? error.message : String(error)}`
-			// )
-			return this.toolResponse(
-				"error",
-				`Write to File Error With:${error instanceof Error ? error.message : String(error)}`
-			)
-		} finally {
-			this.isProcessingFinalContent = false
-			this.diffViewProvider.isEditing = false
-		}
-	}
-
-	private async showChangesInDiffView(relPath: string, content: string): Promise<void> {
-		content = this.preprocessContent(content)
-
-		if (!this.diffViewProvider.isDiffViewOpen()) {
+			// this actually opens the diff view but might take an extra few ms to be considered open requires interval check
+			// it can take up to 300ms to open the diff view
 			await this.diffViewProvider.open(relPath)
+		} catch (e) {
+			this.logger("Error opening diff view: " + e, "error")
+			return
 		}
-
-		await this.diffViewProvider.update(content, true)
 	}
-
-	private async sescondPass(originalContent: string) {
-		// run a second pass of the udiff and then create a finalized udiff with the perfect content.
-		return await this.koduDev
-			.getApiManager()
-			.fixUdiff(this.paramsInput.udiff!, originalContent, this.paramsInput.path!)
-	}
-
-	private async checkFileExists(relPath: string): Promise<boolean> {
-		const absolutePath = path.resolve(getCwd(), relPath)
-		return await fileExistsAtPath(absolutePath)
-	}
-
-	override async abortToolExecution(): Promise<void> {
-		console.log("Aborting WriteFileTool execution")
-		await this.diffViewProvider.revertChanges()
-	}
-
-	private preprocessContent(content: string): string {
-		content = content.trim()
-		if (content.startsWith("```")) {
-			content = content.split("\n").slice(1).join("\n").trim()
-		}
-		if (content.endsWith("```")) {
-			content = content.split("\n").slice(0, -1).join("\n").trim()
-		}
-		return content.replace(/>/g, ">").replace(/</g, "<").replace(/"/g, '"')
-	}
+	await this.diffViewProvider.update(content, false)
+	this.lastUpdateTime = currentTime
 }
+
+  private parseDiffBlocks(diffContent: string, path: string): EditBlock[] {
+    const editBlocks: EditBlock[] = [];
+    const lines = diffContent.split("\n");
+    let i = 0;
+
+    while (i < lines.length) {
+      if (lines[i].startsWith("SEARCH")) {
+        const searchLines: string[] = [];
+        i++;
+        while (i < lines.length && lines[i] !== "=======") {
+          searchLines.push(lines[i]);
+          i++;
+        }
+        
+        if (i < lines.length && lines[i] === "=======") {
+          i++;
+        }
+
+        const replaceLines: string[] = [];
+        if (i < lines.length && lines[i] === "REPLACE") {
+          i++;
+        }
+        while (i < lines.length && lines[i] !== "SEARCH") {
+          replaceLines.push(lines[i]);
+          i++;
+        }
+
+        editBlocks.push({
+          path: path, // You might need to enhance this for multi-file scenarios
+          searchContent: searchLines.join("\n"),
+          replaceContent: replaceLines.join("\n")
+        });
+      } else {
+        i++;
+      }
+    }
+    return editBlocks;
+  }
+
+  private applyEditBlocksToFile(content: string, editBlocks: EditBlock[]): string {
+    let newContent = content;
+    for (const block of editBlocks) {
+      const searchPattern = block.searchContent.trim();
+      const replacePattern = block.replaceContent;
+      
+      const index = newContent.indexOf(searchPattern);
+      if (index !== -1) {
+        newContent = newContent.substring(0, index) + replacePattern + newContent.substring(index + searchPattern.length);
+	} else {
+        // Try to find similar lines
+        const similarLines = this.findSimilarLines(searchPattern, newContent);
+        if (similarLines) {
+          const similarIndex = newContent.indexOf(similarLines);
+          newContent = newContent.substring(0, similarIndex) + replacePattern + newContent.substring(similarIndex + similarLines.length);
+        } else {
+          console.error(`Failed to find match for SEARCH block: ${searchPattern}`);
+          throw new Error(`SEARCH block failed to match: ${searchPattern}`);
+        }
+      }
+    }
+    return newContent;
+  }
+
+  private async processFileWrite() {
+    try {
+      const { path: relPath, content, diff } = this.params.input
+
+      if (!relPath) {
+        throw new Error("Missing required parameter 'path'")
+      }
+
+      // Switch to final state ASAP
+      this.isProcessingFinalContent = true
+
+      const absolutePath = path.resolve(getCwd(), relPath)
+      const fileExists = await this.checkFileExists(relPath)
+
+      let newContent: string
+
+      if (fileExists) {
+        if (!diff) {
+          throw new Error("File exists, but 'diff' parameter is missing")
+        }
+
+        // Read existing file content
+        const originalContent = await fs.promises.readFile(absolutePath, "utf-8")
+        
+        // Parse and apply the edit blocks
+        const editBlocks = this.parseDiffBlocks(diff, absolutePath)
+        newContent = this.applyEditBlocksToFile(originalContent, editBlocks)
+      } else {
+        if (!content) {
+          throw new Error("File does not exist, but 'content' parameter is missing")
+        }
+        newContent = content
+      }
+
+      // Show changes in diff view
+	  await this.showChangesInDiffView(relPath, newContent)
+
+	  const { response, text, images } = await this.params.ask(
+		  "tool",
+		  {
+			  tool: {
+				  tool: "write_to_file",
+				  content: newContent,
+				  approvalState: "pending",
+				  path: relPath,
+				  ts: this.ts,
+			  },
+		  },
+		  this.ts
+	  )
+
+	  if (response !== "yesButtonTapped") {
+		  await this.params.updateAsk(
+			  "tool",
+			  {
+				  tool: {
+					  tool: "write_to_file",
+					  content: newContent,
+					  approvalState: "rejected",
+					  path: relPath,
+					  ts: this.ts,
+					  userFeedback: text,
+				  },
+			  },
+			  this.ts
+		  )
+		  await this.diffViewProvider.revertChanges()
+
+		  if (response === "noButtonTapped") {
+			  // return formatToolResponse("Write operation cancelled by user.")
+			  // return this.toolResponse("rejected", "Write operation cancelled by user.")
+			  return this.toolResponse("rejected", "Write operation cancelled by user.")
+		  }
+		  // If not a yes or no, the user provided feedback (wrote in the input)
+		  await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
+		  // return formatToolResponse(
+		  // 	`The user denied the write operation and provided the following feedback: ${text}`
+		  // )
+		  return this.toolResponse("feedback", text ?? "The user denied this operation.", images)
+	  }
+
+	  // Save changes and handle user edits
+	  const { userEdits, finalContent } = await this.diffViewProvider.saveChanges()
+	  this.koduDev.getStateManager().addErrorPath(relPath)
+
+	  // Final approval state
+	  await this.params.updateAsk(
+		  "tool",
+		  {
+			  tool: {
+				  tool: "write_to_file",
+				  content: newContent,
+				  approvalState: "approved",
+				  path: relPath,
+				  ts: this.ts,
+			  },
+		  },
+		  this.ts
+	  )
+
+	  if (userEdits) {
+		  await this.params.say(
+			  "user_feedback_diff",
+			  JSON.stringify({
+				  tool: fileExists ? "editedExistingFile" : "newFileCreated",
+				  path: getReadablePath(getCwd(), relPath),
+				  diff: userEdits,
+			  } as ClaudeSayTool)
+		  )
+		  return this.toolResponse(
+			  "success",
+			  `The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content has been successfully saved to ${relPath.toPosix()}. (Note: you don't need to re-write the file with these changes.)`
+		  )
+	  }
+
+	  let toolMsg = `The content was successfully saved to ${relPath.toPosix()}. Do not read the file again unless you forgot the content.`
+	  if (detectCodeOmission(content || "", finalContent)) {
+		  console.log(`Truncated content detected in ${relPath} at ${this.ts}`)
+		  toolMsg = `The content was successfully saved to ${relPath.toPosix()}, but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.
+		  You dont need to read the file again as the content has been updated to your previous tool request content.
+		  `
+	  }
+
+	  return this.toolResponse("success", toolMsg)
+  } catch (error) {
+	  console.error("Error in processFileWrite:", error)
+	  this.params.updateAsk(
+		  "tool",
+		  {
+			  tool: {
+				  tool: "write_to_file",
+				  content: this.params.input.content ?? "",
+				  approvalState: "error",
+				  path: this.params.input.path ?? "",
+				  ts: this.ts,
+				  error: `Failed to write to file`,
+			  },
+		  },
+		  this.ts
+	  )
+
+	  
+	  return this.toolResponse(
+		  "error",
+		  `Write to File Error With:${error instanceof Error ? error.message : String(error)}`
+	  )
+  } finally {
+	  this.isProcessingFinalContent = false
+	  this.diffViewProvider.isEditing = false
+  }
+}
+
+  private async checkFileExists(relPath: string): Promise<boolean> {
+    const absolutePath = path.resolve(getCwd(), relPath)
+    return await fileExistsAtPath(absolutePath)
+  }
+
+  private async showChangesInDiffView(relPath: string, content: string): Promise<void> {
+    content = this.preprocessContent(content)
+
+    if (!this.diffViewProvider.isDiffViewOpen()) {
+      await this.diffViewProvider.open(relPath)
+    }
+
+    await this.diffViewProvider.update(content, true)
+  }
+
+  private preprocessContent(content: string): string {
+    content = content.trim()
+    if (content.startsWith("```")) {
+      content = content.split("\n").slice(1).join("\n").trim()
+    }
+    if (content.endsWith("```")) {
+      content = content.split("\n").slice(0, -1).join("\n").trim()
+    }
+    return content.replace(/>/g, ">").replace(/</g, "<").replace(/"/g, '"')
+  }
+
+  private findSimilarLines(searchContent: string, content: string, threshold: number = 0.6): string {
+	const searchLines = searchContent.split("\n");
+	const contentLines = content.split("\n");
+  
+	let bestRatio = 0;
+	let bestMatch: string[] = [];
+  
+	for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
+	  const chunk = contentLines.slice(i, i + searchLines.length);
+	  const matcher = new SequenceMatcher(null, searchLines.join("\n"), chunk.join("\n"));
+	  const similarity = matcher.ratio();
+	  if (similarity > bestRatio) {
+		bestRatio = similarity;
+		bestMatch = chunk;
+	  }
+	}
+  
+	return bestRatio >= threshold ? bestMatch.join("\n") : "";
+  }
+}
+
+

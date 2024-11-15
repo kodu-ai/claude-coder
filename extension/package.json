@@ -164,6 +164,7 @@
 	"devDependencies": {
 		"@types/diff": "^5.2.1",
 		"@types/diff-match-patch": "^1.0.36",
+		"@types/difflib": "^0.2.7",
 		"@types/jest": "^29.5.13",
 		"@types/lodash": "^4.17.9",
 		"@types/mocha": "^10.0.7",
@@ -195,6 +196,7 @@
 		"delay": "^6.0.0",
 		"diff": "^5.2.0",
 		"diff-match-patch": "^1.0.5",
+		"difflib": "^0.2.4",
 		"dotenv": "^16.4.5",
 		"execa": "^9.3.0",
 		"globby": "^14.0.2",

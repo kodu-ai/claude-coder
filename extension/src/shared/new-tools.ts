@@ -50,7 +50,7 @@ export type WriteToFileTool = {
 	tool: "write_to_file"
 	path: string
 	content?: string
-	udiff?: string
+	diff?: string
 }
 
 export type AskFollowupQuestionTool = {
