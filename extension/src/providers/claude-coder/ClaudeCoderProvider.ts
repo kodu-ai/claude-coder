@@ -33,7 +33,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 		this.globalStateManager = GlobalStateManager.getInstance(context)
 		this.secretStateManager = SecretStateManager.getInstance(context)
 		this.stateManager = new StateManager(this)
-		this.taskManager = TaskManager.getInstance(this)
+		this.taskManager = new TaskManager(this)
 		this.apiManager = ApiManager.getInstance(this)
 		this.webviewManager = new WebviewManager(this)
 	}

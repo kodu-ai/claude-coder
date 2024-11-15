@@ -4,6 +4,10 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.11.1] - 2024-11-15
+
+-   Fix opening Kodu on a new tab
+
 ## [1.11.0] - 2024-11-14
 
 -   New Diff View Algorithm
