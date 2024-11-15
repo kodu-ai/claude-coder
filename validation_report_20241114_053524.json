@@ -1,0 +1,324 @@
+{
+  "total_files": 50,
+  "valid_operations": 43,
+  "invalid_operations": 7,
+  "validation_details": [
+    {
+      "file": "output-1731530099756-33.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.168611"
+    },
+    {
+      "file": "output-1731530100117-2.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:20.877482"
+    },
+    {
+      "file": "output-1731530100301-20.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.362618"
+    },
+    {
+      "file": "output-1731530100864-3.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.137743"
+    },
+    {
+      "file": "output-1731530101780-24.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.159656"
+    },
+    {
+      "file": "output-1731530102567-16.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.723031"
+    },
+    {
+      "file": "output-1731530102619-11.txt",
+      "valid": false,
+      "reason": "unmatched function call in handleSpeak - missing closing parenthesis and type definition",
+      "timestamp": "2024-11-14T05:35:21.572281"
+    },
+    {
+      "file": "output-1731530102702-49.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.088564"
+    },
+    {
+      "file": "output-1731530102738-12.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.279970"
+    },
+    {
+      "file": "output-1731530103117-13.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.011848"
+    },
+    {
+      "file": "output-1731530103202-1.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:20.984777"
+    },
+    {
+      "file": "output-1731530103251-34.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.071165"
+    },
+    {
+      "file": "output-1731530103265-38.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.137159"
+    },
+    {
+      "file": "output-1731530103521-17.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.170814"
+    },
+    {
+      "file": "output-1731530103642-46.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.096523"
+    },
+    {
+      "file": "output-1731530103727-35.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.607552"
+    },
+    {
+      "file": "output-1731530103803-9.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag in handleSpeak function",
+      "timestamp": "2024-11-14T05:35:21.364796"
+    },
+    {
+      "file": "output-1731530103828-6.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.393391"
+    },
+    {
+      "file": "output-1731530103944-47.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.296326"
+    },
+    {
+      "file": "output-1731530104178-18.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:20.943729"
+    },
+    {
+      "file": "output-1731530104478-8.txt",
+      "valid": false,
+      "reason": "unmatched string literal in handleSpeak function - missing closing quote after 'nova'",
+      "timestamp": "2024-11-14T05:35:21.458403"
+    },
+    {
+      "file": "output-1731530104640-23.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.288489"
+    },
+    {
+      "file": "output-1731530104654-25.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.040889"
+    },
+    {
+      "file": "output-1731530104728-14.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.324083"
+    },
+    {
+      "file": "output-1731530104803-36.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.046988"
+    },
+    {
+      "file": "output-1731530104808-30.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.313087"
+    },
+    {
+      "file": "output-1731530105008-26.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.439671"
+    },
+    {
+      "file": "output-1731530105125-0.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:21.328430"
+    },
+    {
+      "file": "output-1731530105243-43.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:20.932025"
+    },
+    {
+      "file": "output-1731530105447-37.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:20.876701"
+    },
+    {
+      "file": "output-1731530105546-22.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.228972"
+    },
+    {
+      "file": "output-1731530105849-27.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.319024"
+    },
+    {
+      "file": "output-1731530106025-44.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.166248"
+    },
+    {
+      "file": "output-1731530106039-15.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.361372"
+    },
+    {
+      "file": "output-1731530106195-10.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.245548"
+    },
+    {
+      "file": "output-1731530106256-45.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.379427"
+    },
+    {
+      "file": "output-1731530106363-29.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.123807"
+    },
+    {
+      "file": "output-1731530106385-21.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Container>",
+      "timestamp": "2024-11-14T05:35:23.610252"
+    },
+    {
+      "file": "output-1731530106390-42.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.308141"
+    },
+    {
+      "file": "output-1731530106441-31.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.477936"
+    },
+    {
+      "file": "output-1731530106487-5.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.166301"
+    },
+    {
+      "file": "output-1731530107149-7.txt",
+      "valid": false,
+      "reason": "unmatched closing parenthesis in handleSpeak function",
+      "timestamp": "2024-11-14T05:35:23.635915"
+    },
+    {
+      "file": "output-1731530107353-32.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.276536"
+    },
+    {
+      "file": "output-1731530107631-4.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.379373"
+    },
+    {
+      "file": "output-1731530107938-28.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.373638"
+    },
+    {
+      "file": "output-1731530108172-41.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.329817"
+    },
+    {
+      "file": "output-1731530108394-19.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.384581"
+    },
+    {
+      "file": "output-1731530108717-39.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-14T05:35:23.649914"
+    },
+    {
+      "file": "output-1731530108781-48.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and duplicate code block in handleSpeak function",
+      "timestamp": "2024-11-14T05:35:23.837018"
+    },
+    {
+      "file": "output-1731530109845-40.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-14T05:35:23.419182"
+    }
+  ],
+  "error_types": {
+    "unmatched function call in handleSpeak - missing closing parenthesis and type definition": 1,
+    "unmatched JSX closing tag in handleSpeak function": 1,
+    "unmatched string literal in handleSpeak function - missing closing quote after 'nova'": 1,
+    "unmatched JSX closing tag </Container>": 1,
+    "unmatched closing parenthesis in handleSpeak function": 1,
+    "unmatched JSX closing tag </Grid> and duplicate code block in handleSpeak function": 1,
+    "unmatched JSX closing tag </Grid>": 1
+  },
+  "timing": {
+    "start_time": "2024-11-14T05:35:19.322296",
+    "end_time": "2024-11-14T05:35:23.837150",
+    "batch_times": [
+      2.3698835372924805,
+      2.11392879486084
+    ]
+  }
+}

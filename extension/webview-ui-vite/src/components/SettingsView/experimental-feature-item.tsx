@@ -10,6 +10,7 @@ interface ExperimentalFeature {
 	description: string
 	disabled?: boolean
 	comingSoon?: boolean
+	dangerous?: string
 }
 
 interface ExperimentalFeatureItemProps {
@@ -24,6 +25,20 @@ export const ExperimentalFeatureItem: React.FC<ExperimentalFeatureItemProps> = R
 			<div className="flex-1 pr-2">
 				<Label htmlFor={feature.id} className="text-xs font-medium flex items-center">
 					{feature.label}
+					{feature.dangerous && (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<span className="ml-1 text-[10px] bg-destructive text-destructive-foreground px-1 py-0.5 rounded cursor-pointer">
+									DANGER
+								</span>
+							</TooltipTrigger>
+							<TooltipContent align="end">
+								<div className="max-w-[80vw] w-full">
+									<pre className="whitespace-pre-line">{feature.dangerous}</pre>
+								</div>
+							</TooltipContent>
+						</Tooltip>
+					)}
 				</Label>
 				<p className="text-[10px] text-muted-foreground">{feature.description}</p>
 			</div>

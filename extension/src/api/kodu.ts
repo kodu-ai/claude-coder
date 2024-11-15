@@ -304,11 +304,14 @@ export class KoduHandler implements ApiHandler {
 			return message
 		})
 
+		// randomMaxTokens between 2200 and 3000
+		// const rnd = Math.floor(Math.random() * 800) + 2200
+
 		// Build request body
 		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
 			model: modelId,
-			max_tokens: 1200,
-			// max_tokens: this.getModel().info.maxTokens,
+			// max_tokens: 1800,
+			max_tokens: this.getModel().info.maxTokens,
 			system,
 			messages: messagesToCache,
 			temperature: 0.1,
@@ -410,10 +413,13 @@ export class KoduHandler implements ApiHandler {
 		>
 	): any {
 		// if use udf
+		// randomMaxTokens between 2200 and 3000
+		// const rnd = Math.floor(Math.random() * 800) + 2200
+
 		return {
 			model: this.getModel().id,
 			max_tokens: this.getModel().info.maxTokens,
-			// max_tokens: 1200,
+			// max_tokens: Math.max(rnd, 2200),
 			system: "(see SYSTEM_PROMPT in src/agent/system-prompt.ts)",
 			messages: [{ conversation_history: "..." }, { role: "user", content: withoutImageData(userContent) }],
 			tools: "(see tools in src/agent/v1/tools/schema/index.ts)",

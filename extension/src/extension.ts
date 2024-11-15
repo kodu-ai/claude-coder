@@ -8,6 +8,7 @@ import "./utils/path-helpers"
 import { TerminalManager } from "./integrations/terminal/terminal-manager"
 import { getCwd } from "./agent/v1/utils"
 import { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } from "./integrations/editor/diff-view-provider"
+import { readFile } from "fs/promises"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -253,9 +254,46 @@ export function activate(context: vscode.ExtensionContext) {
 			},
 		})
 	)
+	// testWriteToFile(sidebarProvider)
 }
 
 // This method is called when your extension is deactivated
 export function deactivate() {
 	outputChannel.appendLine("Claude Coder extension deactivated")
+}
+
+async function testWriteToFile(extensionProvider: ExtensionProvider) {
+	// create new koduDev
+	await extensionProvider.initWithNoTask()
+
+	try {
+		const filePath = path.join(__dirname, "..", "/src", "write-to-file.content.txt")
+		// Read file as-is
+		const fileContent = await readFile(filePath, "utf-8")
+
+		console.log(`Read file content line count: ${fileContent.split("\n").length}`)
+
+		const toolFormat = `<write_to_file><path>src/ai.tsx</path><content>${fileContent}</content></write_to_file>`
+
+		let remainingContent = toolFormat
+		const chunks: string[] = []
+
+		// Keep splitting while there's content left
+		while (remainingContent.length > 0) {
+			// Generate random chunk size between 10 and 40
+			const randomChunkSize = Math.floor(Math.random() * (80 - 10 + 1)) + 10
+			// Get chunk and remaining content
+			const chunk = remainingContent.slice(0, randomChunkSize)
+			remainingContent = remainingContent.slice(randomChunkSize)
+			chunks.push(chunk)
+		}
+
+		for await (const chunk of chunks) {
+			await extensionProvider.koduDev?.toolExecutor.processToolUse(chunk)
+			await new Promise((resolve) => setTimeout(resolve, 10))
+		}
+	} catch (error) {
+		console.error("Error in testWriteToFile:", error)
+		throw error
+	}
 }

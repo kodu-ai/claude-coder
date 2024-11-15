@@ -1,0 +1,226 @@
+{
+  "total_files": 35,
+  "valid_operations": 35,
+  "invalid_operations": 0,
+  "validation_details": [
+    {
+      "file": "output-1731607951017-5.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:27.791069"
+    },
+    {
+      "file": "output-1731607955972-13.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:36.041135"
+    },
+    {
+      "file": "output-1731607956809-12.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:27.710439"
+    },
+    {
+      "file": "output-1731607958135-0.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:27.707250"
+    },
+    {
+      "file": "output-1731607958699-42.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.046887"
+    },
+    {
+      "file": "output-1731607959770-15.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.284819"
+    },
+    {
+      "file": "output-1731607963723-16.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.434385"
+    },
+    {
+      "file": "output-1731607963951-17.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:27.711097"
+    },
+    {
+      "file": "output-1731607964086-32.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:27.983662"
+    },
+    {
+      "file": "output-1731607966543-41.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:27.884092"
+    },
+    {
+      "file": "output-1731607967713-37.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.321768"
+    },
+    {
+      "file": "output-1731607970939-24.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.395714"
+    },
+    {
+      "file": "output-1731607971803-3.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.294556"
+    },
+    {
+      "file": "output-1731607975099-48.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:29.128820"
+    },
+    {
+      "file": "output-1731607975183-28.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.440942"
+    },
+    {
+      "file": "output-1731607975516-33.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:27.777376"
+    },
+    {
+      "file": "output-1731607975575-49.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.878556"
+    },
+    {
+      "file": "output-1731607977057-11.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.497109"
+    },
+    {
+      "file": "output-1731607978369-34.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:29.387626"
+    },
+    {
+      "file": "output-1731607979945-45.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.115452"
+    },
+    {
+      "file": "output-1731607980093-14.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:29.450293"
+    },
+    {
+      "file": "output-1731607980361-6.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.490138"
+    },
+    {
+      "file": "output-1731607980723-22.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.435956"
+    },
+    {
+      "file": "output-1731607981455-47.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.894288"
+    },
+    {
+      "file": "output-1731607981825-39.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.351566"
+    },
+    {
+      "file": "output-1731607981981-20.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.229906"
+    },
+    {
+      "file": "output-1731607983584-29.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.297492"
+    },
+    {
+      "file": "output-1731607983961-2.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:29.527454"
+    },
+    {
+      "file": "output-1731607984229-44.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.764267"
+    },
+    {
+      "file": "output-1731607985077-9.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:28.328957"
+    },
+    {
+      "file": "output-1731607985119-4.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:38.393659"
+    },
+    {
+      "file": "output-1731607986450-26.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:38.903883"
+    },
+    {
+      "file": "output-1731607987326-7.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:37.830790"
+    },
+    {
+      "file": "output-1731607987591-18.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:38.430082"
+    },
+    {
+      "file": "output-1731607989839-46.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T03:13:38.092025"
+    }
+  ],
+  "error_types": {},
+  "timing": {
+    "start_time": "2024-11-15T03:13:26.002058",
+    "end_time": "2024-11-15T03:13:38.904053",
+    "batch_times": [
+      9.975109100341797,
+      2.8627004623413086
+    ]
+  }
+}

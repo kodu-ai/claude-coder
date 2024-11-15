@@ -17,6 +17,8 @@ import { estimateTokenCount, smartTruncation, truncateHalfConversation } from ".
 import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
 import { ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
+import { writeFile } from "fs/promises"
+import path from "path"
 
 /**
  * Interface for tracking API usage metrics
@@ -217,6 +219,45 @@ ${this.customInstructions.trim()}
 
 			// log the last 2 messages
 			this.log("info", `Last 2 messages:`, apiConversationHistoryCopy.slice(-2))
+			const RUN_MULTIPLE_LOGS = false
+
+			if (RUN_MULTIPLE_LOGS) {
+				const extraRuns = 0
+				// we will only log to disk the results of the run and make it all in the background we will not yield the results
+				const backgroundJob = async () => {
+					const promises = Array.from({ length: extraRuns }, async (_, i) => {
+						console.log(`Running background job ${i}`)
+						const stream = await this.api.createMessageStream(
+							systemPrompt.trim(),
+							apiConversationHistoryCopy,
+							creativeMode,
+							abortSignal,
+							customInstructions
+						)
+						for await (const chunk of stream) {
+							if (chunk.code === 1) {
+								// write to disk the output content
+								// @ts-expect-error
+								const content = chunk.body.anthropic?.content[0].text as string
+								const fileName = `output-${Date.now()}-${i}.txt`
+								// write it to the current directory at logs/output-<timestamp>.txt
+								const absolutePath = path.join(__dirname, "logs", "continue-generation", fileName)
+								console.log(`Writing to disk: ${absolutePath}`)
+								await writeFile(absolutePath, content, "utf-8")
+								return
+							}
+						}
+					})
+					await Promise.all(promises)
+				}
+				backgroundJob()
+					.then(() => {
+						console.log("Background job finished")
+					})
+					.catch((error) => {
+						console.error("Background job failed", error)
+					})
+			}
 
 			const stream = await this.api.createMessageStream(
 				systemPrompt.trim(),

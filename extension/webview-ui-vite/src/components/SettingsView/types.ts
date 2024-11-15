@@ -6,4 +6,5 @@ export interface ExperimentalFeature {
 	description: string
 	disabled?: boolean
 	comingSoon?: boolean
+	dangerous?: string
 }

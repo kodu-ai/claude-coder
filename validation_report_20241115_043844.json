@@ -1,0 +1,330 @@
+{
+  "total_files": 50,
+  "valid_operations": 5,
+  "invalid_operations": 45,
+  "validation_details": [
+    {
+      "file": "output-1731613090642-10.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and syntax error in fileToBase64 function",
+      "timestamp": "2024-11-15T04:38:40.328803"
+    },
+    {
+      "file": "output-1731613092399-14.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag in return statement, duplicate nested try block in handleSpeak method",
+      "timestamp": "2024-11-15T04:38:40.367203"
+    },
+    {
+      "file": "output-1731613093808-1.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:40.245178"
+    },
+    {
+      "file": "output-1731613093875-4.txt",
+      "valid": false,
+      "reason": "syntax error in handleSpeak function - duplicate 'try' block and malformed logger statement",
+      "timestamp": "2024-11-15T04:38:40.272256"
+    },
+    {
+      "file": "output-1731613093979-45.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:40.217102"
+    },
+    {
+      "file": "output-1731613094246-7.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:40.144739"
+    },
+    {
+      "file": "output-1731613095092-35.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:40.419443"
+    },
+    {
+      "file": "output-1731613095266-49.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:40.416258"
+    },
+    {
+      "file": "output-1731613095535-46.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:41.006146"
+    },
+    {
+      "file": "output-1731613095578-9.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleSpeak function - extra 'loggertry' line causing syntax error",
+      "timestamp": "2024-11-15T04:38:40.563135"
+    },
+    {
+      "file": "output-1731613095747-8.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:40.151636"
+    },
+    {
+      "file": "output-1731613095808-18.txt",
+      "valid": false,
+      "reason": "syntax error in handleSpeak function - duplicate 'try' block and malformed logger statement",
+      "timestamp": "2024-11-15T04:38:40.376853"
+    },
+    {
+      "file": "output-1731613095873-29.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:40.513746"
+    },
+    {
+      "file": "output-1731613095901-0.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:40.254066"
+    },
+    {
+      "file": "output-1731613095949-36.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and duplicate 'return' statement in AppContent component",
+      "timestamp": "2024-11-15T04:38:40.383449"
+    },
+    {
+      "file": "output-1731613096162-11.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and syntax error in fileToBase64 function",
+      "timestamp": "2024-11-15T04:38:40.438505"
+    },
+    {
+      "file": "output-1731613096322-33.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:38:40.551661"
+    },
+    {
+      "file": "output-1731613096343-47.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:40.098902"
+    },
+    {
+      "file": "output-1731613096587-27.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:40.810103"
+    },
+    {
+      "file": "output-1731613096608-38.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleEmojiUsageChange function - duplicate line detected",
+      "timestamp": "2024-11-15T04:38:40.682535"
+    },
+    {
+      "file": "output-1731613096819-25.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag in return statement, duplicate nested try block in handleSpeak method",
+      "timestamp": "2024-11-15T04:38:40.392040"
+    },
+    {
+      "file": "output-1731613096862-34.txt",
+      "valid": false,
+      "reason": "syntax error in handleSpeak function - duplicate 'try' block and malformed logger statement",
+      "timestamp": "2024-11-15T04:38:40.566171"
+    },
+    {
+      "file": "output-1731613097031-43.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and syntax error in fileToBase64 function",
+      "timestamp": "2024-11-15T04:38:40.347415"
+    },
+    {
+      "file": "output-1731613097135-6.txt",
+      "valid": false,
+      "reason": "syntax error in handleSpeak function - duplicate 'try' block and malformed logger statement",
+      "timestamp": "2024-11-15T04:38:40.576107"
+    },
+    {
+      "file": "output-1731613097209-26.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleClear method - missing closing brace",
+      "timestamp": "2024-11-15T04:38:40.382269"
+    },
+    {
+      "file": "output-1731613097426-3.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:40.086406"
+    },
+    {
+      "file": "output-1731613097943-23.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and duplicate 'return' statement in AppContent component",
+      "timestamp": "2024-11-15T04:38:40.731220"
+    },
+    {
+      "file": "output-1731613098140-15.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag in handleSpeak function definition",
+      "timestamp": "2024-11-15T04:38:40.229340"
+    },
+    {
+      "file": "output-1731613098149-24.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:38:40.592870"
+    },
+    {
+      "file": "output-1731613098215-48.txt",
+      "valid": false,
+      "reason": "syntax error in handleSpeak function - duplicate 'try' block and malformed logger statement",
+      "timestamp": "2024-11-15T04:38:40.346266"
+    },
+    {
+      "file": "output-1731613098371-30.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and duplicate try block in handleSpeak method",
+      "timestamp": "2024-11-15T04:38:43.419235"
+    },
+    {
+      "file": "output-1731613098455-42.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleEmojiUsageChange function",
+      "timestamp": "2024-11-15T04:38:42.914894"
+    },
+    {
+      "file": "output-1731613098921-5.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and syntax error in fileToBase64 function",
+      "timestamp": "2024-11-15T04:38:42.778606"
+    },
+    {
+      "file": "output-1731613099038-2.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and duplicate return statement in AppContent component",
+      "timestamp": "2024-11-15T04:38:43.509595"
+    },
+    {
+      "file": "output-1731613099084-21.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:42.800799"
+    },
+    {
+      "file": "output-1731613099103-44.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag in return statement, duplicate nested try block in handleSpeak method",
+      "timestamp": "2024-11-15T04:38:44.072077"
+    },
+    {
+      "file": "output-1731613099373-41.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and syntax error in fileToBase64 function",
+      "timestamp": "2024-11-15T04:38:42.764721"
+    },
+    {
+      "file": "output-1731613100165-16.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and duplicate return statement in AppContent component",
+      "timestamp": "2024-11-15T04:38:44.364041"
+    },
+    {
+      "file": "output-1731613100335-22.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid>",
+      "timestamp": "2024-11-15T04:38:42.579053"
+    },
+    {
+      "file": "output-1731613100691-37.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and duplicate return statement in AppContent component",
+      "timestamp": "2024-11-15T04:38:43.224008"
+    },
+    {
+      "file": "output-1731613100718-31.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and duplicate 'return' statement in AppContent component",
+      "timestamp": "2024-11-15T04:38:42.887268"
+    },
+    {
+      "file": "output-1731613100897-40.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:38:42.462463"
+    },
+    {
+      "file": "output-1731613100976-32.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and duplicate return statement in AppContent component",
+      "timestamp": "2024-11-15T04:38:43.137856"
+    },
+    {
+      "file": "output-1731613101158-39.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and duplicate return statement in AppContent component",
+      "timestamp": "2024-11-15T04:38:42.886441"
+    },
+    {
+      "file": "output-1731613101528-20.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:38:42.769651"
+    },
+    {
+      "file": "output-1731613101580-17.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag in return statement, duplicate nested try block in handleSpeak method",
+      "timestamp": "2024-11-15T04:38:42.623967"
+    },
+    {
+      "file": "output-1731613101661-12.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and syntax error in fileToBase64 function",
+      "timestamp": "2024-11-15T04:38:42.713899"
+    },
+    {
+      "file": "output-1731613101802-28.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and syntax error in fileToBase64 function",
+      "timestamp": "2024-11-15T04:38:42.735350"
+    },
+    {
+      "file": "output-1731613102399-13.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:38:42.744476"
+    },
+    {
+      "file": "output-1731613103089-19.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> and syntax error in handleSpeak function with duplicate 'try' block",
+      "timestamp": "2024-11-15T04:38:42.944999"
+    }
+  ],
+  "error_types": {
+    "unmatched JSX closing tag </Grid> and syntax error in fileToBase64 function": 7,
+    "unmatched JSX closing tag in return statement, duplicate nested try block in handleSpeak method": 4,
+    "unmatched JSX closing tag </Grid>": 14,
+    "syntax error in handleSpeak function - duplicate 'try' block and malformed logger statement": 5,
+    "unmatched code block in handleSpeak function - extra 'loggertry' line causing syntax error": 1,
+    "unmatched JSX closing tag </Grid> and duplicate 'return' statement in AppContent component": 3,
+    "unmatched code block in handleEmojiUsageChange function - duplicate line detected": 1,
+    "unmatched code block in handleClear method - missing closing brace": 1,
+    "unmatched JSX closing tag in handleSpeak function definition": 1,
+    "unmatched JSX closing tag </Grid> and duplicate try block in handleSpeak method": 1,
+    "unmatched code block in handleEmojiUsageChange function": 1,
+    "unmatched JSX closing tag </Grid> and duplicate return statement in AppContent component": 5,
+    "unmatched JSX closing tag </Grid> and syntax error in handleSpeak function with duplicate 'try' block": 1
+  },
+  "timing": {
+    "start_time": "2024-11-15T04:38:38.382919",
+    "end_time": "2024-11-15T04:38:44.364176",
+    "batch_times": [
+      2.5849921703338623,
+      3.357783555984497
+    ]
+  }
+}

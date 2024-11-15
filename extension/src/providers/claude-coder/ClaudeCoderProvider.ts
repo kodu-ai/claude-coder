@@ -125,6 +125,10 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 			historyItem,
 		})
 	}
+
+	/**
+	 * useful to initialize the provider without a task (e.g. when the user opens the extension for the first time and you want to test some functionality)
+	 */
 	async initWithNoTask() {
 		await this.taskManager.clearTask()
 		const state = await this.stateManager.getState()

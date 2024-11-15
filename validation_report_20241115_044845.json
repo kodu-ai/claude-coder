@@ -1,0 +1,323 @@
+{
+  "total_files": 49,
+  "valid_operations": 31,
+  "invalid_operations": 18,
+  "validation_details": [
+    {
+      "file": "output-1731613685903-26.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:33.600753"
+    },
+    {
+      "file": "output-1731613687684-2.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleGenderChange method - duplicate setGender() call",
+      "timestamp": "2024-11-15T04:48:33.804553"
+    },
+    {
+      "file": "output-1731613688676-25.txt",
+      "valid": false,
+      "reason": "unmatched code block with extra backticks and incomplete code segments",
+      "timestamp": "2024-11-15T04:48:34.467089"
+    },
+    {
+      "file": "output-1731613688916-6.txt",
+      "valid": false,
+      "reason": "duplicate line of code: setGender(newGender) appears twice",
+      "timestamp": "2024-11-15T04:48:34.178941"
+    },
+    {
+      "file": "output-1731613689305-11.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:34.216737"
+    },
+    {
+      "file": "output-1731613689419-41.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:34.063185"
+    },
+    {
+      "file": "output-1731613689459-7.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:33.519014"
+    },
+    {
+      "file": "output-1731613690353-27.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:34.048349"
+    },
+    {
+      "file": "output-1731613690376-49.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleClear method - missing closing brace for textFieldRef.current check",
+      "timestamp": "2024-11-15T04:48:34.744479"
+    },
+    {
+      "file": "output-1731613690531-44.txt",
+      "valid": false,
+      "reason": "unmatched code block - missing closing brace for handleClear function",
+      "timestamp": "2024-11-15T04:48:34.135466"
+    },
+    {
+      "file": "output-1731613691195-38.txt",
+      "valid": false,
+      "reason": "unmatched code block - missing closing brace for setGender() method",
+      "timestamp": "2024-11-15T04:48:34.003107"
+    },
+    {
+      "file": "output-1731613691224-0.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:33.795712"
+    },
+    {
+      "file": "output-1731613691575-40.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:33.993797"
+    },
+    {
+      "file": "output-1731613691636-47.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:33.955716"
+    },
+    {
+      "file": "output-1731613691682-10.txt",
+      "valid": false,
+      "reason": "unmatched code block with extra closing braces and syntax errors near the end of the file",
+      "timestamp": "2024-11-15T04:48:34.465729"
+    },
+    {
+      "file": "output-1731613691794-48.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:33.485849"
+    },
+    {
+      "file": "output-1731613691826-8.txt",
+      "valid": false,
+      "reason": "unmatched code block - missing closing brace for handleClear function",
+      "timestamp": "2024-11-15T04:48:34.277724"
+    },
+    {
+      "file": "output-1731613691948-23.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:34.220371"
+    },
+    {
+      "file": "output-1731613691968-12.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:33.761111"
+    },
+    {
+      "file": "output-1731613692099-34.txt",
+      "valid": false,
+      "reason": "duplicate setGender() call in handleGenderChange method",
+      "timestamp": "2024-11-15T04:48:33.985308"
+    },
+    {
+      "file": "output-1731613692139-19.txt",
+      "valid": false,
+      "reason": "duplicate line of code: setGender(newGender) appears twice",
+      "timestamp": "2024-11-15T04:48:34.159448"
+    },
+    {
+      "file": "output-1731613692222-29.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:34.119120"
+    },
+    {
+      "file": "output-1731613692309-13.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:34.282595"
+    },
+    {
+      "file": "output-1731613692428-16.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:34.034280"
+    },
+    {
+      "file": "output-1731613692669-1.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:36.726885"
+    },
+    {
+      "file": "output-1731613692771-30.txt",
+      "valid": false,
+      "reason": "duplicate setGender() call in handleGenderChange method",
+      "timestamp": "2024-11-15T04:48:34.086545"
+    },
+    {
+      "file": "output-1731613693270-35.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:34.008167"
+    },
+    {
+      "file": "output-1731613693465-45.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:33.948452"
+    },
+    {
+      "file": "output-1731613693524-36.txt",
+      "valid": false,
+      "reason": "duplicate setGender() call in handleGenderChange method",
+      "timestamp": "2024-11-15T04:48:34.291409"
+    },
+    {
+      "file": "output-1731613693780-22.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:34.264825"
+    },
+    {
+      "file": "output-1731613693918-15.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:45.491989"
+    },
+    {
+      "file": "output-1731613694023-33.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:38.169053"
+    },
+    {
+      "file": "output-1731613694030-24.txt",
+      "valid": false,
+      "reason": "duplicate line 'setGender(newGender)' found, potential syntax error",
+      "timestamp": "2024-11-15T04:48:38.585039"
+    },
+    {
+      "file": "output-1731613694254-18.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:38.251561"
+    },
+    {
+      "file": "output-1731613694384-20.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:38.398319"
+    },
+    {
+      "file": "output-1731613694571-17.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleGenderChange method - duplicate setGender() call",
+      "timestamp": "2024-11-15T04:48:38.871837"
+    },
+    {
+      "file": "output-1731613694587-37.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleGenderChange function, contains duplicate code segment",
+      "timestamp": "2024-11-15T04:48:38.584953"
+    },
+    {
+      "file": "output-1731613694611-28.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:38.508794"
+    },
+    {
+      "file": "output-1731613694679-31.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:38.111206"
+    },
+    {
+      "file": "output-1731613694686-43.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleGenderChange method - duplicate setGender() call",
+      "timestamp": "2024-11-15T04:48:38.470055"
+    },
+    {
+      "file": "output-1731613695105-42.txt",
+      "valid": false,
+      "reason": "Invalid JSON response from LLM",
+      "timestamp": "2024-11-15T04:48:44.636856"
+    },
+    {
+      "file": "output-1731613695112-9.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:38.404022"
+    },
+    {
+      "file": "output-1731613695291-5.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:38.171206"
+    },
+    {
+      "file": "output-1731613695579-4.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:38.469972"
+    },
+    {
+      "file": "output-1731613695744-39.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:38.486086"
+    },
+    {
+      "file": "output-1731613696599-3.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:38.518946"
+    },
+    {
+      "file": "output-1731613696899-21.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:38.282035"
+    },
+    {
+      "file": "output-1731613698898-32.txt",
+      "valid": false,
+      "reason": "duplicate code block in handleClear method: clearTranslations() and setIsExplainMode(false) are repeated",
+      "timestamp": "2024-11-15T04:48:38.891555"
+    },
+    {
+      "file": "output-1731613701421-14.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T04:48:38.222798"
+    }
+  ],
+  "error_types": {
+    "unmatched code block in handleGenderChange method - duplicate setGender() call": 3,
+    "unmatched code block with extra backticks and incomplete code segments": 1,
+    "duplicate line of code: setGender(newGender) appears twice": 2,
+    "unmatched code block in handleClear method - missing closing brace for textFieldRef.current check": 1,
+    "unmatched code block - missing closing brace for handleClear function": 2,
+    "unmatched code block - missing closing brace for setGender() method": 1,
+    "unmatched code block with extra closing braces and syntax errors near the end of the file": 1,
+    "duplicate setGender() call in handleGenderChange method": 3,
+    "duplicate line 'setGender(newGender)' found, potential syntax error": 1,
+    "unmatched code block in handleGenderChange function, contains duplicate code segment": 1,
+    "Invalid JSON response from LLM": 1,
+    "duplicate code block in handleClear method: clearTranslations() and setIsExplainMode(false) are repeated": 1
+  },
+  "timing": {
+    "start_time": "2024-11-15T04:48:31.992307",
+    "end_time": "2024-11-15T04:48:45.492159",
+    "batch_times": [
+      4.689903020858765,
+      8.765043258666992
+    ]
+  }
+}

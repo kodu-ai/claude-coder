@@ -451,11 +451,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 						if (!this.streamPaused) {
 							// Accumulate text until we have a complete XML tag or enough non-XML content
 							accumulatedText += chunk.body.text
-							
-							// Check if this chunk contains a closing tool tag
-							const hasClosingTag = accumulatedText.includes('</');
-							const wasInTool = this.toolExecutor.hasActiveTools();
-							
+							// check if this chunk is inside tool
+							const isChunkInsideTool = this.toolExecutor.isParserInToolTag()
+
 							// Process for tool use and get non-XML text
 							const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
 							
