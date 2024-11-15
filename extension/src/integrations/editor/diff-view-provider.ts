@@ -564,7 +564,7 @@ export class DiffViewProvider {
 					)
 				}
 				// update the file with the edited content
-				await vscode.workspace.fs.writeFile(uri, Buffer.from(editedContent))
+				await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(editedContent))
 				// we save the file after writing to it
 				await vscode.workspace.save(uri)
 			} catch (error) {
