@@ -218,8 +218,8 @@ export class WriteFileTool extends BaseAgentTool {
 
         editBlocks.push({
           path: path, // You might need to enhance this for multi-file scenarios
-          searchContent: searchLines.join("\n"),
-          replaceContent: replaceLines.join("\n")
+          searchContent: searchLines.join("\n").trimEnd(),
+          replaceContent: replaceLines.join("\n").trimEnd()
         });
       } else {
         i++;
