@@ -321,7 +321,6 @@ export class DiffViewProvider {
 		if (isFinal) {
 			this.isFinalReached = true
 			await this.applyUpdate(accumulatedContent)
-			await this.finalizeDiff()
 			this.activeLineController.clear()
 			this.fadedOverlayController.clear()
 			return
@@ -488,24 +487,6 @@ export class DiffViewProvider {
 				? vscode.TextEditorRevealType.InCenterIfOutsideViewport
 				: vscode.TextEditorRevealType.Default
 		)
-	}
-
-	private async finalizeDiff(): Promise<void> {
-		if (!this.relPath) {
-			return
-		}
-		console.log(`Finalizing diff for ${this.relPath}`)
-		await this.openDiffEditor(this.relPath, true)
-		if (!this.diffEditor) {
-			throw new Error("Failed to open final diff editor")
-		}
-
-		// do one last update to ensure the final content is displayed in the diff editor
-		await this.applyUpdate(this.streamedContent)
-		this.lastEditPosition = new vscode.Position(this.diffEditor.document.lineCount - 1, 0)
-		if (this.isAutoScrollEnabled) {
-			await this.scrollToBottom()
-		}
 	}
 
 	public async revertChanges(): Promise<void> {

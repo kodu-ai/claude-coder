@@ -45,6 +45,7 @@ export const experimentalFeatures: ExperimentalFeature[] = [
 	{
 		id: "isContinueGenerationEnabled",
 		label: "Continue Generation",
+		dangerous: `This feature can lead to unexpected results and increased cost, use with caution`,
 		description:
 			"Claude will automatically continue generating text if max tokens is reached, useful when working with large files",
 	},

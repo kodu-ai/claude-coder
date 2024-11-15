@@ -1,0 +1,112 @@
+{
+  "total_files": 15,
+  "valid_operations": 9,
+  "invalid_operations": 6,
+  "validation_details": [
+    {
+      "file": "output-1731615243042-3.txt",
+      "valid": false,
+      "reason": "unmatched code block - missing closing parenthesis and bracket in fileToBase64 function",
+      "timestamp": "2024-11-15T05:14:20.135052"
+    },
+    {
+      "file": "output-1731615245342-0.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:14:19.315714"
+    },
+    {
+      "file": "output-1731615245377-11.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleGenderChange function - missing closing brace and function",
+      "timestamp": "2024-11-15T05:14:19.863273"
+    },
+    {
+      "file": "output-1731615245548-14.txt",
+      "valid": false,
+      "reason": "unmatched JSX closing tag </Grid> in handleClear method",
+      "timestamp": "2024-11-15T05:14:19.788955"
+    },
+    {
+      "file": "output-1731615245882-13.txt",
+      "valid": false,
+      "reason": "unmatched closing parenthesis in handleGenderChange method",
+      "timestamp": "2024-11-15T05:14:19.615982"
+    },
+    {
+      "file": "output-1731615246426-4.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:14:19.938534"
+    },
+    {
+      "file": "output-1731615247129-12.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:14:19.355521"
+    },
+    {
+      "file": "output-1731615247211-10.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:14:19.792273"
+    },
+    {
+      "file": "output-1731615247452-6.txt",
+      "valid": false,
+      "reason": "unmatched code block - missing closing bracket or semicolon in resizeImage function",
+      "timestamp": "2024-11-15T05:14:19.915210"
+    },
+    {
+      "file": "output-1731615247799-8.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:14:19.650370"
+    },
+    {
+      "file": "output-1731615247892-1.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:14:20.431347"
+    },
+    {
+      "file": "output-1731615248050-5.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:14:19.975817"
+    },
+    {
+      "file": "output-1731615250068-9.txt",
+      "valid": false,
+      "reason": "unmatched code block in handleClear method, missing closing brace",
+      "timestamp": "2024-11-15T05:14:20.051335"
+    },
+    {
+      "file": "output-1731615250602-7.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:14:19.613929"
+    },
+    {
+      "file": "output-1731615251350-2.txt",
+      "valid": true,
+      "reason": "valid syntax",
+      "timestamp": "2024-11-15T05:14:19.824849"
+    }
+  ],
+  "error_types": {
+    "unmatched code block - missing closing parenthesis and bracket in fileToBase64 function": 1,
+    "unmatched code block in handleGenderChange function - missing closing brace and function": 1,
+    "unmatched JSX closing tag </Grid> in handleClear method": 1,
+    "unmatched closing parenthesis in handleGenderChange method": 1,
+    "unmatched code block - missing closing bracket or semicolon in resizeImage function": 1,
+    "unmatched code block in handleClear method, missing closing brace": 1
+  },
+  "timing": {
+    "start_time": "2024-11-15T05:14:17.657669",
+    "end_time": "2024-11-15T05:14:20.431555",
+    "batch_times": [
+      2.735705614089966
+    ]
+  }
+}

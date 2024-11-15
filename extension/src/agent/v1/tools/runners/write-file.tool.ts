@@ -337,8 +337,9 @@ export class WriteFileTool extends BaseAgentTool {
 
 	private async showChangesInDiffView(relPath: string, content: string): Promise<void> {
 		content = this.preprocessContent(content)
-
-		await this.diffViewProvider.openDiffEditor(relPath, true)
+		if (!this.diffViewProvider.isDiffViewOpen()) {
+			await this.diffViewProvider.open(relPath, true)
+		}
 
 		await this.diffViewProvider.update(content, true)
 	}
