@@ -73,11 +73,13 @@ const extensionConfig = {
 		esbuildProblemMatcherPlugin,
 	],
 	entryPoints: ["src/extension.ts"],
+
 	format: "cjs",
 	sourcesContent: false,
+	keepNames: true, // Preserve function names during minification
 	platform: "node",
 	outfile: "dist/extension.js",
-	external: ["vscode", "chromium-bidi"],
+	external: ["vscode", "chromium-bidi", "difflib"], // Add "difflib" here
 }
 
 async function main() {

@@ -209,8 +209,13 @@ export class ToolExecutor {
 		}
 
 		// Handle partial updates for write file tool
-		if (context.tool instanceof WriteFileTool && params.path && params.content) {
-			await context.tool.handlePartialUpdate(params.path, params.content)
+		if (context.tool instanceof WriteFileTool && params.path) {
+			if (params.content) {
+				await context.tool.handlePartialUpdate(params.path, params.content)
+			}
+			if (params.diff) {
+				await context.tool.handlePartialUpdateDiff(params.path, params.diff)
+			}
 		} else {
 			await this.updateToolStatus(context, params, ts)
 		}
