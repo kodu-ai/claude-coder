@@ -39,6 +39,7 @@ const activeLineDecorationType = vscode.window.createTextEditorDecorationType({
 })
 
 type DecorationType = "fadedOverlay" | "activeLine"
+type LogLevel = "info" | "warn" | "error"
 
 class DiffViewError extends Error {
     constructor(message: string) {
@@ -69,7 +70,9 @@ class DecorationController {
 	}
 
 	addLines(startIndex: number, numLines: number) {
-		if (startIndex < 0 || numLines <= 0) return
+		if (startIndex < 0 || numLines <= 0) {
+            return
+        }
 
 		const lastRange = this.pendingRanges[this.pendingRanges.length - 1]
 		if (lastRange && lastRange.end.line === startIndex - 1) {
@@ -214,8 +217,14 @@ class DiffViewProvider {
 		}
 	}
 
+	private logger(message: string, level: LogLevel = "info"): void {
+		console[level](`[DiffViewProvider] ${message}`)
+	}
+
 	public async open(relPath: string, isFinal?: boolean): Promise<void> {
-		if (this.diffEditor) return
+		if (this.diffEditor) {
+            return
+        }
 
 		this.isEditing = true
 		this.relPath = relPath
@@ -339,7 +348,9 @@ class DiffViewProvider {
 	}
 
 	private scheduleUpdate() {
-		if (this.updateScheduled) return
+		if (this.updateScheduled) {
+            return
+        }
 
 		this.updateScheduled = true
 		setTimeout(async () => {
@@ -349,10 +360,14 @@ class DiffViewProvider {
 	}
 
 	private async applyPendingUpdate() {
-		if (!this.diffEditor || !this.modifiedUri) return
+		if (!this.diffEditor || !this.modifiedUri) {
+            return
+        }
 
 		const content = this.pendingContent
-		if (content === this.previousContent) return
+		if (content === this.previousContent) {
+            return
+        }
 
 		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(content), {
 			create: false,
@@ -395,7 +410,9 @@ class DiffViewProvider {
 	}
 
 	private async applyUpdate(content: string): Promise<void> {
-		if (!this.diffEditor || !this.modifiedUri) return
+		if (!this.diffEditor || !this.modifiedUri) {
+            return
+        }
 
 		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(content), {
 			create: false,
@@ -422,7 +439,9 @@ class DiffViewProvider {
 	}
 
 	private async scrollToModifiedLine(): Promise<void> {
-		if (!this.diffEditor) return
+		if (!this.diffEditor) {
+            return
+        }
 
 		const line = Math.max(0, this.lastModifiedLine)
 		const range = new vscode.Range(line, 0, line, this.diffEditor.document.lineAt(line).text.length)
@@ -430,7 +449,9 @@ class DiffViewProvider {
 	}
 
 	private async scrollToBottom(): Promise<void> {
-		if (!this.diffEditor) return
+		if (!this.diffEditor) {
+            return
+        }
 
 		const lastLine = this.diffEditor.document.lineCount - 1
 		const lastCharacter = this.diffEditor.document.lineAt(lastLine).text.length
@@ -439,10 +460,14 @@ class DiffViewProvider {
 	}
 
 	private checkScrollPosition(): boolean {
-		if (!this.diffEditor) return false
+		if (!this.diffEditor) {
+            return false
+        }
 
 		const visibleRanges = this.diffEditor.visibleRanges
-		if (visibleRanges.length === 0) return false
+		if (visibleRanges.length === 0) {
+            return false
+        }
 
 		const lastVisibleLine = visibleRanges[visibleRanges.length - 1].end.line
 		const firstVisibleLine = visibleRanges[0].start.line
@@ -453,7 +478,9 @@ class DiffViewProvider {
 	}
 
 	public async revertChanges(): Promise<void> {
-		if (!this.relPath) return
+		if (!this.relPath) {
+            return
+        }
 
 		this.disposables.forEach((d) => d.dispose())
 		await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
@@ -579,10 +606,6 @@ class DiffViewProvider {
 				await vscode.window.tabGroups.close(tab)
 			}
 		}
-	}
-
-	private logger(message: string, level: "info" | "warn" | "error" = "info") {
-		console[level](`[DiffViewProvider] ${message}`)
 	}
 }
 
