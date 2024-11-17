@@ -198,7 +198,7 @@ export class WriteFileTool extends BaseAgentTool {
 		try {
 			// Parse and apply the edit blocks
 			const editBlocks = this.parseDiffBlocks(diff, absolutePath)
-			this.logger(`Parsed edit blocks: ${JSON.stringify(editBlocks)}`, "info")
+			this.logger(`Parsed edit blocks: ${JSON.stringify(editBlocks)}`, "debug")
 			const newContent = this.applyEditBlocksToFile(originalContent, editBlocks)
 			await this.diffViewProvider.update(newContent, false)
 			this.lastUpdateTime = currentTime
