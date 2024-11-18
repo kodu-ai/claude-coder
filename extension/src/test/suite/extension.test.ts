@@ -1,8 +1,7 @@
 // src/test/suite/extension.test.ts
 
+import { before, suite, test } from "mocha"
 import * as vscode from "vscode"
-import { before } from "mocha"
-import { suite, test } from "mocha"
 
 suite("Extension Test Suite", () => {
 	let extension: vscode.Extension<any>
@@ -56,7 +55,7 @@ suite("Extension Test Suite", () => {
 
 			3. When editing files, it is easy to accidentally specify a wrong line number or to write code with incorrect indentation. Always check the code after you issue an edit to make sure that it reflects what you wanted to accomplish. If it didn't, issue another tool use to fix it.
 		`
-		await vscode.commands.executeCommand("kodu-claude-coder-main.startTask", task)
+		await vscode.commands.executeCommand("kodu-claude-coder-main.startNewTask", task)
 
 		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 60 * 4))
 		console.log("Timeout hit from extension test!")
