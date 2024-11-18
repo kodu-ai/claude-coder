@@ -360,26 +360,34 @@ export class TerminalManager {
 	}
 
 	async getOrCreateTerminal(cwd: string, name?: string): Promise<TerminalInfo> {
-		// Find available terminal from our pool first (created for this task)
+		// First try to find an existing terminal with the same name
+		if (name) {
+			const namedTerminal = TerminalRegistry.getTerminalByName(name)
+			if (namedTerminal && !namedTerminal.busy) {
+				this.terminalIds.add(namedTerminal.id)
+				return namedTerminal
+			}
+		}
+
+		// Then try to find an available terminal with matching CWD
 		const availableTerminal = TerminalRegistry.getAllTerminals().find((t) => {
-			if (t.busy) {
-				return false
-			}
-			if (name && t.name === name) {
-				return true
-			}
-			let terminalCwd = t.terminal.shellIntegration?.cwd // One of Kodu's commands could have changed the cwd of the terminal
-			if (!terminalCwd) {
-				return false
-			}
-			return arePathsEqual(vscode.Uri.file(cwd).fsPath, terminalCwd?.fsPath)
+			if (t.busy) return false
+			const terminalCwd = t.terminal.shellIntegration?.cwd
+			if (!terminalCwd) return false
+			return arePathsEqual(vscode.Uri.file(cwd).fsPath, terminalCwd.fsPath)
 		})
 
 		if (availableTerminal) {
 			this.terminalIds.add(availableTerminal.id)
+			// Update the name if provided
+			if (name) {
+				availableTerminal.name = name
+				availableTerminal.terminal.name = name
+			}
 			return availableTerminal
 		}
 
+		// If no suitable terminal found, create a new one
 		const newTerminalInfo = TerminalRegistry.createTerminal(cwd, name)
 		this.terminalIds.add(newTerminalInfo.id)
 		return newTerminalInfo
@@ -391,30 +399,6 @@ export class TerminalManager {
 			.filter((t): t is TerminalInfo => t !== undefined && t.busy === busy)
 			.map((t) => ({ id: t.id, name: t.name, lastCommand: t.lastCommand }))
 	}
-
-	// getUnretrievedOutput(terminalId: number, updateRetrievedIndex: boolean = true): string {
-	// 	if (!this.terminalIds.has(terminalId)) {
-	// 		return ""
-	// 	}
-	// 	const process = this.processes.get(terminalId)
-	// 	return process ? process.getUnretrievedOutput(updateRetrievedIndex) : ""
-	// }
-
-	// getPartialOutput(terminalId: number, fromLineIndex: number, toLineIndex?: number): string {
-	// 	if (!this.terminalIds.has(terminalId)) {
-	// 		return ""
-	// 	}
-	// 	const process = this.processes.get(terminalId)
-	// 	return process ? process.getOutput(fromLineIndex, toLineIndex).join("\n") : ""
-	// }
-
-	// getFullOutput(terminalId: number): string {
-	// 	if (!this.terminalIds.has(terminalId)) {
-	// 		return ""
-	// 	}
-	// 	const process = this.processes.get(terminalId)
-	// 	return process ? process.getFullOutput().join("\n") : ""
-	// }
 
 	isProcessHot(terminalId: number): boolean {
 		const process = this.processes.get(terminalId)
@@ -580,7 +564,6 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 		}
 	}
 
-	// Rest of your existing methods remain the same
 	private async queueOutput(line: string, terminalId: number) {
 		this.outputQueue.push(line)
 		await this.processOutputQueue(terminalId)
