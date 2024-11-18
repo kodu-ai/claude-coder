@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk"
 import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
 import { ClaudeAsk, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
 import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
@@ -27,6 +28,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private textBuffer: string = ""
 	public askManager: AskManager
 	private currentReplyId: number | null = null
+	private pauseNext: boolean = false
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
@@ -284,6 +286,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 	public async makeClaudeRequest(): Promise<void> {
 		try {
+			if (this.pauseNext) {
+				await this.handleWaitingForUser()
+				return
+			}
 			if (
 				this.state !== TaskState.WAITING_FOR_API ||
 				!this.currentUserContent ||
@@ -456,21 +462,21 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 							// Process for tool use and get non-XML text
 							const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
-							
+
 							// If we were in a tool and now we're not, the chunk contained a closing tag
 							if (isChunkInsideTool && !this.toolExecutor.hasActiveTools()) {
 								// Extract text after the closing tag
-								const afterClosingTag = accumulatedText.split('</')[1]?.split('>')[1];
+								const afterClosingTag = accumulatedText.split("</")[1]?.split(">")[1]
 								if (afterClosingTag) {
-									this.textBuffer += afterClosingTag;
-									await this.flushTextBuffer(this.currentReplyId);
+									this.textBuffer += afterClosingTag
+									await this.flushTextBuffer(this.currentReplyId)
 								}
 							} else if (!this.toolExecutor.hasActiveTools() && nonXMLText) {
 								// Handle normal text chunks
-								this.textBuffer += nonXMLText;
-								await this.flushTextBuffer(this.currentReplyId);
+								this.textBuffer += nonXMLText
+								await this.flushTextBuffer(this.currentReplyId)
 							}
-							
+
 							accumulatedText = "" // Clear accumulated text after processing
 
 							// If tool processing started, pause the stream
@@ -521,7 +527,12 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.state = TaskState.WAITING_FOR_USER
 		this.streamPaused = false
 		this.textBuffer = ""
+		this.pauseNext = false
 		this.currentReplyId = null
+	}
+
+	public pauseNextRequest() {
+		this.pauseNext = true
 	}
 
 	private async finishProcessingResponse(assistantResponses: ApiHistoryItem): Promise<void> {
@@ -695,6 +706,43 @@ export class TaskExecutor extends TaskExecutorUtils {
 				return { type: "text", text: "The user didn't provide any content, please continue" }
 			}
 			return item
+		})
+	}
+
+	private async handleWaitingForUser() {
+		this.ask("resume_task", {
+			question: "Do you want to continue with the task?",
+		}).then((res) => {
+			if (res.response === "yesButtonTapped") {
+				this.state = TaskState.WAITING_FOR_API
+				this.resetState()
+				this.currentUserContent = [
+					{
+						type: "text",
+						text: "Let's continue with the task, from where we left off.",
+					},
+				]
+				this.newMessage(this.currentUserContent)
+			}
+			if (res.response === "noButtonTapped") {
+				this.state = TaskState.COMPLETED
+			}
+			if (res.response === "messageResponse") {
+				let textBlock: Anthropic.TextBlockParam = {
+					type: "text",
+					text: res.text ?? "",
+				}
+				let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(res.images)
+				if (textBlock.text.trim() === "" && imageBlocks.length > 1) {
+					textBlock.text =
+						"Please check the images below for more information and continue the task from where we left off."
+				}
+				if (textBlock.text.trim() === "") {
+					textBlock.text = "Please continue the task from where we left off."
+				}
+				this.resetState()
+				this.newMessage([textBlock, ...imageBlocks])
+			}
 		})
 	}
 }

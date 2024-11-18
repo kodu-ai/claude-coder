@@ -142,7 +142,12 @@ export type isContinueGenerationEnabledMessage = {
 	bool: boolean
 }
 
+export type pauseNextMessage = {
+	type: "pauseNext"
+}
+
 export type WebviewMessage =
+	| pauseNextMessage
 	| isContinueGenerationEnabledMessage
 	| autoSummarizeMessage
 	| updateGlobalStateMessage

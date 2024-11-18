@@ -390,6 +390,9 @@ export class WebviewManager {
 						await this.provider.getTaskManager().clearTask()
 						await this.postStateToWebview()
 						break
+					case "pauseNext":
+						await this.provider.getKoduDev()?.taskExecutor.pauseNextRequest()
+						break
 					case "didCloseAnnouncement":
 						const packageJSON = this.provider.getContext().extension?.packageJSON
 						await this.provider
