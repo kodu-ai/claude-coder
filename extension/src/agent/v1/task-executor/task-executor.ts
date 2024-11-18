@@ -458,7 +458,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 							const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
 							
 							// If we were in a tool and now we're not, the chunk contained a closing tag
-							if (wasInTool && !this.toolExecutor.hasActiveTools()) {
+							if (isChunkInsideTool && !this.toolExecutor.hasActiveTools()) {
 								// Extract text after the closing tag
 								const afterClosingTag = accumulatedText.split('</')[1]?.split('>')[1];
 								if (afterClosingTag) {
