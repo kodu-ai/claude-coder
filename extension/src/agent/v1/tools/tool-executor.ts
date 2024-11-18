@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Tool Executor manages the lifecycle and execution of various tools in the Kodu extension.
+ * It handles tool creation, execution queuing, state management, and cleanup of running tools.
+ */
+
 import treeKill from "tree-kill"
 import { ToolName, ToolResponse, ToolResponseV2, UserContent } from "../types"
 import { KoduDev } from ".."
@@ -24,24 +29,48 @@ import { ChatTool } from "../../../shared/new-tools"
 import { DevServerTool } from "./runners/dev-server.tool"
 import delay from "delay"
 
+/**
+ * Represents the context and state of a tool during its lifecycle
+ * @interface ToolContext
+ */
 interface ToolContext {
+	/** Unique identifier for the tool context */
 	id: string
+	/** Instance of the tool being executed */
 	tool: BaseAgentTool
+	/** Current execution status of the tool */
 	status: "pending" | "processing" | "completed" | "error"
+	/** Error object if the tool execution failed */
 	error?: Error
 }
 
+/**
+ * Manages the execution and lifecycle of tools in the Kodu extension
+ * Handles tool creation, queuing, state management, and cleanup
+ */
 export class ToolExecutor {
+	/** Process ID of the currently running tool, if any */
 	private runningProcessId: number | undefined
+	/** Current working directory for tool execution */
 	private readonly cwd: string
+	/** Reference to the KoduDev instance */
 	private readonly koduDev: KoduDev
+	/** Parser for handling tool commands and updates */
 	private readonly toolParser: ToolParser
+	/** Queue for managing sequential tool execution */
 	private readonly queue: PQueue
 
+	/** Map of active tool contexts indexed by their IDs */
 	private toolContexts: Map<string, ToolContext> = new Map()
+	/** Array of completed tool execution results */
 	private toolResults: { name: string; result: ToolResponseV2 }[] = []
+	/** Flag indicating if tool execution is being aborted */
 	private isAborting: boolean = false
 
+	/**
+	 * Creates a new ToolExecutor instance
+	 * @param options Configuration options for the tool executor
+	 */
 	constructor(options: AgentToolOptions) {
 		this.cwd = options.cwd
 		this.koduDev = options.koduDev
@@ -57,6 +86,10 @@ export class ToolExecutor {
 		)
 	}
 
+	/**
+	 * Gets the current tool execution options
+	 * @returns Configuration options for tool execution
+	 */
 	public get options(): AgentToolOptions {
 		return {
 			cwd: this.cwd,
@@ -67,10 +100,20 @@ export class ToolExecutor {
 		}
 	}
 
+	/**
+	 * Checks if there are any tools currently active or queued
+	 * @returns True if there are active or queued tools, false otherwise
+	 */
 	public hasActiveTools(): boolean {
 		return this.toolContexts.size > 0 || this.queue.size > 0
 	}
 
+	/**
+	 * Creates a new tool instance based on the provided parameters
+	 * @param params Parameters for creating the tool
+	 * @returns New instance of the specified tool
+	 * @throws Error if the tool type is unknown
+	 */
 	private createTool(params: AgentToolParams): BaseAgentTool {
 		const toolMap = {
 			read_file: ReadFileTool,
@@ -95,10 +138,18 @@ export class ToolExecutor {
 		return new ToolClass(params, this.options)
 	}
 
+	/**
+	 * Sets the ID of the currently running process
+	 * @param pid Process ID to set, or undefined to clear
+	 */
 	public setRunningProcessId(pid: number | undefined) {
 		this.runningProcessId = pid
 	}
 
+	/**
+	 * Aborts all currently running tools and cleans up resources
+	 * Kills running processes, clears the queue, and resets tool states
+	 */
 	public async abortTask(): Promise<void> {
 		if (this.isAborting) {
 			return
@@ -157,6 +208,11 @@ export class ToolExecutor {
 		}
 	}
 
+	/**
+	 * Processes a tool use command from text input
+	 * @param text The tool use command text to process
+	 * @returns Object containing the processed output
+	 */
 	public async processToolUse(text: string) {
 		if (this.isAborting) {
 			return { output: text }
@@ -164,11 +220,22 @@ export class ToolExecutor {
 		return this.toolParser.appendText(text)
 	}
 
+	/**
+	 * Waits for all queued and active tools to complete processing
+	 * Uses polling to check the queue status at regular intervals
+	 */
 	public async waitForToolProcessing(): Promise<void> {
 		// use pwaitfor to wait for the queue to be idle
 		await pWaitFor(() => this.queue.size === 0 && this.queue.pending === 0, { interval: 50 })
 	}
 
+	/**
+	 * Handles updates to a tool's state during execution
+	 * @param id Tool context ID
+	 * @param toolName Name of the tool
+	 * @param params Updated tool parameters
+	 * @param ts Timestamp of the update
+	 */
 	private async handleToolUpdate(id: string, toolName: string, params: any, ts: number): Promise<void> {
 		// check if any other tool is processing or pending if so skip the update for now
 		const ifAnyToolisProcessing = Array.from(this.toolContexts.values()).some(
@@ -201,17 +268,26 @@ export class ToolExecutor {
 
 		// Handle partial updates for write file tool
 		if (context.tool instanceof WriteFileTool && params.path) {
-			if (params.content) {
-				await context.tool.handlePartialUpdate(params.path, params.content)
+			if (params.kodu_content) {
+				if (params.kodu_content) {
+					await context.tool.handlePartialUpdate(params.path, params.kodu_content)
+				}
 			}
-			if (params.diff) {
-				await context.tool.handlePartialUpdateDiff(params.path, params.diff)
-			}
+			// enable after updating the animation
+			// if (params.kodu_diff) {
+			// 	await context.tool.handlePartialUpdateDiff(params.path, params.kodu_diff)
+			// }
 		} else {
 			await this.updateToolStatus(context, params, ts)
 		}
 	}
 
+	/**
+	 * Handles the completion of a tool's execution
+	 * @param id Tool context ID
+	 * @param toolName Name of the tool
+	 * @param params Final tool parameters
+	 */
 	private async handleToolEnd(id: string, toolName: string, params: any): Promise<void> {
 		if (this.isAborting) {
 			console.log(`Tool is aborting, skipping tool: ${toolName}`)
@@ -243,6 +319,13 @@ export class ToolExecutor {
 		await this.updateToolStatus(context, params, context.tool.ts)
 	}
 
+	/**
+	 * Handles errors that occur during tool execution
+	 * @param id Tool context ID
+	 * @param toolName Name of the tool
+	 * @param error Error that occurred
+	 * @param ts Timestamp of the error
+	 */
 	private async handleToolError(id: string, toolName: string, error: Error, ts: number): Promise<void> {
 		console.error(`Error processing tool: ${id}`, error)
 
@@ -268,6 +351,12 @@ export class ToolExecutor {
 		)
 	}
 
+	/**
+	 * Updates the status of a tool in the UI
+	 * @param context Tool context to update
+	 * @param params Parameters for the update
+	 * @param ts Timestamp of the update
+	 */
 	private updateToolStatus(context: ToolContext, params: any, ts: number) {
 		this.koduDev.taskExecutor.updateAsk(
 			"tool",
@@ -283,10 +372,19 @@ export class ToolExecutor {
 		)
 	}
 
+	/**
+	 * Checks if the parser is currently within a tool tag
+	 * @returns True if parser is in a tool tag, false otherwise
+	 */
 	public isParserInToolTag() {
 		return this.toolParser.isInToolTag
 	}
 
+	/**
+	 * Processes a single tool execution
+	 * Handles the complete lifecycle of a tool from start to completion
+	 * @param context Context of the tool to process
+	 */
 	private async processTool(context: ToolContext): Promise<void> {
 		if (this.isAborting) {
 			return
@@ -331,10 +429,18 @@ export class ToolExecutor {
 		}
 	}
 
+	/**
+	 * Gets the results of all completed tool executions
+	 * @returns Array of tool execution results
+	 */
 	public getToolResults(): { name: string; result: ToolResponseV2 }[] {
 		return [...this.toolResults]
 	}
 
+	/**
+	 * Resets the tool executor state
+	 * Aborts any running tasks and clears results
+	 */
 	public async resetToolState() {
 		await this.abortTask()
 		this.toolResults = []

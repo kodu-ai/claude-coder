@@ -7,7 +7,8 @@ import { formatToolResponse, getCwd, getReadablePath } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import fs from "fs"
-import { SequenceMatcher } from "difflib"
+import stringSimilarity from "string-similarity"
+// const { SequenceMatcher } = require("difflib")
 
 /**
  * Detects potential AI-generated code omissions in the given file content.
@@ -129,8 +130,14 @@ interface EditBlock {
 	path: string
 	searchContent: string
 	replaceContent: string
+	isDelete?: boolean
 }
 
+interface BlockMatch {
+	start: number
+	end: number
+	score: number
+}
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
 	public diffViewProvider: DiffViewProvider
@@ -199,7 +206,7 @@ export class WriteFileTool extends BaseAgentTool {
 			// Parse and apply the edit blocks
 			const editBlocks = this.parseDiffBlocks(diff, absolutePath)
 			this.logger(`Parsed edit blocks: ${JSON.stringify(editBlocks)}`, "debug")
-			const newContent = this.applyEditBlocksToFile(originalContent, editBlocks)
+			const newContent = await this.applyEditBlocksToFile(originalContent, editBlocks)
 			await this.diffViewProvider.update(newContent, false)
 			this.lastUpdateTime = currentTime
 		} catch (e) {
@@ -258,6 +265,129 @@ export class WriteFileTool extends BaseAgentTool {
 		this.lastUpdateTime = currentTime
 	}
 
+	private findCodeBlock(content: string, startIndex: number): { start: number; end: number } | null {
+		const lines = content.split("\n")
+		let openBraces = 0
+		let blockStart = -1
+
+		for (let i = startIndex; i < lines.length; i++) {
+			const line = lines[i]
+
+			// Check for block start indicators
+			if (line.includes("{")) {
+				if (openBraces === 0) {
+					blockStart = i
+				}
+				openBraces += (line.match(/{/g) || []).length
+			}
+
+			// Check for block end
+			if (line.includes("}")) {
+				openBraces -= (line.match(/}/g) || []).length
+				if (openBraces === 0 && blockStart !== -1) {
+					return {
+						start: blockStart,
+						end: i,
+					}
+				}
+			}
+		}
+
+		return null
+	}
+
+	private findBestBlockMatch(searchContent: string, fileContent: string, threshold: number = 0.6): BlockMatch | null {
+		const lines = fileContent.split("\n")
+		const searchLines = searchContent.split("\n")
+		let bestMatch: BlockMatch | null = null
+
+		// Try exact match first
+		const exactIndex = fileContent.indexOf(searchContent)
+		if (exactIndex !== -1) {
+			const startLine = fileContent.substring(0, exactIndex).split("\n").length - 1
+			return {
+				start: startLine,
+				end: startLine + searchLines.length - 1,
+				score: 1.0,
+			}
+		}
+
+		// Look for potential block boundaries
+		for (let i = 0; i < lines.length; i++) {
+			// Check if this could be the start of a matching block
+			if (lines[i].includes("class") || lines[i].includes("function") || lines[i].includes("export")) {
+				// Try to find block boundaries
+				const block = this.findCodeBlock(lines.slice(i).join("\n"), 0)
+				if (block) {
+					const blockContent = lines.slice(i, i + block.end + 1).join("\n")
+					const similarity = stringSimilarity.compareTwoStrings(searchContent, blockContent)
+
+					if (similarity > threshold && (!bestMatch || similarity > bestMatch.score)) {
+						bestMatch = {
+							start: i,
+							end: i + block.end,
+							score: similarity,
+						}
+					}
+				}
+			}
+		}
+
+		// If no block match found, try sliding window approach
+		if (!bestMatch) {
+			for (let i = 0; i <= lines.length - searchLines.length; i++) {
+				const chunk = lines.slice(i, i + searchLines.length).join("\n")
+				const similarity = stringSimilarity.compareTwoStrings(searchContent, chunk)
+
+				if (similarity > threshold && (!bestMatch || similarity > bestMatch.score)) {
+					bestMatch = {
+						start: i,
+						end: i + searchLines.length - 1,
+						score: similarity,
+					}
+				}
+			}
+		}
+
+		return bestMatch
+	}
+
+	private async applyEditBlocksToFile(content: string, editBlocks: EditBlock[]): Promise<string> {
+		let lines = content.split("\n")
+
+		// Process blocks from bottom to top to maintain line numbers
+		editBlocks.sort((a, b) => {
+			const matchA = this.findBestBlockMatch(a.searchContent, content)
+			const matchB = this.findBestBlockMatch(b.searchContent, content)
+			return (matchB?.start || 0) - (matchA?.start || 0)
+		})
+
+		for (const block of editBlocks) {
+			const match = this.findBestBlockMatch(block.searchContent, lines.join("\n"))
+
+			if (match) {
+				const beforeLines = lines.slice(0, match.start)
+				const afterLines = lines.slice(match.end + 1)
+				const replaceLines = block.replaceContent.trim().split("\n")
+
+				// Handle complete deletions
+				if (block.replaceContent.trim() === "") {
+					lines = [...beforeLines, ...afterLines]
+				} else {
+					// Maintain indentation of the first line
+					const originalIndent = lines[match.start].match(/^\s*/)?.[0] || ""
+					const indentedReplace = replaceLines.map((line, i) => (i === 0 ? line : originalIndent + line))
+					lines = [...beforeLines, ...indentedReplace, ...afterLines]
+				}
+			} else {
+				this.logger(`Failed to find match for block: ${block.searchContent.slice(0, 100)}...`, "warn")
+				throw new Error(`Failed to find matching block in file`)
+			}
+		}
+
+		return lines.join("\n")
+	}
+
 	private parseDiffBlocks(diffContent: string, path: string): EditBlock[] {
 		const editBlocks: EditBlock[] = []
 		const lines = diffContent.split("\n")
@@ -285,10 +415,14 @@ export class WriteFileTool extends BaseAgentTool {
 					i++
 				}
 
+				const searchContent = searchLines.join("\n").trimEnd()
+				const replaceContent = replaceLines.join("\n").trimEnd()
+
 				editBlocks.push({
-					path: path, // You might need to enhance this for multi-file scenarios
-					searchContent: searchLines.join("\n").trimEnd(),
-					replaceContent: replaceLines.join("\n").trimEnd(),
+					path: path,
+					searchContent,
+					replaceContent,
+					isDelete: replaceContent.trim() === "",
 				})
 			} else {
 				i++
@@ -296,39 +430,9 @@ export class WriteFileTool extends BaseAgentTool {
 		}
 		return editBlocks
 	}
-
-	private applyEditBlocksToFile(content: string, editBlocks: EditBlock[]): string {
-		let newContent = content
-		for (const block of editBlocks) {
-			const searchPattern = block.searchContent.trim()
-			const replacePattern = block.replaceContent
-
-			const index = newContent.indexOf(searchPattern)
-			if (index !== -1) {
-				newContent =
-					newContent.substring(0, index) + replacePattern + newContent.substring(index + searchPattern.length)
-			} else {
-				// Try to find similar lines
-				const similarLines = this.findSimilarLines(searchPattern, newContent)
-				if (similarLines) {
-					const similarIndex = newContent.indexOf(similarLines)
-					newContent =
-						newContent.substring(0, similarIndex) +
-						replacePattern +
-						newContent.substring(similarIndex + similarLines.length)
-				} else {
-					console.error(`Failed to find match for SEARCH block: ${searchPattern}`)
-					throw new Error(`SEARCH block failed to match: ${searchPattern}`)
-				}
-			}
-		}
-		return newContent
-	}
-
 	private async processFileWrite() {
 		try {
-			const { path: relPath, content, diff } = this.params.input
-
+			const { path: relPath, kodu_content: content, kodu_diff: diff } = this.params.input
 			if (!relPath) {
 				throw new Error("Missing required parameter 'path'")
 			}
@@ -351,10 +455,10 @@ export class WriteFileTool extends BaseAgentTool {
 
 				// Parse and apply the edit blocks
 				const editBlocks = this.parseDiffBlocks(diff, absolutePath)
-				newContent = this.applyEditBlocksToFile(originalContent, editBlocks)
+				newContent = await this.applyEditBlocksToFile(originalContent, editBlocks)
 			} else {
 				if (!content) {
-					throw new Error("File does not exist, but 'content' parameter is missing")
+					throw new Error("File does not exist, but 'kodu_content' parameter is missing")
 				}
 				newContent = content
 			}
@@ -456,7 +560,7 @@ export class WriteFileTool extends BaseAgentTool {
 				{
 					tool: {
 						tool: "write_to_file",
-						content: this.params.input.content ?? "",
+						content: this.params.input.kodu_content ?? this.params.input.kodu_diff ?? "",
 						approvalState: "error",
 						path: this.params.input.path ?? "",
 						ts: this.ts,
@@ -501,9 +605,10 @@ export class WriteFileTool extends BaseAgentTool {
 		return content.replace(/>/g, ">").replace(/</g, "<").replace(/"/g, '"')
 	}
 
-	private findSimilarLines(searchContent: string, content: string, threshold: number = 0.6): string {
+	private async findSimilarLines(searchContent: string, content: string, threshold: number = 0.6): Promise<string> {
 		const searchLines = searchContent.split("\n")
 		const contentLines = content.split("\n")
+		const { SequenceMatcher } = await import("difflib")
 
 		let bestRatio = 0
 		let bestMatch: string[] = []
@@ -520,4 +625,24 @@ export class WriteFileTool extends BaseAgentTool {
 
 		return bestRatio >= threshold ? bestMatch.join("\n") : ""
 	}
+	// private findSimilarLines(searchContent: string, content: string, threshold: number = 0.6): string {
+	// 	const searchLines = searchContent.split("\n")
+	// 	const contentLines = content.split("\n")
+
+	// 	// For multi-line content, look for matching chunks
+	// 	let bestRatio = 0
+	// 	let bestMatch: string[] = []
+
+	// 	for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
+	// 		const chunk = contentLines.slice(i, i + searchLines.length)
+	// 		const similarity = stringSimilarity.compareTwoStrings(searchLines.join("\n"), chunk.join("\n"))
+
+	// 		if (similarity > bestRatio) {
+	// 			bestRatio = similarity
+	// 			bestMatch = chunk
+	// 		}
+	// 	}
+
+	// 	return bestRatio >= threshold ? bestMatch.join("\n") : ""
+	// }
 }

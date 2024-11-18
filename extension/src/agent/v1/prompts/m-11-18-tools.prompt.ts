@@ -1,5 +1,7 @@
-export const toolsPrompt = (cwd: string, supportsImages: boolean) => `
-# Tools
+import { writeToFileTool } from "../tools/schema"
+
+export const toolsPrompt = (cwd: string, supportsImages: boolean, id?: string) => `# Tools
+
 ## server_runner_tool
 Description: start a server / development server. This tool is used to run web applications locally, backend server, or anytype of server. this is tool allow you to start, stop, restart, or get logs from a server instance and keep it in memory.
 THIS IS THE ONLY TOOL THAT IS CAPABLE OF STARTING A SERVER, DO NOT USE THE execute_command TOOL TO START A SERVER, I REPEAT, DO NOT USE THE execute_command TOOL TO START A SERVER.
@@ -45,17 +47,318 @@ Usage:
 </read_file>
 
 ## write_to_file
-Description: Request to write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. Always provide the full intended content of the file, without any truncation. This tool will automatically create any directories needed to write the file.
+Description: Request to write content to a file at the specified path. If the file exists, provide the changes using 'SEARCH/REPLACE' blocks to clearly indicate modifications. If the file doesn't exist, provide the full intended content of the file in the 'content' parameter, without any truncation. This tool will automatically create any directories needed to write the file.
 Parameters:
 - path: (required) The path of the file to write to (relative to the current working directory ${cwd.toPosix()})
-- kodu_content: (required) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN.
-Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...' if you are writing code to a file, you must provide the complete code, no placeholders, no partial updates, you must write all the code!
-Usage:
+- kodu_content: (required when creating a new file) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN.
+- kodu_diff: (required when modifying an existing file) The 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly, and each 'REPLACE' block should provide the intended changes.
+
+Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...'. If you are writing code to a new file, you must provide the complete code, no placeholders, no partial updates; you must write all the code! When modifying an existing file, **MUST** use the 'kodu_diff' parameter and not include the 'content' parameter.
+
+### IMPORTANT ###
+When modifying an existing file, **NEVER** include the 'content' parameter. Instead, provide the 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file inside the <kodu_diff> parameter
+
+### WRITE_TO_FILE (CRITICAL GUIDANCE FOR USING SEARCH/REPLACE):
+
+Accurately generating 'SEARCH/REPLACE' blocks when using the write_to_file tool is crucial to avoid errors and ensure modifications are correctly applied. Follow these structured steps:
+
+## Step-by-Step Checklist for Generating 'SEARCH/REPLACE' Blocks:
+
+1. **Read the File (if Necessary)**:
+   - Did you read the file before writing to it? If not, use the 'read_file' tool first to obtain the latest content, unless you already have it from previous steps or user input.
+   - Avoid unnecessary re-reads; only read again if the content is missing or has changed.
+
+2. **Confirm the Latest Content**:
+   - Ensure you have the last content from either a previous 'read_file' operation, user input, or a recent 'write_to_file' tool call.
+
+3. **Avoid Placeholders**:
+   - Do **NOT** use placeholders such as '// ...' or comments like '/ your implementation here'. The 'REPLACE' section must reflect the actual and complete intended changes.
+
+4. **Consistent 'SEARCH/REPLACE' Blocks**:
+   - Use 'SEARCH/REPLACE' blocks when modifying existing files.
+   - Each 'SEARCH' block must exactly match existing content. Any deviation may lead to errors.
+   - Separate the 'SEARCH' and 'REPLACE' blocks with '======='.
+   - When creating a new file, provide complete content using '<kodu_content>.
+
+5. **ENSURE** that the SEARCH block contains at least 5 contiguous lines of code or additional context, such as comments, from the original file. This approach improves the reliability of matching and minimizes unintended changes during modification.
+  - Always strive to capture surrounding lines that help uniquely identify the location of your intended change.
+  - Contextual lines may include comments, whitespace, and code directly before or after the target change to ensure a robust match.
+  - When in doubt, prioritize including more lines for context while maintaining SEARCH sections that are concise and relevant to avoid overwhelming matches.
+
+
+-- Example 1: Modifying a Variable in a File
+
 <write_to_file>
-<path>File path here</path>
+<path>src/example.js</path>
+<kodu_diff>
+SEARCH
+// Some preceding lines for context
+const a = 10;
+const b = 20;
+const c = 30;
+const x = 42;
+const y = 50;
+=======
+REPLACE
+// Some preceding lines for context
+const a = 10;
+const b = 20;
+const c = 30;
+const x = 100; // Modified value for testing
+const y = 50;
+</kodu_diff>
+</write_to_file>
+
+-- Example 2: Adding an Import Statement and Removing a Function
+
+-- 1. Adding an import:
+
+<write_to_file>
+<path>mathweb/flask/app.py</path>
+<kodu_diff>
+SEARCH
+from flask import Flask
+# Additional context lines for matching
+def my_function():
+    pass
+
+class Example:
+    def __init__(self):
+        pass
+=======
+REPLACE
+import math
+from flask import Flask
+# Additional context lines for matching
+def my_function():
+    pass
+
+class Example:
+    def __init__(self):
+        pass
+</kodu_diff>
+</write_to_file>
+
+-- 2. Removing an existing function:
+
+<write_to_file>
+<path>mathweb/flask/app.py</path>
+<kodu_diff>
+SEARCH
+def factorial(n):
+    "compute factorial"
+
+    if n == 0:
+        return 1
+    else:
+        return n * factorial(n-1)
+
+# Context lines for better match
+def another_function():
+    print("This is a test")
+=======
+REPLACE
+# Context lines for better match
+def another_function():
+    print("This is a test")
+</kodu_diff>
+</write_to_file>
+
+-- Example 3: Updating a Function Call
+
+<write_to_file>
+<path>mathweb/flask/app.py</path>
+<kodu_diff>
+SEARCH
+# Contextual code for better matching
+def process_number(n):
+    result = n * 2
+    return str(factorial(n))
+
+# More context if necessary
+def another_function_call():
+    pass
+=======
+REPLACE
+# Contextual code for better matching
+def process_number(n):
+    result = n * 2
+    return str(math.factorial(n))
+
+# More context if necessary
+def another_function_call():
+    pass
+</kodu_diff>
+</write_to_file>
+
+-- Example 4: Creating a New File
+
+<write_to_file>
+<path>hello.py</path>
 <kodu_content>
-Complete file content here
+def hello():
+    "print a greeting"
+
+    print("hello")
 </kodu_content>
+</write_to_file>
+
+-- Example 5: Modifying an Existing File to Import a Function
+
+<write_to_file>
+<path>main.py</path>
+<kodu_diff>
+SEARCH
+# Some context before the function
+def hello():
+    "print a greeting"
+
+    print("hello")
+
+# Additional context after the function
+class HelloWorld:
+    def greet(self):
+        pass
+=======
+REPLACE
+# Some context before the function
+from hello import hello
+
+# Additional context after the function
+class HelloWorld:
+    def greet(self):
+        pass
+</kodu_diff>
+</write_to_file>
+
+-- Example 6: Multiple Hunks in a Single File
+
+<write_to_file>
+<path>src/example.js</path>
+<kodu_diff>
+SEARCH
+// Context for first change
+const greet = () => {
+    console.log("Hello, world!");
+};
+const a = 1;
+const b = 2;
+=======
+REPLACE
+// Context for first change
+const greet = () => {
+    console.log("Hello, OpenAI!");
+};
+const a = 1;
+const b = 2;
+
+SEARCH
+// Context for second change
+function add(a, b) {
+    return a + b;
+}
+const c = 3;
+const d = 4;
+=======
+REPLACE
+// Context for second change
+function add(a, b) {
+    // Perform addition and log result
+    const result = a + b;
+    console.log("Result: " + result);
+    return result;
+}
+const c = 3;
+const d = 4;
+</kodu_diff>
+</write_to_file>
+
+Example 7 - Deleting an entire class:
+<write_to_file>
+<path>src/services/user-service.ts</path>
+<kodu_diff>
+SEARCH
+// User authentication service implementation
+export class UserAuthService {
+    private userCache: Map<string, User> = new Map();
+    
+    constructor(private config: AuthConfig) {
+        this.initialize();
+    }
+    
+    private async initialize() {
+        // Initialize authentication service
+        await this.loadUserCache();
+    }
+    
+    public async authenticate(username: string, password: string): Promise<boolean> {
+        const user = this.userCache.get(username);
+        if (!user) return false;
+        return await this.validateCredentials(user, password);
+    }
+    
+    private async loadUserCache() {
+        // Load user data into cache
+        const users = await this.config.getUserList();
+        users.forEach(user => this.userCache.set(user.name, user));
+    }
+}
+
+// Keep services registry for reference
+export const services = {
+=======
+REPLACE
+// Services registry
+export const services = {
+</kodu_diff>
+</write_to_file>
+
+Example 8 - Deleting multiple related functions and their references:
+<write_to_file>
+<path>src/utils/math-helpers.ts</path>
+<kodu_diff>
+SEARCH
+// Legacy calculation functions
+export function calculateLegacyMetrics(data: number[]): MetricResult {
+    const total = data.reduce((sum, val) => sum + val, 0);
+    return {
+        total,
+        average: total / data.length
+    };
+}
+
+export function processLegacyData(input: RawData): ProcessedData {
+    return {
+        metrics: calculateLegacyMetrics(input.values),
+        timestamp: new Date()
+    };
+}
+
+// Helper function for legacy conversions
+export function convertLegacyFormat(data: OldFormat): NewFormat {
+    return {
+        id: data.identifier,
+        value: data.val,
+        timestamp: new Date(data.time)
+    };
+}
+
+=======
+REPLACE
+
+SEARCH
+// Import legacy functions
+import { 
+    calculateLegacyMetrics, 
+    processLegacyData, 
+    convertLegacyFormat 
+} from './math-helpers';
+
+export function processData(data: InputData): OutputData {
+=======
+REPLACE
+export function processData(data: InputData): OutputData {
+</kodu_diff>
 </write_to_file>
 
 ## search_files

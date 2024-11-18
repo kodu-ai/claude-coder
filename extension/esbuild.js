@@ -79,7 +79,7 @@ const extensionConfig = {
 	keepNames: true, // Preserve function names during minification
 	platform: "node",
 	outfile: "dist/extension.js",
-	external: ["vscode", "chromium-bidi", "difflib"], // Add "difflib" here
+	external: ["vscode", "chromium-bidi"], // Add "difflib" here
 }
 
 async function main() {

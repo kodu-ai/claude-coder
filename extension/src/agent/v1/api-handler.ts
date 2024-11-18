@@ -20,6 +20,8 @@ import { getCwd, isTextBlock } from "./utils"
 import { writeFile } from "fs/promises"
 import path from "path"
 
+import { GlobalStateManager } from "../../providers/claude-coder/state/GlobalStateManager"
+
 /**
  * Interface for tracking API usage metrics
  */
@@ -405,10 +407,19 @@ ${this.customInstructions.trim()}
 			Array.isArray(lastMessage.content) &&
 			shouldAppendCriticalMsg
 		) {
-			lastMessage.content.push({
-				type: "text",
-				text: criticalMsg,
-			})
+			const isInlineEditMode = await GlobalStateManager.getInstance().getGlobalState("isInlineEditingEnabled")
+			if (isInlineEditMode) {
+				const newCriticalMsg = (await import("./prompts/m-11-18-2024.prompt")).criticalMsg
+				lastMessage.content.push({
+					type: "text",
+					text: newCriticalMsg,
+				})
+			} else {
+				lastMessage.content.push({
+					type: "text",
+					text: criticalMsg,
+				})
+			}
 		}
 
 		const isFirstRequest = provider.getKoduDev()?.isFirstMessage ?? false

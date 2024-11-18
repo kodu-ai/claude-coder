@@ -150,7 +150,19 @@ export type setApiKeyDialogMessage = {
 	type: "setApiKeyDialog"
 }
 
+export type setInlinedModeMessage = {
+	type: "setInlinedMode"
+	bool: boolean
+}
+
+export type setAdvanceThinkingModeMessage = {
+	type: "setAdvanceThinkingMode"
+	bool: boolean
+}
+
 export type WebviewMessage =
+	| setAdvanceThinkingModeMessage
+	| setInlinedModeMessage
 	| setApiKeyDialogMessage
 	| pauseNextMessage
 	| isContinueGenerationEnabledMessage

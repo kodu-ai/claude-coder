@@ -25,7 +25,8 @@ import { z } from "zod"
  * ```xml
  * <tool name="write_to_file">
  *   <path>/scripts/setup.sh</path>
- *   <diff>
+ * <kodu_content>
+ * <diff>
  * <scripts/setup.sh
  * <<<<<<< SEARCH
  * echo "Setting up environment"
@@ -33,35 +34,30 @@ import { z } from "zod"
  * echo "Initializing environment"
  * >>>>>>> REPLACE
  * </diff>
+ * </kodu_content>
  * </tool>
  * ```
  */
 const schema = z.object({
-  path: z
-    .string()
-    .describe("The path of the file to write to (relative to the current working directory)."),
-  content: z
-    .string()
-    .describe(
-      "The full content to write to the file when creating a new file. Always provide the complete content without any truncation."
-    )
-    .optional(),
-  diff: z
-    .string()
-    .describe(
-      "The `SEARCH/REPLACE` blocks representing the changes to be made to an existing file. These blocks must be formatted correctly, matching exact existing content for `SEARCH` and precise modifications for `REPLACE`."
-    )
-    .optional(),
-});
+	path: z.string().describe("The path of the file to write to (relative to the current working directory)."),
+	kodu_content: z
+		.string()
+		.describe(
+			"The full content to write to the file when creating a new file. Always provide the complete content without any truncation."
+		)
+		.optional(),
+	kodu_diff: z
+		.string()
+		.describe(
+			"The `SEARCH/REPLACE` blocks representing the changes to be made to an existing file. These blocks must be formatted correctly, matching exact existing content for `SEARCH` and precise modifications for `REPLACE`."
+		)
+		.optional(),
+})
 
 const examples = [
-  `<write_to_file>
-  <path>/notes/todo.txt</path>
-  <content>Buy groceries\nCall Alice</content>
-</write_to_file>`,
-
-  `<write_to_file>
+	`<write_to_file>
   <path>/scripts/setup.sh</path>
+  <kodu_content>
   <diff>
 SEARCH
 echo "Setting up environment"
@@ -69,10 +65,12 @@ echo "Setting up environment"
 REPLACE
 echo "Initializing environment"
 </diff>
+</kodu_content>
 </write_to_file>`,
 
-  `<write_to_file>
+	`<write_to_file>
   <path>/data/config.json</path>
+  <kodu_content>
   <diff>
 SEARCH
 {
@@ -88,10 +86,12 @@ REPLACE
   "features": ["feature1", "feature2"]
 }
 </diff>
+</kodu_content>
 </write_to_file>`,
 
-  `<write_to_file>
+	`<write_to_file>
   <path>src/example.js</path>
+  <kodu_content>
   <diff>
 SEARCH
 const x = 42;
@@ -99,10 +99,12 @@ const x = 42;
 REPLACE
 const x = 100; // Modified value for testing
 </diff>
+</kodu_content>
 </write_to_file>`,
 
-  `<write_to_file>
+	`<write_to_file>
   <path>mathweb/flask/app.py</path>
+  <kodu_content>
   <diff>
 SEARCH
 from flask import Flask
@@ -111,10 +113,12 @@ REPLACE
 import math
 from flask import Flask
 </diff>
+</kodu_content>
 </write_to_file>`,
 
-  `<write_to_file>
+	`<write_to_file>
   <path>mathweb/flask/app.py</path>
+  <kodu_content>
   <diff>
 SEARCH
 def factorial(n):
@@ -129,10 +133,12 @@ def factorial(n):
 REPLACE
 
 </diff>
+</kodu_content>
 </write_to_file>`,
 
-  `<write_to_file>
+	`<write_to_file>
   <path>mathweb/flask/app.py</path>
+  <kodu_content>
   <diff>
 SEARCH
     return str(factorial(n))
@@ -140,9 +146,10 @@ SEARCH
 REPLACE
     return str(math.factorial(n))
 </diff>
+</kodu_content>
 </write_to_file>`,
 
-  `<write_to_file>
+	`<write_to_file>
   <path>hello.py</path>
   <content>
 def hello():
@@ -152,8 +159,9 @@ def hello():
 </content>
 </write_to_file>`,
 
-  `<write_to_file>
+	`<write_to_file>
   <path>main.py</path>
+  <kodu_content>
   <diff>
 SEARCH
 def hello():
@@ -164,14 +172,14 @@ def hello():
 REPLACE
 from hello import hello
 </diff>
-</write_to_file>`
-];
-
+</kodu_content>
+</write_to_file>`,
+]
 
 export const writeToFileTool = {
-  schema: {
-    name: "write_to_file",
-    schema,
-  },
-  examples,
-};
+	schema: {
+		name: "write_to_file",
+		schema,
+	},
+	examples,
+}

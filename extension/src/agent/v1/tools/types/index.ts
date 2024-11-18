@@ -16,6 +16,8 @@ export type ToolInput = {
 	summary?: string
 	path?: string
 	content?: string
+	kodu_content?: string
+	kodu_diff?: string
 	isFinal?: boolean
 	regex?: string
 	udiff?: string

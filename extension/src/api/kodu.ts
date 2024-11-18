@@ -18,8 +18,8 @@ import {
 } from "../shared/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { ApiHistoryItem } from "../agent/v1"
-// import { GlobalStateManager } from "@/providers/claude-coder/state/GlobalStateManager"
 import { GlobalStateManager } from "../providers/claude-coder/state/GlobalStateManager"
+import { getCwd } from "../agent/v1/utils"
 
 const temperatures = {
 	creative: {
@@ -385,7 +385,9 @@ export class KoduHandler implements ApiHandler {
 		environmentDetails?: string
 	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
-		const creativitySettings = temperatures[creativeMode ?? "normal"]
+		const isAdvanceThinkingMode = GlobalStateManager.getInstance().getGlobalState("isAdvanceThinkingEnabled")
+		const isInlineEditingMode = GlobalStateManager.getInstance().getGlobalState("isInlineEditingEnabled")
+		const technicalBackground = GlobalStateManager.getInstance().getGlobalState("technicalBackground")
 
 		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = []
 
@@ -395,10 +397,32 @@ export class KoduHandler implements ApiHandler {
 			type: "text",
 		})
 
+		// if it's inline edit we import different prompt
+		if (isInlineEditingMode) {
+			system.pop()
+			const { BASE_SYSTEM_PROMPT } = await import("../agent/v1/prompts/m-11-18-2024.prompt")
+			const prompt = await BASE_SYSTEM_PROMPT(
+				getCwd(),
+				this.getModel().info.supportsImages,
+				technicalBackground ?? "developer"
+			)
+			system.push({
+				text: prompt,
+				type: "text",
+			})
+		}
+
 		// Add custom instructions
 		if (customInstructions && customInstructions.trim()) {
 			system.push({
 				text: customInstructions,
+				type: "text",
+			})
+		}
+		if (isAdvanceThinkingMode) {
+			const { advanceThinkingPrompt } = await import("../agent/v1/prompts/advance-thinking.prompt")
+			system.push({
+				text: advanceThinkingPrompt,
 				type: "text",
 			})
 		}
