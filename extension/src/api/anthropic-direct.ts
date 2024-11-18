@@ -9,13 +9,6 @@ export class AnthropicDirectHandler implements ApiHandler {
     private options: ApiHandlerOptions
     private client: Anthropic
     private abortController: AbortController | null = null
-    private isAborted: boolean = false
-    private streamTimeout: NodeJS.Timeout | null = null
-    private lastMessageAt: number = 0
-    private readonly TIMEOUT_MS = 5000 // 5 seconds timeout
-    private abortListener: (() => void) | null = null
-    private streamComplete: boolean = false
-    private abortPromise: Promise<void> | null = null
 
     constructor(options: ApiHandlerOptions) {
         this.options = options
@@ -28,52 +21,9 @@ export class AnthropicDirectHandler implements ApiHandler {
     }
 
     async abortRequest(): Promise<void> {
-        // If there's already an abort in progress, wait for it
-        if (this.abortPromise) {
-            await this.abortPromise
-            return
-        }
-
-        // Create new abort promise
-        this.abortPromise = (async () => {
-            try {
-                if (this.abortController) {
-                    this.isAborted = true
-                    this.streamComplete = true // Prevent new streams
-                    this.abortController.abort()
-                    this.abortController = null
-                    this.clearStreamTimeout()
-                    this.removeAbortListener()
-                }
-            } finally {
-                // Clear abort promise when done
-                this.abortPromise = null
-            }
-        })()
-
-        await this.abortPromise
-    }
-
-    private removeAbortListener() {
-        if (this.abortListener) {
-            this.abortListener = null
-        }
-    }
-
-    private setupStreamTimeout() {
-        this.clearStreamTimeout()
-        this.streamTimeout = setInterval(() => {
-            const timeSinceLastMessage = Date.now() - this.lastMessageAt
-            if (this.lastMessageAt > 0 && timeSinceLastMessage > this.TIMEOUT_MS) {
-                this.abortRequest()
-            }
-        }, 1000)
-    }
-
-    private clearStreamTimeout() {
-        if (this.streamTimeout) {
-            clearInterval(this.streamTimeout)
-            this.streamTimeout = null
+        if (this.abortController) {
+            this.abortController.abort()
+            this.abortController = null
         }
     }
 
@@ -100,30 +50,14 @@ export class AnthropicDirectHandler implements ApiHandler {
         temperature?: number,
         top_p?: number
     ): AsyncIterableIterator<koduSSEResponse> {
-        // If already aborted or completing, don't start new stream
-        if (this.isAborted || this.streamComplete) {
-            return
-        }
-
-        // Reset state for new stream
-        this.lastMessageAt = Date.now()
-        this.removeAbortListener()
-
-        // Create a new AbortController that will be aborted if either the passed signal
-        // or our internal controller is aborted
-        const controller = new AbortController()
-        this.abortController = controller
-
-        // If an abort signal was passed, listen for its abort event
-        if (abortSignal) {
-            this.abortListener = () => {
-                void this.abortRequest()
-            }
-            abortSignal.addEventListener('abort', this.abortListener, { once: true })
-        }
-
         try {
-            this.setupStreamTimeout()
+            // Create a new AbortController
+            this.abortController = new AbortController()
+
+            // Create a composite signal that aborts if either source aborts
+            const signal = abortSignal 
+                ? AbortSignal.any([abortSignal, this.abortController.signal])
+                : this.abortController.signal
 
             const stream = await this.client.messages.create(
                 {
@@ -136,7 +70,7 @@ export class AnthropicDirectHandler implements ApiHandler {
                     stream: true
                 },
                 {
-                    signal: controller.signal
+                    signal
                 }
             )
 
@@ -144,14 +78,6 @@ export class AnthropicDirectHandler implements ApiHandler {
             let hasStarted = false
 
             for await (const chunk of stream) {
-                // Check abort state before processing chunk
-                if (this.isAborted || abortSignal?.aborted || this.streamComplete) {
-                    return // Return immediately on abort
-                }
-
-                // Update last message timestamp
-                this.lastMessageAt = Date.now()
-
                 if (chunk.type === 'message_start') {
                     if (!hasStarted) {
                         hasStarted = true
@@ -173,7 +99,6 @@ export class AnthropicDirectHandler implements ApiHandler {
                     }
                 } else if (chunk.type === 'message_stop') {
                     if ('content' in chunk && Array.isArray(chunk.content)) {
-                        this.streamComplete = true
                         yield {
                             code: 1,
                             body: {
@@ -202,96 +127,93 @@ export class AnthropicDirectHandler implements ApiHandler {
                                 }
                             }
                         }
-                        return // Return instead of break to properly end the generator
+                        return
                     }
                 }
             }
 
             // Handle case where stream ends without a message_stop
-            if (!this.streamComplete && !this.isAborted && !abortSignal?.aborted) {
-                if (content.length === 0) {
-                    throw new KoduError({
-                        code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT
-                    })
-                } else {
-                    // Ensure we send a final message even if message_stop wasn't received
-                    this.streamComplete = true
-                    yield {
-                        code: 1,
-                        body: {
-                            anthropic: {
-                                id: `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                                type: 'message',
-                                role: 'assistant',
-                                content,
-                                model: this.getModel().id,
-                                stop_reason: 'end_turn',
-                                stop_sequence: null,
-                                usage: {
-                                    input_tokens: 0,
-                                    output_tokens: 0,
-                                    cache_creation_input_tokens: 0,
-                                    cache_read_input_tokens: 0
-                                }
-                            },
-                            internal: {
-                                cost: 0,
-                                userCredits: 0,
-                                inputTokens: 0,
-                                outputTokens: 0,
-                                cacheCreationInputTokens: 0,
-                                cacheReadInputTokens: 0
+            if (content.length > 0) {
+                yield {
+                    code: 1,
+                    body: {
+                        anthropic: {
+                            id: `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            type: 'message',
+                            role: 'assistant',
+                            content,
+                            model: this.getModel().id,
+                            stop_reason: 'end_turn',
+                            stop_sequence: null,
+                            usage: {
+                                input_tokens: 0,
+                                output_tokens: 0,
+                                cache_creation_input_tokens: 0,
+                                cache_read_input_tokens: 0
                             }
+                        },
+                        internal: {
+                            cost: 0,
+                            userCredits: 0,
+                            inputTokens: 0,
+                            outputTokens: 0,
+                            cacheCreationInputTokens: 0,
+                            cacheReadInputTokens: 0
                         }
                     }
                 }
+                return
             }
 
+            // If we get here with no content, throw an error
+            throw new KoduError({
+                code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT
+            })
+
         } catch (error) {
-            // Don't throw errors if we're aborting
-            if (!this.isAborted && !abortSignal?.aborted) {
-                if (error instanceof Error) {
-                    if (error.name === 'AbortError') {
-                        yield {
-                            code: -1,
-                            body: {
-                                msg: "Request aborted by user",
-                                status: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT
-                            }
-                        }
-                    } else if (error.message.includes("prompt is too long")) {
-                        yield {
-                            code: -1,
-                            body: {
-                                msg: "prompt is too long",
-                                status: 413
-                            }
-                        }
-                    } else {
-                        yield {
-                            code: -1,
-                            body: {
-                                msg: error.message,
-                                status: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT
-                            }
+            // Convert errors to KoduError
+            if (error instanceof Error && error.message === "aborted") {
+                error = new KoduError({ code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT })
+            }
+
+            // Yield error response
+            if (error instanceof KoduError) {
+                yield {
+                    code: -1,
+                    body: {
+                        msg: error.message || "Request aborted by user",
+                        status: error.errorCode || KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT
+                    }
+                }
+                return
+            }
+
+            // Handle other errors
+            if (error instanceof Error) {
+                if (error.message.includes("prompt is too long")) {
+                    yield {
+                        code: -1,
+                        body: {
+                            msg: "prompt is too long",
+                            status: 413
                         }
                     }
                 } else {
-                    throw new KoduError({
-                        code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT
-                    })
+                    yield {
+                        code: -1,
+                        body: {
+                            msg: error.message,
+                            status: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT
+                        }
+                    }
                 }
+                return
             }
+
+            // Throw unknown errors
+            throw error
         } finally {
-            this.clearStreamTimeout()
-            if (this.abortController === controller) {
-                this.abortController = null
-            }
-            // Clean up abort listener
-            if (abortSignal && this.abortListener) {
-                abortSignal.removeEventListener('abort', this.abortListener)
-                this.abortListener = null
-            }
+            this.abortController = null
         }
     }
 
@@ -304,11 +226,6 @@ export class AnthropicDirectHandler implements ApiHandler {
         userMemory?: string,
         environmentDetails?: string
     ): AsyncIterableIterator<koduSSEResponse> {
-        // If already aborted or completing, don't start new stream
-        if (this.isAborted || this.streamComplete) {
-            return
-        }
-
         const system: string[] = []
 
         // Add system prompt
