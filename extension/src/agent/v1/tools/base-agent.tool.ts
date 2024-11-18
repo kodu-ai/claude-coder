@@ -107,7 +107,7 @@ export abstract class BaseAgentTool {
 		}
 	}
 
-	protected logger(message: string, level: "info" | "warn" | "error" = "info") {
+	protected logger(message: string, level: "info" | "warn" | "error" | "debug" = "info") {
 		console[level](`[${this.name}] ${message}`)
 	}
 }

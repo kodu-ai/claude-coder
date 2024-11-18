@@ -43,6 +43,16 @@ export const experimentalFeatures: ExperimentalFeature[] = [
 		description: "Claude will automatically try to solve tasks without asking for permission",
 	},
 	{
+		id: "isAdvanceThinkingEnabled",
+		label: "Advance Thinking",
+		description: "Claude will generate more reasoning tokens before answering",
+	},
+	{
+		id: "isInlineEditingEnabled",
+		label: "Inline Editing",
+		description: "Generate inline edits instead of writing the whole file",
+	},
+	{
 		id: "isContinueGenerationEnabled",
 		label: "Continue Generation",
 		dangerous: `This feature can lead to unexpected results and increased cost, use with caution`,

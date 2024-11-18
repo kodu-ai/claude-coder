@@ -1,4 +1,5 @@
 import plugin from "tailwindcss"
+import tailwindcssAnimate from "tailwindcss-animate"
 
 function parseColor(color) {
 	if (color.startsWith("#")) {
@@ -193,10 +194,10 @@ export default {
 				"accordion-up": "accordion-up 0.2s ease-out",
 				"border-beam": "border-beam calc(var(--duration)*1s) infinite linear",
 			},
-		},
+		}
 	},
 	plugins: [
-		require("tailwindcss-animate"),
+		tailwindcssAnimate,
 
 		plugin(function ({ addUtilities, theme }) {
 			const colors = theme("colors")

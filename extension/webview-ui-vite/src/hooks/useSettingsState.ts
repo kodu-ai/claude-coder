@@ -19,6 +19,8 @@ export function useSettingsState() {
 		autoSummarize: extensionState.autoSummarize || false,
 		"one-click-deployment": false,
 		isContinueGenerationEnabled: extensionState.isContinueGenerationEnabled || false,
+		isInlineEditingEnabled: extensionState.inlineEditMode || false,
+		isAdvanceThinkingEnabled: extensionState.advanceThinkingMode || false,
 	})
 	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
 	const [autoSkipWrite, setAutoSkipWrite] = useState(extensionState.skipWriteAnimation || false)
@@ -49,6 +51,14 @@ export function useSettingsState() {
 				if (featureId === "isContinueGenerationEnabled") {
 					extensionState.setIsContinueGenerationEnabled(checked)
 					vscode.postMessage({ type: "isContinueGenerationEnabled", bool: checked })
+				}
+				if (featureId === "isInlineEditingEnabled") {
+					extensionState.setInlineEditMode(checked)
+					vscode.postMessage({ type: "setInlinedMode", bool: checked })
+				}
+				if (featureId === "isAdvanceThinkingEnabled") {
+					extensionState.setAdvanceThinkingMode(checked)
+					vscode.postMessage({ type: "setAdvanceThinkingMode", bool: checked })
 				}
 				return newState
 			})

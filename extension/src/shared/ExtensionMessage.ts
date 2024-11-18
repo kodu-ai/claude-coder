@@ -97,6 +97,8 @@ export interface ExtensionState {
 	lastShownAnnouncementId?: string
 	currentContextTokens: number
 	currentContextWindow: number
+	inlineEditMode?: boolean
+	advanceThinkingMode?: boolean
 	skipWriteAnimation?: boolean
 	autoSummarize?: boolean
 	customInstructions?: string

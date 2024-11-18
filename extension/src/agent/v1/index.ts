@@ -48,6 +48,16 @@ export class KoduDev {
 	) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
 		this.stateManager = new StateManager(options)
+
+		this.stateManager.setState({
+			taskId: historyItem ? historyItem.id : Date.now().toString(),
+			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
+			isRepoInitialized: historyItem?.isRepoInitialized ?? false,
+			requestCount: 0,
+			apiConversationHistory: [],
+			claudeMessages: [],
+			abort: false,
+		})
 		this.providerRef = new WeakRef(provider)
 		this.apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
 		this.toolExecutor = new ToolExecutor({
@@ -62,15 +72,6 @@ export class KoduDev {
 
 		this.setupTaskExecutor()
 
-		this.stateManager.setState({
-			taskId: historyItem ? historyItem.id : Date.now().toString(),
-			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
-			isRepoInitialized: historyItem?.isRepoInitialized ?? false,
-			requestCount: 0,
-			apiConversationHistory: [],
-			claudeMessages: [],
-			abort: false,
-		})
 		amplitudeTracker.updateUserSettings({
 			AlwaysAllowReads: this.stateManager.alwaysAllowReadOnly,
 			AutomaticMode: this.stateManager.alwaysAllowWriteOnly,

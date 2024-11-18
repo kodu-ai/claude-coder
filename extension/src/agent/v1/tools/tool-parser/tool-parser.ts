@@ -33,6 +33,7 @@ interface ToolParserConstructor {
 }
 
 export class ToolParser {
+	private isMock = false
 	private toolSchemas: ToolSchema[]
 	private currentContext: Context | null = null
 	private buffer: string = ""
@@ -47,13 +48,15 @@ export class ToolParser {
 
 	constructor(
 		toolSchemas: ToolSchema[],
-		{ onToolUpdate, onToolEnd, onToolError, onToolClosingError }: ToolParserConstructor
+		{ onToolUpdate, onToolEnd, onToolError, onToolClosingError }: ToolParserConstructor,
+		isMock = false
 	) {
 		this.toolSchemas = toolSchemas
 		this.onToolUpdate = onToolUpdate
 		this.onToolEnd = onToolEnd
 		this.onToolError = onToolError
 		this.onToolClosingError = onToolClosingError
+		this.isMock = isMock
 	}
 
 	get isInToolTag(): boolean {
@@ -119,7 +122,7 @@ export class ToolParser {
 		const tagName = tag.slice(1, -1).split(" ")[0]
 		if (this.toolSchemas.some((schema) => schema.name === tagName)) {
 			this.isInTool = true
-			const id = nanoid()
+			const id = this.isMock ? "mocked-nanoid" : nanoid()
 			const ts = Date.now()
 			this.currentContext = {
 				id,

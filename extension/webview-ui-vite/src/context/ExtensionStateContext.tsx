@@ -11,6 +11,12 @@ import { SystemPromptVariant } from "../../../src/shared/SystemPromptVariant"
 // Define atoms for each piece of state
 const technicalBackgroundAtom = atom<GlobalState["technicalBackground"] | undefined>(undefined)
 technicalBackgroundAtom.debugLabel = "technicalBackground"
+
+const inlineEditModeAtom = atom(false)
+inlineEditModeAtom.debugLabel = "inlineEditMode"
+const advanceThinkingModeAtom = atom(false)
+advanceThinkingModeAtom.debugLabel = "advanceThinkingMode"
+
 const versionAtom = atom("")
 versionAtom.debugLabel = "version"
 const claudeMessagesAtom = atom<ClaudeMessage[]>([])
@@ -93,6 +99,8 @@ export const extensionStateAtom = atom((get) => ({
 	shouldShowAnnouncement: get(shouldShowAnnouncementAtom),
 	shouldShowKoduPromo: get(shouldShowKoduPromoAtom),
 	apiConfiguration: get(apiConfigurationAtom),
+	inlineEditMode: get(inlineEditModeAtom),
+	advanceThinkingMode: get(advanceThinkingModeAtom),
 	uriScheme: get(uriSchemeAtom),
 	maxRequestsPerTask: get(maxRequestsPerTaskAtom),
 	customInstructions: get(customInstructionsAtom),
@@ -132,6 +140,8 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setVersion = useSetAtom(versionAtom)
 	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
 	const setTaskHistory = useSetAtom(taskHistoryAtom)
+	const setInlineEditMode = useSetAtom(inlineEditModeAtom)
+	const setAdvanceThinkingMode = useSetAtom(advanceThinkingModeAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
 	const setShouldShowKoduPromo = useSetAtom(shouldShowKoduPromoAtom)
 	const setApiConfiguration = useSetAtom(apiConfigurationAtom)
@@ -171,6 +181,8 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setCurrentIdTask(message.state.currentTaskId)
 			setClaudeMessages(message.state.claudeMessages)
 			setTechnicalBackground(message.state.technicalBackground)
+			setInlineEditMode(!!message.state.inlineEditMode)
+			setAdvanceThinkingMode(!!message.state.advanceThinkingMode)
 			setAutoSummarize(!!message.state.autoSummarize)
 			setLastShownAnnouncementId(message.state.lastShownAnnouncementId)
 			setTaskHistory(message.state.taskHistory)
@@ -227,6 +239,8 @@ export const useExtensionState = () => {
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
+	const setInlineEditMode = useSetAtom(inlineEditModeAtom)
+	const setAdvanceThinkingMode = useSetAtom(advanceThinkingModeAtom)
 	const setActiveSystemPromptVariantId = useSetAtom(activeSystemPromptVariantIdAtom)
 	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
 	const setUseUdiff = useSetAtom(useUdiffAtom)
@@ -250,6 +264,8 @@ export const useExtensionState = () => {
 		setAlwaysAllowWriteOnly,
 		setCreativeMode,
 		setAutoSummarize,
+		setInlineEditMode,
+		setAdvanceThinkingMode,
 		setAlwaysAllowReadOnly,
 		setActiveSystemPromptVariantId,
 		setShowAnnouncement: setShouldShowAnnouncement,

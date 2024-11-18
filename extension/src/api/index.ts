@@ -47,6 +47,8 @@ export interface ApiHandler {
 
 	abortRequest(): void
 
+	fixUdiff(udiff: string, fileContent: string, relPath: string): Promise<string>
+
 	sendWebSearchRequest?(
 		searchQuery: string,
 		baseLink?: string,
