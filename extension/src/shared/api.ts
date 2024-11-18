@@ -12,6 +12,8 @@ export interface ApiHandlerOptions {
 	awsRegion?: string
 	vertexProjectId?: string
 	vertexRegion?: string
+	useDirectAnthropicApi?: boolean
+	anthropicApiKey?: string
 }
 
 export type ApiConfiguration = ApiHandlerOptions & {

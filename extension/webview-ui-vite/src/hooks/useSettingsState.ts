@@ -28,6 +28,8 @@ export function useSettingsState() {
 	const [activeVariantId, setActiveVariantId] = useState<string | null>(
 		extensionState.activeSystemPromptVariantId || (systemPromptVariants[0]?.id ?? null)
 	)
+	const [useDirectAnthropicApi, setUseDirectAnthropicApi] = useState(extensionState.useDirectAnthropicApi || false)
+	const [anthropicApiKey, setAnthropicApiKey] = useState(extensionState.anthropicApiKey || "")
 
 	const handleAutoSkipWriteChange = useCallback((checked: boolean) => {
 		setAutoSkipWrite(checked)
@@ -39,21 +41,18 @@ export function useSettingsState() {
 			setExperimentalFeatureStates((prev) => {
 				const newState = { ...prev, [featureId]: checked }
 				if (featureId === "alwaysAllowWriteOnly") {
-					extensionState.setAlwaysAllowWriteOnly(checked)
 					vscode.postMessage({ type: "alwaysAllowWriteOnly", bool: checked })
 				}
 				if (featureId === "autoSummarize") {
-					extensionState.setAutoSummarize(checked)
 					vscode.postMessage({ type: "autoSummarize", bool: checked })
 				}
 				if (featureId === "isContinueGenerationEnabled") {
-					extensionState.setIsContinueGenerationEnabled(checked)
 					vscode.postMessage({ type: "isContinueGenerationEnabled", bool: checked })
 				}
 				return newState
 			})
 		},
-		[extensionState]
+		[]
 	)
 
 	const handleTechnicalLevelChange = useCallback((setLevel: typeof technicalLevel) => {
@@ -64,13 +63,21 @@ export function useSettingsState() {
 
 	const handleModelChange = useCallback((newModel: typeof model) => {
 		setModel(newModel!)
-		vscode.postMessage({ type: "apiConfiguration", apiConfiguration: { apiModelId: newModel } })
-	}, [])
+		const newConfig = {
+			...extensionState.apiConfiguration,
+			apiModelId: newModel
+		}
+		vscode.postMessage({ type: "apiConfiguration", apiConfiguration: newConfig })
+	}, [extensionState.apiConfiguration])
 
 	const handleBrowserModelChange = useCallback((newModel: typeof model) => {
 		setBrowserModel(newModel!)
-		vscode.postMessage({ type: "apiConfiguration", apiConfiguration: { browserModelId: newModel } })
-	}, [])
+		const newConfig = {
+			...extensionState.apiConfiguration,
+			browserModelId: newModel
+		}
+		vscode.postMessage({ type: "apiConfiguration", apiConfiguration: newConfig })
+	}, [extensionState.apiConfiguration])
 
 	const handleSetReadOnly = useCallback((checked: boolean) => {
 		setReadOnly(checked)
@@ -81,6 +88,36 @@ export function useSettingsState() {
 		setAutoCloseTerminal(checked)
 		vscode.postMessage({ type: "autoCloseTerminal", bool: checked })
 	}, [])
+
+	const handleUseDirectAnthropicApiChange = useCallback((checked: boolean) => {
+		setUseDirectAnthropicApi(checked)
+		const newConfig = {
+			...extensionState.apiConfiguration,
+			useDirectAnthropicApi: checked,
+			apiProvider: checked ? "anthropic" : undefined,
+			// Keep existing API key if turning on direct API
+			anthropicApiKey: checked ? (extensionState.anthropicApiKey || anthropicApiKey) : undefined
+		}
+		vscode.postMessage({ 
+			type: "apiConfiguration", 
+			apiConfiguration: newConfig
+		})
+	}, [extensionState.apiConfiguration, extensionState.anthropicApiKey, anthropicApiKey])
+
+	const handleAnthropicApiKeyChange = useCallback((apiKey: string) => {
+		setAnthropicApiKey(apiKey)
+		const newConfig = {
+			...extensionState.apiConfiguration,
+			anthropicApiKey: apiKey,
+			apiKey: apiKey, // Set both for compatibility
+			useDirectAnthropicApi: true, // Ensure direct API is enabled when setting key
+			apiProvider: "anthropic"
+		}
+		vscode.postMessage({ 
+			type: "apiConfiguration", 
+			apiConfiguration: newConfig
+		})
+	}, [extensionState.apiConfiguration])
 
 	const handleSaveSystemPrompt = useCallback((variant: SystemPromptVariant) => {
 		setSystemPromptVariants((prev) => {
@@ -119,7 +156,6 @@ export function useSettingsState() {
 		(val: string) => {
 			if (val === extensionState.customInstructions) return
 			setCustomInstructions(val)
-			extensionState.setCustomInstructions(val)
 			vscode.postMessage({ type: "customInstructions", text: val })
 		},
 		[extensionState.customInstructions]
@@ -136,6 +172,8 @@ export function useSettingsState() {
 		autoSkipWrite,
 		systemPromptVariants,
 		activeVariantId,
+		useDirectAnthropicApi,
+		anthropicApiKey,
 		handleAutoSkipWriteChange,
 		handleExperimentalFeatureChange,
 		handleTechnicalLevelChange,
@@ -143,6 +181,8 @@ export function useSettingsState() {
 		handleBrowserModelChange,
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
+		handleUseDirectAnthropicApiChange,
+		handleAnthropicApiKeyChange,
 		handleSaveSystemPrompt,
 		handleDeleteSystemPrompt,
 		handleSetActiveVariant,

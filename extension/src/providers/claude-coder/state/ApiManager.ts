@@ -3,7 +3,7 @@ import { ApiModelId, koduDefaultModelId, KoduModelId, koduModels } from "../../.
 import { fetchKoduUser as fetchKoduUserAPI, initVisitor } from "../../../api/kodu"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 
-type SecretKey = "koduApiKey"
+type SecretKey = "koduApiKey" | "anthropicApiKey"
 
 export class ApiManager {
 	private static instance: ApiManager | null = null
@@ -27,8 +27,10 @@ export class ApiManager {
 		apiModelId?: KoduModelId
 		koduApiKey?: string
 		browserModelId?: string
+		useDirectAnthropicApi?: boolean
+		anthropicApiKey?: string
 	}) {
-		const { apiModelId, koduApiKey, browserModelId } = apiConfiguration
+		const { apiModelId, koduApiKey, browserModelId, useDirectAnthropicApi, anthropicApiKey } = apiConfiguration
 		if (apiModelId) {
 			await this.context.getGlobalStateManager().updateGlobalState("apiModelId", apiModelId)
 		}
@@ -37,6 +39,12 @@ export class ApiManager {
 		}
 		if (koduApiKey) {
 			await this.context.getSecretStateManager().updateSecretState("koduApiKey", koduApiKey)
+		}
+		if (typeof useDirectAnthropicApi !== 'undefined') {
+			await this.context.getGlobalStateManager().updateGlobalState("useDirectAnthropicApi", useDirectAnthropicApi)
+		}
+		if (anthropicApiKey) {
+			await this.context.getSecretStateManager().updateSecretState("anthropicApiKey", anthropicApiKey)
 		}
 		await this.context.getGlobalStateManager().initializeSystemPrompts()
 	}
@@ -73,6 +81,22 @@ export class ApiManager {
 		console.log("Posted state to webview after saving Kodu API key")
 		await this.context.getWebviewManager().postMessageToWebview({ type: "action", action: "koduAuthenticated" })
 		console.log("Posted message to action: koduAuthenticated")
+	}
+
+	async saveAnthropicApiKey(apiKey: string) {
+		await this.context.getSecretStateManager().updateSecretState("anthropicApiKey", apiKey)
+		console.log("Saved Anthropic API key")
+		const modelId = await this.context.getKoduDev()?.getStateManager().apiManager.getModelId()
+		await this.context
+			.getKoduDev()
+			?.getStateManager()
+			.apiManager.updateApi({
+				anthropicApiKey: apiKey,
+				apiModelId:
+					modelId ?? this.context.getGlobalStateManager().getGlobalState("apiModelId") ?? koduDefaultModelId,
+			})
+		await this.context.getWebviewManager().postStateToWebview()
+		console.log("Posted state to webview after saving Anthropic API key")
 	}
 
 	async signOutKodu() {

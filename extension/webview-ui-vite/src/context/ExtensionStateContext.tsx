@@ -72,6 +72,13 @@ lastShownAnnouncementIdAtom.debugLabel = "lastShownAnnouncementId"
 const isContinueGenerationEnabledAtom = atom(false)
 isContinueGenerationEnabledAtom.debugLabel = "isContinueGenerationEnabled"
 
+// New atoms for Anthropic API settings
+const useDirectAnthropicApiAtom = atom(false)
+useDirectAnthropicApiAtom.debugLabel = "useDirectAnthropicApi"
+
+const anthropicApiKeyAtom = atom<string | undefined>(undefined)
+anthropicApiKeyAtom.debugLabel = "anthropicApiKey"
+
 const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	const currentTaskId = get(currentTaskIdAtom)
 	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
@@ -109,6 +116,8 @@ export const extensionStateAtom = atom((get) => ({
 	alwaysAllowWriteOnly: get(alwaysAllowApproveOnlyAtom),
 	creativeMode: get(creativeModeAtom),
 	systemPromptVariants: get(systemPromptVariantsAtom),
+	useDirectAnthropicApi: get(useDirectAnthropicApiAtom),
+	anthropicApiKey: get(anthropicApiKeyAtom),
 }))
 extensionStateAtom.debugLabel = "extensionState"
 
@@ -159,6 +168,8 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setExtensionName = useSetAtom(extensionNameAtom)
 	const setFpjsKey = useSetAtom(fpjsKeyAtom)
 	const setSystemPromptVariants = useSetAtom(systemPromptVariantsAtom)
+	const setUseDirectAnthropicApi = useSetAtom(useDirectAnthropicApiAtom)
+	const setAnthropicApiKey = useSetAtom(anthropicApiKeyAtom)
 
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
@@ -197,6 +208,8 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setUriScheme(message.state.uriScheme)
 			setCreativeMode(message.state.creativeMode ?? "normal")
 			setSystemPromptVariants(message.state.systemPromptVariants ?? [])
+			setUseDirectAnthropicApi(!!message.state.useDirectAnthropicApi)
+			setAnthropicApiKey(message.state.anthropicApiKey)
 		}
 		if (message.type === "action" && message.action === "koduCreditsFetched") {
 			setUser(message.user)
@@ -236,6 +249,9 @@ export const useExtensionState = () => {
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 	const setSystemPromptVariants = useSetAtom(systemPromptVariantsAtom)
 	const setIsContinueGenerationEnabled = useSetAtom(isContinueGenerationEnabledAtom)
+	const setUseDirectAnthropicApi = useSetAtom(useDirectAnthropicApiAtom)
+	const setAnthropicApiKey = useSetAtom(anthropicApiKeyAtom)
+
 	return {
 		...state,
 		setApiConfiguration,
@@ -254,5 +270,7 @@ export const useExtensionState = () => {
 		setActiveSystemPromptVariantId,
 		setShowAnnouncement: setShouldShowAnnouncement,
 		setSystemPromptVariants,
+		setUseDirectAnthropicApi,
+		setAnthropicApiKey,
 	}
 }
