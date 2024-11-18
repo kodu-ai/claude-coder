@@ -9,6 +9,7 @@ import { TerminalManager } from "./integrations/terminal/terminal-manager"
 import { getCwd } from "./agent/v1/utils"
 import { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } from "./integrations/editor/diff-view-provider"
 import { readFile } from "fs/promises"
+import { startNewTask } from "./utils/command"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -173,6 +174,12 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand(`${extensionName}.popoutButtonTapped`, openExtensionInNewTab)
 	)
 	context.subscriptions.push(vscode.commands.registerCommand(`${extensionName}.openInNewTab`, openExtensionInNewTab))
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(`${extensionName}.startNewTask`, (task: string) =>
+			startNewTask(context, sidebarProvider, task)
+		)
+	)
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand(`${extensionName}.settingsButtonTapped`, () => {

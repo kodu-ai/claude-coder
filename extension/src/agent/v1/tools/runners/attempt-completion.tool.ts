@@ -44,6 +44,7 @@ export class AttemptCompletionTool extends BaseAgentTool {
 			commandOutput = await new ExecuteCommandTool(executeCommandParams, this.options).execute()
 		}
 
+		console.log("Raising attempt completion.")
 		const { response, text, images } = await ask(
 			"tool",
 			{

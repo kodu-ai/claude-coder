@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "./out/test",
+    "noEmit": false,
+    "types": ["vscode", "mocha", "chai"],
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["src/test/**/*"]
+}
