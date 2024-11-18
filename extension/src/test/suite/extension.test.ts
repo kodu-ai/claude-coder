@@ -41,7 +41,7 @@ suite("Extension Test Suite", () => {
 
 		const task =
 			"can you write a short poem about js in JS.txt and another poem about python in Python.txt and antoehr in TS for Ts.txt"
-		await vscode.commands.executeCommand("kodu-claude-coder-main.startTask", task)
+		await vscode.commands.executeCommand("kodu-claude-coder-main.startNewTask", task)
 
 		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 60 * 4))
 		console.log("Timeout hit from extension test!")
