@@ -4,6 +4,19 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.11.4] - 2024-11-18
+
+-   Added way for vscodium users to login
+
+## [1.11.3] - 2024-11-18
+
+-   Added option to login using API KEY via command (CTRL + P > Set Api Key)
+-   Added option to pause next request on automatic mode
+
+## [1.11.2] - 2024-11-18
+
+-   Fix write to file encoding for python files
+
 ## [1.11.1] - 2024-11-15
 
 -   Fix opening Kodu on a new tab

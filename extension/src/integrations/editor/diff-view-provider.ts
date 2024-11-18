@@ -268,10 +268,14 @@ export class DiffViewProvider {
 
 		// Create modified content URI (initially empty)
 		this.modifiedUri = vscode.Uri.parse(`${MODIFIED_URI_SCHEME}:/${fileName}`)
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(this.originalContent ?? ""), {
-			create: true,
-			overwrite: true,
-		})
+		DiffViewProvider.modifiedContentProvider.writeFile(
+			this.modifiedUri,
+			new TextEncoder().encode(this.originalContent ?? ""),
+			{
+				create: true,
+				overwrite: true,
+			}
+		)
 
 		// Open diff editor with original and modified content
 		await vscode.commands.executeCommand(
@@ -384,7 +388,7 @@ export class DiffViewProvider {
 		].join("\n")
 
 		// Update content with proper options to maintain file history
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(updatedContent), {
+		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, new TextEncoder().encode(updatedContent), {
 			create: false,
 			overwrite: true,
 		})
@@ -452,7 +456,7 @@ export class DiffViewProvider {
 		this.logger(`Applying update: content length ${content.length}`, "info")
 
 		// Update content with proper options to maintain file history
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(content), {
+		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, new TextEncoder().encode(content), {
 			create: false,
 			overwrite: true,
 		})
