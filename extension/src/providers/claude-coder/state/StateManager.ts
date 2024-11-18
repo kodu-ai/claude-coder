@@ -31,6 +31,8 @@ export class StateManager {
 			apiModelId,
 			browserModelId,
 			koduApiKey,
+			anthropicApiKey,
+			useDirectAnthropicApi,
 			user,
 			maxRequestsPerTask,
 			lastShownAnnouncementId,
@@ -54,6 +56,8 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.globalStateManager.getGlobalState("browserModelId"),
 			this.secretStateManager.getSecretState("koduApiKey"),
+			this.secretStateManager.getSecretState("anthropicApiKey"),
+			this.globalStateManager.getGlobalState("useDirectAnthropicApi"),
 			this.globalStateManager.getGlobalState("user"),
 			this.globalStateManager.getGlobalState("maxRequestsPerTask"),
 			this.globalStateManager.getGlobalState("lastShownAnnouncementId"),
@@ -102,11 +106,16 @@ export class StateManager {
 			?.getStateManager()
 			?.apiManager.getModelInfo()?.contextWindow
 
+		const isDirectAnthropicEnabled = useDirectAnthropicApi ?? false
+
 		return {
 			apiConfiguration: {
 				apiModelId,
 				koduApiKey,
 				browserModelId,
+				useDirectAnthropicApi: isDirectAnthropicEnabled,
+				anthropicApiKey: isDirectAnthropicEnabled ? anthropicApiKey : undefined,
+				apiProvider: isDirectAnthropicEnabled ? "anthropic" : undefined
 			},
 			user,
 			maxRequestsPerTask,
@@ -136,6 +145,8 @@ export class StateManager {
 			currentContextTokens: tokens ?? 0,
 			autoSummarize: autoSummarize ?? false,
 			isContinueGenerationEnabled: isContinueGenerationEnabled ?? false,
+			useDirectAnthropicApi: isDirectAnthropicEnabled,
+			anthropicApiKey: isDirectAnthropicEnabled ? anthropicApiKey : undefined
 		} satisfies ExtensionState
 	}
 
@@ -188,6 +199,7 @@ export class StateManager {
 		this.context.getKoduDev()?.getStateManager()?.setSkipWriteAnimation(value)
 		return this.globalStateManager.updateGlobalState("skipWriteAnimation", value)
 	}
+
 	async updateKoduCredits(credits: number) {
 		const user = await this.globalStateManager.getGlobalState("user")
 		if (user) {
@@ -211,6 +223,7 @@ export class StateManager {
 	setSystemPromptVariants(value: SystemPromptVariant[]) {
 		return this.globalStateManager.updateGlobalState("systemPromptVariants", value)
 	}
+
 	setActiveSystemPromptVariantId(value: string | undefined) {
 		return this.globalStateManager.updateGlobalState("activeSystemPromptVariantId", value)
 	}
@@ -233,5 +246,23 @@ export class StateManager {
 
 	setCreativeMode(value: "creative" | "normal" | "deterministic") {
 		return this.globalStateManager.updateGlobalState("creativeMode", value)
+	}
+
+	async setUseDirectAnthropicApi(value: boolean) {
+		// If disabling direct API, clear the API key
+		if (!value) {
+			await this.secretStateManager.deleteSecretState("anthropicApiKey")
+		}
+		return this.globalStateManager.updateGlobalState("useDirectAnthropicApi", value)
+	}
+
+	async setAnthropicApiKey(value: string | undefined) {
+		if (value) {
+			await this.secretStateManager.updateSecretState("anthropicApiKey", value)
+			// Ensure direct API is enabled when setting key
+			await this.setUseDirectAnthropicApi(true)
+		} else {
+			await this.secretStateManager.deleteSecretState("anthropicApiKey")
+		}
 	}
 }

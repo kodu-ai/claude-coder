@@ -1,6 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiModelId, KoduModelId, ModelInfo } from "../shared/api"
 import { KoduHandler } from "./kodu"
+import { AnthropicDirectHandler } from "./anthropic-direct"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { z } from "zod"
 import { koduSSEResponse } from "../shared/kodu"
@@ -16,13 +17,17 @@ export type ApiConfiguration = {
 	koduApiKey?: string
 	apiModelId?: KoduModelId
 	browserModelId?: string
+	useDirectAnthropicApi?: boolean
+	anthropicApiKey?: string
 }
+
 export const bugReportSchema = z.object({
 	description: z.string(),
 	reproduction: z.string(),
 	apiHistory: z.string(),
 	claudeMessage: z.string(),
 })
+
 export interface ApiHandler {
 	createMessageStream(
 		systemPrompt: string,
@@ -63,7 +68,16 @@ export interface ApiHandler {
 }
 
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
-	return new KoduHandler({ koduApiKey: configuration.koduApiKey, apiModelId: configuration.apiModelId })
+	if (configuration.useDirectAnthropicApi && configuration.anthropicApiKey) {
+		return new AnthropicDirectHandler({ 
+			apiKey: configuration.anthropicApiKey,
+			apiModelId: configuration.apiModelId
+		})
+	}
+	return new KoduHandler({ 
+		koduApiKey: configuration.koduApiKey, 
+		apiModelId: configuration.apiModelId 
+	})
 }
 
 export function withoutImageData(
@@ -93,3 +107,5 @@ export function withoutImageData(
 		return part
 	})
 }
+
+export { AnthropicDirectHandler }
