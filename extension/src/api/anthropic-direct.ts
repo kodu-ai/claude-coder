@@ -43,47 +43,84 @@ export class AnthropicDirectHandler implements ApiHandler {
         }
     }
 
-    async *createBaseMessageStream(
+    async *createMessageStream(
         systemPrompt: string,
-        messages: Anthropic.Messages.MessageParam[],
+        messages: ApiHistoryItem[],
+        creativeMode?: "normal" | "creative" | "deterministic",
         abortSignal?: AbortSignal | null,
-        temperature?: number,
-        top_p?: number
+        customInstructions?: string,
+        userMemory?: string,
+        environmentDetails?: string
     ): AsyncIterableIterator<koduSSEResponse> {
+        // Create a new AbortController
+        this.abortController = new AbortController()
+
         try {
-            // Create a new AbortController
-            this.abortController = new AbortController()
+            // Build system prompt
+            const system: string[] = []
+            system.push(systemPrompt.trim())
+            if (customInstructions?.trim()) {
+                system.push(customInstructions.trim())
+            }
+            if (environmentDetails?.trim()) {
+                system.push(environmentDetails.trim())
+            }
+            const systemPromptCombined = system.join("\n\n")
 
-            // Create a composite signal that aborts if either source aborts
-            const signal = abortSignal 
-                ? AbortSignal.any([abortSignal, this.abortController.signal])
-                : this.abortController.signal
+            // Convert messages to Anthropic format
+            const anthropicMessages: Anthropic.Messages.MessageParam[] = messages.map(msg => {
+                const { ts, ...message } = msg
+                if (typeof message.content === 'string') {
+                    return {
+                        ...message,
+                        content: [{ type: 'text' as const, text: message.content }]
+                    }
+                }
+                return {
+                    ...message,
+                    content: message.content.map(block => {
+                        if (typeof block === 'string') {
+                            return { type: 'text' as const, text: block }
+                        }
+                        if ('type' in block && block.type === 'text') {
+                            return block as Anthropic.TextBlockParam
+                        }
+                        return { type: 'text' as const, text: JSON.stringify(block) }
+                    })
+                }
+            })
 
+            // Get temperature settings
+            const temperatures = {
+                creative: { temperature: 0.3, top_p: 0.9 },
+                normal: { temperature: 0.2, top_p: 0.8 },
+                deterministic: { temperature: 0.1, top_p: 0.9 }
+            }
+            const { temperature, top_p } = temperatures[creativeMode || "normal"]
+
+            // Start stream
+            yield { code: 0, body: undefined }
+
+            // Create stream
             const stream = await this.client.messages.create(
                 {
                     model: this.getModel().id,
                     max_tokens: this.getModel().info.maxTokens,
-                    system: systemPrompt,
-                    messages,
-                    temperature: temperature ?? 0.2,
-                    top_p: top_p ?? 0.8,
+                    system: systemPromptCombined,
+                    messages: anthropicMessages,
+                    temperature,
+                    top_p,
                     stream: true
                 },
                 {
-                    signal
+                    signal: this.abortController.signal
                 }
             )
 
             let content: Anthropic.ContentBlock[] = []
-            let hasStarted = false
 
             for await (const chunk of stream) {
-                if (chunk.type === 'message_start') {
-                    if (!hasStarted) {
-                        hasStarted = true
-                        yield { code: 0, body: undefined }
-                    }
-                } else if (chunk.type === 'content_block_start') {
+                if (chunk.type === 'content_block_start') {
                     yield { code: 2, body: { text: "" } }
                 } else if (chunk.type === 'content_block_delta') {
                     if ('text' in chunk.delta) {
@@ -165,26 +202,13 @@ export class AnthropicDirectHandler implements ApiHandler {
                 return
             }
 
-            // If we get here with no content, throw an error
             throw new KoduError({
                 code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT
             })
 
         } catch (error) {
-            // Convert errors to KoduError
+            // Don't throw errors on abort
             if (error instanceof Error && error.message === "aborted") {
-                error = new KoduError({ code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT })
-            }
-
-            // Yield error response
-            if (error instanceof KoduError) {
-                yield {
-                    code: -1,
-                    body: {
-                        msg: error.message || "Request aborted by user",
-                        status: error.errorCode || KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT
-                    }
-                }
                 return
             }
 
@@ -207,100 +231,11 @@ export class AnthropicDirectHandler implements ApiHandler {
                         }
                     }
                 }
-                return
             }
-
-            // Throw unknown errors
-            throw error
+            return
         } finally {
             this.abortController = null
         }
-    }
-
-    async *createMessageStream(
-        systemPrompt: string,
-        messages: ApiHistoryItem[],
-        creativeMode?: "normal" | "creative" | "deterministic",
-        abortSignal?: AbortSignal | null,
-        customInstructions?: string,
-        userMemory?: string,
-        environmentDetails?: string
-    ): AsyncIterableIterator<koduSSEResponse> {
-        const system: string[] = []
-
-        // Add system prompt
-        system.push(systemPrompt.trim())
-
-        // Add custom instructions
-        if (customInstructions?.trim()) {
-            system.push(customInstructions.trim())
-        }
-
-        // Add environment details
-        if (environmentDetails?.trim()) {
-            system.push(environmentDetails.trim())
-        }
-
-        const systemPromptCombined = system.join("\n\n")
-
-        // Convert ApiHistoryItem[] to Anthropic message format
-        const anthropicMessages: Anthropic.Messages.MessageParam[] = messages.map(msg => {
-            const { ts, ...message } = msg
-
-            // If content is a string convert to text block array
-            if (typeof message.content === 'string') {
-                return {
-                    ...message,
-                    content: [{
-                        type: 'text' as const,
-                        text: message.content
-                    }]
-                }
-            }
-
-            // If content is already an array ensure each item is properly formatted
-            return {
-                ...message,
-                content: message.content.map(block => {
-                    if (typeof block === 'string') {
-                        return {
-                            type: 'text' as const,
-                            text: block
-                        }
-                    }
-                    if ('type' in block) {
-                        if (block.type === 'text') {
-                            return block as Anthropic.TextBlockParam
-                        }
-                        // Convert tool messages to text blocks
-                        return {
-                            type: 'text' as const,
-                            text: JSON.stringify(block)
-                        }
-                    }
-                    return {
-                        type: 'text' as const,
-                        text: JSON.stringify(block)
-                    }
-                })
-            }
-        })
-
-        const temperatures = {
-            creative: { temperature: 0.3, top_p: 0.9 },
-            normal: { temperature: 0.2, top_p: 0.8 },
-            deterministic: { temperature: 0.1, top_p: 0.9 }
-        }
-
-        const { temperature, top_p } = temperatures[creativeMode || "normal"]
-
-        yield* this.createBaseMessageStream(
-            systemPromptCombined,
-            anthropicMessages,
-            abortSignal,
-            temperature,
-            top_p
-        )
     }
 
     getModel(): { id: KoduModelId; info: ModelInfo } {
