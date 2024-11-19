@@ -28,14 +28,21 @@ suite("Extension Test Suite", () => {
 			${problemStatement}
 			--- END ISSUE ---
 			Now, you're going to solve this issue on your own. When you're satisfied with all of the changes you've made, you can finally raise the attempt_completion tool. Not before that. 
-			You cannot use any interactive session commands (e.g. vim) in this environment, but you can write scripts and run them. E.g. you can write a python script and then run it with "python <script_name>.py".
-			I've already taken care of all changes to any of the test files described in the issue. This means you DON'T have to modify the testing logic or any of the tests in any way!\n"
+			You cannot use any interactive session commands (e.g. vim) in this environment, but you can write scripts and run them. E.g. you can write a python3 script and then run it with "python3 <script_name>.py".
+			I've already taken care of all changes to any of the test files described in the issue. This means you DON'T have to modify the testing logic or any of the tests in any way!
+			I have also already installed all dependencies for you, so you don't have to worry about that.
 			Your task is to make the minimal changes to non-tests files in the workspace directory to ensure the issue is satisfied.
 
 			NOTE ABOUT THE WRITE TO FILE TOOL: Indentation really matters! When editing a file, make sure to insert appropriate indentation before each line!
 
+			Follow these steps to resolve the issue:
+			1. As a first step, it might be a good idea to explore the repo to familiarize yourself with its structure.
+			2. Create a script to reproduce the error and execute it with \`python3 <filename.py>\` using the execute command tool, to confirm the error
+			3. Edit the sourcecode of the repo to resolve the issue
+			4. Rerun your reproduce script and confirm that the error is fixed!
+			5. Think about edgecases and make sure your fix handles them as well
+
 			IMPORTANT GUIDELINES:
-			0. As a first step, it might be a good idea to explore the repo to familiarize yourself with its structure.
 			1. Always start by trying to replicate the bug that the issues discusses.
 					If the issue includes code for reproducing the bug, we recommend that you re-implement that in your environment, and run it to make sure you can reproduce the bug.
 					Then start trying to fix it.
@@ -54,7 +61,7 @@ suite("Extension Test Suite", () => {
 
 		await vscode.commands.executeCommand("kodu-claude-coder-main.startNewTask", task)
 
-		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 60 * 4))
+		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 60 * 4)) // 4 hours
 		console.log("Timeout hit from extension test!")
 	})
 })
