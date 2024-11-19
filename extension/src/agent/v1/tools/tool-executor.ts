@@ -274,9 +274,9 @@ export class ToolExecutor {
 				}
 			}
 			// enable after updating the animation
-			// if (params.kodu_diff) {
-			// 	await context.tool.handlePartialUpdateDiff(params.path, params.kodu_diff)
-			// }
+			if (params.kodu_diff) {
+				await context.tool.handlePartialUpdateDiff(params.path, params.kodu_diff)
+			}
 		} else {
 			await this.updateToolStatus(context, params, ts)
 		}

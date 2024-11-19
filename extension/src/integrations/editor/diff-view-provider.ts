@@ -17,613 +17,688 @@ export const DIFF_VIEW_URI_SCHEME = "claude-coder-diff"
 export const MODIFIED_URI_SCHEME = "claude-coder-modified"
 
 const fadedOverlayDecorationType = vscode.window.createTextEditorDecorationType({
-	backgroundColor: "rgba(255, 255, 0, 0.1)",
-	opacity: "0.4",
-	isWholeLine: true,
+    backgroundColor: "rgba(255, 255, 0, 0.1)",
+    opacity: "0.4",
+    isWholeLine: true,
 })
 
 const activeLineDecorationType = vscode.window.createTextEditorDecorationType({
-	backgroundColor: "rgba(255, 255, 0, 0.3)",
-	opacity: "1",
-	isWholeLine: true,
-	border: "1px solid rgba(255, 255, 0, 0.5)",
+    backgroundColor: "rgba(255, 255, 0, 0.3)",
+    opacity: "1",
+    isWholeLine: true,
+    border: "1px solid rgba(255, 255, 0, 0.5)",
 })
 
 type DecorationType = "fadedOverlay" | "activeLine"
 
 export class DecorationController {
-	private decorationType: DecorationType
-	private editor: vscode.TextEditor
-	private ranges: vscode.Range[] = []
+    private decorationType: DecorationType
+    private editor: vscode.TextEditor
+    private ranges: vscode.Range[] = []
 
-	constructor(decorationType: DecorationType, editor: vscode.TextEditor) {
-		this.decorationType = decorationType
-		this.editor = editor
-	}
+    constructor(decorationType: DecorationType, editor: vscode.TextEditor) {
+        this.decorationType = decorationType
+        this.editor = editor
+    }
 
-	getDecoration() {
-		switch (this.decorationType) {
-			case "fadedOverlay":
-				return fadedOverlayDecorationType
-			case "activeLine":
-				return activeLineDecorationType
-		}
-	}
+    getDecoration() {
+        switch (this.decorationType) {
+            case "fadedOverlay":
+                return fadedOverlayDecorationType
+            case "activeLine":
+                return activeLineDecorationType
+        }
+    }
 
-	addLines(startIndex: number, numLines: number) {
-		// Guard against invalid inputs
-		if (startIndex < 0 || numLines <= 0) {
-			return
-		}
+    addLines(startIndex: number, numLines: number) {
+        // Guard against invalid inputs
+        if (startIndex < 0 || numLines <= 0) {
+            return
+        }
 
-		const lastRange = this.ranges[this.ranges.length - 1]
-		if (lastRange && lastRange.end.line === startIndex - 1) {
-			this.ranges[this.ranges.length - 1] = lastRange.with(undefined, lastRange.end.translate(numLines))
-		} else {
-			const endLine = startIndex + numLines - 1
-			this.ranges.push(new vscode.Range(startIndex, 0, endLine, Number.MAX_SAFE_INTEGER))
-		}
+        const lastRange = this.ranges[this.ranges.length - 1]
+        if (lastRange && lastRange.end.line === startIndex - 1) {
+            this.ranges[this.ranges.length - 1] = lastRange.with(undefined, lastRange.end.translate(numLines))
+        } else {
+            const endLine = startIndex + numLines - 1
+            this.ranges.push(new vscode.Range(startIndex, 0, endLine, Number.MAX_SAFE_INTEGER))
+        }
 
-		this.editor.setDecorations(this.getDecoration(), this.ranges)
-	}
+        this.editor.setDecorations(this.getDecoration(), this.ranges)
+    }
 
-	clear() {
-		this.ranges = []
-		this.editor.setDecorations(this.getDecoration(), this.ranges)
-	}
+    clear() {
+        this.ranges = []
+        this.editor.setDecorations(this.getDecoration(), this.ranges)
+    }
 
-	updateOverlayAfterLine(line: number, totalLines: number) {
-		// Remove any existing ranges that start at or after the current line
-		this.ranges = this.ranges.filter((range) => range.end.line < line)
+    updateOverlayAfterLine(line: number, totalLines: number) {
+        // Remove any existing ranges that start at or after the current line
+        this.ranges = this.ranges.filter((range) => range.end.line < line)
 
-		// Add a new range for all lines after the current line
-		if (line < totalLines - 1) {
-			this.ranges.push(
-				new vscode.Range(
-					new vscode.Position(line + 1, 0),
-					new vscode.Position(totalLines - 1, Number.MAX_SAFE_INTEGER)
-				)
-			)
-		}
+        // Add a new range for all lines after the current line
+        if (line < totalLines - 1) {
+            this.ranges.push(
+                new vscode.Range(
+                    new vscode.Position(line + 1, 0),
+                    new vscode.Position(totalLines - 1, Number.MAX_SAFE_INTEGER)
+                )
+            )
+        }
 
-		// Apply the updated decorations
-		this.editor.setDecorations(this.getDecoration(), this.ranges)
-	}
+        // Apply the updated decorations
+        this.editor.setDecorations(this.getDecoration(), this.ranges)
+    }
 
-	setActiveLine(line: number) {
-		this.ranges = [new vscode.Range(line, 0, line, Number.MAX_SAFE_INTEGER)]
-		this.editor.setDecorations(this.getDecoration(), this.ranges)
-	}
+    setActiveLine(line: number) {
+        this.ranges = [new vscode.Range(line, 0, line, Number.MAX_SAFE_INTEGER)]
+        this.editor.setDecorations(this.getDecoration(), this.ranges)
+    }
 }
 
 class ModifiedContentProvider implements vscode.FileSystemProvider {
-	private content = new Map<string, Uint8Array>()
-	private _emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>()
-	readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]> = this._emitter.event
+    private content = new Map<string, Uint8Array>()
+    private _emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>()
+    readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]> = this._emitter.event
 
-	watch(uri: vscode.Uri): vscode.Disposable {
-		return new vscode.Disposable(() => {})
-	}
+    watch(uri: vscode.Uri): vscode.Disposable {
+        return new vscode.Disposable(() => {})
+    }
 
-	stat(uri: vscode.Uri): vscode.FileStat {
-		return {
-			type: vscode.FileType.File,
-			ctime: Date.now(),
-			mtime: Date.now(),
-			size: this.content.get(uri.toString())?.length || 0,
-		}
-	}
+    stat(uri: vscode.Uri): vscode.FileStat {
+        return {
+            type: vscode.FileType.File,
+            ctime: Date.now(),
+            mtime: Date.now(),
+            size: this.content.get(uri.toString())?.length || 0,
+        }
+    }
 
-	readDirectory(): [string, vscode.FileType][] {
-		return []
-	}
+    readDirectory(): [string, vscode.FileType][] {
+        return []
+    }
 
-	createDirectory(): void {}
+    createDirectory(): void {}
 
-	readFile(uri: vscode.Uri): Uint8Array {
-		const data = this.content.get(uri.toString())
-		if (!data) {
-			throw vscode.FileSystemError.FileNotFound(uri)
-		}
-		return data
-	}
+    readFile(uri: vscode.Uri): Uint8Array {
+        const data = this.content.get(uri.toString())
+        if (!data) {
+            throw vscode.FileSystemError.FileNotFound(uri)
+        }
+        return data
+    }
 
-	writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean }): void {
-		this.content.set(uri.toString(), content)
-		this._emitter.fire([{ type: vscode.FileChangeType.Changed, uri }])
-	}
+    writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean }): void {
+        this.content.set(uri.toString(), content)
+        this._emitter.fire([{ type: vscode.FileChangeType.Changed, uri }])
+    }
 
-	delete(uri: vscode.Uri): void {
-		this.content.delete(uri.toString())
-		this._emitter.fire([{ type: vscode.FileChangeType.Deleted, uri }])
-	}
+    delete(uri: vscode.Uri): void {
+        this.content.delete(uri.toString())
+        this._emitter.fire([{ type: vscode.FileChangeType.Deleted, uri }])
+    }
 
-	rename(): void {
-		throw vscode.FileSystemError.NoPermissions("Rename not supported")
-	}
+    rename(): void {
+        throw vscode.FileSystemError.NoPermissions("Rename not supported")
+    }
 }
 
 export class DiffViewProvider {
-	private diffEditor?: vscode.TextEditor
-	public originalContent: string = ""
-	public streamedContent: string = ""
-	public isEditing: boolean = false
-	public relPath?: string
-	private originalUri?: vscode.Uri
-	private isFinalReached: boolean = false
-	private modifiedUri?: vscode.Uri
-	public lastEditPosition?: vscode.Position
-	private updateTimeout: NodeJS.Timeout | null = null
-	private lastScrollTime: number = 0
-	private isAutoScrollEnabled: boolean = true
-	private lastUserInteraction: number = 0
-	private previousLines: string[] = []
-	private static readonly SCROLL_THROTTLE = 100 // ms
-	private static readonly USER_INTERACTION_TIMEOUT = 1000 // ms
-	private static readonly SCROLL_THRESHOLD = 10 // lines from bottom to re-enable auto-scroll
-	private static modifiedContentProvider: ModifiedContentProvider
-	private disposables: vscode.Disposable[] = []
-	private activeLineController?: DecorationController
-	private fadedOverlayController?: DecorationController
-	private currentDocument: string[] = []
-	private lastModifiedLine: number = 0
+    private diffEditor?: vscode.TextEditor
+    public originalContent: string = ""
+    public streamedContent: string = ""
+    public isEditing: boolean = false
+    public relPath?: string
+    private originalUri?: vscode.Uri
+    private isFinalReached: boolean = false
+    private modifiedUri?: vscode.Uri
+    public lastEditPosition?: vscode.Position
+    private updateTimeout: NodeJS.Timeout | null = null
+    private lastScrollTime: number = 0
+    private isAutoScrollEnabled: boolean = true
+    private lastUserInteraction: number = 0
+    private previousLines: string[] = []
+    private static readonly SCROLL_THROTTLE = 100 // ms
+    private static readonly USER_INTERACTION_TIMEOUT = 1000 // ms
+    private static readonly SCROLL_THRESHOLD = 10 // lines from bottom to re-enable auto-scroll
+    private static modifiedContentProvider: ModifiedContentProvider
+    private disposables: vscode.Disposable[] = []
+    private activeLineController?: DecorationController
+    private fadedOverlayController?: DecorationController
+    private currentDocument: string[] = []
+    private lastModifiedLine: number = 0
 
-	constructor(private cwd: string, koduDev: KoduDev, private updateInterval: number = 16) {
-		if (!DiffViewProvider.modifiedContentProvider) {
-			DiffViewProvider.modifiedContentProvider = new ModifiedContentProvider()
-			try {
-				vscode.workspace.registerFileSystemProvider(
-					MODIFIED_URI_SCHEME,
-					DiffViewProvider.modifiedContentProvider
-				)
-			} catch (e) {
-				this.logger(`Failed to register file system provider: ${e}`, "error")
+    constructor(private cwd: string, koduDev: KoduDev, private updateInterval: number = 16) {
+        if (!DiffViewProvider.modifiedContentProvider) {
+            DiffViewProvider.modifiedContentProvider = new ModifiedContentProvider()
+            try {
+                vscode.workspace.registerFileSystemProvider(
+                    MODIFIED_URI_SCHEME,
+                    DiffViewProvider.modifiedContentProvider
+                )
+            } catch (e) {
+                this.logger(`Failed to register file system provider: ${e}`, "error")
 				// critical error - should never happen
-				throw e
-			}
-		}
-	}
+                throw e
+            }
+        }
+    }
 
-	public async open(relPath: string, isFinal?: boolean): Promise<void> {
-		if (this.diffEditor) {
-			return
-		}
-		this.previousLines = []
-		this.currentDocument = []
-		this.lastModifiedLine = 0
-		this.isEditing = true
-		this.relPath = relPath
-		this.isAutoScrollEnabled = true
-		this.previousLines = [] // Reset previous lines
+    public async open(relPath: string, isFinal?: boolean): Promise<void> {
+        if (this.diffEditor) {
+            return
+        }
+        this.previousLines = []
+        this.currentDocument = []
+        this.lastModifiedLine = 0
+        this.isEditing = true
+        this.relPath = relPath
+        this.isAutoScrollEnabled = true
+        this.previousLines = [] // Reset previous lines
 
-		const absolutePath = path.resolve(this.cwd, relPath)
+        const absolutePath = path.resolve(this.cwd, relPath)
 
-		try {
-			this.originalContent = await fs.readFile(absolutePath, "utf-8")
-			// Initialize previousLines with original content if it exists
-			this.previousLines = this.originalContent.split(/\r?\n/)
-		} catch (error) {
-			this.logger(`Failed to read file: ${error}`, "error")
-			this.originalContent = ""
-		}
+        try {
+            this.originalContent = await fs.readFile(absolutePath, "utf-8")
+            // Initialize previousLines with original content if it exists
+            this.previousLines = this.originalContent.split(/\r?\n/)
+        } catch (error) {
+            this.logger(`Failed to read file: ${error}`, "error")
+            this.originalContent = ""
+        }
 
-		await this.openDiffEditor(relPath, !!isFinal)
-		this.activeLineController = new DecorationController("activeLine", this.diffEditor!)
-		this.fadedOverlayController = new DecorationController("fadedOverlay", this.diffEditor!)
+        await this.openDiffEditor(relPath, !!isFinal)
+        this.activeLineController = new DecorationController("activeLine", this.diffEditor!)
+        this.fadedOverlayController = new DecorationController("fadedOverlay", this.diffEditor!)
 
-		this.fadedOverlayController.addLines(0, this.diffEditor!.document.lineCount)
-		this.setupEventListeners()
-	}
+        this.fadedOverlayController.addLines(0, this.diffEditor!.document.lineCount)
+        this.setupEventListeners()
+    }
 
-	private setupEventListeners(): void {
-		// Clean up existing listeners
-		this.disposables.forEach((d) => d.dispose())
-		this.disposables = []
+    private setupEventListeners(): void {
+        // Clean up existing listeners
+        this.disposables.forEach((d) => d.dispose())
+        this.disposables = []
 
-		if (this.diffEditor) {
-			// Track user interactions
-			this.disposables.push(
-				vscode.window.onDidChangeTextEditorSelection((e) => {
-					if (e.textEditor === this.diffEditor) {
-						this.lastUserInteraction = Date.now()
-						this.isAutoScrollEnabled = false
-					}
-				}),
-				vscode.window.onDidChangeTextEditorVisibleRanges((e) => {
-					if (e.textEditor === this.diffEditor) {
-						const now = Date.now()
-						// Check if this is a user-initiated scroll
-						if (now - this.lastScrollTime > DiffViewProvider.SCROLL_THROTTLE) {
-							// If user is near bottom, re-enable auto-scroll
-							if (this.checkScrollPosition()) {
-								this.isAutoScrollEnabled = true
-								this.lastUserInteraction = 0 // Reset interaction timer
-							} else {
-								// Only disable if it was recently enabled and user scrolled away
-								if (
-									this.isAutoScrollEnabled &&
-									now - this.lastUserInteraction < DiffViewProvider.USER_INTERACTION_TIMEOUT
-								) {
-									this.isAutoScrollEnabled = false
-								}
-							}
-						}
-					}
-				})
-			)
-		}
-	}
+        if (this.diffEditor) {
+            // Track user interactions
+            this.disposables.push(
+                vscode.window.onDidChangeTextEditorSelection((e) => {
+                    if (e.textEditor === this.diffEditor) {
+                        this.lastUserInteraction = Date.now()
+                        this.isAutoScrollEnabled = false
+                    }
+                }),
+                vscode.window.onDidChangeTextEditorVisibleRanges((e) => {
+                    if (e.textEditor === this.diffEditor) {
+                        const now = Date.now()
+                        // Check if this is a user-initiated scroll
+                        if (now - this.lastScrollTime > DiffViewProvider.SCROLL_THROTTLE) {
+                            // If user is near bottom, re-enable auto-scroll
+                            if (this.checkScrollPosition()) {
+                                this.isAutoScrollEnabled = true
+                                this.lastUserInteraction = 0 // Reset interaction timer
+                            } else {
+                                // Only disable if it was recently enabled and user scrolled away
+                                if (
+                                    this.isAutoScrollEnabled &&
+                                    now - this.lastUserInteraction < DiffViewProvider.USER_INTERACTION_TIMEOUT
+                                ) {
+                                    this.isAutoScrollEnabled = false
+                                }
+                            }
+                        }
+                    }
+                })
+            )
+        }
+    }
 
-	public async openDiffEditor(relPath: string, isFinal?: boolean): Promise<void> {
+    public async openDiffEditor(relPath: string, isFinal?: boolean): Promise<void> {
 		// if it's already open return
 		// if (this.isDiffViewOpen()) {
 		// 	return
 		// }
-		const fileName = path.basename(relPath)
+        const absoluteFilePath = path.resolve(this.cwd, relPath);
+    const fileName = path.basename(absoluteFilePath);
 
-		// Create original content URI
-		this.originalUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${fileName}`).with({
-			query: Buffer.from(this.originalContent).toString("base64"),
-		})
+    // Create a file URI using vscode.Uri.file()
+    const fileUri = vscode.Uri.file(absoluteFilePath);
 
-		// Create modified content URI (initially empty)
-		this.modifiedUri = vscode.Uri.parse(`${MODIFIED_URI_SCHEME}:/${fileName}`)
-		DiffViewProvider.modifiedContentProvider.writeFile(
-			this.modifiedUri,
-			new TextEncoder().encode(this.originalContent ?? ""),
-			{
-				create: true,
-				overwrite: true,
-			}
-		)
+    // Create original content URI with custom scheme and query
+    this.originalUri = fileUri.with({
+        scheme: DIFF_VIEW_URI_SCHEME, // e.g., 'claude-coder-diff'
+        query: Buffer.from(this.originalContent ?? "").toString("base64"),
+    });
 
-		// Open diff editor with original and modified content
-		await vscode.commands.executeCommand(
-			"vscode.diff",
-			this.originalUri,
-			this.modifiedUri,
-			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Editable)`,
-			{
-				preview: true,
-				preserveFocus: false,
-				viewColumn: vscode.ViewColumn.Active,
-				tabOptions: {
-					readonly: true, // Makes the entire diff read-only
-				},
-			}
-		)
-		await pWaitFor(
-			() =>
-				vscode.window.visibleTextEditors.some(
-					(e) => e.document.uri.toString() === this.modifiedUri!.toString()
-				),
-			{
-				interval: 20,
-				timeout: 300,
-			}
-		)
-		const editor = vscode.window.visibleTextEditors.find(
-			(e) => e.document.uri.toString() === this.modifiedUri!.toString()
-		)
+    // Create modified content URI with custom scheme
+    this.modifiedUri = fileUri.with({
+        scheme: MODIFIED_URI_SCHEME, // e.g., 'claude-coder-modified'
+    });
 
-		if (editor && editor.document.uri.toString() === this.modifiedUri.toString()) {
-			this.diffEditor = editor
-		} else {
-			this.logger("<openDiffEditor>: Failed to open diff editor", "error")
-			return
+    // Write initial content to the modified content provider
+    DiffViewProvider.modifiedContentProvider.writeFile(
+        this.modifiedUri,
+        new TextEncoder().encode(this.originalContent ?? ""),
+        {
+            create: true,
+            overwrite: true,
+        }
+    );
+
+    // Open the diff editor
+    await vscode.commands.executeCommand(
+        "vscode.diff",
+        this.originalUri,
+        this.modifiedUri,
+        `${fileName}: ${this.originalContent ? "Original ↔ Changes" : "New File"} (Editable)`,
+        {
+            preview: true,
+            preserveFocus: false,
+            viewColumn: vscode.ViewColumn.Active,
+        }
+    );
+	
+        await pWaitFor(
+            () =>
+                vscode.window.visibleTextEditors.some(
+                    (e) => e.document.uri.toString() === this.modifiedUri!.toString()
+                ),
+            {
+                interval: 20,
+                timeout: 300,
+            }
+        )
+        const editor = vscode.window.visibleTextEditors.find(
+            (e) => e.document.uri.toString() === this.modifiedUri!.toString()
+        )
+
+        if (editor && editor.document.uri.toString() === this.modifiedUri.toString()) {
+            this.diffEditor = editor
+        } else {
+            this.logger("<openDiffEditor>: Failed to open diff editor", "error")
+            return
 			// throw new Error("Failed to open diff editor")
-		}
-	}
+        }
+    }
 
-	public async update(accumulatedContent: string, isFinal: boolean): Promise<void> {
-		if (!this.diffEditor || !this.modifiedUri || !this.activeLineController || !this.fadedOverlayController) {
-			this.logger("<update>: Diff editor not initialized", "error")
-			return
-		}
-		if (this.isFinalReached) {
-			this.logger("<update>: Final update already reached", "warn")
-			return
-		}
+    public async update(accumulatedContent: string, isFinal: boolean): Promise<void> {
+        if (!this.diffEditor || !this.modifiedUri || !this.activeLineController || !this.fadedOverlayController) {
+            this.logger("<update>: Diff editor not initialized", "error")
+            return
+        }
+        if (this.isFinalReached) {
+            this.logger("<update>: Final update already reached", "warn")
+            return
+        }
 
-		if (isFinal) {
-			this.logger(
-				`[${Date.now()}] applying final update [function update]: content length ${accumulatedContent.length}`,
-				"info"
-			)
-			this.isFinalReached = true
-			await this.applyUpdate(accumulatedContent)
-			this.activeLineController.clear()
-			this.fadedOverlayController.clear()
-			return
-		}
+        if (isFinal) {
+            this.logger(
+                `[${Date.now()}] applying final update [function update]: content length ${accumulatedContent.length}`,
+                "info"
+            )
+            this.isFinalReached = true
+            await this.applyUpdate(accumulatedContent)
+            this.activeLineController.clear()
+            this.fadedOverlayController.clear()
+            return
+        }
 
-		this.logger(
-			`[${Date.now()}] applying line by line update [function update]: content length ${
-				accumulatedContent.length
-			}`,
-			"info"
-		)
-		await this.applyLineByLineUpdate(accumulatedContent)
-	}
+        this.logger(
+            `[${Date.now()}] applying line by line update [function update]: content length ${
+                accumulatedContent.length
+            }`,
+            "info"
+        )
+        await this.applyLineByLineUpdate(accumulatedContent)
+    }
 
-	private async applyLineByLineUpdate(content: string): Promise<void> {
-		if (!this.diffEditor || !this.modifiedUri) {
-			this.logger("<applyLineByLineUpdate>: Diff editor not initialized", "error")
-			return
-		}
+    private async applyLineByLineUpdate(content: string): Promise<void> {
+        if (!this.diffEditor || !this.modifiedUri) {
+            this.logger("<applyLineByLineUpdate>: Diff editor not initialized", "error")
+            return
+        }
 
-		// Split incoming content into lines
-		const newLines = content.split(/\r?\n/)
+        // Split incoming content into lines
+        const newLines = content.split(/\r?\n/)
 
-		// Initialize current document content if needed
-		if (this.currentDocument.length === 0) {
-			const currentContent = this.diffEditor.document.getText()
-			this.currentDocument = currentContent ? currentContent.split(/\r?\n/) : []
-			this.previousLines = [...this.currentDocument]
-		}
+        // Initialize current document content if needed
+        if (this.currentDocument.length === 0) {
+            const currentContent = this.diffEditor.document.getText()
+            this.currentDocument = currentContent ? currentContent.split(/\r?\n/) : []
+            this.previousLines = [...this.currentDocument]
+        }
 
-		// Quick check if content is identical
-		if (this.previousLines.join("\n") === newLines.join("\n")) {
-			return
-		}
+        // Quick check if content is identical
+        if (this.previousLines.join("\n") === newLines.join("\n")) {
+            return
+        }
 
-		// Compare line by line and only update what's necessary
-		for (let i = 0; i < newLines.length; i++) {
-			// If line is different or new, update it
-			if (i >= this.currentDocument.length || this.currentDocument[i] !== newLines[i]) {
-				// Handle case where we're adding new lines
-				if (i >= this.currentDocument.length) {
-					this.currentDocument[i] = newLines[i]
-				} else {
-					// Replace existing line
-					this.currentDocument[i] = newLines[i]
-				}
-				this.lastModifiedLine = i
-			}
-		}
+        // Compare line by line and only update what's necessary
+        for (let i = 0; i < newLines.length; i++) {
+            // If line is different or new, update it
+            if (i >= this.currentDocument.length || this.currentDocument[i] !== newLines[i]) {
+                // Handle case where we're adding new lines
+                if (i >= this.currentDocument.length) {
+                    this.currentDocument[i] = newLines[i]
+                } else {
+                    // Replace existing line
+                    this.currentDocument[i] = newLines[i]
+                }
+                this.lastModifiedLine = i
+            }
+        }
 
-		// Create the final content string, preserving any remaining lines
-		const updatedContent = [
-			...this.currentDocument.slice(0, Math.max(newLines.length, this.currentDocument.length)),
-		].join("\n")
+        // Create the final content string, preserving any remaining lines
+        const updatedContent = [
+            ...this.currentDocument.slice(0, Math.max(newLines.length, this.currentDocument.length)),
+        ].join("\n")
 
-		// Update content with proper options to maintain file history
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, new TextEncoder().encode(updatedContent), {
-			create: false,
-			overwrite: true,
-		})
-		this.streamedContent = updatedContent
+        // Format the content using VSCode's internal formatting
+        const formattedContent = await this.formatContent(this.modifiedUri, updatedContent)
 
-		// Update decoration for the changed line
-		if (this.activeLineController && this.fadedOverlayController) {
-			this.activeLineController.setActiveLine(this.lastModifiedLine)
-			this.fadedOverlayController.updateOverlayAfterLine(
-				this.lastModifiedLine,
-				this.diffEditor.document.lineCount
-			)
-		}
+        // Update content with proper options to maintain file history
+        DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, new TextEncoder().encode(formattedContent), {
+            create: false,
+            overwrite: true,
+        })
+        this.streamedContent = formattedContent
 
-		// Handle auto-scrolling to the modified line
-		const now = Date.now()
-		if (
-			this.isAutoScrollEnabled &&
-			now - this.lastScrollTime >= DiffViewProvider.SCROLL_THROTTLE &&
-			(now - this.lastUserInteraction >= DiffViewProvider.USER_INTERACTION_TIMEOUT || this.checkScrollPosition())
-		) {
-			await this.scrollToModifiedLine()
-			this.lastScrollTime = now
-		}
+        // Update decoration for the changed line
+        if (this.activeLineController && this.fadedOverlayController) {
+            this.activeLineController.setActiveLine(this.lastModifiedLine)
+            this.fadedOverlayController.updateOverlayAfterLine(
+                this.lastModifiedLine,
+                this.diffEditor.document.lineCount
+            )
+        }
 
-		// Store the current state for next comparison
-		this.previousLines = [...newLines]
-	}
+        // Handle auto-scrolling to the modified line
+        const now = Date.now()
+        if (
+            this.isAutoScrollEnabled &&
+            now - this.lastScrollTime >= DiffViewProvider.SCROLL_THROTTLE &&
+            (now - this.lastUserInteraction >= DiffViewProvider.USER_INTERACTION_TIMEOUT || this.checkScrollPosition())
+        ) {
+            await this.scrollToModifiedLine()
+            this.lastScrollTime = now
+        }
 
-	private async scrollToModifiedLine(): Promise<void> {
-		if (!this.diffEditor) {
-			return
-		}
+        // Store the current state for next comparison
+        this.previousLines = [...newLines]
+    }
 
-		const line = Math.max(0, this.lastModifiedLine)
-		const range = new vscode.Range(line, 0, line, this.diffEditor.document.lineAt(line).text.length)
+    private async applyUpdate(content: string): Promise<void> {
+        if (!this.diffEditor || !this.modifiedUri) {
+            this.logger("<applyUpdate>: Diff editor not initialized", "error")
+            return
+        }
 
-		this.diffEditor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport)
-	}
+        this.logger(`Applying update: content length ${content.length}`, "info")
 
-	private checkScrollPosition(): boolean {
-		if (!this.diffEditor) {
-			return false
-		}
+        // Format the content using VSCode's internal formatting
+        const formattedContent = await this.formatContent(this.modifiedUri, content)
 
-		const visibleRanges = this.diffEditor.visibleRanges
-		if (visibleRanges.length === 0) {
-			return false
-		}
+        // Update content with proper options to maintain file history
+        DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, new TextEncoder().encode(formattedContent), {
+            create: false,
+            overwrite: true,
+        })
+        this.streamedContent = formattedContent
+    }
 
-		const lastVisibleLine = visibleRanges[visibleRanges.length - 1].end.line
-		const firstVisibleLine = visibleRanges[0].start.line
-		return (
-			this.lastModifiedLine >= firstVisibleLine - DiffViewProvider.SCROLL_THRESHOLD &&
-			this.lastModifiedLine <= lastVisibleLine + DiffViewProvider.SCROLL_THRESHOLD
-		)
-	}
+    // Add the formatContent method
+    private async formatContent(uri: vscode.Uri, content: string): Promise<string> {
+        // Write the content to the provider
+        DiffViewProvider.modifiedContentProvider.writeFile(uri, new TextEncoder().encode(content), {
+            create: true,
+            overwrite: true,
+        })
 
-	private async applyUpdate(content: string): Promise<void> {
-		if (!this.diffEditor || !this.modifiedUri) {
-			this.logger("<applyUpdate>: Diff editor not initialized", "error")
-			return
-		}
+        // Create a virtual document with the content
+        const document = await vscode.workspace.openTextDocument(uri)
 
-		this.logger(`Applying update: content length ${content.length}`, "info")
+        // Get formatting edits
+        const formatEdits = await vscode.commands.executeCommand<vscode.TextEdit[]>(
+            'vscode.executeFormatDocumentProvider',
+            uri,
+            { tabSize: 4, insertSpaces: true }
+        )
 
-		// Update content with proper options to maintain file history
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, new TextEncoder().encode(content), {
-			create: false,
-			overwrite: true,
-		})
-		this.streamedContent = content
-	}
+        if (formatEdits && formatEdits.length > 0) {
+            // Apply the formatting edits to the content
+            const formattedContent = this.applyTextEdits(content, formatEdits)
+            return formattedContent
+        }
 
-	private async scrollToBottom(): Promise<void> {
-		if (!this.diffEditor) {
-			return
-		}
+        // If no formatter is available or no edits, return the original content
+        return content
+    }
 
-		const lastLine = this.diffEditor.document.lineCount - 1
-		const lastCharacter = this.diffEditor.document.lineAt(lastLine).text.length
-		const range = new vscode.Range(lastLine, lastCharacter, lastLine, lastCharacter)
+    // Helper method to apply TextEdits to a string
+    private applyTextEdits(content: string, edits: vscode.TextEdit[]): string {
+        // Sort edits in reverse order
+        const sortedEdits = edits.sort((a, b) => {
+            const aStart = a.range.start.line * 1e6 + a.range.start.character
+            const bStart = b.range.start.line * 1e6 + b.range.start.character
+            return bStart - aStart
+        })
 
-		// Use less aggressive reveal type
-		this.diffEditor.revealRange(range, vscode.TextEditorRevealType.Default)
-	}
+        let formattedContent = content
 
-	public async revertChanges(): Promise<void> {
-		if (!this.relPath) {
-			return
-		}
+        for (const edit of sortedEdits) {
+            const startOffset = this.offsetAt(edit.range.start, formattedContent)
+            const endOffset = this.offsetAt(edit.range.end, formattedContent)
+            formattedContent =
+                formattedContent.substring(0, startOffset) + edit.newText + formattedContent.substring(endOffset)
+        }
 
-		this.disposables.forEach((d) => d.dispose())
-		await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
+        return formattedContent
+    }
 
-		// if the file was new and not saved, delete it
-		if (this.originalContent === "") {
-			const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
-			try {
-				await vscode.workspace.fs.delete(uri)
-			} catch (error) {
-				console.error("Failed to delete new file:", error)
-			}
-		}
+    // Helper method to convert a Position to an offset
+    private offsetAt(position: vscode.Position, content: string): number {
+        const lines = content.split(/\r?\n/)
+        let offset = 0
+        for (let i = 0; i < position.line; i++) {
+            offset += lines[i].length + 1 // +1 for newline
+        }
+        offset += position.character
+        return offset
+    }
 
-		this.isEditing = false
-		await this.reset()
-	}
+    private async scrollToModifiedLine(): Promise<void> {
+        if (!this.diffEditor) {
+            return
+        }
 
-	private async reset(): Promise<void> {
-		if (this.modifiedUri) {
-			try {
-				DiffViewProvider.modifiedContentProvider.delete(this.modifiedUri)
-			} catch (error) {
-				// Ignore deletion errors
-			}
-		}
-		if (this.updateTimeout) {
-			clearTimeout(this.updateTimeout)
-			this.updateTimeout = null
-		}
-		this.previousLines = []
-		this.currentDocument = []
-		this.lastModifiedLine = 0
-		this.disposables.forEach((d) => d.dispose())
-		this.disposables = []
-		this.diffEditor = undefined
-		this.streamedContent = ""
-		this.lastEditPosition = undefined
-		this.lastScrollTime = 0
-		this.isFinalReached = false
-		this.isAutoScrollEnabled = true
-		this.lastUserInteraction = 0
-		this.activeLineController = undefined
-		this.fadedOverlayController = undefined
-	}
+        const line = Math.max(0, this.lastModifiedLine)
+        const range = new vscode.Range(line, 0, line, this.diffEditor.document.lineAt(line).text.length)
 
-	public async saveChanges(): Promise<{ userEdits: string | undefined; finalContent: string }> {
-		try {
-			if (!this.relPath) {
-				throw new Error("No file path set")
-			}
+        this.diffEditor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport)
+    }
 
-			if (!this.diffEditor || this.diffEditor.document.isClosed) {
-				throw new Error("Diff editor is not initialized or has been closed")
-			}
+    private checkScrollPosition(): boolean {
+        if (!this.diffEditor) {
+            return false
+        }
 
-			const updatedDocument = this.diffEditor.document
+        const visibleRanges = this.diffEditor.visibleRanges
+        if (visibleRanges.length === 0) {
+            return false
+        }
 
-			const editedContent = updatedDocument.getText()
+        const lastVisibleLine = visibleRanges[visibleRanges.length - 1].end.line
+        const firstVisibleLine = visibleRanges[0].start.line
+        return (
+            this.lastModifiedLine >= firstVisibleLine - DiffViewProvider.SCROLL_THRESHOLD &&
+            this.lastModifiedLine <= lastVisibleLine + DiffViewProvider.SCROLL_THRESHOLD
+        )
+    }
 
-			const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
+    private async scrollToBottom(): Promise<void> {
+        if (!this.diffEditor) {
+            return
+        }
 
-			// Ensure directories exist before writing
-			await createDirectoriesForFile(uri.fsPath)
+        const lastLine = this.diffEditor.document.lineCount - 1
+        const lastCharacter = this.diffEditor.document.lineAt(lastLine).text.length
+        const range = new vscode.Range(lastLine, lastCharacter, lastLine, lastCharacter)
 
-			// Write file with error handling
-			try {
-				// before writing to file make sure it's not dirty
-				try {
-					const doc = await vscode.workspace.openTextDocument(uri)
-					if (doc.isDirty) {
-						await doc.save()
-					}
-					// Show the document to ensure it’s the active editor
-					const editor = await vscode.window.showTextDocument(doc)
-					// Close the active editor
-					await vscode.commands.executeCommand("workbench.action.closeActiveEditor")
-				} catch (e) {
-					this.logger(
-						`While saving to doc encountered a doc that is non existent meaning it's a new file`,
-						"warn"
-					)
-				}
-				// update the file with the edited content
-				await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(editedContent))
-				// we save the file after writing to it
-				await vscode.workspace.save(uri)
-			} catch (error) {
-				throw new Error(`Failed to write file: ${error instanceof Error ? error.message : String(error)}`)
-			}
+        // Use less aggressive reveal type
+        this.diffEditor.revealRange(range, vscode.TextEditorRevealType.Default)
+    }
 
-			// Close diff views
-			await this.closeAllDiffViews()
+    public async revertChanges(): Promise<void> {
+        if (!this.relPath) {
+            return
+        }
 
-			// open document again
-			await vscode.window.showTextDocument(uri)
+        this.disposables.forEach((d) => d.dispose())
+        await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
 
-			// Compare contents and create patch if needed
-			const normalizedEditedContent = editedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
-			const normalizedStreamedContent = this.streamedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+        // if the file was new and not saved, delete it
+        if (this.originalContent === "") {
+            const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
+            try {
+                await vscode.workspace.fs.delete(uri)
+            } catch (error) {
+                console.error("Failed to delete new file:", error)
+            }
+        }
 
-			if (normalizedEditedContent !== normalizedStreamedContent) {
-				const userEdits = await this.createPrettyPatch(
-					this.relPath.replace(/\\/g, "/"), // Ensure forward slashes for consistency
-					normalizedStreamedContent,
-					normalizedEditedContent
-				)
-				return { userEdits, finalContent: normalizedEditedContent }
-			}
+        this.isEditing = false
+        await this.reset()
+    }
 
-			return { userEdits: undefined, finalContent: normalizedEditedContent }
-		} catch (error) {
-			this.logger(`Failed to save changes: ${error}`, "error")
-			// Throw a more descriptive error
-			throw new Error(`Failed to save changes: ${error instanceof Error ? error.message : String(error)}`)
-		}
-	}
+    private async reset(): Promise<void> {
+        if (this.modifiedUri) {
+            try {
+                DiffViewProvider.modifiedContentProvider.delete(this.modifiedUri)
+            } catch (error) {
+                // Ignore deletion errors
+            }
+        }
+        if (this.updateTimeout) {
+            clearTimeout(this.updateTimeout)
+            this.updateTimeout = null
+        }
+        this.previousLines = []
+        this.currentDocument = []
+        this.lastModifiedLine = 0
+        this.disposables.forEach((d) => d.dispose())
+        this.disposables = []
+        this.diffEditor = undefined
+        this.streamedContent = ""
+        this.lastEditPosition = undefined
+        this.lastScrollTime = 0
+        this.isFinalReached = false
+        this.isAutoScrollEnabled = true
+        this.lastUserInteraction = 0
+        this.activeLineController = undefined
+        this.fadedOverlayController = undefined
+    }
 
-	private async createPrettyPatch(filename: string, oldStr: string, newStr: string): Promise<string> {
-		const patch = diff.createPatch(filename, oldStr, newStr)
-		const lines = patch.split("\n")
-		return lines.slice(4).join("\n")
-	}
+    public async saveChanges(): Promise<{ userEdits: string | undefined; finalContent: string }> {
+        try {
+            if (!this.relPath) {
+                throw new Error("No file path set")
+            }
 
-	public isDiffViewOpen(): boolean {
-		return !!this.diffEditor && !this.diffEditor.document.isClosed
-	}
+            if (!this.diffEditor || this.diffEditor.document.isClosed) {
+                throw new Error("Diff editor is not initialized or has been closed")
+            }
 
-	private async closeAllDiffViews() {
-		const tabs = vscode.window.tabGroups.all
-			.flatMap((tg) => tg.tabs)
-			.filter(
-				(tab) =>
-					tab.input instanceof vscode.TabInputTextDiff &&
-					(tab.input?.original?.scheme === DIFF_VIEW_URI_SCHEME ||
-						tab.input?.modified?.scheme === MODIFIED_URI_SCHEME)
-			)
-		for (const tab of tabs) {
-			if (!tab.isDirty) {
+            const updatedDocument = this.diffEditor.document
+
+            // Format the edited content before saving
+            let editedContent = updatedDocument.getText()
+            editedContent = await this.formatContent(updatedDocument.uri, editedContent)
+
+            const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
+
+            // Ensure directories exist before writing
+            await createDirectoriesForFile(uri.fsPath)
+
+            // Write file with error handling
+            try {
+                // before writing to file make sure it's not dirty
+                try {
+                    const doc = await vscode.workspace.openTextDocument(uri)
+                    if (doc.isDirty) {
+                        await doc.save()
+                    }
+                    // Show the document to ensure it’s the active editor
+                    const editor = await vscode.window.showTextDocument(doc)
+                    // Close the active editor
+                    await vscode.commands.executeCommand("workbench.action.closeActiveEditor")
+                } catch (e) {
+                    this.logger(
+                        `While saving to doc encountered a doc that is non-existent meaning it's a new file`,
+                        "warn"
+                    )
+                }
+                // update the file with the edited content
+                await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(editedContent))
+                // we save the file after writing to it
+                await vscode.workspace.save(uri)
+            } catch (error) {
+                throw new Error(`Failed to write file: ${error instanceof Error ? error.message : String(error)}`)
+            }
+
+            // Close diff views
+            await this.closeAllDiffViews()
+
+            // open document again
+            await vscode.window.showTextDocument(uri)
+
+            // Compare contents and create patch if needed
+            const normalizedEditedContent = editedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+            const normalizedStreamedContent = this.streamedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+
+            if (normalizedEditedContent !== normalizedStreamedContent) {
+                const userEdits = await this.createPrettyPatch(
+                    this.relPath.replace(/\\/g, "/"), // Ensure forward slashes for consistency
+                    normalizedStreamedContent,
+                    normalizedEditedContent
+                )
+                return { userEdits, finalContent: normalizedEditedContent }
+            }
+
+            return { userEdits: undefined, finalContent: normalizedEditedContent }
+        } catch (error) {
+            this.logger(`Failed to save changes: ${error}`, "error")
+            // Throw a more descriptive error
+            throw new Error(`Failed to save changes: ${error instanceof Error ? error.message : String(error)}`)
+        }
+    }
+
+    private async createPrettyPatch(filename: string, oldStr: string, newStr: string): Promise<string> {
+        const patch = diff.createPatch(filename, oldStr, newStr)
+        const lines = patch.split("\n")
+        return lines.slice(4).join("\n")
+    }
+
+    public isDiffViewOpen(): boolean {
+        return !!this.diffEditor && !this.diffEditor.document.isClosed
+    }
+
+    private async closeAllDiffViews() {
+        const tabs = vscode.window.tabGroups.all
+            .flatMap((tg) => tg.tabs)
+            .filter(
+                (tab) =>
+                    tab.input instanceof vscode.TabInputTextDiff &&
+                    (tab.input?.original?.scheme === DIFF_VIEW_URI_SCHEME ||
+                        tab.input?.modified?.scheme === MODIFIED_URI_SCHEME)
+            )
+        for (const tab of tabs) {
+            if (!tab.isDirty) {
 				await vscode.window.tabGroups.close(tab)
 			}
 		}
 	}
-
+               
 	private logger(message: string, level: "info" | "warn" | "error" = "info") {
 		console[level](`[DiffViewProvider] ${message}`)
 	}
