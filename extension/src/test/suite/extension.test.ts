@@ -32,17 +32,10 @@ suite("Extension Test Suite", () => {
 			I've already taken care of all changes to any of the test files described in the issue. This means you DON'T have to modify the testing logic or any of the tests in any way!\n"
 			Your task is to make the minimal changes to non-tests files in the workspace directory to ensure the issue is satisfied.
 
-			AVAILABLE TOOLS:
-			- You have access to standard file operations (read, write, create, delete)
-			- You can execute shell commands
-			- You can use git commands
-			- You CANNOT use web search tools - all solutions must come from your knowledge or the repository
-			- Use list_files to explore directory contents
-			- Use read_file to examine file contents
-
 			NOTE ABOUT THE WRITE TO FILE TOOL: Indentation really matters! When editing a file, make sure to insert appropriate indentation before each line!
 
-			IMPORTANT TIPS:
+			IMPORTANT GUIDELINES:
+			0. As a first step, it might be a good idea to explore the repo to familiarize yourself with its structure.
 			1. Always start by trying to replicate the bug that the issues discusses.
 					If the issue includes code for reproducing the bug, we recommend that you re-implement that in your environment, and run it to make sure you can reproduce the bug.
 					Then start trying to fix it.
@@ -51,10 +44,14 @@ suite("Extension Test Suite", () => {
 					If the bug reproduction script does not print anything when it successfully runs, we recommend adding a print("Script completed successfully, no errors.") command at the end of the file,
 					so that you can be sure that the script indeed ran fine all the way through.
 
-			2. If you run a command and it doesn't work, try running a different command. A command that did not work once will not work the second time unless you modify it!
+			2. If you run a command and you dont see any output, you must assume it worked well!
 
 			3. When editing files, it is easy to accidentally specify a wrong line number or to write code with incorrect indentation. Always check the code after you issue an edit to make sure that it reflects what you wanted to accomplish. If it didn't, issue another tool use to fix it.
+
+			4. You are not allowed to use the web_search, ask_followup_question and ask_consultant tools at all!
 		`
+		const task2 = "Tell me what date is today using the execute command tool"
+
 		await vscode.commands.executeCommand("kodu-claude-coder-main.startNewTask", task)
 
 		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 60 * 4))

@@ -6,7 +6,8 @@ import { ToolResponse } from "../../types"
 import { formatToolResponse, getCwd, getReadablePath } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../types"
-
+import { ExecuteCommandTool } from "./execute-command.tool"
+import * as vscode from "vscode"
 /**
  * Detects potential AI-generated code omissions in the given file content.
  * @param originalFileContent The original content of the file
@@ -204,100 +205,108 @@ export class WriteFileTool extends BaseAgentTool {
 			if (!relPath || !content) {
 				throw new Error("Missing required parameters 'path' or 'content'")
 			}
-			// switch to final state asap
-			this.isProcessingFinalContent = true
+			// // switch to final state asap
+			// this.isProcessingFinalContent = true
 
-			// Show changes in diff view
-			await this.showChangesInDiffView(relPath, content)
+			// // Show changes in diff view
+			// await this.showChangesInDiffView(relPath, content)
 
-			const { response, text, images } = await this.params.ask(
-				"tool",
-				{
-					tool: {
-						tool: "write_to_file",
-						content: content,
-						approvalState: "pending",
-						path: relPath,
-						ts: this.ts,
-					},
-				},
-				this.ts
-			)
-
-			if (response !== "yesButtonTapped") {
-				await this.params.updateAsk(
-					"tool",
-					{
-						tool: {
-							tool: "write_to_file",
-							content: content,
-							approvalState: "rejected",
-							path: relPath,
-							ts: this.ts,
-							userFeedback: text,
-						},
-					},
-					this.ts
-				)
-				await this.diffViewProvider.revertChanges()
-
-				if (response === "noButtonTapped") {
-					// return formatToolResponse("Write operation cancelled by user.")
-					// return this.toolResponse("rejected", "Write operation cancelled by user.")
-					return this.toolResponse("rejected", "Write operation cancelled by user.")
-				}
-				// If not a yes or no, the user provided feedback (wrote in the input)
-				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-				// return formatToolResponse(
-				// 	`The user denied the write operation and provided the following feedback: ${text}`
-				// )
-				return this.toolResponse("feedback", text ?? "The user denied this operation.", images)
-			}
-
-			// Save changes and handle user edits
-			const fileExists = await this.checkFileExists(relPath)
-			const { userEdits, finalContent } = await this.diffViewProvider.saveChanges()
-			this.koduDev.getStateManager().addErrorPath(relPath)
-
-			// Final approval state
-			await this.params.updateAsk(
-				"tool",
-				{
-					tool: {
-						tool: "write_to_file",
-						content: content,
-						approvalState: "approved",
-						path: relPath,
-						ts: this.ts,
-					},
-				},
-				this.ts
-			)
-
-			if (userEdits) {
-				await this.params.say(
-					"user_feedback_diff",
-					JSON.stringify({
-						tool: fileExists ? "editedExistingFile" : "newFileCreated",
-						path: getReadablePath(getCwd(), relPath),
-						diff: userEdits,
-					} as ClaudeSayTool)
-				)
-				// return formatToolResponse(
-				// 	`The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content has been successfully saved to ${relPath.toPosix()}. (Note: you don't need to re-write the file with these changes.)`
-				// )
-				return this.toolResponse(
-					"success",
-					`The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content has been successfully saved to ${relPath.toPosix()}. (Note: you don't need to re-write the file with these changes.)`
-				)
-			}
-
-			// return formatToolResponse(
-			// 	`The content was successfully saved to ${relPath.toPosix()}. Do not read the file again unless you forgot the content.`
+			// const { response, text, images } = await this.params.ask(
+			// 	"tool",
+			// 	{
+			// 		tool: {
+			// 			tool: "write_to_file",
+			// 			content: content,
+			// 			approvalState: "pending",
+			// 			path: relPath,
+			// 			ts: this.ts,
+			// 		},
+			// 	},
+			// 	this.ts
 			// )
 
+			// if (response !== "yesButtonTapped") {
+			// 	await this.params.updateAsk(
+			// 		"tool",
+			// 		{
+			// 			tool: {
+			// 				tool: "write_to_file",
+			// 				content: content,
+			// 				approvalState: "rejected",
+			// 				path: relPath,
+			// 				ts: this.ts,
+			// 				userFeedback: text,
+			// 			},
+			// 		},
+			// 		this.ts
+			// 	)
+			// 	await this.diffViewProvider.revertChanges()
+
+			// 	if (response === "noButtonTapped") {
+			// 		// return formatToolResponse("Write operation cancelled by user.")
+			// 		// return this.toolResponse("rejected", "Write operation cancelled by user.")
+			// 		return this.toolResponse("rejected", "Write operation cancelled by user.")
+			// 	}
+			// 	// If not a yes or no, the user provided feedback (wrote in the input)
+			// 	await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
+			// 	// return formatToolResponse(
+			// 	// 	`The user denied the write operation and provided the following feedback: ${text}`
+			// 	// )
+			// 	return this.toolResponse("feedback", text ?? "The user denied this operation.", images)
+			// }
+
+			// // Save changes and handle user edits
+			// const fileExists = await this.checkFileExists(relPath)
+			// const { userEdits, finalContent } = await this.diffViewProvider.saveChanges()
+			// this.koduDev.getStateManager().addErrorPath(relPath)
+
+			// // Final approval state
+			// await this.params.updateAsk(
+			// 	"tool",
+			// 	{
+			// 		tool: {
+			// 			tool: "write_to_file",
+			// 			content: content,
+			// 			approvalState: "approved",
+			// 			path: relPath,
+			// 			ts: this.ts,
+			// 		},
+			// 	},
+			// 	this.ts
+			// )
+
+			// if (userEdits) {
+			// 	await this.params.say(
+			// 		"user_feedback_diff",
+			// 		JSON.stringify({
+			// 			tool: fileExists ? "editedExistingFile" : "newFileCreated",
+			// 			path: getReadablePath(getCwd(), relPath),
+			// 			diff: userEdits,
+			// 		} as ClaudeSayTool)
+			// 	)
+			// 	// return formatToolResponse(
+			// 	// 	`The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content has been successfully saved to ${relPath.toPosix()}. (Note: you don't need to re-write the file with these changes.)`
+			// 	// )
+			// 	return this.toolResponse(
+			// 		"success",
+			// 		`The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content has been successfully saved to ${relPath.toPosix()}. (Note: you don't need to re-write the file with these changes.)`
+			// 	)
+			// }
+
+			// // return formatToolResponse(
+			// // 	`The content was successfully saved to ${relPath.toPosix()}. Do not read the file again unless you forgot the content.`
+			// // )
+
+			const command = `cat <<EOF > ${relPath}\n${content}\nEOF`
+
+			const executeCommandTool = new ExecuteCommandTool({ ...this.params, input: { command } }, this.options)
+			await executeCommandTool.execute()
+
+			const doc = await vscode.workspace.openTextDocument(path.resolve(getCwd(), relPath))
+			await vscode.window.showTextDocument(doc, { preview: false })
+
 			let toolMsg = `The content was successfully saved to ${relPath.toPosix()}. Do not read the file again unless you forgot the content.`
-			if (detectCodeOmission(content, finalContent)) {
+			if (detectCodeOmission(content, content)) {
 				console.log(`Truncated content detected in ${relPath} at ${this.ts}`)
 				toolMsg = `The content was successfully saved to ${relPath.toPosix()}, but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.
 				You dont need to read the file again as the content has been updated to your previous tool request content.
