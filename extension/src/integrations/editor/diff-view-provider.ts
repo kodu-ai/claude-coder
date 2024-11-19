@@ -220,6 +220,14 @@ export class DiffViewProvider {
 		}
 	}
 
+	public async waitForPendingUpdates(): Promise<void> {
+		if (this.modifiedUri) {
+			await DiffViewProvider.modifiedContentProvider.waitForPendingUpdates(this.modifiedUri)
+		}
+		// add another 100ms delay to ensure all updates are processed
+		await delay(100)
+	}
+
 	public async open(relPath: string, isFinal?: boolean): Promise<void> {
 		if (this.diffEditor) {
 			return

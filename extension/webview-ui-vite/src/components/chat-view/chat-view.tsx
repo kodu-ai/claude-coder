@@ -306,8 +306,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 					flexDirection: "column",
 					overflowY: "auto",
 				}}>
-				<DeprecationBanner />
-				{/* <AnnouncementBanner /> */}
+				{/* <DeprecationBanner /> */}
+				<AnnouncementBanner />
 				{task ? (
 					<>
 						<TaskHeader
