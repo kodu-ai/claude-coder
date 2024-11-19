@@ -22,6 +22,7 @@ export const startNewTask = async (
 		await sidebarProvider.getStateManager().setTechnicalBackground("developer")
 		await sidebarProvider.getStateManager().setAlwaysAllowReadOnly(true)
 		await sidebarProvider.getStateManager().setAlwaysAllowWriteOnly(true)
+		await sidebarProvider.getStateManager().setIsContinueGenerationEnabled(true)
 
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("autoCloseTerminal", true)
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("shouldShowKoduPromo", false)
