@@ -316,7 +316,6 @@ export class TerminalManager {
 		})
 
 		process.once("no_shell_integration", () => {
-			console.log(`No shell integration available for terminal ${terminalInfo.id}`)
 			process.emit("no_shell_integration")
 		})
 
@@ -330,7 +329,6 @@ export class TerminalManager {
 			})
 		})
 		if (!terminalInfo.terminal.shellIntegration) {
-			console.log("No shell integration")
 			process.emit("no_shell_integration")
 		}
 

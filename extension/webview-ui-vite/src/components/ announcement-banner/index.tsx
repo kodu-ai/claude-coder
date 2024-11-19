@@ -6,8 +6,16 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import { vscode } from "@/utils/vscode"
 
+const isNewMajorOrMinorVersion = (currentVersion: string, lastVersion: string) => {
+	const [currentMajor, currentMinor] = currentVersion.split(".").map(Number)
+	const [lastMajor, lastMinor] = lastVersion.split(".").map(Number)
+
+	return currentMajor > lastMajor || currentMinor > lastMinor
+}
+
 export default function AnnouncementBanner() {
 	const { lastShownAnnouncementId, version } = useExtensionState()
+	const isNewVersion = isNewMajorOrMinorVersion(version, lastShownAnnouncementId ?? "0.0.0")
 	const [isExpanded, setIsExpanded] = useState(false)
 	const [isDismissed, setIsDismissed] = useState(false)
 
@@ -18,7 +26,7 @@ export default function AnnouncementBanner() {
 		setIsDismissed(true)
 	}, [])
 
-	if (lastShownAnnouncementId === version || isDismissed) return null
+	if (!isNewVersion || isDismissed) return null
 
 	return (
 		<Card className="rounded-none sticky top-0">

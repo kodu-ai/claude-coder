@@ -283,18 +283,15 @@ class DiffViewProvider {
 	}
 
 	public async openDiffEditor(relPath: string, isFinal?: boolean): Promise<void> {
-		const fileName = path.basename(relPath)
+		const fileName = path.basename(relPath);
 
 		this.originalUri = vscode.Uri.parse(`${CONSTANTS.DIFF_VIEW_URI_SCHEME}:${fileName}`).with({
 			query: Buffer.from(this.originalContent).toString("base64"),
-		})
+		});
 
-		this.modifiedUri = vscode.Uri.parse(`${CONSTANTS.MODIFIED_URI_SCHEME}:/${fileName}`)
-		DiffViewProvider.modifiedContentProvider.writeFile(
-			this.modifiedUri,
-			Buffer.from(this.originalContent ?? ""),
-			{ create: true, overwrite: true }
-		)
+		// Create modified content URI (initially empty)
+		this.modifiedUri = vscode.Uri.parse(`${CONSTANTS.MODIFIED_URI_SCHEME}:/${fileName}`);
+		await this.writeContent(this.modifiedUri, this.originalContent ?? "");
 
 		await vscode.commands.executeCommand(
 			"vscode.diff",
@@ -307,134 +304,213 @@ class DiffViewProvider {
 				viewColumn: vscode.ViewColumn.Active,
 				tabOptions: { readonly: true },
 			}
-		)
+		);
 
-		await pWaitFor(
-			() =>
-				vscode.window.visibleTextEditors.some(
-					(e) => e.document.uri.toString() === this.modifiedUri!.toString()
-				),
-			{ interval: CONSTANTS.WAIT_FOR_EDITOR_INTERVAL, timeout: CONSTANTS.WAIT_FOR_EDITOR_TIMEOUT }
-		)
+		await this.waitForEditor();
+		await this.initializeEditor();
+	}
 
-		const editor = vscode.window.visibleTextEditors.find(
-			(e) => e.document.uri.toString() === this.modifiedUri!.toString()
-		)
-
-		if (editor && editor.document.uri.toString() === this.modifiedUri.toString()) {
-			this.diffEditor = editor
-		} else {
-			throw new DiffViewError("Failed to open diff editor")
+	private async writeContent(uri: vscode.Uri, content: string): Promise<void> {
+		try {
+			await DiffViewProvider.modifiedContentProvider.writeFile(
+				uri,
+				new TextEncoder().encode(content),
+				{ create: true, overwrite: true }
+			);
+		} catch (error) {
+			this.logger(`Failed to write content: ${error}`, "error");
+			throw new DiffViewError("Failed to write content");
 		}
 	}
 
-	public async update(content: string, isFinal: boolean): Promise<void> {
-		if (!this.diffEditor || !this.modifiedUri || this.isFinalReached) {
-			return
+	private async waitForEditor(): Promise<void> {
+		await pWaitFor(
+			() => this.isEditorVisible(),
+			{
+				interval: CONSTANTS.WAIT_FOR_EDITOR_INTERVAL,
+				timeout: CONSTANTS.WAIT_FOR_EDITOR_TIMEOUT
+			}
+		);
+	}
+
+	private isEditorVisible(): boolean {
+		return vscode.window.visibleTextEditors.some(
+			(e) => e.document.uri.toString() === this.modifiedUri!.toString()
+		);
+	}
+
+	private async initializeEditor(): Promise<void> {
+		const editor = vscode.window.visibleTextEditors.find(
+			(e) => e.document.uri.toString() === this.modifiedUri!.toString()
+		);
+
+		if (editor && editor.document.uri.toString() === this.modifiedUri.toString()) {
+			this.diffEditor = editor;
+		} else {
+			throw new DiffViewError("Failed to open diff editor");
+		}
+	}
+
+	public async update(accumulatedContent: string, isFinal: boolean): Promise<void> {
+		if (!this.validateEditorState()) {
+			return;
+		}
+
+		if (this.isFinalReached) {
+			this.logger("<update>: Final update already reached", "warn");
+			return;
 		}
 
 		if (isFinal) {
-			this.isFinalReached = true
-			await this.applyUpdate(content)
-			if (this.activeLineController && this.fadedOverlayController) {
-				this.activeLineController.clear()
-				this.fadedOverlayController.clear()
-			}
-			return
+			await this.handleFinalUpdate(accumulatedContent);
+			return;
 		}
 
-		this.pendingContent = content
-		this.scheduleUpdate()
+		this.pendingContent = accumulatedContent;
+		this.scheduleUpdate();
 	}
 
-	private scheduleUpdate() {
+	private validateEditorState(): boolean {
+		if (!this.diffEditor || !this.modifiedUri || !this.activeLineController || !this.fadedOverlayController) {
+			this.logger("<update>: Diff editor not initialized", "error");
+			return false;
+		}
+		return true;
+	}
+
+	private async handleFinalUpdate(content: string): Promise<void> {
+		this.logger(
+			`[${Date.now()}] applying final update: content length ${content.length}`,
+			"info"
+		);
+		this.isFinalReached = true;
+		await this.applyUpdate(content);
+		this.activeLineController?.clear();
+		this.fadedOverlayController?.clear();
+	}
+
+	private scheduleUpdate(): void {
 		if (this.updateScheduled) {
-            return
-        }
+			return;
+		}
 
-		this.updateScheduled = true
+		this.updateScheduled = true;
 		setTimeout(async () => {
-			await this.applyPendingUpdate()
-			this.updateScheduled = false
-		}, CONSTANTS.UPDATE_BATCH_INTERVAL)
+			await this.applyPendingUpdate();
+			this.updateScheduled = false;
+		}, CONSTANTS.UPDATE_BATCH_INTERVAL);
 	}
 
-	private async applyPendingUpdate() {
-		if (!this.diffEditor || !this.modifiedUri) {
-            return
-        }
+	private async applyPendingUpdate(): Promise<void> {
+		if (!this.validateEditorState() || !this.pendingContent) {
+			return;
+		}
 
-		const content = this.pendingContent
+		const content = this.pendingContent;
 		if (content === this.previousContent) {
-            return
-        }
+			return;
+		}
 
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(content), {
-			create: false,
-			overwrite: true,
-		})
-		this.streamedContent = content
+		const newLines = content.split(/\r?\n/);
+		await this.updateContent(newLines);
+		await this.updateUIElements(newLines);
+		await this.handleScrolling();
 
-		const newLines = content.split(/\r?\n/)
-		const oldLines = this.previousContent.split(/\r?\n/)
-		let lastModifiedLine = 0
+		this.previousContent = content;
+	}
+
+	private async updateContent(newLines: string[]): Promise<void> {
+		const updatedContent = this.computeUpdatedContent(newLines);
+		await this.writeContent(this.modifiedUri!, updatedContent);
+		this.streamedContent = updatedContent;
+	}
+
+	private computeUpdatedContent(newLines: string[]): string {
+		const currentLines = this.previousContent.split(/\r?\n/);
+		let lastModifiedLine = 0;
 
 		for (let i = 0; i < newLines.length; i++) {
-			if (i >= oldLines.length || newLines[i] !== oldLines[i]) {
-				lastModifiedLine = i
+			if (i >= currentLines.length || newLines[i] !== currentLines[i]) {
+				lastModifiedLine = i;
 			}
 		}
 
-		this.lastModifiedLine = lastModifiedLine
-
-		if (this.activeLineController && this.fadedOverlayController) {
-			this.activeLineController.setActiveLine(this.lastModifiedLine)
-			this.fadedOverlayController.updateOverlayAfterLine(
-				this.lastModifiedLine,
-				this.diffEditor.document.lineCount
-			)
-		}
-
-		const now = Date.now()
-		if (
-			this.isAutoScrollEnabled &&
-			now - this.lastScrollTime >= CONSTANTS.SCROLL_THROTTLE &&
-			(now - this.lastUserInteraction >= CONSTANTS.USER_INTERACTION_TIMEOUT ||
-				this.checkScrollPosition())
-		) {
-			await this.scrollToModifiedLine()
-			this.lastScrollTime = now
-		}
-
-		this.previousContent = content
+		this.lastModifiedLine = lastModifiedLine;
+		return newLines.join('\n');
 	}
 
+	private async updateUIElements(newLines: string[]): Promise<void> {
+		if (this.activeLineController && this.fadedOverlayController) {
+			this.activeLineController.setActiveLine(this.lastModifiedLine);
+			this.fadedOverlayController.updateOverlayAfterLine(
+				this.lastModifiedLine,
+				this.diffEditor!.document.lineCount
+			);
+		}
+	}
+
+	private async handleScrolling(): Promise<void> {
+		const now = Date.now();
+		if (
+			this.isAutoScrollEnabled &&
+			this.shouldScroll(now) &&
+			(this.isUserInteractionTimeout(now) || this.checkScrollPosition())
+		) {
+			await this.scrollToModifiedLine();
+			this.lastScrollTime = now;
+		}
+	}
+
+	private shouldScroll(now: number): boolean {
+		return now - this.lastScrollTime >= CONSTANTS.SCROLL_THROTTLE;
+	}
+
+	private isUserInteractionTimeout(now: number): boolean {
+		return now - this.lastUserInteraction >= CONSTANTS.USER_INTERACTION_TIMEOUT;
+	}
+	
 	private async applyUpdate(content: string): Promise<void> {
 		if (!this.diffEditor || !this.modifiedUri) {
-            return
-        }
-
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(content), {
-			create: false,
-			overwrite: true,
-		})
-		this.streamedContent = content
-
-		const currentLine = this.diffEditor.document.lineCount - 1
-		if (this.activeLineController && this.fadedOverlayController) {
-			this.activeLineController.setActiveLine(currentLine)
-			this.fadedOverlayController.updateOverlayAfterLine(currentLine, this.diffEditor.document.lineCount)
+			return;
 		}
 
-		const now = Date.now()
+		try {
+			// Add logging for better debugging
+			this.logger(`Applying update: content length ${content.length}`, "info");
+
+			// Update content with proper encoding
+			await DiffViewProvider.modifiedContentProvider.writeFile(
+				this.modifiedUri,
+				new TextEncoder().encode(content),
+				{
+					create: false,
+					overwrite: true,
+				}
+			);
+
+			this.streamedContent = content;
+
+			// Update UI elements
+			await this.updateUIElements(content);
+
+			// Handle scrolling behavior
+			await this.handleScrollBehavior();
+		} catch (error) {
+			this.logger(`Failed to apply update: ${error}`, "error");
+			throw new DiffViewError(`Failed to apply update: ${error}`);
+		}
+	}
+
+	private async handleScrollBehavior(): Promise<void> {
+		const now = Date.now();
 		if (
 			this.isAutoScrollEnabled &&
 			now - this.lastScrollTime >= CONSTANTS.SCROLL_THROTTLE &&
 			(now - this.lastUserInteraction >= CONSTANTS.USER_INTERACTION_TIMEOUT ||
 				this.checkScrollPosition())
 		) {
-			await this.scrollToBottom()
-			this.lastScrollTime = now
+			await this.scrollToBottom();
+			this.lastScrollTime = now;
 		}
 	}
 

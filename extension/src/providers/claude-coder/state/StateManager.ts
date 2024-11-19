@@ -50,6 +50,8 @@ export class StateManager {
 			activeSystemPromptVariantId,
 			autoSummarize,
 			isContinueGenerationEnabled,
+			isInlineEditingEnabled,
+			isAdvanceThinkingEnabled,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.globalStateManager.getGlobalState("browserModelId"),
@@ -73,6 +75,8 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("activeSystemPromptVariantId"),
 			this.globalStateManager.getGlobalState("autoSummarize"),
 			this.globalStateManager.getGlobalState("isContinueGenerationEnabled"),
+			this.globalStateManager.getGlobalState("isInlineEditingEnabled"),
+			this.globalStateManager.getGlobalState("isAdvanceThinkingEnabled"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -130,6 +134,8 @@ export class StateManager {
 			creativeMode: creativeMode ?? "normal",
 			fingerprint: fp,
 			useUdiff: useUdiff ?? false,
+			inlineEditMode: isInlineEditingEnabled,
+			advanceThinkingMode: isAdvanceThinkingEnabled,
 			autoCloseTerminal: autoCloseTerminal ?? false,
 			skipWriteAnimation: skipWriteAnimation ?? false,
 			currentContextWindow: currentContextWindow ?? 0,

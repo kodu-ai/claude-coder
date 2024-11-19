@@ -1,31 +1,36 @@
-import os from "os"
 import { readdir } from "fs/promises"
 import path from "path"
 import * as vscode from "vscode"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
-import {
-	CommandInputMessage,
-	ExecuteCommandMessage,
-	GitCheckoutToMessage,
-	WebviewMessage,
-} from "../../../shared/WebviewMessage"
+import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
-import { KoduDevState, UserContent } from "../../../agent/v1/types"
-import { ExecaTerminalManager } from "../../../integrations/terminal/execa-terminal-manager"
-import { cwd, getPotentiallyRelevantDetails } from "../../../agent/v1/utils"
-import Anthropic from "@anthropic-ai/sdk"
+import { extensionName } from "../../../shared/Constants"
+import { GlobalStateManager } from "../state/GlobalStateManager"
 
+/**
+ * Represents an item in the file tree structure.
+ * Used to display and manage hierarchical file/folder organization in the webview.
+ */
 interface FileTreeItem {
+	/** Unique identifier for the item */
 	id: string
+	/** Display name of the file or folder */
 	name: string
+	/** Child items for folders */
 	children?: FileTreeItem[]
+	/** Nesting level in the tree structure */
 	depth: number
+	/** Indicates whether this is a file or folder */
 	type: "file" | "folder"
 }
 
+/**
+ * Directories that should be excluded from the file tree
+ * to avoid cluttering the view with non-essential files
+ */
 const excludedDirectories = [
 	"node_modules",
 	"venv",
@@ -40,14 +45,26 @@ const excludedDirectories = [
 	"packages",
 ]
 
+/**
+ * Manages the webview interface for the Claude Coder extension.
+ * Handles communication between the extension and webview, manages state updates,
+ * and provides functionality for file system operations and user interactions.
+ */
 export class WebviewManager {
+	/** ID of the latest announcement to show to users */
 	private static readonly latestAnnouncementId = "sep-13-2024"
-	private execaTerminalManager: ExecaTerminalManager
 
-	constructor(private provider: ExtensionProvider) {
-		this.execaTerminalManager = new ExecaTerminalManager()
-	}
+	/**
+	 * Creates a new WebviewManager instance
+	 * @param provider The extension provider that owns this webview manager
+	 */
+	constructor(private provider: ExtensionProvider) {}
 
+		/**
+	 * Initializes and configures a webview instance
+	 * Sets up message listeners, HTML content, and visibility handlers
+	 * @param webviewView The webview or webview panel to setup
+	 */
 	setupWebview(webviewView: vscode.WebviewView | vscode.WebviewPanel) {
 		webviewView.webview.options = {
 			enableScripts: true,
@@ -80,10 +97,19 @@ export class WebviewManager {
 		}
 	}
 
+		/**
+	 * Shows an input box to collect user input
+	 * @param options Configuration options for the input box
+	 * @returns Promise that resolves to the user's input or undefined if cancelled
+	 */
 	async showInputBox(options: vscode.InputBoxOptions): Promise<string | undefined> {
 		return vscode.window.showInputBox(options)
 	}
 
+	/**
+	 * Posts a message from the extension to the webview
+	 * @param message The message to send to the webview
+	 */
 	async postMessageToWebview(message: ExtensionMessage) {
 		await this.provider["view"]?.webview.postMessage(message)
 	}
@@ -156,13 +182,13 @@ export class WebviewManager {
 
 		const csp = [
 			`default-src 'none';`,
-			`script-src 'unsafe-eval' https://* ${
+			`script-src 'unsafe-eval' https://* vscode-webview: ${
 				isProd ? `'nonce-${nonce}'` : `http://${localServerUrl} http://0.0.0.0:${localPort} 'unsafe-inline'`
 			}`,
-			`style-src ${webview.cspSource} 'self' 'unsafe-inline' https://*`,
-			`font-src ${webview.cspSource}`,
-			`img-src ${webview.cspSource} data:`,
-			`connect-src https://* ${
+			`style-src ${webview.cspSource} 'self' 'unsafe-inline' https://* vscode-webview:`,
+			`font-src ${webview.cspSource} vscode-webview:`,
+			`img-src ${webview.cspSource} data: vscode-webview:`,
+			`connect-src https://* vscode-webview: ${
 				isProd
 					? ``
 					: `ws://${localServerUrl} ws://0.0.0.0:${localPort} http://${localServerUrl} http://0.0.0.0:${localPort}`
@@ -203,6 +229,13 @@ export class WebviewManager {
       `
 	}
 
+		/**
+	 * Recursively builds a tree structure of files and folders in a directory
+	 * Excludes specified directories to keep the tree clean and relevant
+	 * @param dir The directory path to scan
+	 * @param parentId The ID of the parent node in the tree
+	 * @returns Promise resolving to an array of FileTreeItems representing the directory structure
+	 */
 	async getFileTree(dir: string, parentId: string = ""): Promise<FileTreeItem[]> {
 		const entries = await readdir(dir, { withFileTypes: true })
 		const items: FileTreeItem[] = []
@@ -237,6 +270,11 @@ export class WebviewManager {
 		return items
 	}
 
+		/**
+	 * Sets up message handling for the webview
+	 * Processes various message types from the webview and triggers appropriate actions
+	 * @param webview The webview instance to attach the message listener to
+	 */
 	private setWebviewMessageListener(webview: vscode.Webview) {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
@@ -393,12 +431,25 @@ export class WebviewManager {
 						await this.provider.getTaskManager().clearTask()
 						await this.postStateToWebview()
 						break
+					case "setApiKeyDialog":
+						// trigger vscode.commands.registerCommand(`${extensionName}.setApiKey`
+						vscode.commands.executeCommand(`${extensionName}.setApiKey`)
+						break
+					case "pauseNext":
+						await this.provider.getKoduDev()?.taskExecutor.pauseNextRequest()
+						break
 					case "didCloseAnnouncement":
 						const packageJSON = this.provider.getContext().extension?.packageJSON
 						await this.provider
 							.getGlobalStateManager()
 							.updateGlobalState("lastShownAnnouncementId", packageJSON?.version)
 						await this.postStateToWebview()
+						break
+					case "setAdvanceThinkingMode":
+						GlobalStateManager.getInstance().updateGlobalState("isAdvanceThinkingEnabled", message.bool)
+						break
+					case "setInlinedMode":
+						GlobalStateManager.getInstance().updateGlobalState("isInlineEditingEnabled", message.bool)
 						break
 					case "selectImages":
 						const images = await this.provider.getTaskManager().selectImages()
@@ -449,21 +500,6 @@ export class WebviewManager {
 					case "debug":
 						await this.handleDebugInstruction()
 						break
-					case "executeCommand":
-						const callbackFunction = (
-							event: "error" | "exit" | "response",
-							commandId: number,
-							data: string
-						) => {
-							this.postMessageToWebview({
-								type: "commandExecutionResponse",
-								status: event,
-								payload: data,
-								commandId: commandId.toString(),
-							})
-						}
-						await this.execaTerminalManager.executeCommand(message, callbackFunction)
-						break
 				}
 			},
 			null,
@@ -471,6 +507,12 @@ export class WebviewManager {
 		)
 	}
 
+		/**
+	 * Handles debug instructions for the extension
+	 * Analyzes open tabs in the workspace and collects diagnostic information
+	 * Creates a new task if needed and processes debugging information
+	 * @returns Promise that resolves when debug handling is complete
+	 */
 	private async handleDebugInstruction(): Promise<void> {
 		let agent = this.provider.getKoduDev()
 		let noTask = false
