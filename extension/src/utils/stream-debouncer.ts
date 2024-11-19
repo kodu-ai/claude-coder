@@ -1,9 +1,17 @@
 import { koduSSEResponse } from "../shared/kodu"
 
-export function createStreamDebouncer(callback: (chunks: koduSSEResponse[]) => Promise<void>, delay: number = 25) {
+export function createStreamDebouncer(
+    callback: (chunks: koduSSEResponse[]) => Promise<void>, 
+    initialDelay: number = 25,
+    contextRatio?: number
+) {
 	let timeoutId: NodeJS.Timeout | null = null
 	let chunks: koduSSEResponse[] = []
 	let isProcessing = false
+	
+	// Dynamic delay based on context size
+	const delay = contextRatio ? Math.max(10, Math.min(50, initialDelay * contextRatio)) : initialDelay
+	const BATCH_SIZE = contextRatio ? Math.max(1, Math.floor(10 * (1 - contextRatio))) : 5
 
 	const processChunks = async () => {
 		isProcessing = true
@@ -13,7 +21,15 @@ export function createStreamDebouncer(callback: (chunks: koduSSEResponse[]) => P
 		chunks = []
 
 		try {
-			await callback(chunksToProcess)
+			// Process chunks in smaller batches if we have a lot
+			if (chunksToProcess.length > BATCH_SIZE) {
+				for (let i = 0; i < chunksToProcess.length; i += BATCH_SIZE) {
+					const batch = chunksToProcess.slice(i, i + BATCH_SIZE)
+					await callback(batch)
+				}
+			} else {
+				await callback(chunksToProcess)
+			}
 		} catch (error) {
 			console.error("Error processing chunks:", error)
 			console.error("Problematic chunks:", JSON.stringify(chunksToProcess, null, 2))

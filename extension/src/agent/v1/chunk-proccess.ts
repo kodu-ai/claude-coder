@@ -13,6 +13,8 @@ export class ChunkProcessor {
 	private chunkQueue: koduSSEResponse[] = []
 	private isProcessing = false
 	private endOfStreamReceived = false
+	private readonly QUEUE_BATCH_SIZE = 5
+	private readonly QUEUE_PROCESS_DELAY = 5
 
 	constructor(callbacks: ChunkProcessorCallbacks) {
 		this.callbacks = callbacks
@@ -46,15 +48,23 @@ export class ChunkProcessor {
 		}
 
 		this.isProcessing = true
-		const chunk = this.chunkQueue.shift()!
+		
+		// Process chunks in batches
+		const chunks = this.chunkQueue.splice(0, Math.min(this.QUEUE_BATCH_SIZE, this.chunkQueue.length))
 
 		try {
-			await this.callbacks.onChunk(chunk)
+			// Process chunks in sequence but with minimal delay
+			for (const chunk of chunks) {
+				await this.callbacks.onChunk(chunk)
+				await new Promise(resolve => setTimeout(resolve, this.QUEUE_PROCESS_DELAY))
+			}
 		} catch (error) {
-			console.error("Error processing chunk:", error)
+			console.error("Error processing chunks:", error)
 		} finally {
 			this.isProcessing = false
-			this.processNextChunk()
+			if (this.chunkQueue.length > 0) {
+				this.processNextChunk()
+			}
 		}
 	}
 }
