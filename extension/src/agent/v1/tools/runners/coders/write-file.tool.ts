@@ -1,127 +1,12 @@
 import * as path from "path"
-import { DiffViewProvider } from "../../../../integrations/editor/diff-view-provider"
-import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
-import { fileExistsAtPath } from "../../../../utils/path-helpers"
-import { ToolResponse } from "../../types"
-import { formatToolResponse, getCwd, getReadablePath } from "../../utils"
-import { BaseAgentTool } from "../base-agent.tool"
-import { AgentToolOptions, AgentToolParams } from "../types"
-
-/**
- * Detects potential AI-generated code omissions in the given file content.
- * @param originalFileContent The original content of the file
- * @param newFileContent The new content of the file to check
- * @returns An object containing whether an omission was detected and details about the detection
- */
-function detectCodeOmission(
-	originalFileContent: string,
-	newFileContent: string
-): {
-	hasOmission: boolean
-	details: {
-		line?: string
-		keyword?: string
-		lineNumber?: number
-	}[]
-} {
-	const originalLines = originalFileContent.split("\n")
-	const newLines = newFileContent.split("\n")
-	const details: { line?: string; keyword?: string; lineNumber?: number }[] = []
-
-	// Common phrases that indicate code omission
-	const omissionKeywords = [
-		"remain",
-		"remains",
-		"unchanged",
-		"rest",
-		"previous",
-		"existing",
-		"...",
-		"placeholder implementation",
-		"previous implementation",
-		"rest of",
-		"same as before",
-		"as above",
-		"similar to",
-		"etc",
-		"and so on",
-	]
-
-	// Comment patterns for various programming languages
-	const commentPatterns = [
-		/^\s*\/\//, // Single-line comment for most languages
-		/^\s*#/, // Single-line comment for Python, Ruby, etc.
-		/^\s*\/\*/, // Multi-line comment opening
-		/^\s*\*/, // Multi-line comment continuation
-		/^\s*\*\//, // Multi-line comment closing
-		/^\s*{\s*\/\*/, // JSX comment opening
-		/^\s*<!--/, // HTML comment opening
-		/^\s*--/, // SQL comment
-		/^\s*;/, // Assembly/Lisp comment
-		/^\s*%/, // LaTeX/Matlab comment
-		/^\s*\/\/\//, // Documentation comments
-	]
-
-	// Check each line in the new content
-	newLines.forEach((line, lineNumber) => {
-		// First check if it's a comment
-		if (commentPatterns.some((pattern) => pattern.test(line))) {
-			const normalizedLine = line.toLowerCase().trim()
-
-			// Check for omission keywords in comments
-			for (const keyword of omissionKeywords) {
-				if (normalizedLine.includes(keyword.toLowerCase())) {
-					// Verify this isn't in the original content
-					if (!originalLines.some((origLine) => origLine.toLowerCase().trim() === normalizedLine)) {
-						details.push({
-							line: line,
-							keyword: keyword,
-							lineNumber: lineNumber + 1,
-						})
-					}
-				}
-			}
-		}
-	})
-
-	// Check for inline omission indicators (like "...")
-	newLines.forEach((line, lineNumber) => {
-		const normalizedLine = line.toLowerCase().trim()
-		if (normalizedLine.includes("...") && !originalLines.some((origLine) => origLine.includes("..."))) {
-			details.push({
-				line: line,
-				keyword: "...",
-				lineNumber: lineNumber + 1,
-			})
-		}
-	})
-
-	// Check for suspicious patterns that might indicate omitted code
-	const suspiciousPatterns = [
-		/\/\*\s*\.\.\.\s*\*\//i, // /* ... */
-		/\/\/\s*\.\.\./i, // // ...
-		/#\s*\.\.\./i, // # ...
-		/<!--\s*\.\.\.\s*-->/i, // <!-- ... -->
-		/\(\s*\.\.\.\s*\)/i, // (...)
-	]
-
-	newLines.forEach((line, lineNumber) => {
-		for (const pattern of suspiciousPatterns) {
-			if (pattern.test(line)) {
-				details.push({
-					line: line,
-					keyword: "suspicious pattern",
-					lineNumber: lineNumber + 1,
-				})
-			}
-		}
-	})
-
-	return {
-		hasOmission: details.length > 0,
-		details: details,
-	}
-}
+import { DiffViewProvider } from "../../../../../integrations/editor/diff-view-provider"
+import { ClaudeSayTool } from "../../../../../shared/ExtensionMessage"
+import { fileExistsAtPath } from "../../../../../utils/path-helpers"
+import { ToolResponse } from "../../../types"
+import { formatToolResponse, getCwd, getReadablePath } from "../../../utils"
+import { BaseAgentTool } from "../../base-agent.tool"
+import { AgentToolOptions, AgentToolParams } from "../../types"
+import { detectCodeOmission } from "./detect-code-omission"
 
 export class WriteFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -297,7 +182,7 @@ export class WriteFileTool extends BaseAgentTool {
 			// )
 
 			let toolMsg = `The content was successfully saved to ${relPath.toPosix()}. Do not read the file again unless you forgot the content.`
-			if (detectCodeOmission(content, finalContent)) {
+			if (detectCodeOmission(this.diffViewProvider.originalContent, finalContent)) {
 				console.log(`Truncated content detected in ${relPath} at ${this.ts}`)
 				toolMsg = `The content was successfully saved to ${relPath.toPosix()}, but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.
 				You dont need to read the file again as the content has been updated to your previous tool request content.
@@ -342,6 +227,7 @@ export class WriteFileTool extends BaseAgentTool {
 		}
 
 		await this.diffViewProvider.update(content, true)
+		await this.diffViewProvider.waitForPendingUpdates()
 	}
 
 	private async checkFileExists(relPath: string): Promise<boolean> {
