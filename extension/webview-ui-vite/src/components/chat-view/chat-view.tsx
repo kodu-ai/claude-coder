@@ -349,9 +349,11 @@ const ChatView: React.FC<ChatViewProps> = ({
 					</>
 				) : (
 					<>
-						<ChatScreen
-							taskHistory={<HistoryPreview showHistoryView={showHistoryView} />}
-							handleClick={handleSendMessage}
+						<ChatMode
+							mode={currentChatMode}
+							messages={chatHistory || []}
+							onSendMessage={handleChatMessage}
+							onModeChange={handleChatModeChange}
 						/>
 					</>
 				)}
