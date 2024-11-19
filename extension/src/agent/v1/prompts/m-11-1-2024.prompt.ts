@@ -25,16 +25,6 @@ export const BASE_SYSTEM_PROMPT = async (
 
 ====
 
-RESPONSE FORMAT
-
-You must always respond with the following format
-<format>
-... best instructions for Chain of Thought, with best practices and guidelines to prevent the ai
-</format>
-
-
-====
-
 TOOL USE
 
 You have access to a set of tools that are executed upon the user's approval. You can use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
