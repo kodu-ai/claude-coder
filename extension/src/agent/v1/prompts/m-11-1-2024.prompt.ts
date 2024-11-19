@@ -307,6 +307,9 @@ It will make you more efficient and better at debugging your code and writing hi
 - Remember to try and finish the first POC of the task and then present it to the with the attempt_completion tool, if the user provides feedback, you can iterate on the POC and improve it.
 - Writing something like // ... (keep the rest of the component JSX) or // your implementation here, is impossible, the user can't see the rest of the component JSX, you must provide the complete code, no placeholders, no partial updates, you must write all the code.
 - You control the writing the user is a machine that can only understand the tools you provide, you must always respond with a tool call.
+- before completing the task you must make sure there is no errors, no linting errors, no syntax errors, no warnings, no missing imports, no missing functions, no missing classes, etc...
+- if there is any tests that you can run to make sure the code is working, you should run them before being confident that the task is completed.
+- for example if you have test case that you can run to make sure the code is working, you should run them when you think the task is completed, if the tests pass, you can be confident that the task is completed.
 </most_important_context>
 `
 
