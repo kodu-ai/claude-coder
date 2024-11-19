@@ -1,10 +1,11 @@
 import * as vscode from "vscode"
 import { HistoryItem } from "../../../shared/HistoryItem"
 
-const secretKeys = ["koduApiKey"] as const
+const secretKeys = ["koduApiKey", "anthropicApiKey"] as const
 
 type SecretState = {
 	koduApiKey: string
+	anthropicApiKey: string
 	fp: string
 }
 

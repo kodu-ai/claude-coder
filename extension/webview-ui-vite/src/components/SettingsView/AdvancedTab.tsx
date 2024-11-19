@@ -1,5 +1,6 @@
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import React, { useEffect } from "react"
 import { useSettingsState } from "../../hooks/useSettingsState"
 import { ExperimentalFeatureItem } from "./experimental-feature-item"
@@ -11,15 +12,45 @@ const AdvancedTab: React.FC = () => {
 		autoCloseTerminal,
 		autoSkipWrite,
 		customInstructions,
+		useDirectAnthropicApi,
+		anthropicApiKey,
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
 		handleAutoSkipWriteChange,
 		handleCustomInstructionsChange,
+		handleUseDirectAnthropicApiChange,
+		handleAnthropicApiKeyChange,
 	} = useSettingsState()
 
 	return (
 		<div className="space-y-6">
 			<div className="space-y-4">
+				<ExperimentalFeatureItem
+					feature={{
+						id: "useDirectAnthropicApi",
+						label: "Use Direct Anthropic API",
+						description: "Use Anthropic API directly instead of Kodu (some features like image generation and web search will be disabled)",
+					}}
+					checked={useDirectAnthropicApi}
+					onCheckedChange={handleUseDirectAnthropicApiChange}
+				/>
+				
+				{useDirectAnthropicApi && (
+					<div className="space-y-2 pl-4">
+						<Label htmlFor="anthropic-api-key" className="text-xs font-medium">
+							Anthropic API Key
+						</Label>
+						<Input
+							id="anthropic-api-key"
+							type="password"
+							placeholder="sk-ant-..."
+							value={anthropicApiKey}
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAnthropicApiKeyChange(e.target.value)}
+							className="text-xs"
+						/>
+					</div>
+				)}
+
 				<ExperimentalFeatureItem
 					feature={{
 						id: "alwaysAllowReadOnly",
@@ -58,7 +89,7 @@ const AdvancedTab: React.FC = () => {
 					id="custom-instructions"
 					placeholder="e.g. 'Run unit tests at the end', 'Use TypeScript with async/await'"
 					value={customInstructions}
-					onChange={(e) => handleCustomInstructionsChange(e.target.value)}
+					onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleCustomInstructionsChange(e.target.value)}
 					className="min-h-[60px] text-xs"
 				/>
 			</div>

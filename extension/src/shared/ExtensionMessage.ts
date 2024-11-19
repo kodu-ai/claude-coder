@@ -122,6 +122,8 @@ export interface ExtensionState {
 	shouldShowKoduPromo: boolean
 	fingerprint?: string
 	systemPromptVariants?: SystemPromptVariant[]
+	useDirectAnthropicApi?: boolean
+	anthropicApiKey?: string
 }
 
 type V0ClaudeMessage = {
