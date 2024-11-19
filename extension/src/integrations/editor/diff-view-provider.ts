@@ -15,14 +15,14 @@ import pWaitFor from 'p-wait-for'
 
 // Constants
 export const CONSTANTS = {
-    DIFF_VIEW_URI_SCHEME: "claude-coder-diff",
-    MODIFIED_URI_SCHEME: "claude-coder-modified",
-    SCROLL_THROTTLE: 150,
-    USER_INTERACTION_TIMEOUT: 1500,
-    SCROLL_THRESHOLD: 10,
-    UPDATE_BATCH_INTERVAL: 32,
-    WAIT_FOR_EDITOR_TIMEOUT: 300,
-    WAIT_FOR_EDITOR_INTERVAL: 20
+	DIFF_VIEW_URI_SCHEME: "claude-coder-diff",
+	MODIFIED_URI_SCHEME: "claude-coder-modified",
+	SCROLL_THROTTLE: 150,
+	USER_INTERACTION_TIMEOUT: 1500,
+	SCROLL_THRESHOLD: 10,
+	UPDATE_BATCH_INTERVAL: 32,
+	WAIT_FOR_EDITOR_TIMEOUT: 300,
+	WAIT_FOR_EDITOR_INTERVAL: 20
 } as const
 
 const fadedOverlayDecorationType = vscode.window.createTextEditorDecorationType({
@@ -42,10 +42,10 @@ type DecorationType = "fadedOverlay" | "activeLine"
 type LogLevel = "info" | "warn" | "error"
 
 class DiffViewError extends Error {
-    constructor(message: string) {
-        super(message)
-        this.name = 'DiffViewError'
-    }
+	constructor(message: string) {
+		super(message)
+		this.name = 'DiffViewError'
+	}
 }
 
 class DecorationController {
@@ -71,8 +71,8 @@ class DecorationController {
 
 	addLines(startIndex: number, numLines: number) {
 		if (startIndex < 0 || numLines <= 0) {
-            return
-        }
+			return
+		}
 
 		const lastRange = this.pendingRanges[this.pendingRanges.length - 1]
 		if (lastRange && lastRange.end.line === startIndex - 1) {
@@ -138,7 +138,7 @@ class ModifiedContentProvider implements vscode.FileSystemProvider {
 	readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]> = this._emitter.event
 
 	watch(uri: vscode.Uri): vscode.Disposable {
-		return new vscode.Disposable(() => {})
+		return new vscode.Disposable(() => { })
 	}
 
 	stat(uri: vscode.Uri): vscode.FileStat {
@@ -154,7 +154,7 @@ class ModifiedContentProvider implements vscode.FileSystemProvider {
 		return []
 	}
 
-	createDirectory(): void {}
+	createDirectory(): void { }
 
 	readFile(uri: vscode.Uri): Uint8Array {
 		const data = this.content.get(uri.toString())
@@ -223,8 +223,8 @@ class DiffViewProvider {
 
 	public async open(relPath: string, isFinal?: boolean): Promise<void> {
 		if (this.diffEditor) {
-            return
-        }
+			return
+		}
 
 		this.isEditing = true
 		this.relPath = relPath
@@ -344,11 +344,12 @@ class DiffViewProvider {
 			(e) => e.document.uri.toString() === this.modifiedUri!.toString()
 		);
 
-		if (editor && editor.document.uri.toString() === this.modifiedUri.toString()) {
+		if (editor && this.modifiedUri && editor.document.uri.toString() === this.modifiedUri.toString()) {
 			this.diffEditor = editor;
 		} else {
 			throw new DiffViewError("Failed to open diff editor");
 		}
+
 	}
 
 	public async update(accumulatedContent: string, isFinal: boolean): Promise<void> {
@@ -468,7 +469,7 @@ class DiffViewProvider {
 	private isUserInteractionTimeout(now: number): boolean {
 		return now - this.lastUserInteraction >= CONSTANTS.USER_INTERACTION_TIMEOUT;
 	}
-	
+
 	private async applyUpdate(content: string): Promise<void> {
 		if (!this.diffEditor || !this.modifiedUri) {
 			return;
@@ -491,7 +492,8 @@ class DiffViewProvider {
 			this.streamedContent = content;
 
 			// Update UI elements
-			await this.updateUIElements(content);
+			const newLines = content.split(/\r?\n/);
+			await this.updateUIElements(newLines);
 
 			// Handle scrolling behavior
 			await this.handleScrollBehavior();
@@ -516,8 +518,8 @@ class DiffViewProvider {
 
 	private async scrollToModifiedLine(): Promise<void> {
 		if (!this.diffEditor) {
-            return
-        }
+			return
+		}
 
 		const line = Math.max(0, this.lastModifiedLine)
 		const range = new vscode.Range(line, 0, line, this.diffEditor.document.lineAt(line).text.length)
@@ -526,8 +528,8 @@ class DiffViewProvider {
 
 	private async scrollToBottom(): Promise<void> {
 		if (!this.diffEditor) {
-            return
-        }
+			return
+		}
 
 		const lastLine = this.diffEditor.document.lineCount - 1
 		const lastCharacter = this.diffEditor.document.lineAt(lastLine).text.length
@@ -537,13 +539,13 @@ class DiffViewProvider {
 
 	private checkScrollPosition(): boolean {
 		if (!this.diffEditor) {
-            return false
-        }
+			return false
+		}
 
 		const visibleRanges = this.diffEditor.visibleRanges
 		if (visibleRanges.length === 0) {
-            return false
-        }
+			return false
+		}
 
 		const lastVisibleLine = visibleRanges[visibleRanges.length - 1].end.line
 		const firstVisibleLine = visibleRanges[0].start.line
@@ -555,8 +557,8 @@ class DiffViewProvider {
 
 	public async revertChanges(): Promise<void> {
 		if (!this.relPath) {
-            return
-        }
+			return
+		}
 
 		this.disposables.forEach((d) => d.dispose())
 		await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
