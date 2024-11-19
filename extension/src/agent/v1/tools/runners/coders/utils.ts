@@ -4,6 +4,8 @@ import { getCwd } from "../../../utils"
 import { fileExistsAtPath } from "../../../../../utils/path-helpers"
 import { compareTwoStrings } from "string-similarity"
 import path from "path"
+// @ts-expect-error - not typed
+import { SequenceMatcher } from "@ewoudenberg/difflib"
 
 interface EditBlock {
 	path: string
@@ -56,7 +58,6 @@ export async function findSimilarLines(
 ): Promise<string> {
 	const searchLines = searchContent.split("\n")
 	const contentLines = content.split("\n")
-	const { SequenceMatcher } = await import("difflib")
 
 	let bestRatio = 0
 	let bestMatch: string[] = []

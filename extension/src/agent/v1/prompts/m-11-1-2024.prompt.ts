@@ -237,6 +237,16 @@ ALWAYS INCLUDE THE FULL CONTENT OF THE FILE, EVEN IF IT HASN'T BEEN MODIFIED.
 DOING SOMETHING LIKE THIS BREAKS THE TOOL'S FUNCTIONALITY:
 // ... (previous code remains unchanged) or // your implementation here or /* Existing CSS code... */
 </write_to_file>
+
+Attempt completion critical instructions:
+<attempt_completion>
+Don't be eager to call attempt completion, only call it when you are confident that the task is completed and there are no errors in the code and all tests are passing without any issues and 100% completion.
+Before attempting completion you should ask yourself the following questions in <thinking></thinking> tags:
+- Did I address all the errors in the code? if not, you should address all the errors in the code before attempting completion.
+- Do i have any present errors in my code? if yes, what are the mission critical errors that I must fix? (list of errors)
+- Do i have any tests that i can run to make sure the code is working? if yes, you should run the tests before attempting completion.
+- Did my code pass all the tests? if not, you should fix the failing tests and make sure they pass before attempting completion.
+</attempt_completion>
 </critical_context>
 `
 
@@ -300,6 +310,7 @@ It will make you more efficient and better at debugging your code and writing hi
 - before completing the task you must make sure there is no errors, no linting errors, no syntax errors, no warnings, no missing imports, no missing functions, no missing classes, etc...
 - if there is any tests that you can run to make sure the code is working, you should run them before being confident that the task is completed.
 - for example if you have test case that you can run to make sure the code is working, you should run them when you think the task is completed, if the tests pass, you can be confident that the task is completed.
+YOU MUST NEVER RAISE ATTEMPT COMPLETE if you have failing tests! all tests must pass before you can raise attempt complete.
 </most_important_context>
 `
 
