@@ -191,6 +191,8 @@ export type WebviewMessage =
 	| customInstructionsMessage
 	| ChatModeMessage
 	| ChatMessageAction
+	| ChatModeMessage
+	| ChatMessageAction
 	| {
 			type:
 				| "skipWriteAnimation"
