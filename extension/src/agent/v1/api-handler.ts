@@ -288,9 +288,13 @@ ${this.customInstructions.trim()}
 			})
 
 			let retryAttempt = 0
-			const MAX_RETRIES = 3
+			const MAX_RETRIES = 2 // Reduced max retries
 
 			while (retryAttempt <= MAX_RETRIES) {
+				// Proactively compress context if we're on a retry
+				if (retryAttempt > 0) {
+					await this.manageContextWindow(true)
+				}
 				try {
 					const stream = await executeRequest()
 
@@ -430,17 +434,25 @@ ${this.customInstructions.trim()}
 	/**
 	 * Manages the context window to prevent token overflow
 	 */
-	private async manageContextWindow(): Promise<"chat_finished" | "compressed"> {
+	private async manageContextWindow(forceCompress: boolean = false): Promise<"chat_finished" | "compressed"> {
 		const provider = this.providerRef.deref()
 		if (!provider) {
 			throw new Error("Provider reference has been garbage collected")
 		}
 		const history = provider.koduDev?.getStateManager().state.apiConversationHistory || []
 		const isAutoSummaryEnabled = provider.getKoduDev()?.getStateManager().autoSummarize ?? false
-		// can enable on and of auto summary
+
+		// Early compression if context is getting large
 		if (!isAutoSummaryEnabled) {
-			const updatedMesages = truncateHalfConversation(history)
-			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(updatedMesages)
+			const currentSize = history.reduce((acc, message) => acc + estimateTokenCount(message), 0)
+			const contextWindow = this.api.getModel().info.contextWindow
+			const compressionThreshold = contextWindow * 0.8 // Compress at 80% capacity
+
+			if (forceCompress || currentSize > compressionThreshold) {
+				const updatedMessages = truncateHalfConversation(history)
+				await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(updatedMessages)
+				return "compressed"
+			}
 			return "compressed"
 		}
 		const state = await provider.getStateManager()?.getState()
@@ -499,6 +511,20 @@ ${this.customInstructions.trim()}
 	 * @param chunk - SSE response chunk
 	 */
 	private async *processStreamChunk(chunk: koduSSEResponse): AsyncGenerator<koduSSEResponse> {
+		// Dynamic delay based on context size
+		const provider = this.providerRef.deref()
+		if (provider) {
+			const history = provider.koduDev?.getStateManager().state.apiConversationHistory || []
+			const contextSize = history.reduce((acc, message) => acc + estimateTokenCount(message), 0)
+			const contextWindow = this.api.getModel().info.contextWindow
+			const contextRatio = contextSize / contextWindow
+
+			// Proactively manage context if it's getting too large
+			if (contextRatio > 0.8) {
+				await this.manageContextWindow(true)
+			}
+		}
+
 		switch (chunk.code) {
 			case 0:
 				break
