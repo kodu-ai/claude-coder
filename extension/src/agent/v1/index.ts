@@ -51,6 +51,20 @@ export class KoduDev {
 		this.stateManager = new StateManager(options)
 		this.providerRef = new WeakRef(provider)
 		this.apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
+		
+		// Initialize chat mode
+		this.currentChatMode = 'task';
+		this.stateManager.setState({ 
+			currentChatMode: 'task',
+			chatHistory: [] 
+		});
+
+		// Load chat history
+		this.stateManager.loadChatHistory().then(history => {
+			if (history.length > 0) {
+				this.stateManager.setState({ chatHistory: history });
+			}
+		});
 		this.toolExecutor = new ToolExecutor({
 			cwd: getCwd(),
 			alwaysAllowReadOnly: this.stateManager.alwaysAllowReadOnly,
