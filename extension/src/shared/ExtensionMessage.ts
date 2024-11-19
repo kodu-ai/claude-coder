@@ -91,12 +91,16 @@ export type ExtensionMessage =
 	| HideCommandBlockMessage
 	| RequestStatus
 
+export type ChatMode = 'task' | 'chat' | 'code';
+
 export interface ExtensionState {
 	version: string
 	maxRequestsPerTask?: number
 	lastShownAnnouncementId?: string
 	currentContextTokens: number
 	currentContextWindow: number
+	currentChatMode: ChatMode;
+	chatHistory?: ChatMessage[];
 	skipWriteAnimation?: boolean
 	autoSummarize?: boolean
 	customInstructions?: string
@@ -190,8 +194,17 @@ export type ClaudeAsk =
 	| "resume_completed_task"
 	| "tool"
 
+export interface ChatMessage {
+	id: string;
+	content: string;
+	role: 'user' | 'assistant';
+	timestamp: number;
+	images?: string[];
+}
+
 export type ClaudeSay =
 	| "task"
+	| "chat"
 	| "error"
 	| "api_req_started"
 	| "api_req_finished"

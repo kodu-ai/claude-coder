@@ -31,6 +31,7 @@ export class KoduDev {
 	private apiManager: ApiManager
 	public toolExecutor: ToolExecutor
 	public taskExecutor: TaskExecutor
+	private currentChatMode: ChatMode = 'task'
 	/**
 	 * If the last api message caused a file edit
 	 */
@@ -109,6 +110,12 @@ export class KoduDev {
 	async handleWebviewAskResponse(askResponse: ClaudeAskResponse, text?: string, images?: string[]) {
 		if (this.isAborting) {
 			return
+		}
+
+		// Handle chat mode messages differently
+		if (this.currentChatMode === 'chat') {
+			await this.handleChatMessage(text, images);
+			return;
 		}
 		if (this.taskExecutor.state === TaskState.ABORTED && (text || images)) {
 			let textBlock: Anthropic.TextBlockParam = {
@@ -354,6 +361,60 @@ export class KoduDev {
 		} finally {
 			this.isAborting = false
 		}
+	}
+
+	async switchChatMode(mode: ChatMode) {
+		this.currentChatMode = mode;
+		await this.stateManager.setState({ currentChatMode: mode });
+		await this.updateChatSystemPrompt();
+	}
+
+	private async handleChatMessage(text?: string, images?: string[]) {
+		if (!text && (!images || images.length === 0)) {
+			return;
+		}
+
+		// Create user message
+		const userMessage: ChatMessage = {
+			id: Date.now().toString(),
+			content: text || '',
+			role: 'user',
+			timestamp: Date.now(),
+			images
+		};
+
+		// Add to chat history
+		const chatHistory = this.stateManager.state.chatHistory || [];
+		chatHistory.push(userMessage);
+
+		// Get AI response
+		const response = await this.apiManager.getChatResponse(userMessage, chatHistory);
+
+		// Create assistant message
+		const assistantMessage: ChatMessage = {
+			id: (Date.now() + 1).toString(),
+			content: response,
+			role: 'assistant',
+			timestamp: Date.now()
+		};
+
+		// Update chat history
+		chatHistory.push(assistantMessage);
+		await this.stateManager.setState({ chatHistory });
+
+		// Update UI
+		await this.providerRef.deref()?.getWebviewManager().postStateToWebview();
+	}
+
+	private async updateChatSystemPrompt() {
+		const modePrompts = {
+			'chat': 'You are a helpful AI assistant engaging in casual conversation.',
+			'task': 'You are an AI coding assistant helping with development tasks.',
+			'code': 'You are an AI programming expert focused on writing and explaining code.'
+		};
+
+		const systemPrompt = modePrompts[this.currentChatMode];
+		await this.apiManager.updateSystemPrompt(systemPrompt);
 	}
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {
