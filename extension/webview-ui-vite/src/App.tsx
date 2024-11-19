@@ -78,13 +78,23 @@ const AppContent = () => {
 		<>
 			{showSettings && <SettingsPage />}
 			{showHistory && <HistoryView onDone={() => setShowHistory(false)} />}
-			{!showSettings && !showHistory && (
-				<ChatMode
-					mode={currentChatMode}
-					messages={chatHistory || []}
-					onSendMessage={handleChatMessage}
-					onModeChange={handleChatModeChange}
-				/>
+			{!isMaxContextReached && !showSettings && !showHistory && (
+				<>
+					<ChatMode
+						mode={currentChatMode}
+						messages={chatHistory || []}
+						onSendMessage={handleChatMessage}
+						onModeChange={handleChatModeChange}
+					/>
+					<ButtonSection
+						primaryButtonText={state.primaryButtonText}
+						secondaryButtonText={state.secondaryButtonText}
+						enableButtons={state.enableButtons}
+						isRequestRunning={isMessageRunning}
+						handlePrimaryButtonClick={handlePrimaryButtonClick}
+						handleSecondaryButtonClick={handleSecondaryButtonClick}
+					/>
+				</>
 			)}
 			{/* Do not conditionally load ChatView, it's expensive and there's state we don't want to lose (user input, disableInput, askResponse promise, etc.) */}
 			<ChatView

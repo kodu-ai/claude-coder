@@ -150,6 +150,19 @@ export type setApiKeyDialogMessage = {
 	type: "setApiKeyDialog"
 }
 
+export type ChatModeMessage = {
+    type: 'action';
+    action: 'switchChatMode';
+    mode: ChatMode;
+};
+
+export type ChatMessageAction = {
+    type: 'action';
+    action: 'chatMessage';
+    text?: string;
+    images?: string[];
+};
+
 export type WebviewMessage =
 	| setApiKeyDialogMessage
 	| pauseNextMessage
@@ -176,6 +189,8 @@ export type WebviewMessage =
 	| CommandInputMessage
 	| activeSystemPromptVariantMessage
 	| customInstructionsMessage
+	| ChatModeMessage
+	| ChatMessageAction
 	| {
 			type:
 				| "skipWriteAnimation"

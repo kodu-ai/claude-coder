@@ -31,6 +31,24 @@ const ChatView: React.FC<ChatViewProps> = ({
 	selectedModelSupportsPromptCache,
 	showHistoryView,
 }) => {
+	const { currentChatMode, chatHistory } = useExtensionState();
+    
+	const handleChatModeChange = useCallback((mode: ChatMode) => {
+		vscode.postMessage({
+			type: 'action',
+			action: 'switchChatMode',
+			mode
+		});
+	}, []);
+
+	const handleChatMessage = useCallback((content: string, images?: string[]) => {
+		vscode.postMessage({
+			type: 'action',
+			action: 'chatMessage',
+			text: content,
+			images
+		});
+	}, []);
 	const { openOutOfCreditDialog, shouldOpenOutOfCreditDialog } = useOutOfCreditDialog()
 	const [state, setState] = useAtom(chatState)
 	const [isMaxContextReached, setIsMaxContextReached] = useState(false)

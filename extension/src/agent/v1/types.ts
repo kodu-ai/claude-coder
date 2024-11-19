@@ -55,6 +55,8 @@ export interface KoduDevState {
 	askResponseText?: string
 	isHistoryItem?: boolean
 	isHistoryItemResumed?: boolean
+	currentChatMode: ChatMode;
+	chatHistory?: ChatMessage[];
 	/**
 	 * the list of diagnostics errors for the current task
 	 */
