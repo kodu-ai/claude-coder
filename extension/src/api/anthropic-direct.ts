@@ -118,9 +118,20 @@ export class AnthropicDirectHandler implements ApiHandler {
             )
 
             let content: Anthropic.ContentBlock[] = []
+            let usage = {
+                input_tokens: 0,
+                output_tokens: 0
+            }
 
             for await (const chunk of stream) {
-                if (chunk.type === 'content_block_start') {
+                if (chunk.type === 'message_start') {
+                    // Get initial token counts from message_start
+                    if (chunk.message?.usage) {
+                        usage.input_tokens = chunk.message.usage.input_tokens
+                        usage.output_tokens = chunk.message.usage.output_tokens
+                    }
+                    yield { code: 2, body: { text: "" } }
+                } else if (chunk.type === 'content_block_start') {
                     yield { code: 2, body: { text: "" } }
                 } else if (chunk.type === 'content_block_delta') {
                     if ('text' in chunk.delta) {
@@ -134,8 +145,26 @@ export class AnthropicDirectHandler implements ApiHandler {
                             .join('')
                         yield { code: 2, body: { text } }
                     }
+                    // Update output tokens from message_delta
+                    if ('usage' in chunk && chunk.usage?.output_tokens) {
+                        usage.output_tokens = chunk.usage.output_tokens
+                    }
                 } else if (chunk.type === 'message_stop') {
                     if ('content' in chunk && Array.isArray(chunk.content)) {
+                        // Calculate cost based on model pricing
+                        const model = this.getModel()
+                        const inputCost = (model.info.inputPrice / 1_000_000) * usage.input_tokens
+                        const outputCost = (model.info.outputPrice / 1_000_000) * usage.output_tokens
+                        const totalCost = inputCost + outputCost
+
+                        // Check if response was cached using metadata if available
+                        const metadata = (chunk as any).metadata
+                        const isCached = metadata?.cached === true
+
+                        // Set cache metrics based on caching status
+                        const cacheCreationInputTokens = isCached ? 0 : usage.input_tokens
+                        const cacheReadInputTokens = isCached ? usage.input_tokens : 0
+
                         yield {
                             code: 1,
                             body: {
@@ -148,19 +177,19 @@ export class AnthropicDirectHandler implements ApiHandler {
                                     stop_reason: 'end_turn',
                                     stop_sequence: null,
                                     usage: {
-                                        input_tokens: 0,
-                                        output_tokens: 0,
-                                        cache_creation_input_tokens: 0,
-                                        cache_read_input_tokens: 0
+                                        input_tokens: usage.input_tokens,
+                                        output_tokens: usage.output_tokens,
+                                        cache_creation_input_tokens: cacheCreationInputTokens,
+                                        cache_read_input_tokens: cacheReadInputTokens
                                     }
                                 },
                                 internal: {
-                                    cost: 0,
+                                    cost: totalCost,
                                     userCredits: 0,
-                                    inputTokens: 0,
-                                    outputTokens: 0,
-                                    cacheCreationInputTokens: 0,
-                                    cacheReadInputTokens: 0
+                                    inputTokens: usage.input_tokens,
+                                    outputTokens: usage.output_tokens,
+                                    cacheCreationInputTokens: cacheCreationInputTokens,
+                                    cacheReadInputTokens: cacheReadInputTokens
                                 }
                             }
                         }
@@ -171,6 +200,12 @@ export class AnthropicDirectHandler implements ApiHandler {
 
             // Handle case where stream ends without a message_stop
             if (content.length > 0) {
+                // Calculate cost based on model pricing
+                const model = this.getModel()
+                const inputCost = (model.info.inputPrice / 1_000_000) * usage.input_tokens
+                const outputCost = (model.info.outputPrice / 1_000_000) * usage.output_tokens
+                const totalCost = inputCost + outputCost
+
                 yield {
                     code: 1,
                     body: {
@@ -183,18 +218,18 @@ export class AnthropicDirectHandler implements ApiHandler {
                             stop_reason: 'end_turn',
                             stop_sequence: null,
                             usage: {
-                                input_tokens: 0,
-                                output_tokens: 0,
-                                cache_creation_input_tokens: 0,
+                                input_tokens: usage.input_tokens,
+                                output_tokens: usage.output_tokens,
+                                cache_creation_input_tokens: usage.input_tokens,
                                 cache_read_input_tokens: 0
                             }
                         },
                         internal: {
-                            cost: 0,
+                            cost: totalCost,
                             userCredits: 0,
-                            inputTokens: 0,
-                            outputTokens: 0,
-                            cacheCreationInputTokens: 0,
+                            inputTokens: usage.input_tokens,
+                            outputTokens: usage.output_tokens,
+                            cacheCreationInputTokens: usage.input_tokens,
                             cacheReadInputTokens: 0
                         }
                     }
