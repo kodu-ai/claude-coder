@@ -250,6 +250,8 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				toolRes = "Command execution completed successfully."
 			}
 
+			this.logger(`Output: ${this.output}`)
+
 			if ((userFeedback?.text && userFeedback.text.length) || userFeedback?.images?.length) {
 				toolRes += `\n\nUser feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
 				await this.params.updateAsk(
