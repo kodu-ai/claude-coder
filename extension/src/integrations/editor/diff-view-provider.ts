@@ -101,6 +101,9 @@ class ModifiedContentProvider implements vscode.FileSystemProvider {
 	private _emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>()
 	readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]> = this._emitter.event
 
+	// Add a promise map to track pending updates
+	private pendingUpdates = new Map<string, Promise<void>>()
+
 	watch(uri: vscode.Uri): vscode.Disposable {
 		return new vscode.Disposable(() => {})
 	}
@@ -128,9 +131,42 @@ class ModifiedContentProvider implements vscode.FileSystemProvider {
 		return data
 	}
 
-	writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean }): void {
-		this.content.set(uri.toString(), content)
-		this._emitter.fire([{ type: vscode.FileChangeType.Changed, uri }])
+	async writeFile(
+		uri: vscode.Uri,
+		content: Uint8Array,
+		options: { create: boolean; overwrite: boolean }
+	): Promise<void> {
+		const uriString = uri.toString()
+
+		// Create a promise that resolves when the content is fully applied
+		const updatePromise = new Promise<void>((resolve) => {
+			// Store content
+			this.content.set(uriString, content)
+
+			// Create one-time listener for document change
+			const disposable = vscode.workspace.onDidChangeTextDocument((e) => {
+				if (e.document.uri.toString() === uriString) {
+					disposable.dispose()
+					resolve()
+				}
+			})
+
+			// Fire the change event
+			this._emitter.fire([{ type: vscode.FileChangeType.Changed, uri }])
+		})
+
+		// Store the promise and clean it up when done
+		this.pendingUpdates.set(uriString, updatePromise)
+		await updatePromise
+		this.pendingUpdates.delete(uriString)
+	}
+
+	// Optional: Add method to wait for pending updates
+	async waitForPendingUpdates(uri: vscode.Uri): Promise<void> {
+		const pending = this.pendingUpdates.get(uri.toString())
+		if (pending) {
+			await pending
+		}
 	}
 
 	delete(uri: vscode.Uri): void {
@@ -332,8 +368,8 @@ export class DiffViewProvider {
 			)
 			this.isFinalReached = true
 			await this.applyUpdate(accumulatedContent)
-			this.activeLineController.clear()
-			this.fadedOverlayController.clear()
+			await this.activeLineController.clear()
+			await this.fadedOverlayController.clear()
 			return
 		}
 
@@ -388,10 +424,17 @@ export class DiffViewProvider {
 		].join("\n")
 
 		// Update content with proper options to maintain file history
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, new TextEncoder().encode(updatedContent), {
-			create: false,
-			overwrite: true,
-		})
+		await DiffViewProvider.modifiedContentProvider.writeFile(
+			this.modifiedUri,
+			new TextEncoder().encode(updatedContent),
+			{
+				create: false,
+				overwrite: true,
+			}
+		)
+		// Optional: Add extra safety by waiting for next VS Code tick
+		await new Promise((resolve) => setTimeout(resolve, 0))
+
 		this.streamedContent = updatedContent
 
 		// Update decoration for the changed line
@@ -456,10 +499,13 @@ export class DiffViewProvider {
 		this.logger(`Applying update: content length ${content.length}`, "info")
 
 		// Update content with proper options to maintain file history
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, new TextEncoder().encode(content), {
+		await DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, new TextEncoder().encode(content), {
 			create: false,
 			overwrite: true,
 		})
+		// Optional: Add extra safety by waiting for next VS Code tick
+		await new Promise((resolve) => setTimeout(resolve, 0))
+
 		this.streamedContent = content
 	}
 
