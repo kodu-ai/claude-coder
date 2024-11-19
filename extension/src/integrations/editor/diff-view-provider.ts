@@ -517,14 +517,19 @@ class DiffViewProvider {
 	}
 
 	private async scrollToModifiedLine(): Promise<void> {
-		if (!this.diffEditor) {
-			return
-		}
+        if (!this.diffEditor) {
+            return;
+        }
 
-		const line = Math.max(0, this.lastModifiedLine)
-		const range = new vscode.Range(line, 0, line, this.diffEditor.document.lineAt(line).text.length)
-		this.diffEditor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport)
-	}
+        const totalLines = this.diffEditor.document.lineCount;
+        if (totalLines === 0) {
+            return;
+        }
+
+        const line = Math.min(Math.max(0, this.lastModifiedLine), totalLines - 1);
+        const range = new vscode.Range(line, 0, line, this.diffEditor.document.lineAt(line).text.length);
+        this.diffEditor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+    }
 
 	private async scrollToBottom(): Promise<void> {
 		if (!this.diffEditor) {
