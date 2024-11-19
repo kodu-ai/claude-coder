@@ -73,6 +73,43 @@ export class ApiManager {
 	private customInstructions?: string
 	private providerRef: WeakRef<ExtensionProvider>
 	private currentSystemPrompt = ""
+	private currentChatMode: ChatMode = 'task'
+
+	async getChatResponse(
+		userMessage: ChatMessage, 
+		chatHistory: ChatMessage[]
+	): Promise<string> {
+		const messages: Anthropic.Messages.MessageParam[] = chatHistory.map(msg => ({
+			role: msg.role,
+			content: msg.role === 'user' && msg.images 
+				? [
+					{ type: 'text', text: msg.content },
+					...formatImagesIntoBlocks(msg.images)
+				]
+				: [{ type: 'text', text: msg.content }]
+		}));
+
+		const stream = await this.api.createMessageStream(
+			this.currentSystemPrompt,
+			messages,
+			'normal',
+			null,
+			this.customInstructions
+		);
+
+		let response = '';
+		for await (const chunk of stream) {
+			if (chunk.code === 1 && chunk.body?.anthropic?.content?.[0]?.text) {
+				response = chunk.body.anthropic.content[0].text;
+			}
+		}
+
+		return response;
+	}
+
+	async updateSystemPrompt(prompt: string): Promise<void> {
+		this.currentSystemPrompt = prompt;
+	}
 
 	constructor(provider: ExtensionProvider, apiConfiguration: ApiConfiguration, customInstructions?: string) {
 		this.api = buildApiHandler(apiConfiguration)

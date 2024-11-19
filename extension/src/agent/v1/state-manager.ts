@@ -134,8 +134,22 @@ export class StateManager {
 	}
 
 	// Methods to modify the properties
-	public setState(newState: KoduDevState): void {
-		this._state = newState
+	public async setState(newState: Partial<KoduDevState>): Promise<void> {
+		this._state = { ...this._state, ...newState };
+		
+		// Update UI if needed
+		const provider = this.providerRef.deref();
+		if (provider) {
+			await provider.getWebviewManager().postStateToWebview();
+		}
+	}
+
+	public async getChatHistory(): Promise<ChatMessage[]> {
+		return this.state.chatHistory || [];
+	}
+
+	public async updateChatHistory(messages: ChatMessage[]): Promise<void> {
+		await this.setState({ chatHistory: messages });
 	}
 
 	public setSkipWriteAnimation(newValue: boolean | undefined) {
