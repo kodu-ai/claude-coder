@@ -1,5 +1,3 @@
-// src/test/suite/extension.test.ts
-
 import { before, suite, test } from "mocha"
 import * as vscode from "vscode"
 
@@ -24,10 +22,10 @@ suite("Extension Test Suite", () => {
 
 		let task = `
 			We are currently solving the following issue within our repository. Here is the issue text:
-			--- BEGIN ISSUE ---
+			<issue>
 			${problemStatement}
-			--- END ISSUE ---
-			Now, you're going to solve this issue on your own. When you're satisfied with all of the changes you've made, you can finally raise the attempt_completion tool. Not before that. 
+			</issue>
+			Your job is to solve this issue on your own by making changes to the source files. When you're satisfied with all of the changes you've made, you can finally raise the attempt_completion tool. Not before that. 
 			You cannot use any interactive session commands (e.g. vim) in this environment, but you can write scripts and run them. E.g. you can write a python3 script and then run it with "python3 <script_name>.py".
 			I've already taken care of all changes to any of the test files described in the issue. This means you DON'T have to modify the testing logic or any of the tests in any way!
 			I have also already installed all dependencies for you, so you don't have to worry about that.
@@ -38,11 +36,14 @@ suite("Extension Test Suite", () => {
 			Follow these steps to resolve the issue:
 			1. As a first step, it might be a good idea to explore the repo to familiarize yourself with its structure.
 			2. Create a script to reproduce the error and execute it with \`python3 <filename.py>\` using the execute command tool, to confirm the error
-			3. Edit the sourcecode of the repo to resolve the issue
+			3. Edit the sourcecode of the repo to resolve the issue, make the fix as minimal as possible while making sure it makes your reproduce script work again
 			4. Rerun your reproduce script and confirm that the error is fixed!
 			5. Think about edgecases and make sure your fix handles them as well
+			6. Double check that you haven't accidentally changed any other files or code that is not related to the issue. If you did, go back to the original state of the files and only make the minimal changes needed to fix the issue. Remember to return the full content of the file when editing it! Making any changes to parts of the code that are not related to the issue will result in a failed attempt.
+			7. When you're done and you have checked twice that your script now executes without errors, raise the attempt_completion tool to let us know that you're ready for us to review your changes.
 
 			IMPORTANT GUIDELINES:
+			0. You MUST ALWAYS return the full content of the file when editing it, including all indentation and formatting. Failure to do so will result in a failed attempt.
 			1. Always start by trying to replicate the bug that the issues discusses.
 					If the issue includes code for reproducing the bug, we recommend that you re-implement that in your environment, and run it to make sure you can reproduce the bug.
 					Then start trying to fix it.
@@ -56,6 +57,8 @@ suite("Extension Test Suite", () => {
 			3. When editing files, it is easy to accidentally specify a wrong line number or to write code with incorrect indentation. Always check the code after you issue an edit to make sure that it reflects what you wanted to accomplish. If it didn't, issue another tool use to fix it.
 
 			4. You are not allowed to use the web_search, ask_followup_question and ask_consultant tools at all!
+
+			5. Do not touch the test files! If you need to test something you must refer to the first point
 		`
 		const task2 = "Tell me what date is today using the execute command tool"
 
