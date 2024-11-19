@@ -50,6 +50,16 @@ export const anthropicModels: Record<string, ModelInfo> = {
 		cacheWritesPrice: 3.75, // $3.75 per million tokens
 		cacheReadsPrice: 0.3, // $0.30 per million tokens
 	},
+	"claude-3-5-sonnet-20241022": {
+		maxTokens: 8192,
+		contextWindow: 200_000,
+		supportsImages: true,
+		supportsPromptCache: true,
+		inputPrice: 3.0,
+		outputPrice: 15.0,
+		cacheWritesPrice: 3.75,
+		cacheReadsPrice: 0.3,
+	},
 	"claude-3-opus-20240229": {
 		maxTokens: 4096,
 		contextWindow: 200_000,
