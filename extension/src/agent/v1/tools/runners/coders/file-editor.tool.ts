@@ -8,7 +8,7 @@ import fs from "fs"
 import { detectCodeOmission } from "./detect-code-omission"
 import { parseDiffBlocks, applyEditBlocksToFile, checkFileExists, preprocessContent } from "./utils"
 
-export class WriteFileTool extends BaseAgentTool {
+export class FileEditorTool extends BaseAgentTool {
 	protected params: AgentToolParams
 	public diffViewProvider: DiffViewProvider
 	private isProcessingFinalContent: boolean = false
@@ -241,7 +241,7 @@ export class WriteFileTool extends BaseAgentTool {
 				)
 				return this.toolResponse(
 					"success",
-					`The user made the following updates to your content:\n\n${userEdits}\n\nThe updated content has been successfully saved to ${relPath.toPosix()}.
+					`The user made the following updates to your content:\n\nThe updated content has been successfully saved to ${relPath.toPosix()}
 					Here is the latest file content:
 					\`\`\`
 					${finalContent}

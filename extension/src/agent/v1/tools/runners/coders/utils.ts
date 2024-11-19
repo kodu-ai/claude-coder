@@ -49,6 +49,174 @@ export function findCodeBlock(content: string, startIndex: number): { start: num
 	return null
 }
 
+export async function findSimilarLines(
+	searchContent: string,
+	content: string,
+	threshold: number = 0.6
+): Promise<string> {
+	const searchLines = searchContent.split("\n")
+	const contentLines = content.split("\n")
+	const { SequenceMatcher } = await import("difflib")
+
+	let bestRatio = 0
+	let bestMatch: string[] = []
+
+	for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
+		const chunk = contentLines.slice(i, i + searchLines.length)
+		const matcher = new SequenceMatcher(null, searchLines.join("\n"), chunk.join("\n"))
+		const similarity = matcher.ratio()
+		if (similarity > bestRatio) {
+			bestRatio = similarity
+			bestMatch = chunk
+		}
+	}
+
+	return bestRatio >= threshold ? bestMatch.join("\n") : ""
+}
+
+export async function applyEditBlocksToFile(content: string, editBlocks: EditBlock[]): Promise<string> {
+	let newContent = content
+	for (const block of editBlocks) {
+		const searchContent = block.searchContent
+		const replaceContent = block.replaceContent
+
+		const result = replaceIgnoringIndentation(newContent, searchContent, replaceContent)
+		if (result !== null) {
+			newContent = result
+		} else {
+			// Try to find similar lines (optional)
+			const similarLines = await findSimilarLines(searchContent, newContent)
+			if (similarLines) {
+				const similarIndex = newContent.indexOf(similarLines)
+				newContent =
+					newContent.substring(0, similarIndex) +
+					replaceContent +
+					newContent.substring(similarIndex + similarLines.length)
+			} else {
+				console.log(`Failed to find match for block: ${block.searchContent.slice(0, 100)}...`, "warn")
+				throw new Error(`Failed to find matching block in file`)
+			}
+		}
+	}
+	return newContent
+}
+
+// Add the new replaceIgnoringIndentation method
+export function replaceIgnoringIndentation(
+	content: string,
+	searchContent: string,
+	replaceContent: string
+): string | null {
+	const contentLines = content.split(/\r?\n/)
+	const searchLines = searchContent.split(/\r?\n/)
+	const replaceLines = replaceContent.split(/\r?\n/)
+
+	// Strip leading whitespace from searchLines for matching
+	const strippedSearchLines = searchLines.map((line) => line.trimStart())
+
+	// Try to find a match in contentLines
+	for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
+		const contentSlice = contentLines.slice(i, i + searchLines.length)
+		// Strip leading whitespace from contentSlice
+		const strippedContentSlice = contentSlice.map((line) => line.trimStart())
+
+		// Compare the stripped lines
+		if (strippedContentSlice.join("\n") === strippedSearchLines.join("\n")) {
+			// Match found, calculate indentation difference for each line
+			const indentedReplaceLines = adjustIndentationPerLine(contentSlice, searchLines, replaceLines)
+
+			// Replace the original lines with the indented replacement lines
+			const newContentLines = [
+				...contentLines.slice(0, i),
+				...indentedReplaceLines,
+				...contentLines.slice(i + searchLines.length),
+			]
+
+			return newContentLines.join("\n")
+		}
+	}
+
+	// No match found
+	return null
+}
+
+// Helper method to adjust indentation per line
+export function adjustIndentationPerLine(
+	contentSlice: string[],
+	searchLines: string[],
+	replaceLines: string[]
+): string[] {
+	const adjustedLines: string[] = []
+
+	for (let idx = 0; idx < replaceLines.length; idx++) {
+		const replaceLine = replaceLines[idx]
+		const searchLine = searchLines[idx] || ""
+		const contentLine = contentSlice[idx] || ""
+
+		// Get indentation levels
+		const searchIndentation = searchLine.match(/^\s*/)?.[0] || ""
+		const contentIndentation = contentLine.match(/^\s*/)?.[0] || ""
+		const replaceIndentation = replaceLine.match(/^\s*/)?.[0] || ""
+
+		// Calculate indentation difference
+		const indentationDifference = contentIndentation.length - searchIndentation.length
+
+		// Adjust replace line indentation
+		let newIndentationLength = replaceIndentation.length + indentationDifference
+		if (newIndentationLength < 0) {
+			newIndentationLength = 0
+		}
+		const newIndentation = " ".repeat(newIndentationLength)
+		const lineContent = replaceLine.trimStart()
+		adjustedLines.push(newIndentation + lineContent)
+	}
+
+	return adjustedLines
+}
+
+export function parseDiffBlocks(diffContent: string, path: string): EditBlock[] {
+	const editBlocks: EditBlock[] = []
+	const lines = diffContent.split("\n")
+	let i = 0
+
+	while (i < lines.length) {
+		if (lines[i].startsWith("SEARCH")) {
+			const searchLines: string[] = []
+			i++
+			while (i < lines.length && lines[i] !== "=======") {
+				searchLines.push(lines[i])
+				i++
+			}
+
+			if (i < lines.length && lines[i] === "=======") {
+				i++
+			}
+
+			const replaceLines: string[] = []
+			if (i < lines.length && lines[i] === "REPLACE") {
+				i++
+			}
+			while (i < lines.length && lines[i] !== "SEARCH") {
+				replaceLines.push(lines[i])
+				i++
+			}
+
+			const searchContent = searchLines.join("\n").trimEnd()
+			const replaceContent = replaceLines.join("\n").trimEnd()
+
+			editBlocks.push({
+				path: path,
+				searchContent,
+				replaceContent,
+				isDelete: replaceContent.trim() === "",
+			})
+		} else {
+			i++
+		}
+	}
+	return editBlocks
+}
+
 export function findBestBlockMatch(
 	searchContent: string,
 	fileContent: string,
@@ -107,85 +275,6 @@ export function findBestBlockMatch(
 	}
 
 	return bestMatch
-}
-
-export async function applyEditBlocksToFile(content: string, editBlocks: EditBlock[]): Promise<string> {
-	let lines = content.split("\n")
-
-	// Process blocks from bottom to top to maintain line numbers
-	editBlocks.sort((a, b) => {
-		const matchA = findBestBlockMatch(a.searchContent, content)
-		const matchB = findBestBlockMatch(b.searchContent, content)
-		return (matchB?.start || 0) - (matchA?.start || 0)
-	})
-
-	for (const block of editBlocks) {
-		const match = findBestBlockMatch(block.searchContent, lines.join("\n"))
-
-		if (match) {
-			const beforeLines = lines.slice(0, match.start)
-			const afterLines = lines.slice(match.end + 1)
-			const replaceLines = block.replaceContent.trim().split("\n")
-
-			// Handle complete deletions
-			if (block.replaceContent.trim() === "") {
-				lines = [...beforeLines, ...afterLines]
-			} else {
-				// Maintain indentation of the first line
-				const originalIndent = lines[match.start].match(/^\s*/)?.[0] || ""
-				const indentedReplace = replaceLines.map((line, i) => (i === 0 ? line : originalIndent + line))
-				lines = [...beforeLines, ...indentedReplace, ...afterLines]
-			}
-		} else {
-			// logger(`Failed to find match for block: ${block.searchContent.slice(0, 100)}...`, "warn")
-			throw new Error(`Failed to find matching block in file`)
-		}
-	}
-
-	return lines.join("\n")
-}
-
-export function parseDiffBlocks(diffContent: string, path: string): EditBlock[] {
-	const editBlocks: EditBlock[] = []
-	const lines = diffContent.split("\n")
-	let i = 0
-
-	while (i < lines.length) {
-		if (lines[i].startsWith("SEARCH")) {
-			const searchLines: string[] = []
-			i++
-			while (i < lines.length && lines[i] !== "=======") {
-				searchLines.push(lines[i])
-				i++
-			}
-
-			if (i < lines.length && lines[i] === "=======") {
-				i++
-			}
-
-			const replaceLines: string[] = []
-			if (i < lines.length && lines[i] === "REPLACE") {
-				i++
-			}
-			while (i < lines.length && lines[i] !== "SEARCH") {
-				replaceLines.push(lines[i])
-				i++
-			}
-
-			const searchContent = searchLines.join("\n").trimEnd()
-			const replaceContent = replaceLines.join("\n").trimEnd()
-
-			editBlocks.push({
-				path: path,
-				searchContent,
-				replaceContent,
-				isDelete: replaceContent.trim() === "",
-			})
-		} else {
-			i++
-		}
-	}
-	return editBlocks
 }
 
 export async function checkFileExists(relPath: string): Promise<boolean> {

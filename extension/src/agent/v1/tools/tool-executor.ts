@@ -15,14 +15,14 @@ import {
 	AttemptCompletionTool,
 	AskFollowupQuestionTool,
 	ReadFileTool,
-	WriteFileTool,
+	FileEditorTool,
 	UrlScreenshotTool,
 	AskConsultantTool,
 } from "."
 import { WebSearchTool } from "./runners/web-search-tool"
 import { BaseAgentTool } from "./base-agent.tool"
 import ToolParser from "./tool-parser/tool-parser"
-import { tools } from "./schema"
+import { tools, writeToFileTool } from "./schema"
 import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
 import { ChatTool } from "../../../shared/new-tools"
@@ -77,7 +77,14 @@ export class ToolExecutor {
 		this.queue = new PQueue({ concurrency: 1 })
 
 		this.toolParser = new ToolParser(
-			tools.map((tool) => tool.schema),
+			tools
+				.map((tool) => tool.schema)
+				.concat([
+					{
+						name: "edit_file_blocks",
+						schema: writeToFileTool.schema.schema,
+					},
+				]),
 			{
 				onToolUpdate: this.handleToolUpdate.bind(this),
 				onToolEnd: this.handleToolEnd.bind(this),
@@ -119,7 +126,8 @@ export class ToolExecutor {
 			read_file: ReadFileTool,
 			list_files: ListFilesTool,
 			search_files: SearchFilesTool,
-			write_to_file: WriteFileTool,
+			write_to_file: FileEditorTool,
+			edit_file_blocks: FileEditorTool,
 			list_code_definition_names: ListCodeDefinitionNamesTool,
 			execute_command: ExecuteCommandTool,
 			ask_followup_question: AskFollowupQuestionTool,
@@ -267,7 +275,7 @@ export class ToolExecutor {
 		}
 
 		// Handle partial updates for write file tool
-		if (context.tool instanceof WriteFileTool && params.path) {
+		if (context.tool instanceof FileEditorTool && params.path) {
 			if (params.kodu_content) {
 				if (params.kodu_content) {
 					await context.tool.handlePartialUpdate(params.path, params.kodu_content)

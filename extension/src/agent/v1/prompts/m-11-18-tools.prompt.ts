@@ -46,21 +46,17 @@ Usage:
 <path>File path here</path>
 </read_file>
 
-## write_to_file
-Description: Request to write content to a file at the specified path. If the file exists, provide the changes using 'SEARCH/REPLACE' blocks to clearly indicate modifications. If the file doesn't exist, provide the full intended content of the file in the 'content' parameter, without any truncation. This tool will automatically create any directories needed to write the file.
+## edit_file_blocks
+Description: Request to edit specific blocks of content within a file. This tool is used to modify existing files by replacing or deleting specific blocks of content. It is particularly useful for updating code, configuration files, or structured documents. You must provide the 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly, and each 'REPLACE' block should provide the intended changes.
+This is more powerful than the write_to_file tool as it allows you to modify specific blocks of content within a file without replacing the entire file content. reduce the risk of errors and unintended changes.
+A good example of using this tool is when you need to update specific functions, lines of code or configuration settings within a file without affecting the rest of the content.
 Parameters:
-- path: (required) The path of the file to write to (relative to the current working directory ${cwd.toPosix()})
-- kodu_content: (required when creating a new file) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN.
-- kodu_diff: (required when modifying an existing file) The 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly, and each 'REPLACE' block should provide the intended changes.
+- path: (required) The path of the file to edit (relative to the current working directory ${cwd.toPosix()})
+- kodu_diff: (required) The 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly, and each 'REPLACE' block should provide the intended changes.
 
-Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...'. If you are writing code to a new file, you must provide the complete code, no placeholders, no partial updates; you must write all the code! When modifying an existing file, **MUST** use the 'kodu_diff' parameter and not include the 'content' parameter.
+CRITICAL GUIDANCE FOR USING SEARCH/REPLACE:
 
-### IMPORTANT ###
-When modifying an existing file, **NEVER** include the 'content' parameter. Instead, provide the 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file inside the <kodu_diff> parameter
-
-### WRITE_TO_FILE (CRITICAL GUIDANCE FOR USING SEARCH/REPLACE):
-
-Accurately generating 'SEARCH/REPLACE' blocks when using the write_to_file tool is crucial to avoid errors and ensure modifications are correctly applied. Follow these structured steps:
+Accurately generating 'SEARCH/REPLACE' blocks when using the edit_file_blocks tool is crucial to avoid errors and ensure modifications are correctly applied. Follow these structured steps:
 
 ## Step-by-Step Checklist for Generating 'SEARCH/REPLACE' Blocks:
 
@@ -69,7 +65,7 @@ Accurately generating 'SEARCH/REPLACE' blocks when using the write_to_file tool 
    - Avoid unnecessary re-reads; only read again if the content is missing or has changed.
 
 2. **Confirm the Latest Content**:
-   - Ensure you have the last content from either a previous 'read_file' operation, user input, or a recent 'write_to_file' tool call.
+   - Ensure you have the last content from either a previous 'read_file' operation, user input, or a recent tool call.
 
 3. **Avoid Placeholders**:
    - Do **NOT** use placeholders such as '// ...' or comments like '/ your implementation here'. The 'REPLACE' section must reflect the actual and complete intended changes.
@@ -78,17 +74,17 @@ Accurately generating 'SEARCH/REPLACE' blocks when using the write_to_file tool 
    - Use 'SEARCH/REPLACE' blocks when modifying existing files.
    - Each 'SEARCH' block must exactly match existing content. Any deviation may lead to errors.
    - Separate the 'SEARCH' and 'REPLACE' blocks with '======='.
-   - When creating a new file, provide complete content using '<kodu_content>.
 
 5. **ENSURE** that the SEARCH block contains at least 5 contiguous lines of code or additional context, such as comments, from the original file. This approach improves the reliability of matching and minimizes unintended changes during modification.
   - Always strive to capture surrounding lines that help uniquely identify the location of your intended change.
   - Contextual lines may include comments, whitespace, and code directly before or after the target change to ensure a robust match.
   - When in doubt, prioritize including more lines for context while maintaining SEARCH sections that are concise and relevant to avoid overwhelming matches.
 
+Usage:
 
 -- Example 1: Modifying a Variable in a File
 
-<write_to_file>
+<edit_file_blocks>
 <path>src/example.js</path>
 <kodu_diff>
 SEARCH
@@ -107,13 +103,13 @@ const c = 30;
 const x = 100; // Modified value for testing
 const y = 50;
 </kodu_diff>
-</write_to_file>
+</edit_file_blocks>
 
 -- Example 2: Adding an Import Statement and Removing a Function
 
 -- 1. Adding an import:
 
-<write_to_file>
+<edit_file_blocks>
 <path>mathweb/flask/app.py</path>
 <kodu_diff>
 SEARCH
@@ -137,11 +133,11 @@ class Example:
     def __init__(self):
         pass
 </kodu_diff>
-</write_to_file>
+</edit_file_blocks>
 
 -- 2. Removing an existing function:
 
-<write_to_file>
+<edit_file_blocks>
 <path>mathweb/flask/app.py</path>
 <kodu_diff>
 SEARCH
@@ -162,11 +158,11 @@ REPLACE
 def another_function():
     print("This is a test")
 </kodu_diff>
-</write_to_file>
+</edit_file_blocks>
 
 -- Example 3: Updating a Function Call
 
-<write_to_file>
+<edit_file_blocks>
 <path>mathweb/flask/app.py</path>
 <kodu_diff>
 SEARCH
@@ -189,11 +185,11 @@ def process_number(n):
 def another_function_call():
     pass
 </kodu_diff>
-</write_to_file>
+</edit_file_blocks>
 
 -- Example 4: Creating a New File
 
-<write_to_file>
+<edit_file_blocks>
 <path>hello.py</path>
 <kodu_content>
 def hello():
@@ -201,11 +197,11 @@ def hello():
 
     print("hello")
 </kodu_content>
-</write_to_file>
+</edit_file_blocks>
 
 -- Example 5: Modifying an Existing File to Import a Function
 
-<write_to_file>
+<edit_file_blocks>
 <path>main.py</path>
 <kodu_diff>
 SEARCH
@@ -229,11 +225,11 @@ class HelloWorld:
     def greet(self):
         pass
 </kodu_diff>
-</write_to_file>
+</edit_file_blocks>
 
 -- Example 6: Multiple Hunks in a Single File
 
-<write_to_file>
+<edit_file_blocks>
 <path>src/example.js</path>
 <kodu_diff>
 SEARCH
@@ -271,10 +267,10 @@ function add(a, b) {
 const c = 3;
 const d = 4;
 </kodu_diff>
-</write_to_file>
+</edit_file_blocks>
 
 Example 7 - Deleting an entire class:
-<write_to_file>
+<edit_file_blocks>
 <path>src/services/user-service.ts</path>
 <kodu_diff>
 SEARCH
@@ -311,55 +307,25 @@ REPLACE
 // Services registry
 export const services = {
 </kodu_diff>
-</write_to_file>
+</edit_file_blocks>
 
-Example 8 - Deleting multiple related functions and their references:
+
+
+## write_to_file
+Description: Request to write content to a file at the specified path. write_to_file creates or replace the entire file content. you must provide the full intended content of the file in the 'content' parameter, without any truncation. This tool will automatically create any directories needed to write the file, and it will overwrite the file if it already exists. If you only want to modify an existing file blocks, you should use edit_file_blocks tool with 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file.
+This tool is powerful and should be used for creating new files or replacing the entire content of existing files when necessary. Always provide the complete content of the file in the 'content' parameter, without any truncation.
+A good example of replacing the entire content of a file is when dealing with complex refactoring that requries a complete rewrite of the file content or a large amount of deletions and additions.
+Parameters:
+- path: (required) The path of the file to write to (relative to the current working directory ${cwd.toPosix()})
+- kodu_content: (required when creating a new file) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN. Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...'. If you are writing code to a new file, you must provide the complete code, no placeholders, no partial updates; you must write all the code!
+Usage:
 <write_to_file>
-<path>src/utils/math-helpers.ts</path>
-<kodu_diff>
-SEARCH
-// Legacy calculation functions
-export function calculateLegacyMetrics(data: number[]): MetricResult {
-    const total = data.reduce((sum, val) => sum + val, 0);
-    return {
-        total,
-        average: total / data.length
-    };
-}
-
-export function processLegacyData(input: RawData): ProcessedData {
-    return {
-        metrics: calculateLegacyMetrics(input.values),
-        timestamp: new Date()
-    };
-}
-
-// Helper function for legacy conversions
-export function convertLegacyFormat(data: OldFormat): NewFormat {
-    return {
-        id: data.identifier,
-        value: data.val,
-        timestamp: new Date(data.time)
-    };
-}
-
-=======
-REPLACE
-
-SEARCH
-// Import legacy functions
-import { 
-    calculateLegacyMetrics, 
-    processLegacyData, 
-    convertLegacyFormat 
-} from './math-helpers';
-
-export function processData(data: InputData): OutputData {
-=======
-REPLACE
-export function processData(data: InputData): OutputData {
-</kodu_diff>
+<path>File path here</path>
+<kodu_content>
+Your complete file content here without any code omissions or truncations (e.g., no placeholders like '// your code here')
+</kodu_content>
 </write_to_file>
+
 
 ## search_files
 Description: Request to perform a regex search across files in a specified directory, providing context-rich results. This tool searches for patterns or specific content across multiple files, displaying each match with encapsulating context.
@@ -508,6 +474,44 @@ Explanation: In this example we finished creating a node.js server file, and now
 <commandToRun>node server.js</commandToRun>
 <serverName>node-server</serverName>
 </server_runner_tool>
+
+## Example 4: Editing a file block with edit_file_blocks
+Explanation: In this example, we need to update a specific block of code in a file. We will use the edit_file_blocks tool to replace the existing block with the new block.
+<edit_file_blocks>
+<path>src/example.js</path>
+<kodu_diff>
+SEARCH
+class Job {
+    private title: string;
+    private company: string;
+    private location: string;
+    private salary: number;
+    
+    constructor(title: string, company: string, location: string, salary: number) {
+        this.title = title;
+        this.company = company;
+        this.location = location;
+        this.salary = salary;
+    }
+=======
+REPLACE
+class Job {
+    private title: string;
+    private company: string;
+    private location: string;
+    private salary: number;
+    private description: string;
+
+    constructor(title: string, company: string, location: string, salary: number, description: string) {
+        this.title = title;
+        this.company = company;
+        this.location = location;
+        this.salary = salary;
+        this.description = description;
+    }
+</kodu_diff>
+</edit_file_blocks>
+
 
 # Tool Use Guidelines
 
