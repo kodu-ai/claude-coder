@@ -24,6 +24,7 @@ import TaskHeader from "../TaskHeader/TaskHeader"
 import { Button } from "../ui/button"
 import { AlertCircle } from "lucide-react"
 import AnnouncementBanner from "../ announcement-banner"
+import DeprecationBanner from "../ announcement-banner/deprecation-banner"
 
 const ChatView: React.FC<ChatViewProps> = ({
 	isHidden,
@@ -305,6 +306,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 					flexDirection: "column",
 					overflowY: "auto",
 				}}>
+				{/* <DeprecationBanner /> */}
 				<AnnouncementBanner />
 				{task ? (
 					<>
