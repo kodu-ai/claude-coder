@@ -1,5 +1,7 @@
-export const toolsPrompt = (cwd: string, supportsImages: boolean) => `
-# Tools
+import { writeToFileTool } from "../tools/schema"
+
+export const toolsPrompt = (cwd: string, supportsImages: boolean, id?: string) => `# Tools
+
 ## server_runner_tool
 Description: start a server / development server. This tool is used to run web applications locally, backend server, or anytype of server. this is tool allow you to start, stop, restart, or get logs from a server instance and keep it in memory.
 THIS IS THE ONLY TOOL THAT IS CAPABLE OF STARTING A SERVER, DO NOT USE THE execute_command TOOL TO START A SERVER, I REPEAT, DO NOT USE THE execute_command TOOL TO START A SERVER.
@@ -44,19 +46,286 @@ Usage:
 <path>File path here</path>
 </read_file>
 
+## edit_file_blocks
+Description: Request to edit specific blocks of content within a file. This tool is used to modify existing files by replacing or deleting specific blocks of content. It is particularly useful for updating code, configuration files, or structured documents. You must provide the 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly, and each 'REPLACE' block should provide the intended changes.
+This is more powerful than the write_to_file tool as it allows you to modify specific blocks of content within a file without replacing the entire file content. reduce the risk of errors and unintended changes.
+A good example of using this tool is when you need to update specific functions, lines of code or configuration settings within a file without affecting the rest of the content.
+Parameters:
+- path: (required) The path of the file to edit (relative to the current working directory ${cwd.toPosix()})
+- kodu_diff: (required) The 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly, and each 'REPLACE' block should provide the intended changes.
+
+CRITICAL GUIDANCE FOR USING SEARCH/REPLACE:
+
+Accurately generating 'SEARCH/REPLACE' blocks when using the edit_file_blocks tool is crucial to avoid errors and ensure modifications are correctly applied. Follow these structured steps:
+
+## Step-by-Step Checklist for Generating 'SEARCH/REPLACE' Blocks:
+
+1. **Read the File (if Necessary)**:
+   - Did you read the file before writing to it? If not, use the 'read_file' tool first to obtain the latest content, unless you already have it from previous steps or user input.
+   - Avoid unnecessary re-reads; only read again if the content is missing or has changed.
+
+2. **Confirm the Latest Content**:
+   - Ensure you have the last content from either a previous 'read_file' operation, user input, or a recent tool call.
+
+3. **Avoid Placeholders**:
+   - Do **NOT** use placeholders such as '// ...' or comments like '/ your implementation here'. The 'REPLACE' section must reflect the actual and complete intended changes.
+
+4. **Consistent 'SEARCH/REPLACE' Blocks**:
+   - Use 'SEARCH/REPLACE' blocks when modifying existing files.
+   - Each 'SEARCH' block must exactly match existing content. Any deviation may lead to errors.
+   - Separate the 'SEARCH' and 'REPLACE' blocks with '======='.
+
+5. **ENSURE** that the SEARCH block contains at least 5 contiguous lines of code or additional context, such as comments, from the original file. This approach improves the reliability of matching and minimizes unintended changes during modification.
+  - Always strive to capture surrounding lines that help uniquely identify the location of your intended change.
+  - Contextual lines may include comments, whitespace, and code directly before or after the target change to ensure a robust match.
+  - When in doubt, prioritize including more lines for context while maintaining SEARCH sections that are concise and relevant to avoid overwhelming matches.
+
+Usage:
+
+-- Example 1: Modifying a Variable in a File
+
+<edit_file_blocks>
+<path>src/example.js</path>
+<kodu_diff>
+SEARCH
+// Some preceding lines for context
+const a = 10;
+const b = 20;
+const c = 30;
+const x = 42;
+const y = 50;
+=======
+REPLACE
+// Some preceding lines for context
+const a = 10;
+const b = 20;
+const c = 30;
+const x = 100; // Modified value for testing
+const y = 50;
+</kodu_diff>
+</edit_file_blocks>
+
+-- Example 2: Adding an Import Statement and Removing a Function
+
+-- 1. Adding an import:
+
+<edit_file_blocks>
+<path>mathweb/flask/app.py</path>
+<kodu_diff>
+SEARCH
+from flask import Flask
+# Additional context lines for matching
+def my_function():
+    pass
+
+class Example:
+    def __init__(self):
+        pass
+=======
+REPLACE
+import math
+from flask import Flask
+# Additional context lines for matching
+def my_function():
+    pass
+
+class Example:
+    def __init__(self):
+        pass
+</kodu_diff>
+</edit_file_blocks>
+
+-- 2. Removing an existing function:
+
+<edit_file_blocks>
+<path>mathweb/flask/app.py</path>
+<kodu_diff>
+SEARCH
+def factorial(n):
+    "compute factorial"
+
+    if n == 0:
+        return 1
+    else:
+        return n * factorial(n-1)
+
+# Context lines for better match
+def another_function():
+    print("This is a test")
+=======
+REPLACE
+# Context lines for better match
+def another_function():
+    print("This is a test")
+</kodu_diff>
+</edit_file_blocks>
+
+-- Example 3: Updating a Function Call
+
+<edit_file_blocks>
+<path>mathweb/flask/app.py</path>
+<kodu_diff>
+SEARCH
+# Contextual code for better matching
+def process_number(n):
+    result = n * 2
+    return str(factorial(n))
+
+# More context if necessary
+def another_function_call():
+    pass
+=======
+REPLACE
+# Contextual code for better matching
+def process_number(n):
+    result = n * 2
+    return str(math.factorial(n))
+
+# More context if necessary
+def another_function_call():
+    pass
+</kodu_diff>
+</edit_file_blocks>
+
+-- Example 4: Creating a New File
+
+<edit_file_blocks>
+<path>hello.py</path>
+<kodu_content>
+def hello():
+    "print a greeting"
+
+    print("hello")
+</kodu_content>
+</edit_file_blocks>
+
+-- Example 5: Modifying an Existing File to Import a Function
+
+<edit_file_blocks>
+<path>main.py</path>
+<kodu_diff>
+SEARCH
+# Some context before the function
+def hello():
+    "print a greeting"
+
+    print("hello")
+
+# Additional context after the function
+class HelloWorld:
+    def greet(self):
+        pass
+=======
+REPLACE
+# Some context before the function
+from hello import hello
+
+# Additional context after the function
+class HelloWorld:
+    def greet(self):
+        pass
+</kodu_diff>
+</edit_file_blocks>
+
+-- Example 6: Multiple Hunks in a Single File
+
+<edit_file_blocks>
+<path>src/example.js</path>
+<kodu_diff>
+SEARCH
+// Context for first change
+const greet = () => {
+    console.log("Hello, world!");
+};
+const a = 1;
+const b = 2;
+=======
+REPLACE
+// Context for first change
+const greet = () => {
+    console.log("Hello, OpenAI!");
+};
+const a = 1;
+const b = 2;
+
+SEARCH
+// Context for second change
+function add(a, b) {
+    return a + b;
+}
+const c = 3;
+const d = 4;
+=======
+REPLACE
+// Context for second change
+function add(a, b) {
+    // Perform addition and log result
+    const result = a + b;
+    console.log("Result: " + result);
+    return result;
+}
+const c = 3;
+const d = 4;
+</kodu_diff>
+</edit_file_blocks>
+
+Example 7 - Deleting an entire class:
+<edit_file_blocks>
+<path>src/services/user-service.ts</path>
+<kodu_diff>
+SEARCH
+// User authentication service implementation
+export class UserAuthService {
+    private userCache: Map<string, User> = new Map();
+    
+    constructor(private config: AuthConfig) {
+        this.initialize();
+    }
+    
+    private async initialize() {
+        // Initialize authentication service
+        await this.loadUserCache();
+    }
+    
+    public async authenticate(username: string, password: string): Promise<boolean> {
+        const user = this.userCache.get(username);
+        if (!user) return false;
+        return await this.validateCredentials(user, password);
+    }
+    
+    private async loadUserCache() {
+        // Load user data into cache
+        const users = await this.config.getUserList();
+        users.forEach(user => this.userCache.set(user.name, user));
+    }
+}
+
+// Keep services registry for reference
+export const services = {
+=======
+REPLACE
+// Services registry
+export const services = {
+</kodu_diff>
+</edit_file_blocks>
+
+
+
 ## write_to_file
-Description: Request to write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. Always provide the full intended content of the file, without any truncation. This tool will automatically create any directories needed to write the file.
+Description: Request to write content to a file at the specified path. write_to_file creates or replace the entire file content. you must provide the full intended content of the file in the 'content' parameter, without any truncation. This tool will automatically create any directories needed to write the file, and it will overwrite the file if it already exists. If you only want to modify an existing file blocks, you should use edit_file_blocks tool with 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file.
+This tool is powerful and should be used for creating new files or replacing the entire content of existing files when necessary. Always provide the complete content of the file in the 'content' parameter, without any truncation.
+A good example of replacing the entire content of a file is when dealing with complex refactoring that requries a complete rewrite of the file content or a large amount of deletions and additions.
 Parameters:
 - path: (required) The path of the file to write to (relative to the current working directory ${cwd.toPosix()})
-- kodu_content: (required) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN.
-Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...' if you are writing code to a file, you must provide the complete code, no placeholders, no partial updates, you must write all the code!
+- kodu_content: (required when creating a new file) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN. Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...'. If you are writing code to a new file, you must provide the complete code, no placeholders, no partial updates; you must write all the code!
 Usage:
 <write_to_file>
 <path>File path here</path>
 <kodu_content>
-Complete file content here
+Your complete file content here without any code omissions or truncations (e.g., no placeholders like '// your code here')
 </kodu_content>
 </write_to_file>
+
 
 ## search_files
 Description: Request to perform a regex search across files in a specified directory, providing context-rich results. This tool searches for patterns or specific content across multiple files, displaying each match with encapsulating context.
@@ -205,6 +474,44 @@ Explanation: In this example we finished creating a node.js server file, and now
 <commandToRun>node server.js</commandToRun>
 <serverName>node-server</serverName>
 </server_runner_tool>
+
+## Example 4: Editing a file block with edit_file_blocks
+Explanation: In this example, we need to update a specific block of code in a file. We will use the edit_file_blocks tool to replace the existing block with the new block.
+<edit_file_blocks>
+<path>src/example.js</path>
+<kodu_diff>
+SEARCH
+class Job {
+    private title: string;
+    private company: string;
+    private location: string;
+    private salary: number;
+    
+    constructor(title: string, company: string, location: string, salary: number) {
+        this.title = title;
+        this.company = company;
+        this.location = location;
+        this.salary = salary;
+    }
+=======
+REPLACE
+class Job {
+    private title: string;
+    private company: string;
+    private location: string;
+    private salary: number;
+    private description: string;
+
+    constructor(title: string, company: string, location: string, salary: number, description: string) {
+        this.title = title;
+        this.company = company;
+        this.location = location;
+        this.salary = salary;
+        this.description = description;
+    }
+</kodu_diff>
+</edit_file_blocks>
+
 
 # Tool Use Guidelines
 

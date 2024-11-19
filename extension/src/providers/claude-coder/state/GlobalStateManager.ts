@@ -19,6 +19,8 @@ export type GlobalState = {
 	maxRequestsPerTask: number | undefined
 	lastShownAnnouncementId: string | undefined
 	customInstructions: string | undefined
+	isAdvanceThinkingEnabled: boolean | undefined
+	isInlineEditingEnabled: boolean | undefined
 	apiModelId: KoduModelId | undefined
 	browserModelId: string | undefined
 	useUdiff: boolean | undefined

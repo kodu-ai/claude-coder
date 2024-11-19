@@ -6,7 +6,7 @@
 		"isolatedModules": true,
 		"lib": ["es2022", "DOM", "ES2021.WeakRef"],
 		"module": "esnext",
-		"moduleResolution": "Bundler",
+		"moduleResolution": "bundler",
 		"noFallthroughCasesInSwitch": true,
 		"noImplicitOverride": true,
 		"noImplicitReturns": true,
@@ -24,9 +24,9 @@
 		"declarationMap": false,
 		"paths": {
 			"@/*": ["./src/*"]
-		}
+		},
+		"types": ["node", "vscode", "jest"]
 	},
-	"types": ["jest", "vscode"],
 	"include": ["src/**/*", "scripts/**/*"],
 	"exclude": ["node_modules", ".vscode-test", "webview-ui", "**/*.d.ts"]
 }
