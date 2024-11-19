@@ -137,11 +137,39 @@ export class StateManager {
 	public async setState(newState: Partial<KoduDevState>): Promise<void> {
 		this._state = { ...this._state, ...newState };
 		
+		// Save chat history if it's updated
+		if (newState.chatHistory) {
+			await this.saveChatHistory();
+		}
+		
 		// Update UI if needed
 		const provider = this.providerRef.deref();
 		if (provider) {
 			await provider.getWebviewManager().postStateToWebview();
 		}
+	}
+
+	private async saveChatHistory(): Promise<void> {
+		try {
+			const filePath = path.join(await this.ensureTaskDirectoryExists(), "chat_history.json");
+			await fs.writeFile(filePath, JSON.stringify(this.state.chatHistory || []));
+		} catch (error) {
+			console.error('Failed to save chat history:', error);
+		}
+	}
+
+	private async loadChatHistory(): Promise<ChatMessage[]> {
+		try {
+			const filePath = path.join(await this.ensureTaskDirectoryExists(), "chat_history.json");
+			const exists = await fs.access(filePath).then(() => true).catch(() => false);
+			if (exists) {
+				const data = await fs.readFile(filePath, 'utf8');
+				return JSON.parse(data);
+			}
+		} catch (error) {
+			console.error('Failed to load chat history:', error);
+		}
+		return [];
 	}
 
 	public async getChatHistory(): Promise<ChatMessage[]> {

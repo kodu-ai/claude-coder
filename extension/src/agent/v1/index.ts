@@ -358,6 +358,12 @@ export class KoduDev {
 
 			// Finally clear dev servers
 			await TerminalRegistry.clearAllDevServers()
+
+			// Clear chat history
+			await this.stateManager.setState({ 
+				chatHistory: [],
+				currentChatMode: 'task' 
+			});
 		} finally {
 			this.isAborting = false
 		}
@@ -370,40 +376,58 @@ export class KoduDev {
 	}
 
 	private async handleChatMessage(text?: string, images?: string[]) {
-		if (!text && (!images || images.length === 0)) {
-			return;
+		try {
+			if (!text && (!images || images.length === 0)) {
+				return;
+			}
+
+			// Create user message
+			const userMessage: ChatMessage = {
+				id: Date.now().toString(),
+				content: text || '',
+				role: 'user',
+				timestamp: Date.now(),
+				images
+			};
+
+			// Add to chat history
+			const chatHistory = this.stateManager.state.chatHistory || [];
+			chatHistory.push(userMessage);
+			await this.stateManager.setState({ chatHistory });
+
+			try {
+				// Get AI response
+				const response = await this.apiManager.getChatResponse(userMessage, chatHistory);
+
+				// Create assistant message
+				const assistantMessage: ChatMessage = {
+					id: (Date.now() + 1).toString(),
+					content: response,
+					role: 'assistant',
+					timestamp: Date.now()
+				};
+
+				// Update chat history
+				chatHistory.push(assistantMessage);
+				await this.stateManager.setState({ chatHistory });
+			} catch (error) {
+				console.error('Error getting chat response:', error);
+				// Add error message to chat
+				const errorMessage: ChatMessage = {
+					id: (Date.now() + 1).toString(),
+					content: 'Sorry, there was an error processing your message. Please try again.',
+					role: 'assistant',
+					timestamp: Date.now()
+				};
+				chatHistory.push(errorMessage);
+				await this.stateManager.setState({ chatHistory });
+			}
+		} catch (error) {
+			console.error('Error in handleChatMessage:', error);
+		} finally {
+			// Ensure UI is updated
+			await this.providerRef.deref()?.getWebviewManager().postStateToWebview();
 		}
-
-		// Create user message
-		const userMessage: ChatMessage = {
-			id: Date.now().toString(),
-			content: text || '',
-			role: 'user',
-			timestamp: Date.now(),
-			images
-		};
-
-		// Add to chat history
-		const chatHistory = this.stateManager.state.chatHistory || [];
-		chatHistory.push(userMessage);
-
-		// Get AI response
-		const response = await this.apiManager.getChatResponse(userMessage, chatHistory);
-
-		// Create assistant message
-		const assistantMessage: ChatMessage = {
-			id: (Date.now() + 1).toString(),
-			content: response,
-			role: 'assistant',
-			timestamp: Date.now()
-		};
-
-		// Update chat history
-		chatHistory.push(assistantMessage);
-		await this.stateManager.setState({ chatHistory });
-
-		// Update UI
-		await this.providerRef.deref()?.getWebviewManager().postStateToWebview();
 	}
 
 	private async updateChatSystemPrompt() {
