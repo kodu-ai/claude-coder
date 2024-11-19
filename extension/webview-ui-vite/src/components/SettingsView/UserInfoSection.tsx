@@ -4,20 +4,37 @@ import { useExtensionState } from "../../context/ExtensionStateContext"
 import { vscode } from "@/utils/vscode"
 import { formatPrice } from "../ApiOptions/utils"
 import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
-import { GiftIcon } from "lucide-react"
+import { GiftIcon, KeyIcon } from "lucide-react"
 
 const UserInfoSection: React.FC = () => {
 	const extensionState = useExtensionState()
+	const [isClicked, setIsClicked] = React.useState(false)
 
 	if (extensionState.user === undefined) {
 		return (
-			<Button
-				onClick={() => {
-					vscode.postTrackingEvent("AuthStart")
-				}}
-				asChild>
-				<a href={getKoduSignInUrl(extensionState.uriScheme, extensionState.extensionName)}>Sign in to Kodu</a>
-			</Button>
+			<div className="flex flex-col gap-2 min-w-[90vw]">
+				<Button
+					className="w-fit"
+					onClick={() => {
+						setIsClicked(true)
+						vscode.postTrackingEvent("AuthStart")
+					}}
+					asChild>
+					<a href={getKoduSignInUrl(extensionState.uriScheme, extensionState.extensionName)}>
+						Sign in to Kodu
+					</a>
+				</Button>
+				{isClicked && (
+					<Button
+						className="w-fit"
+						onClick={() => {
+							vscode.postMessage({ type: "setApiKeyDialog" })
+						}}
+						variant={"link"}>
+						Have Api Key click here
+					</Button>
+				)}
+			</div>
 		)
 	}
 

@@ -1,22 +1,13 @@
-import os from "os"
 import { readdir } from "fs/promises"
 import path from "path"
 import * as vscode from "vscode"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
-import {
-	CommandInputMessage,
-	ExecuteCommandMessage,
-	GitCheckoutToMessage,
-	WebviewMessage,
-} from "../../../shared/WebviewMessage"
+import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { quickStart } from "./quick-start"
-import { KoduDevState, UserContent } from "../../../agent/v1/types"
-import { ExecaTerminalManager } from "../../../integrations/terminal/execa-terminal-manager"
-import { cwd, getPotentiallyRelevantDetails } from "../../../agent/v1/utils"
-import Anthropic from "@anthropic-ai/sdk"
+import { extensionName } from "../../../shared/Constants"
 
 interface FileTreeItem {
 	id: string
@@ -42,11 +33,8 @@ const excludedDirectories = [
 
 export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
-	private execaTerminalManager: ExecaTerminalManager
 
-	constructor(private provider: ExtensionProvider) {
-		this.execaTerminalManager = new ExecaTerminalManager()
-	}
+	constructor(private provider: ExtensionProvider) {}
 
 	setupWebview(webviewView: vscode.WebviewView | vscode.WebviewPanel) {
 		webviewView.webview.options = {
@@ -393,6 +381,13 @@ export class WebviewManager {
 						await this.provider.getTaskManager().clearTask()
 						await this.postStateToWebview()
 						break
+					case "setApiKeyDialog":
+						// trigger vscode.commands.registerCommand(`${extensionName}.setApiKey`
+						vscode.commands.executeCommand(`${extensionName}.setApiKey`)
+						break
+					case "pauseNext":
+						await this.provider.getKoduDev()?.taskExecutor.pauseNextRequest()
+						break
 					case "didCloseAnnouncement":
 						const packageJSON = this.provider.getContext().extension?.packageJSON
 						await this.provider
@@ -448,21 +443,6 @@ export class WebviewManager {
 						break
 					case "debug":
 						await this.handleDebugInstruction()
-						break
-					case "executeCommand":
-						const callbackFunction = (
-							event: "error" | "exit" | "response",
-							commandId: number,
-							data: string
-						) => {
-							this.postMessageToWebview({
-								type: "commandExecutionResponse",
-								status: event,
-								payload: data,
-								commandId: commandId.toString(),
-							})
-						}
-						await this.execaTerminalManager.executeCommand(message, callbackFunction)
 						break
 				}
 			},

@@ -18,7 +18,8 @@ import {
 } from "../shared/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { ApiHistoryItem } from "../agent/v1"
-import { GlobalStateManager } from "@/providers/claude-coder/state/GlobalStateManager"
+// import { GlobalStateManager } from "@/providers/claude-coder/state/GlobalStateManager"
+import { GlobalStateManager } from "../providers/claude-coder/state/GlobalStateManager"
 
 const temperatures = {
 	creative: {

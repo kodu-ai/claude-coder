@@ -131,6 +131,74 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	)
 
+	// Add new command for setting API key
+	context.subscriptions.push(
+		vscode.commands.registerCommand(`${extensionName}.setApiKey`, async () => {
+			const apiKey = await vscode.window.showInputBox({
+				prompt: "Enter your Claude Coder API Key",
+				placeHolder: "API Key",
+				password: true, // Masks the input
+				ignoreFocusOut: true, // Keeps input box open when focus is lost
+			})
+
+			if (apiKey) {
+				// Show progress indicator
+				await vscode.window
+					.withProgress(
+						{
+							location: vscode.ProgressLocation.Notification,
+							title: "Verifying API Key",
+							cancellable: false,
+						},
+						async (progress) => {
+							try {
+								progress.report({ increment: 0, message: "Saving API key..." })
+								await sidebarProvider.getApiManager().saveKoduApiKey(apiKey)
+
+								progress.report({ increment: 50, message: "Verifying credentials..." })
+								// Attempt to verify the API key by fetching user data
+								const user = await sidebarProvider.getStateManager().fetchKoduUser()
+
+								if (user) {
+									progress.report({ increment: 50, message: "Authentication successful!" })
+
+									// Wait a moment for the success message to be visible
+									await new Promise((resolve) => setTimeout(resolve, 500))
+
+									vscode.window.showInformationMessage(`Successfully signed in as ${user.email}`)
+									amplitudeTracker.authSuccess()
+
+									// Update credits and UI
+									sidebarProvider.getStateManager().updateKoduCredits(user.credits)
+									sidebarProvider.getWebviewManager().postMessageToWebview({
+										type: "action",
+										action: "koduCreditsFetched",
+										user,
+									})
+
+									// Focus the sidebar
+									await vscode.commands.executeCommand(`${extensionName}.SidebarProvider.focus`)
+								} else {
+									throw new Error("Invalid API key")
+								}
+							} catch (error) {
+								console.error("Error setting API key:", error)
+								throw error // Re-throw to show error message after progress closes
+							}
+						}
+					)
+					.then(null, (error) => {
+						// Handle any errors that occurred during the progress window
+						vscode.window.showErrorMessage(
+							error.message === "Invalid API key"
+								? "Invalid API key. Please check and try again."
+								: "Failed to set API key. Please try again."
+						)
+					})
+			}
+		})
+	)
+
 	context.subscriptions.push(
 		vscode.commands.registerCommand(`${extensionName}.plusButtonTapped`, async () => {
 			outputChannel.appendLine("Plus button tapped")

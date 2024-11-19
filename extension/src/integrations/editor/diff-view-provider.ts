@@ -268,10 +268,14 @@ export class DiffViewProvider {
 
 		// Create modified content URI (initially empty)
 		this.modifiedUri = vscode.Uri.parse(`${MODIFIED_URI_SCHEME}:/${fileName}`)
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(this.originalContent ?? ""), {
-			create: true,
-			overwrite: true,
-		})
+		DiffViewProvider.modifiedContentProvider.writeFile(
+			this.modifiedUri,
+			new TextEncoder().encode(this.originalContent ?? ""),
+			{
+				create: true,
+				overwrite: true,
+			}
+		)
 
 		// Open diff editor with original and modified content
 		await vscode.commands.executeCommand(
@@ -317,10 +321,15 @@ export class DiffViewProvider {
 			return
 		}
 		if (this.isFinalReached) {
+			this.logger("<update>: Final update already reached", "warn")
 			return
 		}
 
 		if (isFinal) {
+			this.logger(
+				`[${Date.now()}] applying final update [function update]: content length ${accumulatedContent.length}`,
+				"info"
+			)
 			this.isFinalReached = true
 			await this.applyUpdate(accumulatedContent)
 			this.activeLineController.clear()
@@ -328,6 +337,12 @@ export class DiffViewProvider {
 			return
 		}
 
+		this.logger(
+			`[${Date.now()}] applying line by line update [function update]: content length ${
+				accumulatedContent.length
+			}`,
+			"info"
+		)
 		await this.applyLineByLineUpdate(accumulatedContent)
 	}
 
@@ -373,7 +388,7 @@ export class DiffViewProvider {
 		].join("\n")
 
 		// Update content with proper options to maintain file history
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(updatedContent), {
+		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, new TextEncoder().encode(updatedContent), {
 			create: false,
 			overwrite: true,
 		})
@@ -438,29 +453,14 @@ export class DiffViewProvider {
 			return
 		}
 
+		this.logger(`Applying update: content length ${content.length}`, "info")
+
 		// Update content with proper options to maintain file history
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(content), {
+		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, new TextEncoder().encode(content), {
 			create: false,
 			overwrite: true,
 		})
 		this.streamedContent = content
-
-		// Find the last modified line by comparing with previous content
-		const currentLine = this.diffEditor.document.lineCount - 1
-		if (this.activeLineController && this.fadedOverlayController) {
-			this.activeLineController.setActiveLine(currentLine)
-			this.fadedOverlayController.updateOverlayAfterLine(currentLine, this.diffEditor.document.lineCount)
-		}
-
-		const now = Date.now()
-		if (
-			this.isAutoScrollEnabled &&
-			now - this.lastScrollTime >= DiffViewProvider.SCROLL_THROTTLE &&
-			(now - this.lastUserInteraction >= DiffViewProvider.USER_INTERACTION_TIMEOUT || this.checkScrollPosition())
-		) {
-			await this.scrollToBottom()
-			this.lastScrollTime = now
-		}
 	}
 
 	private async scrollToBottom(): Promise<void> {
