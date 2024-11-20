@@ -310,7 +310,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			// fix any weird user content
 			this.currentUserContent = this.fixUserContent(this.currentUserContent)
 
-			if (this.consecutiveErrorCount >= 3) {
+			if (this.consecutiveErrorCount >= 20) {
 				const res = await this.ask("resume_task", {
 					question: "Claude has encountered an error 3 times in a row. Would you like to resume the task?",
 				})
