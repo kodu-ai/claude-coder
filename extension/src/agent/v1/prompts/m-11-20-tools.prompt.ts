@@ -389,15 +389,6 @@ Your final result description here
 </result>
 </attempt_completion>
 
-## ask_consultant
-Description: Request to ask the consultant for help. Use this tool when you need guidance, suggestions, or advice on how to proceed with a task. The consultant will provide insights and recommendations to help you accomplish the task effectively.
-Parameters:
-- query: (required) The question or request for help you have for the consultant.
-Usage:
-<ask_consultant>
-<query>Your question or request for help here</query>
-</ask_consultant>
-
 ## web_search
 Description: Request to perform a web search for the specified query. This tool searches the web for information related to the query and provides relevant results that can help you gain insights, find solutions, or explore new ideas related to the task at hand. Since this tool uses an LLM to understand the web results, you can also specify which model to use with the browser using the 'browserModel' parameter.
 Parameters:

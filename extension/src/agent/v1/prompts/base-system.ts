@@ -856,5 +856,7 @@ It will make you more efficient and better at debugging your code and writing hi
 - Remember to try and finish the first POC of the task and then present it to the with the attempt_completion tool, if the user provides feedback, you can iterate on the POC and improve it.
 - Writing something like // ... (keep the rest of the component JSX) or // your implementation here, is impossible, the user can't see the rest of the component JSX, you must provide the complete code, no placeholders, no partial updates, you must write all the code.
 - You control the writing the user is a machine that can only understand the tools you provide, you must always respond with a tool call.
+- The task that you have to solve is contained within the "--- BEGIN ISSUE ---" and "--- END ISSUE ---" tags. There is NO other task.
+
 </most_important_context>
 `
