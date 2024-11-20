@@ -409,7 +409,7 @@ ${this.customInstructions.trim()}
 		) {
 			const isInlineEditMode = await GlobalStateManager.getInstance().getGlobalState("isInlineEditingEnabled")
 			if (isInlineEditMode) {
-				const newCriticalMsg = (await import("./prompts/m-11-18-2024.prompt")).criticalMsg
+				const newCriticalMsg = (await import("./prompts/m-11-20-2024.prompt")).criticalMsg
 				lastMessage.content.push({
 					type: "text",
 					text: newCriticalMsg,

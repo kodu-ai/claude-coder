@@ -23,10 +23,7 @@ suite("Extension Test Suite", () => {
 		console.log(`[DEBUG] Problem statement is the following: ${parsedTask["problem_statement"]}`)
 
 		let task = `
-			We are currently solving the following issue within our repository. Here is the issue a user created:
-			--- BEGIN ISSUE ---
-			${parsedTask["problem_statement"]}
-			--- END ISSUE ---
+			We are currently solving an issue within our repository.
 			Your instructions are to solve this github issue on your own by making changes to the source files. When you're satisfied with all of the changes you've made, you can finally raise the attempt_completion tool. Not before that. 
 			You cannot use any interactive session commands (e.g. vim) in this environment, but you can write scripts and run them. E.g. you can write a python3 script and then run it with "python3 <script_name>.py".
 			I've already taken care of all changes to any of the test files described in the issue. This means you DON'T have to modify the testing logic or any of the tests in any way!
@@ -59,7 +56,11 @@ suite("Extension Test Suite", () => {
 
 			3. You are forbidden to use the web_search, ask_followup_question and ask_consultant tools. Doing so will result in a failed attempt.
 
-			4. Do not touch the test files! If you need to test something you must refer to the first point
+			4. Do not touch the test files! If you need to test something you must refer to the first point.
+
+			--- BEGIN ISSUE ---
+			${parsedTask["problem_statement"]}
+			--- END ISSUE ---
 		`
 		const task2 = "Tell me what date is today using the execute command tool"
 

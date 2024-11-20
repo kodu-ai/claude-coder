@@ -161,6 +161,10 @@ export class KoduDev {
 		let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
 		amplitudeTracker.taskStart(this.stateManager.state.taskId)
 
+		console.log(">>>> Task started")
+		console.log(task)
+		console.log(textBlock)
+
 		await this.taskExecutor.say("text", task, images)
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
 	}
