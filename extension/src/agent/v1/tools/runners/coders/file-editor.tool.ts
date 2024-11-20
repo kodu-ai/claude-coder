@@ -37,6 +37,8 @@ export class FileEditorTool extends BaseAgentTool {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
 			return
 		}
+		// disabled for now
+		return
 		// if the user has skipped the write animation, we don't need to show the diff view until we reach the final state
 		if (this.skipWriteAnimation) {
 			await this.params.updateAsk(
@@ -77,7 +79,7 @@ export class FileEditorTool extends BaseAgentTool {
 			const editBlocks = parseDiffBlocks(diff, absolutePath)
 			this.logger(`Parsed edit blocks: ${JSON.stringify(editBlocks)}`, "debug")
 			const newContent = await applyEditBlocksToFile(originalContent, editBlocks)
-			await this.diffViewProvider.update(newContent, false)
+			await this.diffViewProvider.update(newContent, false, "diff")
 			this.lastUpdateTime = currentTime
 		} catch (e) {
 			this.logger(`Not enough information to update the diff view: ${e}`, "warn")
