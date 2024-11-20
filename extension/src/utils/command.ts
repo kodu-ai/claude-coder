@@ -24,6 +24,10 @@ export const startNewTask = async (
 		await sidebarProvider.getStateManager().setAlwaysAllowReadOnly(true)
 		await sidebarProvider.getStateManager().setAlwaysAllowWriteOnly(true)
 		await sidebarProvider.getStateManager().setIsContinueGenerationEnabled(true)
+		await sidebarProvider.getStateManager()
+			.setCustomInstructions(`You should pay extra attentiong to the user and the section he writes <pr_issue>
+			The <pr_issue> is very important and is critical to truly understand it to get the task solved.
+			`)
 
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("alwaysAllowReadOnly", true)
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("alwaysAllowWriteOnly", true)

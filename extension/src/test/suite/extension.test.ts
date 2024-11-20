@@ -28,6 +28,7 @@ suite("Extension Test Suite", () => {
 		let task =
 			taskPrompt.toString() +
 			`
+			Here is the PR Issue you must give it the most amount of attention possible:
 			<pr_issue>
 			${parsedTask["problem_statement"]}
 			</pr_issue>`
