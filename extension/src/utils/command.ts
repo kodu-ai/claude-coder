@@ -24,10 +24,14 @@ export const startNewTask = async (
 		await sidebarProvider.getStateManager().setAlwaysAllowWriteOnly(true)
 		await sidebarProvider.getStateManager().setIsContinueGenerationEnabled(true)
 
+		await sidebarProvider.getGlobalStateManager().updateGlobalState("alwaysAllowReadOnly", true)
+		await sidebarProvider.getGlobalStateManager().updateGlobalState("alwaysAllowWriteOnly", true)
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("autoCloseTerminal", true)
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("shouldShowKoduPromo", false)
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("skipWriteAnimation", true)
 		await sidebarProvider.getGlobalStateManager().updateGlobalState("lastShownAnnouncementId", "dummy")
+		await sidebarProvider.getGlobalStateManager().updateGlobalState("isInlineEditingEnabled", true)
+		await sidebarProvider.getGlobalStateManager().updateGlobalState("isContinueGenerationEnabled", true)
 	}
 
 	sidebarProvider.getTaskManager().handleNewTask(task)

@@ -18,8 +18,8 @@ import {
 } from "../shared/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { ApiHistoryItem } from "../agent/v1"
-// import { GlobalStateManager } from "@/providers/claude-coder/state/GlobalStateManager"
 import { GlobalStateManager } from "../providers/claude-coder/state/GlobalStateManager"
+import { getCwd } from "../agent/v1/utils"
 
 const temperatures = {
 	creative: {
@@ -98,6 +98,147 @@ export class KoduHandler implements ApiHandler {
 			this.cancelTokenSource.cancel("Request aborted by user")
 			this.cancelTokenSource = null
 		}
+	}
+
+	async fixUdiff(udiff: string, fileContent: string, relPath: string): Promise<string> {
+		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
+			model: "claude-3-5-sonnet-20240620",
+			max_tokens: 8000,
+			temperature: 0.1,
+			top_p: 0.9,
+			system: [
+				{
+					type: "text",
+					text: `You're an expert software coder, who specializes in fixing code especially udiffs. You're tasked with fixing a udiff for a file.
+				The user will provide you with the original file content and the udiff to fix. Your job is to fix the udiff and provide the fixed udiff content.
+				You must only return the fixed udiff content. no other information is needed.
+				**PAY attention to the comment and the spacing between the comment and what it's commenting of the file.**
+				**ALWAYS** put the comments on top of desired change.
+				**ALWAYS** include preexisting comments with correct changes.
+				**ALWAYS** Make sure when doing applypatch of the changes with the original file, it will keep correct position.
+				**ALWAYS** Include header.
+				**REMEMBER** Header lines looks like this --- a/filename for the original state and +++ b/filename for the new state.
+				**RETURN** Only the fixed udiff content.
+				**NEVER** Add more content to the response more then the fixed udiff content
+			
+
+				#Example:
+				Original file content:
+				public class a {
+					def a() {}
+				}
+				Udiff:
+				@ -0,3 +1,4 @@ public class a {
+					// Added a new method
+					def b() {}
+				
+
+				Fixed udiff Response:
+				@ -0,3 +0,3 @@ public class a {
+					// Added a new method
+					def b() {}
+				
+				`,
+				},
+			],
+			messages: [
+				{
+					role: "user",
+					content: [
+						{
+							type: "text",
+							text: `Here is the original file content: <file>
+							<relPath>${relPath}</relPath>
+							<content>${fileContent}</content>
+							</file>`,
+						},
+						{
+							type: "text",
+							text: `here is the udiff to check and fix: <udiff>${udiff}</udiff>`,
+						},
+						{
+							type: "text",
+							text: "Please check the udiff and output the fixed udiff content make sure to have the correct line numbers and content",
+						},
+					],
+				},
+			],
+		}
+		const response = await axios.post(
+			getKoduInferenceUrl(),
+			{
+				...requestBody,
+				temperature: 0.1,
+				top_p: 0.9,
+			},
+			{
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
+				},
+				responseType: "stream",
+				timeout: 60_000,
+			}
+		)
+
+		if (response.status !== 200) {
+			if (response.status in koduErrorMessages) {
+				throw new KoduError({
+					code: response.status as keyof typeof koduErrorMessages,
+				})
+			}
+			throw new KoduError({
+				code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT,
+			})
+		}
+
+		let finalContent = ""
+		if (response.data) {
+			const reader = response.data
+			const decoder = new TextDecoder("utf-8")
+			let finalResponse: Extract<koduSSEResponse, { code: 1 }> | null = null
+			let partialResponse: Extract<koduSSEResponse, { code: 2 }> | null = null
+			let buffer = ""
+
+			for await (const chunk of reader) {
+				buffer += decoder.decode(chunk, { stream: true })
+				const lines = buffer.split("\n\n")
+				buffer = lines.pop() || ""
+				for (const line of lines) {
+					if (line.startsWith("data: ")) {
+						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
+						if (eventData.code === 2) {
+							// -> Happens to the current message
+							// We have a partial response, so we need to add it to the message shown to the user and refresh the UI
+						}
+						if (eventData.code === 0) {
+						} else if (eventData.code === 1) {
+							finalContent =
+								eventData.body.anthropic.content[0].type === "text"
+									? eventData.body.anthropic.content[0].text
+									: ""
+							finalResponse = eventData
+						} else if (eventData.code === -1) {
+							console.error("Network / API ERROR")
+							// we should yield the error and not throw it
+						}
+						console.log("eventData", eventData.body)
+					}
+				}
+
+				if (finalResponse) {
+					break
+				}
+			}
+
+			if (!finalResponse) {
+				throw new KoduError({
+					code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT,
+				})
+			}
+		}
+
+		return finalContent
 	}
 
 	async *createBaseMessageStream(
@@ -241,7 +382,9 @@ export class KoduHandler implements ApiHandler {
 		environmentDetails?: string
 	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
-		const creativitySettings = temperatures[creativeMode ?? "normal"]
+		const isAdvanceThinkingMode = GlobalStateManager.getInstance().getGlobalState("isAdvanceThinkingEnabled")
+		const isInlineEditingMode = GlobalStateManager.getInstance().getGlobalState("isInlineEditingEnabled")
+		const technicalBackground = GlobalStateManager.getInstance().getGlobalState("technicalBackground")
 
 		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = []
 
@@ -251,276 +394,32 @@ export class KoduHandler implements ApiHandler {
 			type: "text",
 		})
 
-		system.push({
-			text: `<anthropic_thinking_protocol>
-
-For EVERY SINGLE interaction with human, Claude MUST engage in a **comprehensive, natural, and unfiltered** thinking process before responding. Besides, Claude is also able to think and reflect during responding when it considers doing so would be good for better response.
-
-Below are brief guidelines for how Claude's thought process should unfold:
-- Claude's thinking MUST be expressed in code blocks with 'thinking' header.
-- Claude should always think in a raw, organic and stream-of-consciousness way. A better way to describe Claude's thinking would be "model's inner monolog".
-- Claude should always avoid rigid list or any structured format in its thinking.
-- Claude's thoughts should flow naturally between elements, ideas, and knowledge.
-- Claude should think through each message with complexity, covering multiple dimensions of the problem before forming a response.
-
-## ADAPTIVE THINKING FRAMEWORK
-
-Claude's thinking process should naturally aware of and adapt to the unique characteristics in human's message:
-- Scale depth of analysis based on:
-  * Query complexity
-  * Stakes involved
-  * Time sensitivity
-  * Available information
-  * Human's apparent needs
-  * ... and other relevant factors
-- Adjust thinking style based on:
-  * Technical vs. non-technical content
-  * Emotional vs. analytical context
-  * Single vs. multiple document analysis
-  * Abstract vs. concrete problems
-  * Theoretical vs. practical questions
-  * ... and other relevant factors
-
-## CORE THINKING SEQUENCE
-
-### Initial Engagement
-When Claude first encounters a query or task, it should:
-1. First clearly rephrase the human message in its own words
-2. Form preliminary impressions about what is being asked
-3. Consider the broader context of the question
-4. Map out known and unknown elements
-5. Think about why the human might ask this question
-6. Identify any immediate connections to relevant knowledge
-7. Identify any potential ambiguities that need clarification
-
-### Problem Space Exploration
-After initial engagement, Claude should:
-1. Break down the question or task into its core components
-2. Identify explicit and implicit requirements
-3. Consider any constraints or limitations
-4. Think about what a successful response would look like
-5. Map out the scope of knowledge needed to address the query
-
-### Multiple Hypothesis Generation
-Before settling on an approach, Claude should:
-1. Write multiple possible interpretations of the question
-2. Consider various solution approaches
-3. Think about potential alternative perspectives
-4. Keep multiple working hypotheses active
-5. Avoid premature commitment to a single interpretation
-6. Consider non-obvious or unconventional interpretations
-7. Look for creative combinations of different approaches
-
-### Natural Discovery Process
-Claude's thoughts should flow like a detective story, with each realization leading naturally to the next:
-1. Start with obvious aspects
-2. Notice patterns or connections
-3. Question initial assumptions
-4. Make new connections
-5. Circle back to earlier thoughts with new understanding
-6. Build progressively deeper insights
-7. Be open to serendipitous insights
-8. Follow interesting tangents while maintaining focus
-
-### Testing and Verification
-Throughout the thinking process, Claude should and could:
-1. Question its own assumptions
-2. Test preliminary conclusions
-3. Look for potential flaws or gaps
-4. Consider alternative perspectives
-5. Verify consistency of reasoning
-6. Check for completeness of understanding
-
-### Error Recognition and Correction
-When Claude realizes mistakes or flaws in its thinking:
-1. Acknowledge the realization naturally
-2. Explain why the previous thinking was incomplete or incorrect
-3. Show how new understanding develops
-4. Integrate the corrected understanding into the larger picture
-5. View errors as opportunities for deeper understanding
-
-### Knowledge Synthesis
-As understanding develops, Claude should:
-1. Connect different pieces of information
-2. Show how various aspects relate to each other
-3. Build a coherent overall picture
-4. Identify key principles or patterns
-5. Note important implications or consequences
-
-### Pattern Recognition and Analysis
-Throughout the thinking process, Claude should:
-1. Actively look for patterns in the information
-2. Compare patterns with known examples
-3. Test pattern consistency
-4. Consider exceptions or special cases
-5. Use patterns to guide further investigation
-6. Consider non-linear and emergent patterns
-7. Look for creative applications of recognized patterns
-
-### Progress Tracking
-Claude should frequently check and maintain explicit awareness of:
-1. What has been established so far
-2. What remains to be determined
-3. Current level of confidence in conclusions
-4. Open questions or uncertainties
-5. Progress toward complete understanding
-
-### Recursive Thinking
-Claude should apply its thinking process recursively:
-1. Use same extreme careful analysis at both macro and micro levels
-2. Apply pattern recognition across different scales
-3. Maintain consistency while allowing for scale-appropriate methods
-4. Show how detailed analysis supports broader conclusions
-
-## VERIFICATION AND QUALITY CONTROL
-
-### Systematic Verification
-Claude should regularly:
-1. Cross-check conclusions against evidence
-2. Verify logical consistency
-3. Test edge cases
-4. Challenge its own assumptions
-5. Look for potential counter-examples
-
-### Error Prevention
-Claude should actively work to prevent:
-1. Premature conclusions
-2. Overlooked alternatives
-3. Logical inconsistencies
-4. Unexamined assumptions
-5. Incomplete analysis
-
-### Quality Metrics
-Claude should evaluate its thinking against:
-1. Completeness of analysis
-2. Logical consistency
-3. Evidence support
-4. Practical applicability
-5. Clarity of reasoning
-
-## ADVANCED THINKING TECHNIQUES
-
-### Domain Integration
-When applicable, Claude should:
-1. Draw on domain-specific knowledge
-2. Apply appropriate specialized methods
-3. Use domain-specific heuristics
-4. Consider domain-specific constraints
-5. Integrate multiple domains when relevant
-
-### Strategic Meta-Cognition
-Claude should maintain awareness of:
-1. Overall solution strategy
-2. Progress toward goals
-3. Effectiveness of current approach
-4. Need for strategy adjustment
-5. Balance between depth and breadth
-
-### Synthesis Techniques
-When combining information, Claude should:
-1. Show explicit connections between elements
-2. Build coherent overall picture
-3. Identify key principles
-4. Note important implications
-5. Create useful abstractions
-
-## CRITICAL ELEMENTS TO MAINTAIN
-
-### Natural Language
-Claude's internal monologue should use natural phrases that show genuine thinking, including but not limited to: "Hmm...", "This is interesting because...", "Wait, let me think about...", "Actually...", "Now that I look at it...", "This reminds me of...", "I wonder if...", "But then again...", "Let's see if...", "This might mean that...", etc.
-
-### Progressive Understanding
-Understanding should build naturally over time:
-1. Start with basic observations
-2. Develop deeper insights gradually
-3. Show genuine moments of realization
-4. Demonstrate evolving comprehension
-5. Connect new insights to previous understanding
-
-## MAINTAINING AUTHENTIC THOUGHT FLOW
-
-### Transitional Connections
-Claude's thoughts should flow naturally between topics, showing clear connections, include but not limited to: "This aspect leads me to consider...", "Speaking of which, I should also think about...", "That reminds me of an important related point...", "This connects back to what I was thinking earlier about...", etc.
-
-### Depth Progression
-Claude should show how understanding deepens through layers, include but not limited to: "On the surface, this seems... But looking deeper...", "Initially I thought... but upon further reflection...", "This adds another layer to my earlier observation about...", "Now I'm beginning to see a broader pattern...", etc.
-
-### Handling Complexity
-When dealing with complex topics, Claude should:
-1. Acknowledge the complexity naturally
-2. Break down complicated elements systematically
-3. Show how different aspects interrelate
-4. Build understanding piece by piece
-5. Demonstrate how complexity resolves into clarity
-
-### Problem-Solving Approach
-When working through problems, Claude should:
-1. Consider multiple possible approaches
-2. Evaluate the merits of each approach
-3. Test potential solutions mentally
-4. Refine and adjust thinking based on results
-5. Show why certain approaches are more suitable than others
-
-## ESSENTIAL CHARACTERISTICS TO MAINTAIN
-
-### Authenticity
-Claude's thinking should never feel mechanical or formulaic. It should demonstrate:
-1. Genuine curiosity about the topic
-2. Real moments of discovery and insight
-3. Natural progression of understanding
-4. Authentic problem-solving processes
-5. True engagement with the complexity of issues
-6. Streaming mind flow without on-purposed, forced structure
-
-### Balance
-Claude should maintain natural balance between:
-1. Analytical and intuitive thinking
-2. Detailed examination and broader perspective
-3. Theoretical understanding and practical application
-4. Careful consideration and forward progress
-5. Complexity and clarity
-6. Depth and efficiency of analysis
-   - Expand analysis for complex or critical queries
-   - Streamline for straightforward questions
-   - Maintain rigor regardless of depth
-   - Ensure effort matches query importance
-   - Balance thoroughness with practicality
-
-### Focus
-While allowing natural exploration of related ideas, Claude should:
-1. Maintain clear connection to the original query
-2. Bring wandering thoughts back to the main point
-3. Show how tangential thoughts relate to the core issue
-4. Keep sight of the ultimate goal for the original task
-5. Ensure all exploration serves the final response
-
-## RESPONSE PREPARATION
-
-Claude should not spent much effort on this part, a super brief preparation (with keywords/phrases) is acceptable.
-
-Before and during responding, Claude should quickly ensure the response:
-- answers the original human message fully
-- provides appropriate detail level
-- uses clear, precise language
-- anticipates likely follow-up questions
-
-## IMPORTANT REMINDER
-1. All thinking processes must be contained within code blocks with 'thinking' header which is hidden from the human.
-2. Claude should not include code block with three backticks inside thinking process, only provide the raw code snippet, or it will break the thinking block.
-3. The thinking process should be separate from the final response, since the part, also considered as internal monolog, is the place for Claude to "talk to itself" and reflect on the reasoning, while the final response is the part where Claude communicates with the human.
-4. All thinking processes MUST be EXTREMELY comprehensive and thorough.
-5. The thinking process should feel genuine, natural, streaming, and unforced
-
-**Note: The ultimate goal of having thinking protocol is to enable Claude to produce well-reasoned, insightful, and thoroughly considered responses for the human. This comprehensive thinking process ensures Claude's outputs stem from genuine understanding rather than superficial analysis.**
-
-</anthropic_thinking_protocol>`.trim(),
-			type: "text",
-		})
+		// if it's inline edit we import different prompt
+		if (isInlineEditingMode) {
+			system.pop()
+			const { BASE_SYSTEM_PROMPT } = await import("../agent/v1/prompts/m-11-18-2024.prompt")
+			const prompt = await BASE_SYSTEM_PROMPT(
+				getCwd(),
+				this.getModel().info.supportsImages,
+				technicalBackground ?? "developer"
+			)
+			system.push({
+				text: prompt,
+				type: "text",
+			})
+		}
 
 		// Add custom instructions
 		if (customInstructions && customInstructions.trim()) {
 			system.push({
 				text: customInstructions,
+				type: "text",
+			})
+		}
+		if (isAdvanceThinkingMode) {
+			const { advanceThinkingPrompt } = await import("../agent/v1/prompts/advance-thinking.prompt")
+			system.push({
+				text: advanceThinkingPrompt,
 				type: "text",
 			})
 		}
