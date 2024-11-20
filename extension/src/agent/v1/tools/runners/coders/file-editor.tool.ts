@@ -38,14 +38,23 @@ export class FileEditorTool extends BaseAgentTool {
 			return
 		}
 		// if the user has skipped the write animation, we don't need to show the diff view until we reach the final state
-		if (this.skipWriteAnimation) {
-			await this.params.updateAsk(
-				"tool",
-				{ tool: { tool: "write_to_file", diff, path: relPath, ts: this.ts, approvalState: "loading" } },
-				this.ts
-			)
-			return
-		}
+		// if (this.skipWriteAnimation) {
+		await this.params.updateAsk(
+			"tool",
+			{
+				tool: {
+					tool: "write_to_file",
+					diff,
+					path: relPath,
+					content: diff,
+					ts: this.ts,
+					approvalState: "loading",
+				},
+			},
+			this.ts
+		)
+		return
+		// }
 
 		const currentTime = Date.now()
 		// don't push too many updates to the diff view provider to avoid performance issues

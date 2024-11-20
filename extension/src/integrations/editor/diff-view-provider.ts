@@ -430,9 +430,17 @@ class DiffViewProvider {
 
 		this.isFinalReached = true
 		const updatedDocument = this.diffEditor.document
-
-		const formatedContent = await this.formatContent(updatedDocument.uri, content)
-		await this.applyUpdate(formatedContent)
+		const isPython =
+			updatedDocument.languageId === "python" ||
+			updatedDocument.languageId === "python2" ||
+			updatedDocument.languageId === "python3" ||
+			updatedDocument.languageId === "jupyter" ||
+			updatedDocument.languageId === "jupyter-notebook"
+		if (isPython) {
+			content = await this.formatContent(updatedDocument.uri, content)
+		}
+		// const formatedContent = await this.formatContent(updatedDocument.uri, content)
+		await this.applyUpdate(content)
 		this.logger(`[${Date.now()}] final update applied - waiting for change to apply`, "info")
 		await changePromise
 		this.logger(`[${Date.now()}] final update change applied`, "info")
