@@ -28,7 +28,7 @@ export function getKoduVisitorUrl() {
 }
 
 export function getKoduInferenceUrl() {
-	return `${KODU_BASE_URL}/api/inference-stream`
+	return `${KODU_BASE_URL}/api/eval-inference-stream`
 }
 
 export function getKoduBugReportUrl() {
