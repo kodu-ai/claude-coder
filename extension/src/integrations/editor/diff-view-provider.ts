@@ -385,7 +385,7 @@ class DiffViewProvider {
 		}
 	}
 
-	public async update(accumulatedContent: string, isFinal: boolean, mode: "diff" | "whole" = "whole"): Promise<void> {
+	public async update(accumulatedContent: string, isFinal: boolean): Promise<void> {
 		if (!this.validateEditorState()) {
 			return
 		}
@@ -400,23 +400,8 @@ class DiffViewProvider {
 			return
 		}
 
-		if (mode === "diff") {
-			await this.handleDiffUpdate(accumulatedContent)
-			return
-		}
-
 		this.pendingContent = accumulatedContent
 		this.scheduleUpdate()
-	}
-
-	private async handleDiffUpdate(content: string): Promise<void> {
-		// replace the entire file with the content
-		const currentContent = this.diffEditor?.document.getText() ?? ""
-		const newContent = content
-		const formatedContent = await this.formatContent(this.modifiedUri!, newContent)
-		await this.applyUpdate(formatedContent)
-		// find last edited line between the two contents
-		// const lastEditedLine = this.findLastEditedLine(currentContent, newContent)
 	}
 
 	private validateEditorState(): boolean {
@@ -445,9 +430,17 @@ class DiffViewProvider {
 
 		this.isFinalReached = true
 		const updatedDocument = this.diffEditor.document
-
-		const formatedContent = await this.formatContent(updatedDocument.uri, content)
-		await this.applyUpdate(formatedContent)
+		const isPython =
+			updatedDocument.languageId === "python" ||
+			updatedDocument.languageId === "python2" ||
+			updatedDocument.languageId === "python3" ||
+			updatedDocument.languageId === "jupyter" ||
+			updatedDocument.languageId === "jupyter-notebook"
+		if (isPython) {
+			content = await this.formatContent(updatedDocument.uri, content)
+		}
+		// const formatedContent = await this.formatContent(updatedDocument.uri, content)
+		await this.applyUpdate(content)
 		this.logger(`[${Date.now()}] final update applied - waiting for change to apply`, "info")
 		await changePromise
 		this.logger(`[${Date.now()}] final update change applied`, "info")
@@ -556,7 +549,7 @@ class DiffViewProvider {
 			this.streamedContent = content
 
 			// Handle scrolling behavior (disabled for testing)
-			await this.handleScrollBehavior()
+			// await this.handleScrollBehavior()
 		} catch (error) {
 			this.logger(`Failed to apply update: ${error}`, "error")
 			throw new DiffViewError(`Failed to apply update: ${error}`)
