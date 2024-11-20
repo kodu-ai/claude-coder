@@ -307,6 +307,9 @@ ${this.customInstructions.trim()}
 							// will this return return otuside the loop? or outside of the function?
 							return
 						}
+						if (chunk.code === -1) {
+							console.log("Error in stream", chunk.body.msg)
+						}
 
 						if (chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) {
 							// clear the interval

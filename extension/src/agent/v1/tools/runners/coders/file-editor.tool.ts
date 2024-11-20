@@ -156,7 +156,10 @@ export class FileEditorTool extends BaseAgentTool {
 
 				// Parse and apply the edit blocks
 				const editBlocks = parseDiffBlocks(diff, absolutePath)
+				console.log(`editBlocks: ${JSON.stringify(editBlocks)}`)
+				console.log(`originalContent: ${originalContent}`)
 				newContent = await applyEditBlocksToFile(originalContent, editBlocks)
+				console.log(`newContent: ${newContent}`)
 			} else {
 				if (!content) {
 					throw new Error("File does not exist, but 'kodu_content' parameter is missing")
