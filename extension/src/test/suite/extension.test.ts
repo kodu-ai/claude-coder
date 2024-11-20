@@ -39,11 +39,10 @@ suite("Extension Test Suite", () => {
 			3. Edit the sourcecode of the repo to resolve the issue, make the fix as minimal as possible while making sure it makes your reproduce script work again
 			4. Rerun your reproduce script and confirm that the error is fixed!
 			5. Think about edgecases and make sure your fix handles them as well
-			6. Double check that you haven't accidentally changed any other files or code that is not related to the issue. If you did, go back to the original state of the files and only make the minimal changes needed to fix the issue. Remember to return the full content of the file when editing it! Making any changes to parts of the code that are not related to the issue will result in a failed attempt.
+			6. Double check that you haven't accidentally changed any other files or code that is not related to the issue. If you did, go back to the original state of the files and only make the minimal changes needed to fix the issue.
 			7. When you're done and you have checked twice that your script now executes without errors, raise the attempt_completion tool to let us know that you're ready for us to review your changes.
 
 			IMPORTANT GUIDELINES:
-			0. You MUST ALWAYS return the full content of the file when editing it, including all indentation and formatting. Failure to do so will result in a failed attempt.
 			1. Always start by trying to replicate the bug that the issues discusses.
 					If the issue includes code for reproducing the bug, we recommend that you re-implement that in your environment, and run it to make sure you can reproduce the bug.
 					Then start trying to fix it.
@@ -52,13 +51,11 @@ suite("Extension Test Suite", () => {
 					If the bug reproduction script does not print anything when it successfully runs, we recommend adding a print("Script completed successfully, no errors.") command at the end of the file,
 					so that you can be sure that the script indeed ran fine all the way through.
 
-			2. If you run a command and you dont see any output, you must assume it worked well!
+			2. When editing files, it is easy to accidentally specify a wrong line number or to write code with incorrect indentation. Always check the code after you issue an edit to make sure that it reflects what you wanted to accomplish. If it didn't, issue another tool use to fix it.
 
-			3. When editing files, it is easy to accidentally specify a wrong line number or to write code with incorrect indentation. Always check the code after you issue an edit to make sure that it reflects what you wanted to accomplish. If it didn't, issue another tool use to fix it.
+			3. You are forbidden to use the web_search, ask_followup_question and ask_consultant tools. Doing so will result in a failed attempt.
 
-			4. You are not allowed to use the web_search, ask_followup_question and ask_consultant tools at all!
-
-			5. Do not touch the test files! If you need to test something you must refer to the first point
+			4. Do not touch the test files! If you need to test something you must refer to the first point
 		`
 		const task2 = "Tell me what date is today using the execute command tool"
 

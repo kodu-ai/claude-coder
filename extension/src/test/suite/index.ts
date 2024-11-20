@@ -16,7 +16,7 @@ export function run(): Promise<void> {
 
 	return new Promise((resolve, reject) => {
 		glob("**/*.test.js", { cwd: testsRoot })
-			.then((files) => {
+			.then((files: string[]) => {
 				// Add files to the test suite
 				files.forEach((file) => mocha.addFile(path.resolve(testsRoot, file)))
 
