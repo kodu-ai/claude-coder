@@ -68,7 +68,7 @@ suite("Extension Test Suite", () => {
 		console.log(task)
 		await vscode.commands.executeCommand("kodu-claude-coder-main.startNewTask", task)
 
-		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 60 * 4)) // 4 hours
+		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 20)) // 20 minutes
 		console.log("Timeout hit from extension test!")
 	})
 })
