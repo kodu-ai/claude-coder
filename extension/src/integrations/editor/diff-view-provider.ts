@@ -433,7 +433,9 @@ class DiffViewProvider {
 
 		const formatedContent = await this.formatContent(updatedDocument.uri, content)
 		await this.applyUpdate(formatedContent)
+		this.logger(`[${Date.now()}] final update applied - waiting for change to apply`, "info")
 		await changePromise
+		this.logger(`[${Date.now()}] final update change applied`, "info")
 		this.activeLineController?.clear()
 		this.fadedOverlayController?.clear()
 	}
@@ -538,8 +540,8 @@ class DiffViewProvider {
 
 			this.streamedContent = content
 
-			// Handle scrolling behavior
-			await this.handleScrollBehavior()
+			// Handle scrolling behavior (disabled for testing)
+			// await this.handleScrollBehavior()
 		} catch (error) {
 			this.logger(`Failed to apply update: ${error}`, "error")
 			throw new DiffViewError(`Failed to apply update: ${error}`)

@@ -141,6 +141,7 @@ export class FileEditorTool extends BaseAgentTool {
 			if (!relPath) {
 				throw new Error("Missing required parameter 'path'")
 			}
+			this.logger(`Writing to file: ${relPath}`, "info")
 
 			// Switch to final state ASAP
 			this.isProcessingFinalContent = true
@@ -151,6 +152,7 @@ export class FileEditorTool extends BaseAgentTool {
 			let newContent: string
 
 			if (fileExists && diff) {
+				this.logger(`File exists and diff is provided.`, "debug")
 				// Read existing file content
 				const originalContent = await fs.promises.readFile(absolutePath, "utf-8")
 
@@ -158,15 +160,19 @@ export class FileEditorTool extends BaseAgentTool {
 				const editBlocks = parseDiffBlocks(diff, absolutePath)
 				newContent = await applyEditBlocksToFile(originalContent, editBlocks)
 			} else {
+				this.logger(`File does not exist or diff is not provided.`, "debug")
 				if (!content) {
 					throw new Error("File does not exist, but 'kodu_content' parameter is missing")
 				}
 				newContent = content
 			}
 
+			this.logger(`New content: ${newContent}`, "debug")
 			// Show changes in diff view
 			await this.showChangesInDiffView(relPath, newContent)
+			this.logger(`Changes shown in diff view`, "debug")
 
+			this.logger(`Asking for approval to write to file: ${relPath}`, "info")
 			const { response, text, images } = await this.params.ask(
 				"tool",
 				{
@@ -211,8 +217,12 @@ export class FileEditorTool extends BaseAgentTool {
 				return this.toolResponse("feedback", text ?? "The user denied this operation.", images)
 			}
 
+			this.logger(`User approved to write to file: ${relPath}`, "info")
+
+			this.logger(`Saving changes to file: ${relPath}`, "info")
 			// Save changes and handle user edits
 			const { userEdits, finalContent } = await this.diffViewProvider.saveChanges()
+			this.logger(`Changes saved to file: ${relPath}`, "info")
 			this.koduDev.getStateManager().addErrorPath(relPath)
 
 			// Final approval state
@@ -229,7 +239,7 @@ export class FileEditorTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-
+			this.logger(`Final approval state set for file: ${relPath}`, "info")
 			if (userEdits) {
 				await this.params.say(
 					"user_feedback_diff",
@@ -257,7 +267,7 @@ export class FileEditorTool extends BaseAgentTool {
 			\`\`\`
 			`
 			if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
-				console.log(`Truncated content detected in ${relPath} at ${this.ts}`)
+				this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
 				toolMsg = `The content was successfully saved to ${relPath.toPosix()},
 				but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.
 				Here is the latest file content:
@@ -268,7 +278,7 @@ export class FileEditorTool extends BaseAgentTool {
 
 			return this.toolResponse("success", toolMsg)
 		} catch (error) {
-			console.error("Error in processFileWrite:", error)
+			this.logger(`Error in processFileWrite: ${error}`, "error")
 			this.params.updateAsk(
 				"tool",
 				{
