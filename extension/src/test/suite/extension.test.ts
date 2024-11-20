@@ -19,19 +19,23 @@ suite("Extension Test Suite", () => {
 		const problemStatement = await vscode.workspace.fs.readFile(
 			vscode.Uri.file(folder + `./../../eval_data/00_problem_statements/${lastFolder}.json`)
 		)
+		const parsedTask = JSON.parse(problemStatement.toString())
+		console.log(`[DEBUG] Problem statement is the following: ${parsedTask["problem_statement"]}`)
 
 		let task = `
-			We are currently solving the following issue within our repository. Here is the issue text:
-			<issue>
-			${problemStatement}
-			</issue>
-			Your job is to solve this issue on your own by making changes to the source files. When you're satisfied with all of the changes you've made, you can finally raise the attempt_completion tool. Not before that. 
+			We are currently solving the following issue within our repository. Here is the issue a user created:
+			--- BEGIN ISSUE ---
+			${parsedTask["problem_statement"]}
+			--- END ISSUE ---
+			Your instructions are to solve this github issue on your own by making changes to the source files. When you're satisfied with all of the changes you've made, you can finally raise the attempt_completion tool. Not before that. 
 			You cannot use any interactive session commands (e.g. vim) in this environment, but you can write scripts and run them. E.g. you can write a python3 script and then run it with "python3 <script_name>.py".
 			I've already taken care of all changes to any of the test files described in the issue. This means you DON'T have to modify the testing logic or any of the tests in any way!
 			I have also already installed all dependencies for you, so you don't have to worry about that.
 			Your task is to make the minimal changes to non-tests files in the workspace directory to ensure the issue is satisfied.
 
 			NOTE ABOUT THE WRITE TO FILE TOOL: Indentation really matters! When editing a file, make sure to insert appropriate indentation before each line!
+			NOTE ABOUT TOOLS: The ask_followup_question tool is disabled for you, you have to do the research yourself, I will not answer any followup questions.
+			NOTE ABOUT TOOLS: The web_search tool is disabled for you, you are unable to use it.
 
 			Follow these steps to resolve the issue:
 			1. As a first step, it might be a good idea to explore the repo to familiarize yourself with its structure.
@@ -59,6 +63,8 @@ suite("Extension Test Suite", () => {
 		`
 		const task2 = "Tell me what date is today using the execute command tool"
 
+		console.log("Task started")
+		console.log(task)
 		await vscode.commands.executeCommand("kodu-claude-coder-main.startNewTask", task)
 
 		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 60 * 4)) // 4 hours

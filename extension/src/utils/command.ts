@@ -1,7 +1,7 @@
-import * as path from "path"
-import * as dotenv from "dotenv"
-import * as vscode from "vscode"
 import { ExtensionProvider } from "@/providers/claude-coder/ClaudeCoderProvider"
+import * as dotenv from "dotenv"
+import * as path from "path"
+import * as vscode from "vscode"
 import { koduDefaultModelId } from "../shared/api"
 
 export const startNewTask = async (
@@ -10,6 +10,7 @@ export const startNewTask = async (
 	task: string
 ) => {
 	const parsedConfig = dotenv.config({ path: path.join(context.extensionPath, ".env") })
+	console.log(`[DEBUG] Parsed config: ${parsedConfig}, here is the task: ${task}`)
 
 	if (parsedConfig.parsed?.KODU_API_KEY) {
 		sidebarProvider.getApiManager().saveKoduApiKey(parsedConfig.parsed.KODU_API_KEY)
