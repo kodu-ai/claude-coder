@@ -8,3 +8,4 @@ webview-ui-vite/node_modules
 .env.local
 
 eval/env
+.aider*
