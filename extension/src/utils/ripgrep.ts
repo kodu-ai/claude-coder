@@ -1,8 +1,8 @@
-import * as vscode from "vscode"
 import * as childProcess from "child_process"
-import * as path from "path"
 import * as fs from "fs"
+import * as path from "path"
 import * as readline from "readline"
+import * as vscode from "vscode"
 
 /*
 This file provides functionality to perform regex searches on files using ripgrep.
@@ -59,6 +59,7 @@ interface SearchResult {
 }
 
 const MAX_RESULTS = 300
+const MAX_OUTPUT_SIZE = 100000 // 100KB limit for total output
 
 async function getBinPath(vscodeAppRoot: string): Promise<string | undefined> {
 	const checkPath = async (pkgFolder: string) => {
@@ -93,7 +94,7 @@ async function execRipgrep(bin: string, args: string[]): Promise<string> {
 
 		let output = ""
 		let lineCount = 0
-		const maxLines = MAX_RESULTS * 5 // limiting ripgrep output with max lines since there's no other way to limit results. it's okay that we're outputting as json, since we're parsing it line by line and ignore anything that's not part of a match. This assumes each result is at most 5 lines.
+		const maxLines = MAX_RESULTS * 5
 
 		rl.on("line", (line) => {
 			if (lineCount < maxLines) {
@@ -109,6 +110,7 @@ async function execRipgrep(bin: string, args: string[]): Promise<string> {
 		rgProcess.stderr.on("data", (data) => {
 			errorOutput += data.toString()
 		})
+		
 		rl.on("close", () => {
 			if (errorOutput) {
 				reject(new Error(`ripgrep process error: ${errorOutput}`))
@@ -135,54 +137,73 @@ export async function regexSearchFiles(
 		throw new Error("Could not find ripgrep binary")
 	}
 
+	// Default to common source code files if no pattern specified
+	const defaultPattern = "*.{js,jsx,ts,tsx,py,java,c,cpp,h,hpp,go,rs,php,rb,swift,kt}"
+
 	const args = [
 		"--json",
 		"-e", regex,
-		"--glob", filePattern || "*",
+		"--glob", filePattern || defaultPattern,
 		"--context", "1",
-		"--max-columns", "200",
-		"--max-count", "5",
-		"--hidden",
+		"--max-columns", "300",
 		directoryPath
 	]
 
 	let output: string
 	try {
 		output = await execRipgrep(rgPath, args)
-	} catch {
+	} catch (error) {
+		console.error("Ripgrep error:", error)
 		return "No results found"
 	}
+
 	const results: SearchResult[] = []
 	let currentResult: Partial<SearchResult> | null = null
+	let totalSize = 0
 
-	output.split("\n").forEach((line) => {
-		if (line) {
-			try {
-				const parsed = JSON.parse(line)
-				if (parsed.type === "match") {
-					if (currentResult) {
-						results.push(currentResult as SearchResult)
-					}
-					currentResult = {
-						file: parsed.data.path.text,
-						line: parsed.data.line_number,
-						column: parsed.data.submatches[0].start,
-						match: parsed.data.lines.text,
-						beforeContext: [],
-						afterContext: [],
-					}
-				} else if (parsed.type === "context" && currentResult) {
-					if (parsed.data.line_number < currentResult.line!) {
-						currentResult.beforeContext!.push(parsed.data.lines.text)
-					} else {
-						currentResult.afterContext!.push(parsed.data.lines.text)
-					}
-				}
-			} catch (error) {
-				console.error("Error parsing ripgrep output:", error)
+	for (const line of output.split("\n")) {
+		if (!line) continue
+		
+		try {
+			const parsed = JSON.parse(line)
+			totalSize += line.length
+
+			if (totalSize > MAX_OUTPUT_SIZE) {
+				throw new Error("Search results exceed maximum allowed size. Please use a more specific search pattern or make sure to specify a specific path in order to avoid hits on dependencies (node_modules, etc.).")
 			}
+
+			if (parsed.type === "match") {
+				if (currentResult) {
+					results.push(currentResult as SearchResult)
+				}
+				
+				if (results.length >= MAX_RESULTS) {
+					throw new Error(`Got ${results.length} results. Please use a more specific search pattern or make sure to specify a specific path in order to avoid hits on dependencies (node_modules, etc.).`)
+				}
+
+				currentResult = {
+					file: parsed.data.path.text,
+					line: parsed.data.line_number,
+					column: parsed.data.submatches[0].start,
+					match: parsed.data.lines.text,
+					beforeContext: [],
+					afterContext: [],
+				}
+			} else if (parsed.type === "context" && currentResult) {
+				if (parsed.data.line_number < currentResult.line!) {
+					currentResult.beforeContext!.push(parsed.data.lines.text)
+				} else {
+					currentResult.afterContext!.push(parsed.data.lines.text)
+				}
+			}
+		} catch (error) {
+			if (error instanceof Error && (error.message.includes("exceed maximum allowed size") || 
+				error.message.includes("Too many search results"))) {
+				throw error
+			}
+			console.error("Error parsing ripgrep output:", error)
 		}
-	})
+	}
 
 	if (currentResult) {
 		results.push(currentResult as SearchResult)
