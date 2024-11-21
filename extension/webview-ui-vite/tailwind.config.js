@@ -196,7 +196,6 @@ export default {
 		},
 	},
 	plugins: [
-		require("tailwindcss-animate"),
 
 		plugin(function ({ addUtilities, theme }) {
 			const colors = theme("colors")
