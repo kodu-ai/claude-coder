@@ -5,11 +5,15 @@ import Mocha from "mocha"
 import { glob } from "glob"
 
 export function run(): Promise<void> {
-	// Create the Mocha test instance
+	// Retrieve the test name from the environment variable
+	const testName = process.env.TEST_NAME
+
+	// Create the Mocha test instance with the grep option
 	const mocha = new Mocha({
 		ui: "bdd",
 		color: true,
 		timeout: 1000 * 60 * 60 * 4 + 10 * 1000,
+		grep: testName ? new RegExp(testName) : undefined,
 	})
 
 	const testsRoot = path.resolve(__dirname)
@@ -21,7 +25,6 @@ export function run(): Promise<void> {
 				files.forEach((file) => mocha.addFile(path.resolve(testsRoot, file)))
 
 				try {
-					// Run the Mocha test suite
 					// Run the Mocha test suite
 					mocha.run((failures) => {
 						if (failures > 0) {
