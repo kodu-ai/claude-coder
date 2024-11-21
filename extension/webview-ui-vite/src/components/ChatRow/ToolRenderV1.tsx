@@ -17,7 +17,6 @@ import {
 	LoaderPinwheel,
 	MessageCircle,
 	MessageCircleReply,
-	MessageSquare,
 	Play,
 	RefreshCw,
 	Scissors,
@@ -509,29 +508,19 @@ const textVariants = {
 export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 	({ path = '', content, approvalState, onApprove, onReject, tool, ts, ...rest }) => {
 		content = (content ?? "").replace(/\t/g, '  ')
-		const [visibleContent, setVisibleContent] = useState<string[]>([])
-		const [totalLines, setTotalLines] = useState(0)
+		const [displayContent, setDisplayContent] = useState(content)
 		const isStreaming = approvalState === "loading"
-		const scrollAreaRef = useRef<HTMLDivElement>(null)
-		const lastChunkRef = useRef<HTMLPreElement>(null)
-		const animationCompleteCountRef = useRef(0)
+		const prevContentRef = useRef(content)
 
 		useEffect(() => {
-			const text = content ?? ""
-			setTotalLines(text.split("\n").length)
-
-			if (isStreaming) {
-				const chunks = text.match(new RegExp(`.{1,${CHUNK_SIZE * 2}}`, "g")) || []
-				setVisibleContent(chunks)
-			} else {
-				setVisibleContent([text])
+			if (isStreaming && content !== prevContentRef.current) {
+				setDisplayContent(content)
+				prevContentRef.current = content
+			} else if (!isStreaming && content !== displayContent) {
+				setDisplayContent(content)
 			}
-
-			// Reset the animation complete count when content changes
-			animationCompleteCountRef.current = 0
 		}, [content, isStreaming])
 
-		// Get file extension to determine icon
 		const fileExt = path?.split('.')?.pop()?.toLowerCase() || ''
 		const getLanguage = (fileExt: string) => {
 			switch (fileExt) {
@@ -565,6 +554,29 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 
 		const language = getLanguage(fileExt)
 
+		// Don't render anything if no content during streaming
+		if (isStreaming && !displayContent) {
+			return (
+				<ToolBlock
+					{...rest}
+					ts={ts}
+					tool={tool}
+					icon={Edit}
+					title={<div className="flex items-center w-full">
+						<span className="font-semibold">{path}</span>
+					</div>}
+					variant="info"
+					approvalState={approvalState}
+					onApprove={onApprove}
+					onReject={onReject}>
+					<div className="flex items-center justify-center">
+						<LoaderPinwheel className="w-3 h-3 animate-spin" />
+						<span className="ml-2 text-xs font-bold p-2">Streaming content...</span>
+					</div>
+				</ToolBlock>
+			)
+		}
+
 		return (
 			<ToolBlock
 				{...rest}
@@ -584,7 +596,7 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 				<div className="relative max-h-[300px] overflow-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30">
 					<Highlight
 						theme={themes.vsDark}
-						code={content}
+						code={displayContent || ''}
 						language={language}>
 						{({ className, style, tokens, getLineProps, getTokenProps }) => (
 							<pre 
