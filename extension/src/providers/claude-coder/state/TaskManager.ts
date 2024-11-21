@@ -9,21 +9,10 @@ import { compressImages, downloadTask, selectImages } from "../../../utils"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 
 export class TaskManager {
-	private static instance: TaskManager | null = null
 	private provider: ExtensionProvider
 
-	private constructor(provider: ExtensionProvider) {
+	public constructor(provider: ExtensionProvider) {
 		this.provider = provider
-	}
-
-	public static getInstance(provider?: ExtensionProvider): TaskManager {
-		if (!TaskManager.instance) {
-			if (!provider) {
-				throw new Error("ExtensionProvider must be provided when creating the TaskManager instance")
-			}
-			TaskManager.instance = new TaskManager(provider)
-		}
-		return TaskManager.instance
 	}
 
 	async clearTask() {
