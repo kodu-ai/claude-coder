@@ -70,13 +70,13 @@ export class TerminalRegistry {
 	private static terminalOutputMap: Map<number, string[]> = new Map()
 	private static outputBuffers: Map<number, string> = new Map()
 
-	static createTerminal(cwd?: string | vscode.Uri | undefined, name?: string): TerminalInfo {
-		const terminal = vscode.window.createTerminal({
-			cwd,
-			name: name || "Kodu.AI",
-			isTransient: true,
-		})
-		const newInfo: TerminalInfo = {
+ static createTerminal(cwd?: string | vscode.Uri | undefined, name?: string): TerminalInfo {
+  const terminal = vscode.window.createTerminal({
+   cwd,
+   name: name || "Kodu.AI",
+   isTransient: false, // Set to false to prevent terminals from auto-closing
+  })
+  const newInfo: TerminalInfo = {
 			terminal,
 			busy: false,
 			lastCommand: "",
