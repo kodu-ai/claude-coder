@@ -561,12 +561,6 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 				onClick={() => navigator.clipboard.writeText(content)}>
 				<Copy className="h-3 w-3" />
 			</button>
-			<button
-				className="p-1 hover:bg-muted rounded-sm"
-				title="Give feedback"
-				onClick={() => onReject && onReject("I don't like this")}>
-				<MessageSquare className="h-3 w-3" />
-			</button>
 		</div>
 
 		const language = getLanguage(fileExt)
