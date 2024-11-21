@@ -3,13 +3,15 @@
  * THIS LETS KODU STREAM DIFF IN MEMORY AND SHOW IT IN VS CODE
  * ALSO IT UPDATES THE WORKSPACE TIMELINE WITH THE CHANGES
  */
-import * as diff from "diff"
-import * as fs from "fs/promises"
-import pWaitFor from "p-wait-for"
-import * as path from "path"
 import * as vscode from "vscode"
-import { KoduDev } from "../../agent/v1"
+import * as path from "path"
+import * as fs from "fs/promises"
 import { createDirectoriesForFile } from "../../utils/fs"
+import * as diff from "diff"
+import { arePathsEqual } from "../../utils/path-helpers"
+import { KoduDev } from "../../agent/v1"
+import delay from "delay"
+import pWaitFor from "p-wait-for"
 
 export const DIFF_VIEW_URI_SCHEME = "claude-coder-diff"
 export const MODIFIED_URI_SCHEME = "claude-coder-modified"
@@ -99,6 +101,9 @@ class ModifiedContentProvider implements vscode.FileSystemProvider {
 	private _emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>()
 	readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]> = this._emitter.event
 
+	// Add a promise map to track pending updates
+	private pendingUpdates = new Map<string, Promise<void>>()
+
 	watch(uri: vscode.Uri): vscode.Disposable {
 		return new vscode.Disposable(() => {})
 	}
@@ -126,9 +131,42 @@ class ModifiedContentProvider implements vscode.FileSystemProvider {
 		return data
 	}
 
-	writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean }): void {
-		this.content.set(uri.toString(), content)
-		this._emitter.fire([{ type: vscode.FileChangeType.Changed, uri }])
+	async writeFile(
+		uri: vscode.Uri,
+		content: Uint8Array,
+		options: { create: boolean; overwrite: boolean }
+	): Promise<void> {
+		const uriString = uri.toString()
+
+		// Create a promise that resolves when the content is fully applied
+		const updatePromise = new Promise<void>((resolve) => {
+			// Store content
+			this.content.set(uriString, content)
+
+			// Create one-time listener for document change
+			const disposable = vscode.workspace.onDidChangeTextDocument((e) => {
+				if (e.document.uri.toString() === uriString) {
+					disposable.dispose()
+					resolve()
+				}
+			})
+
+			// Fire the change event
+			this._emitter.fire([{ type: vscode.FileChangeType.Changed, uri }])
+		})
+
+		// Store the promise and clean it up when done
+		this.pendingUpdates.set(uriString, updatePromise)
+		await updatePromise
+		this.pendingUpdates.delete(uriString)
+	}
+
+	// Optional: Add method to wait for pending updates
+	async waitForPendingUpdates(uri: vscode.Uri): Promise<void> {
+		const pending = this.pendingUpdates.get(uri.toString())
+		if (pending) {
+			await pending
+		}
 	}
 
 	delete(uri: vscode.Uri): void {
@@ -157,7 +195,7 @@ export class DiffViewProvider {
 	private lastUserInteraction: number = 0
 	private previousLines: string[] = []
 	private static readonly SCROLL_THROTTLE = 100 // ms
-	private static readonly USER_INTERACTION_TIMEOUT = 2000 // ms
+	private static readonly USER_INTERACTION_TIMEOUT = 1000 // ms
 	private static readonly SCROLL_THRESHOLD = 10 // lines from bottom to re-enable auto-scroll
 	private static modifiedContentProvider: ModifiedContentProvider
 	private disposables: vscode.Disposable[] = []
@@ -180,6 +218,14 @@ export class DiffViewProvider {
 				throw e
 			}
 		}
+	}
+
+	public async waitForPendingUpdates(): Promise<void> {
+		if (this.modifiedUri) {
+			await DiffViewProvider.modifiedContentProvider.waitForPendingUpdates(this.modifiedUri)
+		}
+		// add another 100ms delay to ensure all updates are processed
+		await delay(100)
 	}
 
 	public async open(relPath: string, isFinal?: boolean): Promise<void> {
@@ -266,10 +312,14 @@ export class DiffViewProvider {
 
 		// Create modified content URI (initially empty)
 		this.modifiedUri = vscode.Uri.parse(`${MODIFIED_URI_SCHEME}:/${fileName}`)
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(this.originalContent ?? ""), {
-			create: true,
-			overwrite: true,
-		})
+		DiffViewProvider.modifiedContentProvider.writeFile(
+			this.modifiedUri,
+			new TextEncoder().encode(this.originalContent ?? ""),
+			{
+				create: true,
+				overwrite: true,
+			}
+		)
 
 		// Open diff editor with original and modified content
 		await vscode.commands.executeCommand(
@@ -315,17 +365,28 @@ export class DiffViewProvider {
 			return
 		}
 		if (this.isFinalReached) {
+			this.logger("<update>: Final update already reached", "warn")
 			return
 		}
 
 		if (isFinal) {
+			this.logger(
+				`[${Date.now()}] applying final update [function update]: content length ${accumulatedContent.length}`,
+				"info"
+			)
 			this.isFinalReached = true
 			await this.applyUpdate(accumulatedContent)
-			this.activeLineController.clear()
-			this.fadedOverlayController.clear()
+			await this.activeLineController.clear()
+			await this.fadedOverlayController.clear()
 			return
 		}
 
+		this.logger(
+			`[${Date.now()}] applying line by line update [function update]: content length ${
+				accumulatedContent.length
+			}`,
+			"info"
+		)
 		await this.applyLineByLineUpdate(accumulatedContent)
 	}
 
@@ -371,10 +432,17 @@ export class DiffViewProvider {
 		].join("\n")
 
 		// Update content with proper options to maintain file history
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(updatedContent), {
-			create: false,
-			overwrite: true,
-		})
+		await DiffViewProvider.modifiedContentProvider.writeFile(
+			this.modifiedUri,
+			new TextEncoder().encode(updatedContent),
+			{
+				create: false,
+				overwrite: true,
+			}
+		)
+		// Optional: Add extra safety by waiting for next VS Code tick
+		await new Promise((resolve) => setTimeout(resolve, 0))
+
 		this.streamedContent = updatedContent
 
 		// Update decoration for the changed line
@@ -436,39 +504,17 @@ export class DiffViewProvider {
 			return
 		}
 
-		// Ensure content ends with newline
-		const normalizedContent = content.endsWith('\n') ? content : content + '\n'
+		this.logger(`Applying update: content length ${content.length}`, "info")
 
 		// Update content with proper options to maintain file history
-		DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, Buffer.from(normalizedContent), {
+		await DiffViewProvider.modifiedContentProvider.writeFile(this.modifiedUri, new TextEncoder().encode(content), {
 			create: false,
 			overwrite: true,
 		})
-		this.streamedContent = normalizedContent
+		// Optional: Add extra safety by waiting for next VS Code tick
+		await new Promise((resolve) => setTimeout(resolve, 0))
 
-		// Find the last modified line
-		const currentLine = this.diffEditor.document.lineCount - 1
-		if (this.activeLineController && this.fadedOverlayController) {
-			this.activeLineController.setActiveLine(currentLine)
-			this.fadedOverlayController.updateOverlayAfterLine(currentLine, this.diffEditor.document.lineCount)
-		}
-
-		// Force a flush by ensuring the content is written and visible
-		await vscode.workspace.fs.writeFile(this.modifiedUri, Buffer.from(normalizedContent))
-
-		const now = Date.now()
-		if (
-			this.isAutoScrollEnabled &&
-			(now - this.lastScrollTime >= DiffViewProvider.SCROLL_THROTTLE) &&
-			(
-				now - this.lastUserInteraction >= DiffViewProvider.USER_INTERACTION_TIMEOUT || 
-				this.checkScrollPosition() ||
-				!this.lastScrollTime // Always scroll on first update
-			)
-		) {
-			await this.scrollToBottom()
-			this.lastScrollTime = now
-		}
+		this.streamedContent = content
 	}
 
 	private async scrollToBottom(): Promise<void> {
@@ -478,15 +524,10 @@ export class DiffViewProvider {
 
 		const lastLine = this.diffEditor.document.lineCount - 1
 		const lastCharacter = this.diffEditor.document.lineAt(lastLine).text.length
-		const range = new vscode.Range(lastLine, 0, lastLine, lastCharacter)
+		const range = new vscode.Range(lastLine, lastCharacter, lastLine, lastCharacter)
 
-		// Use more aggressive reveal type when auto-scrolling is enabled
-		this.diffEditor.revealRange(
-			range,
-			this.isAutoScrollEnabled 
-				? vscode.TextEditorRevealType.InCenterIfOutsideViewport
-				: vscode.TextEditorRevealType.Default
-		)
+		// Use less aggressive reveal type
+		this.diffEditor.revealRange(range, vscode.TextEditorRevealType.Default)
 	}
 
 	public async revertChanges(): Promise<void> {
@@ -577,7 +618,7 @@ export class DiffViewProvider {
 					)
 				}
 				// update the file with the edited content
-				await vscode.workspace.fs.writeFile(uri, Buffer.from(editedContent))
+				await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(editedContent))
 				// we save the file after writing to it
 				await vscode.workspace.save(uri)
 			} catch (error) {
