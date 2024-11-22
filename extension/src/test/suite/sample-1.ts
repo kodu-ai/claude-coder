@@ -1,5 +1,4 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { compressToolFromMsg } from "../shared/format-tools"
 
 // Constants for better maintainability
 const MIN_MESSAGES_TO_KEEP = 4

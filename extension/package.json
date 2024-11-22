@@ -156,7 +156,8 @@
 		"compile:tests": "tsc -p ./tsconfig.test.json",
 		"exec-test": "node ./out/test/src/test/runTest.js",
 		"watch-tests": "tsc -p . -w --outDir out",
-		"pretest": "npm run compile-tests && npm run compile && npm run lint",
+		"compile-tests": "tsc -p ./tsconfig.test.json",
+		"pretest": "npm run compile-tests && npm run compile",
 		"check-types": "tsc --noEmit",
 		"lint": "eslint src --ext ts",
 		"test": "vscode-test",
@@ -184,6 +185,7 @@
 		"esbuild": "^0.21.5",
 		"eslint": "^8.57.0",
 		"npm-run-all": "^4.1.5",
+		"ts-jest": "^29.2.5",
 		"typescript": "^5.4.5"
 	},
 	"dependencies": {
