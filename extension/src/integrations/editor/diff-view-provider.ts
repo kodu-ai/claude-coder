@@ -25,17 +25,64 @@ export const CONSTANTS = {
 	WAIT_FOR_EDITOR_INTERVAL: 20,
 } as const
 
+// Enhanced decoration types with smooth transitions and modern styling
 const fadedOverlayDecorationType = vscode.window.createTextEditorDecorationType({
-	backgroundColor: "rgba(255, 255, 0, 0.1)",
-	opacity: "0.4",
-	isWholeLine: true,
+ backgroundColor: { id: 'diffEditor.insertedTextBackground' },
+ opacity: "0.3",
+ isWholeLine: true,
+ after: {
+  contentText: ' ',
+  margin: '0 0 0 0.5em',
+  backgroundColor: { id: 'diffEditor.insertedTextBackground' },
+  width: '100%'
+ },
+ light: {
+  backgroundColor: 'rgba(155, 185, 85, 0.1)',
+  after: {
+   backgroundColor: 'rgba(155, 185, 85, 0.1)'
+  }
+ },
+ dark: {
+  backgroundColor: 'rgba(51, 255, 169, 0.1)',
+  after: {
+   backgroundColor: 'rgba(51, 255, 169, 0.1)'
+  }
+ }
 })
 
 const activeLineDecorationType = vscode.window.createTextEditorDecorationType({
-	backgroundColor: "rgba(255, 255, 0, 0.3)",
-	opacity: "1",
-	isWholeLine: true,
-	border: "1px solid rgba(255, 255, 0, 0.5)",
+ backgroundColor: { id: 'diffEditor.insertedTextBackground' },
+ isWholeLine: true,
+ borderRadius: '4px',
+ before: {
+  contentText: '▍',
+  color: { id: 'editorCursor.foreground' }
+ },
+ light: {
+  backgroundColor: 'rgba(155, 185, 85, 0.2)',
+  border: '1px solid rgba(155, 185, 85, 0.4)'
+ },
+ dark: {
+  backgroundColor: 'rgba(51, 255, 169, 0.15)',
+  border: '1px solid rgba(51, 255, 169, 0.4)'
+ }
+})
+
+// Add animation styles to the document
+const styleDisposable = vscode.workspace.onDidOpenTextDocument(() => {
+ const cssAnimation = `
+  .monaco-editor .kodu-highlight {
+   animation: kodu-highlight-fade 0.6s ease-out;
+  }
+  @keyframes kodu-highlight-fade {
+   from { background-color: rgba(51, 255, 169, 0.3); }
+   to { background-color: rgba(51, 255, 169, 0.15); }
+  }
+ `
+ // Inject animation styles into editor
+ const styleElement = document.createElement('style')
+ styleElement.textContent = cssAnimation
+ document.head.appendChild(styleElement)
 })
 
 type DecorationType = "fadedOverlay" | "activeLine"
@@ -49,25 +96,45 @@ class DiffViewError extends Error {
 }
 
 class DecorationController {
-	private decorationType: DecorationType
-	private editor: vscode.TextEditor
-	private ranges: vscode.Range[] = []
-	private pendingRanges: vscode.Range[] = []
-	private updateTimeout: NodeJS.Timeout | null = null
+ private decorationType: DecorationType
+ private editor: vscode.TextEditor
+ private ranges: vscode.Range[] = []
+ private pendingRanges: vscode.Range[] = []
+ private updateTimeout: NodeJS.Timeout | null = null
+ private animationTimeout: NodeJS.Timeout | null = null
+ private currentHighlight: vscode.Range | null = null
 
-	constructor(decorationType: DecorationType, editor: vscode.TextEditor) {
-		this.decorationType = decorationType
-		this.editor = editor
-	}
+ constructor(decorationType: DecorationType, editor: vscode.TextEditor) {
+  this.decorationType = decorationType
+  this.editor = editor
+ }
 
-	getDecoration() {
-		switch (this.decorationType) {
-			case "fadedOverlay":
-				return fadedOverlayDecorationType
-			case "activeLine":
-				return activeLineDecorationType
-		}
-	}
+ getDecoration() {
+  switch (this.decorationType) {
+   case "fadedOverlay":
+    return fadedOverlayDecorationType
+   case "activeLine":
+    return activeLineDecorationType
+  }
+ }
+
+ private async animateHighlight(range: vscode.Range) {
+  if (this.animationTimeout) {
+   clearTimeout(this.animationTimeout)
+  }
+
+  // Add highlight class
+  const decoration = this.getDecoration()
+  this.editor.setDecorations(decoration, [range])
+  
+  // Clear previous highlight after animation duration
+  this.animationTimeout = setTimeout(() => {
+   if (this.currentHighlight === range) {
+    this.currentHighlight = null
+    this.editor.setDecorations(decoration, [])
+   }
+  }, 600) // Match animation duration from CSS
+ }
 
 	addLines(startIndex: number, numLines: number) {
 		if (startIndex < 0 || numLines <= 0) {
@@ -126,10 +193,28 @@ class DecorationController {
 		this.scheduleUpdate()
 	}
 
-	setActiveLine(line: number) {
-		this.pendingRanges = [new vscode.Range(line, 0, line, Number.MAX_SAFE_INTEGER)]
-		this.scheduleUpdate()
-	}
+ setActiveLine(line: number) {
+  const range = new vscode.Range(line, 0, line, Number.MAX_SAFE_INTEGER)
+  this.currentHighlight = range
+  
+  if (this.decorationType === "activeLine") {
+   // Apply highlight animation for active line
+   this.animateHighlight(range)
+  } else {
+   this.pendingRanges = [range]
+   this.scheduleUpdate()
+  }
+ }
+
+ dispose() {
+  if (this.updateTimeout) {
+   clearTimeout(this.updateTimeout)
+  }
+  if (this.animationTimeout) {
+   clearTimeout(this.animationTimeout)
+  }
+  this.editor.setDecorations(this.getDecoration(), [])
+ }
 }
 
 class ModifiedContentProvider implements vscode.FileSystemProvider {
@@ -266,12 +351,28 @@ class DiffViewProvider {
 			this.originalContent = ""
 		}
 
-		await this.openDiffEditor(relPath, !!isFinal)
-		this.activeLineController = new DecorationController("activeLine", this.diffEditor!)
-		this.fadedOverlayController = new DecorationController("fadedOverlay", this.diffEditor!)
+  await this.openDiffEditor(relPath, !!isFinal)
+  
+  // Initialize editor decorations
+  this.activeLineController = new DecorationController("activeLine", this.diffEditor!)
+  this.fadedOverlayController = new DecorationController("fadedOverlay", this.diffEditor!)
 
-		this.fadedOverlayController.addLines(0, this.diffEditor!.document.lineCount)
-		this.setupEventListeners()
+  // Inject animation styles
+  this.injectAnimationStyles()
+
+  // Setup initial decorations
+  this.fadedOverlayController.addLines(0, this.diffEditor!.document.lineCount)
+  
+  // Setup event listeners
+  this.setupEventListeners()
+
+  // Add animation styles disposable
+  this.disposables.push(new vscode.Disposable(() => {
+   const styleElement = document.querySelector('style[data-kodu-animations]')
+   if (styleElement) {
+    styleElement.remove()
+   }
+  }))
 	}
 
 	private setupEventListeners(): void {
@@ -713,33 +814,69 @@ class DiffViewProvider {
 		await this.reset()
 	}
 
-	private async reset(): Promise<void> {
-		if (this.modifiedUri) {
-			try {
-				DiffViewProvider.modifiedContentProvider.delete(this.modifiedUri)
-			} catch (error) {
-				// Ignore deletion errors
-			}
-		}
-		if (this.updateTimeout) {
-			clearTimeout(this.updateTimeout)
-			this.updateTimeout = null
-		}
-		this.disposables.forEach((d) => d.dispose())
-		this.disposables = []
-		this.diffEditor = undefined
-		this.streamedContent = ""
-		this.lastEditPosition = undefined
-		this.lastScrollTime = 0
-		this.isFinalReached = false
-		this.isAutoScrollEnabled = true
-		this.lastUserInteraction = 0
-		this.activeLineController = undefined
-		this.fadedOverlayController = undefined
-		this.previousContent = ""
-		this.pendingContent = ""
-		this.updateScheduled = false
-	}
+ private async reset(): Promise<void> {
+  if (this.modifiedUri) {
+   try {
+    DiffViewProvider.modifiedContentProvider.delete(this.modifiedUri)
+   } catch (error) {
+    // Ignore deletion errors
+   }
+  }
+
+  // Clean up animation styles
+  const styleElement = document.querySelector('style[data-kodu-animations]')
+  if (styleElement) {
+   styleElement.remove()
+  }
+
+  // Clean up controllers
+  if (this.activeLineController) {
+   this.activeLineController.dispose()
+   this.activeLineController = undefined
+  }
+  if (this.fadedOverlayController) {
+   this.fadedOverlayController.dispose()
+   this.fadedOverlayController = undefined
+  }
+
+  // Clean up timeouts
+  if (this.updateTimeout) {
+   clearTimeout(this.updateTimeout)
+   this.updateTimeout = null
+  }
+
+  // Clean up event listeners
+  this.disposables.forEach((d) => d.dispose())
+  this.disposables = []
+
+  // Reset state
+  this.diffEditor = undefined
+  this.streamedContent = ""
+  this.lastEditPosition = undefined
+  this.lastScrollTime = 0
+  this.isFinalReached = false
+  this.isAutoScrollEnabled = true
+  this.lastUserInteraction = 0
+  this.previousContent = ""
+  this.pendingContent = ""
+  this.updateScheduled = false
+ }
+
+ private injectAnimationStyles(): void {
+  const cssAnimation = `
+   .monaco-editor .kodu-highlight {
+    animation: kodu-highlight-fade 0.6s ease-out;
+   }
+   @keyframes kodu-highlight-fade {
+    from { background-color: rgba(51, 255, 169, 0.3); }
+    to { background-color: rgba(51, 255, 169, 0.15); }
+   }
+  `
+  const styleElement = document.createElement('style')
+  styleElement.textContent = cssAnimation
+  styleElement.dataset.koduAnimations = 'true'
+  document.head.appendChild(styleElement)
+ }
 
 	public async saveChanges(): Promise<{ userEdits: string | undefined; finalContent: string }> {
 		try {
