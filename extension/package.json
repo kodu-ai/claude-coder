@@ -158,6 +158,7 @@
 		"watch-tests": "tsc -p . -w --outDir out",
 		"pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
 		"check-types": "tsc --noEmit",
+		"compile-tests": "tsc -p ./tsconfig.test.json",
 		"lint": "eslint src --ext ts",
 		"test": "vscode-test",
 		"install:all": "pnpm install && cd webview-ui-vite && pnpm install",
