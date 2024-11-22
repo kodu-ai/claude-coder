@@ -40,31 +40,38 @@ const fadedOverlayDecorationType = vscode.window.createTextEditorDecorationType(
   backgroundColor: 'rgba(155, 185, 85, 0.1)',
   after: {
    backgroundColor: 'rgba(155, 185, 85, 0.1)'
-  }
+  },
+  border: '1px solid rgba(155, 185, 85, 0.2)'
  },
  dark: {
   backgroundColor: 'rgba(51, 255, 169, 0.1)',
   after: {
    backgroundColor: 'rgba(51, 255, 169, 0.1)'
-  }
+  },
+  border: '1px solid rgba(51, 255, 169, 0.2)'
  }
 })
 
 const activeLineDecorationType = vscode.window.createTextEditorDecorationType({
  backgroundColor: { id: 'diffEditor.insertedTextBackground' },
  isWholeLine: true,
- borderRadius: '4px',
+ border: '1px solid rgba(51, 255, 169, 0.4)',
  before: {
   contentText: '▍',
-  color: { id: 'editorCursor.foreground' }
+  color: { id: 'editorCursor.foreground' },
+  margin: '0 0.5em 0 0',
+  width: '0.25em',
+  height: '100%'
  },
  light: {
   backgroundColor: 'rgba(155, 185, 85, 0.2)',
-  border: '1px solid rgba(155, 185, 85, 0.4)'
+  border: '1px solid rgba(155, 185, 85, 0.4)',
+  outline: '1px solid rgba(155, 185, 85, 0.2)'
  },
  dark: {
   backgroundColor: 'rgba(51, 255, 169, 0.15)',
-  border: '1px solid rgba(51, 255, 169, 0.4)'
+  border: '1px solid rgba(51, 255, 169, 0.4)',
+  outline: '1px solid rgba(51, 255, 169, 0.2)'
  }
 })
 
@@ -72,16 +79,45 @@ const activeLineDecorationType = vscode.window.createTextEditorDecorationType({
 const styleDisposable = vscode.workspace.onDidOpenTextDocument(() => {
  const cssAnimation = `
   .monaco-editor .kodu-highlight {
-   animation: kodu-highlight-fade 0.6s ease-out;
+   animation: kodu-highlight-fade 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   }
   @keyframes kodu-highlight-fade {
-   from { background-color: rgba(51, 255, 169, 0.3); }
-   to { background-color: rgba(51, 255, 169, 0.15); }
+   0% { 
+    background-color: rgba(51, 255, 169, 0.3);
+    border-color: rgba(51, 255, 169, 0.6);
+   }
+   50% {
+    background-color: rgba(51, 255, 169, 0.2);
+    border-color: rgba(51, 255, 169, 0.4);
+   }
+   100% {
+    background-color: rgba(51, 255, 169, 0.1);
+    border-color: rgba(51, 255, 169, 0.2);
+   }
+  }
+
+  .monaco-editor.vs-light .kodu-highlight {
+   animation: kodu-highlight-fade-light 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  @keyframes kodu-highlight-fade-light {
+   0% {
+    background-color: rgba(155, 185, 85, 0.3);
+    border-color: rgba(155, 185, 85, 0.6);
+   }
+   50% {
+    background-color: rgba(155, 185, 85, 0.2);
+    border-color: rgba(155, 185, 85, 0.4);
+   }
+   100% {
+    background-color: rgba(155, 185, 85, 0.1);
+    border-color: rgba(155, 185, 85, 0.2);
+   }
   }
  `
  // Inject animation styles into editor
  const styleElement = document.createElement('style')
  styleElement.textContent = cssAnimation
+ styleElement.dataset.koduAnimations = 'true'
  document.head.appendChild(styleElement)
 })
 
@@ -865,11 +901,41 @@ class DiffViewProvider {
  private injectAnimationStyles(): void {
   const cssAnimation = `
    .monaco-editor .kodu-highlight {
-    animation: kodu-highlight-fade 0.6s ease-out;
+    animation: kodu-highlight-fade 0.8s cubic-bezier(0.4, 0, 0.2, 1);
    }
+   
    @keyframes kodu-highlight-fade {
-    from { background-color: rgba(51, 255, 169, 0.3); }
-    to { background-color: rgba(51, 255, 169, 0.15); }
+    0% { 
+      background-color: rgba(51, 255, 169, 0.3);
+      opacity: 1;
+    }
+    50% {
+      background-color: rgba(51, 255, 169, 0.25);
+      opacity: 0.8;
+    }
+    100% { 
+      background-color: rgba(51, 255, 169, 0.15);
+      opacity: 0.6;
+    }
+   }
+   
+   .monaco-editor.vs-light .kodu-highlight {
+    animation: kodu-highlight-fade-light 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+   }
+   
+   @keyframes kodu-highlight-fade-light {
+    0% { 
+      background-color: rgba(155, 185, 85, 0.3);
+      opacity: 1;
+    }
+    50% {
+      background-color: rgba(155, 185, 85, 0.25);
+      opacity: 0.8;
+    }
+    100% { 
+      background-color: rgba(155, 185, 85, 0.15);
+      opacity: 0.6;
+    }
    }
   `
   const styleElement = document.createElement('style')
