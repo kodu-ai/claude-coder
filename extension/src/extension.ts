@@ -10,7 +10,7 @@ import { getCwd } from "./agent/v1/utils"
 import { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } from "./integrations/editor/diff-view-provider"
 import { readFile } from "fs/promises"
 
-class PythonQuickFixProvider implements vscode.CodeActionProvider {
+class QuickFixProvider implements vscode.CodeActionProvider {
     public static readonly providedCodeActionKinds = [
         vscode.CodeActionKind.QuickFix
     ];
@@ -20,11 +20,6 @@ class PythonQuickFixProvider implements vscode.CodeActionProvider {
         range: vscode.Range | vscode.Selection,
         context: vscode.CodeActionContext
     ): Promise<vscode.CodeAction[]> {
-        // Only provide actions for Python files
-        if (document.languageId !== 'python') {
-            return [];
-        }
-
         const actions: vscode.CodeAction[] = [];
 
         // For each diagnostic (error/warning) in the file
@@ -168,10 +163,10 @@ export function activate(context: vscode.ExtensionContext) {
   })
  )
 
- // Register Python quick fix provider
+ // Register quick fix provider for all languages
  context.subscriptions.push(
-  vscode.languages.registerCodeActionsProvider('python', new PythonQuickFixProvider(), {
-   providedCodeActionKinds: PythonQuickFixProvider.providedCodeActionKinds
+  vscode.languages.registerCodeActionsProvider({ pattern: '**' }, new QuickFixProvider(), {
+   providedCodeActionKinds: QuickFixProvider.providedCodeActionKinds
   })
  );
 
@@ -179,7 +174,8 @@ export function activate(context: vscode.ExtensionContext) {
  context.subscriptions.push(
   vscode.commands.registerCommand(`${extensionName}.fixWithClaude`, async (document: vscode.TextDocument, diagnostic: vscode.Diagnostic) => {
    const text = document.getText(diagnostic.range);
-   const prompt = `Fix the following Python code issue: "${diagnostic.message}"\nCode:\n${text}`;
+   const languageId = document.languageId;
+   const prompt = `Fix the following ${languageId} code issue: "${diagnostic.message}"\nCode:\n${text}`;
    
    // Focus the sidebar
    await vscode.commands.executeCommand(`${extensionName}.SidebarProvider.focus`);
