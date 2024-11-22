@@ -3,6 +3,20 @@ import * as dotenv from "dotenv"
 import * as path from "path"
 import * as vscode from "vscode"
 import { koduDefaultModelId } from "../shared/api"
+import { execa } from "execa"
+
+var currentCommit = ""
+
+const getCurrentGitCommit = async () => {
+	const { stdout } = await execa("git", ["rev-parse", "HEAD"])
+	currentCommit = stdout
+	return stdout
+}
+
+export const hardRollbackToStart = async () => {
+	// roll back to current commit
+	await execa("git", ["reset", "--hard", currentCommit])
+}
 
 export const startNewTask = async (
 	context: vscode.ExtensionContext,
@@ -14,7 +28,8 @@ export const startNewTask = async (
 
 	if (parsedConfig.parsed?.KODU_API_KEY) {
 		sidebarProvider.getApiManager().saveKoduApiKey(parsedConfig.parsed.KODU_API_KEY)
-
+		const currentCommit = await getCurrentGitCommit()
+		console.log(`[DEBUG] Current Commit: ${currentCommit}`)
 		await sidebarProvider.getApiManager().updateApiConfiguration({
 			koduApiKey: parsedConfig.parsed.KODU_API_KEY!,
 			apiModelId: koduDefaultModelId,

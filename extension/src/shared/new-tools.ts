@@ -110,6 +110,11 @@ export type SummarizeChatTool = {
 	output?: string
 }
 
+export type EditFileBlocks = {
+	tool: "edit_file_blocks"
+	kodu_diff: string
+}
+
 export type ChatTool = (
 	| ExecuteCommandTool
 	| ListFilesTool
@@ -123,6 +128,7 @@ export type ChatTool = (
 	| UrlScreenshotTool
 	| AskConsultantTool
 	| ServerRunnerTool
+	| EditFileBlocks
 ) & {
 	ts: number
 	approvalState?: ToolStatus

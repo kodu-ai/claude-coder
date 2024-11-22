@@ -6,7 +6,7 @@
 
 import Anthropic from "@anthropic-ai/sdk"
 import { AxiosError } from "axios"
-import { findLast } from "lodash"
+import { findLast, first } from "lodash"
 import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
 import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { koduModels } from "../../shared/api"
@@ -19,8 +19,8 @@ import { ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
 import { writeFile } from "fs/promises"
 import path from "path"
-
 import { GlobalStateManager } from "../../providers/claude-coder/state/GlobalStateManager"
+import { hardRollbackToStart } from "../../utils/command"
 
 /**
  * Interface for tracking API usage metrics
@@ -315,11 +315,7 @@ ${this.customInstructions.trim()}
 							// clear the interval
 							clearInterval(checkInactivity)
 							// Compress the context and retry
-							const result = await this.manageContextWindow()
-							if (result === "chat_finished") {
-								// if the chat is finsihed, throw an error
-								throw new KoduError({ code: 413 })
-							}
+							await this.newCompression(apiConversationHistory, abortSignal)
 							retryAttempt++
 							break // Break the for loop to retry with compressed history
 						}
@@ -352,6 +348,95 @@ ${this.customInstructions.trim()}
 				isRunning: false,
 			})
 			clearInterval(checkInactivity)
+		}
+	}
+
+	private async newCompression(history: Anthropic.MessageParam[], abortSignal?: AbortSignal | null): Promise<void> {
+		const provider = this.providerRef.deref()
+		if (!provider) {
+			throw new Error("Provider reference has been garbage collected")
+		}
+		console.log(`Hard compression started`)
+		const koduDev = provider.getKoduDev()
+		const state = await provider.getStateManager()?.getState()
+		const creativeMode = state?.creativeMode ?? "normal"
+		const technicalBackground = state?.technicalBackground ?? "no-technical"
+		const isImageSupported = koduModels[this.getModelId()].supportsImages
+		const systemPromptVariants = state?.systemPromptVariants || []
+		const activeVariantId = state?.activeSystemPromptVariantId
+		const activeVariant = systemPromptVariants.find((variant) => variant.id === activeVariantId)
+		const customInstructions = this.formatCustomInstructions()
+		let systemPrompt = ""
+
+		if (activeVariant) {
+			systemPrompt = activeVariant.content
+		} else {
+			systemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), isImageSupported, technicalBackground)
+		}
+		// first message is task description
+		const firstMessage = history[0]
+
+		// Create copy instead of mutating original array
+		const newHistory = history.slice(0, -2)
+		if (newHistory.at(-1)?.role === "assistant") {
+			newHistory.pop()
+		}
+		const lastMessage = newHistory.at(-1)
+		if (lastMessage?.role === "user") {
+			if (Array.isArray(lastMessage.content)) {
+				lastMessage.content.push({
+					type: "text",
+					text: `The chat has reached the maximum token limit.
+					It's time to self-reflect and critque your work so far,
+					You should evaulate every single step you have taken and see if you can improve it.
+					Your evaulation, self reflect and critque will be used to continue the conversation on a empty slate.
+					This means you forgot everything you have done so far and you are starting from scratch.
+					You you will be using your evaulation, self reflect and critque to guide yourself to a better conversation quality quickly.
+					This means you should mention what important files have you read, what important information you have gathered, what important steps you have taken and what important decisions you have made.
+					What edits didn't go well, what edits went well. What you have learned from the conversation so far and what parts are you looking forward to improve.
+					You will rollback to the start of the conversation and your project will be reset to the start of the conversation it means you will lose all the progress you have made so far.
+					And have to start from scratch based on your evaulation, self reflect and critque it will make it quickly to pick up all the good progress you have made.
+					Please mention clearly which files to read and why, which edits you should change and why, which commands you should run and why.
+					Please mention which edits you tried and didn't go well and why, which edits you tried and went well and why.
+					This is critical, red team your work, be your own devil's advocate, be your own critic, be your own judge, be your own jury.
+					This is a critical step to improve the quality of the conversation quickly.
+					`,
+				})
+			}
+		}
+		console.log(`New history last item:`, newHistory[newHistory.length - 1])
+
+		try {
+			const stream = await this.api.createMessageStream(
+				systemPrompt.trim(),
+				newHistory,
+				creativeMode,
+				abortSignal,
+				customInstructions
+			)
+
+			for await (const chunk of stream) {
+				if (chunk.code === 1 && chunk.body.anthropic.content && isTextBlock(chunk.body.anthropic.content[0])) {
+					const finalText = chunk.body.anthropic.content[0].text
+					console.log(`Observation:\n${finalText}`)
+					if (Array.isArray(firstMessage.content)) {
+						firstMessage.content.push({
+							type: "text",
+							text: `Here are some critical observations we have found from running the task before:
+							<observation>
+							${finalText}
+							</observation>
+							`,
+						})
+						await koduDev?.getStateManager().overwriteApiConversationHistory([firstMessage])
+						await hardRollbackToStart()
+					}
+					return
+				}
+			}
+		} catch (error) {
+			console.error("Compression failed:", error)
+			throw error
 		}
 	}
 

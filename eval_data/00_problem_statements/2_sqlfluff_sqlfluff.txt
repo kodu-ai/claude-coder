@@ -1,0 +1,67 @@
+We are currently solving an issue within our repository.
+			Your instructions are to solve this github issue on your own by making changes to the source files. When you're satisfied with all of the changes you've made, you can finally raise the attempt_completion tool. Not before that. 
+			You cannot use any interactive session commands (e.g. vim) in this environment, but you can write scripts and run them. E.g. you can write a python3 script and then run it with 'python3 <script_name>.py'.
+			I've already taken care of all changes to any of the test files described in the issue. This means you DON'T have to modify the testing logic or any of the tests in any way!
+			I have also already installed all dependencies for you, so you don't have to worry about that.
+			Your task is to make the minimal changes to non-tests files in the workspace directory to ensure the issue is satisfied.
+
+			NOTE ABOUT THE WRITE TO FILE TOOL: Indentation really matters! When editing a file, make sure to insert appropriate indentation before each line!
+			NOTE ABOUT TOOLS: The ask_followup_question tool is disabled for you, you have to do the research yourself, I will not answer any followup questions.
+			NOTE ABOUT TOOLS: The web_search tool is disabled for you, you are unable to use it.
+
+			Follow these steps to resolve the issue:
+			1. As a first step, it might be a good idea to explore the repo to familiarize yourself with its structure, read the test cases and understand the issue at hand and where it might be located in the codebase.
+			2. Immeidately after that, you should find how to run the test suite and run it once to see the current state of the codebase and to confirm that the issue is present, you should get a failing test.
+			   You should remember this test suite and use it at the end to confirm that your fix didn't break anything else and the issue is fixed as expected.
+			   It's critical to run the test suite only when you have high confidence that your fix is correct, as running the test suite is a time consuming operation.
+			3. Create a script to reproduce the error and execute it with `python3 <filename.py>` using the execute command tool, to confirm the error, run it and verify that the error occurs and work your way from there to fix it.
+			4. Edit the code of the repo to resolve the issue, make the fix as minimal as possible while making sure it makes your reproduce script work without errors.
+			5. Rerun your reproduce script and confirm that the error is fixed, and that the script now runs without errors.
+			6. Think about edgecases and make sure your fix handles them as well, you need to red team your own fix to make sure it's robust.
+			7. Double check that you haven't accidentally changed any other files or code that is not related to the issue. If you did, go back to the original state of the files and only make the minimal changes needed to fix the issue.
+			8. When you're done and you have checked twice that your script now executes without errors, you should run the test suite to make sure that your fix didn't break anything else.
+			9. if your test suite runs without errors, you can raise the attempt_completion tool to let the user know that you're ready for review.
+
+			an example of of a good flow :
+			Request one : I see the issue now let me think about possible hypothesis and read relevant code to get a better understanding of the issue.
+			Request two : Running the test suite to confirm the issue and see if it's related to <y> after that i will write a summary to current_issues.md and remember to run the test suite again at the end when i have confidence in my fix and my reproduce script runs without errors.
+			Following requests : I will read <x> to get a better understanding of the issue and see if it's related to <y> after i get all the information i will by creating a script to reproduce the issue.
+			Create reproduce script : I will create a script to reproduce the issue and run it to confirm the error, i will use this script as my baseline to confirm that the issue is fixed.
+			Edit code : I will edit the code to fix the issue, making sure to only make the minimal changes needed to fix the issue and nothing more.
+			Confirm after edit : I will run the reproduce script again to confirm that the error is fixed and that the script now runs without errors.
+			Double check : I will double check that I haven't accidentally changed any other files or code that is not related to the issue, if i did i will revert the changes and only make the minimal changes needed to fix the issue.
+			Run tests : I will run the reproduce script again to confirm that the error is fixed and that the script now runs without errors if i manage to run it twice without errors i will raise the attempt_completion tool to let the user know that i'm ready for review.
+			Run project suite : I will run the project test suite to make sure that my fix didn't break anything else, if the test suite runs without errors i will raise the attempt_completion tool to let the user know that i'm ready for review.
+			Evaluate project suite : I will evaluate the project test suite to make sure that my fix didn't break anything else, if the test suite runs without errors i will raise the attempt_completion tool to let the user know that i'm ready for review.
+			Raise attempt_completion : I will raise the attempt_completion tool to let the user know that i'm ready for review after i have confirmed that the issue is fixed and that the script now runs without errors i will let the user know i ran it twice without errors and that i'm ready for review.
+
+			It's critical to get 100% on the test suite, if you don't get 100% on the test suite, you have not fixed the issue, you should look for deeper issues in your code and try to fix them, sometimes putting a bandaid on the issue is not enough, you need to fix the root cause of the issue.
+			Some of failures might happen because you solved the problem at the wrong level of abstraction (applying a bandaid instead of a deeper refactor) this is a common mistake, make sure you're fixing the root cause of the issue and not just the symptoms.
+
+			IMPORTANT GUIDELINES:
+			1. Always start by trying to replicate the bug that the issues discusses.
+					If the issue includes code for reproducing the bug, we recommend that you re-implement that in your environment, and run it to make sure you can reproduce the bug.
+					Then start trying to fix it.
+					When you think you've fixed the bug, re-run the bug reproduction script to make sure that the bug has indeed been fixed.
+
+					If the bug reproduction script does not print anything when it successfully runs, we recommend adding a print('Script completed successfully, no errors.') command at the end of the file,
+					so that you can be sure that the script indeed ran fine all the way through.
+
+			2. When editing files, it is easy to accidentally specify a wrong line number or to write code with incorrect indentation. Always check the code after you issue an edit to make sure that it reflects what you wanted to accomplish. If it didn't, issue another tool use to fix it.
+
+			3. You are forbidden to use the web_search, ask_followup_question and ask_consultant tools. Doing so will result in a failed attempt.
+
+			4. Do not touch the test files! If you need to test something you must refer to the first point.
+
+			5. You must run the project test suite case at the start of your task, and at the end of your task to confirm that your fix didn't break anything else.
+
+			6. If you didn't get 100% on the test suite you cannot raise the attempt_completion tool, you need to fix the issue until you get 100% on the test suite.
+
+			7. You must run the project test suite case to confirm the fix, fixing only the reproduce script at times might not be enough, you need to make sure that the fix is correct and that it doesn't break anything else.
+
+Closing notes:
+It's mandatory before writing any reproduction step or code to first run the test on the initial clean state of the project, this will give you a clear guidelines in addition to the pr issue itself, with the combined information you can start creating a reproduction script to use for faster iterations.
+When you get confidence in your fixes you must run the full test suite case and confirm we have 100% passing, if you don't pass 100% of the test suite case the PR will be immediately rejected by a PR BOT.
+This means that reproduction script alone is not sufficient to besure that the fix you applied is the correct fix, remember this is a well known repo with a clear policy of writing code, so you should use their coding style and adapt to the codebase, don't try to make new code changes that goes against of the repo code guidelines.
+Red team yourself, your code make sure it's robust and adhere to the repo guidelines.
+I believe in you, go ahead read the pr issue and remember to only raise attempt completion after having **test suite case** passing for the entire project (The project test suite case			<pr_issue>
