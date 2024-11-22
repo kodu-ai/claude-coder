@@ -412,16 +412,22 @@ class DiffViewProvider {
 		return true
 	}
 
-	private async handleFinalUpdate(content: string): Promise<void> {
+	private async handleFinalUpdate(content: string, tryCount: number = 0): Promise<void> {
 		if (!this.diffEditor) {
 			this.logger("<handleFinalUpdate>: Diff editor not initialized", "error")
 			throw new DiffViewError("Diff editor not initialized")
 		}
 		this.logger(`[${Date.now()}] applying final update: content length ${content.length}`, "info")
 		this.isFinalReached = true
-		const changePromise = new Promise<void>((resolve) => {
+		const changePromise = new Promise<void>((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				disposable.dispose()
+				reject(new Error("Timed out waiting for text document change after 2 minutes"))
+			}, 2 * 60 * 1000)
+
 			const disposable = vscode.workspace.onDidChangeTextDocument((e) => {
 				if (e.document === this.diffEditor?.document) {
+					clearTimeout(timeout)
 					disposable.dispose()
 					resolve()
 				}
@@ -442,8 +448,41 @@ class DiffViewProvider {
 		// const formatedContent = await this.formatContent(updatedDocument.uri, content)
 		await this.applyUpdate(content)
 		this.logger(`[${Date.now()}] final update applied - waiting for change to apply`, "info")
-		await changePromise
-		this.logger(`[${Date.now()}] final update change applied`, "info")
+
+		try {
+			await changePromise
+			this.logger(`[${Date.now()}] final update change applied`, "info")
+		} catch (error) {
+			this.logger(`[${Date.now()}] final update change failed: ${error}`, "error")
+
+			tryCount += 1
+			if (tryCount < 2) {
+				this.logger(`[${Date.now()}] final update try: ${tryCount}`, "info")
+
+				await this.handleFinalUpdate(content, tryCount)
+			} else {
+				this.logger(`[${Date.now()}] Try: ${tryCount} couldn't apply final update`, "info")
+
+				const originalContent = await vscode.workspace.fs.readFile(this.originalUri!)
+				const decodedContent = new TextDecoder().decode(originalContent)
+
+				const isUpdateApplied = decodedContent === content
+				console.log({
+					decodedContentLength: decodedContent.length,
+					contentLength: content.length,
+					decodedContentLineCount: decodedContent.split(/\r?\n/).length,
+					contentLineCount: content.split(/\r?\n/).length,
+					isUpdateApplied,
+				})
+
+				if (!isUpdateApplied) {
+					await vscode.workspace.fs.writeFile(this.modifiedUri!, new TextEncoder().encode(decodedContent))
+					this.logger(`[${Date.now()}] final update applied by using vscode fs`, "info")
+				} else {
+					this.logger(`[${Date.now()}] final update already applied`, "info")
+				}
+			}
+		}
 		this.activeLineController?.clear()
 		this.fadedOverlayController?.clear()
 	}
