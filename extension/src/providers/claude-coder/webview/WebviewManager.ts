@@ -446,10 +446,12 @@ export class WebviewManager {
 						await this.postStateToWebview()
 						break
 					case "setAdvanceThinkingMode":
-						GlobalStateManager.getInstance().updateGlobalState("isAdvanceThinkingEnabled", message.bool)
+						await this.provider.getStateManager().setAdvanceThinkingMode(message.bool)
+						await this.postStateToWebview()
 						break
 					case "setInlinedMode":
-						GlobalStateManager.getInstance().updateGlobalState("isInlineEditingEnabled", message.bool)
+						await this.provider.getStateManager().setInlineEditMode(message.bool)
+						await this.postStateToWebview()
 						break
 					case "selectImages":
 						const images = await this.provider.getTaskManager().selectImages()

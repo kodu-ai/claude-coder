@@ -240,4 +240,12 @@ export class StateManager {
 	setCreativeMode(value: "creative" | "normal" | "deterministic") {
 		return this.globalStateManager.updateGlobalState("creativeMode", value)
 	}
+
+	setAdvanceThinkingMode(value: boolean) {
+		return this.globalStateManager.updateGlobalState("isAdvanceThinkingEnabled", value)
+	}
+
+	setInlineEditMode(value: boolean) {
+		return this.globalStateManager.updateGlobalState("isInlineEditingEnabled", value)
+	}
 }
