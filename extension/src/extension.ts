@@ -10,6 +10,44 @@ import { getCwd } from "./agent/v1/utils"
 import { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } from "./integrations/editor/diff-view-provider"
 import { readFile } from "fs/promises"
 
+class PythonQuickFixProvider implements vscode.CodeActionProvider {
+    public static readonly providedCodeActionKinds = [
+        vscode.CodeActionKind.QuickFix
+    ];
+
+    async provideCodeActions(
+        document: vscode.TextDocument,
+        range: vscode.Range | vscode.Selection,
+        context: vscode.CodeActionContext
+    ): Promise<vscode.CodeAction[]> {
+        // Only provide actions for Python files
+        if (document.languageId !== 'python') {
+            return [];
+        }
+
+        const actions: vscode.CodeAction[] = [];
+
+        // For each diagnostic (error/warning) in the file
+        for (const diagnostic of context.diagnostics) {
+            // Create a code action for the diagnostic
+            const action = new vscode.CodeAction(
+                'Fix with Claude Coder',
+                vscode.CodeActionKind.QuickFix
+            );
+            action.command = {
+                command: `${extensionName}.fixWithClaude`,
+                title: 'Fix with Claude Coder',
+                arguments: [document, diagnostic]
+            };
+            action.diagnostics = [diagnostic];
+            action.isPreferred = true;
+            actions.push(action);
+        }
+
+        return actions;
+    }
+}
+
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
 
@@ -124,11 +162,33 @@ export function activate(context: vscode.ExtensionContext) {
 	// })
 	// context.subscriptions.push(disposable)
 
-	context.subscriptions.push(
-		vscode.window.registerWebviewViewProvider(ExtensionProvider.sideBarId, sidebarProvider, {
-			webviewOptions: { retainContextWhenHidden: true },
-		})
-	)
+ context.subscriptions.push(
+  vscode.window.registerWebviewViewProvider(ExtensionProvider.sideBarId, sidebarProvider, {
+   webviewOptions: { retainContextWhenHidden: true },
+  })
+ )
+
+ // Register Python quick fix provider
+ context.subscriptions.push(
+  vscode.languages.registerCodeActionsProvider('python', new PythonQuickFixProvider(), {
+   providedCodeActionKinds: PythonQuickFixProvider.providedCodeActionKinds
+  })
+ );
+
+ // Register the fix command
+ context.subscriptions.push(
+  vscode.commands.registerCommand(`${extensionName}.fixWithClaude`, async (document: vscode.TextDocument, diagnostic: vscode.Diagnostic) => {
+   const text = document.getText(diagnostic.range);
+   const prompt = `Fix the following Python code issue: "${diagnostic.message}"\nCode:\n${text}`;
+   
+   // Focus the sidebar
+   await vscode.commands.executeCommand(`${extensionName}.SidebarProvider.focus`);
+   
+   // Send the fix request to Claude through the sidebar provider
+   await sidebarProvider?.getTaskManager().handleNewTask(prompt);
+   await sidebarProvider?.getWebviewManager().postStateToWebview();
+  })
+ );
 
 	// Add new command for setting API key
 	context.subscriptions.push(

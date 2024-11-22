@@ -85,11 +85,16 @@
 				}
 			]
 		},
-		"commands": [
-			{
-				"command": "kodu-claude-coder-main.setApiKey",
-				"title": "Kodu.AI: Set API Key"
-			},
+  "commands": [
+   {
+    "command": "kodu-claude-coder-main.setApiKey",
+    "title": "Kodu.AI: Set API Key"
+   },
+   {
+    "command": "kodu-claude-coder-main.fixWithClaude",
+    "title": "Fix with Claude Coder",
+    "category": "Kodu"
+   },
 			{
 				"command": "extension.openExternalLink",
 				"title": "Open External Link"
