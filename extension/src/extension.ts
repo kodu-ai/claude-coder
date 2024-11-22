@@ -11,6 +11,36 @@ import { CONSTANTS } from "./integrations/editor/diff-view-provider";
 const { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } = CONSTANTS;
 import { readFile } from "fs/promises"
 
+// Function to convert VSCode diagnostics to our state format
+function convertDiagnosticsToStateFormat(diagnostics: vscode.Diagnostic[]): string[] {
+ return diagnostics.map(diagnostic => diagnostic.message)
+}
+
+// Function to sync diagnostics with state manager
+function syncDiagnosticsWithState(
+ diagnostics: readonly vscode.Diagnostic[],
+ uri: vscode.Uri,
+ provider: ExtensionProvider
+) {
+ const koduDev = provider.getKoduDev();
+ if (!koduDev) {
+   return;
+ }
+
+ const stateManager = koduDev.getStateManager();
+ if (!stateManager) {
+   return;
+ }
+
+ const currentDiagnostics: { [key: string]: string[] } = {};
+ 
+ if (diagnostics.length > 0) {
+   currentDiagnostics[uri.fsPath] = convertDiagnosticsToStateFormat(Array.from(diagnostics));
+ }
+
+ stateManager.validateHistoryErrors(currentDiagnostics);
+}
+
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
 
@@ -92,10 +122,20 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	outputChannel.appendLine("Claude Coder extension activated")
 	const sidebarProvider = new ExtensionProvider(context, outputChannel)
-	context.subscriptions.push(outputChannel)
-	console.log(`Claude Coder extension activated`)
+ context.subscriptions.push(outputChannel)
+ console.log(`Claude Coder extension activated`)
 
-	// Set up the window state change listener
+ // Subscribe to diagnostics changes
+ context.subscriptions.push(
+  vscode.languages.onDidChangeDiagnostics(event => {
+   event.uris.forEach(uri => {
+    const diagnostics = vscode.languages.getDiagnostics(uri)
+    syncDiagnosticsWithState(diagnostics, uri, sidebarProvider)
+   })
+  })
+ )
+
+ // Set up the window state change listener
 	context.subscriptions.push(
 		vscode.window.onDidChangeWindowState((windowState) => {
 			if (windowState.focused) {
