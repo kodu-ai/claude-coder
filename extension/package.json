@@ -119,19 +119,34 @@
 				"title": "Settings",
 				"icon": "$(settings-gear)"
 			},
-			{
-				"command": "kodu-claude-coder-main.openInNewTab",
-				"title": "Open In New Tab",
-				"category": "Kodu"
-			}
-		],
-		"menus": {
-			"view/title": [
-				{
-					"command": "kodu-claude-coder-main.plusButtonTapped",
-					"group": "navigation@1",
-					"when": "view == kodu-claude-coder-main.SidebarProvider"
-				},
+   {
+    "command": "kodu-claude-coder-main.openInNewTab",
+    "title": "Open In New Tab",
+    "category": "Kodu"
+   },
+   {
+    "command": "kodu-claude-coder-main.toggleGitIntegration",
+    "title": "Toggle Git Integration",
+    "category": "Kodu"
+   }
+  ],
+  "configuration": {
+   "title": "Claude Coder",
+   "properties": {
+    "claudeCoder.gitIntegration.enabled": {
+     "type": "boolean",
+     "default": false,
+     "description": "Enable automatic git repository initialization and commits"
+    }
+   }
+  },
+  "menus": {
+   "view/title": [
+    {
+     "command": "kodu-claude-coder-main.plusButtonTapped",
+     "group": "navigation@1",
+     "when": "view == kodu-claude-coder-main.SidebarProvider"
+    },
 				{
 					"command": "kodu-claude-coder-main.historyButtonTapped",
 					"group": "navigation@2",
@@ -223,10 +238,11 @@
 		"puppeteer-core": "^23.6.0",
 		"rxjs": "^7.8.1",
 		"serialize-error": "^11.0.3",
-		"sharp": "^0.33.5",
-		"tree-kill": "^1.2.2",
-		"tree-sitter-wasms": "^0.1.11",
-		"web-tree-sitter": "^0.22.6",
-		"zod": "^3.23.8"
-	}
+  "sharp": "^0.33.5",
+  "simple-git": "^3.22.0",
+  "tree-kill": "^1.2.2",
+  "tree-sitter-wasms": "^0.1.11",
+  "web-tree-sitter": "^0.22.6",
+  "zod": "^3.23.8"
+ }
 }

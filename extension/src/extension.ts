@@ -9,6 +9,10 @@ import { TerminalManager } from "./integrations/terminal/terminal-manager"
 import { getCwd } from "./agent/v1/utils"
 import { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } from "./integrations/editor/diff-view-provider"
 import { readFile } from "fs/promises"
+import { GitService } from "./integrations/git/git-service"
+
+// Configuration keys
+const GIT_ENABLED_KEY = 'claudeCoder.gitIntegration.enabled';
 
 class QuickFixProvider implements vscode.CodeActionProvider {
     public static readonly providedCodeActionKinds = [
@@ -122,10 +126,47 @@ export function activate(context: vscode.ExtensionContext) {
 		.then(() => {
 			handleFirstInstall(context)
 		})
-	outputChannel.appendLine("Claude Coder extension activated")
-	const sidebarProvider = new ExtensionProvider(context, outputChannel)
-	context.subscriptions.push(outputChannel)
-	console.log(`Claude Coder extension activated`)
+ outputChannel.appendLine("Claude Coder extension activated")
+ const sidebarProvider = new ExtensionProvider(context, outputChannel)
+ context.subscriptions.push(outputChannel)
+ console.log(`Claude Coder extension activated`)
+
+ // Initialize git service if enabled
+ const gitEnabled = vscode.workspace.getConfiguration().get(GIT_ENABLED_KEY, false);
+ if (gitEnabled && vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+  const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+  const gitService = new GitService(workspaceRoot);
+  gitService.setEnabled(true);
+  
+  // Initialize git repository if needed
+  gitService.initializeRepository().then(async (success) => {
+   if (success) {
+    outputChannel.appendLine("Git repository initialized successfully");
+    
+    // Set up file system watcher for git commits
+    const fileWatcher = vscode.workspace.createFileSystemWatcher("**/*");
+    let changeTimeout: NodeJS.Timeout | null = null;
+    
+    const handleChange = async () => {
+     if (await gitService.hasChanges()) {
+      const commitMessage = "Auto-commit: Changes made through Claude Coder";
+      await gitService.commitChanges(commitMessage);
+     }
+    };
+
+    fileWatcher.onDidChange(() => {
+     if (changeTimeout) {
+      clearTimeout(changeTimeout);
+     }
+     changeTimeout = setTimeout(handleChange, 1000);
+    });
+
+    context.subscriptions.push(fileWatcher);
+   } else {
+    outputChannel.appendLine("Failed to initialize git repository");
+   }
+  });
+ }
 
 	// Set up the window state change listener
 	context.subscriptions.push(
@@ -308,13 +349,41 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	)
 
-	context.subscriptions.push(
-		vscode.commands.registerCommand(`${extensionName}.historyButtonTapped`, () => {
-			sidebarProvider
-				?.getWebviewManager()
-				?.postMessageToWebview({ type: "action", action: "historyButtonTapped" })
-		})
-	)
+ context.subscriptions.push(
+  vscode.commands.registerCommand(`${extensionName}.historyButtonTapped`, () => {
+   sidebarProvider
+    ?.getWebviewManager()
+    ?.postMessageToWebview({ type: "action", action: "historyButtonTapped" })
+  })
+ )
+
+ // Register toggle git integration command
+ context.subscriptions.push(
+  vscode.commands.registerCommand(`${extensionName}.toggleGitIntegration`, async () => {
+   const config = vscode.workspace.getConfiguration();
+   const currentValue = config.get(GIT_ENABLED_KEY, false);
+   
+   await config.update(GIT_ENABLED_KEY, !currentValue, vscode.ConfigurationTarget.Global);
+   
+   if (!currentValue) {
+    // Git was disabled and is now enabled
+    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+     const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+     const gitService = new GitService(workspaceRoot);
+     gitService.setEnabled(true);
+     
+     const success = await gitService.initializeRepository();
+     if (success) {
+      vscode.window.showInformationMessage('Git integration enabled and repository initialized.');
+     } else {
+      vscode.window.showErrorMessage('Failed to initialize git repository.');
+     }
+    }
+   } else {
+    vscode.window.showInformationMessage('Git integration disabled.');
+   }
+  })
+ )
 
 	/*
 	We use the text document content provider API to show a diff view for new files/edits by creating a virtual document for the new content.
