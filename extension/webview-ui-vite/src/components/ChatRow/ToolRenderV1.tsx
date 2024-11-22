@@ -2,13 +2,13 @@
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { vscode } from "@/utils/vscode"
-import { AnimatePresence, motion } from "framer-motion"
 import {
 	AlertCircle,
 	CheckCircle,
 	ChevronDown,
 	ChevronUp,
 	Code,
+	Copy,
 	Edit,
 	FileText,
 	FolderTree,
@@ -24,8 +24,9 @@ import {
 	Server,
 	Square,
 	Terminal,
-	XCircle,
+	XCircle
 } from "lucide-react"
+import { Highlight, themes } from 'prism-react-renderer'
 import React, { memo, useEffect, useRef, useState } from "react"
 import {
 	AskConsultantTool,
@@ -60,10 +61,11 @@ export type ToolAddons = {
 }
 type ToolBlockProps = {
 	icon: React.FC<React.SVGProps<SVGSVGElement>>
-	title: string
+	title: React.ReactNode
 	children: React.ReactNode
 	tool: ChatTool["tool"]
 	variant: "default" | "primary" | "info" | "accent" | "info" | "success" | "info" | "destructive"
+	actions?: React.ReactNode
 } & ToolAddons
 
 export const ToolBlock: React.FC<ToolBlockProps> = ({
@@ -74,15 +76,16 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 	isSubMsg,
 	approvalState,
 	userFeedback,
+	actions,
 }) => {
 	variant =
 		approvalState === "loading"
 			? "info"
 			: approvalState === "error" || approvalState === "rejected"
-			? "destructive"
-			: approvalState === "approved"
-			? "success"
-			: variant
+				? "destructive"
+				: approvalState === "approved"
+					? "success"
+					: variant
 	const stateIcons = {
 		pending: <AlertCircle className="w-5 h-5 text-info" />,
 		approved: <CheckCircle className="w-5 h-5 text-success" />,
@@ -111,20 +114,20 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 				},
 				isSubMsg && "!-mt-5"
 			)}>
-			<div className="flex items-center justify-between mb-2">
-				<div className="flex items-center">
-					<Icon className={cn("w-5 h-5 mr-2", `text-${variant}`)} />
-					<h3 className="text-sm font-semibold">{title}</h3>
+			<div className="flex items-center mb-2">
+				<Icon className={cn("w-5 h-5 mr-2", `text-${variant}`)} />
+				<h3 className="text-sm font-semibold">{title}</h3>
+				<div className="flex items-center gap-2 ml-auto">
+					{actions}
+					{userFeedback ? (
+						<Tooltip>
+							<TooltipTrigger>{stateIcons["feedback"]}</TooltipTrigger>
+							<TooltipContent side="left">The tool got rejected with feedback</TooltipContent>
+						</Tooltip>
+					) : (
+						stateIcons[approvalState]
+					)}
 				</div>
-
-				{userFeedback ? (
-					<Tooltip>
-						<TooltipTrigger>{stateIcons["feedback"]}</TooltipTrigger>
-						<TooltipContent side="left">The tool got rejected with feedback</TooltipContent>
-					</Tooltip>
-				) : (
-					stateIcons[approvalState]
-				)}
 			</div>
 			<div className="text-sm">{children}</div>
 		</div>
@@ -303,9 +306,9 @@ export const ChatMaxWindowBlock = ({ ts }: { ts: number }) => (
 
 export const ExecuteCommandBlock: React.FC<
 	ExecuteCommandTool &
-		ToolAddons & {
-			hasNextMessage?: boolean
-		}
+	ToolAddons & {
+		hasNextMessage?: boolean
+	}
 > = ({ command, output, approvalState, onApprove, tool, ts, onReject, ...rest }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
 
@@ -503,29 +506,76 @@ const textVariants = {
 }
 
 export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
-	({ path, content, approvalState, onApprove, onReject, tool, ts, ...rest }) => {
-		content = content ?? ""
-		const [visibleContent, setVisibleContent] = useState<string[]>([])
-		const [totalLines, setTotalLines] = useState(0)
+	({ path = '', content, approvalState, onApprove, onReject, tool, ts, ...rest }) => {
+		content = (content ?? "").replace(/\t/g, '  ')
+		const [displayContent, setDisplayContent] = useState(content)
 		const isStreaming = approvalState === "loading"
-		const scrollAreaRef = useRef<HTMLDivElement>(null)
-		const lastChunkRef = useRef<HTMLPreElement>(null)
-		const animationCompleteCountRef = useRef(0)
+		const prevContentRef = useRef(content)
 
 		useEffect(() => {
-			const text = content ?? ""
-			setTotalLines(text.split("\n").length)
-
-			if (isStreaming) {
-				const chunks = text.match(new RegExp(`.{1,${CHUNK_SIZE * 2}}`, "g")) || []
-				setVisibleContent(chunks)
-			} else {
-				setVisibleContent([text])
+			if (isStreaming && content !== prevContentRef.current) {
+				setDisplayContent(content)
+				prevContentRef.current = content
+			} else if (!isStreaming && content !== displayContent) {
+				setDisplayContent(content)
 			}
-
-			// Reset the animation complete count when content changes
-			animationCompleteCountRef.current = 0
 		}, [content, isStreaming])
+
+		const fileExt = path?.split('.')?.pop()?.toLowerCase() || ''
+		const getLanguage = (fileExt: string) => {
+			switch (fileExt) {
+				case 'js':
+				case 'jsx':
+					return 'javascript'
+				case 'ts':
+				case 'tsx':
+					return 'typescript'
+				case 'py':
+					return 'python'
+				case 'html':
+					return 'html'
+				case 'css':
+					return 'css'
+				case 'json':
+					return 'json'
+				default:
+					return 'typescript'
+			}
+		}
+
+		const actions = <div className="flex gap-1 ml-auto">
+			<button
+				className="p-1 hover:bg-muted rounded-sm"
+				title="Copy"
+				onClick={() => navigator.clipboard.writeText(content)}>
+				<Copy className="h-3 w-3" />
+			</button>
+		</div>
+
+		const language = getLanguage(fileExt)
+
+		// Don't render anything if no content during streaming
+		if (isStreaming && !displayContent) {
+			return (
+				<ToolBlock
+					{...rest}
+					ts={ts}
+					tool={tool}
+					icon={Edit}
+					title={<div className="flex items-center w-full">
+						<span className="font-semibold">{path}</span>
+					</div>}
+					variant="info"
+					approvalState={approvalState}
+					onApprove={onApprove}
+					onReject={onReject}>
+					<div className="flex items-center justify-center">
+						<LoaderPinwheel className="w-3 h-3 animate-spin" />
+						<span className="ml-2 text-xs font-bold p-2">Streaming content...</span>
+					</div>
+				</ToolBlock>
+			)
+		}
 
 		return (
 			<ToolBlock
@@ -533,56 +583,42 @@ export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
 				ts={ts}
 				tool={tool}
 				icon={Edit}
-				title="Write to File"
-				variant="info"
+				title={
+					<div className="flex items-center w-full">
+						<span className="font-semibold">{path}</span>
+					</div>
+				}
+				actions={actions}
+				variant={approvalState === "approved" ? "success" : "info"}
 				approvalState={approvalState}
 				onApprove={onApprove}
 				onReject={onReject}>
-				<p className="text-xs mb-1">
-					<span className="font-semibold">File:</span> {path}
-				</p>
-				<ScrollArea viewProps={{ ref: scrollAreaRef }} className="h-24 rounded border bg-background p-2">
-					<ScrollBar orientation="vertical" />
-					<ScrollBar orientation="horizontal" />
-					<div className="relative">
-						{isStreaming && (
-							<motion.div
-								className="sticky left-0 top-0 w-full h-1 bg-primary"
-								initial={{ scaleX: 0 }}
-								animate={{ scaleX: 1 }}
-								transition={{
-									repeat: Infinity,
-									duration: 2,
-									ease: "linear",
-								}}
-							/>
-						)}
-						{!isStreaming ? (
-							<pre className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
-								{content?.trim() ?? ""}
-							</pre>
-						) : (
-							<AnimatePresence>
-								{visibleContent.map((chunk, index) => (
-									<motion.pre
-										key={index}
-										ref={index === visibleContent.length - 1 ? lastChunkRef : null}
-										variants={textVariants}
-										initial="hidden"
-										animate="visible"
-										transition={{ duration: 0.3, delay: index * 0.03 }}
-										className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
-										{index === 0 ? chunk.trim() : chunk}
-									</motion.pre>
+				<div className="relative max-h-[300px] overflow-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30">
+					<Highlight
+						theme={themes.vsDark}
+						code={displayContent || ''}
+						language={language}>
+						{({ className, style, tokens, getLineProps, getTokenProps }) => (
+							<pre 
+								className={`${className} text-xs p-4`} 
+								style={{
+									...style,
+									margin: 0,
+									width: 'fit-content',
+									minWidth: '100%'
+								}}>
+								{tokens.map((line, i) => (
+									<div key={i} {...getLineProps({ line })} style={{ display: 'table-row' }}>
+										<span style={{ display: 'table-cell' }}>
+											{line.map((token, key) => (
+												<span key={key} {...getTokenProps({ token })} />
+											))}
+										</span>
+									</div>
 								))}
-							</AnimatePresence>
+							</pre>
 						)}
-					</div>
-				</ScrollArea>
-				<div className="mt-2 flex justify-between items-center">
-					<span className="text-xs text-muted-foreground">
-						{isStreaming ? "Streaming..." : `Completed: ${totalLines} lines written`}
-					</span>
+					</Highlight>
 				</div>
 			</ToolBlock>
 		)
