@@ -13,12 +13,6 @@ export interface EditBlock {
 	isDelete?: boolean
 }
 
-interface BlockMatch {
-	start: number
-	end: number
-	score: number
-}
-
 export function findCodeBlock(content: string, startIndex: number): { start: number; end: number } | null {
 	const lines = content.split("\n")
 	let openBraces = 0

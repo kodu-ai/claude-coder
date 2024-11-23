@@ -3,6 +3,7 @@ import * as assert from "assert"
 import { InlineEditHandler } from "../../src/integrations/editor/inline-editor"
 import * as fs from "fs"
 import * as path from "path"
+import { parseDiffBlocks } from "@/agent/v1/tools/runners/coders/utils"
 
 describe("InlineEditHandler End-to-End Test", () => {
 	const testFilePath = path.join(__dirname, "testFile.ts")
@@ -10,23 +11,24 @@ describe("InlineEditHandler End-to-End Test", () => {
 	let inlineEditHandler: InlineEditHandler
 
 	async function simulateStreaming(diff: string, delayMs: number): Promise<AsyncGenerator<string, void, unknown>> {
-		// chunk should be in the range of 6-24 letters
-		const randomChunkSize = [6, 24]
-
-		const chunks = diff.match(new RegExp(`.{${randomChunkSize[0]},${randomChunkSize[1]}}`, "g"))
-		if (!chunks) {
-			throw new Error("Failed to generate chunks")
+		// Get random chunk size between 6-24 chars
+		function getRandomChunkSize() {
+			return Math.floor(Math.random() * (24 - 6 + 1)) + 6
 		}
-		const chunksArr = chunks.map((chunk) => chunk.trim())
-		let currentContent = ``
+
+		// Accumulate the string as we stream
+		let streamedContent = ""
 
 		async function* generator() {
-			for (const chunk of chunksArr) {
-				currentContent += chunk
-				yield currentContent
+			while (streamedContent.length < diff.length) {
+				const chunkSize = getRandomChunkSize()
+				const nextChunk = diff.slice(streamedContent.length, streamedContent.length + chunkSize)
+				streamedContent += nextChunk
+				yield streamedContent
 				await delay(delayMs)
 			}
 		}
+
 		return generator()
 	}
 
@@ -41,7 +43,6 @@ describe("InlineEditHandler End-to-End Test", () => {
 
 		// Initialize InlineEditHandler
 		inlineEditHandler = new InlineEditHandler()
-		inlineEditHandler.initializeEditor(vscode.window.activeTextEditor!)
 	})
 
 	afterEach(async () => {
@@ -107,17 +108,35 @@ export function truncateHalfConversation(
 
 	return [firstMessage, ...renamedMsgs]
 }`
-		const diff1 = `
-SEARCH
-${search}
-=======
-REPLACE
-${replace}`
+		const diff1 = `SEARCH\n${search}\n=======\nREPLACE\n${replace}`
 
 		const generator = await simulateStreaming(diff1, 50)
+		let replaceContentFull = ""
+		let isOpen = false
 		for await (const diff of generator) {
-			await inlineEditHandler.handleDiffUpdate(diff)
+			console.log(diff)
+			try {
+				const blocks = parseDiffBlocks(diff, toEditFilePath)
+				console.log(blocks)
+				if (blocks.length > 0 && blocks[0].replaceContent.length > 0) {
+					if (blocks[0].replaceContent) {
+						replaceContentFull = blocks[0].replaceContent
+					}
+					if (!isOpen) {
+						await inlineEditHandler.open(toEditFilePath, blocks[0].searchContent)
+						await inlineEditHandler.applyStreamContent(blocks[0].replaceContent)
+						isOpen = true
+					} else {
+						await inlineEditHandler.applyStreamContent(blocks[0].replaceContent)
+					}
+				}
+			} catch (err) {
+				console.warn(`Warning block not parsable yet`)
+			}
 		}
+		await inlineEditHandler.applyFinalContent(replaceContentFull)
+		// sleep for like 15s
+		await delay(60_000)
 
 		// Verify final file content
 		const document = vscode.window.activeTextEditor!.document
