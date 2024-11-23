@@ -1,47 +1,67 @@
 import { koduSSEResponse } from "../shared/kodu"
 
-// Dynamic delay based on token count
-const getDynamicDelay = (tokenCount: number): number => {
-    if (tokenCount > 50000) return 100;
-    if (tokenCount > 10000) return 50;
-    return 25;
+// Dynamic delay based on token count and chunk size
+const getDynamicDelay = (tokenCount: number, chunkSize: number): number => {
+    if (tokenCount > 50000) return Math.min(100, 25 + chunkSize / 1000);
+    if (tokenCount > 10000) return Math.min(50, 15 + chunkSize / 500);
+    return Math.min(25, 10 + chunkSize / 200);
 };
 
-// Dynamic batch size based on token count
-const getDynamicBatchSize = (tokenCount: number): number => {
-    if (tokenCount > 50000) return 5000;
-    if (tokenCount > 10000) return 1000;
-    return 100;
+// Dynamic batch size based on token count and processing time
+const getDynamicBatchSize = (tokenCount: number, lastProcessingTime: number = 0): number => {
+    const baseSize = tokenCount > 50000 ? 5000 : tokenCount > 10000 ? 1000 : 100;
+    const timeAdjustment = lastProcessingTime > 100 ? 0.5 : lastProcessingTime > 50 ? 0.75 : 1;
+    return Math.floor(baseSize * timeAdjustment);
 };
 
-export function createStreamDebouncer(callback: (chunks: koduSSEResponse[]) => Promise<void>, initialDelay: number = 25) {
+export function createStreamDebouncer(
+    callback: (chunks: koduSSEResponse[]) => Promise<void>, 
+    initialDelay: number = 25,
+    maxParallelBatches: number = 3
+) {
     let timeoutId: NodeJS.Timeout | null = null;
     let chunks: koduSSEResponse[] = [];
     let isProcessing = false;
     let totalTokens = 0;
+    let lastProcessingTime = 0;
+    let activeProcessingCount = 0;
+
+    const processBatch = async (batchChunks: koduSSEResponse[]): Promise<void> => {
+        const startTime = Date.now();
+        try {
+            await callback(batchChunks);
+        } catch (error) {
+            console.error("Error processing chunks:", error);
+            console.error("Problematic chunks:", JSON.stringify(batchChunks, null, 2));
+        }
+        lastProcessingTime = Date.now() - startTime;
+        activeProcessingCount--;
+    };
 
     const processChunks = async () => {
         isProcessing = true;
 
-        // Calculate current token count and adjust delay/batch size
-        const currentDelay = getDynamicDelay(totalTokens);
-        const batchSize = getDynamicBatchSize(totalTokens);
-
-        // Process chunks in batches
-        while (chunks.length > 0) {
+        while (chunks.length > 0 && activeProcessingCount < maxParallelBatches) {
+            const currentDelay = getDynamicDelay(totalTokens, chunks.length);
+            const batchSize = getDynamicBatchSize(totalTokens, lastProcessingTime);
+            
             const chunksToProcess = chunks.splice(0, batchSize);
-            try {
-                await callback(chunksToProcess);
-            } catch (error) {
-                console.error("Error processing chunks:", error);
-                console.error("Problematic chunks:", JSON.stringify(chunksToProcess, null, 2));
+            activeProcessingCount++;
+            
+            // Process batch in parallel
+            processBatch(chunksToProcess).catch(console.error);
+            
+            // Small delay between starting parallel batches to prevent overwhelming
+            if (chunks.length > 0) {
+                await new Promise(resolve => setTimeout(resolve, currentDelay));
             }
         }
 
-        isProcessing = false;
-        // Schedule next batch if there are new chunks
+        isProcessing = activeProcessingCount > 0;
+        
+        // Schedule next batch if there are remaining chunks
         if (chunks.length > 0) {
-            timeoutId = setTimeout(processChunks, currentDelay);
+            timeoutId = setTimeout(processChunks, getDynamicDelay(totalTokens, chunks.length));
         }
     };
 
@@ -61,7 +81,7 @@ export function createStreamDebouncer(callback: (chunks: koduSSEResponse[]) => P
 
             // If not processing, schedule next batch
             if (!isProcessing) {
-                const currentDelay = getDynamicDelay(totalTokens);
+                const currentDelay = getDynamicDelay(totalTokens, chunks.length);
                 timeoutId = setTimeout(processChunks, currentDelay);
             }
         },
