@@ -7,10 +7,21 @@ import path from "path"
 import { SequenceMatcher } from "@ewoudenberg/difflib"
 
 export interface EditBlock {
+	id: string
 	path: string
 	searchContent: string
 	replaceContent: string
 	isDelete?: boolean
+}
+
+export function generateEditBlockId(searchContent: string): string {
+	// fast hash the search content to generate a unique id
+	let hash = 0
+	for (let i = 0; i < searchContent.length; i++) {
+		hash = (hash << 5) - hash + searchContent.charCodeAt(i)
+		hash |= 0
+	}
+	return hash.toString(16)
 }
 
 export function findCodeBlock(content: string, startIndex: number): { start: number; end: number } | null {
@@ -263,8 +274,9 @@ export function parseDiffBlocks(diffContent: string, path: string): EditBlock[] 
 
 			const searchContent = searchLines.join("\n").trimEnd()
 			const replaceContent = replaceLines.join("\n").trimEnd()
-
+			const id = generateEditBlockId(searchContent)
 			editBlocks.push({
+				id,
 				path: path,
 				searchContent,
 				replaceContent,

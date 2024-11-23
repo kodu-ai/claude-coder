@@ -88,17 +88,6 @@ export class InlineEditHandler {
 		})
 	}
 
-	// Simplified default styles since colors are handled in the content
-	private defaultStyles: DecorationStyleOptions = {
-		borderStyle: "none",
-		borderWidth: "0",
-		fontStyle: "normal",
-	}
-
-	private generateEditBlockId(startPos: vscode.Position): string {
-		return `edit-${startPos.line}-${startPos.character}-${Date.now()}`
-	}
-
 	private formatMergeContent(original: string, updated: string, status: "Streaming" | "Final"): string {
 		const { startMarker, midMarker, endMarker, showLineNumbers, indent } = this.mergeFormat
 		const lines: string[] = []
@@ -125,7 +114,7 @@ export class InlineEditHandler {
 		return lines.join("\n")
 	}
 
-	public async open(filePath: string, searchContent: string): Promise<string | false> {
+	public async open(id: string, filePath: string, searchContent: string): Promise<boolean> {
 		const document = await vscode.workspace.openTextDocument(filePath)
 		this.editor = await vscode.window.showTextDocument(document)
 
@@ -140,8 +129,6 @@ export class InlineEditHandler {
 		const endPos = document.positionAt(startIndex + searchContent.length)
 		const range = new vscode.Range(startPos, endPos)
 
-		const id = this.generateEditBlockId(startPos)
-
 		const editBlock: EditBlock = {
 			id,
 			range,
@@ -154,7 +141,7 @@ export class InlineEditHandler {
 		this.editor.setDecorations(this.pendingDecoration, [range])
 
 		await this.scrollToRange(range)
-		return id
+		return true
 	}
 
 	public async applyStreamContent(id: string, content: string): Promise<boolean> {

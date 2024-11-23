@@ -41,6 +41,9 @@ describe("InlineEditHandler End-to-End Test", () => {
 		const document = await vscode.workspace.openTextDocument(testFilePath)
 		await vscode.window.showTextDocument(document)
 
+		if (inlineEditHandler) {
+			inlineEditHandler.dispose()
+		}
 		// Initialize InlineEditHandler
 		inlineEditHandler = new InlineEditHandler()
 	})
@@ -140,9 +143,145 @@ export function truncateHalfConversation(
 			}
 		}
 		await inlineEditHandler.applyFinalContent(blockId[0], replaceContentFull)
-		await delay(5_000)
 		// save the file
 		await inlineEditHandler.saveChanges(replaceContentFull)
+
+		// Verify final file content
+		const document = vscode.window.activeTextEditor!.document
+		const expectedContent = fs.readFileSync(toEditFilePath, "utf8").replace(search, replace)
+
+		assert.strictEqual(document.getText(), expectedContent)
+	})
+
+	it("should handle streaming updates for multiple blocks", async () => {
+		const search = `/*
+We can't implement a dynamically updating sliding window as it would break prompt cache
+every time. To maintain the benefits of caching, we need to keep conversation history
+static. This operation should be performed as infrequently as possible. If a user reaches
+a 200k context, we can assume that the first half is likely irrelevant to their current task.
+Therefore, this function should only be called when absolutely necessary to fit within
+context limits, not as a continuous process.
+*/
+export function truncateHalfConversation(
+	messages: Anthropic.Messages.MessageParam[]
+): Anthropic.Messages.MessageParam[] {
+	if (!Array.isArray(messages) || messages.length < MIN_MESSAGES_TO_KEEP) {
+		return messages
+	}
+
+	// Always keep the first Task message (this includes the project's file structure in potentially_relevant_details)
+	const firstMessage = messages[0]
+
+	// Calculate how many message pairs to remove (must be even to maintain user-assistant order)
+	const messagePairsToRemove = Math.max(1, Math.floor((messages.length - MIN_MESSAGES_TO_KEEP) / 4)) * 2
+
+	// Keep the first message and the remaining messages after truncation
+	const remainingMessages = messages.slice(messagePairsToRemove + 1)
+
+	// check if the first message exists appx twice if so pop the last instance and insert the first message again as last
+	// if it doesn't exist twice, insert the first message as the last message
+
+	return [firstMessage, ...remainingMessages]
+}`
+		const replace = `/*
+we made this short on purpose
+*/
+export function truncateHalfConversation(
+	messages: Anthropic.Messages.MessageParam[]
+): Anthropic.Messages.MessageParam[] {
+	// we added comment here
+	if (!Array.isArray(messages) || messages.length < MIN_MESSAGES_TO_KEEP) {
+		return messages
+	}
+
+	// we added another line of comment
+	// Always keep the first Task message (this includes the project's file structure in potentially_relevant_details)
+	const firstMessage = messages[0]
+
+	// Calculate how many message pairs to remove (must be even to maintain user-assistant order)
+	const messagePairsToRemove = Math.max(1, Math.floor((messages.length - MIN_MESSAGES_TO_KEEP) / 4)) * 2
+
+	// this is the best way to see if this is working or is it actually bullshiting me
+	// some more comments because why not
+	// Keep the first message and the remaining messages after truncation
+	const renamedMsgs = messages.slice(messagePairsToRemove + 1)
+
+	return [firstMessage, ...renamedMsgs]
+}`
+		const diff1 = `SEARCH\n${search}\n=======\nREPLACE\n${replace}`
+		const search2 = `/**
+ * Estimates total token count from an array of messages
+ * @param messages Array of messages to estimate tokens for
+ * @returns Total estimated token count
+ */
+export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.MessageParam[]): number => {
+	if (!Array.isArray(messages)) return 0
+
+	return messages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
+}`
+		const replace2 = `/**
+ * Estimates total token count from an array of messages
+ * @param messages Array of messages to estimate tokens for
+ * @returns Total estimated token count
+ */
+export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.MessageParam[]): number => {
+	// check if messages is an array
+	if (!Array.isArray(messages)) {
+	return 0
+	}
+
+	// return the total token count
+	return messages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
+}`
+		const diff2 = `SEARCH\n${search2}\n=======\nREPLACE\n${replace2}`
+
+		const streamedContent = `${diff1}\n${diff2}`
+
+		const generator = await simulateStreaming(streamedContent, 50)
+		let isOpen = false
+		const editBlocks: { id: string; replaceContent: string; searchContent: string }[] = []
+		let lastAppliedBlockId: string | undefined
+		for await (const diff of generator) {
+			console.log(diff)
+			try {
+				const blocks = parseDiffBlocks(diff, toEditFilePath)
+				if (blocks.length > 0) {
+					const currentBlock = blocks.at(-1)
+					if (!currentBlock?.replaceContent) {
+						continue
+					}
+					if (!isOpen) {
+						await inlineEditHandler.open(currentBlock.id, toEditFilePath, currentBlock.searchContent)
+
+						await inlineEditHandler.applyStreamContent(currentBlock.id, currentBlock.replaceContent)
+
+						isOpen = true
+					} else {
+						if (lastAppliedBlockId !== currentBlock.id) {
+							// get that block and apply final content
+							const lastEditBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
+							await inlineEditHandler.applyFinalContent(lastEditBlock!.id, lastEditBlock!.replaceContent)
+							await delay(5_000)
+						}
+						// last edit block
+						const lastEditBlock = editBlocks.at(-1)
+						await inlineEditHandler.applyStreamContent(lastEditBlock!.id, currentBlock.replaceContent)
+					}
+					lastAppliedBlockId = currentBlock.id
+					editBlocks.push({
+						id: currentBlock.id,
+						replaceContent: currentBlock.replaceContent,
+						searchContent: currentBlock.searchContent,
+					})
+				}
+			} catch (err) {
+				console.warn(`Warning block not parsable yet`)
+			}
+		}
+		// await inlineEditHandler.applyFinalContent(blockId[0], replaceContentFull)
+		await delay(5_000)
+		// save the file
+		// await inlineEditHandler.saveChanges()
 		// sleep for like 15s
 		await delay(60_000)
 
