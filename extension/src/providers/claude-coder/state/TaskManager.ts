@@ -18,18 +18,43 @@ export class TaskManager {
 	async clearTask() {
 		const now = new Date()
 		const koduDev = this.provider.getKoduDev()
-		this.provider.koduDev = undefined
-
+		
 		if (koduDev) {
-			koduDev.abortTask().catch((err) => {
+			// Save any pending file changes
+			const stateManager = koduDev.getStateManager()
+			if (stateManager) {
+				const errorPaths = stateManager.getErrorPaths()
+				for (const path of errorPaths) {
+					try {
+						await vscode.workspace.fs.stat(vscode.Uri.file(path))
+						// If file exists, ensure it's in a clean state
+						const doc = await vscode.workspace.openTextDocument(path)
+						if (doc.isDirty) {
+							await doc.save()
+						}
+					} catch (err) {
+						console.error(`Error handling file ${path} during task clear:`, err)
+					}
+				}
+			}
+			
+			// Abort any running task
+			await koduDev.abortTask().catch((err) => {
 				console.error("Error during task abort:", err)
 			})
 		}
-
+		
+		this.provider.koduDev = undefined
 		console.log(`Task cleared in ${new Date().getTime() - now.getTime()}ms`)
 	}
 
 	async handleNewTask(task?: string, images?: string[], attachements?: Resource[]) {
+		// Clear any existing task and its state first
+		await this.clearTask()
+		
+		// Ensure we wait a moment for any file operations to complete
+		await new Promise(resolve => setTimeout(resolve, 100))
+		
 		const compressedImages = await compressImages(images ?? [])
 		const additionalContextBlocks = await formatAttachementsIntoBlocks(attachements)
 		await this.provider.initWithTask(task + additionalContextBlocks, compressedImages)
