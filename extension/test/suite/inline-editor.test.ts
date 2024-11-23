@@ -113,28 +113,36 @@ export function truncateHalfConversation(
 		const generator = await simulateStreaming(diff1, 50)
 		let replaceContentFull = ""
 		let isOpen = false
+		let blockId: string[] = []
 		for await (const diff of generator) {
 			console.log(diff)
 			try {
 				const blocks = parseDiffBlocks(diff, toEditFilePath)
-				console.log(blocks)
 				if (blocks.length > 0 && blocks[0].replaceContent.length > 0) {
 					if (blocks[0].replaceContent) {
 						replaceContentFull = blocks[0].replaceContent
 					}
 					if (!isOpen) {
-						await inlineEditHandler.open(toEditFilePath, blocks[0].searchContent)
-						await inlineEditHandler.applyStreamContent(blocks[0].replaceContent)
+						const id = await inlineEditHandler.open(toEditFilePath, blocks[0].searchContent)
+						if (!id) {
+							console.warn(`Warning block not parsable yet`)
+							continue
+						}
+						blockId.push(id)
+						await inlineEditHandler.applyStreamContent(id, blocks[0].replaceContent)
 						isOpen = true
 					} else {
-						await inlineEditHandler.applyStreamContent(blocks[0].replaceContent)
+						await inlineEditHandler.applyStreamContent(blockId[0], blocks[0].replaceContent)
 					}
 				}
 			} catch (err) {
 				console.warn(`Warning block not parsable yet`)
 			}
 		}
-		await inlineEditHandler.applyFinalContent(replaceContentFull)
+		await inlineEditHandler.applyFinalContent(blockId[0], replaceContentFull)
+		await delay(5_000)
+		// save the file
+		await inlineEditHandler.saveChanges(replaceContentFull)
 		// sleep for like 15s
 		await delay(60_000)
 
