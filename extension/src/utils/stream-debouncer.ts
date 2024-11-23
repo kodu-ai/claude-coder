@@ -1,61 +1,86 @@
 import { koduSSEResponse } from "../shared/kodu"
 
-export function createStreamDebouncer(callback: (chunks: koduSSEResponse[]) => Promise<void>, delay: number = 25) {
-	let timeoutId: NodeJS.Timeout | null = null
-	let chunks: koduSSEResponse[] = []
-	let isProcessing = false
+// Dynamic delay based on token count
+const getDynamicDelay = (tokenCount: number): number => {
+    if (tokenCount > 50000) return 100;
+    if (tokenCount > 10000) return 50;
+    return 25;
+};
 
-	const processChunks = async () => {
-		isProcessing = true
+// Dynamic batch size based on token count
+const getDynamicBatchSize = (tokenCount: number): number => {
+    if (tokenCount > 50000) return 5000;
+    if (tokenCount > 10000) return 1000;
+    return 100;
+};
 
-		// Capture the current chunks and reset the accumulator
-		const chunksToProcess = chunks
-		chunks = []
+export function createStreamDebouncer(callback: (chunks: koduSSEResponse[]) => Promise<void>, initialDelay: number = 25) {
+    let timeoutId: NodeJS.Timeout | null = null;
+    let chunks: koduSSEResponse[] = [];
+    let isProcessing = false;
+    let totalTokens = 0;
 
-		try {
-			await callback(chunksToProcess)
-		} catch (error) {
-			console.error("Error processing chunks:", error)
-			console.error("Problematic chunks:", JSON.stringify(chunksToProcess, null, 2))
-		} finally {
-			isProcessing = false
-			// If new chunks arrived during processing, schedule another processing
-			if (chunks.length > 0) {
-				timeoutId = setTimeout(processChunks, delay)
-			}
-		}
-	}
+    const processChunks = async () => {
+        isProcessing = true;
 
-	return {
-		add: (chunk: koduSSEResponse) => {
-			chunks.push(chunk)
+        // Calculate current token count and adjust delay/batch size
+        const currentDelay = getDynamicDelay(totalTokens);
+        const batchSize = getDynamicBatchSize(totalTokens);
 
-			// Clear any existing timeout to debounce
-			if (timeoutId) {
-				clearTimeout(timeoutId)
-			}
+        // Process chunks in batches
+        while (chunks.length > 0) {
+            const chunksToProcess = chunks.splice(0, batchSize);
+            try {
+                await callback(chunksToProcess);
+            } catch (error) {
+                console.error("Error processing chunks:", error);
+                console.error("Problematic chunks:", JSON.stringify(chunksToProcess, null, 2));
+            }
+        }
 
-			// If not already processing, schedule processing
-			if (!isProcessing) {
-				timeoutId = setTimeout(processChunks, delay)
-			}
-		},
-		flush: async () => {
-			// Clear any pending timeout to ensure immediate processing
-			if (timeoutId) {
-				clearTimeout(timeoutId)
-				timeoutId = null
-			}
+        isProcessing = false;
+        // Schedule next batch if there are new chunks
+        if (chunks.length > 0) {
+            timeoutId = setTimeout(processChunks, currentDelay);
+        }
+    };
 
-			// If there are chunks and not currently processing, process them immediately
-			if (chunks.length > 0 && !isProcessing) {
-				await processChunks()
-			}
+    return {
+        add: (chunk: koduSSEResponse) => {
+            chunks.push(chunk);
+            // Update total token count
+            if (chunk.text) {
+                // Rough estimation of tokens (can be refined based on actual tokenization)
+                totalTokens += chunk.text.length / 4;
+            }
 
-			// Wait until any ongoing processing completes
-			while (isProcessing) {
-				await new Promise((resolve) => setTimeout(resolve, delay))
-			}
-		},
-	}
+            // Clear existing timeout to debounce
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+
+            // If not processing, schedule next batch
+            if (!isProcessing) {
+                const currentDelay = getDynamicDelay(totalTokens);
+                timeoutId = setTimeout(processChunks, currentDelay);
+            }
+        },
+        flush: async () => {
+            // Clear any pending timeout to ensure immediate processing
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+
+            // If there are chunks and not currently processing, process them immediately
+            if (chunks.length > 0 && !isProcessing) {
+                await processChunks();
+            }
+
+            // Wait until any ongoing processing completes
+            while (isProcessing) {
+                await new Promise((resolve) => setTimeout(resolve, initialDelay))
+            }
+        },
+    }
 }
