@@ -522,7 +522,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 						data = stripAnsi(data)
 					}
 					clearTimeout(noShellTimeout)
-					if (!data.trim()) continue
+					if (!data.trim()) {continue}
 					// Remove command echo but preserve line updates
 					const lines = data.split(/[\n\r]+/)
 					const filteredLines = lines.filter((line) => {
@@ -533,7 +533,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 
 					// Handle hot state
 					this.isHot = true
-					if (this.hotTimer) clearTimeout(this.hotTimer)
+					if (this.hotTimer) {clearTimeout(this.hotTimer)}
 
 					const compilingMarkers = ["compiling", "building", "bundling"]
 					const markerNullifiers = ["compiled", "success", "finish"]

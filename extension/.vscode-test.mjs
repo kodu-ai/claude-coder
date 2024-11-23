@@ -1,5 +1,13 @@
-import { defineConfig } from '@vscode/test-cli';
+// .vscode-test.mjs is a configuration file that tells the test runner how to run the tests.
+import { defineConfig } from "@vscode/test-cli"
 
 export default defineConfig({
-	files: 'out/test/**/*.test.js',
-});
+  files: "test/**/*.test.ts",
+  mocha: {
+    ui: "bdd",
+    timeout: 20000,
+    require: ["tsx/cjs"],
+    extension: [".ts", ".tsx"],
+    "node-option": ["--loader=tsx"]
+  }
+})

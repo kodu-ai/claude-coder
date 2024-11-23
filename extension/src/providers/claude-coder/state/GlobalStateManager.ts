@@ -124,7 +124,7 @@ export class GlobalStateManager {
 	getActiveSystemPrompt(): string | undefined {
 		const variants = this.getGlobalState("systemPromptVariants")
 		const activeId = this.getGlobalState("activeSystemPromptVariantId")
-		if (!variants || !activeId) return undefined
+		if (!variants || !activeId) {return undefined}
 
 		const activeVariant = variants.find((v) => v.id === activeId)
 		return activeVariant?.content

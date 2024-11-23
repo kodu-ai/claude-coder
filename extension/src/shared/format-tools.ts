@@ -102,19 +102,21 @@ export function getBase64ImageType(base64String: string): ImageBlockParam["sourc
  */
 export const compressToolFromMsg = (msgs: ContentBlock[]): ContentBlock[] => {
 	const blocks: ContentBlock[] = []
-	const compressedTools: ToolName[] = ["write_to_file", "read_file"]
+	const compressedTools: ToolName[] = ["write_to_file", "read_file", "edit_file_blocks"]
 	for (const msg of msgs) {
 		if (isTextBlock(msg)) {
 			if (msg.text.includes("<write_to_file>")) {
 				// find <content> tag and replace it with a placeholder
-				const contentStart = msg.text.indexOf("<content>")
-				const contentEnd = msg.text.indexOf("</content>")
+				const koduContentType = msg.text.includes("</kodu_content>") ? "kodu_content" : "content"
+				const contentStart = msg.text.indexOf(`<${koduContentType}>`)
+				const contentEnd = msg.text.indexOf(`</${koduContentType}>`)
+				console.log(contentStart, contentEnd)
 				if (contentStart !== -1 && contentEnd !== -1) {
 					// replace content with placeholder Compressed and keep the existing text before and after the content
 					const textBeforeContent = msg.text.slice(0, contentStart)
-					const textAfterContent = msg.text.slice(contentEnd + "</content>".length)
+					const textAfterContent = msg.text.slice(contentEnd + `</${koduContentType}>`.length)
 					const truncatedLength = contentEnd - contentStart
-					const truncatedContentReplace = `<content>Content Compressed (Original length:${truncatedLength})</content>`
+					const truncatedContentReplace = `<${koduContentType}>Content Compressed (Original length:${truncatedLength})</${koduContentType}>`
 					const truncatedText = textBeforeContent + truncatedContentReplace + textAfterContent
 					blocks.push({
 						type: "text",

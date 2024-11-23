@@ -333,8 +333,8 @@ export class StateManager {
 			writeStream.write(JSON.stringify(this.state.apiConversationHistory, null, 2))
 			await new Promise((resolve, reject) => {
 				writeStream.end((err: Error) => {
-					if (err) reject(err)
-					else resolve(null)
+					if (err) {reject(err)}
+					else {resolve(null)}
 				})
 			})
 		} catch (error) {

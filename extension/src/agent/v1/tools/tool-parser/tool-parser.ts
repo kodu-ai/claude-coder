@@ -169,7 +169,7 @@ export class ToolParser {
 	}
 
 	private sendProgressUpdate(): void {
-		if (!this.currentContext) return
+		if (!this.currentContext) {return}
 
 		// Update the params with current buffer content
 		if (this.currentContext.currentParam) {
@@ -191,7 +191,7 @@ export class ToolParser {
 	}
 
 	private handleTag(tag: string): void {
-		if (!this.currentContext) return
+		if (!this.currentContext) {return}
 
 		const isClosingTag = tag.startsWith("</")
 		const tagContent = isClosingTag ? tag.slice(2, -1) : tag.slice(1, -1)
@@ -205,7 +205,7 @@ export class ToolParser {
 	}
 
 	private handleOpeningTag(tagName: string): void {
-		if (!this.currentContext) return
+		if (!this.currentContext) {return}
 
 		if (this.currentContext.currentParam) {
 			// We're in a parameter, increment its nesting level if we see its tag
@@ -234,7 +234,7 @@ export class ToolParser {
 	}
 
 	private handleClosingTag(tagName: string): void {
-		if (!this.currentContext) return
+		if (!this.currentContext) {return}
 
 		if (tagName === this.currentContext.toolName) {
 			this.currentContext.nestingLevel--

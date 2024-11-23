@@ -110,7 +110,13 @@ export type SummarizeChatTool = {
 	output?: string
 }
 
+export type EditFileBlocksTool = {
+	tool: "edit_file_blocks"
+	diff: string
+}
+
 export type ChatTool = (
+	| EditFileBlocksTool
 	| ExecuteCommandTool
 	| ListFilesTool
 	| ListCodeDefinitionNamesTool
