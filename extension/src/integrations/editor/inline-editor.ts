@@ -317,22 +317,29 @@ export class InlineEditHandler {
 			// Apply all final changes
 			await editor.edit(
 				(editBuilder) => {
-					const currentContent = editor.document.getText()
+					// Get all blocks that are final and have content
 					const blocks = Array.from(this.currentDocumentState!.editBlocks.values())
 						.filter((block) => block.status === "final" && block.finalContent)
 						.sort((a, b) => {
-							const aStart = currentContent.indexOf(a.originalContent)
-							const bStart = currentContent.indexOf(b.originalContent)
-							return aStart - bStart
+							// Sort blocks by their range position from bottom to top
+							return b.range.start.compareTo(a.range.start)
 						})
 
+					// Apply changes from bottom to top to avoid position shifts
 					for (const block of blocks) {
 						if (block.finalContent) {
-							const startIndex = currentContent.indexOf(block.originalContent)
-							if (startIndex !== -1) {
-								const startPos = editor.document.positionAt(startIndex)
-								const endPos = editor.document.positionAt(startIndex + block.originalContent.length)
-								editBuilder.replace(new vscode.Range(startPos, endPos), block.finalContent)
+							// Use the tracked range instead of searching for content
+							const range = block.range
+
+							// Verify the range is still valid
+							const currentContent = editor.document.getText(range)
+							if (currentContent === block.currentContent) {
+								editBuilder.replace(range, block.finalContent)
+							} else {
+								console.warn(
+									`Content mismatch for block ${block.id}. ` +
+										`Expected "${block.currentContent}" but found "${currentContent}"`
+								)
 							}
 						}
 					}

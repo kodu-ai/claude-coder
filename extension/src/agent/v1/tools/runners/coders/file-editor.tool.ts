@@ -7,8 +7,8 @@ import { AgentToolOptions, AgentToolParams } from "../../types"
 import fs from "fs"
 import { detectCodeOmission } from "./detect-code-omission"
 import { parseDiffBlocks, applyEditBlocksToFile, checkFileExists, preprocessContent, EditBlock } from "./utils"
-import { InlineEditHandler } from "@/integrations/editor/inline-editor"
-import { ToolResponseV2 } from "@/agent/v1/types"
+import { InlineEditHandler } from "../../../../../integrations/editor/inline-editor"
+import { ToolResponseV2 } from "../../../../../agent/v1/types"
 import delay from "delay"
 import PQueue from "p-queue"
 
@@ -201,13 +201,13 @@ export class FileEditorTool extends BaseAgentTool {
 					orignalContent: "",
 					isExistingFile: false,
 				}
-				return
-			}
-			const originalContent = fs.readFileSync(absolutePath, "utf8")
-			this.fileState = {
-				absolutePath,
-				orignalContent: originalContent,
-				isExistingFile,
+			} else {
+				const originalContent = fs.readFileSync(absolutePath, "utf8")
+				this.fileState = {
+					absolutePath,
+					orignalContent: originalContent,
+					isExistingFile,
+				}
 			}
 		}
 		// this might happen because the diff view are not instant.

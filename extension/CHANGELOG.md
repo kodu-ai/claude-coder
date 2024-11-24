@@ -4,6 +4,19 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.13.0] - 2024-11-25
+
+### Added
+
+-   New high-performance animation system for inline edits
+-   Support for concurrent multiple edits within a single tool request
+
+### Changed
+
+-   Significantly improved overall extension performance and resource utilization
+-   Enhanced code generation accuracy for inline edits
+-   Stabilized inline editing system for better reliability
+
 ## [1.11.4] - 2024-11-18
 
 -   Added way for vscodium users to login

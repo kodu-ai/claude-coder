@@ -119,6 +119,16 @@ export class WebviewManager {
 	 * @param message The message to send to the webview
 	 */
 	async postMessageToWebview(message: ExtensionMessage) {
+		if (
+			message.type === "taskHistory" ||
+			message.type === "requestStatus" ||
+			message.type === "claudeMessages" ||
+			message.type === "enableTextAreas"
+		) {
+			// prioritize these messages
+			this.sendMessageToWebview(message)
+			return
+		}
 		const now = Date.now()
 		this.lastPostTimeAt = now
 		this.pendingMessage = message
