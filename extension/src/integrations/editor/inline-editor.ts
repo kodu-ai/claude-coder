@@ -27,12 +27,15 @@ interface EditBlock {
 }
 
 export class InlineEditHandler {
-	private pendingDecoration: vscode.TextEditorDecorationType
-	private streamingDecoration: vscode.TextEditorDecorationType
-	private mergeDecoration: vscode.TextEditorDecorationType
+	private pendingDecoration!: vscode.TextEditorDecorationType
+	private streamingDecoration!: vscode.TextEditorDecorationType
+	private mergeDecoration!: vscode.TextEditorDecorationType
 	private editor: vscode.TextEditor | undefined
 	private isAutoScrollEnabled: boolean = true
 	private editBlocks: Map<string, EditBlock> = new Map()
+    private activeStreamingRanges: Map<string, vscode.Range> = new Map()
+    private activeMergeRanges: Map<string, vscode.Range> = new Map()
+    private activePendingRanges: Map<string, vscode.Range> = new Map()
 
 	private defaultMergeFormat: MergeFormatOptions = {
 		startMarker: "▼ Original",
@@ -115,124 +118,177 @@ export class InlineEditHandler {
 	}
 
 	public async open(id: string, filePath: string, searchContent: string): Promise<boolean> {
-		const document = await vscode.workspace.openTextDocument(filePath)
-		this.editor = await vscode.window.showTextDocument(document)
+        const document = await vscode.workspace.openTextDocument(filePath)
+        this.editor = await vscode.window.showTextDocument(document)
 
-		const text = document.getText()
-		const startIndex = text.indexOf(searchContent)
+        const text = document.getText()
+        const startIndex = text.indexOf(searchContent)
 
-		if (startIndex === -1) {
-			return false
-		}
+        if (startIndex === -1) {
+            return false
+        }
 
-		const startPos = document.positionAt(startIndex)
-		const endPos = document.positionAt(startIndex + searchContent.length)
-		const range = new vscode.Range(startPos, endPos)
+        const startPos = document.positionAt(startIndex)
+        const endPos = document.positionAt(startIndex + searchContent.length)
+        const range = new vscode.Range(startPos, endPos)
 
-		const editBlock: EditBlock = {
-			id,
-			range,
-			originalContent: searchContent,
-			currentContent: searchContent,
-			status: "pending",
-		}
+        const editBlock: EditBlock = {
+            id,
+            range,
+            originalContent: searchContent,
+            currentContent: searchContent,
+            status: "pending",
+        }
 
-		this.editBlocks.set(id, editBlock)
-		this.editor.setDecorations(this.pendingDecoration, [range])
+        this.editBlocks.set(id, editBlock)
+        this.activePendingRanges.set(id, range)
+        this.updateDecorations()
 
-		await this.scrollToRange(range)
-		return true
-	}
+        await this.scrollToRange(range)
+        return true
+    }
 
 	public async applyStreamContent(id: string, content: string): Promise<boolean> {
-		const editBlock = this.editBlocks.get(id)
-		if (!this.editor || !editBlock) {
-			return false
-		}
+        const editBlock = this.editBlocks.get(id)
+        if (!this.editor || !editBlock) {
+            return false
+        }
 
-		try {
-			const mergeContent = this.formatMergeContent(editBlock.originalContent, content, "Streaming")
+        try {
+            const mergeContent = this.formatMergeContent(editBlock.originalContent, content, "Streaming")
 
-			await this.editor.edit((editBuilder) => {
-				editBuilder.replace(editBlock.range, mergeContent)
-			})
+            await this.editor.edit((editBuilder) => {
+                editBuilder.replace(editBlock.range, mergeContent)
+            })
 
-			const newEndPos = this.editor.document.positionAt(
-				this.editor.document.offsetAt(editBlock.range.start) + mergeContent.length
-			)
-			const newRange = new vscode.Range(editBlock.range.start, newEndPos)
+            const newEndPos = this.editor.document.positionAt(
+                this.editor.document.offsetAt(editBlock.range.start) + mergeContent.length
+            )
+            const newRange = new vscode.Range(editBlock.range.start, newEndPos)
 
-			this.editBlocks.set(id, {
-				...editBlock,
-				range: newRange,
-				currentContent: content,
-				status: "streaming",
-			})
+            this.editBlocks.set(id, {
+                ...editBlock,
+                range: newRange,
+                currentContent: content,
+                status: "streaming",
+            })
 
-			this.editor.setDecorations(this.streamingDecoration, [newRange])
-			await this.scrollToRange(newRange)
+            // Update the range in streaming decorations map
+            this.activeStreamingRanges.set(id, newRange)
+            // Remove from pending if it exists
+            this.activePendingRanges.delete(id)
+            
+            this.updateDecorations()
+            await this.scrollToRange(newRange)
 
-			return true
-		} catch (error) {
-			console.error("Failed to apply streaming content:", error)
-			return false
-		}
-	}
+            return true
+        } catch (error) {
+            console.error("Failed to apply streaming content:", error)
+            return false
+        }
+    }
 
 	public async applyFinalContent(id: string, content: string): Promise<boolean> {
-		const editBlock = this.editBlocks.get(id)
-		if (!this.editor || !editBlock) {
-			return false
-		}
+        const editBlock = this.editBlocks.get(id)
+        if (!this.editor || !editBlock) {
+            return false
+        }
 
+        try {
+            const mergeContent = this.formatMergeContent(editBlock.originalContent, content, "Final")
+
+            await this.editor.edit((editBuilder) => {
+                editBuilder.replace(editBlock.range, mergeContent)
+            })
+
+            const newEndPos = this.editor.document.positionAt(
+                this.editor.document.offsetAt(editBlock.range.start) + mergeContent.length
+            )
+            const newRange = new vscode.Range(editBlock.range.start, newEndPos)
+
+            this.editBlocks.set(id, {
+                ...editBlock,
+                range: newRange,
+                currentContent: content,
+                finalContent: content,
+                status: "final",
+            })
+
+            // Update decoration maps
+            this.activeStreamingRanges.delete(id)
+            this.activeMergeRanges.set(id, newRange)
+            
+            this.updateDecorations()
+            await this.scrollToRange(newRange)
+
+            return true
+        } catch (error) {
+            console.error("Failed to apply final content:", error)
+            return false
+        }
+    }
+
+	private updateDecorations() {
+        if (!this.editor) {return}
+
+        // Apply all decorations at once, maintaining multiple active ranges
+        this.editor.setDecorations(this.pendingDecoration, Array.from(this.activePendingRanges.values()))
+        this.editor.setDecorations(this.streamingDecoration, Array.from(this.activeStreamingRanges.values()))
+        this.editor.setDecorations(this.mergeDecoration, Array.from(this.activeMergeRanges.values()))
+    }
+
+	public async saveChanges(): Promise<{userEdits?: string, finalContent: string}> {
+		if (!this.editor) {
+			throw new Error("No active editor")
+		}
+	
 		try {
-			const mergeContent = this.formatMergeContent(editBlock.originalContent, content, "Final")
+			// Start with current editor content to preserve formatting
+			const originalContent = await vscode.workspace.fs.readFile(this.editor.document.uri)
+            let finalContent = Buffer.from(originalContent).toString('utf-8')
 
-			await this.editor.edit((editBuilder) => {
-				editBuilder.replace(editBlock.range, mergeContent)
+			// Apply changes in the order they were made
+			const sortedBlocks = Array.from(this.editBlocks.values())
+				.sort((a, b) => {
+					const aStart = finalContent.indexOf(a.originalContent)
+					const bStart = finalContent.indexOf(b.originalContent)
+					return aStart - bStart
+				})
+	
+			// Apply each block's changes
+			for (const block of sortedBlocks) {
+				if (block.status === "final" && block.finalContent) {
+					// Do a direct replacement for exact matches
+					const startIndex = finalContent.indexOf(block.originalContent)
+					if (startIndex !== -1) {
+						const prefix = finalContent.substring(0, startIndex)
+						const suffix = finalContent.substring(startIndex + block.originalContent.length)
+						finalContent = prefix + block.finalContent + suffix
+					}
+				}
+			}
+	
+			// Apply the final content to the document
+			await this.editor.edit(editBuilder => {
+				const fullRange = new vscode.Range(
+					this.editor!.document.positionAt(0),
+					this.editor!.document.positionAt(this.editor!.document.getText().length)
+				)
+				editBuilder.replace(fullRange, finalContent)
 			})
-
-			const newEndPos = this.editor.document.positionAt(
-				this.editor.document.offsetAt(editBlock.range.start) + mergeContent.length
-			)
-			const newRange = new vscode.Range(editBlock.range.start, newEndPos)
-
-			this.editBlocks.set(id, {
-				...editBlock,
-				range: newRange,
-				currentContent: content,
-				finalContent: content,
-				status: "final",
-			})
-
-			this.editor.setDecorations(this.streamingDecoration, [])
-			this.editor.setDecorations(this.mergeDecoration, [newRange])
-
-			await this.scrollToRange(newRange)
-			return true
-		} catch (error) {
-			console.error("Failed to apply final content:", error)
-			return false
-		}
-	}
-
-	public async saveChanges(id: string): Promise<boolean> {
-		const editBlock = this.editBlocks.get(id)
-		if (!this.editor || !editBlock || !editBlock.finalContent) {
-			return false
-		}
-
-		try {
-			await this.editor.edit((editBuilder) => {
-				editBuilder.replace(editBlock.range, editBlock.finalContent!)
-			})
-
-			this.editBlocks.delete(id)
-			this.clearDecorations(editBlock.range)
-			return true
+	
+			// Clear all state
+			this.editBlocks.clear()
+			this.pendingDecoration.dispose()
+			this.streamingDecoration.dispose()
+			this.mergeDecoration.dispose()
+	
+			return {
+				finalContent
+			}
 		} catch (error) {
 			console.error("Failed to save changes:", error)
-			return false
+			throw error
 		}
 	}
 
@@ -304,11 +360,14 @@ export class InlineEditHandler {
 	}
 
 	public dispose() {
-		this.editBlocks.clear()
-		this.pendingDecoration.dispose()
-		this.streamingDecoration.dispose()
-		this.mergeDecoration.dispose()
-	}
+        this.editBlocks.clear()
+        this.activeStreamingRanges.clear()
+        this.activeMergeRanges.clear()
+        this.activePendingRanges.clear()
+        this.pendingDecoration.dispose()
+        this.streamingDecoration.dispose()
+        this.mergeDecoration.dispose()
+    }
 
 	public getVisibleRange(): vscode.Range | undefined {
 		if (!this.editor) {

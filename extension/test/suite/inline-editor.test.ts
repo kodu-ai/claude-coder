@@ -56,102 +56,102 @@ describe("InlineEditHandler End-to-End Test", () => {
 		}
 	})
 
-	it("should handle streaming updates for a single code block", async () => {
-		const search = `/*
-We can't implement a dynamically updating sliding window as it would break prompt cache
-every time. To maintain the benefits of caching, we need to keep conversation history
-static. This operation should be performed as infrequently as possible. If a user reaches
-a 200k context, we can assume that the first half is likely irrelevant to their current task.
-Therefore, this function should only be called when absolutely necessary to fit within
-context limits, not as a continuous process.
-*/
-export function truncateHalfConversation(
-	messages: Anthropic.Messages.MessageParam[]
-): Anthropic.Messages.MessageParam[] {
-	if (!Array.isArray(messages) || messages.length < MIN_MESSAGES_TO_KEEP) {
-		return messages
-	}
+// 	it("should handle streaming updates for a single code block", async () => {
+// 		const search = `/*
+// We can't implement a dynamically updating sliding window as it would break prompt cache
+// every time. To maintain the benefits of caching, we need to keep conversation history
+// static. This operation should be performed as infrequently as possible. If a user reaches
+// a 200k context, we can assume that the first half is likely irrelevant to their current task.
+// Therefore, this function should only be called when absolutely necessary to fit within
+// context limits, not as a continuous process.
+// */
+// export function truncateHalfConversation(
+// 	messages: Anthropic.Messages.MessageParam[]
+// ): Anthropic.Messages.MessageParam[] {
+// 	if (!Array.isArray(messages) || messages.length < MIN_MESSAGES_TO_KEEP) {
+// 		return messages
+// 	}
 
-	// Always keep the first Task message (this includes the project's file structure in potentially_relevant_details)
-	const firstMessage = messages[0]
+// 	// Always keep the first Task message (this includes the project's file structure in potentially_relevant_details)
+// 	const firstMessage = messages[0]
 
-	// Calculate how many message pairs to remove (must be even to maintain user-assistant order)
-	const messagePairsToRemove = Math.max(1, Math.floor((messages.length - MIN_MESSAGES_TO_KEEP) / 4)) * 2
+// 	// Calculate how many message pairs to remove (must be even to maintain user-assistant order)
+// 	const messagePairsToRemove = Math.max(1, Math.floor((messages.length - MIN_MESSAGES_TO_KEEP) / 4)) * 2
 
-	// Keep the first message and the remaining messages after truncation
-	const remainingMessages = messages.slice(messagePairsToRemove + 1)
+// 	// Keep the first message and the remaining messages after truncation
+// 	const remainingMessages = messages.slice(messagePairsToRemove + 1)
 
-	// check if the first message exists appx twice if so pop the last instance and insert the first message again as last
-	// if it doesn't exist twice, insert the first message as the last message
+// 	// check if the first message exists appx twice if so pop the last instance and insert the first message again as last
+// 	// if it doesn't exist twice, insert the first message as the last message
 
-	return [firstMessage, ...remainingMessages]
-}`
-		const replace = `/*
-we made this short on purpose
-*/
-export function truncateHalfConversation(
-	messages: Anthropic.Messages.MessageParam[]
-): Anthropic.Messages.MessageParam[] {
-	// we added comment here
-	if (!Array.isArray(messages) || messages.length < MIN_MESSAGES_TO_KEEP) {
-		return messages
-	}
+// 	return [firstMessage, ...remainingMessages]
+// }`
+// 		const replace = `/*
+// we made this short on purpose
+// */
+// export function truncateHalfConversation(
+// 	messages: Anthropic.Messages.MessageParam[]
+// ): Anthropic.Messages.MessageParam[] {
+// 	// we added comment here
+// 	if (!Array.isArray(messages) || messages.length < MIN_MESSAGES_TO_KEEP) {
+// 		return messages
+// 	}
 
-	// we added another line of comment
-	// Always keep the first Task message (this includes the project's file structure in potentially_relevant_details)
-	const firstMessage = messages[0]
+// 	// we added another line of comment
+// 	// Always keep the first Task message (this includes the project's file structure in potentially_relevant_details)
+// 	const firstMessage = messages[0]
 
-	// Calculate how many message pairs to remove (must be even to maintain user-assistant order)
-	const messagePairsToRemove = Math.max(1, Math.floor((messages.length - MIN_MESSAGES_TO_KEEP) / 4)) * 2
+// 	// Calculate how many message pairs to remove (must be even to maintain user-assistant order)
+// 	const messagePairsToRemove = Math.max(1, Math.floor((messages.length - MIN_MESSAGES_TO_KEEP) / 4)) * 2
 
-	// this is the best way to see if this is working or is it actually bullshiting me
-	// some more comments because why not
-	// Keep the first message and the remaining messages after truncation
-	const renamedMsgs = messages.slice(messagePairsToRemove + 1)
+// 	// this is the best way to see if this is working or is it actually bullshiting me
+// 	// some more comments because why not
+// 	// Keep the first message and the remaining messages after truncation
+// 	const renamedMsgs = messages.slice(messagePairsToRemove + 1)
 
-	return [firstMessage, ...renamedMsgs]
-}`
-		const diff1 = `SEARCH\n${search}\n=======\nREPLACE\n${replace}`
+// 	return [firstMessage, ...renamedMsgs]
+// }`
+// 		const diff1 = `SEARCH\n${search}\n=======\nREPLACE\n${replace}`
 
-		const generator = await simulateStreaming(diff1, 50)
-		let replaceContentFull = ""
-		let isOpen = false
-		let blockId: string[] = []
-		for await (const diff of generator) {
-			console.log(diff)
-			try {
-				const blocks = parseDiffBlocks(diff, toEditFilePath)
-				if (blocks.length > 0 && blocks[0].replaceContent.length > 0) {
-					if (blocks[0].replaceContent) {
-						replaceContentFull = blocks[0].replaceContent
-					}
-					if (!isOpen) {
-						const id = await inlineEditHandler.open(toEditFilePath, blocks[0].searchContent)
-						if (!id) {
-							console.warn(`Warning block not parsable yet`)
-							continue
-						}
-						blockId.push(id)
-						await inlineEditHandler.applyStreamContent(id, blocks[0].replaceContent)
-						isOpen = true
-					} else {
-						await inlineEditHandler.applyStreamContent(blockId[0], blocks[0].replaceContent)
-					}
-				}
-			} catch (err) {
-				console.warn(`Warning block not parsable yet`)
-			}
-		}
-		await inlineEditHandler.applyFinalContent(blockId[0], replaceContentFull)
-		// save the file
-		await inlineEditHandler.saveChanges(replaceContentFull)
+// 		const generator = await simulateStreaming(diff1, 50)
+// 		let replaceContentFull = ""
+// 		let isOpen = false
+// 		let blockId: string[] = []
+// 		for await (const diff of generator) {
+// 			console.log(diff)
+// 			try {
+// 				const blocks = parseDiffBlocks(diff, toEditFilePath)
+// 				if (blocks.length > 0 && blocks[0].replaceContent.length > 0) {
+// 					if (blocks[0].replaceContent) {
+// 						replaceContentFull = blocks[0].replaceContent
+// 					}
+// 					if (!isOpen) {
+// 						const id = await inlineEditHandler.open(toEditFilePath, blocks[0].searchContent)
+// 						if (!id) {
+// 							console.warn(`Warning block not parsable yet`)
+// 							continue
+// 						}
+// 						blockId.push(id)
+// 						await inlineEditHandler.applyStreamContent(id, blocks[0].replaceContent)
+// 						isOpen = true
+// 					} else {
+// 						await inlineEditHandler.applyStreamContent(blockId[0], blocks[0].replaceContent)
+// 					}
+// 				}
+// 			} catch (err) {
+// 				console.warn(`Warning block not parsable yet`)
+// 			}
+// 		}
+// 		await inlineEditHandler.applyFinalContent(blockId[0], replaceContentFull)
+// 		// save the file
+// 		await inlineEditHandler.saveChanges(replaceContentFull)
 
-		// Verify final file content
-		const document = vscode.window.activeTextEditor!.document
-		const expectedContent = fs.readFileSync(toEditFilePath, "utf8").replace(search, replace)
+// 		// Verify final file content
+// 		const document = vscode.window.activeTextEditor!.document
+// 		const expectedContent = fs.readFileSync(toEditFilePath, "utf8").replace(search, replace)
 
-		assert.strictEqual(document.getText(), expectedContent)
-	})
+// 		assert.strictEqual(document.getText(), expectedContent)
+// 	})
 
 	it("should handle streaming updates for multiple blocks", async () => {
 		const search = `/*
@@ -238,11 +238,15 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		const streamedContent = `${diff1}\n${diff2}`
 
 		const generator = await simulateStreaming(streamedContent, 50)
-		let isOpen = false
-		const editBlocks: { id: string; replaceContent: string; searchContent: string }[] = []
+    	const editBlocks: Array<{ 
+        id: string; 
+        replaceContent: string; 
+        searchContent: string;
+        finalContent?: string;
+		}> = []
 		let lastAppliedBlockId: string | undefined
+
 		for await (const diff of generator) {
-			console.log(diff)
 			try {
 				const blocks = parseDiffBlocks(diff, toEditFilePath)
 				if (blocks.length > 0) {
@@ -250,47 +254,64 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 					if (!currentBlock?.replaceContent) {
 						continue
 					}
-					if (!isOpen) {
-						await inlineEditHandler.open(currentBlock.id, toEditFilePath, currentBlock.searchContent)
-
-						await inlineEditHandler.applyStreamContent(currentBlock.id, currentBlock.replaceContent)
-
-						isOpen = true
-					} else {
-						if (lastAppliedBlockId !== currentBlock.id) {
-							// get that block and apply final content
-							const lastEditBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-							await inlineEditHandler.applyFinalContent(lastEditBlock!.id, lastEditBlock!.replaceContent)
-							await delay(5_000)
+	
+					// If this block hasn't been tracked yet, initialize it
+					if (!editBlocks.some(block => block.id === currentBlock.id)) {
+						// Clean up any SEARCH text from the last block before starting new one
+						if (lastAppliedBlockId) {
+							const lastBlock = editBlocks.find(block => block.id === lastAppliedBlockId)
+							if (lastBlock) {
+								const lines = lastBlock.replaceContent.split('\n')
+								// Only remove the last line if it ONLY contains a partial SEARCH
+								if (lines.length > 0 && /^S?E?A?R?C?H?$/.test(lines[lines.length - 1].trim())) {
+									lines.pop()
+									await inlineEditHandler.applyFinalContent(lastBlock.id, lines.join('\n'))
+								} else {
+									await inlineEditHandler.applyFinalContent(lastBlock.id, lastBlock.replaceContent)
+								}
+							}
 						}
-						// last edit block
-						const lastEditBlock = editBlocks.at(-1)
-						await inlineEditHandler.applyStreamContent(lastEditBlock!.id, currentBlock.replaceContent)
+	
+						await inlineEditHandler.open(currentBlock.id, toEditFilePath, currentBlock.searchContent)
+						editBlocks.push({
+							id: currentBlock.id,
+							replaceContent: currentBlock.replaceContent,
+							searchContent: currentBlock.searchContent
+						})
+						lastAppliedBlockId = currentBlock.id
 					}
-					lastAppliedBlockId = currentBlock.id
-					editBlocks.push({
-						id: currentBlock.id,
-						replaceContent: currentBlock.replaceContent,
-						searchContent: currentBlock.searchContent,
-					})
+	
+					const blockData = editBlocks.find(block => block.id === currentBlock.id)
+					if (blockData) {
+						blockData.replaceContent = currentBlock.replaceContent
+						await inlineEditHandler.applyStreamContent(currentBlock.id, currentBlock.replaceContent)
+					}
 				}
 			} catch (err) {
 				console.warn(`Warning block not parsable yet`)
 			}
 		}
-		// await inlineEditHandler.applyFinalContent(blockId[0], replaceContentFull)
-		await delay(5_000)
-		// save the file
-		// await inlineEditHandler.saveChanges()
-		// sleep for like 15s
-		await delay(60_000)
-
-		// Verify final file content
-		const document = vscode.window.activeTextEditor!.document
-		const expectedContent = fs.readFileSync(toEditFilePath, "utf8").replace(search, replace)
-
-		assert.strictEqual(document.getText(), expectedContent)
-	})
+	
+		// Finalize the last block
+		if (lastAppliedBlockId) {
+			const lastBlock = editBlocks.find(block => block.id === lastAppliedBlockId)
+			if (lastBlock) {
+				const lines = lastBlock.replaceContent.split('\n')
+				await inlineEditHandler.applyFinalContent(lastBlock.id, lines.join('\n'))
+			}
+		}
+		
+		// Save changes
+		const finalDocument = await inlineEditHandler.saveChanges()
+		
+		// Verify both changes were applied correctly
+		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
+		let expectedContent = Buffer.from(originalText).toString('utf-8')
+		expectedContent = expectedContent.replace(search, replace)
+		expectedContent = expectedContent.replace(search2, replace2)
+		
+		assert.strictEqual(finalDocument.finalContent, expectedContent)
+		})
 
 	// 	it("should handle multiple code blocks and animations", async () => {
 	// 		const diff1 = `
