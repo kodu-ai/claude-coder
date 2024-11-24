@@ -44,6 +44,25 @@ export class FileEditorTool extends BaseAgentTool {
 	}
 
 	public async handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
+		if (!this.fileState) {
+			const absolutePath = path.resolve(getCwd(), relPath)
+			const isExistingFile = await checkFileExists(relPath)
+			if (!isExistingFile) {
+				this.logger(`File does not exist: ${relPath}`, "error")
+				this.fileState = {
+					absolutePath,
+					orignalContent: "",
+					isExistingFile: false,
+				}
+				return
+			}
+			const originalContent = fs.readFileSync(absolutePath, "utf8")
+			this.fileState = {
+				absolutePath,
+				orignalContent: originalContent,
+				isExistingFile,
+			}
+		}
 		// this might happen because the diff view are not instant.
 		if (this.isProcessingFinalContent) {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
@@ -67,26 +86,6 @@ export class FileEditorTool extends BaseAgentTool {
 		if (!diff.includes("REPLACE")) {
 			this.logger("Skipping partial update because the diff does not contain REPLACE keyword.", "warn")
 			return
-		}
-
-		if (!this.fileState) {
-			const absolutePath = path.resolve(getCwd(), relPath)
-			const isExistingFile = await checkFileExists(relPath)
-			if (!isExistingFile) {
-				this.logger(`File does not exist: ${relPath}`, "error")
-				this.fileState = {
-					absolutePath,
-					orignalContent: "",
-					isExistingFile: false,
-				}
-				return
-			}
-			const originalContent = fs.readFileSync(absolutePath, "utf8")
-			this.fileState = {
-				absolutePath,
-				orignalContent: originalContent,
-				isExistingFile,
-			}
 		}
 		// if the user has skipped the write animation, we don't need to show the diff view until we reach the final state
 		if (this.skipWriteAnimation) {
@@ -169,12 +168,31 @@ export class FileEditorTool extends BaseAgentTool {
 	 * @returns
 	 */
 	public async handlePartialUpdate(relPath: string, acculmatedContent: string): Promise<void> {
-		console.log("handlePartialUpdate", relPath, acculmatedContent)
+		if (!this.fileState) {
+			const absolutePath = path.resolve(getCwd(), relPath)
+			const isExistingFile = await checkFileExists(relPath)
+			if (!isExistingFile) {
+				this.logger(`File does not exist: ${relPath}`, "error")
+				this.fileState = {
+					absolutePath,
+					orignalContent: "",
+					isExistingFile: false,
+				}
+				return
+			}
+			const originalContent = fs.readFileSync(absolutePath, "utf8")
+			this.fileState = {
+				absolutePath,
+				orignalContent: originalContent,
+				isExistingFile,
+			}
+		}
 		// this might happen because the diff view are not instant.
 		if (this.isProcessingFinalContent) {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
 			return
 		}
+
 		this.updateNumber++
 		// if the user has skipped the write animation, we don't need to show the diff view until we reach the final state
 		await this.params.updateAsk(
@@ -257,6 +275,8 @@ export class FileEditorTool extends BaseAgentTool {
 				},
 				this.ts
 			)
+			// revert the changes
+			await this.inlineEditor.rejectChanges()
 			if (response === "noButtonTapped") {
 				return this.toolResponse("rejected", "Write operation cancelled by user.")
 			}
@@ -271,6 +291,8 @@ export class FileEditorTool extends BaseAgentTool {
 			)
 		}
 		await this.inlineEditor.saveChanges()
+		this.koduDev.getStateManager().addErrorPath(path)
+
 		// Final approval state
 		await this.params.updateAsk(
 			"tool",
@@ -290,7 +312,115 @@ export class FileEditorTool extends BaseAgentTool {
 	}
 
 	private async finalizeFileEdit(relPath: string, content: string): Promise<ToolResponseV2> {
-		return
+		// Show changes in diff view
+		await this.showChangesInDiffView(relPath, content)
+		this.logger(`Changes shown in diff view`, "debug")
+
+		this.logger(`Asking for approval to write to file: ${relPath}`, "info")
+		const { response, text, images } = await this.params.ask(
+			"tool",
+			{
+				tool: {
+					tool: "write_to_file",
+					content: content,
+					approvalState: "pending",
+					path: relPath,
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
+
+		if (response !== "yesButtonTapped") {
+			await this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "write_to_file",
+						content: content,
+						approvalState: "rejected",
+						path: relPath,
+						ts: this.ts,
+						userFeedback: text,
+					},
+				},
+				this.ts
+			)
+			await this.diffViewProvider.revertChanges()
+
+			if (response === "noButtonTapped") {
+				// return formatToolResponse("Write operation cancelled by user.")
+				// return this.toolResponse("rejected", "Write operation cancelled by user.")
+				return this.toolResponse("rejected", "Write operation cancelled by user.")
+			}
+			// If not a yes or no, the user provided feedback (wrote in the input)
+			await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
+			// return formatToolResponse(
+			// 	`The user denied the write operation and provided the following feedback: ${text}`
+			// )
+			return this.toolResponse("feedback", text ?? "The user denied this operation.", images)
+		}
+
+		this.logger(`User approved to write to file: ${relPath}`, "info")
+
+		this.logger(`Saving changes to file: ${relPath}`, "info")
+		// Save changes and handle user edits
+		const { userEdits, finalContent } = await this.diffViewProvider.saveChanges()
+		this.logger(`Changes saved to file: ${relPath}`, "info")
+		this.koduDev.getStateManager().addErrorPath(relPath)
+
+		// Final approval state
+		await this.params.updateAsk(
+			"tool",
+			{
+				tool: {
+					tool: "write_to_file",
+					content: content,
+					approvalState: "approved",
+					path: relPath,
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
+		this.logger(`Final approval state set for file: ${relPath}`, "info")
+		if (userEdits) {
+			await this.params.say(
+				"user_feedback_diff",
+				JSON.stringify({
+					tool: this.fileState?.isExistingFile ? "editedExistingFile" : "newFileCreated",
+					path: getReadablePath(getCwd(), relPath),
+					diff: userEdits,
+				} as ClaudeSayTool)
+			)
+			return this.toolResponse(
+				"success",
+				`The user made the following updates to your content:\n\nThe updated content has been successfully saved to ${relPath.toPosix()}
+					Here is the latest file content:
+					\`\`\`
+					${finalContent}
+					\`\`\`
+					`
+			)
+		}
+
+		let toolMsg = `The content was successfully saved to ${relPath.toPosix()}.
+			Here is the latest file content:
+			\`\`\`
+			${finalContent}
+			\`\`\`
+			`
+		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
+			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
+			toolMsg = `The content was successfully saved to ${relPath.toPosix()},
+				but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.
+				Here is the latest file content:
+				\`\`\`
+				${finalContent}
+				\`\`\``
+		}
+
+		return this.toolResponse("success", toolMsg)
 	}
 
 	private async processFileWrite() {
@@ -312,115 +442,6 @@ export class FileEditorTool extends BaseAgentTool {
 				return await this.finalizeFileEdit(relPath, content)
 			}
 			throw new Error("Missing required parameter 'kodu_content' or 'kodu_diff'")
-			// Show changes in diff view
-			// await this.showChangesInDiffView(relPath, newContent)
-			// this.logger(`Changes shown in diff view`, "debug")
-
-			// this.logger(`Asking for approval to write to file: ${relPath}`, "info")
-			// const { response, text, images } = await this.params.ask(
-			// 	"tool",
-			// 	{
-			// 		tool: {
-			// 			tool: "write_to_file",
-			// 			content: newContent,
-			// 			approvalState: "pending",
-			// 			path: relPath,
-			// 			ts: this.ts,
-			// 		},
-			// 	},
-			// 	this.ts
-			// )
-
-			// if (response !== "yesButtonTapped") {
-			// 	await this.params.updateAsk(
-			// 		"tool",
-			// 		{
-			// 			tool: {
-			// 				tool: "write_to_file",
-			// 				content: newContent,
-			// 				approvalState: "rejected",
-			// 				path: relPath,
-			// 				ts: this.ts,
-			// 				userFeedback: text,
-			// 			},
-			// 		},
-			// 		this.ts
-			// 	)
-			// 	await this.diffViewProvider.revertChanges()
-
-			// 	if (response === "noButtonTapped") {
-			// 		// return formatToolResponse("Write operation cancelled by user.")
-			// 		// return this.toolResponse("rejected", "Write operation cancelled by user.")
-			// 		return this.toolResponse("rejected", "Write operation cancelled by user.")
-			// 	}
-			// 	// If not a yes or no, the user provided feedback (wrote in the input)
-			// 	await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-			// 	// return formatToolResponse(
-			// 	// 	`The user denied the write operation and provided the following feedback: ${text}`
-			// 	// )
-			// 	return this.toolResponse("feedback", text ?? "The user denied this operation.", images)
-			// }
-
-			// this.logger(`User approved to write to file: ${relPath}`, "info")
-
-			// this.logger(`Saving changes to file: ${relPath}`, "info")
-			// // Save changes and handle user edits
-			// const { userEdits, finalContent } = await this.diffViewProvider.saveChanges()
-			// this.logger(`Changes saved to file: ${relPath}`, "info")
-			// this.koduDev.getStateManager().addErrorPath(relPath)
-
-			// // Final approval state
-			// await this.params.updateAsk(
-			// 	"tool",
-			// 	{
-			// 		tool: {
-			// 			tool: "write_to_file",
-			// 			content: newContent,
-			// 			approvalState: "approved",
-			// 			path: relPath,
-			// 			ts: this.ts,
-			// 		},
-			// 	},
-			// 	this.ts
-			// )
-			// this.logger(`Final approval state set for file: ${relPath}`, "info")
-			// if (userEdits) {
-			// 	await this.params.say(
-			// 		"user_feedback_diff",
-			// 		JSON.stringify({
-			// 			tool: fileExists ? "editedExistingFile" : "newFileCreated",
-			// 			path: getReadablePath(getCwd(), relPath),
-			// 			diff: userEdits,
-			// 		} as ClaudeSayTool)
-			// 	)
-			// 	return this.toolResponse(
-			// 		"success",
-			// 		`The user made the following updates to your content:\n\nThe updated content has been successfully saved to ${relPath.toPosix()}
-			// 		Here is the latest file content:
-			// 		\`\`\`
-			// 		${finalContent}
-			// 		\`\`\`
-			// 		`
-			// 	)
-			// }
-
-			// let toolMsg = `The content was successfully saved to ${relPath.toPosix()}.
-			// Here is the latest file content:
-			// \`\`\`
-			// ${finalContent}
-			// \`\`\`
-			// `
-			// if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
-			// 	this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
-			// 	toolMsg = `The content was successfully saved to ${relPath.toPosix()},
-			// 	but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.
-			// 	Here is the latest file content:
-			// 	\`\`\`
-			// 	${finalContent}
-			// 	\`\`\``
-			// }
-
-			// return this.toolResponse("success", toolMsg)
 		} catch (error) {
 			this.logger(`Error in processFileWrite: ${error}`, "error")
 			this.params.updateAsk(
@@ -445,6 +466,15 @@ export class FileEditorTool extends BaseAgentTool {
 		} finally {
 			this.isProcessingFinalContent = false
 			this.diffViewProvider.isEditing = false
+		}
+	}
+
+	public override async abortToolExecution(): Promise<void> {
+		if (this.params.input.kodu_diff) {
+			await this.inlineEditor.rejectChanges()
+			await this.inlineEditor.dispose()
+		} else {
+			await this.diffViewProvider.revertChanges()
 		}
 	}
 

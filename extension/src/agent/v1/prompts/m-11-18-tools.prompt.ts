@@ -93,6 +93,9 @@ Accurately generating 'SEARCH/REPLACE' blocks when using the edit_file_blocks to
   - Contextual lines may include comments, whitespace, and code directly before or after the target change to ensure a robust match.
   - When in doubt, prioritize including more lines for context while maintaining SEARCH sections that are concise and relevant to avoid overwhelming matches.
 
+6. **ENSURE** that you only include one tool call per message to avoid confusion and ensure that each tool call is processed correctly.
+this means you can only use one <edit_file_blocks> tool per message, but you can use multiple SEARCH/REPLACE blocks within that tool.
+
 Usage:
 
 -- Example 1: Modifying a Variable in a File

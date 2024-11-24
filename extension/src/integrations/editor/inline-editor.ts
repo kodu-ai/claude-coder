@@ -25,6 +25,7 @@ export class InlineEditHandler {
 	private mergeDecoration!: vscode.TextEditorDecorationType
 	private isAutoScrollEnabled: boolean = true
 	private disposables: vscode.Disposable[] = []
+	private isFirstEditTouched: boolean = false
 
 	private currentDocumentState: DocumentState | undefined
 	private lastActiveEditor: vscode.TextEditor | undefined
@@ -158,9 +159,18 @@ export class InlineEditHandler {
 				return false
 			}
 
-			await editor.edit((editBuilder) => {
-				editBuilder.replace(editBlock.range, content)
-			})
+			await editor.edit(
+				(editBuilder) => {
+					editBuilder.replace(editBlock.range, content)
+				},
+				{
+					// we want to keep the undo stack clean so that the user can undo the entire edit this means that we need to only have one undo stop
+					undoStopBefore: !this.isFirstEditTouched,
+					undoStopAfter: false,
+				}
+			)
+			// Set the flag to true after the first edit is touched
+			this.isFirstEditTouched = true
 
 			const newEndPos = editor.document.positionAt(
 				editor.document.offsetAt(editBlock.range.start) + content.length
@@ -204,9 +214,15 @@ export class InlineEditHandler {
 				return false
 			}
 
-			await editor.edit((editBuilder) => {
-				editBuilder.replace(editBlock.range, content)
-			})
+			await editor.edit(
+				(editBuilder) => {
+					editBuilder.replace(editBlock.range, content)
+				},
+				{
+					undoStopAfter: false,
+					undoStopBefore: false,
+				}
+			)
 
 			const newEndPos = editor.document.positionAt(
 				editor.document.offsetAt(editBlock.range.start) + content.length
@@ -250,27 +266,33 @@ export class InlineEditHandler {
 			await vscode.window.showTextDocument(editor.document)
 
 			// Apply all final changes
-			await editor.edit((editBuilder) => {
-				const currentContent = editor.document.getText()
-				const blocks = Array.from(this.currentDocumentState!.editBlocks.values())
-					.filter((block) => block.status === "final" && block.finalContent)
-					.sort((a, b) => {
-						const aStart = currentContent.indexOf(a.originalContent)
-						const bStart = currentContent.indexOf(b.originalContent)
-						return aStart - bStart
-					})
+			await editor.edit(
+				(editBuilder) => {
+					const currentContent = editor.document.getText()
+					const blocks = Array.from(this.currentDocumentState!.editBlocks.values())
+						.filter((block) => block.status === "final" && block.finalContent)
+						.sort((a, b) => {
+							const aStart = currentContent.indexOf(a.originalContent)
+							const bStart = currentContent.indexOf(b.originalContent)
+							return aStart - bStart
+						})
 
-				for (const block of blocks) {
-					if (block.finalContent) {
-						const startIndex = currentContent.indexOf(block.originalContent)
-						if (startIndex !== -1) {
-							const startPos = editor.document.positionAt(startIndex)
-							const endPos = editor.document.positionAt(startIndex + block.originalContent.length)
-							editBuilder.replace(new vscode.Range(startPos, endPos), block.finalContent)
+					for (const block of blocks) {
+						if (block.finalContent) {
+							const startIndex = currentContent.indexOf(block.originalContent)
+							if (startIndex !== -1) {
+								const startPos = editor.document.positionAt(startIndex)
+								const endPos = editor.document.positionAt(startIndex + block.originalContent.length)
+								editBuilder.replace(new vscode.Range(startPos, endPos), block.finalContent)
+							}
 						}
 					}
+				},
+				{
+					undoStopBefore: true,
+					undoStopAfter: true,
 				}
-			})
+			)
 
 			// Save the document
 			await editor.document.save()
@@ -286,13 +308,8 @@ export class InlineEditHandler {
 		}
 	}
 
-	public async rejectChanges(id: string): Promise<boolean> {
+	public async rejectChanges(): Promise<boolean> {
 		if (!this.currentDocumentState) {
-			return false
-		}
-
-		const editBlock = this.currentDocumentState.editBlocks.get(id)
-		if (!editBlock) {
 			return false
 		}
 
@@ -305,18 +322,22 @@ export class InlineEditHandler {
 			// Focus the editor
 			await vscode.window.showTextDocument(editor.document)
 
-			// Restore original content for this block
-			await editor.edit((editBuilder) => {
-				editBuilder.replace(editBlock.range, editBlock.originalContent)
-			})
+			// Restore to the original file content
+			await editor.edit(
+				(editBuilder) => {
+					const entireContent = editor.document.getText()
+					const originalContent = this.currentDocumentState!.originalContent
+					editBuilder.replace(new vscode.Range(0, 0, editor.document.lineCount, 0), originalContent)
+				},
+				{
+					undoStopBefore: true,
+					undoStopAfter: true,
+				}
+			)
+			await editor.document.save()
 
 			// Clean up state
-			this.currentDocumentState.editBlocks.delete(id)
-			this.currentDocumentState.activePendingRanges.delete(id)
-			this.currentDocumentState.activeStreamingRanges.delete(id)
-			this.currentDocumentState.activeMergeRanges.delete(id)
-
-			this.updateDecorations(editor)
+			await this.dispose()
 			return true
 		} catch (error) {
 			console.error("Failed to reject changes:", error)
@@ -409,8 +430,10 @@ export class InlineEditHandler {
 	}
 
 	public dispose() {
+		// remove all decorations
 		this.pendingDecoration.dispose()
 		this.mergeDecoration.dispose()
+		this.streamingDecoration.dispose()
 		this.currentDocumentState = undefined
 		this.lastActiveEditor = undefined
 		this.disposables.forEach((d) => d.dispose())
