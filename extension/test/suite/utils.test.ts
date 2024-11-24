@@ -1,3 +1,4 @@
+import delay from "delay"
 import {
 	parseDiffBlocks,
 	applyEditBlocksToFile,
@@ -89,6 +90,116 @@ REPLACE
 		})
 	})
 
+	describe("parseDiffBlocks with streamed content", () => {
+		// Helper function to simulate streaming with specific chunk sizes
+		async function simulateStreaming(
+			diff: string,
+			delayMs: number
+		): Promise<AsyncGenerator<string, void, unknown>> {
+			// Get random chunk size between 6-24 chars
+			function getRandomChunkSize() {
+				return Math.floor(Math.random() * (24 - 6 + 1)) + 6
+			}
+
+			// Accumulate the string as we stream
+			let streamedContent = ""
+
+			async function* generator() {
+				while (streamedContent.length < diff.length) {
+					const chunkSize = getRandomChunkSize()
+					const nextChunk = diff.slice(streamedContent.length, streamedContent.length + chunkSize)
+					streamedContent += nextChunk
+					yield streamedContent
+					await delay(delayMs)
+				}
+			}
+
+			return generator()
+		}
+
+		it("Should work with chunk boundaries", async () => {
+			const diffContent = `SEARCH
+	  const oldCode = 1;
+	  =======
+	  REPLACE
+	  const newCode = 2;`
+
+			// Test cases for different chunk boundaries
+			const testCases = [
+				// Minimal complete chunks
+				[diffContent.length], // All at once
+				// Split at key points
+				[20, diffContent.length - 20], // Split in middle
+				[7, 10, 10, 10, 10], // Multiple small chunks
+				// Edge case splits
+				[diffContent.indexOf("=======") + 1, diffContent.length], // Split at first separator
+				[diffContent.indexOf("REPLACE") + 1, diffContent.length], // Split at REPLACE
+			]
+
+			for (const chunkSizes of testCases) {
+				const stream = await simulateStreaming(diffContent, 25)
+				let lastBlocks: EditBlock[] = []
+
+				for await (const chunk of stream) {
+					const blocks = parseDiffBlocks(chunk, "test.ts")
+					if (blocks.length > 0) {
+						lastBlocks = blocks
+					}
+				}
+
+				// Verify final result
+				assert.strictEqual(lastBlocks.length, 1, `Failed with chunk sizes: ${JSON.stringify(chunkSizes)}`)
+				assert.strictEqual(lastBlocks[0].searchContent.trim(), "const oldCode = 1;")
+				assert.strictEqual(lastBlocks[0].replaceContent.trim(), "const newCode = 2;")
+			}
+		})
+
+		it("Should handle incomplete chunks correctly", async () => {
+			const incompleteCases = [
+				// Partial markers
+				"SE",
+				"SEARCH\n",
+				// Missing sections
+				"SEARCH\ncode\n=======\n",
+				"SEARCH\ncode\n=======\nRE",
+				// Incomplete blocks
+				"SEARCH\ncode\n=======\nREPLACE\nnew",
+			]
+
+			let index = 0
+			for (const content of incompleteCases) {
+				const blocks = parseDiffBlocks(content, "test.ts")
+				if (index < 2) {
+					assert.strictEqual(blocks.length, 0, `Should return empty array for incomplete content: ${content}`)
+				} else {
+					assert.strictEqual(blocks.length, 1, `Should return one block for incomplete content: ${content}`)
+				}
+				index++
+			}
+		})
+
+		it("Should handle delete blocks correctly", async () => {
+			const deleteBlock = `SEARCH
+	  const toDelete = true;
+	  =======
+	  REPLACE
+	  `
+
+			const stream = await simulateStreaming(deleteBlock, 25)
+			let lastBlocks: EditBlock[] = []
+			let lastChunk = ""
+			for await (const chunk of stream) {
+				lastChunk = chunk
+				lastBlocks = parseDiffBlocks(chunk, "test.ts")
+			}
+			console.log(lastBlocks)
+
+			assert.strictEqual(lastBlocks.length, 1, "Should have one block")
+			assert.strictEqual(lastBlocks[0].isDelete, true, "Block should be marked as delete")
+			assert.strictEqual(lastBlocks[0].searchContent.trim(), "const toDelete = true;")
+			assert.strictEqual(lastBlocks[0].replaceContent, "")
+		})
+	})
 	describe("applyEditBlocksToFile", () => {
 		it("should apply single edit block correctly", async () => {
 			const content = "function test() {\n  return false;\n}"

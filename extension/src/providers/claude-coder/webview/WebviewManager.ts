@@ -53,6 +53,13 @@ const excludedDirectories = [
 export class WebviewManager {
 	/** ID of the latest announcement to show to users */
 	private static readonly latestAnnouncementId = "sep-13-2024"
+	private static readonly UPDATE_INTERVAL = 20 // 20ms debounce for webview updates
+	private static readonly MAX_POST_INTERVAL = 60 // max time to wait before forcing a post
+
+	private lastPostTimeAt = 0
+	private debounceTimer: NodeJS.Timeout | null = null
+	private maxIntervalTimer: NodeJS.Timeout | null = null
+	private pendingMessage: ExtensionMessage | null = null
 
 	/**
 	 * Creates a new WebviewManager instance
@@ -60,7 +67,7 @@ export class WebviewManager {
 	 */
 	constructor(private provider: ExtensionProvider) {}
 
-		/**
+	/**
 	 * Initializes and configures a webview instance
 	 * Sets up message listeners, HTML content, and visibility handlers
 	 * @param webviewView The webview or webview panel to setup
@@ -97,7 +104,7 @@ export class WebviewManager {
 		}
 	}
 
-		/**
+	/**
 	 * Shows an input box to collect user input
 	 * @param options Configuration options for the input box
 	 * @returns Promise that resolves to the user's input or undefined if cancelled
@@ -107,13 +114,64 @@ export class WebviewManager {
 	}
 
 	/**
-	 * Posts a message from the extension to the webview
+	 * Posts a message to the webview with debouncing to prevent too frequent updates
+	 * while ensuring messages are not delayed too long
 	 * @param message The message to send to the webview
 	 */
 	async postMessageToWebview(message: ExtensionMessage) {
-		await this.provider["view"]?.webview.postMessage(message)
+		const now = Date.now()
+		this.lastPostTimeAt = now
+		this.pendingMessage = message
+
+		// Clear existing timers
+		if (this.debounceTimer) {
+			clearTimeout(this.debounceTimer)
+		}
+		if (this.maxIntervalTimer) {
+			clearTimeout(this.maxIntervalTimer)
+		}
+
+		// Set up max interval timer to ensure message is sent within MAX_POST_INTERVAL
+		this.maxIntervalTimer = setTimeout(() => {
+			if (this.pendingMessage) {
+				this.sendMessageToWebview(this.pendingMessage)
+				this.pendingMessage = null
+				this.clearTimers()
+			}
+		}, WebviewManager.MAX_POST_INTERVAL)
+
+		// Set up debounce timer
+		this.debounceTimer = setTimeout(() => {
+			if (this.pendingMessage) {
+				this.sendMessageToWebview(this.pendingMessage)
+				this.pendingMessage = null
+				this.clearTimers()
+			}
+		}, WebviewManager.UPDATE_INTERVAL)
 	}
 
+	/**
+	 * Actually sends the message to the webview
+	 * @param message The message to send
+	 */
+	private sendMessageToWebview(message: ExtensionMessage) {
+		console.log(`Posting message at ${Date.now()}`)
+		this.provider["view"]?.webview.postMessage(message)
+	}
+
+	/**
+	 * Cleans up any existing timers
+	 */
+	private clearTimers() {
+		if (this.debounceTimer) {
+			clearTimeout(this.debounceTimer)
+			this.debounceTimer = null
+		}
+		if (this.maxIntervalTimer) {
+			clearTimeout(this.maxIntervalTimer)
+			this.maxIntervalTimer = null
+		}
+	}
 	/**
 	 * only post claude messages to webview
 	 */
@@ -229,7 +287,7 @@ export class WebviewManager {
       `
 	}
 
-		/**
+	/**
 	 * Recursively builds a tree structure of files and folders in a directory
 	 * Excludes specified directories to keep the tree clean and relevant
 	 * @param dir The directory path to scan
@@ -270,7 +328,7 @@ export class WebviewManager {
 		return items
 	}
 
-		/**
+	/**
 	 * Sets up message handling for the webview
 	 * Processes various message types from the webview and triggers appropriate actions
 	 * @param webview The webview instance to attach the message listener to
@@ -507,7 +565,7 @@ export class WebviewManager {
 		)
 	}
 
-		/**
+	/**
 	 * Handles debug instructions for the extension
 	 * Analyzes open tabs in the workspace and collects diagnostic information
 	 * Creates a new task if needed and processes debugging information
@@ -551,5 +609,11 @@ export class WebviewManager {
 		}
 		// flag this is legacy it should actually be handled by the task executor
 		return await agent.handleWebviewAskResponse("messageResponse", problemsString)
+	}
+	/**
+	 * Cleanup method to be called when the webview manager is disposed
+	 */
+	dispose() {
+		this.clearTimers()
 	}
 }

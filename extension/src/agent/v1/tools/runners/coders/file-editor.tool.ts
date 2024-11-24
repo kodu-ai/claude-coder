@@ -10,6 +10,7 @@ import { parseDiffBlocks, applyEditBlocksToFile, checkFileExists, preprocessCont
 import { InlineEditHandler } from "@/integrations/editor/inline-editor"
 import { ToolResponseV2 } from "@/agent/v1/types"
 import delay from "delay"
+import PQueue from "p-queue"
 
 export class FileEditorTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -18,6 +19,7 @@ export class FileEditorTool extends BaseAgentTool {
 	private isProcessingFinalContent: boolean = false
 	private lastUpdateTime: number = 0
 	private readonly UPDATE_INTERVAL = 16
+	private pQueue: PQueue = new PQueue({ concurrency: 1 })
 	private skipWriteAnimation: boolean = false
 	private updateNumber: number = 0
 	private editBlocks: EditBlock[] = []
@@ -43,26 +45,7 @@ export class FileEditorTool extends BaseAgentTool {
 		return result
 	}
 
-	public async handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
-		if (!this.fileState) {
-			const absolutePath = path.resolve(getCwd(), relPath)
-			const isExistingFile = await checkFileExists(relPath)
-			if (!isExistingFile) {
-				this.logger(`File does not exist: ${relPath}`, "error")
-				this.fileState = {
-					absolutePath,
-					orignalContent: "",
-					isExistingFile: false,
-				}
-				return
-			}
-			const originalContent = fs.readFileSync(absolutePath, "utf8")
-			this.fileState = {
-				absolutePath,
-				orignalContent: originalContent,
-				isExistingFile,
-			}
-		}
+	public async _handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
 		// this might happen because the diff view are not instant.
 		if (this.isProcessingFinalContent) {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
@@ -93,7 +76,7 @@ export class FileEditorTool extends BaseAgentTool {
 		}
 		const currentTime = Date.now()
 		try {
-			this.editBlocks = parseDiffBlocks(diff, this.fileState.absolutePath)
+			this.editBlocks = parseDiffBlocks(diff, this.fileState!.absolutePath)
 		} catch (err) {
 			this.logger(`Error parsing diff blocks: ${err}`, "error")
 			return
@@ -102,7 +85,7 @@ export class FileEditorTool extends BaseAgentTool {
 			try {
 				await this.inlineEditor.open(
 					this.editBlocks[0].id,
-					this.fileState.absolutePath,
+					this.fileState!.absolutePath,
 					this.editBlocks[0].searchContent
 				)
 			} catch (e) {
@@ -127,18 +110,26 @@ export class FileEditorTool extends BaseAgentTool {
 						// Only remove the last line if it ONLY contains a partial SEARCH
 						if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
 							lines.pop()
-							await this.inlineEditor.applyFinalContent(lastBlock.id, lines.join("\n"))
+							await this.inlineEditor.applyFinalContent(
+								lastBlock.id,
+								lastBlock.searchContent,
+								lines.join("\n")
+							)
 						} else {
-							await this.inlineEditor.applyFinalContent(lastBlock.id, lastBlock.replaceContent)
+							await this.inlineEditor.applyFinalContent(
+								lastBlock.id,
+								lastBlock.searchContent,
+								lastBlock.replaceContent
+							)
 						}
 					}
 				}
 
-				await this.inlineEditor.open(currentBlock.id, this.fileState.absolutePath, currentBlock.searchContent)
+				await this.inlineEditor.open(currentBlock.id, this.fileState!.absolutePath, currentBlock.searchContent)
 				this.editBlocks.push({
 					id: currentBlock.id,
 					replaceContent: currentBlock.replaceContent,
-					path: this.fileState.absolutePath,
+					path: this.fileState!.absolutePath,
 					searchContent: currentBlock.searchContent,
 				})
 				this.lastAppliedEditBlockId = currentBlock.id
@@ -147,7 +138,11 @@ export class FileEditorTool extends BaseAgentTool {
 			const blockData = this.editBlocks.find((block) => block.id === currentBlock.id)
 			if (blockData) {
 				blockData.replaceContent = currentBlock.replaceContent
-				await this.inlineEditor.applyStreamContent(currentBlock.id, currentBlock.replaceContent)
+				await this.inlineEditor.applyStreamContent(
+					currentBlock.id,
+					currentBlock.searchContent,
+					currentBlock.replaceContent
+				)
 			}
 		}
 
@@ -156,9 +151,37 @@ export class FileEditorTool extends BaseAgentTool {
 			const lastBlock = this.editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
 			if (lastBlock) {
 				const lines = lastBlock.replaceContent.split("\n")
-				await this.inlineEditor.applyFinalContent(lastBlock.id, lines.join("\n"))
+				await this.inlineEditor.applyFinalContent(lastBlock.id, lastBlock.searchContent, lines.join("\n"))
 			}
 		}
+	}
+
+	public async handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
+		if (!this.fileState) {
+			const absolutePath = path.resolve(getCwd(), relPath)
+			const isExistingFile = await checkFileExists(relPath)
+			if (!isExistingFile) {
+				this.logger(`File does not exist: ${relPath}`, "error")
+				this.fileState = {
+					absolutePath,
+					orignalContent: "",
+					isExistingFile: false,
+				}
+				return
+			}
+			const originalContent = fs.readFileSync(absolutePath, "utf8")
+			this.fileState = {
+				absolutePath,
+				orignalContent: originalContent,
+				isExistingFile,
+			}
+		}
+		// this might happen because the diff view are not instant.
+		if (this.isProcessingFinalContent) {
+			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
+			return
+		}
+		this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
 	}
 
 	/**
@@ -231,6 +254,7 @@ export class FileEditorTool extends BaseAgentTool {
 
 	private async finalizeInlineEdit(path: string, content: string): Promise<ToolResponseV2> {
 		// we are going to parse the content and apply the changes to the file
+		this.isProcessingFinalContent = true
 		try {
 			this.editBlocks = parseDiffBlocks(content, path)
 		} catch (err) {
@@ -238,13 +262,16 @@ export class FileEditorTool extends BaseAgentTool {
 			throw new Error(`Error parsing diff blocks: ${err}`)
 		}
 		if (!this.inlineEditor.isOpen()) {
-			this.inlineEditor.open(this.editBlocks[0].id, path, this.editBlocks[0].searchContent)
+			this.inlineEditor.open(
+				this.editBlocks[0].id,
+				this.fileState?.absolutePath!,
+				this.editBlocks[0].searchContent
+			)
 		}
 
 		for await (const block of this.editBlocks) {
-			await this.inlineEditor.applyFinalContent(block.id, block.replaceContent)
+			await this.inlineEditor.applyFinalContent(block.id, block.searchContent, block.replaceContent)
 			// minor delay to make the changes not too weird if there is multiple blocks
-			await delay(100)
 		}
 		// now we are going to prompt the user to approve the changes
 		const { response, text, images } = await this.params.ask(
@@ -433,8 +460,8 @@ export class FileEditorTool extends BaseAgentTool {
 
 			// Switch to final state ASAP
 			this.isProcessingFinalContent = true
-			// give the last / ongoing partial update some time to finish
-			await delay(150)
+			// wait for the queue to be idle
+			await this.pQueue.onIdle()
 
 			if (diff) {
 				return await this.finalizeInlineEdit(relPath, diff)

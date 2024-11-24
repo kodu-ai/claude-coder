@@ -96,30 +96,68 @@ export class InlineEditHandler {
 		}
 	}
 
+	// Modified open method to be more focused on initialization
 	public async open(id: string, filePath: string, searchContent: string): Promise<boolean> {
 		try {
 			const document = await vscode.workspace.openTextDocument(filePath)
 			const editor = await vscode.window.showTextDocument(document)
 			const originalContent = document.getText()
 
-			// Initialize document state with original content
-			this.currentDocumentState = {
-				uri: document.uri.toString(),
-				originalContent,
-				editBlocks: new Map(),
-				activeMergeRanges: new Map(),
-				activeStreamingRanges: new Map(),
-				activePendingRanges: new Map(),
+			// Initialize document state if it doesn't exist or is for a different file
+			if (!this.currentDocumentState || this.currentDocumentState.uri !== document.uri.toString()) {
+				this.currentDocumentState = {
+					uri: document.uri.toString(),
+					originalContent,
+					editBlocks: new Map(),
+					activeMergeRanges: new Map(),
+					activeStreamingRanges: new Map(),
+					activePendingRanges: new Map(),
+				}
 			}
 
-			const startIndex = originalContent.indexOf(searchContent)
-			if (startIndex === -1) {
+			this.lastActiveEditor = editor
+
+			// Add the initial block
+			const block = await this.addBlock(editor, id, searchContent)
+			if (!block) {
 				return false
+			}
+			return true
+		} catch (error) {
+			console.error("Failed to open document:", error)
+			return false
+		}
+	}
+	private async addBlock(
+		editor: vscode.TextEditor,
+		id: string,
+		searchContent: string
+	): Promise<EditBlock | undefined> {
+		if (!this.currentDocumentState) {
+			return undefined
+		}
+
+		try {
+			const document = editor.document
+			const currentContent = document.getText()
+			const startIndex = currentContent.indexOf(searchContent)
+
+			if (startIndex === -1) {
+				console.warn(`Could not find searchContent for block ${id}`)
+				return undefined
 			}
 
 			const startPos = document.positionAt(startIndex)
 			const endPos = document.positionAt(startIndex + searchContent.length)
 			const range = new vscode.Range(startPos, endPos)
+
+			// Check for overlapping blocks
+			for (const [, existingBlock] of this.currentDocumentState.editBlocks) {
+				if (range.intersection(existingBlock.range)) {
+					console.warn(`Block ${id} would overlap with existing block`)
+					return undefined
+				}
+			}
 
 			const editBlock: EditBlock = {
 				id,
@@ -132,24 +170,15 @@ export class InlineEditHandler {
 			this.currentDocumentState.editBlocks.set(id, editBlock)
 			this.currentDocumentState.activePendingRanges.set(id, range)
 
-			this.updateDecorations(editor)
-			this.lastActiveEditor = editor
-
-			await this.scrollToRange(editor, range)
-			return true
+			return editBlock
 		} catch (error) {
-			console.error("Failed to open document:", error)
-			return false
+			console.error("Failed to add block:", error)
+			return undefined
 		}
 	}
 
-	public async applyStreamContent(id: string, content: string): Promise<boolean> {
+	public async applyStreamContent(id: string, searchContent: string, content: string): Promise<boolean> {
 		if (!this.currentDocumentState) {
-			return false
-		}
-
-		const editBlock = this.currentDocumentState.editBlocks.get(id)
-		if (!editBlock) {
 			return false
 		}
 
@@ -159,17 +188,31 @@ export class InlineEditHandler {
 				return false
 			}
 
+			let editBlock = this.currentDocumentState.editBlocks.get(id)
+
+			// If block doesn't exist, try to create it
+			if (!editBlock) {
+				editBlock = await this.addBlock(editor, id, searchContent)
+				if (!editBlock) {
+					return false
+				}
+			}
+
+			// confirm that the content actually changed
+			if (editBlock.currentContent === content) {
+				console.log(`Content for block ${id} is the same, skipping... this update`)
+				return true
+			}
+
 			await editor.edit(
 				(editBuilder) => {
-					editBuilder.replace(editBlock.range, content)
+					editBuilder.replace(editBlock!.range, content)
 				},
 				{
-					// we want to keep the undo stack clean so that the user can undo the entire edit this means that we need to only have one undo stop
 					undoStopBefore: !this.isFirstEditTouched,
 					undoStopAfter: false,
 				}
 			)
-			// Set the flag to true after the first edit is touched
 			this.isFirstEditTouched = true
 
 			const newEndPos = editor.document.positionAt(
@@ -198,13 +241,8 @@ export class InlineEditHandler {
 		}
 	}
 
-	public async applyFinalContent(id: string, content: string): Promise<boolean> {
+	public async applyFinalContent(id: string, searchContent: string, content: string): Promise<boolean> {
 		if (!this.currentDocumentState) {
-			return false
-		}
-
-		const editBlock = this.currentDocumentState.editBlocks.get(id)
-		if (!editBlock) {
 			return false
 		}
 
@@ -214,15 +252,26 @@ export class InlineEditHandler {
 				return false
 			}
 
+			let editBlock = this.currentDocumentState.editBlocks.get(id)
+
+			// If block doesn't exist, try to create it
+			if (!editBlock) {
+				editBlock = await this.addBlock(editor, id, searchContent)
+				if (!editBlock) {
+					return false
+				}
+			}
+
 			await editor.edit(
 				(editBuilder) => {
-					editBuilder.replace(editBlock.range, content)
+					editBuilder.replace(editBlock!.range, content)
 				},
 				{
+					undoStopBefore: !this.isFirstEditTouched,
 					undoStopAfter: false,
-					undoStopBefore: false,
 				}
 			)
+			this.isFirstEditTouched = true
 
 			const newEndPos = editor.document.positionAt(
 				editor.document.offsetAt(editBlock.range.start) + content.length

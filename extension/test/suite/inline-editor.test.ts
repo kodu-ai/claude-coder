@@ -168,9 +168,17 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 								// Only remove the last line if it ONLY contains a partial SEARCH
 								if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
 									lines.pop()
-									await inlineEditHandler.applyFinalContent(lastBlock.id, lines.join("\n"))
+									await inlineEditHandler.applyFinalContent(
+										lastBlock.id,
+										lastBlock.searchContent,
+										lines.join("\n")
+									)
 								} else {
-									await inlineEditHandler.applyFinalContent(lastBlock.id, lastBlock.replaceContent)
+									await inlineEditHandler.applyFinalContent(
+										lastBlock.id,
+										lastBlock.searchContent,
+										lastBlock.replaceContent
+									)
 								}
 							}
 						}
@@ -187,7 +195,11 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 					const blockData = editBlocks.find((block) => block.id === currentBlock.id)
 					if (blockData) {
 						blockData.replaceContent = currentBlock.replaceContent
-						await inlineEditHandler.applyStreamContent(currentBlock.id, currentBlock.replaceContent)
+						await inlineEditHandler.applyStreamContent(
+							currentBlock.id,
+							currentBlock.searchContent,
+							currentBlock.replaceContent
+						)
 					}
 				}
 			} catch (err) {
@@ -200,7 +212,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 			const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
 			if (lastBlock) {
 				const lines = lastBlock.replaceContent.split("\n")
-				await inlineEditHandler.applyFinalContent(lastBlock.id, lines.join("\n"))
+				await inlineEditHandler.applyFinalContent(lastBlock.id, lastBlock.searchContent, lines.join("\n"))
 			}
 		}
 
