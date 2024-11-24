@@ -68,7 +68,9 @@ export async function findSimilarLines(
 
 	for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
 		const chunk = contentLines.slice(i, i + searchLines.length)
+		const now = new Date().getTime()
 		const matcher = new SequenceMatcher(null, searchLines.join("\n"), chunk.join("\n"))
+		console.log(`Time taken: ${new Date().getTime() - now}ms`)
 		const similarity = matcher.ratio()
 		if (similarity > bestRatio) {
 			bestRatio = similarity
@@ -251,44 +253,107 @@ export function parseDiffBlocks(diffContent: string, path: string): EditBlock[] 
 	let i = 0
 
 	while (i < lines.length) {
-		if (lines[i].startsWith("SEARCH")) {
-			const searchLines: string[] = []
+		// Skip empty lines or invalid content until we find a SEARCH marker
+		if (!lines[i].startsWith("SEARCH")) {
 			i++
+			continue
+		}
+
+		// Process each SEARCH/REPLACE hunk
+		while (i < lines.length && lines[i].startsWith("SEARCH")) {
+			// Parse SEARCH block
+			const searchLines: string[] = []
+			i++ // Skip "SEARCH" line
 			while (i < lines.length && lines[i] !== "=======") {
 				searchLines.push(lines[i])
 				i++
 			}
 
+			// Skip the first separator
 			if (i < lines.length && lines[i] === "=======") {
+				i++
+			} else {
+				throw new Error("Missing separator after SEARCH block")
+			}
+
+			// Parse REPLACE block
+			const replaceLines: string[] = []
+			if (i < lines.length && lines[i] === "REPLACE") {
+				i++ // Skip "REPLACE" line
+			} else {
+				throw new Error("Missing REPLACE marker after separator")
+			}
+
+			while (i < lines.length && lines[i] !== "=======") {
+				replaceLines.push(lines[i])
 				i++
 			}
 
-			const replaceLines: string[] = []
-			if (i < lines.length && lines[i] === "REPLACE") {
-				i++
-			}
-			while (i < lines.length && lines[i] !== "SEARCH") {
-				replaceLines.push(lines[i])
+			// Skip the second separator
+			if (i < lines.length && lines[i] === "=======") {
 				i++
 			}
 
 			const searchContent = searchLines.join("\n").trimEnd()
 			const replaceContent = replaceLines.join("\n").trimEnd()
 			const id = generateEditBlockId(searchContent)
+
 			editBlocks.push({
 				id,
-				path: path,
+				path,
 				searchContent,
 				replaceContent,
 				isDelete: replaceContent.trim() === "",
 			})
-		} else {
-			i++
 		}
 	}
+
 	return editBlocks
 }
 
+// Helper function to validate the diff content format
+export function validateDiffContent(diffContent: string): boolean {
+	const lines = diffContent.split("\n")
+	let state = "initial"
+
+	for (const line of lines) {
+		switch (state) {
+			case "initial":
+				if (line === "SEARCH") {
+					state = "search"
+				} else if (line.trim() !== "") {
+					return false
+				}
+				break
+			case "search":
+				if (line === "=======") {
+					state = "separator1"
+				}
+				break
+			case "separator1":
+				if (line === "REPLACE") {
+					state = "replace"
+				} else {
+					return false
+				}
+				break
+			case "replace":
+				if (line === "=======") {
+					state = "separator2"
+				}
+				break
+			case "separator2":
+				if (line === "SEARCH") {
+					state = "search"
+				} else if (line.trim() !== "") {
+					state = "initial"
+				}
+				break
+		}
+	}
+
+	return true
+}
 export async function checkFileExists(relPath: string): Promise<boolean> {
 	const absolutePath = path.resolve(getCwd(), relPath)
 	return await fileExistsAtPath(absolutePath)

@@ -74,6 +74,19 @@ Accurately generating 'SEARCH/REPLACE' blocks when using the edit_file_blocks to
    - Use 'SEARCH/REPLACE' blocks when modifying existing files.
    - Each 'SEARCH' block must exactly match existing content. Any deviation may lead to errors.
    - Separate the 'SEARCH' and 'REPLACE' blocks with '======='.
+   - When replacing multiple sections, ensure each 'SEARCH' corresponds to its respective 'REPLACE'
+     the format should be:
+        SEARCH
+        // code block to search
+        =======
+        REPLACE
+        // updated code block
+        =======
+        SEARCH
+        // another code block to search
+        =======
+        REPLACE
+        // updated code block
 
 5. **ENSURE** that the SEARCH block contains at least 5 contiguous lines of code or additional context, such as comments, from the original file. This approach improves the reliability of matching and minimizes unintended changes during modification.
   - Always strive to capture surrounding lines that help uniquely identify the location of your intended change.
@@ -187,47 +200,54 @@ def another_function_call():
 </kodu_diff>
 </edit_file_blocks>
 
--- Example 4: Creating a New File
-
-<edit_file_blocks>
-<path>hello.py</path>
-<kodu_content>
-def hello():
-    "print a greeting"
-
-    print("hello")
-</kodu_content>
-</edit_file_blocks>
-
--- Example 5: Modifying an Existing File to Import a Function
+-- Example 4: Modifying multiple sections in a file
 
 <edit_file_blocks>
 <path>main.py</path>
 <kodu_diff>
 SEARCH
-# Some context before the function
-def hello():
-    "print a greeting"
-
-    print("hello")
-
-# Additional context after the function
-class HelloWorld:
-    def greet(self):
-        pass
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '~/components/ui/dialog';
 =======
 REPLACE
-# Some context before the function
-from hello import hello
-
-# Additional context after the function
-class HelloWorld:
-    def greet(self):
-        pass
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '~/components/ui/dialog';
+import { useAuth } from '~/hooks/useAuth';
+=======
+SEARCH
+export function AddSubscriptionModal({
+  isOpen,
+  onClose,
+}: AddSubscriptionModalProps) {
+  const addSubscription = useSubscriptionStore(
+    (state) => state.addSubscription
+  );
+=======
+REPLACE
+export function AddSubscriptionModal({
+  isOpen,
+  onClose,
+}: AddSubscriptionModalProps) {
+  const addSubscription = useSubscriptionStore(
+    (state) => state.addSubscription
+  );
+  const auth = useAuth();
 </kodu_diff>
 </edit_file_blocks>
 
--- Example 6: Multiple Hunks in a Single File
+-- Example 5: Multiple Hunks in a Single File
 
 <edit_file_blocks>
 <path>src/example.js</path>
@@ -247,7 +267,7 @@ const greet = () => {
 };
 const a = 1;
 const b = 2;
-
+=======
 SEARCH
 // Context for second change
 function add(a, b) {

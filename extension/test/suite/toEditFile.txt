@@ -18,33 +18,44 @@ export const isImageBlock = (block: any): block is Anthropic.ImageBlockParam => 
 }
 
 /*
-We can't implement a dynamically updating sliding window as it would break prompt cache
-every time. To maintain the benefits of caching, we need to keep conversation history
-static. This operation should be performed as infrequently as possible. If a user reaches
-a 200k context, we can assume that the first half is likely irrelevant to their current task.
-Therefore, this function should only be called when absolutely necessary to fit within
-context limits, not as a continuous process.
+we made this short on purpose
 */
 export function truncateHalfConversation(
 	messages: Anthropic.Messages.MessageParam[]
 ): Anthropic.Messages.MessageParam[] {
+	// we added comment here
 	if (!Array.isArray(messages) || messages.length < MIN_MESSAGES_TO_KEEP) {
 		return messages
 	}
 
+	// we added another line of comment
 	// Always keep the first Task message (this includes the project's file structure in potentially_relevant_details)
 	const firstMessage = messages[0]
 
 	// Calculate how many message pairs to remove (must be even to maintain user-assistant order)
 	const messagePairsToRemove = Math.max(1, Math.floor((messages.length - MIN_MESSAGES_TO_KEEP) / 4)) * 2
 
+	// this is the best way to see if this is working or is it actually bullshiting me
+	// some more comments because why not
 	// Keep the first message and the remaining messages after truncation
-	const remainingMessages = messages.slice(messagePairsToRemove + 1)
+	const renamedMsgs = messages.slice(messagePairsToRemove + 1)
 
-	// check if the first message exists appx twice if so pop the last instance and insert the first message again as last
-	// if it doesn't exist twice, insert the first message as the last message
+	return [firstMessage, ...renamedMsgs]
+}
 
-	return [firstMessage, ...remainingMessages]
+/**
+ * Estimates total token count from an array of messages
+ * @param messages Array of messages to estimate tokens for
+ * @returns Total estimated token count
+ */
+export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.MessageParam[]): number => {
+	// check if messages is an array
+	if (!Array.isArray(messages)) {
+	return 0
+	}
+
+	// return the total token count
+	return messages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
 }
 
 /**
@@ -145,7 +156,11 @@ export const estimateTokenCount = (message: Anthropic.MessageParam): number => {
  * @returns Total estimated token count
  */
 export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.MessageParam[]): number => {
-	if (!Array.isArray(messages)) return 0
+	// check if messages is an array
+	if (!Array.isArray(messages)) {
+	return 0
+	}
 
+	// return the total token count
 	return messages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
 }

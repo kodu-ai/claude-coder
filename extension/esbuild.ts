@@ -80,7 +80,7 @@ const extensionConfig = {
 		esbuildProblemMatcherPlugin,
 	],
 	entryPoints: ["src/extension.ts"],
-	format: "esm",
+	format: "cjs",
 	sourcesContent: false,
 	keepNames: true, // Preserve function names during minification
 	platform: "node",
