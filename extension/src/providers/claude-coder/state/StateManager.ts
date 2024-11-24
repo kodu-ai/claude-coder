@@ -81,12 +81,55 @@ export class StateManager {
 		const activeVariant = systemPromptVariants?.find((variant) => variant.id === activeSystemPromptVariantId)
 		let systemPrompt = ""
 
+		// Get the active editor and file content
+		const activeEditor = vscode.window.activeTextEditor
+		let currentFileContent = ""
+		let fileContext = ""
+		
+		if (activeEditor) {
+			const document = activeEditor.document
+			currentFileContent = document.getText()
+			
+			// Get diagnostics for the current file
+			const diagnostics = vscode.languages.getDiagnostics(document.uri)
+			if (diagnostics.length > 0) {
+				// Build context about errors/warnings
+				fileContext += "\nFILE DIAGNOSTICS:\n"
+				diagnostics.forEach(diagnostic => {
+					const startLine = diagnostic.range.start.line
+					const endLine = diagnostic.range.end.line
+					const severity = diagnostic.severity === vscode.DiagnosticSeverity.Error ? "ERROR" : "WARNING"
+					
+					// Get 3 lines before and after for context
+					const startContextLine = Math.max(0, startLine - 3)
+					const endContextLine = Math.min(document.lineCount - 1, endLine + 3)
+					
+					fileContext += `\n${severity} on lines ${startLine+1}-${endLine+1}: ${diagnostic.message}\n`
+					fileContext += "Context:\n```\n"
+					for (let i = startContextLine; i <= endContextLine; i++) {
+						const line = document.lineAt(i).text
+						fileContext += `${i === startLine ? ">" : " "} ${line}\n`
+					}
+					fileContext += "```\n"
+				})
+			}
+		}
+
 		if (activeVariant) {
 			systemPrompt = activeVariant.content
 		} else {
 			const supportImages = this.apiManager.getCurrentModelInfo()?.supportsImages
 			systemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), supportImages ?? false, technicalBackground)
 		}
+
+		// Add current file content to system prompt if available
+		if (currentFileContent) {
+			systemPrompt += `\n\nCURRENT FILE CONTENT:\n\`\`\`\n${currentFileContent}\n\`\`\`\n`
+			if (fileContext) {
+				systemPrompt += fileContext
+			}
+		}
+
 		const systemPromptTokens = estimateTokenCount({
 			role: "assistant",
 			content: [
