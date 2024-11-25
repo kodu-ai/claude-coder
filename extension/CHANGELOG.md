@@ -4,6 +4,17 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.13.1] - 2024-11-26
+
+### Added
+
+-   Pause and Resume automatic mode mid task
+-   Terminal output compression with settings to configure the tokens
+
+### Changed
+
+-   Fixed inline edit animation behavior to work across all instances (closed tab / open tab)
+
 ## [1.13.0] - 2024-11-25
 
 ### Added

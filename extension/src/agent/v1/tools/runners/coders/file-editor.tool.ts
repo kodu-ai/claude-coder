@@ -1,3 +1,6 @@
+/**
+ * Imports for file system operations, diff viewing, and utility functions
+ */
 import * as path from "path"
 import { DiffViewProvider } from "../../../../../integrations/editor/diff-view-provider"
 import { ClaudeSayTool } from "../../../../../shared/ExtensionMessage"
@@ -12,24 +15,55 @@ import { ToolResponseV2 } from "../../../../../agent/v1/types"
 import delay from "delay"
 import PQueue from "p-queue"
 
+/**
+ * FileEditorTool handles file editing operations in the VSCode extension.
+ * It provides functionality for:
+ * - Showing diffs between file versions
+ * - Handling partial updates during file editing
+ * - Managing inline edits with search/replace blocks
+ * - Processing user approvals for file changes
+ *
+ * The tool supports both complete file rewrites and partial edits through diff blocks.
+ * It includes features for animation control and update throttling to ensure smooth performance.
+ */
 export class FileEditorTool extends BaseAgentTool {
+	/** Tool parameters including update callbacks and input */
 	protected params: AgentToolParams
+	/** Provider for showing file diffs in VSCode */
 	public diffViewProvider: DiffViewProvider
+	/** Handler for inline file editing operations */
 	public inlineEditor: InlineEditHandler
+	/** Flag indicating if final content is being processed */
 	private isProcessingFinalContent: boolean = false
+	/** Timestamp of last update for throttling */
 	private lastUpdateTime: number = 0
+	/** Minimum interval between updates in milliseconds */
 	private readonly UPDATE_INTERVAL = 16
+	/** Queue for processing partial updates sequentially */
 	private pQueue: PQueue = new PQueue({ concurrency: 1 })
+	/** Flag to control write animation display */
 	private skipWriteAnimation: boolean = false
+	/** Counter for tracking update sequence */
 	private updateNumber: number = 0
+	/** Array of edit blocks being processed */
 	private editBlocks: EditBlock[] = []
+	/** Current file state including path and content */
 	private fileState?: {
 		absolutePath: string
 		orignalContent: string
 		isExistingFile: boolean
 	}
+	/** ID of the last applied edit block */
 	private lastAppliedEditBlockId: string = ""
 
+	/**
+	 * Initializes the FileEditorTool with required parameters and options.
+	 * Sets up diff view provider and inline editor handler.
+	 * Configures animation settings based on state manager.
+	 *
+	 * @param params - Tool parameters including callbacks and input
+	 * @param options - Configuration options for the tool
+	 */
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
