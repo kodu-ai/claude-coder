@@ -4,6 +4,12 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.13.2] - 2024-11-26
+
+### FIXED
+
+-   Fixed inline edit tab focus, now it correctly focus on the tab on open and before save.
+
 ## [1.13.1] - 2024-11-26
 
 ### Added
