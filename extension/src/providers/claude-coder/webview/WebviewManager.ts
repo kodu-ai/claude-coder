@@ -348,6 +348,9 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "pauseTemporayAutoMode":
+						this.provider.getKoduDev()?.getStateManager()?.setTemporaryPauseAutomaticMode(message.mode)
+						break
 					case "terminalCompressionThreshold":
 						await this.provider.getStateManager().setTerminalCompressionThreshold(message.value)
 						await this.postStateToWebview()

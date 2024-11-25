@@ -53,6 +53,10 @@ A good example of using this tool is when you need to update specific functions,
 Parameters:
 - path: (required) The path of the file to edit (relative to the current working directory ${cwd.toPosix()})
 - kodu_diff: (required) The 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly, and each 'REPLACE' block should provide the intended changes.
+  - SEARCH block must contain at least 5 contiguous lines of code or additional context from the original file to ensure a robust match. This approach improves the reliability of matching and minimizes unintended changes during modification.
+  - The 'SEARCH' and 'REPLACE' blocks must be separated by '======='.
+  - The REPLACE block should contain the updated content to replace the existing content matched by the SEARCH block.
+  - You can go do up to 3 SEARCH/REPLACE blocks in a single tool call, but each SEARCH/REPLACE block must be complete and accurate avoid doing partial changes or placeholders in the REPLACE block.
 
 CRITICAL GUIDANCE FOR USING SEARCH/REPLACE:
 

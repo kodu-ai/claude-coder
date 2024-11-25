@@ -170,7 +170,13 @@ export type terminalCompressionThresholdMessage = {
 	value?: number
 }
 
+export type pauseTemporayAutoModeMessage = {
+	type: "pauseTemporayAutoMode"
+	mode: boolean
+}
+
 export type WebviewMessage =
+	| pauseTemporayAutoModeMessage
 	| terminalCompressionThresholdMessage
 	| switchAutomaticModeMessage
 	| setAdvanceThinkingModeMessage

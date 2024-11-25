@@ -5,6 +5,7 @@ import React, { useEffect } from "react"
 import { useSettingsState } from "../../hooks/useSettingsState"
 import { ExperimentalFeatureItem } from "./experimental-feature-item"
 import SystemPromptVariants from "./SystemPromptVariants"
+import { Slider } from "../ui/slider"
 
 const AdvancedTab: React.FC = () => {
 	const {
@@ -51,7 +52,7 @@ const AdvancedTab: React.FC = () => {
 					checked={autoSkipWrite}
 					onCheckedChange={handleAutoSkipWriteChange}
 				/>
-				<div className="space-y-2">
+				<div className="space-y-4 mx-0">
 					<ExperimentalFeatureItem
 						feature={{
 							id: "terminalCompressionThreshold",
@@ -61,28 +62,47 @@ const AdvancedTab: React.FC = () => {
 						}}
 						checked={terminalCompressionThreshold !== undefined}
 						onCheckedChange={(checked) =>
-							handleTerminalCompressionThresholdChange(checked ? 10_000 : undefined)
+							handleTerminalCompressionThresholdChange(checked ? 10000 : undefined)
 						}
 					/>
 					{terminalCompressionThreshold !== undefined && (
-						<div className="pl-6 space-y-2">
-							<Label htmlFor="compression-threshold" className="text-xs font-medium">
-								Compression Threshold (2,000 - 200,000 tokens)
-							</Label>
-							<Input
-								id="compression-threshold"
-								type="number"
-								min={2000}
-								max={200000}
-								value={terminalCompressionThreshold}
-								onChange={(e) => {
-									const value = parseInt(e.target.value)
-									if (!isNaN(value) && value >= 2000 && value <= 200000) {
-										handleTerminalCompressionThresholdChange(value)
-									}
-								}}
-								className="w-full max-w-[200px] text-xs"
-							/>
+						<div className="pl-0 grid gap-4">
+							<div className="grid gap-2">
+								<Label htmlFor="range">Compression Threshold</Label>
+								<div className="grid gap-4">
+									<div className="flex items-center gap-4">
+										<Input
+											id="range"
+											type="number"
+											value={terminalCompressionThreshold}
+											onChange={(e) => {
+												const value = parseInt(e.target.value)
+												if (!isNaN(value)) {
+													handleTerminalCompressionThresholdChange(
+														Math.min(Math.max(value, 2000), 200000)
+													)
+												}
+											}}
+											min={2000}
+											max={200000}
+											step={1000}
+											className="w-24"
+										/>
+										<span className="text-sm text-muted-foreground">(2,000 - 200,000)</span>
+									</div>
+									<Slider
+										min={2000}
+										max={200000}
+										step={1000}
+										value={[terminalCompressionThreshold]}
+										onValueChange={(value) => handleTerminalCompressionThresholdChange(value[0])}
+										className="w-full"
+									/>
+								</div>
+								<p className="text-sm text-muted-foreground">
+									Adjust the token threshold at which terminal output will be compressed
+								</p>
+							</div>
 						</div>
 					)}
 				</div>

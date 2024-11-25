@@ -151,7 +151,7 @@
 		"vscode:prepublish": "pnpm run package",
 		"compile": "pnpm run check-types && pnpm run lint && tsx esbuild.ts",
 		"watch": "pnpm run-all -p watch:*",
-		"watch:esbuild": "tsx watch esbuild.ts",
+		"watch:esbuild": "tsx esbuild.ts --watch",
 		"watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
 		"package": "pnpm run build:webview && pnpm run check-types && pnpm run lint && tsx esbuild.ts --production",
 		"pretest": "pnpm run lint",

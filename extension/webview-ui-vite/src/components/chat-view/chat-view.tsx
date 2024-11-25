@@ -340,14 +340,16 @@ const ChatView: React.FC<ChatViewProps> = ({
 			</div>
 			{!isMaxContextReached && (
 				<div className="mb-0 mt-auto">
-					<ButtonSection
-						primaryButtonText={state.primaryButtonText}
-						secondaryButtonText={state.secondaryButtonText}
-						enableButtons={state.enableButtons}
-						isRequestRunning={isMessageRunning}
-						handlePrimaryButtonClick={handlePrimaryButtonClick}
-						handleSecondaryButtonClick={handleSecondaryButtonClick}
-					/>
+					{!!task && (
+						<ButtonSection
+							primaryButtonText={state.primaryButtonText}
+							secondaryButtonText={state.secondaryButtonText}
+							enableButtons={state.enableButtons}
+							isRequestRunning={isMessageRunning}
+							handlePrimaryButtonClick={handlePrimaryButtonClick}
+							handleSecondaryButtonClick={handleSecondaryButtonClick}
+						/>
+					)}
 
 					<ChatInput
 						state={state}

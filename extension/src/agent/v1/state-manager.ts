@@ -26,6 +26,7 @@ export class StateManager {
 	private _autoCloseTerminal?: boolean
 	private _skipWriteAnimation?: boolean
 	private _autoSummarize?: boolean
+	private _temporayPauseAutomaticMode: boolean = false
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -90,6 +91,10 @@ export class StateManager {
 
 	get taskId(): string {
 		return this.taskId
+	}
+
+	get temporayPauseAutomaticMode(): boolean {
+		return this._temporayPauseAutomaticMode
 	}
 
 	get dirAbsolutePath(): string | undefined {
@@ -460,5 +465,9 @@ export class StateManager {
 	// Force an immediate save
 	public async forceSaveClaudeMessages(): Promise<void> {
 		await this.saveClaudeMessages()
+	}
+
+	public async setTemporaryPauseAutomaticMode(newValue: boolean): Promise<void> {
+		this._temporayPauseAutomaticMode = newValue
 	}
 }

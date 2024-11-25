@@ -238,6 +238,7 @@ export class AskManager {
 		}
 
 		if (
+			!this.stateManager.temporayPauseAutomaticMode &&
 			this.stateManager.alwaysAllowWriteOnly &&
 			!this.mustRequestApprovalTypes.includes(type as any) &&
 			(!tool || !this.mustRequestApprovalTools.includes(tool as any))

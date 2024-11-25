@@ -1,0 +1,206 @@
+SEARCH
+import { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '~/components/ui/dialog';
+import { Button } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
+=======
+REPLACE
+import { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '~/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
+import { Button } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
+import { useToast } from "~/hooks/use-toast";
+=======
+SEARCH
+  const deleteSubscription = useSubscriptionStore(
+    (state) => state.deleteSubscription
+  );
+  // Initialize form state with default values, excluding read-only fields
+=======
+REPLACE
+  const deleteSubscription = useSubscriptionStore(
+    (state) => state.deleteSubscription
+  );
+  const { toast } = useToast();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  // Initialize form state with default values, excluding read-only fields
+=======
+SEARCH
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (subscription) {
+      editSubscription(subscription.id, formData);
+      onClose();
+    }
+  };
+
+  // Handle subscription deletion
+  // Removes the subscription from the store and closes the modal
+  const handleDelete = () => {
+    if (subscription) {
+      deleteSubscription(subscription.id);
+      onClose();
+    }
+  };
+=======
+REPLACE
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (subscription) {
+      try {
+        editSubscription(subscription.id, formData);
+        toast({
+          title: "Success",
+          description: "Subscription updated successfully",
+        });
+        onClose();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update subscription",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Handle subscription deletion
+  // Removes the subscription from the store and closes the modal
+  const handleDelete = () => {
+    if (subscription) {
+      try {
+        deleteSubscription(subscription.id);
+        toast({
+          title: "Success",
+          description: "Subscription deleted successfully",
+        });
+        onClose();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete subscription",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+=======
+SEARCH
+                <SelectContent>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="GBP">GBP</SelectItem>
+                  <SelectItem value="JPY">JPY</SelectItem>
+                  <SelectItem value="CNY">CNY</SelectItem>
+                </SelectContent>
+=======
+REPLACE
+                <SelectContent>
+                  <SelectItem value="USD">USD - US Dollar</SelectItem>
+                  <SelectItem value="EUR">EUR - Euro</SelectItem>
+                  <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                  <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
+                  <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
+                  <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
+                  <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
+                  <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                  <SelectItem value="BRL">BRL - Brazilian Real</SelectItem>
+                </SelectContent>
+=======
+SEARCH
+              <SelectContent>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="yearly">Yearly</SelectItem>
+              </SelectContent>
+=======
+REPLACE
+              <SelectContent>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="quarterly">Quarterly</SelectItem>
+                <SelectItem value="biannually">Bi-annually</SelectItem>
+                <SelectItem value="yearly">Yearly</SelectItem>
+              </SelectContent>
+=======
+SEARCH
+          {/* Action buttons with flexible layout */}
+          <div className="flex justify-between">
+            <Button type="button" variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </div>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+=======
+REPLACE
+          {/* Action buttons with flexible layout */}
+          <div className="flex justify-between">
+            <Button 
+              type="button" 
+              variant="destructive" 
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              Delete
+            </Button>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </div>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+
+    {/* Delete Confirmation Dialog */}
+    <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete the
+            subscription and remove all associated data.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={handleDelete}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
