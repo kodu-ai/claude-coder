@@ -342,7 +342,12 @@ export class ToolExecutor {
 		if (context) {
 			context.status = "error"
 			context.error = error
+			// if (context.tool instanceof FileEditorTool) {
+			// 	context.tool.
+			// }
 		}
+
+		await context?.tool.abortToolExecution()
 
 		await this.koduDev.taskExecutor.updateAsk(
 			"tool",

@@ -9,8 +9,51 @@ import {
 } from "../../src/agent/v1/tools/runners/coders/utils"
 import * as assert from "assert"
 
+const block = `
+SEARCH
+    def add_tool_use(self, tool_name: str, parameters: Dict[str, Any], result: Any) -> None:
+        """Add a tool use to the history."""
+        # Log the tool use being added
+        self.logger.info("=== Adding Tool Use to History ===")
+        self.logger.info(f"Tool: {tool_name}")
+        self.logger.info(f"Parameters: {parameters}")
+        self.logger.info(f"Result: {result}")
+        self.logger.info("==============================")
+        
+        self.history.append({
+            'tool': tool_name,
+            'parameters': parameters,
+            'result': result
+        })
+=======
+REPLACE
+    def add_tool_use(self, tool_name: str, parameters: Dict[str, Any], result: Any) -> None:
+        """Add a tool use to the history."""
+        # Log the tool use being added
+        self.logger.info("\n=== Tool Use Added to History ===")
+        self.logger.info(f"Tool: {tool_name}")
+        self.logger.info(f"Parameters: {parameters}")
+        if hasattr(result, 'success'):
+            self.logger.info(f"Success: {result.success}")
+            self.logger.info(f"Message: {result.message if hasattr(result, 'message') else ''}")
+            if hasattr(result, 'data') and result.data:
+                self.logger.info(f"Data: {result.data}")
+        else:
+            self.logger.info(f"Result: {result}")
+        self.logger.info("==============================\n")
+        
+        self.history.append({
+            'tool': tool_name,
+            'parameters': parameters,
+            'result': result
+        })`
+
 describe("Edit Blocks Parser and Validator", () => {
 	describe("parseDiffBlocks", () => {
+		it("should parse single SEARCH/REPLACE block correctly", () => {
+			const blocks = parseDiffBlocks(block, "test.py")
+			assert.strictEqual(blocks.length, 1)
+		})
 		it("should parse single SEARCH/REPLACE block correctly", () => {
 			const diffContent = `SEARCH
 function hello() {

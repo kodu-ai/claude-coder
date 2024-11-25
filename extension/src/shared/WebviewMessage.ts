@@ -160,7 +160,13 @@ export type setAdvanceThinkingModeMessage = {
 	bool: boolean
 }
 
+export type switchAutomaticModeMessage = {
+	type: "switchAutomaticMode"
+	bool: boolean
+}
+
 export type WebviewMessage =
+	| switchAutomaticModeMessage
 	| setAdvanceThinkingModeMessage
 	| setInlinedModeMessage
 	| setApiKeyDialogMessage

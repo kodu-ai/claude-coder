@@ -1,6 +1,7 @@
 import * as vscode from "vscode"
+import { diff_match_patch } from "diff-match-patch"
 
-// Keep existing interfaces but modify EditBlock and DocumentState
+// Update the EditBlock interface
 interface EditBlock {
 	id: string
 	range: vscode.Range
@@ -8,6 +9,7 @@ interface EditBlock {
 	currentContent: string
 	finalContent?: string
 	status: "pending" | "streaming" | "final"
+	matchedRange?: vscode.Range
 }
 
 interface DocumentState {
@@ -32,17 +34,25 @@ export class InlineEditHandler {
 
 	constructor() {
 		this.initializeDecorations()
-		this.setupEventListeners()
 	}
 
-	private setupEventListeners() {
-		this.disposables.push(
-			vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-				if (editor && this.currentDocumentState?.uri === editor.document.uri.toString()) {
-					await this.restoreDocumentState(editor)
-				}
-			})
-		)
+	private findBestMatchingRange(document: vscode.TextDocument, searchContent: string): vscode.Range | undefined {
+		const dmp = new diff_match_patch()
+		dmp.Match_Threshold = 0.1 // Set a low threshold for high accuracy
+		dmp.Match_Distance = 2000 // Adjust as needed
+
+		const text = document.getText()
+		const loc = 0 // Start location
+
+		const matchIndex = dmp.match_main(text, searchContent, loc)
+
+		if (matchIndex === -1) {
+			return undefined
+		}
+
+		const startPos = document.positionAt(matchIndex)
+		const endPos = document.positionAt(matchIndex + searchContent.length)
+		return new vscode.Range(startPos, endPos)
 	}
 
 	private initializeDecorations() {
@@ -74,33 +84,15 @@ export class InlineEditHandler {
 		})
 	}
 
-	private async restoreDocumentState(editor: vscode.TextEditor) {
-		if (!this.currentDocumentState) {
-			return
-		}
-
-		try {
-			// Apply all active edits
-			await editor.edit((editBuilder) => {
-				for (const [, editBlock] of this.currentDocumentState!.editBlocks) {
-					if (editBlock.status !== "pending") {
-						editBuilder.replace(editBlock.range, editBlock.currentContent)
-					}
-				}
-			})
-
-			this.updateDecorations(editor)
-			this.lastActiveEditor = editor
-		} catch (error) {
-			console.error("Failed to restore document state:", error)
-		}
-	}
-
 	// Modified open method to be more focused on initialization
 	public async open(id: string, filePath: string, searchContent: string): Promise<boolean> {
 		try {
 			const document = await vscode.workspace.openTextDocument(filePath)
-			const editor = await vscode.window.showTextDocument(document)
+			const editor = await vscode.window.showTextDocument(document, {
+				viewColumn: vscode.ViewColumn.Active,
+				preserveFocus: false,
+				preview: false,
+			})
 			const originalContent = document.getText()
 
 			// Initialize document state if it doesn't exist or is for a different file
@@ -118,7 +110,7 @@ export class InlineEditHandler {
 			this.lastActiveEditor = editor
 
 			// Add the initial block
-			const block = await this.addBlock(editor, id, searchContent)
+			const block = await this.addBlockToDocument(document, id, searchContent)
 			if (!block) {
 				return false
 			}
@@ -128,8 +120,49 @@ export class InlineEditHandler {
 			return false
 		}
 	}
-	private async addBlock(
-		editor: vscode.TextEditor,
+
+	public async focusEditor(): Promise<void> {
+		if (!this.currentDocumentState) {
+			console.warn("No active document state to focus")
+			return
+		}
+
+		try {
+			const uri = vscode.Uri.parse(this.currentDocumentState.uri)
+
+			// First try to find an already open editor
+			const visibleEditors = vscode.window.visibleTextEditors
+			const existingEditor = visibleEditors.find(
+				(editor) => editor.document.uri.toString() === this.currentDocumentState?.uri
+			)
+
+			if (existingEditor) {
+				// If editor exists, bring it to focus
+				await vscode.window.showTextDocument(existingEditor.document, {
+					viewColumn: vscode.ViewColumn.Active,
+					preserveFocus: false, // This ensures the editor gets focus
+					preview: false, // This ensures the editor stays open and doesn't open in preview mode
+				})
+			} else {
+				// If editor is not open, open the document and focus it
+				const document = await vscode.workspace.openTextDocument(uri)
+				await vscode.window.showTextDocument(document, {
+					preserveFocus: false,
+					preview: false,
+					viewColumn: vscode.ViewColumn.Active,
+				})
+			}
+
+			// Update the lastActiveEditor reference
+			this.lastActiveEditor = vscode.window.activeTextEditor
+		} catch (error) {
+			console.error("Failed to focus editor:", error)
+			throw new Error(`Failed to focus editor: ${error instanceof Error ? error.message : "Unknown error"}`)
+		}
+	}
+
+	private async addBlockToDocument(
+		document: vscode.TextDocument,
 		id: string,
 		searchContent: string
 	): Promise<EditBlock | undefined> {
@@ -138,18 +171,24 @@ export class InlineEditHandler {
 		}
 
 		try {
-			const document = editor.document
 			const currentContent = document.getText()
-			const startIndex = currentContent.indexOf(searchContent)
+			let range: vscode.Range | undefined
 
-			if (startIndex === -1) {
-				console.warn(`Could not find searchContent for block ${id}`)
-				return undefined
+			// First, try to find an exact match
+			let startIndex = currentContent.indexOf(searchContent)
+
+			if (startIndex !== -1) {
+				const startPos = document.positionAt(startIndex)
+				const endPos = document.positionAt(startIndex + searchContent.length)
+				range = new vscode.Range(startPos, endPos)
+			} else {
+				// Perform fuzzy matching
+				range = this.findBestMatchingRange(document, searchContent)
+				if (!range) {
+					console.warn(`Could not find searchContent for block ${id}`)
+					return undefined
+				}
 			}
-
-			const startPos = document.positionAt(startIndex)
-			const endPos = document.positionAt(startIndex + searchContent.length)
-			const range = new vscode.Range(startPos, endPos)
 
 			// Check for overlapping blocks
 			for (const [, existingBlock] of this.currentDocumentState.editBlocks) {
@@ -165,6 +204,7 @@ export class InlineEditHandler {
 				originalContent: searchContent,
 				currentContent: searchContent,
 				status: "pending",
+				matchedRange: range, // Cache the matched range
 			}
 
 			this.currentDocumentState.editBlocks.set(id, editBlock)
@@ -183,46 +223,54 @@ export class InlineEditHandler {
 		}
 
 		try {
-			const editor = await this.getOrCreateEditor()
-			if (!editor) {
-				return false
-			}
+			const document =
+				vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === this.currentDocumentState!.uri) ||
+				(await vscode.workspace.openTextDocument(vscode.Uri.parse(this.currentDocumentState!.uri)))
 
 			let editBlock = this.currentDocumentState.editBlocks.get(id)
 
 			// If block doesn't exist, try to create it
 			if (!editBlock) {
-				editBlock = await this.addBlock(editor, id, searchContent)
+				editBlock = await this.addBlockToDocument(document, id, searchContent)
 				if (!editBlock) {
 					return false
 				}
 			}
 
-			// confirm that the content actually changed
-			if (editBlock.currentContent === content) {
-				console.log(`Content for block ${id} is the same, skipping... this update`)
-				return true
+			// Use the stored originalContent to find the range
+			const currentContent = document.getText()
+			let startIndex = currentContent.indexOf(editBlock.originalContent)
+
+			let range: vscode.Range
+
+			if (startIndex !== -1) {
+				const startPos = document.positionAt(startIndex)
+				const endPos = document.positionAt(startIndex + editBlock.originalContent.length)
+				range = new vscode.Range(startPos, endPos)
+			} else {
+				// Use the last known range
+				range = editBlock.matchedRange || editBlock.range
 			}
 
-			await editor.edit(
-				(editBuilder) => {
-					editBuilder.replace(editBlock!.range, content)
-				},
-				{
-					undoStopBefore: !this.isFirstEditTouched,
-					undoStopAfter: false,
-				}
-			)
-			this.isFirstEditTouched = true
+			const workspaceEdit = new vscode.WorkspaceEdit()
+			workspaceEdit.replace(document.uri, range, content, {
+				label: "Inline Edit",
+				needsConfirmation: false,
+			})
+			const didApplyCorrectly = await vscode.workspace.applyEdit(workspaceEdit, {
+				isRefactoring: true,
+			})
+			if (!didApplyCorrectly) {
+				console.error("Failed to apply streaming content")
+			}
 
-			const newEndPos = editor.document.positionAt(
-				editor.document.offsetAt(editBlock.range.start) + content.length
-			)
-			const newRange = new vscode.Range(editBlock.range.start, newEndPos)
+			const newEndPos = document.positionAt(document.offsetAt(range.start) + content.length)
+			const newRange = new vscode.Range(range.start, newEndPos)
 
-			const updatedBlock = {
+			const updatedBlock: EditBlock = {
 				...editBlock,
 				range: newRange,
+				matchedRange: newRange,
 				currentContent: content,
 				status: "streaming" as const,
 			}
@@ -231,8 +279,12 @@ export class InlineEditHandler {
 			this.currentDocumentState.activePendingRanges.delete(id)
 			this.currentDocumentState.activeStreamingRanges.set(id, newRange)
 
-			this.updateDecorations(editor)
-			await this.scrollToRange(editor, newRange)
+			// Update decorations and scroll if editor is available
+			const editor = await this.getOrCreateEditor()
+			if (editor) {
+				this.updateDecorations(editor)
+				await this.scrollToRange(editor, newRange)
+			}
 
 			return true
 		} catch (error) {
@@ -247,40 +299,54 @@ export class InlineEditHandler {
 		}
 
 		try {
-			const editor = await this.getOrCreateEditor()
-			if (!editor) {
-				return false
-			}
+			const document =
+				vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === this.currentDocumentState!.uri) ||
+				(await vscode.workspace.openTextDocument(vscode.Uri.parse(this.currentDocumentState!.uri)))
 
 			let editBlock = this.currentDocumentState.editBlocks.get(id)
 
 			// If block doesn't exist, try to create it
 			if (!editBlock) {
-				editBlock = await this.addBlock(editor, id, searchContent)
+				editBlock = await this.addBlockToDocument(document, id, searchContent)
 				if (!editBlock) {
 					return false
 				}
 			}
 
-			await editor.edit(
-				(editBuilder) => {
-					editBuilder.replace(editBlock!.range, content)
-				},
-				{
-					undoStopBefore: !this.isFirstEditTouched,
-					undoStopAfter: false,
-				}
-			)
-			this.isFirstEditTouched = true
+			// Use the stored originalContent to find the range
+			const currentContent = document.getText()
+			let startIndex = currentContent.indexOf(editBlock.originalContent)
 
-			const newEndPos = editor.document.positionAt(
-				editor.document.offsetAt(editBlock.range.start) + content.length
-			)
-			const newRange = new vscode.Range(editBlock.range.start, newEndPos)
+			let range: vscode.Range
 
-			const updatedBlock = {
+			if (startIndex !== -1) {
+				const startPos = document.positionAt(startIndex)
+				const endPos = document.positionAt(startIndex + editBlock.originalContent.length)
+				range = new vscode.Range(startPos, endPos)
+			} else {
+				// Use the last known range
+				range = editBlock.matchedRange || editBlock.range
+			}
+
+			const workspaceEdit = new vscode.WorkspaceEdit()
+			workspaceEdit.replace(document.uri, range, content, {
+				label: "Inline Edit",
+				needsConfirmation: false,
+			})
+			const didApplyCorrectly = await vscode.workspace.applyEdit(workspaceEdit, {
+				isRefactoring: true,
+			})
+			if (!didApplyCorrectly) {
+				console.error("Failed to apply final content")
+			}
+
+			const newEndPos = document.positionAt(document.offsetAt(range.start) + content.length)
+			const newRange = new vscode.Range(range.start, newEndPos)
+
+			const updatedBlock: EditBlock = {
 				...editBlock,
 				range: newRange,
+				matchedRange: newRange,
 				currentContent: content,
 				finalContent: content,
 				status: "final" as const,
@@ -290,13 +356,122 @@ export class InlineEditHandler {
 			this.currentDocumentState.activeStreamingRanges.delete(id)
 			this.currentDocumentState.activeMergeRanges.set(id, newRange)
 
-			this.updateDecorations(editor)
-			await this.scrollToRange(editor, newRange)
+			// Update decorations and scroll if editor is available
+			const editor = await this.getOrCreateEditor()
+			if (editor) {
+				this.updateDecorations(editor)
+				await this.scrollToRange(editor, newRange)
+			}
 
 			return true
 		} catch (error) {
 			console.error("Failed to apply final content:", error)
 			return false
+		}
+	}
+
+	/**
+	 * This method takes an array of diffBlocks and applies them to the document, no matter the order or previous state, all in one write action.
+	 * @param diffBlocks
+	 * @returns boolean - true if all the diffBlocks were applied successfully
+	 * @throws Error - if there is an error applying the diffBlocks
+	 */
+	public async forceFinalizeAll(
+		diffBlocks: { id: string; searchContent: string; replaceContent: string }[]
+	): Promise<boolean> {
+		if (!this.currentDocumentState) {
+			return false
+		}
+		try {
+			const document =
+				vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === this.currentDocumentState!.uri) ||
+				(await vscode.workspace.openTextDocument(vscode.Uri.parse(this.currentDocumentState!.uri)))
+
+			const workspaceEdit = new vscode.WorkspaceEdit()
+
+			const currentContent = document.getText()
+
+			// For each block, find the starting index of originalContent
+			const blocksWithPositions: Array<{
+				id: string
+				searchContent: string
+				replaceContent: string
+				startIndex: number
+				range: vscode.Range
+			}> = []
+
+			for (const block of diffBlocks) {
+				const id = block.id
+				const searchContent = block.searchContent
+				const replaceContent = block.replaceContent
+
+				let editBlock = this.currentDocumentState.editBlocks.get(id)
+
+				// Use the stored originalContent to find the range
+				let startIndex = currentContent.indexOf(editBlock?.originalContent || searchContent)
+
+				let range: vscode.Range
+
+				if (startIndex !== -1) {
+					const startPos = document.positionAt(startIndex)
+					const endPos = document.positionAt(
+						startIndex + (editBlock?.originalContent.length || searchContent.length)
+					)
+					range = new vscode.Range(startPos, endPos)
+				} else {
+					// Use the last known range
+					if (editBlock) {
+						range = editBlock.matchedRange || editBlock.range
+						startIndex = document.offsetAt(range.start)
+					} else {
+						console.error(`Could not find searchContent for block ${id}`)
+						continue
+					}
+				}
+
+				blocksWithPositions.push({ id, searchContent, replaceContent, startIndex, range })
+			}
+
+			// Sort blocks in descending order of startIndex
+			blocksWithPositions.sort((a, b) => b.startIndex - a.startIndex)
+
+			for (const block of blocksWithPositions) {
+				workspaceEdit.replace(document.uri, block.range, block.replaceContent)
+
+				// Update the editBlock
+				const newEndPos = document.positionAt(block.startIndex + block.replaceContent.length)
+				const newRange = new vscode.Range(block.range.start, newEndPos)
+
+				const updatedBlock: EditBlock = {
+					id: block.id,
+					range: newRange,
+					originalContent: block.searchContent,
+					currentContent: block.replaceContent,
+					finalContent: block.replaceContent,
+					status: "final" as const,
+					matchedRange: newRange,
+				}
+				this.currentDocumentState.editBlocks.set(block.id, updatedBlock)
+				this.currentDocumentState.activeStreamingRanges.delete(block.id)
+				this.currentDocumentState.activeMergeRanges.set(block.id, newRange)
+			}
+
+			const didApplyCorrectly = await vscode.workspace.applyEdit(workspaceEdit)
+			if (!didApplyCorrectly) {
+				console.error("Failed to apply workspace edits in forceFinalizeAll")
+				return false
+			}
+
+			// Update decorations if editor is open
+			const editor = await this.getOrCreateEditor()
+			if (editor) {
+				this.updateDecorations(editor)
+			}
+
+			return true
+		} catch (error) {
+			console.error("Failed to finalize all blocks:", error)
+			throw error
 		}
 	}
 
@@ -306,55 +481,13 @@ export class InlineEditHandler {
 		}
 
 		try {
-			const editor = await this.getOrCreateEditor()
-			if (!editor) {
-				throw new Error("Could not access editor")
-			}
+			const document =
+				vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === this.currentDocumentState!.uri) ||
+				(await vscode.workspace.openTextDocument(vscode.Uri.parse(this.currentDocumentState!.uri)))
 
-			// Focus the editor
-			await vscode.window.showTextDocument(editor.document)
+			await document.save()
 
-			// Apply all final changes
-			await editor.edit(
-				(editBuilder) => {
-					// Get all blocks that are final and have content
-					const blocks = Array.from(this.currentDocumentState!.editBlocks.values())
-						.filter((block) => block.status === "final" && block.finalContent)
-						.sort((a, b) => {
-							// Sort blocks by their range position from bottom to top
-							return b.range.start.compareTo(a.range.start)
-						})
-
-					// Apply changes from bottom to top to avoid position shifts
-					for (const block of blocks) {
-						if (block.finalContent) {
-							// Use the tracked range instead of searching for content
-							const range = block.range
-
-							// Verify the range is still valid
-							const currentContent = editor.document.getText(range)
-							if (currentContent === block.currentContent) {
-								editBuilder.replace(range, block.finalContent)
-							} else {
-								console.warn(
-									`Content mismatch for block ${block.id}. ` +
-										`Expected "${block.currentContent}" but found "${currentContent}"`
-								)
-							}
-						}
-					}
-				},
-				{
-					undoStopBefore: true,
-					undoStopAfter: true,
-				}
-			)
-
-			// Save the document
-			await editor.document.save()
-
-			// Get final content and clean up
-			const finalContent = editor.document.getText()
+			const finalContent = document.getText()
 			await this.dispose()
 
 			return { finalContent }
@@ -370,27 +503,16 @@ export class InlineEditHandler {
 		}
 
 		try {
-			const editor = await this.getOrCreateEditor()
-			if (!editor) {
-				return false
-			}
-
-			// Focus the editor
-			await vscode.window.showTextDocument(editor.document)
+			const document =
+				vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === this.currentDocumentState!.uri) ||
+				(await vscode.workspace.openTextDocument(vscode.Uri.parse(this.currentDocumentState!.uri)))
 
 			// Restore to the original file content
-			await editor.edit(
-				(editBuilder) => {
-					const entireContent = editor.document.getText()
-					const originalContent = this.currentDocumentState!.originalContent
-					editBuilder.replace(new vscode.Range(0, 0, editor.document.lineCount, 0), originalContent)
-				},
-				{
-					undoStopBefore: true,
-					undoStopAfter: true,
-				}
-			)
-			await editor.document.save()
+			const workspaceEdit = new vscode.WorkspaceEdit()
+			const entireRange = new vscode.Range(0, 0, document.lineCount, 0)
+			workspaceEdit.replace(document.uri, entireRange, this.currentDocumentState!.originalContent)
+			await vscode.workspace.applyEdit(workspaceEdit)
+			await document.save()
 
 			// Clean up state
 			await this.dispose()
@@ -407,7 +529,11 @@ export class InlineEditHandler {
 		}
 
 		try {
-			if (this.lastActiveEditor?.document.uri.toString() === this.currentDocumentState.uri) {
+			if (
+				this.lastActiveEditor &&
+				!this.lastActiveEditor.document.isClosed &&
+				this.lastActiveEditor.document.uri.toString() === this.currentDocumentState.uri
+			) {
 				return this.lastActiveEditor
 			}
 
@@ -486,7 +612,7 @@ export class InlineEditHandler {
 	}
 
 	public dispose() {
-		// remove all decorations
+		// Remove all decorations
 		this.pendingDecoration.dispose()
 		this.mergeDecoration.dispose()
 		this.streamingDecoration.dispose()

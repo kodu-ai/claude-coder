@@ -74,7 +74,6 @@ export class FileEditorTool extends BaseAgentTool {
 		if (this.skipWriteAnimation) {
 			return
 		}
-		const currentTime = Date.now()
 		try {
 			this.editBlocks = parseDiffBlocks(diff, this.fileState!.absolutePath)
 		} catch (err) {
@@ -268,11 +267,7 @@ export class FileEditorTool extends BaseAgentTool {
 				this.editBlocks[0].searchContent
 			)
 		}
-
-		for await (const block of this.editBlocks) {
-			await this.inlineEditor.applyFinalContent(block.id, block.searchContent, block.replaceContent)
-			// minor delay to make the changes not too weird if there is multiple blocks
-		}
+		await this.inlineEditor.forceFinalizeAll(this.editBlocks!)
 		// now we are going to prompt the user to approve the changes
 		const { response, text, images } = await this.params.ask(
 			"tool",
@@ -497,6 +492,11 @@ export class FileEditorTool extends BaseAgentTool {
 	}
 
 	public override async abortToolExecution(): Promise<void> {
+		if (this.isAbortingTool) {
+			return
+		}
+		this.isAbortingTool = true
+
 		if (this.params.input.kodu_diff) {
 			await this.inlineEditor.rejectChanges()
 			await this.inlineEditor.dispose()

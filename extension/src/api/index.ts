@@ -34,6 +34,15 @@ export interface ApiHandler {
 		EnvironmentDetails?: string
 	): AsyncIterableIterator<koduSSEResponse>
 
+	createBaseMessageStream(
+		systemPrompt: string,
+		messages: Anthropic.Messages.MessageParam[],
+		modelId: KoduModelId,
+		abortSignal?: AbortSignal | null,
+		tempature?: number,
+		top_p?: number
+	): AsyncIterableIterator<koduSSEResponse>
+
 	createUserReadableRequest(
 		userContent: Array<
 			| Anthropic.TextBlockParam

@@ -503,6 +503,9 @@ export class WebviewManager {
 						// trigger vscode.commands.registerCommand(`${extensionName}.setApiKey`
 						vscode.commands.executeCommand(`${extensionName}.setApiKey`)
 						break
+					case "switchAutomaticMode":
+						await this.provider.getTaskManager().switchAutomaticMode()
+						break
 					case "pauseNext":
 						await this.provider.getKoduDev()?.taskExecutor.pauseNextRequest()
 						break

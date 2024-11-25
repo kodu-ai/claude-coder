@@ -29,6 +29,10 @@ export class TaskManager {
 		console.log(`Task cleared in ${new Date().getTime() - now.getTime()}ms`)
 	}
 
+	async switchAutomaticMode() {
+		// to implement later
+	}
+
 	async handleNewTask(task?: string, images?: string[], attachements?: Resource[]) {
 		const compressedImages = await compressImages(images ?? [])
 		const additionalContextBlocks = await formatAttachementsIntoBlocks(attachements)

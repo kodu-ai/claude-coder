@@ -5,7 +5,13 @@ import { serializeError } from "serialize-error"
 import { AdvancedTerminalManager } from "../../../../integrations/terminal"
 import { COMMAND_OUTPUT_DELAY } from "../../constants"
 import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse, getCwd, getPotentiallyRelevantDetails } from "../../utils"
+import {
+	formatGenericToolFeedback,
+	formatToolResponse,
+	getCwd,
+	getPotentiallyRelevantDetails,
+	isTextBlock,
+} from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { ExecaTerminalManager } from "../../../../integrations/terminal/execa-terminal-manager"
@@ -250,6 +256,32 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				toolRes = "Command execution completed successfully."
 			}
 
+			if (this.output.length > 3000) {
+				const SYSTEM_PROMPT = `You are a given the output of a command that has been run on a user's computer. Your role is to extract the key information from the output and provide a summary of the key points. You should also provide a brief explanation of the key points and any relevant information that may be useful to the user. Give an answer using markdown`
+				const resultStream = this.koduDev
+					.getApiManager()
+					.getApi()
+					.createBaseMessageStream(
+						SYSTEM_PROMPT,
+						[
+							{
+								role: "user",
+								content: [
+									{
+										type: "text",
+										text: `The output for the "${this.paramsInput.command}" command was:\n\n${this.output}`,
+									},
+								],
+							},
+						],
+						"claude-3-5-haiku-20241022"
+					)
+				for await (const message of resultStream) {
+					if (message.code === 1 && isTextBlock(message.body.anthropic.content[0])) {
+						this.output = message.body.anthropic.content[0].text
+					}
+				}
+			}
 			if ((userFeedback?.text && userFeedback.text.length) || userFeedback?.images?.length) {
 				toolRes += `\n\nUser feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
 				await this.params.updateAsk(

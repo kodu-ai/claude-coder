@@ -244,11 +244,11 @@ export class KoduHandler implements ApiHandler {
 	async *createBaseMessageStream(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
+		modelId: KoduModelId = this.getModel().id,
 		abortSignal?: AbortSignal | null,
 		tempature?: number,
 		top_p?: number
 	): AsyncIterableIterator<koduSSEResponse> {
-		const modelId = this.getModel().id
 		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming
 
 		switch (modelId) {

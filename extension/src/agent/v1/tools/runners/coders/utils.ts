@@ -339,3 +339,10 @@ export function preprocessContent(content: string): string {
 	}
 	return content.replace(/>/g, ">").replace(/</g, "<").replace(/"/g, '"')
 }
+
+export async function parseAndApplyDiffBlocks(content: string, diffContent: string, path: string): Promise<string> {
+	const blocks = parseDiffBlocks(diffContent, path)
+	const positions = getEditBlockPositions(content, blocks)
+	const newContent = await applyEditBlocksToFile(content, positions)
+	return newContent
+}
