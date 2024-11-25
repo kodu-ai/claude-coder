@@ -165,7 +165,13 @@ export type switchAutomaticModeMessage = {
 	bool: boolean
 }
 
+export type terminalCompressionThresholdMessage = {
+	type: "terminalCompressionThreshold"
+	value?: number
+}
+
 export type WebviewMessage =
+	| terminalCompressionThresholdMessage
 	| switchAutomaticModeMessage
 	| setAdvanceThinkingModeMessage
 	| setInlinedModeMessage

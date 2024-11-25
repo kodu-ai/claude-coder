@@ -1,5 +1,6 @@
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import React, { useEffect } from "react"
 import { useSettingsState } from "../../hooks/useSettingsState"
 import { ExperimentalFeatureItem } from "./experimental-feature-item"
@@ -11,6 +12,8 @@ const AdvancedTab: React.FC = () => {
 		autoCloseTerminal,
 		autoSkipWrite,
 		customInstructions,
+		terminalCompressionThreshold,
+		handleTerminalCompressionThresholdChange,
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
 		handleAutoSkipWriteChange,
@@ -48,6 +51,41 @@ const AdvancedTab: React.FC = () => {
 					checked={autoSkipWrite}
 					onCheckedChange={handleAutoSkipWriteChange}
 				/>
+				<div className="space-y-2">
+					<ExperimentalFeatureItem
+						feature={{
+							id: "terminalCompressionThreshold",
+							label: "Enable Terminal Compression",
+							description:
+								"Compress terminal output to reduce token usage when the output exceeds the threshold",
+						}}
+						checked={terminalCompressionThreshold !== undefined}
+						onCheckedChange={(checked) =>
+							handleTerminalCompressionThresholdChange(checked ? 10_000 : undefined)
+						}
+					/>
+					{terminalCompressionThreshold !== undefined && (
+						<div className="pl-6 space-y-2">
+							<Label htmlFor="compression-threshold" className="text-xs font-medium">
+								Compression Threshold (2,000 - 200,000 tokens)
+							</Label>
+							<Input
+								id="compression-threshold"
+								type="number"
+								min={2000}
+								max={200000}
+								value={terminalCompressionThreshold}
+								onChange={(e) => {
+									const value = parseInt(e.target.value)
+									if (!isNaN(value) && value >= 2000 && value <= 200000) {
+										handleTerminalCompressionThresholdChange(value)
+									}
+								}}
+								className="w-full max-w-[200px] text-xs"
+							/>
+						</div>
+					)}
+				</div>
 			</div>
 
 			<div className="space-y-2">

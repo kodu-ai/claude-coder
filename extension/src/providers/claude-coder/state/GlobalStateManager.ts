@@ -17,6 +17,7 @@ type CreativeMode = "creative" | "normal" | "deterministic"
 export type GlobalState = {
 	user: User | undefined | null
 	maxRequestsPerTask: number | undefined
+	terminalCompressionThreshold: number | undefined
 	lastShownAnnouncementId: string | undefined
 	customInstructions: string | undefined
 	isAdvanceThinkingEnabled: boolean | undefined
@@ -124,7 +125,9 @@ export class GlobalStateManager {
 	getActiveSystemPrompt(): string | undefined {
 		const variants = this.getGlobalState("systemPromptVariants")
 		const activeId = this.getGlobalState("activeSystemPromptVariantId")
-		if (!variants || !activeId) {return undefined}
+		if (!variants || !activeId) {
+			return undefined
+		}
 
 		const activeVariant = variants.find((v) => v.id === activeId)
 		return activeVariant?.content

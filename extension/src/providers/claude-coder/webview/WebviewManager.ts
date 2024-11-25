@@ -262,6 +262,7 @@ export class WebviewManager {
 					: `ws://${localServerUrl} ws://0.0.0.0:${localPort} http://${localServerUrl} http://0.0.0.0:${localPort}`
 			}`,
 		]
+		console.log("CSP", csp.join("; "))
 
 		return /*html*/ `
         <!DOCTYPE html>
@@ -347,6 +348,10 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "terminalCompressionThreshold":
+						await this.provider.getStateManager().setTerminalCompressionThreshold(message.value)
+						await this.postStateToWebview()
+						break
 					case "skipWriteAnimation":
 						await this.provider.getStateManager().setSkipWriteAnimation(!!message.bool)
 						await this.postStateToWebview()

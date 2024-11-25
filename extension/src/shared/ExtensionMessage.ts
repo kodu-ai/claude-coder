@@ -97,6 +97,7 @@ export interface ExtensionState {
 	lastShownAnnouncementId?: string
 	currentContextTokens: number
 	currentContextWindow: number
+	terminalCompressionThreshold: number | undefined
 	inlineEditMode?: boolean
 	advanceThinkingMode?: boolean
 	skipWriteAnimation?: boolean
