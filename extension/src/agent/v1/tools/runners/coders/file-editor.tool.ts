@@ -346,7 +346,7 @@ export class FileEditorTool extends BaseAgentTool {
 				images
 			)
 		}
-		await this.inlineEditor.saveChanges()
+		const finalContent = await this.inlineEditor.saveChanges()
 		this.koduDev.getStateManager().addErrorPath(path)
 
 		// Final approval state
@@ -364,7 +364,16 @@ export class FileEditorTool extends BaseAgentTool {
 			this.ts
 		)
 
-		return this.toolResponse("success", "The user approved the changes.")
+		return this.toolResponse(
+			"success",
+			`The content was successfully saved to ${path.toPosix()}
+			Here is the file latest content after the changes were applied from now on view this as the source of truth for this file unless you make further changes or the user tells you otherwise:
+			<file>
+			<path>${path}</path>
+			<content>${finalContent}</content>
+			</file>
+			`
+		)
 	}
 
 	private async finalizeFileEdit(relPath: string, content: string): Promise<ToolResponseV2> {

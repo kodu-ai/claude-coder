@@ -4,6 +4,12 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.13.3] - 2024-11-26
+
+### Changed
+
+-   Improved accuracy of inline edits by outputting the entire file content as the edit result.
+
 ## [1.13.2] - 2024-11-26
 
 ### FIXED
