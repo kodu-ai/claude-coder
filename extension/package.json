@@ -161,12 +161,13 @@
 		"publish:pre-release": "pnpm vsce publish --pre-release --no-dependencies",
 		"lint": "eslint src",
 		"test": "vscode-test",
-		"install:all": "pnpm install && cd webview-ui-vite && pnpm install",
+		"dev": "tsx esbuild.ts --watch",
 		"start:webview": "cd webview-ui-vite && pnpm run dev",
 		"build:webview": "cd webview-ui-vite && pnpm run build",
 		"test:webview": "cd webview-ui-vite && pnpm run test"
 	},
 	"devDependencies": {
+		"@jest/globals": "^29.7.0",
 		"@types/diff": "^5.2.3",
 		"@types/diff-match-patch": "^1.0.36",
 		"@types/jest": "^29.5.14",
@@ -181,8 +182,8 @@
 		"@vscode/test-electron": "^2.4.1",
 		"esbuild": "^0.24.0",
 		"eslint": "^9.15.0",
-		"@jest/globals": "^29.7.0",
-		"typescript": "^5.7.2"
+		"typescript": "^5.7.2",
+		"vsce": "^2.15.0"
 	},
 	"dependencies": {
 		"@amplitude/analytics-browser": "^2.11.9",
@@ -220,6 +221,7 @@
 		"puppeteer-core": "^23.9.0",
 		"rxjs": "^7.8.1",
 		"serialize-error": "^11.0.3",
+		"strip-ansi": "^7.1.0",
 		"tree-kill": "^1.2.2",
 		"tree-sitter-wasms": "^0.1.12",
 		"tsx": "^4.19.2",
