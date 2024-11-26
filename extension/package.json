@@ -152,6 +152,9 @@
 		"compile": "pnpm run check-types && pnpm run lint && tsx esbuild.ts",
 		"watch": "pnpm run-all -p watch:*",
 		"watch:esbuild": "tsx esbuild.ts --watch",
+		"install:all": "pnpm install && cd webview-ui-vite && pnpm install",
+		"install:clean": "pnpm run clean && pnpm run install:all",
+		"clean": "rm -rf out && rm -rf dist && rm -rf node_modules && rm -rf webview-ui-vite/dist && rm -rf webview-ui-vite/node_modules",
 		"watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
 		"package": "pnpm run build:webview && pnpm run check-types && pnpm run lint && tsx esbuild.ts --production",
 		"pretest": "pnpm run lint",
@@ -183,7 +186,7 @@
 		"esbuild": "^0.24.0",
 		"eslint": "^9.15.0",
 		"typescript": "^5.7.2",
-		"vsce": "^2.15.0"
+		"@vscode/vsce": "^2.15.0"
 	},
 	"dependencies": {
 		"@amplitude/analytics-browser": "^2.11.9",

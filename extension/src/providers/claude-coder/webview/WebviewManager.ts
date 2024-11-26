@@ -165,7 +165,6 @@ export class WebviewManager {
 	 * @param message The message to send
 	 */
 	private sendMessageToWebview(message: ExtensionMessage) {
-		console.log(`Posting message at ${Date.now()}`)
 		this.provider["view"]?.webview.postMessage(message)
 	}
 
@@ -217,6 +216,7 @@ export class WebviewManager {
 	}
 
 	private getHtmlContent(webview: vscode.Webview): string {
+		const context = this.provider.getContext()
 		const localPort = "5173"
 		const localServerUrl = `localhost:${localPort}`
 		let scriptUri
@@ -238,13 +238,9 @@ export class WebviewManager {
 			"index.css",
 		])
 
-		const codiconsUri = getUri(webview, this.provider.getContext().extensionUri, [
-			"node_modules",
-			"@vscode",
-			"codicons",
-			"dist",
-			"codicon.css",
-		])
+		const codiconUri = webview.asWebviewUri(
+			vscode.Uri.joinPath(context.extensionUri, "node_modules/@vscode/codicons/dist/codicon.css")
+		)
 
 		const nonce = getNonce()
 
@@ -262,7 +258,6 @@ export class WebviewManager {
 					: `ws://${localServerUrl} ws://0.0.0.0:${localPort} http://${localServerUrl} http://0.0.0.0:${localPort}`
 			}`,
 		]
-		console.log("CSP", csp.join("; "))
 
 		return /*html*/ `
         <!DOCTYPE html>
@@ -273,7 +268,7 @@ export class WebviewManager {
             <meta name="theme-color" content="#000000">
             <meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
 	        <link rel="stylesheet" type="text/css" href="${stylesUri}">
-			<link href="${codiconsUri}" rel="stylesheet" />
+			<link href="${codiconUri}" rel="stylesheet" />
             <title>Claude Coder</title>
           </head>
           <body>

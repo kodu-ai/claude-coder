@@ -1,9 +1,0 @@
-{
-  "private": true,
-  "scripts": {
-		"build": "pnpm -r build",
-		"dev": "pnpm --parallel -r dev",
-		"lint": "pnpm -r lint",
-		"test": "pnpm -r test"
-  }
-}

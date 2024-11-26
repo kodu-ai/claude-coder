@@ -250,8 +250,8 @@ describe("Tool Response Utilities", () => {
 		})
 	})
 
-	describe("truncateToolFromMsg", () => {
-		it("should truncate tool response and return summary", () => {
+	describe("compressToolFromMsg", () => {
+		it("should compress tool response and return summary", () => {
 			const msgs: Array<TextBlockParam | ImageBlockParam> = [
 				{
 					type: "text",
@@ -342,7 +342,7 @@ describe("Tool Response Utilities", () => {
 		})
 	})
 
-	// 	describe("truncateToolFromMsg with file operations", () => {
+	// 	describe("compressToolFromMsg with file operations", () => {
 	// 		const createToolResponse = (toolName: string, status: string, filename: string, content: string) => ({
 	// 			type: 'text' as const,
 	// 			text: `
@@ -370,7 +370,7 @@ describe("Tool Response Utilities", () => {
 	// 					"export const config = { theme: 'dark' }")
 	// 			];
 
-	// 			const Compressed = truncateToolFromMsg(mockConversation);
+	// 			const Compressed = compressToolFromMsg(mockConversation);
 	// 			console.log(Compressed);
 	// 		});
 	// 	});

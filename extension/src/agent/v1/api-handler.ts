@@ -34,40 +34,6 @@ interface ApiMetrics {
 }
 
 /**
- * Interface for tracking differences between strings
- */
-interface StringDifference {
-	index: number
-	char1: string
-	char2: string
-}
-
-/**
- * Compares two strings and finds all character differences
- * @param str1 - First string to compare
- * @param str2 - Second string to compare
- * @returns Array of differences with their positions
- */
-export function findStringDifferences(str1: string, str2: string): StringDifference[] {
-	const differences: StringDifference[] = []
-	const maxLength = Math.max(str1.length, str2.length)
-	const paddedStr1 = str1.padEnd(maxLength)
-	const paddedStr2 = str2.padEnd(maxLength)
-
-	for (let i = 0; i < maxLength; i++) {
-		if (paddedStr1[i] !== paddedStr2[i]) {
-			differences.push({
-				index: i,
-				char1: paddedStr1[i],
-				char2: paddedStr2[i],
-			})
-		}
-	}
-
-	return differences
-}
-
-/**
  * Main API Manager class that handles all Claude API interactions
  */
 export class ApiManager {
