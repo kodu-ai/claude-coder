@@ -1,11 +1,11 @@
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import React, { useEffect } from "react"
+import React from "react"
 import { useSettingsState } from "../../hooks/useSettingsState"
+import { Slider } from "../ui/slider"
 import { ExperimentalFeatureItem } from "./experimental-feature-item"
 import SystemPromptVariants from "./SystemPromptVariants"
-import { Slider } from "../ui/slider"
 
 const AdvancedTab: React.FC = () => {
 	const {
@@ -20,6 +20,19 @@ const AdvancedTab: React.FC = () => {
 		handleAutoSkipWriteChange,
 		handleCustomInstructionsChange,
 	} = useSettingsState()
+
+	const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+		const textarea = e.target
+		const cursorPosition = textarea.selectionStart
+		
+		handleCustomInstructionsChange(e.target.value)
+		
+		// Restore cursor position after state update
+		requestAnimationFrame(() => {
+			textarea.selectionStart = cursorPosition
+			textarea.selectionEnd = cursorPosition
+		})
+	}
 
 	return (
 		<div className="space-y-6">
@@ -116,9 +129,16 @@ const AdvancedTab: React.FC = () => {
 					id="custom-instructions"
 					placeholder="e.g. 'Run unit tests at the end', 'Use TypeScript with async/await'"
 					value={customInstructions}
-					onChange={(e) => handleCustomInstructionsChange(e.target.value)}
-					className="min-h-[60px] text-xs"
+					onChange={handleTextAreaChange}
+					className="min-h-[120px] text-xs resize-y"
+					style={{
+						fontFamily: "var(--vscode-editor-font-family)",
+					}}
+					spellCheck={false}
 				/>
+				<p className="text-xs text-muted-foreground mt-1">
+					These instructions will be included in every task
+				</p>
 			</div>
 
 			<SystemPromptVariants />
