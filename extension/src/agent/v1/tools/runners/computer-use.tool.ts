@@ -6,6 +6,8 @@ import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from 
 import { computerUseActions } from "../../../../shared/new-tools"
 import { BrowserManager } from "../../browser-manager"
 import screenshotDesktop from "screenshot-desktop"
+import { exec } from "child_process"
+// import * as puppeteer from 'puppeteer';
 
 export class ComputerUseTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -39,11 +41,11 @@ export class ComputerUseTool extends BaseAgentTool {
 			await this.updateAsk("loading")
 
 			this.checkIfAborted()
-			const browserManager = this.koduDev.browserManager
-			await browserManager.launchBrowser()
-			await this.checkIfAborted(browserManager.closeBrowser)
+			// const browserManager = this.koduDev.browserManager
+			// await browserManager.launchBrowser()
+			// await this.checkIfAborted(browserManager.closeBrowser)
 
-			const result = await this.processComputerUse(browserManager)
+			const result = await this.processComputerUse()
 			await this.updateAsk("approved", result.screenshot)
 
 			return this.toolResponse("success", "", result.screenshot ? [result.screenshot] : undefined)
@@ -194,35 +196,52 @@ export class ComputerUseTool extends BaseAgentTool {
 		)
 	}
 
-	private async processComputerUse(browserManager: BrowserManager) {
+	// private async processComputerUse(browserManager: BrowserManager) {
+	private async processComputerUse() {
 		switch (this.params.input.action) {
 			case "system_screenshot":
 				return await this.takeSystemScreenshot()
-			case "launch":
-				return await browserManager.navigateToUrl(this.params.input.url!)
-			case "click":
-				return await browserManager.click(this.params.input.coordinate!)
-			case "type":
-				return await browserManager.type(this.params.input.text!)
-			case "scroll_down":
-				return await browserManager.scrollDown()
-			case "scroll_up":
-				return await browserManager.scrollUp()
+			// case "launch":
+			// 	return await browserManager.navigateToUrl(this.params.input.url!)
+			// case "click":
+			// 	return await browserManager.click(this.params.input.coordinate!)
+			// case "type":
+			// 	return await browserManager.type(this.params.input.text!)
+			// case "scroll_down":
+			// 	return await browserManager.scrollDown()
+			// case "scroll_up":
+			// 	return await browserManager.scrollUp()
 			default:
 				throw new Error(`Unknown action: ${this.params.input.action}`)
 		}
 	}
 
 	private async takeSystemScreenshot() {
-		const imgPath = await screenshotDesktop({
-			filename: path.join(__dirname, "screenshot.jpg"),
-			format: "jpg",
-		})
+		const outputDir = "/tmp"
+		const filename = "my_screenshot.png"
+		const fullPath = path.join(outputDir, filename)
 
-		const imageBuffer = await fs.readFile(imgPath)
-		const screenshotBase64 = imageBuffer.toString("base64")
+		try {
+			await new Promise((resolve, reject) => {
+				exec(`scrot -d 1 ${fullPath}`, (error, stdout, stderr) => {
+					if (error) {
+						console.error(">> scrot screenshot failed:", error)
+						reject(error)
+					} else {
+						console.log(">> scrot screenshot success")
+						resolve(stdout)
+					}
+				})
+			})
 
-		return { screenshot: `data:image/webp;base64,${screenshotBase64}` }
+			const imageBuffer = await fs.readFile(fullPath)
+			const screenshotBase64 = imageBuffer.toString("base64")
+
+			return { screenshot: `data:image/webp;base64,${screenshotBase64}` }
+		} catch (err) {
+			console.error("Error taking screenshot:", err)
+			throw err
+		}
 	}
 
 	private async cleanup() {

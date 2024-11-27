@@ -156,7 +156,9 @@
 		"package": "pnpm run build:webview && pnpm run check-types && pnpm run lint && tsx esbuild.ts --production",
 		"pretest": "pnpm run lint",
 		"compile:tests": "tsc -p ./tsconfig.test.json",
+		"compile:eval": "tsc -p ./tsconfig.eval.json",
 		"exec-test": "node ./out/test/src/test/runTest.js",
+		"exec-eval": "node ./out/eval/src/test/runTest.js",
 		"watch-tests": "tsc -p . -w --outDir out",
 		"check-types": "tsc --noEmit",
 		"build": "pnpm vsce package --no-dependencies",
@@ -171,8 +173,8 @@
 		"postinstall": "pnpm rebuild sharp"
 	},
 	"devDependencies": {
-		"@types/chai": "^5.0.1",
 		"@jest/globals": "^29.7.0",
+		"@types/chai": "^5.0.1",
 		"@types/diff": "^5.2.3",
 		"@types/diff-match-patch": "^1.0.36",
 		"@types/jest": "^29.5.14",
