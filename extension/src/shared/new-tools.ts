@@ -115,6 +115,15 @@ export type EditFileBlocksTool = {
 	diff: string
 }
 
+export type ComputerUseTool = {
+	tool: "computer_use"
+	action: ComputerUseAction
+	url?: string
+	base64Image?: string
+	coordinate?: string
+	text?: string
+}
+
 export type ChatTool = (
 	| EditFileBlocksTool
 	| ExecuteCommandTool
@@ -129,6 +138,7 @@ export type ChatTool = (
 	| UrlScreenshotTool
 	| AskConsultantTool
 	| ServerRunnerTool
+	| ComputerUseTool
 ) & {
 	ts: number
 	approvalState?: ToolStatus
@@ -141,3 +151,16 @@ export type ChatTool = (
 }
 
 export type ToolName = ChatTool["tool"]
+
+export const computerUseActions = [
+	"launch",
+	"system_screenshot",
+	"click",
+	"type",
+	"scroll_down",
+	"scroll_up",
+	"close",
+] as const
+
+export type ComputerUseAction = (typeof computerUseActions)[number]
+export type BrowserAction = Exclude<ComputerUseAction, "system_screenshot">
