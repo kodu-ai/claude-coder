@@ -26,6 +26,26 @@ interface DocumentState {
 }
 
 // Add this class before DiffViewProvider
+class DiffContentProvider implements vscode.TextDocumentContentProvider {
+	private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
+	onDidChange = this._onDidChange.event;
+	private contents = new Map<string, string>();
+
+	provideTextDocumentContent(uri: vscode.Uri): string {
+		return this.contents.get(uri.toString()) || '';
+	}
+
+	update(uri: vscode.Uri, content: string) {
+		this.contents.set(uri.toString(), content);
+		this._onDidChange.fire(uri);
+	}
+
+	delete(uri: vscode.Uri) {
+		this.contents.delete(uri.toString());
+	}
+}
+
+// Add this class before DiffViewProvider
 class ModifiedContentProvider implements vscode.FileSystemProvider {
 	private content = new Map<string, Uint8Array>()
 	private _emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>()
@@ -97,11 +117,20 @@ class DiffViewProvider {
 	private diffEditor?: vscode.TextEditor
 	private disposables: vscode.Disposable[] = []
 	private static modifiedContentProvider: ModifiedContentProvider
+	private static diffContentProvider: DiffContentProvider
 	private originalUri?: vscode.Uri
 	private modifiedUri?: vscode.Uri
 	private updateTimeout: NodeJS.Timeout | null = null
 
 	constructor(private cwd: string, koduDev: KoduDev) {
+		if (!DiffViewProvider.diffContentProvider) {
+			DiffViewProvider.diffContentProvider = new DiffContentProvider();
+			vscode.workspace.registerTextDocumentContentProvider(
+				CONSTANTS.DIFF_VIEW_URI_SCHEME,
+				DiffViewProvider.diffContentProvider
+			);
+		}
+
 		if (!DiffViewProvider.modifiedContentProvider) {
 			DiffViewProvider.modifiedContentProvider = new ModifiedContentProvider()
 			try {
@@ -137,19 +166,6 @@ class DiffViewProvider {
 				isFinal: false,
 				isNewFile
 			}
-
-			await this.openDiffEditor(relPath)
-
-			// Wait for editor to be ready
-			await new Promise<void>((resolve) => {
-				const interval = setInterval(() => {
-					if (this.diffEditor) {
-						clearInterval(interval)
-						resolve()
-					}
-				}, 100)
-			})
-
 			return true
 		} catch (error) {
 			console.error("Failed to open document:", error)
@@ -164,21 +180,21 @@ class DiffViewProvider {
 		const fileName = path.basename(absoluteFilePath)
 		const fileUri = vscode.Uri.file(absoluteFilePath)
 
-		// For new files, use empty content for both sides to prevent green highlighting
 		const leftContent = this.currentDocumentState.isNewFile ? "" : this.currentDocumentState.originalContent
 
 		this.originalUri = fileUri.with({
 			scheme: CONSTANTS.DIFF_VIEW_URI_SCHEME,
-			query: Buffer.from(leftContent).toString("base64"),
+			path: absoluteFilePath
 		})
 
 		this.modifiedUri = fileUri.with({
 			scheme: CONSTANTS.MODIFIED_URI_SCHEME,
 		})
 
+		DiffViewProvider.diffContentProvider.update(this.originalUri, leftContent);
 		DiffViewProvider.modifiedContentProvider.writeFile(
 			this.modifiedUri,
-			new TextEncoder().encode(this.currentDocumentState.originalContent),
+			new TextEncoder().encode(this.currentDocumentState.currentContent),
 			{ create: true, overwrite: true }
 		)
 
@@ -216,7 +232,7 @@ class DiffViewProvider {
 	}
 
 	public async update(content: string, isFinal: boolean): Promise<void> {
-		if (!this.currentDocumentState || !this.modifiedUri || !this.diffEditor) {
+		if (!this.currentDocumentState) {
 			return
 		}
 
@@ -226,62 +242,34 @@ class DiffViewProvider {
 		}
 
 		try {
+			// Update the current content
+			this.currentDocumentState.currentContent = content
+
 			if (isFinal) {
 				await this.handleFinalUpdate(content)
+				// Only open the diff view when content is final
+				await this.openDiffEditor(path.relative(this.cwd, this.currentDocumentState.uri))
 				return
 			}
-
-			// Throttle updates
-			if (this.updateTimeout) {
-				clearTimeout(this.updateTimeout)
-			}
-
-			this.updateTimeout = setTimeout(async () => {
-				try {
-					await this.applyUpdate(content)
-				} catch (error) {
-					console.error("Failed to apply update:", error)
-				}
-			}, CONSTANTS.UPDATE_BATCH_INTERVAL)
 		} catch (error) {
 			console.error("Error in update:", error)
 		}
 	}
 
 	private async handleFinalUpdate(content: string): Promise<void> {
-		if (!this.diffEditor || !this.modifiedUri) return
+		if (!this.currentDocumentState) return
 
-		const updatedDocument = this.diffEditor.document
-		const isPython = updatedDocument.languageId === "python" ||
-			updatedDocument.languageId === "python2" ||
-			updatedDocument.languageId === "python3" ||
-			updatedDocument.languageId === "jupyter" ||
-			updatedDocument.languageId === "jupyter-notebook"
-
+		const isPython = this.currentDocumentState.uri.endsWith('.py')
 		if (isPython) {
-			content = await this.formatContent(updatedDocument.uri, content)
+			const uri = vscode.Uri.file(this.currentDocumentState.uri)
+			content = await this.formatContent(uri, content)
 		}
 
-		await this.applyUpdate(content)
-		this.currentDocumentState!.isFinal = true
+		// Update the current content with the final (possibly formatted) content
+		this.currentDocumentState.currentContent = content
+		this.currentDocumentState.isFinal = true
 	}
 
-	private async applyUpdate(content: string): Promise<void> {
-		if (!this.modifiedUri) return
-
-		try {
-			DiffViewProvider.modifiedContentProvider.writeFile(
-				this.modifiedUri,
-				new TextEncoder().encode(content),
-				{ create: false, overwrite: true }
-			)
-			this.currentDocumentState!.currentContent = content
-		} catch (error) {
-			console.error("Failed to apply update:", error)
-		}
-	}
-
-	// Format helpers from original implementation
 	private async formatDocument(uri: vscode.Uri) {
 		try {
 			const document = await vscode.workspace.openTextDocument(uri)
@@ -445,6 +433,10 @@ class DiffViewProvider {
 		this.currentDocumentState = undefined
 		this.originalUri = undefined
 		this.modifiedUri = undefined
+
+		if (this.originalUri) {
+			DiffViewProvider.diffContentProvider.delete(this.originalUri);
+		}
 	}
 }
 
