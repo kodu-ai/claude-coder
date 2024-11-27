@@ -28,6 +28,7 @@ import PQueue from "p-queue"
 import { ChatTool } from "../../../shared/new-tools"
 import { DevServerTool } from "./runners/dev-server.tool"
 import delay from "delay"
+import { ComputerUseTool } from "./runners/computer-use.tool"
 
 /**
  * Represents the context and state of a tool during its lifecycle
@@ -136,6 +137,7 @@ export class ToolExecutor {
 			url_screenshot: UrlScreenshotTool,
 			ask_consultant: AskConsultantTool,
 			server_runner_tool: DevServerTool,
+			computer_use: ComputerUseTool,
 		}
 
 		const ToolClass = toolMap[params.name as keyof typeof toolMap]

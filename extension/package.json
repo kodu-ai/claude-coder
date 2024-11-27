@@ -167,12 +167,14 @@
 		"test:webview": "cd webview-ui-vite && pnpm run test"
 	},
 	"devDependencies": {
+		"@jest/globals": "^29.7.0",
 		"@types/diff": "^5.2.3",
 		"@types/diff-match-patch": "^1.0.36",
 		"@types/jest": "^29.5.14",
 		"@types/lodash": "^4.17.13",
 		"@types/mocha": "^10.0.10",
 		"@types/node": "~20.17.7",
+		"@types/screenshot-desktop": "^1.12.3",
 		"@types/vscode": "^1.93.0",
 		"@typescript-eslint/eslint-plugin": "^8.15.0",
 		"@typescript-eslint/parser": "^8.15.0",
@@ -181,7 +183,6 @@
 		"@vscode/test-electron": "^2.4.1",
 		"esbuild": "^0.24.0",
 		"eslint": "^9.15.0",
-		"@jest/globals": "^29.7.0",
 		"typescript": "^5.7.2"
 	},
 	"dependencies": {
@@ -199,6 +200,7 @@
 		"clone-deep": "^4.0.1",
 		"default-shell": "^2.2.0",
 		"delay": "^6.0.0",
+		"desktop-screenshot": "^0.1.1",
 		"diff": "^5.2.0",
 		"diff-match-patch": "^1.0.5",
 		"dotenv": "^16.4.5",
@@ -219,11 +221,14 @@
 		"puppeteer-chromium-resolver": "^23.0.0",
 		"puppeteer-core": "^23.9.0",
 		"rxjs": "^7.8.1",
+		"screenshot-desktop": "^1.15.0",
 		"serialize-error": "^11.0.3",
+		"strip-ansi": "^7.1.0",
 		"tree-kill": "^1.2.2",
 		"tree-sitter-wasms": "^0.1.12",
 		"tsx": "^4.19.2",
 		"web-tree-sitter": "^0.22.6",
 		"zod": "^3.23.8"
-	}
+	},
+	"packageManager": "pnpm@8.15.0+sha1.97e9ea18c26f67eaa5b0b394f1cfbcdc65b1b02d"
 }
