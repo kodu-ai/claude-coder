@@ -1,6 +1,14 @@
 import * as vscode from "vscode"
 import PQueue from "p-queue"
 
+/**
+ * Represents a block of text that is being edited inline
+ * @property id - Unique identifier for the edit block
+ * @property searchContent - Original content to search for in the document
+ * @property currentContent - Current content being shown (may be streaming)
+ * @property finalContent - Final content after streaming is complete
+ * @property status - Current state of the edit block (pending/streaming/final)
+ */
 interface EditBlock {
 	id: string
 	searchContent: string
@@ -9,6 +17,13 @@ interface EditBlock {
 	status: "pending" | "streaming" | "final"
 }
 
+/**
+ * Maintains the state of a document being edited
+ * @property uri - VSCode URI of the document
+ * @property originalContent - Original content when editing started
+ * @property currentContent - Current content with all edits applied
+ * @property editBlocks - Map of edit blocks being processed
+ */
 interface DocumentState {
 	uri: vscode.Uri
 	originalContent: string
@@ -16,6 +31,15 @@ interface DocumentState {
 	editBlocks: Map<string, EditBlock>
 }
 
+/**
+ * Represents an operation that is waiting to be applied
+ * Used when operations arrive before the editor is ready
+ * @property type - Type of operation (stream/final)
+ * @property id - ID of the edit block
+ * @property searchContent - Content to search for
+ * @property content - Content to apply
+ * @property timestamp - When the operation was queued
+ */
 interface PendingOperation {
 	type: "stream" | "final"
 	id: string
@@ -24,13 +48,33 @@ interface PendingOperation {
 	timestamp: number
 }
 
+/**
+ * Handles inline editing functionality in VSCode text editors
+ * Provides real-time updates, decorations, and manages edit state
+ *
+ * Key features:
+ * - Supports streaming updates with visual indicators
+ * - Maintains document state and edit history
+ * - Handles queuing and sequential processing of edits
+ * - Provides visual decorations for different edit states
+ * - Supports auto-scrolling to edited regions
+ */
 export class InlineEditHandler {
+	// Decorations for different edit states
 	private pendingDecoration: vscode.TextEditorDecorationType
 	private streamingDecoration: vscode.TextEditorDecorationType
 	private mergeDecoration: vscode.TextEditorDecorationType
+
+	// Controls auto-scroll behavior
 	private isAutoScrollEnabled: boolean = true
+
+	// Maintains current document state
 	protected currentDocumentState: DocumentState | undefined
+
+	// Queue for processing operations sequentially
 	private operationQueue: PQueue
+
+	// Holds operations that arrive before editor is ready
 	private pendingOperations: PendingOperation[] = []
 
 	constructor() {
@@ -70,6 +114,19 @@ export class InlineEditHandler {
 		})
 	}
 
+	/**
+	 * Scrolls the editor to show the edited range with context
+	 * Adds a temporary highlight effect to draw attention
+	 *
+	 * @param editor - The VSCode text editor to scroll
+	 * @param range - The range to scroll to and highlight
+	 *
+	 * Features:
+	 * - Centers the edit in view
+	 * - Shows context lines above/below
+	 * - Adds temporary highlight animation
+	 * - Respects auto-scroll setting
+	 */
 	private async scrollToRange(editor: vscode.TextEditor, range: vscode.Range) {
 		if (!this.isAutoScrollEnabled) {
 			return
@@ -116,6 +173,21 @@ export class InlineEditHandler {
 		}
 	}
 
+	/**
+	 * Opens a file for editing and initializes the document state
+	 * Processes any pending operations that arrived before opening
+	 *
+	 * @param id - Unique identifier for this edit session
+	 * @param filePath - Path to the file to edit
+	 * @param searchContent - Initial content to search for
+	 *
+	 * Steps:
+	 * 1. Reads file content
+	 * 2. Shows document in editor
+	 * 3. Initializes document state
+	 * 4. Processes pending operations
+	 * 5. Applies initial decorations
+	 */
 	public async open(id: string, filePath: string, searchContent: string): Promise<void> {
 		this.logger(`Opening file ${filePath} with id ${id}`, "debug")
 		return this.operationQueue.add(
@@ -184,6 +256,20 @@ export class InlineEditHandler {
 		)
 	}
 
+	/**
+	 * Applies streaming content updates to an edit block
+	 * Used for real-time updates while content is being generated
+	 *
+	 * @param id - Unique identifier for the edit block
+	 * @param searchContent - Content to search for in the document
+	 * @param content - New content to apply (streaming)
+	 *
+	 * Features:
+	 * - Queues operations if editor isn't ready
+	 * - Creates new block if none exists
+	 * - Updates block status to "streaming"
+	 * - Triggers visual updates
+	 */
 	public async applyStreamContent(id: string, searchContent: string, content: string): Promise<void> {
 		this.logger(`Applying stream content for id ${id}`, "debug")
 
@@ -231,6 +317,20 @@ export class InlineEditHandler {
 		})
 	}
 
+	/**
+	 * Applies final content to an edit block
+	 * Used when content generation is complete
+	 *
+	 * @param id - Unique identifier for the edit block
+	 * @param searchContent - Content to search for in the document
+	 * @param content - Final content to apply
+	 *
+	 * Features:
+	 * - Queues operations if editor isn't ready
+	 * - Creates new block if none exists
+	 * - Updates block status to "final"
+	 * - Stores final content for future reference
+	 */
 	public async applyFinalContent(id: string, searchContent: string, content: string): Promise<void> {
 		this.logger(`Applying final content for id ${id}`, "debug")
 
@@ -276,6 +376,19 @@ export class InlineEditHandler {
 		})
 	}
 
+	/**
+	 * Updates the entire file content with all edit blocks
+	 * Maintains order of edits and applies them sequentially
+	 *
+	 * Process:
+	 * 1. Starts with original document content
+	 * 2. Sorts blocks by their position in the document
+	 * 3. Applies each block's changes in order
+	 * 4. Updates the entire document at once
+	 * 5. Refreshes editor decorations
+	 *
+	 * Note: Uses workspace edit API to ensure proper undo/redo support
+	 */
 	private async updateFileContent(): Promise<void> {
 		this.validateDocumentState()
 
@@ -319,6 +432,21 @@ export class InlineEditHandler {
 		}
 	}
 
+	/**
+	 * Refreshes the editor's visual state
+	 * Updates decorations and scrolling for all edit blocks
+	 *
+	 * Process:
+	 * 1. Clears existing decorations
+	 * 2. Groups ranges by edit status
+	 * 3. Applies new decorations for each status
+	 * 4. Handles auto-scrolling to active edits
+	 *
+	 * Decorations:
+	 * - Pending: Awaiting changes
+	 * - Streaming: Currently receiving updates
+	 * - Merge: Ready for review
+	 */
 	private async refreshEditor(): Promise<void> {
 		this.validateDocumentState()
 
@@ -383,6 +511,21 @@ export class InlineEditHandler {
 		}
 	}
 
+	/**
+	 * Forces all edit blocks to their final state
+	 * Used when streaming needs to be completed immediately
+	 *
+	 * @param diffBlocks - Array of blocks with their final content
+	 *
+	 * Process:
+	 * 1. Shows document in active editor
+	 * 2. Updates all blocks to final state
+	 * 3. Applies changes to document
+	 * 4. Updates decorations
+	 *
+	 * Note: This is typically used when streaming needs to be
+	 * terminated early or when applying multiple changes at once
+	 */
 	public async forceFinalizeAll(
 		diffBlocks: { id: string; searchContent: string; replaceContent: string }[]
 	): Promise<void> {
@@ -424,6 +567,18 @@ export class InlineEditHandler {
 		})
 	}
 
+	/**
+	 * Retrieves or opens the document being edited
+	 * Ensures we have a valid document reference
+	 *
+	 * Process:
+	 * 1. Checks for existing document in workspace
+	 * 2. Opens document if not found or closed
+	 * 3. Returns undefined if document cannot be accessed
+	 *
+	 * Note: This is a helper method used by other operations
+	 * that need to access or modify the document
+	 */
 	private async getDocument(): Promise<vscode.TextDocument | undefined> {
 		this.validateDocumentState()
 		try {
@@ -439,6 +594,19 @@ export class InlineEditHandler {
 		}
 	}
 
+	/**
+	 * Saves all changes to the document
+	 * Preserves any user modifications made after our edits
+	 *
+	 * Process:
+	 * 1. Validates document state
+	 * 2. Saves current document content
+	 * 3. Returns final content including any user changes
+	 * 4. Cleans up resources after saving
+	 *
+	 * Note: This is typically called when all edits are complete
+	 * and changes need to be persisted to disk
+	 */
 	public async saveChanges(): Promise<string> {
 		this.logger("Saving changes", "debug")
 		const res = await this.operationQueue.add(async () => {
@@ -478,6 +646,18 @@ export class InlineEditHandler {
 		throw new Error("Failed to save changes")
 	}
 
+	/**
+	 * Rejects all changes and restores original content
+	 * Used when edits need to be discarded
+	 *
+	 * Process:
+	 * 1. Validates document state
+	 * 2. Restores original content from when file was opened
+	 * 3. Saves the restored content
+	 * 4. Cleans up resources
+	 *
+	 * Note: This completely discards all changes and cannot be undone
+	 */
 	public async rejectChanges(): Promise<void> {
 		this.logger("Rejecting changes", "debug")
 		return this.operationQueue.add(async () => {
@@ -546,6 +726,13 @@ export class InlineEditHandler {
 	}
 
 	// type guard against this.currentDocumentState being undefined
+	/**
+	 * Type guard to ensure document state exists
+	 * Throws error if state is undefined
+	 *
+	 * This is used by methods that require access to document state
+	 * to ensure type safety and prevent undefined errors
+	 */
 	private validateDocumentState(): asserts this is { currentDocumentState: DocumentState } {
 		if (!this.currentDocumentState) {
 			this.logger("No active document state", "error")
@@ -553,6 +740,14 @@ export class InlineEditHandler {
 		}
 	}
 
+	/**
+	 * Logs messages with contextual information
+	 * Includes operation queue size, pending operations count,
+	 * and editor state for better debugging
+	 *
+	 * @param message - The message to log
+	 * @param level - Log level (info/debug/warn/error)
+	 */
 	private logger(message: string, level: "info" | "debug" | "warn" | "error" = "debug") {
 		const timestamp = new Date().toISOString()
 		const queueSize = this.operationQueue ? this.operationQueue.size : 0
