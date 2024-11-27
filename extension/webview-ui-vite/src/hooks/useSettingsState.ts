@@ -22,6 +22,8 @@ export function useSettingsState() {
 		isInlineEditingEnabled: extensionState.inlineEditMode || false,
 		isAdvanceThinkingEnabled: extensionState.advanceThinkingMode || false,
 	})
+	const [commandTimeout, setCommandTimeout] = useState(extensionState.commandTimeout)
+
 	// 		inlineEditingType: extensionState.inlineEditModeType || "full",
 	const [inlineEditingType, setInlineEditingType] = useState(extensionState.inlineEditModeType || "full")
 	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
@@ -71,8 +73,13 @@ export function useSettingsState() {
 		[extensionState]
 	)
 
+	const handleCommandTimeout = useCallback((val: number) => {
+		setCommandTimeout(val)
+		vscode.postMessage({ type: "commandTimeout", commandTimeout: val })
+	}, [])
+
 	const handleInlineEditingTypeChange = useCallback((type: "full" | "diff" | "none") => {
-		extensionState.setInlineEditModeType(type)
+		setInlineEditingType(type)
 		vscode.postMessage({ type: "setInlineEditMode", inlineEditOutputType: type })
 	}, [])
 
@@ -163,6 +170,8 @@ export function useSettingsState() {
 		activeVariantId,
 		terminalCompressionThreshold,
 		inlineEditingType,
+		commandTimeout,
+		handleCommandTimeout,
 		handleInlineEditingTypeChange,
 		handleTerminalCompressionThresholdChange,
 		handleAutoSkipWriteChange,

@@ -560,6 +560,13 @@ export class WebviewManager {
 						await this.provider.getApiManager().signOutKodu()
 						await this.postStateToWebview()
 						break
+					case "commandTimeout":
+						await GlobalStateManager.getInstance().updateGlobalState(
+							"commandTimeout",
+							message.commandTimeout
+						)
+						await this.postStateToWebview()
+						break
 					case "fetchKoduCredits":
 						await this.provider.getApiManager().fetchKoduCredits()
 						await this.postMessageToWebview({

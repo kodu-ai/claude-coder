@@ -39,6 +39,7 @@ export type GlobalState = {
 	technicalBackground: "no-technical" | "technical" | "developer" | undefined
 	systemPromptVariants: SystemPromptVariant[] | undefined
 	activeSystemPromptVariantId: string | undefined
+	commandTimeout: number | undefined
 }
 
 export class GlobalStateManager {

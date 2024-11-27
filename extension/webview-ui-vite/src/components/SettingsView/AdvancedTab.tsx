@@ -14,6 +14,8 @@ const AdvancedTab: React.FC = () => {
 		autoSkipWrite,
 		customInstructions,
 		terminalCompressionThreshold,
+		commandTimeout,
+		handleCommandTimeout,
 		handleTerminalCompressionThresholdChange,
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
@@ -24,9 +26,9 @@ const AdvancedTab: React.FC = () => {
 	const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		const textarea = e.target
 		const cursorPosition = textarea.selectionStart
-		
+
 		handleCustomInstructionsChange(e.target.value)
-		
+
 		// Restore cursor position after state update
 		requestAnimationFrame(() => {
 			textarea.selectionStart = cursorPosition
@@ -120,7 +122,56 @@ const AdvancedTab: React.FC = () => {
 					)}
 				</div>
 			</div>
-
+			<div className="space-y-4 mx-0">
+				<ExperimentalFeatureItem
+					feature={{
+						id: "terminalCompressionThreshold",
+						label: "Enable Terminal Compression",
+						description:
+							"Compress terminal output to reduce token usage when the output exceeds the threshold",
+					}}
+					checked={terminalCompressionThreshold !== undefined}
+					onCheckedChange={(checked) => handleTerminalCompressionThresholdChange(checked ? 10000 : undefined)}
+				/>
+				{terminalCompressionThreshold !== undefined && (
+					<div className="pl-0 grid gap-4">
+						<div className="grid gap-2">
+							<Label htmlFor="range">Command Timeout</Label>
+							<div className="grid gap-4">
+								<div className="flex items-center gap-4">
+									<Input
+										id="command-timeout"
+										type="number"
+										value={commandTimeout ?? 120}
+										onChange={(e) => {
+											const value = parseInt(e.target.value)
+											if (!isNaN(value)) {
+												handleCommandTimeout(value)
+											}
+										}}
+										min={60}
+										max={600}
+										step={10}
+										className="w-24"
+									/>
+									<span className="text-sm text-muted-foreground">(60 - 600)</span>
+								</div>
+								<Slider
+									min={60}
+									max={600}
+									step={10}
+									value={[commandTimeout ?? 120]}
+									onValueChange={(value) => handleCommandTimeout(value[0])}
+									className="w-full"
+								/>
+							</div>
+							<p className="text-sm text-muted-foreground">
+								Set the maximum time in seconds that a command can run before being terminated
+							</p>
+						</div>
+					</div>
+				)}
+			</div>
 			<div className="space-y-2">
 				<Label htmlFor="custom-instructions" className="text-xs font-medium">
 					Custom Instructions
@@ -136,9 +187,7 @@ const AdvancedTab: React.FC = () => {
 					}}
 					spellCheck={false}
 				/>
-				<p className="text-xs text-muted-foreground mt-1">
-					These instructions will be included in every task
-				</p>
+				<p className="text-xs text-muted-foreground mt-1">These instructions will be included in every task</p>
 			</div>
 
 			<SystemPromptVariants />

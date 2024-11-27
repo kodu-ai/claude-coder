@@ -180,7 +180,13 @@ export type setInlineEditModeMessage = {
 	inlineEditOutputType?: "full" | "diff" | "none"
 }
 
+export type setCommandTimeoutMessage = {
+	type: "commandTimeout"
+	commandTimeout: number
+}
+
 export type WebviewMessage =
+	| setCommandTimeoutMessage
 	| setInlineEditModeMessage
 	| pauseTemporayAutoModeMessage
 	| terminalCompressionThresholdMessage

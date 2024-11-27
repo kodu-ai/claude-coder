@@ -4,6 +4,17 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.13.7] - 2024-11-27
+
+### Added
+
+-   Added an option to configure the timeout for command execution
+
+### Fixed
+
+-   Feedback on tool is now working as expected (before was broken on command execution with automatic mode)
+-   Fix inline edit selector to work as expected
+
 ## [1.13.6] - 2024-11-27
 
 ### Changed

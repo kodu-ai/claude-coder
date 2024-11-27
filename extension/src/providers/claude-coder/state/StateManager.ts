@@ -6,7 +6,7 @@ import { HistoryItem } from "../../../shared/HistoryItem"
 import { SecretStateManager } from "./SecretStateManager"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
-import { ExtensionState } from "../../../shared/ExtensionMessage"
+import { ExtensionState, isV1ClaudeMessage, V1ClaudeMessage } from "../../../shared/ExtensionMessage"
 import { SystemPromptVariant } from "../../../shared/SystemPromptVariant"
 import { estimateTokenCount, estimateTokenCountFromMessages } from "../../../utils/context-managment"
 import { BASE_SYSTEM_PROMPT } from "../../../agent/v1/prompts/base-system"
@@ -54,6 +54,7 @@ export class StateManager {
 			isAdvanceThinkingEnabled,
 			terminalCompressionThreshold,
 			inlineEditOutputType,
+			commandTimeout,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.globalStateManager.getGlobalState("browserModelId"),
@@ -81,6 +82,7 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("isAdvanceThinkingEnabled"),
 			this.globalStateManager.getGlobalState("terminalCompressionThreshold"),
 			this.globalStateManager.getGlobalState("inlineEditOutputType"),
+			this.globalStateManager.getGlobalState("commandTimeout"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -104,7 +106,15 @@ export class StateManager {
 				},
 			],
 		})
-		const tokens = estimateTokenCountFromMessages(currentApiHistory ?? []) + systemPromptTokens
+		const clone = currentClaudeMessage?.slice(-24).reverse()
+		const lastClaudeApiFinished = clone?.find(
+			(m) => isV1ClaudeMessage(m) && m.type === "say" && !!m.apiMetrics?.cost
+		) as V1ClaudeMessage | undefined
+		const tokens =
+			(lastClaudeApiFinished?.apiMetrics?.inputTokens ?? 0) +
+			(lastClaudeApiFinished?.apiMetrics?.outputTokens ?? 0) +
+			(lastClaudeApiFinished?.apiMetrics?.inputCacheRead ?? 0) +
+			(lastClaudeApiFinished?.apiMetrics?.inputCacheWrite ?? 0)
 		const currentContextWindow = this.context
 			.getKoduDev()
 			?.getStateManager()
@@ -122,6 +132,7 @@ export class StateManager {
 			lastShownAnnouncementId,
 			customInstructions,
 			technicalBackground,
+			commandTimeout: commandTimeout ?? 120,
 			systemPromptVariants,
 			activeSystemPromptVariantId,
 			experimentalTerminal:
