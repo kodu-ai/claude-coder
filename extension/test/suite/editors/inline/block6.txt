@@ -1,209 +1,187 @@
 SEARCH
-def validate_eval_case(case_path: Path) -> bool:
-    """Validate that an eval case has the required files."""
-    required_files = ['checkout', 'evaluate', 'task_prompt.txt']
-    
-    for file in required_files:
-        if not (case_path / file).exists():
-            return False
-            
-    # Check if checkout and evaluate are executable
-    for script in ['checkout', 'evaluate']:
-        script_path = case_path / script
-        if not os.access(script_path, os.X_OK):
-            return False
-            
-    return True
+	public async applyStreamContent(content: string): Promise<boolean> {
+		await this.documentReadyPromise
+		if (!this.currentDocumentState) {
+			throw new Error("No active document")
+		}
+
+		try {
+			const document = await this.getDocument()
+			if (!document) return false
+
+			const editor = vscode.window.activeTextEditor
+			if (!editor || editor.document.uri.toString() !== document.uri.toString()) {
+				return false
+			}
+
+			// Initialize streaming if needed
+			if (!this.currentDocumentState.isStreaming) {
+				this.currentDocumentState.isStreaming = true
+				this.currentDocumentState.currentContent = this.currentDocumentState.originalContent
+
+				// Display original content first
+				const initialEdit = new vscode.WorkspaceEdit()
+				initialEdit.replace(
+					document.uri,
+					new vscode.Range(0, 0, document.lineCount, 0),
+					this.currentDocumentState.originalContent
+				)
+				await vscode.workspace.applyEdit(initialEdit)
+				await this.refreshEditor()
+				await new Promise(resolve => setTimeout(resolve, 100))
+			}
+
+			// Split content into lines
+			const newLines = content.split("\n")
+			const originalLines = this.currentDocumentState.originalContent.split("\n")
+			const currentLines = this.currentDocumentState.currentContent.split("\n")
+
+			// Create chunks of changes (max 5 lines per chunk)
+			const chunkSize = 5
+			const chunks: Array<{ start: number; end: number; content: string[] }> = []
+			let currentChunk: { start: number; end: number; content: string[] } | null = null
+
+			for (let i = 0; i < newLines.length; i++) {
+				if (i >= currentLines.length || currentLines[i] !== newLines[i]) {
+					if (!currentChunk) {
+						currentChunk = { start: i, end: i, content: [newLines[i]] }
+					} else if (i === currentChunk.end + 1 && chunks.length < chunkSize) {
+						currentChunk.end = i
+						currentChunk.content.push(newLines[i])
+					} else {
+						chunks.push(currentChunk)
+						currentChunk = { start: i, end: i, content: [newLines[i]] }
+					}
+				} else if (currentChunk) {
+					chunks.push(currentChunk)
+					currentChunk = null
+				}
+			}
+
+			if (currentChunk) {
+				chunks.push(currentChunk)
+			}
+
+			// Apply chunks with visual feedback
+			for (const chunk of chunks) {
+				const workspaceEdit = new vscode.WorkspaceEdit()
+				const chunkContent = chunk.content.join("\n")
+				const startPos = new vscode.Position(chunk.start, 0)
+				const endPos = chunk.end < currentLines.length
+					? new vscode.Position(chunk.end, currentLines[chunk.end].length)
+					: new vscode.Position(chunk.end, 0)
+
+				workspaceEdit.replace(document.uri, new vscode.Range(startPos, endPos), chunkContent)
+				await vscode.workspace.applyEdit(workspaceEdit)
+
+				// Update current content
+				const updatedLines = [...this.currentDocumentState.currentContent.split("\n")]
+				for (let i = 0; i < chunk.content.length; i++) {
+					const lineIndex = chunk.start + i
+					if (lineIndex < updatedLines.length) {
+						updatedLines[lineIndex] = chunk.content[i]
+					} else {
+						updatedLines.push(chunk.content[i])
+					}
+				}
+				this.currentDocumentState.currentContent = updatedLines.join("\n")
+
+				// Refresh decorations and scroll
+				await this.refreshEditor()
+				await this.scrollToRange(editor, new vscode.Range(startPos, endPos))
+				await new Promise(resolve => setTimeout(resolve, 50))
+			}
+
+			// Handle case where new content is shorter
+			if (newLines.length < currentLines.length) {
+				const deleteEdit = new vscode.WorkspaceEdit()
+				deleteEdit.delete(document.uri, new vscode.Range(
+					new vscode.Position(newLines.length, 0),
+					new vscode.Position(currentLines.length, 0)
+				))
+				await vscode.workspace.applyEdit(deleteEdit)
+				this.currentDocumentState.currentContent = newLines.join("\n")
+				await this.refreshEditor()
+			}
+
+			return true
 =======
 REPLACE
-def validate_eval_case(case_path: Path) -> Tuple[bool, List[str]]:
-    """Validate that an eval case has the required files and return any missing components."""
-    required_files = ['checkout', 'evaluate', 'task_prompt.txt', 'config.ini']
-    missing = []
-    
-    for file in required_files:
-        if not (case_path / file).exists():
-            missing.append(file)
-            
-    # Check if checkout and evaluate are executable
-    for script in ['checkout', 'evaluate']:
-        script_path = case_path / script
-        if script_path.exists() and not os.access(script_path, os.X_OK):
-            missing.append(f"{script} (not executable)")
-            
-    return len(missing) == 0, missing
-=======
-SEARCH
-def collect_eval_cases(paths: List[str]) -> List[Path]:
-    """Collect eval cases from provided paths.
-    
-    A path can be either a direct eval case or a directory containing eval cases.
-    """
-    cases = []
-    base_dir = Path(__file__).parent
-    
-    for path_str in paths:
-        path = Path(path_str)
-        if not path.is_absolute():
-            path = base_dir / path
-            
-        if validate_eval_case(path):
-            cases.append(path)
-        else:
-            # Check if it's a directory containing eval cases
-            if path.is_dir():
-                for subdir in path.iterdir():
-                    if subdir.is_dir() and validate_eval_case(subdir):
-                        cases.append(subdir)
-                        
-    return sorted(cases)
-=======
-REPLACE
-def collect_eval_cases(paths: Optional[List[str]] = None) -> Dict[Path, Tuple[bool, List[str]]]:
-    """Recursively collect eval cases from provided paths or current directory.
-    
-    Returns a dictionary mapping paths to their validation status and any missing components.
-    A path can be either a direct eval case or a directory containing eval cases.
-    """
-    cases = {}
-    count = 0
-    
-    # If no paths provided, use current directory
-    if not paths:
-        paths = ['.']
-    
-    # Process all paths
-    for path_str in paths:
-        path = Path(path_str).resolve()
-        if path.is_dir():
-            for subdir in path.rglob('*'):
-                if subdir.is_dir():
-                    # Look for eval case components
-                    has_checkout = (subdir / 'checkout').exists()
-                    has_evaluate = (subdir / 'evaluate').exists()
-                    has_task = (subdir / 'task_prompt.txt').exists()
-                    has_config = (subdir / 'config.ini').exists()
-                    
-                    if has_checkout or has_evaluate or has_task or has_config:
-                        count += 1
-                        print(f"\rcollecting ... {count} items", end="", flush=True)
-                        
-                        # Now validate it
-                        is_valid, missing = validate_eval_case(subdir)
-                        cases[subdir] = (is_valid, missing)
-                        if missing:
-                            print(f"\n{Colors.YELLOW}WARNING: Found partial test case in {subdir}. Missing: {', '.join(missing)}{Colors.RESET}", flush=True)
-                            print(f"\rcollecting ... {count} items", end="", flush=True)  # Restore collection progress
-    
-    return cases
-=======
-SEARCH
-async def main() -> int:
-    """Main entry point for the eval script."""
-    setup_logging()
-    parser = create_parser()
-    args = parser.parse_args()
-    
-    if not args.eval_dirs:
-        parser.error('at least one evaluation directory is required')
-        return EXIT_USAGE_ERROR
-        
-    # Collect all eval cases
-    cases = collect_eval_cases(args.eval_dirs)
-    if not cases:
-        logging.error("No valid evaluation cases found in specified directories")
-        return EXIT_USAGE_ERROR
-=======
-REPLACE
-async def main() -> int:
-    """Main entry point for the eval script."""
-    setup_logging()
-    parser = create_parser()
-    args = parser.parse_args()
-    
-    # Print platform info
-    print(get_platform_info())
-    print()  # Add blank line after platform info
-    
-    # Start collection phase
-    print("collecting ... ", end="", flush=True)
-    
-    # Collect all eval cases
-    cases = await collect_eval_cases(args.eval_dirs)
-    valid_cases = [path for path, (is_valid, _) in cases.items() if is_valid]
-    
-    # Show final collection count
-    print(f"\rcollected {len(valid_cases)} items", flush=True)
-    print("", flush=True)  # Add blank line before starting tests
-    
-    if not valid_cases:
-        if not cases:
-            logging.error("No evaluation cases found in specified directories")
-        else:
-            logging.error("No valid evaluation cases found. Found partial cases:")
-            for path, (_, missing) in cases.items():
-                logging.error(f"  {path}: missing {', '.join(missing)}")
-        return EXIT_USAGE_ERROR
-=======
-SEARCH
-async def run_single_eval(
-    case_path: Path,
-    config_path: Optional[str] = None,
-    args_str: Optional[str] = None,
-    timeout: int = 45,
-    target_dir: Optional[Path] = None,
-    auto_approve: bool = False,
-    verbose: bool = False,
-    failures_show_agent_output: bool = False
-) -> EvalResult:
-    """Run a single evaluation case."""
-    start_time = time.time()
-    temp_dir = None
-    temp_root = None
-    original_dir = Path.cwd()
-    
-    try:
-=======
-REPLACE
-async def run_single_eval(
-    case_path: Path,
-    config_path: Optional[str] = None,
-    args_str: Optional[str] = None,
-    timeout: int = 45,
-    target_dir: Optional[Path] = None,
-    auto_approve: bool = False,
-    verbose: bool = False,
-    failures_show_agent_output: bool = False
-) -> EvalResult:
-    """Run a single evaluation case."""
-    start_time = time.time()
-    temp_dir = None
-    temp_root = None
-    original_dir = Path.cwd()
-    
-    try:
-        print("  checking out eval files ...", flush=True)
-=======
-SEARCH
-        # Run agent
-        success, agent_stdout, agent_stderr, agent_filtered_stdout, agent_filtered_stderr = await run_agent(
-=======
-REPLACE
-        print("  invoking agent ...", flush=True)
-        # Run agent
-        success, agent_stdout, agent_stderr, agent_filtered_stdout, agent_filtered_stderr = await run_agent(
-=======
-SEARCH
-        # Run evaluate script
-        evaluate_cmd = [str(case_path / 'evaluate'), str(temp_dir)]
-=======
-REPLACE
-        print("  running evaluation script ...", flush=True)
-        # Run evaluate script
-        evaluate_cmd = [str(case_path / 'evaluate'), str(temp_dir)]
-=======
-SEARCH
-            status_str = f"{Colors.YELLOW}ERROR{Colors.RESET}"
-=======
-REPLACE
-            status_str = f"{Colors.RED}ERROR{Colors.RESET}"
+	public async applyStreamContent(content: string): Promise<boolean> {
+		await this.documentReadyPromise
+		if (!this.currentDocumentState) {
+			throw new Error("No active document")
+		}
+
+		try {
+			const document = await this.getDocument()
+			if (!document) return false
+
+			const editor = vscode.window.activeTextEditor
+			if (!editor || editor.document.uri.toString() !== document.uri.toString()) {
+				return false
+			}
+
+			// Initialize streaming if needed
+			if (!this.currentDocumentState.isStreaming) {
+				this.currentDocumentState.isStreaming = true
+				
+				// Show original content first
+				const workspaceEdit = new vscode.WorkspaceEdit()
+				workspaceEdit.replace(
+					document.uri,
+					new vscode.Range(0, 0, document.lineCount, 0),
+					this.currentDocumentState.originalContent
+				)
+				await vscode.workspace.applyEdit(workspaceEdit)
+				this.currentDocumentState.currentContent = this.currentDocumentState.originalContent
+				await this.refreshEditor()
+				await new Promise(resolve => setTimeout(resolve, 100))
+			}
+
+			// Split both contents into lines
+			const newLines = content.split("\n")
+			const originalLines = this.currentDocumentState.originalContent.split("\n")
+
+			// Create combined content with both versions
+			const combinedLines: string[] = []
+			const maxLines = Math.max(originalLines.length, newLines.length)
+
+			for (let i = 0; i < maxLines; i++) {
+				if (i < originalLines.length) {
+					combinedLines.push(originalLines[i])
+				}
+				if (i < newLines.length && (i >= originalLines.length || originalLines[i] !== newLines[i])) {
+					combinedLines.push(newLines[i])
+				}
+			}
+
+			// Apply combined content
+			const workspaceEdit = new vscode.WorkspaceEdit()
+			workspaceEdit.replace(
+				document.uri,
+				new vscode.Range(0, 0, document.lineCount, 0),
+				combinedLines.join("\n")
+			)
+			await vscode.workspace.applyEdit(workspaceEdit)
+
+			// Update current content and refresh decorations
+			this.currentDocumentState.currentContent = content
+			await this.refreshEditor()
+
+			// Find the last different line for scrolling
+			let lastDiffLine = 0
+			for (let i = 0; i < maxLines; i++) {
+				if (i >= originalLines.length || i >= newLines.length || originalLines[i] !== newLines[i]) {
+					lastDiffLine = i
+				}
+			}
+
+			// Scroll to the last difference
+			const scrollRange = new vscode.Range(
+				new vscode.Position(lastDiffLine, 0),
+				new vscode.Position(lastDiffLine + 1, 0)
+			)
+			await this.scrollToRange(editor, scrollRange)
+
+			return true

@@ -4,6 +4,13 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.13.8] - 2024-11-28
+
+### Fixed
+
+-   Fixed inline edit edge cases and improved fluency across devices with different latency
+-   Fixed whole file write editor edge cases and improved fluency across devices with different latency
+
 ## [1.13.7] - 2024-11-27
 
 ### Added

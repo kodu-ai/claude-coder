@@ -486,7 +486,7 @@ export class FileEditorTool extends BaseAgentTool {
 			return this.toolResponse(
 				"success",
 				`The user made the following updates to your content:\n\nThe updated content has been successfully saved to ${relPath.toPosix()}
-					Here is the latest file content:
+					Here is the latest file content after the changes were applied:
 					\`\`\`
 					${finalContent}
 					\`\`\`
@@ -495,12 +495,9 @@ export class FileEditorTool extends BaseAgentTool {
 		}
 
 		let toolMsg = `The content was successfully saved to ${relPath.toPosix()}.
-			Here is the latest file content:
-			\`\`\`
-			${finalContent}
-			\`\`\`
+			The latest content is the content inside of <kodu_content> the content you provided in the input has been applied to the file and saved. don't read the file again to get the latest content as it is already saved unless the user tells you otherwise.
 			`
-		if (detectCodeOmission(this.diffViewProvider.originalContent() || "", finalContent)) {
+		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
 			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
 			toolMsg = `The content was successfully saved to ${relPath.toPosix()},
 				but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.

@@ -49,12 +49,12 @@ async function simulateStreaming(diff: string, delayMs: number): Promise<AsyncGe
 
 	return generator()
 }
-const testBlock = async (
+async function testBlock(
 	blockFilePath: string,
 	blockFileContentPath: string,
 	blockBlockContent: string,
 	timeout?: number
-) => {
+) {
 	const inlineEditHandler = new InlineEditHandler()
 	const generator = await simulateStreaming(blockBlockContent, 50)
 	let editBlocks: EditBlock[] = []
@@ -63,6 +63,7 @@ const testBlock = async (
 	const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(blockFileContentPath))
 
 	for await (const diff of generator) {
+		console.log("STEP", diff)
 		if (!(diff.includes("SEARCH") && diff.includes("REPLACE"))) {
 			continue
 		}
@@ -112,17 +113,10 @@ const testBlock = async (
 					}
 				}
 
-				// if (timeout) {
-				// 	setTimeout(async () => {
-				// 		inlineEditHandler.open(currentBlock.id, blockFilePath, currentBlock.searchContent)
-				// 	}, timeout)
-				// } else {
-				await inlineEditHandler.open(currentBlock.id, blockFilePath, currentBlock.searchContent)
-				// }
 				editBlocks.push({
 					id: currentBlock.id,
 					replaceContent: currentBlock.replaceContent,
-					path: blockFilePath,
+					path: block3FilePath,
 					searchContent: currentBlock.searchContent,
 				})
 				lastAppliedBlockId = currentBlock.id
@@ -159,21 +153,20 @@ const testBlock = async (
 		expectedContent = expectedContent.replace(block.searchContent, block.replaceContent)
 	}
 
-	assert.strictEqual(finalDocument.finalContent, expectedContent)
+	assert.strictEqual(finalDocument, expectedContent)
 }
+const testFilePath = path.join(__dirname, "testFile.ts")
+const toEditFilePath = path.join(__dirname, "toEditFile.txt")
+const [block3FilePath, block3FileContentPath, block3FileContent, block3BlockContentPath, block3BlockContent] =
+	readBlock("block3")
+const [block4FilePath, block4FileContentPath, block4FileContent, block4BlockContentPath, block4BlockContent] =
+	readBlock("block4")
+const [block5FilePath, block5FileContentPath, block5FileContent, block5BlockContentPath, block5BlockContent] =
+	readBlock("block5")
+const [block6FilePath, block6FileContentPath, block6FileContent, block6BlockContentPath, block6BlockContent] =
+	readBlock("block6")
 
 describe("InlineEditHandler End-to-End Test", () => {
-	const testFilePath = path.join(__dirname, "testFile.ts")
-	const toEditFilePath = path.join(__dirname, "toEditFile.txt")
-	const [block3FilePath, block3FileContentPath, block3FileContent, block3BlockContentPath, block3BlockContent] =
-		readBlock("block3")
-	const [block4FilePath, block4FileContentPath, block4FileContent, block4BlockContentPath, block4BlockContent] =
-		readBlock("block4")
-	const [block5FilePath, block5FileContentPath, block5FileContent, block5BlockContentPath, block5BlockContent] =
-		readBlock("block5")
-	const [block6FilePath, block6FileContentPath, block6FileContent, block6BlockContentPath, block6BlockContent] =
-		readBlock("block6")
-
 	const search = `/*
 We can't implement a dynamically updating sliding window as it would break prompt cache
 every time. To maintain the benefits of caching, we need to keep conversation history
@@ -390,7 +383,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		expectedContent = expectedContent.replace(search, replace)
 		expectedContent = expectedContent.replace(search2, replace2)
 
-		assert.strictEqual(finalDocument.finalContent, expectedContent)
+		assert.strictEqual(finalDocument, expectedContent)
 	})
 
 	it("should handle long stream with tabs switches correctly", async () => {
@@ -508,7 +501,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 			expectedContent = expectedContent.replace(search, replace)
 			expectedContent = expectedContent.replace(search2, replace2)
 
-			assert.strictEqual(finalDocument.finalContent, expectedContent)
+			assert.strictEqual(finalDocument, expectedContent)
 		} finally {
 			// Cleanup second file
 			if (fs.existsSync(secondFilePath)) {
@@ -613,7 +606,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 			expectedContent = expectedContent.replace(search, replace)
 			expectedContent = expectedContent.replace(search2, replace2)
 
-			assert.strictEqual(finalDocument.finalContent, expectedContent)
+			assert.strictEqual(finalDocument, expectedContent)
 		} finally {
 			if (fs.existsSync(secondFilePath)) {
 				fs.unlinkSync(secondFilePath)
@@ -724,7 +717,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		expectedContent = expectedContent.replace(search, replace)
 		expectedContent = expectedContent.replace(search2, replace2)
 
-		assert.strictEqual(finalDocument.finalContent, expectedContent)
+		assert.strictEqual(finalDocument, expectedContent)
 	})
 
 	it("should test that block 3 is parsed and apllied correctly", async () => {
@@ -825,7 +818,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 			expectedContent = expectedContent.replace(block.searchContent, block.replaceContent)
 		}
 
-		assert.strictEqual(finalDocument.finalContent, expectedContent)
+		assert.strictEqual(finalDocument, expectedContent)
 	})
 
 	it("should test that block 4 is parsed and apllied correctly", async () => {
@@ -928,7 +921,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 			expectedContent = expectedContent.replace(block.searchContent, block.replaceContent)
 		}
 
-		assert.strictEqual(finalDocument.finalContent, expectedContent)
+		assert.strictEqual(finalDocument, expectedContent)
 	})
 
 	it("should test that block 5 is parsed and apllied correctly", async () => {
@@ -1031,17 +1024,17 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 			expectedContent = expectedContent.replace(block.searchContent, block.replaceContent)
 		}
 
-		assert.strictEqual(finalDocument.finalContent, expectedContent)
+		assert.strictEqual(finalDocument, expectedContent)
 	})
 
 	it("should test that block 6 is parsed and apllied correctly", async () => {
 		// blockFilePath: string, blockFileContentPath: string, blockBlockContent: string
-		await testBlock(block6BlockContent, block6FilePath, block6FileContentPath)
+		await testBlock(block5FilePath, block5FileContentPath, block5BlockContent)
 	})
 
 	it("should work even if the first open has a timeout", async () => {
 		// here we mimick a failure / delay on the first open
-		await testBlock(block6BlockContent, block6FilePath, block6FileContentPath)
+		await testBlock(block6FilePath, block6FileContentPath, block6BlockContent)
 	})
 })
 

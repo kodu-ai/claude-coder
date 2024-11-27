@@ -107,6 +107,9 @@ importers:
       '@tanstack/react-virtual':
         specifier: ^3.10.8
         version: 3.10.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@vscode/codicons':
+        specifier: ^0.0.36
+        version: 0.0.36
       '@vscode/webview-ui-toolkit':
         specifier: ^1.4.0
         version: 1.4.0(react@18.3.1)
@@ -1622,6 +1625,9 @@ packages:
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0
+
+  '@vscode/codicons@0.0.36':
+    resolution: {integrity: sha512-wsNOvNMMJ2BY8rC2N2MNBG7yOowV3ov8KlvUE/AiVUlHKTfWsw3OgAOQduX7h0Un6GssKD3aoTVH+TF3DSQwKQ==}
 
   '@vscode/webview-ui-toolkit@1.4.0':
     resolution: {integrity: sha512-modXVHQkZLsxgmd5yoP3ptRC/G8NBDD+ob+ngPiWNQdlrH6H1xR/qgOBD85bfU3BhOB5sZzFWBwwhp9/SfoHww==}
@@ -4813,6 +4819,8 @@ snapshots:
       vite: 6.0.0(@types/node@22.10.0)(jiti@1.21.6)(yaml@2.6.1)
     transitivePeerDependencies:
       - supports-color
+
+  '@vscode/codicons@0.0.36': {}
 
   '@vscode/webview-ui-toolkit@1.4.0(react@18.3.1)':
     dependencies:

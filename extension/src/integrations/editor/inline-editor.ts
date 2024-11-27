@@ -1,4 +1,5 @@
 import * as vscode from "vscode"
+import PQueue from "p-queue"
 
 interface EditBlock {
 	id: string
@@ -15,94 +16,31 @@ interface DocumentState {
 	editBlocks: Map<string, EditBlock>
 }
 
+interface PendingOperation {
+	type: "stream" | "final"
+	id: string
+	searchContent: string
+	content: string
+	timestamp: number
+}
+
 export class InlineEditHandler {
 	private pendingDecoration: vscode.TextEditorDecorationType
 	private streamingDecoration: vscode.TextEditorDecorationType
 	private mergeDecoration: vscode.TextEditorDecorationType
 	private isAutoScrollEnabled: boolean = true
-	private currentDocumentState: DocumentState | undefined
-	private documentReadyPromise: Promise<void> | undefined
-	private maxRetries: number = 5
-	private retryDelay: number = 100 // ms
+	protected currentDocumentState: DocumentState | undefined
+	private operationQueue: PQueue
+	private pendingOperations: PendingOperation[] = []
 
 	constructor() {
+		// Initialize PQueue with concurrency 1 to ensure sequential operations
+		this.operationQueue = new PQueue({ concurrency: 1 })
 		this.pendingDecoration = this.createDecoration("⟳ Pending changes", "editorGhostText.foreground")
 		this.streamingDecoration = this.createDecoration("↻ Streaming changes...", "editorInfo.foreground")
 		this.mergeDecoration = this.createDecoration("⚡ Review changes", "editorInfo.foreground")
-	}
 
-	private async waitForDocumentReady(uri: string): Promise<vscode.TextDocument> {
-		let retries = 0
-		while (retries < this.maxRetries) {
-			const document = vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === uri.toString())
-			const editor = vscode.window.visibleTextEditors.find((e) => e.document.uri.toString() === uri.toString())
-
-			if (document && editor) {
-				this.documentReadyPromise = undefined
-				this.currentDocumentState = {
-					uri: uri.toString(),
-					originalContent: document.getText(),
-					currentContent: document.getText(),
-					editBlocks: new Map(),
-				}
-				return document
-			}
-
-			await new Promise((resolve) => setTimeout(resolve, this.retryDelay))
-			retries++
-		}
-
-		throw new Error("Document failed to become ready after multiple attempts")
-	}
-
-	public async open(id: string, filePath: string, searchContent: string): Promise<boolean> {
-		try {
-			// Create URI first so we can use it consistently
-			const uri = vscode.Uri.parse(filePath)
-
-			// Start document opening process
-			const openingDocument = await vscode.workspace.openTextDocument(filePath)
-
-			// Initialize state early with basic info
-			this.currentDocumentState = {
-				uri: uri.toString(),
-				originalContent: openingDocument.getText(),
-				currentContent: openingDocument.getText(),
-				editBlocks: new Map(),
-			}
-
-			// Show the document and wait for it to be ready
-			this.documentReadyPromise = (async () => {
-				await vscode.window.showTextDocument(openingDocument, {
-					viewColumn: vscode.ViewColumn.Active,
-					preserveFocus: false,
-					preview: false,
-				})
-
-				// Wait for document to be fully ready in editor
-				await this.waitForDocumentReady(uri.toString())
-			})()
-
-			// Wait for the document to be ready
-			await this.documentReadyPromise
-
-			// Initialize the first edit block
-			this.currentDocumentState.editBlocks.set(id, {
-				id,
-				searchContent,
-				currentContent: searchContent,
-				status: "pending",
-			})
-
-			await this.refreshEditor()
-			return true
-		} catch (error) {
-			this.logger(`Failed to open document: ${error}`, "error")
-			// Clean up state on failure
-			this.currentDocumentState = undefined
-			this.documentReadyPromise = undefined
-			return false
-		}
+		this.logger("InlineEditHandler initialized", "debug")
 	}
 
 	private createDecoration(text: string, color: string): vscode.TextEditorDecorationType {
@@ -174,88 +112,169 @@ export class InlineEditHandler {
 			// Remove highlight after a short delay
 			setTimeout(() => highlightDecoration.dispose(), 800)
 		} catch (error) {
-			console.error("Failed to scroll to range:", error)
+			this.logger(`Failed to scroll to range: ${error}`, "error")
 		}
 	}
 
-	public async applyStreamContent(id: string, searchContent: string, content: string): Promise<boolean> {
-		await this.documentReadyPromise
-		if (!this.currentDocumentState) {
-			this.logger("[applyStreamContent] No active document", "error")
-			throw new Error(`No active document found when calling applyStreamContent`)
-		}
+	public async open(id: string, filePath: string, searchContent: string): Promise<void> {
+		this.logger(`Opening file ${filePath} with id ${id}`, "debug")
+		return this.operationQueue.add(
+			async () => {
+				try {
+					const document = await vscode.workspace.openTextDocument(filePath)
+					// now let's make it focused and active
+					await vscode.window.showTextDocument(document, {
+						viewColumn: vscode.ViewColumn.Active,
+						preserveFocus: false,
+						preview: false,
+					})
 
-		try {
-			let block = this.currentDocumentState.editBlocks.get(id)
-			if (!block) {
-				block = {
-					id,
-					searchContent,
-					currentContent: searchContent,
-					status: "pending",
+					const originalContent = document.getText()
+
+					// Initialize or reset document state
+					this.currentDocumentState = {
+						uri: document.uri.toString(),
+						originalContent,
+						currentContent: originalContent,
+						editBlocks: new Map(),
+					}
+
+					// Add initial block
+					this.currentDocumentState.editBlocks.set(id, {
+						id,
+						searchContent,
+						currentContent: searchContent,
+						status: "pending",
+					})
+
+					// Process any pending operations that accumulated before opening
+					if (this.pendingOperations.length > 0) {
+						this.logger(`Processing ${this.pendingOperations.length} pending operations`, "debug")
+						const operations = [...this.pendingOperations]
+						this.pendingOperations = []
+
+						for (const op of operations) {
+							this.logger(`Processing pending operation: ${op.type} for id ${op.id}`, "debug")
+							if (op.type === "stream") {
+								await this.applyStreamContent(op.id, op.searchContent, op.content)
+							} else {
+								await this.applyFinalContent(op.id, op.searchContent, op.content)
+							}
+						}
+					}
+
+					// Apply decorations
+					await this.refreshEditor()
+					this.logger(`Successfully opened file ${filePath}`, "debug")
+					return
+				} catch (error) {
+					this.logger(`Failed to open document: ${error}`, "error")
+					throw error
 				}
-				this.currentDocumentState.editBlocks.set(id, block)
+			},
+			{
+				// highest
+				priority: 10,
 			}
-
-			// Update block content
-			block.currentContent = content
-			block.status = "streaming"
-
-			// Update entire file content
-			await this.updateFileContent()
-			return true
-		} catch (error) {
-			console.error("Failed to apply streaming content:", error)
-			return false
-		}
+		)
 	}
 
-	public async applyFinalContent(id: string, searchContent: string, content: string): Promise<boolean> {
-		await this.documentReadyPromise
+	public async applyStreamContent(id: string, searchContent: string, content: string): Promise<void> {
+		this.logger(`Applying stream content for id ${id}`, "debug")
 
-		if (!this.currentDocumentState) {
-			this.logger("[applyFinalContent] No active document", "error")
-			throw new Error(`No active document found when calling applyFinalContent`)
+		// If editor isn't open, queue the operation
+		if (!this.isOpen()) {
+			this.logger(`Editor not open, queueing stream operation for id ${id}`, "debug")
+			this.pendingOperations.push({
+				type: "stream",
+				id,
+				searchContent,
+				content,
+				timestamp: Date.now(),
+			})
+			return
 		}
 
-		try {
-			let block = this.currentDocumentState.editBlocks.get(id)
-			if (!block) {
-				block = {
-					id,
-					searchContent,
-					currentContent: searchContent,
-					status: "pending",
+		return this.operationQueue.add(async () => {
+			try {
+				this.validateDocumentState()
+				let block = this.currentDocumentState.editBlocks.get(id)
+				if (!block) {
+					block = {
+						id,
+						searchContent,
+						currentContent: searchContent,
+						status: "pending",
+					}
+					this.currentDocumentState.editBlocks.set(id, block)
 				}
-				this.currentDocumentState.editBlocks.set(id, block)
+
+				// Update block content
+				block.currentContent = content
+				block.status = "streaming"
+
+				// Update entire file content
+				await this.updateFileContent()
+				return
+			} catch (error) {
+				this.logger(`Failed to apply streaming content: ${error}`, "error")
+				throw error
 			}
-
-			// Update block content
-			block.currentContent = content
-			block.finalContent = content
-			block.status = "final"
-
-			// Update entire file content
-			await this.updateFileContent()
-			return true
-		} catch (error) {
-			console.error("Failed to apply final content:", error)
-			return false
-		}
+		})
 	}
 
-	private async updateFileContent(): Promise<boolean> {
-		await this.documentReadyPromise
+	public async applyFinalContent(id: string, searchContent: string, content: string): Promise<void> {
+		this.logger(`Applying final content for id ${id}`, "debug")
 
-		if (!this.currentDocumentState) {
-			this.logger("[updateFileContent] No active document", "error")
-			throw new Error(`No active document found when calling updateFileContent`)
+		// If editor isn't open, queue the operation
+		if (!this.isOpen()) {
+			this.logger(`Editor not open, queueing final operation for id ${id}`, "debug")
+			this.pendingOperations.push({
+				type: "final",
+				id,
+				searchContent,
+				content,
+				timestamp: Date.now(),
+			})
+			return
 		}
+
+		return this.operationQueue.add(async () => {
+			try {
+				this.validateDocumentState()
+				let block = this.currentDocumentState.editBlocks.get(id)
+				if (!block) {
+					block = {
+						id,
+						searchContent,
+						currentContent: searchContent,
+						status: "pending",
+					}
+					this.currentDocumentState.editBlocks.set(id, block)
+				}
+
+				// Update block content
+				block.currentContent = content
+				block.finalContent = content
+				block.status = "final"
+
+				// Update entire file content
+				await this.updateFileContent()
+				return
+			} catch (error) {
+				this.logger(`Failed to apply final content: ${error}`, "error")
+				throw error
+			}
+		})
+	}
+
+	private async updateFileContent(): Promise<void> {
+		this.validateDocumentState()
 
 		try {
 			const document = await this.getDocument()
 			if (!document) {
-				return false
+				throw new Error("No active document to update content.")
 			}
 
 			// Start with original content
@@ -284,23 +303,19 @@ export class InlineEditHandler {
 				await this.refreshEditor()
 			}
 
-			return success
+			return
 		} catch (error) {
-			console.error("Failed to update file content:", error)
-			return false
+			this.logger(`Failed to update file content: ${error}`, "error")
+			throw error
 		}
 	}
 
 	private async refreshEditor(): Promise<void> {
-		await this.documentReadyPromise
-		if (!this.currentDocumentState) {
-			this.logger("[refreshEditor] No active document", "error")
-			throw new Error(`No active document found when calling refreshEditor`)
-		}
+		this.validateDocumentState()
 
 		const document = await this.getDocument()
 		if (!document) {
-			return
+			throw new Error("No active document to refresh editor.")
 		}
 
 		const editor = vscode.window.visibleTextEditors.find(
@@ -361,52 +376,47 @@ export class InlineEditHandler {
 
 	public async forceFinalizeAll(
 		diffBlocks: { id: string; searchContent: string; replaceContent: string }[]
-	): Promise<boolean> {
-		if (!this.currentDocumentState) {
-			return false
-		}
-		// let's open the document and make it focused and active
-		vscode.window.showTextDocument(vscode.Uri.parse(this.currentDocumentState.uri), {
-			viewColumn: vscode.ViewColumn.Active,
-			preserveFocus: false,
-			preview: false,
-		})
+	): Promise<void> {
+		this.logger("Forcing finalization of all blocks", "debug")
+		return this.operationQueue.add(async () => {
+			this.validateDocumentState()
+			// let's open the document and make it focused and active
+			vscode.window.showTextDocument(vscode.Uri.parse(this.currentDocumentState.uri), {
+				viewColumn: vscode.ViewColumn.Active,
+				preserveFocus: false,
+				preview: false,
+			})
 
-		try {
-			// Update all blocks to final state
-			for (const block of diffBlocks) {
-				const existingBlock = this.currentDocumentState.editBlocks.get(block.id)
-				if (existingBlock) {
-					existingBlock.currentContent = block.replaceContent
-					existingBlock.finalContent = block.replaceContent
-					existingBlock.status = "final"
-				} else {
-					this.currentDocumentState.editBlocks.set(block.id, {
-						id: block.id,
-						searchContent: block.searchContent,
-						currentContent: block.replaceContent,
-						finalContent: block.replaceContent,
-						status: "final",
-					})
+			try {
+				// Update all blocks to final state
+				for (const block of diffBlocks) {
+					const existingBlock = this.currentDocumentState.editBlocks.get(block.id)
+					if (existingBlock) {
+						existingBlock.currentContent = block.replaceContent
+						existingBlock.finalContent = block.replaceContent
+						existingBlock.status = "final"
+					} else {
+						this.currentDocumentState.editBlocks.set(block.id, {
+							id: block.id,
+							searchContent: block.searchContent,
+							currentContent: block.replaceContent,
+							finalContent: block.replaceContent,
+							status: "final",
+						})
+					}
 				}
-			}
 
-			// Update entire file content
-			return await this.updateFileContent()
-		} catch (error) {
-			console.error("Failed to finalize all blocks:", error)
-			return false
-		}
+				// Update entire file content
+				return await this.updateFileContent()
+			} catch (error) {
+				this.logger(`Failed to finalize all blocks: ${error}`, "error")
+				throw error
+			}
+		})
 	}
 
 	private async getDocument(): Promise<vscode.TextDocument | undefined> {
-		await this.documentReadyPromise
-
-		if (!this.currentDocumentState) {
-			this.logger("[getDocument] No active document", "error")
-			throw new Error(`No active document found when calling getDocument`)
-		}
-
+		this.validateDocumentState()
 		try {
 			const uri = vscode.Uri.parse(this.currentDocumentState.uri)
 			let document = vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === uri.toString())
@@ -415,84 +425,90 @@ export class InlineEditHandler {
 			}
 			return document
 		} catch (error) {
-			console.error("Failed to get document:", error)
+			this.logger(`Failed to get document: ${error}`, "error")
 			return undefined
 		}
 	}
 
-	public async saveChanges(): Promise<{ finalContent: string }> {
-		await this.documentReadyPromise
-		if (!this.currentDocumentState) {
-			throw new Error("No active document to save changes.")
-		}
+	public async saveChanges(): Promise<string> {
+		this.logger("Saving changes", "debug")
+		const res = await this.operationQueue.add(async () => {
+			this.validateDocumentState()
 
-		try {
-			const document = await this.getDocument()
-			if (!document) {
-				throw new Error("No active document to save changes.")
-			}
+			try {
+				const document = await this.getDocument()
+				if (!document) {
+					throw new Error("No active document to save changes.")
+				}
 
-			// We don't want to override any user changes made after our last edit
-			// So we'll just save whatever is currently in the document
-			await document.save()
-
-			// Get the current content which might include user changes
-			const finalContent = document.getText()
-
-			// Clean up
-			this.dispose()
-
-			return { finalContent }
-		} catch (error) {
-			console.error("Failed to save changes:", error)
-			throw error
-		}
-	}
-
-	public async rejectChanges(): Promise<boolean> {
-		await this.documentReadyPromise
-
-		if (!this.currentDocumentState) {
-			this.logger("[rejectChanges] No active document", "error")
-			throw new Error(`No active document found when calling rejectChanges`)
-		}
-
-		try {
-			const document = await this.getDocument()
-			if (!document) {
-				return false
-			}
-
-			// Always restore to the original content from when we first opened the file
-			const workspaceEdit = new vscode.WorkspaceEdit()
-			workspaceEdit.replace(
-				document.uri,
-				new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)),
-				this.currentDocumentState.originalContent
-			)
-
-			const success = await vscode.workspace.applyEdit(workspaceEdit)
-			if (success) {
-				// Make sure to save after rejecting
+				// We don't want to override any user changes made after our last edit
+				// So we'll just save whatever is currently in the document
 				await document.save()
+
+				// Get the current content which might include user changes
+				const finalContent = document.getText()
 
 				// Clean up
 				this.dispose()
+
+				return finalContent
+			} catch (error) {
+				this.logger(`Failed to save changes: ${error}`, "error")
+				throw error
 			}
-			return success
-		} catch (error) {
-			console.error("Failed to reject changes:", error)
-			return false
+		})
+		if (res) {
+			this.logger("Changes saved", "debug")
+			return res
 		}
+		throw new Error("Failed to save changes")
+	}
+
+	public async rejectChanges(): Promise<void> {
+		this.logger("Rejecting changes", "debug")
+		return this.operationQueue.add(async () => {
+			this.validateDocumentState()
+
+			try {
+				const document = await this.getDocument()
+				if (!document) {
+					throw new Error("No active document to reject changes.")
+				}
+
+				// Always restore to the original content from when we first opened the file
+				const workspaceEdit = new vscode.WorkspaceEdit()
+				workspaceEdit.replace(
+					document.uri,
+					new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)),
+					this.currentDocumentState.originalContent
+				)
+
+				const success = await vscode.workspace.applyEdit(workspaceEdit)
+				if (success) {
+					// Make sure to save after rejecting
+					await document.save()
+
+					// Clean up
+					this.dispose()
+				} else {
+					this.logger("Failed to reject changes: workspaceEdit.applyEdit returned false", "error")
+					throw new Error("Failed to reject changes: workspaceEdit.applyEdit returned false")
+				}
+			} catch (error) {
+				this.logger(`Failed to reject changes: ${error}`, "error")
+				throw error
+			}
+		})
 	}
 
 	public isOpen(): boolean {
-		this.logger(`isOpen: ${!!this.currentDocumentState}`)
-		return !!this.currentDocumentState
+		const isOpen = !!this.currentDocumentState
+		return isOpen
 	}
 
 	public setAutoScroll(enabled: boolean) {
 		this.isAutoScrollEnabled = enabled
+		this.logger(`Auto-scroll ${enabled ? "enabled" : "disabled"}`)
 	}
 
 	public dispose() {
@@ -500,7 +516,6 @@ export class InlineEditHandler {
 		this.pendingDecoration.dispose()
 		this.streamingDecoration.dispose()
 		this.mergeDecoration.dispose()
-		// this.currentDocumentState = undefined
 
 		// Force garbage collection of any remaining decorations
 		if (vscode.window.activeTextEditor) {
@@ -508,9 +523,31 @@ export class InlineEditHandler {
 			this.streamingDecoration.dispose()
 			this.mergeDecoration.dispose()
 		}
+
+		// Clear any pending operations
+		this.pendingOperations = []
+
+		// Clear the operation queue
+		this.operationQueue.clear()
 	}
 
-	private logger(message: string, level: "info" | "warn" | "error" = "info") {
-		console[level](`[InlineEditHandler] ${message}`)
+	// type guard against this.currentDocumentState being undefined
+	private validateDocumentState(): asserts this is { currentDocumentState: DocumentState } {
+		if (!this.currentDocumentState) {
+			throw new Error("No active document state.")
+		}
+	}
+
+	private logger(message: string, level: "info" | "debug" | "warn" | "error" = "debug") {
+		const timestamp = new Date().toISOString()
+		const queueSize = this.operationQueue ? this.operationQueue.size : 0
+		const pendingOps = this.pendingOperations.length
+		const isEditorOpen = this.isOpen()
+
+		console[level](
+			`[InlineEditHandler] ${timestamp} | ` +
+				`Queue: ${queueSize} | Pending: ${pendingOps} | Editor: ${isEditorOpen ? "open" : "closed"} | ` +
+				message
+		)
 	}
 }

@@ -221,6 +221,7 @@ export class WebviewManager {
 		const localServerUrl = `localhost:${localPort}`
 		let scriptUri
 		const isProd = this.provider.getContext().extensionMode === vscode.ExtensionMode.Production
+
 		if (isProd) {
 			scriptUri = getUri(webview, this.provider.getContext().extensionUri, [
 				"webview-ui-vite",
@@ -231,6 +232,7 @@ export class WebviewManager {
 		} else {
 			scriptUri = `http://${localServerUrl}/src/index.tsx`
 		}
+
 		const stylesUri = getUri(webview, this.provider.getContext().extensionUri, [
 			"webview-ui-vite",
 			"build",
@@ -238,8 +240,15 @@ export class WebviewManager {
 			"index.css",
 		])
 
-		const codiconUri = webview.asWebviewUri(
-			vscode.Uri.joinPath(context.extensionUri, "node_modules/@vscode/codicons/dist/codicon.css")
+		// Updated codicons path and error handling
+		const codiconsUri = webview.asWebviewUri(
+			vscode.Uri.joinPath(
+				this.provider.context.extensionUri,
+				"node_modules",
+				"@vscode/codicons",
+				"dist",
+				"codicon.css"
+			)
 		)
 
 		const nonce = getNonce()
@@ -260,37 +269,37 @@ export class WebviewManager {
 		]
 
 		return /*html*/ `
-        <!DOCTYPE html>
-        <html lang="en">
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
-            <meta name="theme-color" content="#000000">
-            <meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
-	        <link rel="stylesheet" type="text/css" href="${stylesUri}">
-			<link href="${codiconUri}" rel="stylesheet" />
-            <title>Claude Coder</title>
-          </head>
-          <body>
-            <noscript>You need to enable JavaScript to run this app.</noscript>
-            <div id="root"></div>
-            ${
-				isProd
-					? ""
-					: `
-                <script type="module">
-                  import RefreshRuntime from "http://${localServerUrl}/@react-refresh"
-                  RefreshRuntime.injectIntoGlobalHook(window)
-                  window.$RefreshReg$ = () => {}
-                  window.$RefreshSig$ = () => (type) => type
-                  window.__vite_plugin_react_preamble_installed__ = true
-                </script>
-                `
-			}
-            <script type="module" src="${scriptUri}"></script>
-          </body>
-        </html>
-      `
+			<!DOCTYPE html>
+			<html lang="en">
+			  <head>
+				<meta charset="utf-8">
+				<meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
+				<meta name="theme-color" content="#000000">
+				<meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
+				<link rel="stylesheet" type="text/css" href="${stylesUri}">
+				<link href="${codiconsUri}" rel="stylesheet" />
+				<title>Claude Coder</title>
+			  </head>
+			  <body>
+				<noscript>You need to enable JavaScript to run this app.</noscript>
+				<div id="root"></div>
+				${
+					isProd
+						? ""
+						: `
+					<script type="module">
+					  import RefreshRuntime from "http://${localServerUrl}/@react-refresh"
+					  RefreshRuntime.injectIntoGlobalHook(window)
+					  window.$RefreshReg$ = () => {}
+					  window.$RefreshSig$ = () => (type) => type
+					  window.__vite_plugin_react_preamble_installed__ = true
+					</script>
+					`
+				}
+				<script type="module" src="${scriptUri}"></script>
+			  </body>
+			</html>
+		`
 	}
 
 	/**
