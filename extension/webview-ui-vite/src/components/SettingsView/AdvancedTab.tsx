@@ -73,7 +73,7 @@ const AdvancedTab: React.FC = () => {
 							id: "terminalCompressionThreshold",
 							label: "Enable Terminal Compression",
 							description:
-								"Compress terminal output to reduce token usage when the output exceeds the threshold",
+								"Compress terminal output to reduce token usage when the output exceeds the threshold at the end of context window",
 						}}
 						checked={terminalCompressionThreshold !== undefined}
 						onCheckedChange={(checked) =>
@@ -123,54 +123,42 @@ const AdvancedTab: React.FC = () => {
 				</div>
 			</div>
 			<div className="space-y-4 mx-0">
-				<ExperimentalFeatureItem
-					feature={{
-						id: "terminalCompressionThreshold",
-						label: "Enable Terminal Compression",
-						description:
-							"Compress terminal output to reduce token usage when the output exceeds the threshold",
-					}}
-					checked={terminalCompressionThreshold !== undefined}
-					onCheckedChange={(checked) => handleTerminalCompressionThresholdChange(checked ? 10000 : undefined)}
-				/>
-				{terminalCompressionThreshold !== undefined && (
-					<div className="pl-0 grid gap-4">
-						<div className="grid gap-2">
-							<Label htmlFor="range">Command Timeout</Label>
-							<div className="grid gap-4">
-								<div className="flex items-center gap-4">
-									<Input
-										id="command-timeout"
-										type="number"
-										value={commandTimeout ?? 120}
-										onChange={(e) => {
-											const value = parseInt(e.target.value)
-											if (!isNaN(value)) {
-												handleCommandTimeout(value)
-											}
-										}}
-										min={60}
-										max={600}
-										step={10}
-										className="w-24"
-									/>
-									<span className="text-sm text-muted-foreground">(60 - 600)</span>
-								</div>
-								<Slider
+				<div className="pl-0 grid gap-4">
+					<div className="grid gap-2">
+						<Label htmlFor="range">Command Timeout</Label>
+						<div className="grid gap-4">
+							<div className="flex items-center gap-4">
+								<Input
+									id="command-timeout"
+									type="number"
+									value={commandTimeout ?? 120}
+									onChange={(e) => {
+										const value = parseInt(e.target.value)
+										if (!isNaN(value)) {
+											handleCommandTimeout(value)
+										}
+									}}
 									min={60}
 									max={600}
 									step={10}
-									value={[commandTimeout ?? 120]}
-									onValueChange={(value) => handleCommandTimeout(value[0])}
-									className="w-full"
+									className="w-24"
 								/>
+								<span className="text-sm text-muted-foreground">(60 - 600)</span>
 							</div>
-							<p className="text-sm text-muted-foreground">
-								Set the maximum time in seconds that a command can run before being terminated
-							</p>
+							<Slider
+								min={60}
+								max={600}
+								step={10}
+								value={[commandTimeout ?? 120]}
+								onValueChange={(value) => handleCommandTimeout(value[0])}
+								className="w-full"
+							/>
 						</div>
+						<p className="text-sm text-muted-foreground">
+							Set the maximum time in seconds that a command can run before being terminated
+						</p>
 					</div>
-				)}
+				</div>
 			</div>
 			<div className="space-y-2">
 				<Label htmlFor="custom-instructions" className="text-xs font-medium">

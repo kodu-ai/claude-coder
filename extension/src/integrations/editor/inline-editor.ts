@@ -10,7 +10,7 @@ interface EditBlock {
 }
 
 interface DocumentState {
-	uri: string
+	uri: vscode.Uri
 	originalContent: string
 	currentContent: string
 	editBlocks: Map<string, EditBlock>
@@ -121,21 +121,26 @@ export class InlineEditHandler {
 		return this.operationQueue.add(
 			async () => {
 				try {
-					const document = await vscode.workspace.openTextDocument(filePath)
+					if (this.currentDocumentState) {
+						this.logger(`Document already open, no need to open again`, "debug")
+						return
+					}
+					const uri = vscode.Uri.file(filePath)
+					const documentBuffer = await vscode.workspace.fs.readFile(uri)
+					const documentContent = Buffer.from(documentBuffer).toString("utf8")
+
 					// now let's make it focused and active
-					await vscode.window.showTextDocument(document, {
+					await vscode.window.showTextDocument(uri, {
 						viewColumn: vscode.ViewColumn.Active,
 						preserveFocus: false,
 						preview: false,
 					})
 
-					const originalContent = document.getText()
-
 					// Initialize or reset document state
 					this.currentDocumentState = {
-						uri: document.uri.toString(),
-						originalContent,
-						currentContent: originalContent,
+						uri: uri,
+						originalContent: documentContent,
+						currentContent: documentContent,
 						editBlocks: new Map(),
 					}
 
@@ -213,6 +218,9 @@ export class InlineEditHandler {
 				block.currentContent = content
 				block.status = "streaming"
 
+				this.logger(`Applying streaming content for id ${id}`, "info")
+				this.logger(`searchContent length: ${searchContent.length}`, "info")
+				this.logger(`replaceContent length: ${content.length}`, "info")
 				// Update entire file content
 				await this.updateFileContent()
 				return
@@ -299,6 +307,7 @@ export class InlineEditHandler {
 			const success = await vscode.workspace.applyEdit(workspaceEdit)
 
 			if (success) {
+				this.logger("File content updated", "info")
 				this.currentDocumentState.currentContent = newContent
 				await this.refreshEditor()
 			}
@@ -381,7 +390,7 @@ export class InlineEditHandler {
 		return this.operationQueue.add(async () => {
 			this.validateDocumentState()
 			// let's open the document and make it focused and active
-			vscode.window.showTextDocument(vscode.Uri.parse(this.currentDocumentState.uri), {
+			await vscode.window.showTextDocument(this.currentDocumentState.uri, {
 				viewColumn: vscode.ViewColumn.Active,
 				preserveFocus: false,
 				preview: false,
@@ -418,9 +427,9 @@ export class InlineEditHandler {
 	private async getDocument(): Promise<vscode.TextDocument | undefined> {
 		this.validateDocumentState()
 		try {
-			const uri = vscode.Uri.parse(this.currentDocumentState.uri)
+			const { uri } = this.currentDocumentState
 			let document = vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === uri.toString())
-			if (!document) {
+			if (!document || !document.isClosed) {
 				document = await vscode.workspace.openTextDocument(uri)
 			}
 			return document
@@ -437,19 +446,21 @@ export class InlineEditHandler {
 
 			try {
 				const document = await this.getDocument()
-				if (!document) {
+				if (!document || document.isClosed) {
 					throw new Error("No active document to save changes.")
 				}
 
 				// We don't want to override any user changes made after our last edit
 				// So we'll just save whatever is currently in the document
-				await document.save()
-
+				const res = await document.save()
+				this.logger(`save reuslt: ${res}`, "info")
 				// Get the current content which might include user changes
 				const finalContent = document.getText()
 
 				// Clean up
-				this.dispose()
+				setTimeout(() => {
+					this.dispose()
+				}, 1)
 
 				return finalContent
 			} catch (error) {
@@ -461,6 +472,9 @@ export class InlineEditHandler {
 			this.logger("Changes saved", "debug")
 			return res
 		}
+		this.logger("Failed to save changes", "error")
+		this.logger(`Total pending operations: ${this.pendingOperations.length}`, "error")
+
 		throw new Error("Failed to save changes")
 	}
 
@@ -534,6 +548,7 @@ export class InlineEditHandler {
 	// type guard against this.currentDocumentState being undefined
 	private validateDocumentState(): asserts this is { currentDocumentState: DocumentState } {
 		if (!this.currentDocumentState) {
+			this.logger("No active document state", "error")
 			throw new Error("No active document state.")
 		}
 	}

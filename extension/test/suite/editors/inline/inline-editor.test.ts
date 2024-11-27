@@ -43,7 +43,7 @@ async function simulateStreaming(diff: string, delayMs: number): Promise<AsyncGe
 			const nextChunk = diff.slice(streamedContent.length, streamedContent.length + chunkSize)
 			streamedContent += nextChunk
 			yield streamedContent
-			await delay(delayMs)
+			await delay(5)
 		}
 	}
 
@@ -63,7 +63,6 @@ async function testBlock(
 	const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(blockFileContentPath))
 
 	for await (const diff of generator) {
-		console.log("STEP", diff)
 		if (!(diff.includes("SEARCH") && diff.includes("REPLACE"))) {
 			continue
 		}
@@ -287,13 +286,18 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		await vscode.workspace.applyEdit(workspaceEdit)
 
 		// delete blocks
-		removeBlock(block3FilePath)
-		removeBlock(block4FilePath)
-		removeBlock(block5FilePath)
-		removeBlock(block6FilePath)
+		await removeBlock(block3FilePath)
+		await removeBlock(block4FilePath)
+		await removeBlock(block5FilePath)
+		await removeBlock(block6FilePath)
 
 		if (fs.existsSync(testFilePath)) {
 			fs.unlinkSync(testFilePath)
+			fs.unlinkSync(toEditFilePath)
+			fs.unlinkSync(block3FileContentPath)
+			fs.unlinkSync(block4FileContentPath)
+			fs.unlinkSync(block5FileContentPath)
+			fs.unlinkSync(block6FileContentPath)
 		}
 	})
 

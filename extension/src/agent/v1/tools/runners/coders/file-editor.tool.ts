@@ -295,7 +295,7 @@ export class FileEditorTool extends BaseAgentTool {
 			throw new Error(`Error parsing diff blocks: ${err}`)
 		}
 		if (!this.inlineEditor.isOpen()) {
-			this.inlineEditor.open(
+			await this.inlineEditor.open(
 				this.editBlocks[0].id,
 				this.fileState?.absolutePath!,
 				this.editBlocks[0].searchContent
