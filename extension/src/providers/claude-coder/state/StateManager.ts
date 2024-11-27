@@ -8,7 +8,7 @@ import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
 import { ExtensionState } from "../../../shared/ExtensionMessage"
 import { SystemPromptVariant } from "../../../shared/SystemPromptVariant"
-import { estimateTokenCount, estimateTokenCountFromMessages } from "../../../utils/context-management"
+import { estimateTokenCount, estimateTokenCountFromMessages } from "../../../utils/context-managment"
 import { BASE_SYSTEM_PROMPT } from "../../../agent/v1/prompts/base-system"
 import { getCwd } from "../../../agent/v1/utils"
 
@@ -53,6 +53,7 @@ export class StateManager {
 			isInlineEditingEnabled,
 			isAdvanceThinkingEnabled,
 			terminalCompressionThreshold,
+			inlineEditOutputType,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.globalStateManager.getGlobalState("browserModelId"),
@@ -79,6 +80,7 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("isInlineEditingEnabled"),
 			this.globalStateManager.getGlobalState("isAdvanceThinkingEnabled"),
 			this.globalStateManager.getGlobalState("terminalCompressionThreshold"),
+			this.globalStateManager.getGlobalState("inlineEditOutputType"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -145,6 +147,7 @@ export class StateManager {
 			currentContextTokens: tokens ?? 0,
 			autoSummarize: autoSummarize ?? false,
 			isContinueGenerationEnabled: isContinueGenerationEnabled ?? false,
+			inlineEditOutputType,
 		} satisfies ExtensionState
 	}
 
@@ -169,6 +172,11 @@ export class StateManager {
 	async setTerminalCompressionThreshold(value: number | undefined) {
 		this.context.getKoduDev()?.getStateManager()?.setTerminalCompressionThreshold(value)
 		return this.globalStateManager.updateGlobalState("terminalCompressionThreshold", value)
+	}
+
+	async setInlineEditModeType(value: "full" | "diff" | "none") {
+		this.context.getKoduDev()?.getStateManager()?.setInlineEditOutputType(value)
+		return this.globalStateManager.updateGlobalState("inlineEditOutputType", value)
 	}
 
 	async updateTaskHistory(item: HistoryItem): Promise<HistoryItem[]> {

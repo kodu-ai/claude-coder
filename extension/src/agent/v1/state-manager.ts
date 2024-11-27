@@ -27,6 +27,7 @@ export class StateManager {
 	private _skipWriteAnimation?: boolean
 	private _autoSummarize?: boolean
 	private _temporayPauseAutomaticMode: boolean = false
+	private _inlineEditOutputType?: "full" | "diff" | "none" = "full"
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -54,6 +55,7 @@ export class StateManager {
 		this._terminalCompressionThreshold = terminalCompressionThreshold
 		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
 		this._experimentalTerminal = experimentalTerminal
+		this._inlineEditOutputType = options.inlineEditOutputType
 		this._autoCloseTerminal = autoCloseTerminal
 		this._skipWriteAnimation = skipWriteAnimation
 		this._state = {
@@ -144,6 +146,10 @@ export class StateManager {
 		return this._alwaysAllowWriteOnly
 	}
 
+	get inlineEditOutputType(): "full" | "diff" | "none" | undefined {
+		return this._inlineEditOutputType
+	}
+
 	get skipWriteAnimation(): boolean | undefined {
 		return this._skipWriteAnimation
 	}
@@ -207,6 +213,10 @@ export class StateManager {
 	public setAlwaysAllowReadOnly(newValue: boolean): void {
 		this._alwaysAllowReadOnly = newValue
 		this.updateAmplitudeSettings()
+	}
+
+	public setInlineEditOutputType(newValue?: "full" | "diff" | "none"): void {
+		this._inlineEditOutputType = newValue
 	}
 
 	private updateAmplitudeSettings() {

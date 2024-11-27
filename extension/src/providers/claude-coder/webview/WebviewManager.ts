@@ -343,6 +343,12 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "setInlineEditMode":
+						await this.provider
+							.getStateManager()
+							.setInlineEditModeType(message.inlineEditOutputType ?? "full")
+						await this.postStateToWebview()
+						break
 					case "pauseTemporayAutoMode":
 						this.provider.getKoduDev()?.getStateManager()?.setTemporaryPauseAutomaticMode(message.mode)
 						break

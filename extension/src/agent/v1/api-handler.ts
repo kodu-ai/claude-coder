@@ -13,8 +13,7 @@ import { koduModels } from "../../shared/api"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
-import { truncateHalfConversation } from "../../utils/context-management"
-// import { estimateTokenCount, smartTruncation } from "../../utils/context-management"
+import { estimateTokenCount, smartTruncation, truncateHalfConversation } from "../../utils/context-managment"
 import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
 import { ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
@@ -420,60 +419,61 @@ ${this.customInstructions.trim()}
 		const history = provider.koduDev?.getStateManager().state.apiConversationHistory || []
 		const isAutoSummaryEnabled = provider.getKoduDev()?.getStateManager().autoSummarize ?? false
 		// can enable on and of auto summary
-		// if (!isAutoSummaryEnabled) {
-		const updatedMesages = truncateHalfConversation(history)
-		await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(updatedMesages)
+		if (!isAutoSummaryEnabled) {
+			const updatedMesages = truncateHalfConversation(history)
+			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(updatedMesages)
+			return "compressed"
+		}
+		const state = await provider.getStateManager()?.getState()
+		const systemPromptTokens = estimateTokenCount({
+			role: "assistant",
+			content: [{ type: "text", text: this.currentSystemPrompt ?? "" }],
+		})
+		const metrics = this.getApiMetrics(state?.claudeMessages || [])
+		const totalTokens =
+			metrics.inputTokens +
+			metrics.outputTokens +
+			metrics.inputCacheWrite +
+			metrics.inputCacheRead +
+			systemPromptTokens +
+			estimateTokenCount(history[history.length - 1])
+
+		let contextWindow = this.api.getModel().info.contextWindow
+		const terminalCompressionThreshold = provider
+			.getGlobalStateManager()
+			.getGlobalState("terminalCompressionThreshold")
+		const compressedMessages = await smartTruncation(history, this.api, terminalCompressionThreshold)
+		const newMemorySize = compressedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
+		this.log("info", `API History before compression:`, history)
+		this.log("info", `Total tokens before compression: ${totalTokens}`)
+		this.log("info", `Total tokens after compression: ${newMemorySize}`)
+		const maxPostTruncationTokens = contextWindow - 13_314 + this.api.getModel().info.maxTokens
+		await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(compressedMessages)
+
+		// if this condition hit the task should be blocked
+		if (newMemorySize >= maxPostTruncationTokens) {
+			// we reached the end
+			this.providerRef
+				.deref()
+				?.getKoduDev()
+				?.taskExecutor.say(
+					"chat_finished",
+					`The chat has reached the maximum token limit. Please create a new task to continue.`
+				)
+			this.providerRef.deref()?.getKoduDev()?.taskExecutor.blockTask()
+			return "chat_finished"
+		}
+		await this.providerRef
+			.deref()
+			?.getKoduDev()
+			?.taskExecutor.say(
+				"chat_truncated",
+				JSON.stringify({
+					before: totalTokens,
+					after: newMemorySize,
+				})
+			)
 		return "compressed"
-		// }
-		// const state = await provider.getStateManager()?.getState()
-		// const systemPromptTokens = estimateTokenCount({
-		// 	role: "assistant",
-		// 	content: [{ type: "text", text: this.currentSystemPrompt ?? "" }],
-		// })
-		// const metrics = this.getApiMetrics(state?.claudeMessages || [])
-		// const totalTokens =
-		// 	metrics.inputTokens +
-		// 	metrics.outputTokens +
-		// 	metrics.inputCacheWrite +
-		// 	metrics.inputCacheRead +
-		// 	systemPromptTokens +
-		// 	estimateTokenCount(history[history.length - 1])
-
-		// let contextWindow = this.api.getModel().info.contextWindow
-
-		// const truncatedMessages = smartTruncation(history)
-		// const newMemorySize = truncatedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
-		// this.log("info", `API History before truncation:`, history)
-		// this.log("info", `Compressed messages:`, truncatedMessages)
-		// this.log("info", `Total tokens before truncation: ${totalTokens}`)
-		// this.log("info", `Total tokens after truncation: ${newMemorySize}`)
-		// const maxPostTruncationTokens = contextWindow - 13_314 + this.api.getModel().info.maxTokens
-
-		// // if this condition hit the task should be blocked
-		// if (newMemorySize >= maxPostTruncationTokens) {
-		// 	// we reached the end
-		// 	await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
-		// 	this.providerRef
-		// 		.deref()
-		// 		?.getKoduDev()
-		// 		?.taskExecutor.say(
-		// 			"chat_finished",
-		// 			`The chat has reached the maximum token limit. Please create a new task to continue.`
-		// 		)
-		// 	return "chat_finished"
-		// }
-		// await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
-		// await this.providerRef
-		// 	.deref()
-		// 	?.getKoduDev()
-		// 	?.taskExecutor.say(
-		// 		"chat_truncated",
-		// 		JSON.stringify({
-		// 			before: totalTokens,
-		// 			after: newMemorySize,
-		// 		})
-		// 	)
-		// return "compressed"
 	}
 
 	/**

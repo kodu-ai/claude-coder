@@ -364,6 +364,31 @@ export class FileEditorTool extends BaseAgentTool {
 			this.ts
 		)
 
+		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
+		if (currentOutputMode === "diff") {
+			return this.toolResponse(
+				"success",
+				`The content was successfully saved to ${path.toPosix()}
+				Here is the latests updates to the file after the changes were applied all the previous is the same as the original content except for the changes made, remember this for future reference:
+			<file>
+			<path>${path}</path>
+			<updated_blocks>${this.editBlocks
+				.map((block) => {
+					return `<block id="${block.id}">${block.replaceContent}</block>`
+				})
+				.join("\n")}</updated_blocks>
+			</file>
+			`
+			)
+		}
+		if (currentOutputMode === "none") {
+			return this.toolResponse(
+				"success",
+				`The content was successfully saved to ${path.toPosix()}
+			use the search and replace blocks as future reference for the changes made to the file, you should remember them while priotizing the latest content as the source of truth (original + changes made)`
+			)
+		}
+
 		return this.toolResponse(
 			"success",
 			`The content was successfully saved to ${path.toPosix()}

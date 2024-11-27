@@ -602,6 +602,15 @@ export class TaskExecutor extends TaskExecutorUtils {
 		}
 	}
 
+	/**
+	 * pause the task from continuing
+	 */
+	public blockTask() {
+		this.state = TaskState.ABORTED
+		this.isRequestCancelled = true
+		this.abortController?.abort()
+	}
+
 	private async handleApiError(error: TaskError): Promise<void> {
 		this.logError(error)
 		console.log(`[TaskExecutor] Error (State: ${this.state}):`, error)

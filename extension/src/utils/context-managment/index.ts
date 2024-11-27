@@ -1,5 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { compressToolFromMsg } from "../shared/format-tools"
+import { compressToolFromMsg } from "./compress-chat"
 
 // Constants for better maintainability
 const MIN_MESSAGES_TO_KEEP = 4
@@ -53,50 +53,18 @@ export function truncateHalfConversation(
  * @param messages Array of message parameters
  * @returns Compressed messages array
  */
-// export function smartTruncation(messages: Anthropic.Messages.MessageParam[]): Anthropic.Messages.MessageParam[] {
-// 	if (!Array.isArray(messages) || messages.length === 0) {
-// 		return messages
-// 	}
-
-// 	return messages.map((msg, index) => {
-// 		if (index >= messages.length - RECENT_MESSAGES_TO_PRESERVE) {
-// 			return msg
-// 		}
-
-// 		// Handle message content
-// 		if (!msg.content) {
-// 			return msg
-// 		}
-
-// 		// If content is a string, wrap it in a text block
-// 		if (typeof msg.content === "string") {
-// 			return {
-// 				...msg,
-// 				content: [
-// 					{
-// 						type: "text",
-// 						text: msg.content,
-// 					},
-// 				],
-// 			}
-// 		}
-
-// 		// If content is an array, process each block
-// 		if (Array.isArray(msg.content)) {
-// 			// @ts-expect-error - correctly infers that msg is a MessageParam
-// 			const truncatedContent = compressToolFromMsg(msg.content)
-// 			// Only update if truncation produced different content
-// 			if (truncatedContent.length > 0) {
-// 				return {
-// 					...msg,
-// 					content: truncatedContent,
-// 				}
-// 			}
-// 		}
-
-// 		return msg
-// 	})
-// }
+export async function smartTruncation(
+	...args: Parameters<typeof compressToolFromMsg>
+): Promise<Anthropic.Messages.MessageParam[]> {
+	if (!Array.isArray(args[0]) || args[0].length === 0) {
+		return args[0]
+	}
+	// compress from the first message to -MIN_MESSAGES_TO_KEEP
+	const beforeCompression = args[0].slice(0, -MIN_MESSAGES_TO_KEEP)
+	const recentMessages = args[0].slice(-MIN_MESSAGES_TO_KEEP)
+	const compressedMessages = await compressToolFromMsg(beforeCompression, args[1], args[2])
+	return [...compressedMessages, ...recentMessages]
+}
 
 /**
  * Estimates token count from a message using character-based heuristics

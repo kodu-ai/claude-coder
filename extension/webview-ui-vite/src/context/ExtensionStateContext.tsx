@@ -78,6 +78,9 @@ lastShownAnnouncementIdAtom.debugLabel = "lastShownAnnouncementId"
 const isContinueGenerationEnabledAtom = atom(false)
 isContinueGenerationEnabledAtom.debugLabel = "isContinueGenerationEnabled"
 
+const inlineEditModeTypeAtom = atom<"full" | "diff" | "none">("full")
+inlineEditModeTypeAtom.debugLabel = "inlineEditModeType"
+
 const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	const currentTaskId = get(currentTaskIdAtom)
 	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
@@ -97,6 +100,8 @@ export const extensionStateAtom = atom((get) => ({
 	currentContextTokens: get(currentContextTokensAtom),
 	currentTask: get(currentTaskAtom),
 	currentTaskId: get(currentTaskIdAtom),
+	inlineEditModeAtom: get(inlineEditModeAtom),
+	inlineEditModeType: get(inlineEditModeTypeAtom),
 	shouldShowAnnouncement: get(shouldShowAnnouncementAtom),
 	shouldShowKoduPromo: get(shouldShowKoduPromoAtom),
 	apiConfiguration: get(apiConfigurationAtom),
@@ -143,7 +148,6 @@ terminalCompressionThresholdAtom.debugLabel = "terminalCompressionThreshold"
 export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 	const setVersion = useSetAtom(versionAtom)
 	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
-	const terminalCompressionThreshold = useAtom(terminalCompressionThresholdAtom)
 	const setTaskHistory = useSetAtom(taskHistoryAtom)
 	const setInlineEditMode = useSetAtom(inlineEditModeAtom)
 	const setAdvanceThinkingMode = useSetAtom(advanceThinkingModeAtom)
@@ -175,6 +179,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setFpjsKey = useSetAtom(fpjsKeyAtom)
 	const setSystemPromptVariants = useSetAtom(systemPromptVariantsAtom)
 	const setTerminalCompressionThreshold = useSetAtom(terminalCompressionThresholdAtom)
+	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
 
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
@@ -191,6 +196,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setInlineEditMode(!!message.state.inlineEditMode)
 			setAdvanceThinkingMode(!!message.state.advanceThinkingMode)
 			setAutoSummarize(!!message.state.autoSummarize)
+			setInlineEditModeType(message.state.inlineEditOutputType ?? "full")
 			setLastShownAnnouncementId(message.state.lastShownAnnouncementId)
 			setTaskHistory(message.state.taskHistory)
 			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)
@@ -246,6 +252,7 @@ export const useExtensionState = () => {
 	const setTerminalCompressionThreshold = useSetAtom(terminalCompressionThresholdAtom)
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
+	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
 	const setInlineEditMode = useSetAtom(inlineEditModeAtom)
 	const setAdvanceThinkingMode = useSetAtom(advanceThinkingModeAtom)
@@ -271,6 +278,7 @@ export const useExtensionState = () => {
 		setAutoCloseTerminal,
 		setCustomInstructions,
 		setAlwaysAllowWriteOnly,
+		setInlineEditModeType,
 		setCreativeMode,
 		setAutoSummarize,
 		setInlineEditMode,

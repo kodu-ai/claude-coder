@@ -30,6 +30,7 @@ export interface KoduDevOptions {
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
 	experimentalTerminal?: boolean
+	inlineEditOutputType?: "full" | "diff" | "none"
 	alwaysAllowWriteOnly?: boolean
 	skipWriteAnimation?: boolean
 	autoCloseTerminal?: boolean
