@@ -122,15 +122,16 @@ export class FullFileEditor {
 	private modifiedUri?: vscode.Uri
 	private updateTimeout: NodeJS.Timeout | null = null
 	private static providersRegistered = false
+	private contentBeforeDiffView: string | undefined
 
 	constructor(private cwd: string, koduDev: KoduDev) {
 		if (!FullFileEditor.providersRegistered) {
 			if (!FullFileEditor.diffContentProvider) {
-				FullFileEditor.diffContentProvider = new DiffContentProvider()
-				vscode.workspace.registerTextDocumentContentProvider(
-					CONSTANTS.DIFF_VIEW_URI_SCHEME,
-					FullFileEditor.diffContentProvider
-				)
+					FullFileEditor.diffContentProvider = new DiffContentProvider()
+					vscode.workspace.registerTextDocumentContentProvider(
+						CONSTANTS.DIFF_VIEW_URI_SCHEME,
+						FullFileEditor.diffContentProvider
+					)
 			}
 
 			if (!FullFileEditor.modifiedContentProvider) {
@@ -254,6 +255,9 @@ export class FullFileEditor {
 	private async openDiffEditor(): Promise<void> {
 		if (!this.currentDocumentState) return
 
+		// Store the content before showing diff view
+		this.contentBeforeDiffView = this.currentDocumentState.currentContent
+
 		const fileName = path.basename(this.currentDocumentState.uri)
 		const fileUri = vscode.Uri.file(this.currentDocumentState.uri)
 
@@ -322,15 +326,23 @@ export class FullFileEditor {
 			await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(editedContent))
 
 			const normalizedEditedContent = editedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
-			const normalizedStreamedContent = this.currentDocumentState.currentContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+			const normalizedOriginalContent = (this.contentBeforeDiffView || this.currentDocumentState.currentContent)
+				.replace(/\r\n|\n/g, "\n")
+				.trimEnd() + "\n"
 
 			let userEdits: string | undefined
+			// Only report user edits if:
+			// 1. Not a new file
+			// 2. Content was actually modified in diff view
+			// 3. We have a diff editor (user had chance to edit)
+			// 4. The content is different from what it was before showing the diff view
 			if (!this.currentDocumentState.isNewFile && 
 				this.diffEditor && 
-				normalizedEditedContent !== normalizedStreamedContent) {
+				this.contentBeforeDiffView && 
+				normalizedEditedContent !== normalizedOriginalContent) {
 				userEdits = await this.createPrettyPatch(
 					path.relative(this.cwd, uri.fsPath).replace(/\\/g, "/"),
-					normalizedStreamedContent,
+					 normalizedOriginalContent,
 					normalizedEditedContent
 				)
 			}
@@ -417,5 +429,6 @@ export class FullFileEditor {
 		this.currentDocumentState = undefined
 		this.originalUri = undefined
 		this.modifiedUri = undefined
+		this.contentBeforeDiffView = undefined
 	}
 }

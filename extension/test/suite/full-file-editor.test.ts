@@ -1,7 +1,7 @@
 import * as assert from "assert"
 import * as fs from "fs"
-import * as path from "path"
 import type * as Mocha from 'mocha'
+import * as path from "path"
 import * as vscode from "vscode"
 import { FullFileEditor } from "../../src/integrations/editor/full-file-editor"
 
@@ -250,7 +250,8 @@ describe("FullFileEditor End-to-End Test", () => {
 		assert.strictEqual(fs.existsSync(newFilePath), true)
 	})
 
-	it("should only report user edits when content was actually modified", async function(this: Mocha.Context) {
+	it("should only report user edits when content was actually modified", async function(this: 
+		Mocha.Context) {
 		this.timeout(30000)
 
 		const filePath = path.join(testDir, "test.ts")
@@ -266,5 +267,63 @@ describe("FullFileEditor End-to-End Test", () => {
 		const { finalContent, userEdits } = await editor.saveChanges()
 		assert.strictEqual(userEdits, undefined, "Should not report user edits when content wasn't modified in diff view")
 		assert.strictEqual(finalContent.trim(), testContent.updated.trim())
+	})
+
+	it("should detect actual user modifications in diff view", async function() {
+		this.timeout(30000)
+
+		const filePath = path.join(testDir, "test.ts")
+		fs.writeFileSync(filePath, testContent.initial)
+
+		// First apply changes programmatically
+		await editor.open("test-block", filePath, testContent.searchReplace.search)
+		await editor.applyStreamContent(
+			"test-block", 
+			testContent.searchReplace.search, 
+			testContent.searchReplace.replace
+		)
+		await editor.applyFinalContent(
+			"test-block",
+			testContent.searchReplace.search,
+			testContent.searchReplace.replace
+		)
+		await waitForUpdate()
+
+		// Save without modifications - should not report user edits
+		let result = await editor.saveChanges()
+		assert.strictEqual(result.userEdits, undefined, 
+			"Should not report user edits when content wasn't modified in diff view")
+
+		// Now make a change that simulates user modification
+		await editor.open("test-block", filePath, testContent.searchReplace.search)
+		await editor.applyStreamContent(
+			"test-block", 
+			testContent.searchReplace.search, 
+			testContent.searchReplace.replace
+		)
+		await editor.applyFinalContent(
+			"test-block",
+			testContent.searchReplace.search,
+			testContent.searchReplace.replace
+		)
+		await waitForUpdate()
+
+		// Simulate user edit by modifying the document
+		if (editor['diffEditor']) {
+			const edit = new vscode.WorkspaceEdit()
+			const document = editor['diffEditor'].document
+			edit.insert(
+				document.uri,
+				new vscode.Position(1, 0),
+				'    // User added comment\n'
+			)
+			await vscode.workspace.applyEdit(edit)
+			await waitForUpdate()
+		}
+
+		// Now save should report user edits
+		result = await editor.saveChanges()
+		assert.strictEqual(result.userEdits !== undefined, true, 
+			"Should report user edits when content was modified in diff view")
 	})
 }) 
