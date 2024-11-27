@@ -175,7 +175,13 @@ export type pauseTemporayAutoModeMessage = {
 	mode: boolean
 }
 
+export type setInlineEditModeMessage = {
+	type: "setInlineEditMode"
+	inlineEditOutputType?: "full" | "diff" | "none"
+}
+
 export type WebviewMessage =
+	| setInlineEditModeMessage
 	| pauseTemporayAutoModeMessage
 	| terminalCompressionThresholdMessage
 	| switchAutomaticModeMessage

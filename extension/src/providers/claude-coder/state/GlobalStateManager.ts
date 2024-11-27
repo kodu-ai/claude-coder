@@ -27,6 +27,7 @@ export type GlobalState = {
 	useUdiff: boolean | undefined
 	alwaysAllowReadOnly: boolean | undefined
 	alwaysAllowWriteOnly: boolean | undefined
+	inlineEditOutputType?: "full" | "diff" | "none"
 	autoSummarize: boolean | undefined
 	taskHistory: HistoryItem[] | undefined
 	shouldShowKoduPromo: boolean | undefined

@@ -1,5 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { compressToolFromMsg } from "../shared/format-tools"
+import { compressToolFromMsg } from "./compress-chat"
 
 // Constants for better maintainability
 const MIN_MESSAGES_TO_KEEP = 4
@@ -8,12 +8,16 @@ const IMAGE_TOKEN_ESTIMATE = 2000
 const CHARS_PER_TOKEN_ESTIMATE = 3
 
 export const isTextBlock = (block: any): block is Anthropic.TextBlockParam => {
-	if (!block || typeof block !== "object") {return false}
+	if (!block || typeof block !== "object") {
+		return false
+	}
 	return block.type === "text"
 }
 
 export const isImageBlock = (block: any): block is Anthropic.ImageBlockParam => {
-	if (!block || typeof block !== "object") {return false}
+	if (!block || typeof block !== "object") {
+		return false
+	}
 	return block.type === "image"
 }
 
@@ -52,49 +56,17 @@ export function truncateHalfConversation(
  * @param messages Array of message parameters
  * @returns Compressed messages array
  */
-export function smartTruncation(messages: Anthropic.Messages.MessageParam[]): Anthropic.Messages.MessageParam[] {
-	if (!Array.isArray(messages) || messages.length === 0) {
-		return messages
+export async function smartTruncation(
+	...args: Parameters<typeof compressToolFromMsg>
+): Promise<Anthropic.Messages.MessageParam[]> {
+	if (!Array.isArray(args[0]) || args[0].length === 0) {
+		return args[0]
 	}
-
-	return messages.map((msg, index) => {
-		if (index >= messages.length - RECENT_MESSAGES_TO_PRESERVE) {
-			return msg
-		}
-
-		// Handle message content
-		if (!msg.content) {
-			return msg
-		}
-
-		// If content is a string, wrap it in a text block
-		if (typeof msg.content === "string") {
-			return {
-				...msg,
-				content: [
-					{
-						type: "text",
-						text: msg.content,
-					},
-				],
-			}
-		}
-
-		// If content is an array, process each block
-		if (Array.isArray(msg.content)) {
-			// @ts-expect-error - correctly infers that msg is a MessageParam
-			const truncatedContent = compressToolFromMsg(msg.content)
-			// Only update if truncation produced different content
-			if (truncatedContent.length > 0) {
-				return {
-					...msg,
-					content: truncatedContent,
-				}
-			}
-		}
-
-		return msg
-	})
+	// compress from the first message to -MIN_MESSAGES_TO_KEEP
+	const beforeCompression = args[0].slice(0, -MIN_MESSAGES_TO_KEEP)
+	const recentMessages = args[0].slice(-MIN_MESSAGES_TO_KEEP)
+	const compressedMessages = await compressToolFromMsg(beforeCompression, args[1], args[2])
+	return [...compressedMessages, ...recentMessages]
 }
 
 /**
@@ -104,7 +76,9 @@ export function smartTruncation(messages: Anthropic.Messages.MessageParam[]): An
  */
 export const estimateTokenCount = (message: Anthropic.MessageParam): number => {
 	try {
-		if (!message.content) {return 0}
+		if (!message.content) {
+			return 0
+		}
 
 		if (typeof message.content === "string") {
 			return Math.ceil(message.content.length / CHARS_PER_TOKEN_ESTIMATE)
@@ -136,7 +110,9 @@ export const estimateTokenCount = (message: Anthropic.MessageParam): number => {
  * @returns Total estimated token count
  */
 export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.MessageParam[]): number => {
-	if (!Array.isArray(messages)) {return 0}
+	if (!Array.isArray(messages)) {
+		return 0
+	}
 
 	return messages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
 }

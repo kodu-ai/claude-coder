@@ -86,6 +86,9 @@ const extensionConfig = {
 	platform: "node",
 	outfile: "dist/extension.js",
 	external: ["vscode", "chromium-bidi"],
+	alias: {
+		"@": path.resolve(__dirname, "src"),
+	},
 } satisfies BuildOptions
 
 async function main() {

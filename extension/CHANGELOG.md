@@ -4,6 +4,26 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.13.6] - 2024-11-27
+
+### Changed
+
+-   Added option to select inline edit output (full,diff,none)
+
+## [1.13.5] - 2024-11-27
+
+### Changed
+
+-   Reworked autosummary algorithim resulting in upwards of 80% context saving on first compression
+-   Improved coverage across extension
+-   Fixed extension build and debugging
+
+## [1.13.3] - 2024-11-26
+
+### Changed
+
+-   Improved accuracy of inline edits by outputting the entire file content as the edit result.
+
 ## [1.13.2] - 2024-11-26
 
 ### FIXED

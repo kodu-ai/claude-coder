@@ -22,6 +22,8 @@ export function useSettingsState() {
 		isInlineEditingEnabled: extensionState.inlineEditMode || false,
 		isAdvanceThinkingEnabled: extensionState.advanceThinkingMode || false,
 	})
+	// 		inlineEditingType: extensionState.inlineEditModeType || "full",
+	const [inlineEditingType, setInlineEditingType] = useState(extensionState.inlineEditModeType || "full")
 	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
 	const [autoSkipWrite, setAutoSkipWrite] = useState(extensionState.skipWriteAnimation || false)
 	const [systemPromptVariants, setSystemPromptVariants] = useState<SystemPromptVariant[]>(
@@ -68,6 +70,11 @@ export function useSettingsState() {
 		},
 		[extensionState]
 	)
+
+	const handleInlineEditingTypeChange = useCallback((type: "full" | "diff" | "none") => {
+		extensionState.setInlineEditModeType(type)
+		vscode.postMessage({ type: "setInlineEditMode", inlineEditOutputType: type })
+	}, [])
 
 	const handleTechnicalLevelChange = useCallback((setLevel: typeof technicalLevel) => {
 		console.log(`Setting technical level to: ${setLevel}`)
@@ -155,6 +162,8 @@ export function useSettingsState() {
 		systemPromptVariants,
 		activeVariantId,
 		terminalCompressionThreshold,
+		inlineEditingType,
+		handleInlineEditingTypeChange,
 		handleTerminalCompressionThresholdChange,
 		handleAutoSkipWriteChange,
 		handleExperimentalFeatureChange,

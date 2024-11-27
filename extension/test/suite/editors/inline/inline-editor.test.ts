@@ -1,9 +1,9 @@
 import * as vscode from "vscode"
 import * as assert from "assert"
-import { InlineEditHandler } from "../../src/integrations/editor/inline-editor"
+import { InlineEditHandler } from "../../../../src/integrations/editor/inline-editor"
 import * as fs from "fs"
 import * as path from "path"
-import { EditBlock, parseDiffBlocks } from "../../src/agent/v1/tools/runners/coders/utils"
+import { EditBlock, parseDiffBlocks } from "../../../../src/agent/v1/tools/runners/coders/utils"
 
 describe("InlineEditHandler End-to-End Test", () => {
 	const testFilePath = path.join(__dirname, "testFile.ts")

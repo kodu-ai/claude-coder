@@ -83,8 +83,6 @@
 		"use-resize-observer": "^9.1.0",
 		"vaul": "^0.9.2",
 		"web-vitals": "^4.2.3",
-		"xterm": "^5.3.0",
-		"xterm-addon-fit": "^0.8.0",
 		"zod": "^3.23.8"
 	},
 	"devDependencies": {
@@ -104,6 +102,6 @@
 		"postcss": "^8.4.45",
 		"tailwindcss": "^3.4.10",
 		"typescript": "^5.5.3",
-		"vite": "^5.4.1"
+		"vite": "^6.0.0"
 	}
 }
