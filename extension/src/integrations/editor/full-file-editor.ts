@@ -121,27 +121,35 @@ export class FullFileEditor {
 	private originalUri?: vscode.Uri
 	private modifiedUri?: vscode.Uri
 	private updateTimeout: NodeJS.Timeout | null = null
+	private static providersRegistered = false
 
 	constructor(private cwd: string, koduDev: KoduDev) {
-		if (!FullFileEditor.diffContentProvider) {
-			FullFileEditor.diffContentProvider = new DiffContentProvider()
-			vscode.workspace.registerTextDocumentContentProvider(
-				CONSTANTS.DIFF_VIEW_URI_SCHEME,
-				FullFileEditor.diffContentProvider
-			)
-		}
-
-		if (!FullFileEditor.modifiedContentProvider) {
-			FullFileEditor.modifiedContentProvider = new ModifiedContentProvider()
-			try {
-				vscode.workspace.registerFileSystemProvider(
-					CONSTANTS.MODIFIED_URI_SCHEME,
-					FullFileEditor.modifiedContentProvider
+		if (!FullFileEditor.providersRegistered) {
+			if (!FullFileEditor.diffContentProvider) {
+				FullFileEditor.diffContentProvider = new DiffContentProvider()
+				vscode.workspace.registerTextDocumentContentProvider(
+					CONSTANTS.DIFF_VIEW_URI_SCHEME,
+					FullFileEditor.diffContentProvider
 				)
-			} catch (e) {
-				console.error(`Failed to register file system provider: ${e}`)
-				throw new Error(`Failed to register file system provider: ${e}`)
 			}
+
+			if (!FullFileEditor.modifiedContentProvider) {
+				FullFileEditor.modifiedContentProvider = new ModifiedContentProvider()
+				try {
+					vscode.workspace.registerFileSystemProvider(
+						CONSTANTS.MODIFIED_URI_SCHEME,
+						FullFileEditor.modifiedContentProvider,
+						{ isCaseSensitive: true }
+					)
+				} catch (e) {
+					// If provider is already registered, just use the existing one
+					if (!(e instanceof Error) || !e.message.includes('already registered')) {
+						console.error(`Failed to register file system provider: ${e}`)
+						throw new Error(`Failed to register file system provider: ${e}`)
+					}
+				}
+			}
+			FullFileEditor.providersRegistered = true
 		}
 	}
 
@@ -292,7 +300,7 @@ export class FullFileEditor {
 			this.disposables.push(
 				vscode.workspace.onDidChangeTextDocument(e => {
 					if (e.document === this.diffEditor?.document) {
-						this.currentDocumentState!.currentContent = e.document.getText()
+					this.currentDocumentState!.currentContent = e.document.getText()
 					}
 				})
 			)
@@ -317,7 +325,9 @@ export class FullFileEditor {
 			const normalizedStreamedContent = this.currentDocumentState.currentContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
 
 			let userEdits: string | undefined
-			if (normalizedEditedContent !== normalizedStreamedContent) {
+			if (!this.currentDocumentState.isNewFile && 
+				this.diffEditor && 
+				normalizedEditedContent !== normalizedStreamedContent) {
 				userEdits = await this.createPrettyPatch(
 					path.relative(this.cwd, uri.fsPath).replace(/\\/g, "/"),
 					normalizedStreamedContent,
