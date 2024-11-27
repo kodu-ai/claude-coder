@@ -53,6 +53,10 @@ A good example of using this tool is when you need to update specific functions,
 Parameters:
 - path: (required) The path of the file to edit (relative to the current working directory ${cwd.toPosix()})
 - kodu_diff: (required) The 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly, and each 'REPLACE' block should provide the intended changes.
+  - SEARCH block must contain at least 5 contiguous lines of code or additional context from the original file to ensure a robust match. This approach improves the reliability of matching and minimizes unintended changes during modification.
+  - The 'SEARCH' and 'REPLACE' blocks must be separated by '======='.
+  - The REPLACE block should contain the updated content to replace the existing content matched by the SEARCH block.
+  - You can go do up to 3 SEARCH/REPLACE blocks in a single tool call, but each SEARCH/REPLACE block must be complete and accurate avoid doing partial changes or placeholders in the REPLACE block.
 
 CRITICAL GUIDANCE FOR USING SEARCH/REPLACE:
 
@@ -74,11 +78,27 @@ Accurately generating 'SEARCH/REPLACE' blocks when using the edit_file_blocks to
    - Use 'SEARCH/REPLACE' blocks when modifying existing files.
    - Each 'SEARCH' block must exactly match existing content. Any deviation may lead to errors.
    - Separate the 'SEARCH' and 'REPLACE' blocks with '======='.
+   - When replacing multiple sections, ensure each 'SEARCH' corresponds to its respective 'REPLACE'
+     the format should be:
+        SEARCH
+        // code block to search
+        =======
+        REPLACE
+        // updated code block
+        =======
+        SEARCH
+        // another code block to search
+        =======
+        REPLACE
+        // updated code block
 
 5. **ENSURE** that the SEARCH block contains at least 5 contiguous lines of code or additional context, such as comments, from the original file. This approach improves the reliability of matching and minimizes unintended changes during modification.
   - Always strive to capture surrounding lines that help uniquely identify the location of your intended change.
   - Contextual lines may include comments, whitespace, and code directly before or after the target change to ensure a robust match.
   - When in doubt, prioritize including more lines for context while maintaining SEARCH sections that are concise and relevant to avoid overwhelming matches.
+
+6. **ENSURE** that you only include one tool call per message to avoid confusion and ensure that each tool call is processed correctly.
+this means you can only use one <edit_file_blocks> tool per message, but you can use multiple SEARCH/REPLACE blocks within that tool.
 
 Usage:
 
@@ -187,47 +207,54 @@ def another_function_call():
 </kodu_diff>
 </edit_file_blocks>
 
--- Example 4: Creating a New File
-
-<edit_file_blocks>
-<path>hello.py</path>
-<kodu_content>
-def hello():
-    "print a greeting"
-
-    print("hello")
-</kodu_content>
-</edit_file_blocks>
-
--- Example 5: Modifying an Existing File to Import a Function
+-- Example 4: Modifying multiple sections in a file
 
 <edit_file_blocks>
 <path>main.py</path>
 <kodu_diff>
 SEARCH
-# Some context before the function
-def hello():
-    "print a greeting"
-
-    print("hello")
-
-# Additional context after the function
-class HelloWorld:
-    def greet(self):
-        pass
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '~/components/ui/dialog';
 =======
 REPLACE
-# Some context before the function
-from hello import hello
-
-# Additional context after the function
-class HelloWorld:
-    def greet(self):
-        pass
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '~/components/ui/dialog';
+import { useAuth } from '~/hooks/useAuth';
+=======
+SEARCH
+export function AddSubscriptionModal({
+  isOpen,
+  onClose,
+}: AddSubscriptionModalProps) {
+  const addSubscription = useSubscriptionStore(
+    (state) => state.addSubscription
+  );
+=======
+REPLACE
+export function AddSubscriptionModal({
+  isOpen,
+  onClose,
+}: AddSubscriptionModalProps) {
+  const addSubscription = useSubscriptionStore(
+    (state) => state.addSubscription
+  );
+  const auth = useAuth();
 </kodu_diff>
 </edit_file_blocks>
 
--- Example 6: Multiple Hunks in a Single File
+-- Example 5: Multiple Hunks in a Single File
 
 <edit_file_blocks>
 <path>src/example.js</path>
@@ -247,7 +274,7 @@ const greet = () => {
 };
 const a = 1;
 const b = 2;
-
+=======
 SEARCH
 // Context for second change
 function add(a, b) {
@@ -419,6 +446,42 @@ Usage:
 <browserMode>api_docs or generic</browserMode>
 <baseLink>Base link for search (optional)</baseLink>
 </web_search>
+
+## computer_use
+Description: Request to interact with a Puppeteer-controlled browser or take a screenshot of the current desktop. Every action, except \`close\`, will be responded to with a screenshot of the browser's current state, along with any new console logs. You may only perform one browser action per message, and wait for the user's response including a screenshot and logs to determine the next action.
+- The sequence of actions except the \`system_screenshot\` action **must always start with** launching the browser at a URL, and **must always end with** closing the browser. If you need to visit a new URL that is not possible to navigate to from the current webpage, you must first close the browser, then launch again at the new URL.
+- While the browser is active, only the \`computer_use\` tool can be used. No other tools should be called during this time. You may proceed to use other tools only after closing the browser. For example if you run into an error and need to fix a file, you must close the browser, then use other tools to make the necessary changes, then re-launch the browser to verify the result.
+- The browser window has a resolution of **900x600** pixels. When performing any click actions, ensure the coordinates are within this resolution range.
+- Before clicking on any elements such as icons, links, or buttons, you must consult the provided screenshot of the page to determine the coordinates of the element. The click should be targeted at the **center of the element**, not on its edges.
+Parameters:
+- action: (required) The action to perform. The available actions are:
+    * system_screenshot: Take a screenshot of the current desktop.
+    * launch: Launch a new Puppeteer-controlled browser instance at the specified URL. This **must always be the first action**.
+        - Use with the \`url\` parameter to provide the URL.
+        - Ensure the URL is valid and includes the appropriate protocol (e.g. http://localhost:3000/page, file:///path/to/file.html, etc.)
+    * click: Click at a specific x,y coordinate.
+        - Use with the \`coordinate\` parameter to specify the location.
+        - Always click in the center of an element (icon, button, link, etc.) based on coordinates derived from a screenshot.
+    * type: Type a string of text on the keyboard. You might use this after clicking on a text field to input text.
+        - Use with the \`text\` parameter to provide the string to type.
+    * scroll_down: Scroll down the page by one page height.
+    * scroll_up: Scroll up the page by one page height.
+    * close: Close the Puppeteer-controlled browser instance. This **must always be the final browser action**.
+        - Example: \`<action>close</action>\`
+- url: (optional) Use this for providing the URL for the \`launch\` action.
+    * Example: <url>https://example.com</url>
+- coordinate: (optional) The X and Y coordinates for the \`click\` action. Coordinates should be within the **900x600** resolution.
+    * Example: <coordinate>450,300</coordinate>
+- text: (optional) Use this for providing the text for the \`type\` action.
+    * Example: <text>Hello, world!</text>
+Usage:
+<computer_use>
+<action>Action to perform (e.g., system_screenshot, launch, click, type, scroll_down, scroll_up, close)</action>
+<url>URL to launch the browser at (optional)</url>
+<coordinate>x,y coordinates (optional)</coordinate>
+<text>Text to type (optional)</text>
+</computer_use>
+
 
 # Tool Use Examples
 

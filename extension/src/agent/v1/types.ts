@@ -26,6 +26,7 @@ export interface KoduDevOptions {
 	apiConfiguration: ApiConfiguration
 	maxRequestsPerTask?: number
 	autoSummarize?: boolean
+	terminalCompressionThreshold?: number
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
 	experimentalTerminal?: boolean
@@ -53,6 +54,7 @@ export interface KoduDevState {
 	claudeMessages: ClaudeMessage[]
 	askResponse?: ClaudeAskResponse
 	askResponseText?: string
+	terminalCompressionThreshold?: number
 	isHistoryItem?: boolean
 	isHistoryItemResumed?: boolean
 	/**

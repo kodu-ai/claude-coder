@@ -211,6 +211,11 @@ export const useChatMessageHandling = (
 						primaryButtonText: "List Definitions",
 						secondaryButtonText: "Cancel",
 					},
+					edit_file_blocks: {
+						...baseState,
+						primaryButtonText: "Edit File",
+						secondaryButtonText: "Cancel",
+					},
 				}
 
 				const updates = toolButtonMap[tool.tool] || {

@@ -1,0 +1,3 @@
+packages:
+    - "extension"
+    - "extension/webview-ui-vite"

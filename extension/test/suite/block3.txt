@@ -1,0 +1,227 @@
+SEARCH
+import { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '~/components/ui/dialog';
+import { Button } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
+=======
+REPLACE
+import { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '~/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
+import { Button } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
+import { Loader2 } from "lucide-react";
+=======
+SEARCH
+  const [formData, setFormData] = useState<
+    Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>
+  >({
+    name: '',
+    url: '',
+    price: 0,
+    currency: 'USD',
+    billingCycle: 'monthly',
+    description: '',
+  });
+=======
+REPLACE
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [formData, setFormData] = useState<
+    Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>
+  >({
+    name: '',
+    url: '',
+    price: 0,
+    currency: 'USD',
+    billingCycle: 'monthly',
+    description: '',
+  });
+  const [errors, setErrors] = useState({
+    name: '',
+    url: '',
+    price: '',
+  });
+=======
+SEARCH
+  // Handle form submission for updating subscription details
+  // Prevents default form behavior and updates the subscription in the store
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (subscription) {
+      editSubscription(subscription.id, formData);
+      onClose();
+    }
+  };
+
+  // Handle subscription deletion
+  // Removes the subscription from the store and closes the modal
+  const handleDelete = () => {
+    if (subscription) {
+      deleteSubscription(subscription.id);
+      onClose();
+    }
+  };
+=======
+REPLACE
+  const validateForm = () => {
+    const newErrors = {
+      name: '',
+      url: '',
+      price: '',
+    };
+
+    if (formData.name.length < 2) {
+      newErrors.name = 'Name must be at least 2 characters long';
+    }
+
+    try {
+      new URL(formData.url);
+    } catch {
+      newErrors.url = 'Please enter a valid URL';
+    }
+
+    if (formData.price <= 0) {
+      newErrors.price = 'Price must be greater than 0';
+    }
+
+    setErrors(newErrors);
+    return !Object.values(newErrors).some(error => error !== '');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    try {
+      if (subscription) {
+        await editSubscription(subscription.id, formData);
+        onClose();
+      }
+    } catch (error) {
+      console.error('Failed to update subscription:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (subscription) {
+      deleteSubscription(subscription.id);
+      setShowDeleteDialog(false);
+      onClose();
+    }
+  };
+=======
+SEARCH
+                <SelectContent>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="GBP">GBP</SelectItem>
+                  <SelectItem value="JPY">JPY</SelectItem>
+                  <SelectItem value="CNY">CNY</SelectItem>
+                </SelectContent>
+=======
+REPLACE
+                <SelectContent>
+                  <SelectItem value="USD">USD (US Dollar)</SelectItem>
+                  <SelectItem value="EUR">EUR (Euro)</SelectItem>
+                  <SelectItem value="GBP">GBP (British Pound)</SelectItem>
+                  <SelectItem value="CAD">CAD (Canadian Dollar)</SelectItem>
+                  <SelectItem value="AUD">AUD (Australian Dollar)</SelectItem>
+                  <SelectItem value="JPY">JPY (Japanese Yen)</SelectItem>
+                  <SelectItem value="CNY">CNY (Chinese Yuan)</SelectItem>
+                  <SelectItem value="INR">INR (Indian Rupee)</SelectItem>
+                  <SelectItem value="BRL">BRL (Brazilian Real)</SelectItem>
+                  <SelectItem value="MXN">MXN (Mexican Peso)</SelectItem>
+                </SelectContent>
+=======
+SEARCH
+          <div className="flex justify-between">
+            <Button type="button" variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </div>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+=======
+REPLACE
+          <div className="flex justify-between">
+            <Button 
+              type="button" 
+              variant="destructive" 
+              onClick={handleDelete}
+            >
+              Delete
+            </Button>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </DialogContent>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your
+              subscription and remove all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Dialog>

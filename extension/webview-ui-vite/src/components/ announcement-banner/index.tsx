@@ -34,7 +34,7 @@ export default function AnnouncementBanner() {
 				<div className="flex items-start justify-between">
 					<div className="flex items-center gap-2">
 						<AlertCircle className="h-5 w-5 text-primary" />
-						<h2 className="text-sm font-semibold">Latest Updates (v1.12.7)</h2>
+						<h2 className="text-sm font-semibold">Latest Updates (v1.13.0)</h2>
 					</div>
 					<Button
 						variant="ghost"
@@ -48,17 +48,17 @@ export default function AnnouncementBanner() {
 
 				<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>✨ Revolutionary New Editing Mode - More Power at Your Fingertips!</p>
-						<p>🔄 Seamlessly switch between whole file and code block editing</p>
-						<p>📝 Smart inline edits for precise code modifications</p>
-						<p>🚀 Supercharged code generation with enhanced accuracy</p>
+						<p>✨ New high-performance animation system for inline edits</p>
+						<p>🔄 Support for concurrent multiple edits within a single tool request</p>
+						<p>🚀 Significantly improved overall extension performance</p>
+						<p>📝 Enhanced code generation accuracy for inline edits</p>
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>⚡️ Lightning-fast context switching between editing modes</p>
-						<p>🎯 Precision-focused code block modifications</p>
-						<p>🔍 Intelligent code analysis for better suggestions</p>
-						<p>✅ Improved code quality and consistency</p>
+						<p>⚡️ Better resource utilization across the extension</p>
+						<p>🎯 Stabilized inline editing system</p>
+						<p>🔍 Improved reliability for code modifications</p>
+						<p>✅ Optimized performance for complex operations</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">

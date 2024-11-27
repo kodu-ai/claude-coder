@@ -12,6 +12,24 @@ import { estimateTokenCountFromMessages, smartTruncation } from "../utils/contex
 
 describe("Tool Response Utilities", () => {
 	describe("isToolResponseV2", () => {
+		it("should work compress write_to_file with kodu_content", () => {
+			const toolCall = `<write_to_file><path>src/index.ts</path><kodu_content>export const test = 'test'</kodu_content></write_to_file>`
+			const result = compressToolFromMsg([{ type: "text", text: toolCall }])
+			expect(result[0].type).toBe("text")
+			if (isTextBlock(result[0])) {
+				expect(result[0].text).toContain("Compressed")
+			}
+		})
+
+		it("should work compress write_to_file with content", () => {
+			const toolCall = `<write_to_file><path>src/index.ts</path><content>export const test = 'test'</content></write_to_file>`
+			const result = compressToolFromMsg([{ type: "text", text: toolCall }])
+			expect(result[0].type).toBe("text")
+			if (isTextBlock(result[0])) {
+				expect(result[0].text).toContain("Compressed")
+			}
+		})
+
 		it("should return true for valid ToolResponseV2 object", () => {
 			const response = {
 				status: "success" as const,
@@ -28,6 +46,54 @@ describe("Tool Response Utilities", () => {
 			expect(isToolResponseV2({ status: "success" })).toBe(false)
 			expect(isToolResponseV2({ toolName: "test" })).toBe(false)
 			expect(isToolResponseV2({ status: "success", toolName: "test" })).toBe(false) // Missing result
+		})
+	})
+	describe("Should handle edit_file_blocks correctly", () => {
+		it("should remove the edit_file_blocks response", () => {
+			const msgs: Array<TextBlockParam | ImageBlockParam> = [
+				{
+					type: "text",
+					text: `
+			  <toolResponse>
+				<toolName>edit_file_blocks</toolName>
+				<toolStatus>success</toolStatus>
+				<toolResult>Test result</toolResult>
+			  </toolResponse>
+			`,
+				},
+			]
+
+			const result = compressToolFromMsg(msgs)
+			const textBlock = result[0] as TextBlockParam
+			expect(textBlock.text).toContain("Compressed")
+		})
+		it("should keep the edit_file_blocks kodu_content", () => {
+			const msgs: Array<TextBlockParam | ImageBlockParam> = [
+				{
+					type: "text",
+					text: `
+			  <toolResponse>
+				<toolName>edit_file_blocks</toolName>
+				<toolStatus>success</toolStatus>
+				<toolResult>Test result</toolResult>
+			  </toolResponse>
+			`,
+				},
+				{
+					type: "text",
+					text: `
+			  <edit_file_blocks>
+				<path>src/index.ts</path>
+				<kodu_diff>export const test = 'test'</kodu_diff>
+			  </edit_file_blocks>
+			`,
+				},
+			]
+
+			const result = compressToolFromMsg(msgs)
+			const textBlock = result[0] as TextBlockParam
+			expect(textBlock.text).toContain("[Compressed]")
+			expect(result[1].type).toBe("text")
 		})
 	})
 
@@ -191,7 +257,7 @@ describe("Tool Response Utilities", () => {
 					type: "text",
 					text: `
               <toolResponse>
-                <toolName>testTool</toolName>
+                <toolName>write_to_file</toolName>
                 <toolStatus>success</toolStatus>
                 <toolResult>Test result</toolResult>
               </toolResponse>

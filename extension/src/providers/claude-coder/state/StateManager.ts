@@ -52,6 +52,7 @@ export class StateManager {
 			isContinueGenerationEnabled,
 			isInlineEditingEnabled,
 			isAdvanceThinkingEnabled,
+			terminalCompressionThreshold,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.globalStateManager.getGlobalState("browserModelId"),
@@ -77,6 +78,7 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("isContinueGenerationEnabled"),
 			this.globalStateManager.getGlobalState("isInlineEditingEnabled"),
 			this.globalStateManager.getGlobalState("isAdvanceThinkingEnabled"),
+			this.globalStateManager.getGlobalState("terminalCompressionThreshold"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -114,6 +116,7 @@ export class StateManager {
 			},
 			user,
 			maxRequestsPerTask,
+			terminalCompressionThreshold,
 			lastShownAnnouncementId,
 			customInstructions,
 			technicalBackground,
@@ -161,6 +164,11 @@ export class StateManager {
 	async setAutoCloseTerminal(value: boolean) {
 		this.context.getKoduDev()?.getStateManager()?.setAutoCloseTerminal(value)
 		return this.globalStateManager.updateGlobalState("autoCloseTerminal", value)
+	}
+
+	async setTerminalCompressionThreshold(value: number | undefined) {
+		this.context.getKoduDev()?.getStateManager()?.setTerminalCompressionThreshold(value)
+		return this.globalStateManager.updateGlobalState("terminalCompressionThreshold", value)
 	}
 
 	async updateTaskHistory(item: HistoryItem): Promise<HistoryItem[]> {

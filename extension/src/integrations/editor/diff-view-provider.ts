@@ -339,8 +339,8 @@ class DiffViewProvider {
 			this.modifiedUri,
 			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Editable)`,
 			{
-				preview: true,
-				preserveFocus: false,
+				preview: false,
+				preserveFocus: true,
 				viewColumn: vscode.ViewColumn.Active,
 				tabOptions: { readonly: true },
 			}

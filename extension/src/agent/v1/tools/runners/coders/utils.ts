@@ -2,22 +2,26 @@
 // import { fileExistsAtPath } from "@/utils/path-helpers"
 import { getCwd } from "../../../utils"
 import { fileExistsAtPath } from "../../../../../utils/path-helpers"
-import { compareTwoStrings } from "string-similarity"
 import path from "path"
 // @ts-expect-error - not typed
 import { SequenceMatcher } from "@ewoudenberg/difflib"
 
 export interface EditBlock {
+	id: string
 	path: string
 	searchContent: string
 	replaceContent: string
 	isDelete?: boolean
 }
 
-interface BlockMatch {
-	start: number
-	end: number
-	score: number
+export function generateEditBlockId(searchContent: string): string {
+	// fast hash the search content to generate a unique id
+	let hash = 0
+	for (let i = 0; i < searchContent.length; i++) {
+		hash = (hash << 5) - hash + searchContent.charCodeAt(i)
+		hash |= 0
+	}
+	return hash.toString(16)
 }
 
 export function findCodeBlock(content: string, startIndex: number): { start: number; end: number } | null {
@@ -242,106 +246,82 @@ export function adjustIndentationPerLine(
 }
 
 export function parseDiffBlocks(diffContent: string, path: string): EditBlock[] {
-	const editBlocks: EditBlock[] = []
+	const blocks: EditBlock[] = []
 	const lines = diffContent.split("\n")
-	let i = 0
+	let currentSearchLines: string[] = []
+	let currentReplaceLines: string[] = []
+	let isCollectingSearch = false
+	let isCollectingReplace = false
 
-	while (i < lines.length) {
-		if (lines[i].startsWith("SEARCH")) {
-			const searchLines: string[] = []
-			i++
-			while (i < lines.length && lines[i] !== "=======") {
-				searchLines.push(lines[i])
-				i++
-			}
+	function finalizeBlock() {
+		if (currentSearchLines.length > 0) {
+			const searchContent = currentSearchLines.join("\n").trimEnd()
+			const replaceContent = currentReplaceLines.join("\n").trimEnd()
+			const id = generateEditBlockId(searchContent)
 
-			if (i < lines.length && lines[i] === "=======") {
-				i++
-			}
-
-			const replaceLines: string[] = []
-			if (i < lines.length && lines[i] === "REPLACE") {
-				i++
-			}
-			while (i < lines.length && lines[i] !== "SEARCH") {
-				replaceLines.push(lines[i])
-				i++
-			}
-
-			const searchContent = searchLines.join("\n").trimEnd()
-			const replaceContent = replaceLines.join("\n").trimEnd()
-
-			editBlocks.push({
-				path: path,
+			blocks.push({
+				id,
+				path,
 				searchContent,
 				replaceContent,
 				isDelete: replaceContent.trim() === "",
 			})
-		} else {
-			i++
 		}
-	}
-	return editBlocks
-}
 
-export function findBestBlockMatch(
-	searchContent: string,
-	fileContent: string,
-	threshold: number = 0.6
-): BlockMatch | null {
-	const lines = fileContent.split("\n")
-	const searchLines = searchContent.split("\n")
-	let bestMatch: BlockMatch | null = null
-
-	// Try exact match first
-	const exactIndex = fileContent.indexOf(searchContent)
-	if (exactIndex !== -1) {
-		const startLine = fileContent.substring(0, exactIndex).split("\n").length - 1
-		return {
-			start: startLine,
-			end: startLine + searchLines.length - 1,
-			score: 1.0,
-		}
+		currentSearchLines = []
+		currentReplaceLines = []
+		isCollectingSearch = false
+		isCollectingReplace = false
 	}
 
-	// Look for potential block boundaries
 	for (let i = 0; i < lines.length; i++) {
-		// Check if this could be the start of a matching block
-		if (lines[i].includes("class") || lines[i].includes("function") || lines[i].includes("export")) {
-			// Try to find block boundaries
-			const block = findCodeBlock(lines.slice(i).join("\n"), 0)
-			if (block) {
-				const blockContent = lines.slice(i, i + block.end + 1).join("\n")
-				const similarity = compareTwoStrings(searchContent, blockContent)
+		const line = lines[i]
+		const nextLine = i + 1 < lines.length ? lines[i + 1] : null
+		const trimmedLine = line.trim()
 
-				if (similarity > threshold && (!bestMatch || similarity > bestMatch.score)) {
-					bestMatch = {
-						start: i,
-						end: i + block.end,
-						score: similarity,
-					}
-				}
+		// Handle start of a new block
+		if (trimmedLine === "SEARCH") {
+			// If we were already collecting a block, finalize it first
+			if (isCollectingSearch || isCollectingReplace) {
+				finalizeBlock()
 			}
+			isCollectingSearch = true
+			continue
+		}
+
+		// Handle separator
+		if (trimmedLine === "=======") {
+			if (isCollectingSearch) {
+				isCollectingSearch = false
+				isCollectingReplace = true
+			}
+			continue
+		}
+
+		// Handle REPLACE marker
+		if (trimmedLine === "REPLACE" && isCollectingReplace) {
+			continue
+		}
+
+		// Collect content
+		if (isCollectingSearch) {
+			currentSearchLines.push(line)
+		} else if (isCollectingReplace) {
+			currentReplaceLines.push(line)
+		}
+
+		// Finalize block if we're about to start a new one
+		if (nextLine?.trim() === "SEARCH" && isCollectingReplace) {
+			finalizeBlock()
 		}
 	}
 
-	// If no block match found, try sliding window approach
-	if (!bestMatch) {
-		for (let i = 0; i <= lines.length - searchLines.length; i++) {
-			const chunk = lines.slice(i, i + searchLines.length).join("\n")
-			const similarity = compareTwoStrings(searchContent, chunk)
-
-			if (similarity > threshold && (!bestMatch || similarity > bestMatch.score)) {
-				bestMatch = {
-					start: i,
-					end: i + searchLines.length - 1,
-					score: similarity,
-				}
-			}
-		}
+	// Handle the last block if it's complete (has both search and replace content)
+	if (currentSearchLines.length > 0 && isCollectingReplace) {
+		finalizeBlock()
 	}
 
-	return bestMatch
+	return blocks
 }
 
 export async function checkFileExists(relPath: string): Promise<boolean> {
@@ -358,4 +338,11 @@ export function preprocessContent(content: string): string {
 		content = content.split("\n").slice(0, -1).join("\n").trim()
 	}
 	return content.replace(/>/g, ">").replace(/</g, "<").replace(/"/g, '"')
+}
+
+export async function parseAndApplyDiffBlocks(content: string, diffContent: string, path: string): Promise<string> {
+	const blocks = parseDiffBlocks(diffContent, path)
+	const positions = getEditBlockPositions(content, blocks)
+	const newContent = await applyEditBlocksToFile(content, positions)
+	return newContent
 }

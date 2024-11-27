@@ -9,6 +9,7 @@ export abstract class BaseAgentTool {
 	protected alwaysAllowReadOnly: boolean
 	protected alwaysAllowWriteOnly: boolean
 	protected koduDev: KoduDev
+	protected isAbortingTool: boolean = false
 	protected setRunningProcessId: (pid: number | undefined) => void
 
 	protected abstract params: AgentToolParams
@@ -83,6 +84,10 @@ export abstract class BaseAgentTool {
 	}
 
 	public async abortToolExecution() {
+		if (this.isAbortingTool) {
+			return
+		}
+		this.isAbortingTool = true
 		this.setRunningProcessId(undefined)
 		console.log(`Aborted tool execution for ${this.name} with id ${this.id}`)
 	}

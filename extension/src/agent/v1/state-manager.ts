@@ -22,9 +22,11 @@ export class StateManager {
 	private _customInstructions?: string
 	private _alwaysAllowWriteOnly: boolean
 	private _experimentalTerminal?: boolean
+	private _terminalCompressionThreshold?: number
 	private _autoCloseTerminal?: boolean
 	private _skipWriteAnimation?: boolean
 	private _autoSummarize?: boolean
+	private _temporayPauseAutomaticMode: boolean = false
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -40,6 +42,7 @@ export class StateManager {
 			autoCloseTerminal,
 			skipWriteAnimation,
 			autoSummarize,
+			terminalCompressionThreshold,
 		} = options
 		this._creativeMode = creativeMode ?? "normal"
 		this._autoSummarize = autoSummarize
@@ -48,6 +51,7 @@ export class StateManager {
 		this._alwaysAllowReadOnly = alwaysAllowReadOnly ?? false
 		this._alwaysAllowWriteOnly = alwaysAllowWriteOnly ?? false
 		this._customInstructions = customInstructions
+		this._terminalCompressionThreshold = terminalCompressionThreshold
 		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
 		this._experimentalTerminal = experimentalTerminal
 		this._autoCloseTerminal = autoCloseTerminal
@@ -89,6 +93,10 @@ export class StateManager {
 		return this.taskId
 	}
 
+	get temporayPauseAutomaticMode(): boolean {
+		return this._temporayPauseAutomaticMode
+	}
+
 	get dirAbsolutePath(): string | undefined {
 		return this.state.dirAbsolutePath
 	}
@@ -103,6 +111,13 @@ export class StateManager {
 
 	get experimentalTerminal(): boolean | undefined {
 		return this._experimentalTerminal
+	}
+
+	get terminalCompressionThreshold(): number | undefined {
+		return this._terminalCompressionThreshold
+	}
+	set terminalCompressionThreshold(newValue: number | undefined) {
+		this._terminalCompressionThreshold = newValue
 	}
 
 	get maxRequestsPerTask(): number {
@@ -163,6 +178,10 @@ export class StateManager {
 
 	public setAutoCloseTerminal(newValue: boolean): void {
 		this._autoCloseTerminal = newValue
+	}
+
+	public setTerminalCompressionThreshold(newValue?: number): void {
+		this._terminalCompressionThreshold = newValue
 	}
 
 	public setExperimentalTerminal(newValue: boolean): void {
@@ -333,8 +352,11 @@ export class StateManager {
 			writeStream.write(JSON.stringify(this.state.apiConversationHistory, null, 2))
 			await new Promise((resolve, reject) => {
 				writeStream.end((err: Error) => {
-					if (err) reject(err)
-					else resolve(null)
+					if (err) {
+						reject(err)
+					} else {
+						resolve(null)
+					}
 				})
 			})
 		} catch (error) {
@@ -443,5 +465,9 @@ export class StateManager {
 	// Force an immediate save
 	public async forceSaveClaudeMessages(): Promise<void> {
 		await this.saveClaudeMessages()
+	}
+
+	public async setTemporaryPauseAutomaticMode(newValue: boolean): Promise<void> {
+		this._temporayPauseAutomaticMode = newValue
 	}
 }

@@ -1,0 +1,318 @@
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '~/components/ui/dialog';
+import { Button } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
+import { Textarea } from '~/components/ui/textarea';
+import { useSubscriptionStore, Currency } from '~/store/subscriptions';
+import { Card } from '~/components/ui/card';
+import { motion } from 'framer-motion';
+import { Globe, CreditCard, CalendarDays, PlusCircle, X } from 'lucide-react';
+
+interface AddSubscriptionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function AddSubscriptionModal({
+  isOpen,
+  onClose,
+}: AddSubscriptionModalProps) {
+  const addSubscription = useSubscriptionStore(
+    (state) => state.addSubscription
+  );
+  const [formData, setFormData] = useState({
+    name: '',
+    url: '',
+    price: '',
+    currency: 'USD' as Currency,
+    billingCycle: 'monthly' as 'monthly' | 'yearly',
+    description: '',
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setError('Service name is required');
+      return false;
+    }
+
+    if (!formData.url.trim()) {
+      setError('URL is required');
+      return false;
+    }
+
+    try {
+      new URL(formData.url);
+    } catch {
+      setError('Please enter a valid URL');
+      return false;
+    }
+
+    const price = parseFloat(formData.price);
+    if (isNaN(price) || price <= 0) {
+      setError('Please enter a valid price');
+      return false;
+    }
+
+    return true;
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      url: '',
+      price: '',
+      currency: 'USD',
+      billingCycle: 'monthly',
+      description: '',
+    });
+    setError(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const price = parseFloat(formData.price);
+
+      await addSubscription({
+        ...formData,
+        price,
+      });
+
+      resetForm();
+      onClose();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to add subscription'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent asChild>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+          className="sm:max-w-[500px] p-0 overflow-hidden bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 rounded-lg border shadow-lg"
+        >
+          <DialogHeader className="px-6 pt-6 pb-4 border-b dark:border-slate-700">
+            <div className="flex items-center gap-2">
+              <PlusCircle className="w-5 h-5 text-orange-500" />
+              <DialogTitle className="text-xl font-semibold">
+                Add New Subscription
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-slate-500 dark:text-slate-400">
+              Track your recurring payments in one place
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="px-6 py-4 space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Card className="p-4 border dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow duration-200">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-sm font-medium">
+                      Service Name
+                    </Label>
+                    <Input
+                      id="name"
+                      required
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      placeholder="Netflix"
+                      className="transition-all focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="url"
+                      className="text-sm font-medium flex items-center gap-2"
+                    >
+                      <Globe className="w-4 h-4 text-slate-500" />
+                      Website URL
+                    </Label>
+                    <Input
+                      id="url"
+                      required
+                      type="url"
+                      value={formData.url}
+                      onChange={(e) =>
+                        setFormData({ ...formData, url: e.target.value })
+                      }
+                      placeholder="https://netflix.com"
+                      className="transition-all focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card className="p-4 border dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow duration-200">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CreditCard className="w-4 h-4 text-slate-500" />
+                    <h3 className="font-medium">Payment Details</h3>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="price" className="text-sm font-medium">
+                        Price
+                      </Label>
+                      <Input
+                        id="price"
+                        required
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.price}
+                        onChange={(e) =>
+                          setFormData({ ...formData, price: e.target.value })
+                        }
+                        placeholder="9.99"
+                        className="transition-all focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="currency" className="text-sm font-medium">
+                        Currency
+                      </Label>
+                      <Select
+                        value={formData.currency}
+                        onValueChange={(value: Currency) =>
+                          setFormData({ ...formData, currency: value })
+                        }
+                      >
+                        <SelectTrigger className="transition-all focus:ring-2 focus:ring-orange-500">
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="GBP">GBP</SelectItem>
+                          <SelectItem value="JPY">JPY</SelectItem>
+                          <SelectItem value="CNY">CNY</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="billingCycle"
+                      className="text-sm font-medium flex items-center gap-2"
+                    >
+                      <CalendarDays className="w-4 h-4 text-slate-500" />
+                      Billing Cycle
+                    </Label>
+                    <Select
+                      value={formData.billingCycle}
+                      onValueChange={(value: 'monthly' | 'yearly') =>
+                        setFormData({ ...formData, billingCycle: value })
+                      }
+                    >
+                      <SelectTrigger className="transition-all focus:ring-2 focus:ring-orange-500">
+                        <SelectValue placeholder="Select billing cycle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="yearly">Yearly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <Card className="p-4 border dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow duration-200">
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="text-sm font-medium">
+                    Notes (Optional)
+                  </Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    placeholder="Add any notes about this subscription..."
+                    className="transition-all focus:ring-2 focus:ring-orange-500 min-h-[100px]"
+                  />
+                </div>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="flex justify-end gap-3 pt-2"
+            >
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                className="flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Add Subscription
+              </Button>
+            </motion.div>
+          </form>
+        </motion.div>
+      </DialogContent>
+    </Dialog>
+  );
+}
