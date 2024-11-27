@@ -1,87 +1,571 @@
-import React from 'react';
-import { 
-  List, 
-  ListItem, 
-  ListItemButton, 
-  ListItemText, 
-  IconButton, 
-  Box,
-  Button,
-  Typography,
-  Tooltip
-} from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
-import { Conversation } from '../types';
+#!/usr/bin/env python3
+import asyncio
+import os
+import sys
+import shutil
+import tempfile
+import argparse
+import subprocess
+import logging
+import shlex
+from pathlib import Path
+from typing import Optional, Tuple, List, Dict
+import signal
+from dataclasses import dataclass
+from enum import Enum
+import time
 
-interface ConversationListProps {
-  conversations: Conversation[];
-  activeConversationId: string;
-  onConversationSelect: (id: string) => void;
-  onNewConversation: () => void;
-  onDeleteConversation: (id: string) => void;
-}
+# Exit codes
+EXIT_SUCCESS = 0
+EXIT_CONFIG_ERROR = 78
+EXIT_RUNTIME_ERROR = 70
+EXIT_USAGE_ERROR = 64
+EXIT_TIMEOUT = 124
 
-const ConversationList: React.FC<ConversationListProps> = ({
-  conversations,
-  activeConversationId,
-  onConversationSelect,
-  onNewConversation,
-  onDeleteConversation,
-}) => {
-  return (
-    <Box sx={{ width: '100%', maxWidth: 360, bgcolor: 'background.paper' }}>
-      <Box sx={{ p: 1 }}>
-        <Button
-          fullWidth
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={onNewConversation}
-          sx={{ mb: 1 }}
-        >
-          New Conversation
-        </Button>
-      </Box>
-      <List sx={{ maxHeight: '70vh', overflow: 'auto' }}>
-        {conversations.map((conversation) => (
-          <ListItem
-            key={conversation.id}
-            secondaryAction={
-              conversations.length > 1 && (
-                <Tooltip title="Delete conversation">
-                  <IconButton
-                    edge="end"
-                    aria-label="delete"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteConversation(conversation.id);
-                    }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </Tooltip>
-              )
-            }
-            disablePadding
-          >
-            <ListItemButton
-              selected={conversation.id === activeConversationId}
-              onClick={() => onConversationSelect(conversation.id)}
-            >
-              <ListItemText
-                primary={
-                  <Typography noWrap>
-                    {conversation.title}
-                  </Typography>
-                }
-                secondary={new Date(conversation.updatedAt).toLocaleString()}
-              />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  );
-};
+# ANSI colors for terminal output
+class Colors:
+    GREEN = '\033[32m'
+    RED = '\033[31m'
+    YELLOW = '\033[33m'
+    BLUE = '\033[34m'
+    RESET = '\033[0m'
 
-export default ConversationList;
+class EvalStatus(Enum):
+    PASSED = "passed"
+    FAILED = "failed"
+    ERROR = "error"
+
+@dataclass
+class EvalResult:
+    name: str
+    status: EvalStatus
+    duration: float
+    stdout: str = ""
+    stderr: str = ""
+    error_msg: str = ""
+    filtered_stdout: str = ""  # Clean output without progress bars etc
+    filtered_stderr: str = ""  # Clean error output
+    agent_stdout: str = ""     # Agent output
+    agent_stderr: str = ""     # Agent error output
+
+class EvalTimeout(Exception):
+    """Exception raised when eval execution times out."""
+    pass
+
+def setup_logging():
+    """Configure logging for the eval script."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(message)s'  # Simplified format for pytest-like output
+    )
+
+def validate_eval_case(case_path: Path) -> bool:
+    """Validate that an eval case has the required files."""
+    required_files = ['checkout', 'evaluate', 'task_prompt.txt']
+    
+    for file in required_files:
+        if not (case_path / file).exists():
+            return False
+            
+    # Check if checkout and evaluate are executable
+    for script in ['checkout', 'evaluate']:
+        script_path = case_path / script
+        if not os.access(script_path, os.X_OK):
+            return False
+            
+    return True
+
+def collect_eval_cases(paths: List[str]) -> List[Path]:
+    """Collect eval cases from provided paths.
+    
+    A path can be either a direct eval case or a directory containing eval cases.
+    """
+    cases = []
+    base_dir = Path(__file__).parent
+    
+    for path_str in paths:
+        path = Path(path_str)
+        if not path.is_absolute():
+            path = base_dir / path
+            
+        if validate_eval_case(path):
+            cases.append(path)
+        else:
+            # Check if it's a directory containing eval cases
+            if path.is_dir():
+                for subdir in path.iterdir():
+                    if subdir.is_dir() and validate_eval_case(subdir):
+                        cases.append(subdir)
+                        
+    return sorted(cases)
+
+def setup_temp_directory(case_path: Path, target_dir: Optional[Path] = None) -> Tuple[Path, Path]:
+    """Set up a temporary directory for evaluation."""
+    if target_dir is None:
+        temp_root = Path(tempfile.mkdtemp(prefix='azad_eval_'))
+        temp_dir = temp_root / case_path.name
+    else:
+        temp_root = target_dir
+        temp_dir = target_dir / case_path.name
+        
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Copy visible files
+    visible_src = case_path / 'visible'
+    if visible_src.exists():
+        shutil.copytree(visible_src, temp_dir, dirs_exist_ok=True)
+        
+    return temp_dir, temp_root
+
+async def run_with_timeout(cmd: List[str], cwd: Path, timeout: int, env: Optional[dict] = None, verbose: bool = False, failures_show_agent_output: bool = False) -> Tuple[int, str, str, str, str]:
+    """Run a command with timeout."""
+    process = None
+    stdout_data = []
+    stderr_data = []
+    filtered_stdout_data = []
+    filtered_stderr_data = []
+
+    def should_filter_line(line: str) -> bool:
+        """Return True if the line should be filtered out."""
+        return any(skip in line for skip in [
+            "% Total", "Dload", "Speed", "--:--:--",
+            "HTTP Request:", "Raw response from AI:",
+            "Response type:", "Parameters:", "Tool Request:",
+            "Auto-approving"
+        ])
+
+    async def read_and_store(stream, data_list, filtered_list, is_stderr: bool = False):
+        while True:
+            line = await stream.readline()
+            if not line:
+                break
+            line_str = line.decode()
+            data_list.append(line)
+            
+            # Store filtered output (skip progress bars etc)
+            if not should_filter_line(line_str):
+                filtered_list.append(line)
+            
+            # Print in real-time if verbose mode is on
+            if verbose:
+                if is_stderr:
+                    print(f"{Colors.RED}{line_str.rstrip()}{Colors.RESET}", flush=True)
+                else:
+                    print(line_str.rstrip(), flush=True)
+
+    try:
+        if verbose:
+            print(f"\n{Colors.BLUE}Running command: {' '.join(cmd)}{Colors.RESET}")
+            print(f"{Colors.BLUE}Working directory: {cwd}{Colors.RESET}\n")
+            
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=cwd,
+            env=env,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            preexec_fn=os.setsid
+        )
+        
+        await asyncio.wait_for(
+            asyncio.gather(
+                read_and_store(process.stdout, stdout_data, filtered_stdout_data),
+                read_and_store(process.stderr, stderr_data, filtered_stderr_data, True)
+            ),
+            timeout
+        )
+        
+        await process.wait()
+        
+        # Decode all outputs
+        stdout = b''.join(stdout_data).decode()
+        stderr = b''.join(stderr_data).decode()
+        filtered_stdout = b''.join(filtered_stdout_data).decode()
+        filtered_stderr = b''.join(filtered_stderr_data).decode()
+        
+        return (
+            process.returncode,
+            stdout,
+            stderr,
+            filtered_stdout,
+            filtered_stderr
+        )
+        
+    except asyncio.TimeoutError:
+        if process:
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                await asyncio.sleep(0.1)
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            except ProcessLookupError:
+                pass
+        raise EvalTimeout(f"Command timed out after {timeout} seconds")
+
+async def run_agent(temp_dir: Path, args_str: str, timeout: int, verbose: bool = False, failures_show_agent_output: bool = False) -> Tuple[bool, str, str, str, str]:
+    """Run the Azad agent with the given arguments."""
+    project_root = Path(__file__).parent.parent
+    env = os.environ.copy()
+    env['PYTHONPATH'] = str(project_root)
+    cmd = [sys.executable, '-m', 'src.main'] + shlex.split(args_str)
+    
+    try:
+        returncode, stdout, stderr, filtered_stdout, filtered_stderr = await run_with_timeout(
+            cmd, 
+            temp_dir, 
+            timeout,
+            env=env,
+            verbose=verbose,
+            failures_show_agent_output=failures_show_agent_output
+        )
+        return returncode == 0, stdout, stderr, filtered_stdout, filtered_stderr
+    except EvalTimeout:
+        return False, "", "Timeout", "", "Timeout"
+
+async def run_single_eval(
+    case_path: Path,
+    config_path: Optional[str] = None,
+    args_str: Optional[str] = None,
+    timeout: int = 45,
+    target_dir: Optional[Path] = None,
+    auto_approve: bool = False,
+    verbose: bool = False,
+    failures_show_agent_output: bool = False
+) -> EvalResult:
+    """Run a single evaluation case."""
+    start_time = time.time()
+    temp_dir = None
+    temp_root = None
+    original_dir = Path.cwd()
+    
+    try:
+        # Set up temporary directory
+        temp_dir, temp_root = setup_temp_directory(case_path, target_dir)
+        visible_dir = temp_dir / 'visible'
+        
+        # Run checkout script
+        checkout_cmd = [str(case_path / 'checkout'), str(temp_dir)]
+        returncode, stdout, stderr, filtered_stdout, filtered_stderr = await run_with_timeout(
+            checkout_cmd, 
+            case_path, 
+            timeout,
+            verbose=verbose,
+            failures_show_agent_output=failures_show_agent_output
+        )
+        if returncode != 0:
+            return EvalResult(
+                case_path.name,
+                EvalStatus.ERROR,
+                time.time() - start_time,
+                stdout,
+                stderr,
+                "Checkout failed",
+                filtered_stdout,
+                filtered_stderr
+            )
+            
+        # Add private/bin to PATH if it exists
+        private_bin = case_path / 'private' / 'bin'
+        if private_bin.exists():
+            os.environ['PATH'] = f"{private_bin}:{os.environ['PATH']}"
+            
+        # Change to visible directory
+        os.chdir(temp_dir / 'visible')
+        
+        # Build agent arguments
+        agent_args = []
+        if config_path:
+            abs_config_path = str(original_dir / config_path)
+            agent_args.extend(['--config', abs_config_path])
+        if args_str:
+            agent_args.extend(shlex.split(args_str))
+            
+        # Add task prompt
+        with open(case_path / 'task_prompt.txt') as f:
+            task_prompt = f.read().strip()
+        agent_args.extend(['--task', task_prompt])
+        
+        if auto_approve:
+            agent_args.append('--auto-approve')
+        
+        # Run agent
+        success, agent_stdout, agent_stderr, agent_filtered_stdout, agent_filtered_stderr = await run_agent(
+            temp_dir / 'visible',
+            ' '.join(f'"{arg}"' if ' ' in arg else arg for arg in agent_args),
+            timeout,
+            verbose=verbose,
+            failures_show_agent_output=failures_show_agent_output
+        )
+        if not success:
+            return EvalResult(
+                case_path.name,
+                EvalStatus.ERROR,
+                time.time() - start_time,
+                agent_stdout,
+                agent_stderr,
+                "Agent execution failed",
+                agent_filtered_stdout,
+                agent_filtered_stderr
+            )
+            
+        # Run evaluate script
+        evaluate_cmd = [str(case_path / 'evaluate'), str(temp_dir)]
+        returncode, stdout, stderr, filtered_stdout, filtered_stderr = await run_with_timeout(
+            evaluate_cmd, 
+            case_path, 
+            timeout,
+            verbose=verbose,
+            failures_show_agent_output=failures_show_agent_output
+        )
+        
+        status = EvalStatus.PASSED if returncode == 0 else EvalStatus.FAILED
+        
+        # For failed tests, we want the filtered_stderr to only contain evaluate script output
+        return EvalResult(
+            case_path.name,
+            status,
+            time.time() - start_time,
+            stdout,
+            stderr,
+            "Evaluation failed" if status == EvalStatus.FAILED else "",
+            filtered_stdout,        # Evaluate script output
+            filtered_stderr,        # Evaluate script error output
+            agent_stdout,           # Complete agent output
+            agent_stderr           # Complete agent error output
+        )
+        
+    except EvalTimeout as e:
+        return EvalResult(
+            case_path.name,
+            EvalStatus.ERROR,
+            time.time() - start_time,
+            "",
+            "",
+            str(e)
+        )
+    except Exception as e:
+        return EvalResult(
+            case_path.name,
+            EvalStatus.ERROR,
+            time.time() - start_time,
+            "",
+            "",
+            str(e)
+        )
+    finally:
+        os.chdir(original_dir)
+        if temp_root and temp_root.exists() and not target_dir:
+            shutil.rmtree(temp_root)
+
+def print_results_summary(results: List[EvalResult], verbose: bool = False, failures_show_agent_output: bool = False):
+    """Print a pytest-style summary of evaluation results."""
+    total = len(results)
+    passed = sum(1 for r in results if r.status == EvalStatus.PASSED)
+    failed = sum(1 for r in results if r.status == EvalStatus.FAILED)
+    errors = sum(1 for r in results if r.status == EvalStatus.ERROR)
+    
+    # Print failures and errors
+    if failed + errors > 0:
+        print("\n" + "=" * 70)
+        print(f"{Colors.RED}FAILURES{Colors.RESET}")
+        print("=" * 70)
+        
+        for result in results:
+            if result.status != EvalStatus.PASSED:
+                # Print test name with underline
+                print(f"\n{result.name}")
+                print("=" * len(result.name))
+                
+                # Show error message with proper indentation
+                if result.error_msg:
+                    print("\nError:")
+                    print(f"  {result.error_msg}")
+                
+                # Always show evaluation output for failed tests
+                if result.filtered_stderr or result.filtered_stdout:
+                    print("\nEvaluation Output:")
+                    print("-" * 70)
+                    # Show evaluate script output
+                    if result.filtered_stdout:
+                        for line in result.filtered_stdout.split('\n'):
+                            if line.strip() and not line.startswith("INFO:"):
+                                print(f"  {line}")
+                    if result.filtered_stderr:
+                        for line in result.filtered_stderr.split('\n'):
+                            if line.strip() and not line.startswith("INFO:"):
+                                print(f"  {line}")
+                    print("-" * 70)
+                
+                # Show agent output only when failures-show-agent-output is true
+                if failures_show_agent_output and not verbose:
+                    print("\nAgent Log:")
+                    print("=" * 70)
+                    if result.agent_stdout:
+                        for line in result.agent_stdout.split('\n'):
+                            if line.strip() and line.startswith("INFO:"):
+                                print(f"  {line}")
+                    if result.agent_stderr:
+                        for line in result.agent_stderr.split('\n'):
+                            if line.strip() and line.startswith("INFO:"):
+                                print(f"  {Colors.RED}{line}{Colors.RESET}")
+                    print("=" * 70)
+                
+                # Show complete output in verbose mode
+                if verbose:
+                    print("\nComplete Output Log:")
+                    print("=" * 70)
+                    if result.stdout:
+                        print(result.stdout)
+                    if result.stderr:
+                        if result.stdout:
+                            print("-" * 70)
+                        print(f"{Colors.RED}{result.stderr}{Colors.RESET}")
+                    print("=" * 70)
+                # Show agent output only when failures-show-agent-output is true and not in verbose mode
+                elif failures_show_agent_output:
+                    print("\nAgent Log:")
+                    print("=" * 70)
+                    if result.stdout:
+                        print(result.stdout)
+                    if result.stderr:
+                        if result.stdout:
+                            print("-" * 70)
+                        print(f"{Colors.RED}{result.stderr}{Colors.RESET}")
+                    print("=" * 70)
+                
+                print()  # Add extra newline for better separation
+    
+    # Print summary
+    print("\n" + "=" * 70)
+    print(f"Test Summary: ", end="")
+    if passed == total:
+        print(f"{Colors.GREEN}All {total} tests passed{Colors.RESET}")
+    else:
+        parts = []
+        if passed > 0:
+            parts.append(f"{Colors.GREEN}{passed} passed{Colors.RESET}")
+        if failed > 0:
+            parts.append(f"{Colors.RED}{failed} failed{Colors.RESET}")
+        if errors > 0:
+            parts.append(f"{Colors.YELLOW}{errors} errors{Colors.RESET}")
+        print(f"{', '.join(parts)} in {sum(r.duration for r in results):.2f}s")
+
+def create_parser() -> argparse.ArgumentParser:
+    """Create and configure the argument parser."""
+    parser = argparse.ArgumentParser(
+        description='Run Azad AI agent evaluation cases',
+        usage='%(prog)s [options] [eval_dirs...]'
+    )
+    
+    parser.add_argument(
+        'eval_dirs',
+        nargs='*',
+        help='Directories containing evaluation cases to run'
+    )
+    
+    parser.add_argument(
+        '--config',
+        type=str,
+        help='Path to configuration file'
+    )
+    
+    parser.add_argument(
+        '--args',
+        type=str,
+        help='Arguments string to pass to the agent'
+    )
+    
+    parser.add_argument(
+        '--timeout',
+        type=int,
+        default=45,
+        help='Timeout in seconds (default: 45)'
+    )
+    
+    parser.add_argument(
+        '--target-dir',
+        type=Path,
+        help='Specific target directory to use (will not be cleaned up)'
+    )
+    
+    parser.add_argument(
+        '--auto-approve',
+        action='store_true',
+        help='Automatically approve all tool uses and task completions'
+    )
+    
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Show all output in real-time as tests run'
+    )
+    
+    parser.add_argument(
+        '--failures-show-agent-output',
+        action='store_true',
+        help='Show agent output for failed tests in failure report'
+    )
+    
+    return parser
+
+async def main() -> int:
+    """Main entry point for the eval script."""
+    setup_logging()
+    parser = create_parser()
+    args = parser.parse_args()
+    
+    if not args.eval_dirs:
+        parser.error('at least one evaluation directory is required')
+        return EXIT_USAGE_ERROR
+        
+    # Collect all eval cases
+    cases = collect_eval_cases(args.eval_dirs)
+    if not cases:
+        logging.error("No valid evaluation cases found in specified directories")
+        return EXIT_USAGE_ERROR
+        
+    # Run all cases
+    results = []
+    terminal_width = shutil.get_terminal_size().columns
+    for i, case_path in enumerate(cases, 1):
+        name = case_path.name
+        print(f"{name}", end="", flush=True)
+        result = await run_single_eval(
+            case_path,
+            args.config,
+            args.args,
+            args.timeout,
+            args.target_dir,
+            args.auto_approve,
+            args.verbose,
+            args.failures_show_agent_output
+        )
+        results.append(result)
+        
+        # Calculate right-aligned percentage
+        progress_pct = f"[{(i/len(cases)*100):.1f}%]"
+        status_str = ""
+        if result.status == EvalStatus.PASSED:
+            status_str = f"{Colors.GREEN}PASSED{Colors.RESET}"
+        elif result.status == EvalStatus.FAILED:
+            status_str = f"{Colors.RED}FAILED{Colors.RESET}"
+        else:
+            status_str = f"{Colors.YELLOW}ERROR{Colors.RESET}"
+            
+        # Calculate padding for right alignment
+        status_with_time = f"{status_str} ({result.duration:.2f}s)"
+        content_length = len(name) + 1 + len(status_with_time) - len(Colors.GREEN) - len(Colors.RESET)  # +1 for space
+        padding = terminal_width - content_length - len(progress_pct) - 1
+        print(f"{status_with_time}{' ' * max(0, padding)}{Colors.YELLOW}{progress_pct}{Colors.RESET}")
+    
+    # Print summary
+    print_results_summary(results, args.verbose, args.failures_show_agent_output)
+    
+    # Return success only if all tests passed
+    return EXIT_SUCCESS if all(r.status == EvalStatus.PASSED for r in results) else EXIT_RUNTIME_ERROR
+
+if __name__ == '__main__':
+    exit_code = asyncio.run(main())
+    sys.exit(exit_code)

@@ -500,7 +500,7 @@ export class FileEditorTool extends BaseAgentTool {
 			${finalContent}
 			\`\`\`
 			`
-		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
+		if (detectCodeOmission(this.diffViewProvider.originalContent() || "", finalContent)) {
 			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
 			toolMsg = `The content was successfully saved to ${relPath.toPosix()},
 				but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.
@@ -555,7 +555,6 @@ export class FileEditorTool extends BaseAgentTool {
 			)
 		} finally {
 			this.isProcessingFinalContent = false
-			this.diffViewProvider.isEditing = false
 		}
 	}
 
@@ -576,7 +575,7 @@ export class FileEditorTool extends BaseAgentTool {
 	private async showChangesInDiffView(relPath: string, content: string): Promise<void> {
 		content = preprocessContent(content)
 		if (!this.diffViewProvider.isDiffViewOpen()) {
-			await this.diffViewProvider.open(relPath, true)
+			await this.diffViewProvider.open(relPath)
 		}
 
 		await this.diffViewProvider.update(content, true)

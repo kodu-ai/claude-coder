@@ -21,6 +21,9 @@ export class InlineEditHandler {
 	private mergeDecoration: vscode.TextEditorDecorationType
 	private isAutoScrollEnabled: boolean = true
 	private currentDocumentState: DocumentState | undefined
+	private documentReadyPromise: Promise<void> | undefined
+	private maxRetries: number = 5
+	private retryDelay: number = 100 // ms
 
 	constructor() {
 		this.pendingDecoration = this.createDecoration("⟳ Pending changes", "editorGhostText.foreground")
@@ -28,7 +31,79 @@ export class InlineEditHandler {
 		this.mergeDecoration = this.createDecoration("⚡ Review changes", "editorInfo.foreground")
 	}
 
-	// Replace the createDecoration and scrollToRange methods, and update the decoration interfaces:
+	private async waitForDocumentReady(uri: string): Promise<vscode.TextDocument> {
+		let retries = 0
+		while (retries < this.maxRetries) {
+			const document = vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === uri.toString())
+			const editor = vscode.window.visibleTextEditors.find((e) => e.document.uri.toString() === uri.toString())
+
+			if (document && editor) {
+				this.documentReadyPromise = undefined
+				this.currentDocumentState = {
+					uri: uri.toString(),
+					originalContent: document.getText(),
+					currentContent: document.getText(),
+					editBlocks: new Map(),
+				}
+				return document
+			}
+
+			await new Promise((resolve) => setTimeout(resolve, this.retryDelay))
+			retries++
+		}
+
+		throw new Error("Document failed to become ready after multiple attempts")
+	}
+
+	public async open(id: string, filePath: string, searchContent: string): Promise<boolean> {
+		try {
+			// Create URI first so we can use it consistently
+			const uri = vscode.Uri.parse(filePath)
+
+			// Start document opening process
+			const openingDocument = await vscode.workspace.openTextDocument(filePath)
+
+			// Initialize state early with basic info
+			this.currentDocumentState = {
+				uri: uri.toString(),
+				originalContent: openingDocument.getText(),
+				currentContent: openingDocument.getText(),
+				editBlocks: new Map(),
+			}
+
+			// Show the document and wait for it to be ready
+			this.documentReadyPromise = (async () => {
+				await vscode.window.showTextDocument(openingDocument, {
+					viewColumn: vscode.ViewColumn.Active,
+					preserveFocus: false,
+					preview: false,
+				})
+
+				// Wait for document to be fully ready in editor
+				await this.waitForDocumentReady(uri.toString())
+			})()
+
+			// Wait for the document to be ready
+			await this.documentReadyPromise
+
+			// Initialize the first edit block
+			this.currentDocumentState.editBlocks.set(id, {
+				id,
+				searchContent,
+				currentContent: searchContent,
+				status: "pending",
+			})
+
+			await this.refreshEditor()
+			return true
+		} catch (error) {
+			this.logger(`Failed to open document: ${error}`, "error")
+			// Clean up state on failure
+			this.currentDocumentState = undefined
+			this.documentReadyPromise = undefined
+			return false
+		}
+	}
 
 	private createDecoration(text: string, color: string): vscode.TextEditorDecorationType {
 		return vscode.window.createTextEditorDecorationType({
@@ -103,45 +178,11 @@ export class InlineEditHandler {
 		}
 	}
 
-	public async open(id: string, filePath: string, searchContent: string): Promise<boolean> {
-		try {
-			const document = await vscode.workspace.openTextDocument(filePath)
-			// now let's make it focused and active
-			await vscode.window.showTextDocument(document, {
-				viewColumn: vscode.ViewColumn.Active,
-				preserveFocus: false,
-				preview: false,
-			})
-			const originalContent = document.getText()
-
-			// Initialize or reset document state
-			this.currentDocumentState = {
-				uri: document.uri.toString(),
-				originalContent,
-				currentContent: originalContent,
-				editBlocks: new Map(),
-			}
-
-			// Add initial block
-			this.currentDocumentState.editBlocks.set(id, {
-				id,
-				searchContent,
-				currentContent: searchContent,
-				status: "pending",
-			})
-
-			// Apply decorations
-			await this.refreshEditor()
-			return true
-		} catch (error) {
-			console.error("Failed to open document:", error)
-			return false
-		}
-	}
-
 	public async applyStreamContent(id: string, searchContent: string, content: string): Promise<boolean> {
+		await this.documentReadyPromise
 		if (!this.currentDocumentState) {
-			return false
+			this.logger("[applyStreamContent] No active document", "error")
+			throw new Error(`No active document found when calling applyStreamContent`)
 		}
 
 		try {
@@ -170,8 +211,11 @@ export class InlineEditHandler {
 	}
 
 	public async applyFinalContent(id: string, searchContent: string, content: string): Promise<boolean> {
+		await this.documentReadyPromise
+
 		if (!this.currentDocumentState) {
-			return false
+			this.logger("[applyFinalContent] No active document", "error")
+			throw new Error(`No active document found when calling applyFinalContent`)
 		}
 
 		try {
@@ -201,8 +245,11 @@ export class InlineEditHandler {
 	}
 
 	private async updateFileContent(): Promise<boolean> {
+		await this.documentReadyPromise
+
 		if (!this.currentDocumentState) {
-			return false
+			this.logger("[updateFileContent] No active document", "error")
+			throw new Error(`No active document found when calling updateFileContent`)
 		}
 
 		try {
@@ -245,8 +292,10 @@ export class InlineEditHandler {
 	}
 
 	private async refreshEditor(): Promise<void> {
+		await this.documentReadyPromise
 		if (!this.currentDocumentState) {
-			return
+			this.logger("[refreshEditor] No active document", "error")
+			throw new Error(`No active document found when calling refreshEditor`)
 		}
 
 		const document = await this.getDocument()
@@ -351,8 +400,11 @@ export class InlineEditHandler {
 	}
 
 	private async getDocument(): Promise<vscode.TextDocument | undefined> {
+		await this.documentReadyPromise
+
 		if (!this.currentDocumentState) {
-			return undefined
+			this.logger("[getDocument] No active document", "error")
+			throw new Error(`No active document found when calling getDocument`)
 		}
 
 		try {
@@ -369,8 +421,9 @@ export class InlineEditHandler {
 	}
 
 	public async saveChanges(): Promise<{ finalContent: string }> {
+		await this.documentReadyPromise
 		if (!this.currentDocumentState) {
-			throw new Error("No active document")
+			throw new Error("No active document to save changes.")
 		}
 
 		try {
@@ -397,8 +450,11 @@ export class InlineEditHandler {
 	}
 
 	public async rejectChanges(): Promise<boolean> {
+		await this.documentReadyPromise
+
 		if (!this.currentDocumentState) {
-			return false
+			this.logger("[rejectChanges] No active document", "error")
+			throw new Error(`No active document found when calling rejectChanges`)
 		}
 
 		try {
@@ -431,6 +487,7 @@ export class InlineEditHandler {
 	}
 
 	public isOpen(): boolean {
+		this.logger(`isOpen: ${!!this.currentDocumentState}`)
 		return !!this.currentDocumentState
 	}
 
@@ -439,10 +496,11 @@ export class InlineEditHandler {
 	}
 
 	public dispose() {
+		this.logger("Disposing InlineEditHandler")
 		this.pendingDecoration.dispose()
 		this.streamingDecoration.dispose()
 		this.mergeDecoration.dispose()
-		this.currentDocumentState = undefined
+		// this.currentDocumentState = undefined
 
 		// Force garbage collection of any remaining decorations
 		if (vscode.window.activeTextEditor) {
@@ -450,5 +508,9 @@ export class InlineEditHandler {
 			this.streamingDecoration.dispose()
 			this.mergeDecoration.dispose()
 		}
+	}
+
+	private logger(message: string, level: "info" | "warn" | "error" = "info") {
+		console[level](`[InlineEditHandler] ${message}`)
 	}
 }

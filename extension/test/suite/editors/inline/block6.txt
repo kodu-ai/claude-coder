@@ -1,0 +1,209 @@
+SEARCH
+def validate_eval_case(case_path: Path) -> bool:
+    """Validate that an eval case has the required files."""
+    required_files = ['checkout', 'evaluate', 'task_prompt.txt']
+    
+    for file in required_files:
+        if not (case_path / file).exists():
+            return False
+            
+    # Check if checkout and evaluate are executable
+    for script in ['checkout', 'evaluate']:
+        script_path = case_path / script
+        if not os.access(script_path, os.X_OK):
+            return False
+            
+    return True
+=======
+REPLACE
+def validate_eval_case(case_path: Path) -> Tuple[bool, List[str]]:
+    """Validate that an eval case has the required files and return any missing components."""
+    required_files = ['checkout', 'evaluate', 'task_prompt.txt', 'config.ini']
+    missing = []
+    
+    for file in required_files:
+        if not (case_path / file).exists():
+            missing.append(file)
+            
+    # Check if checkout and evaluate are executable
+    for script in ['checkout', 'evaluate']:
+        script_path = case_path / script
+        if script_path.exists() and not os.access(script_path, os.X_OK):
+            missing.append(f"{script} (not executable)")
+            
+    return len(missing) == 0, missing
+=======
+SEARCH
+def collect_eval_cases(paths: List[str]) -> List[Path]:
+    """Collect eval cases from provided paths.
+    
+    A path can be either a direct eval case or a directory containing eval cases.
+    """
+    cases = []
+    base_dir = Path(__file__).parent
+    
+    for path_str in paths:
+        path = Path(path_str)
+        if not path.is_absolute():
+            path = base_dir / path
+            
+        if validate_eval_case(path):
+            cases.append(path)
+        else:
+            # Check if it's a directory containing eval cases
+            if path.is_dir():
+                for subdir in path.iterdir():
+                    if subdir.is_dir() and validate_eval_case(subdir):
+                        cases.append(subdir)
+                        
+    return sorted(cases)
+=======
+REPLACE
+def collect_eval_cases(paths: Optional[List[str]] = None) -> Dict[Path, Tuple[bool, List[str]]]:
+    """Recursively collect eval cases from provided paths or current directory.
+    
+    Returns a dictionary mapping paths to their validation status and any missing components.
+    A path can be either a direct eval case or a directory containing eval cases.
+    """
+    cases = {}
+    count = 0
+    
+    # If no paths provided, use current directory
+    if not paths:
+        paths = ['.']
+    
+    # Process all paths
+    for path_str in paths:
+        path = Path(path_str).resolve()
+        if path.is_dir():
+            for subdir in path.rglob('*'):
+                if subdir.is_dir():
+                    # Look for eval case components
+                    has_checkout = (subdir / 'checkout').exists()
+                    has_evaluate = (subdir / 'evaluate').exists()
+                    has_task = (subdir / 'task_prompt.txt').exists()
+                    has_config = (subdir / 'config.ini').exists()
+                    
+                    if has_checkout or has_evaluate or has_task or has_config:
+                        count += 1
+                        print(f"\rcollecting ... {count} items", end="", flush=True)
+                        
+                        # Now validate it
+                        is_valid, missing = validate_eval_case(subdir)
+                        cases[subdir] = (is_valid, missing)
+                        if missing:
+                            print(f"\n{Colors.YELLOW}WARNING: Found partial test case in {subdir}. Missing: {', '.join(missing)}{Colors.RESET}", flush=True)
+                            print(f"\rcollecting ... {count} items", end="", flush=True)  # Restore collection progress
+    
+    return cases
+=======
+SEARCH
+async def main() -> int:
+    """Main entry point for the eval script."""
+    setup_logging()
+    parser = create_parser()
+    args = parser.parse_args()
+    
+    if not args.eval_dirs:
+        parser.error('at least one evaluation directory is required')
+        return EXIT_USAGE_ERROR
+        
+    # Collect all eval cases
+    cases = collect_eval_cases(args.eval_dirs)
+    if not cases:
+        logging.error("No valid evaluation cases found in specified directories")
+        return EXIT_USAGE_ERROR
+=======
+REPLACE
+async def main() -> int:
+    """Main entry point for the eval script."""
+    setup_logging()
+    parser = create_parser()
+    args = parser.parse_args()
+    
+    # Print platform info
+    print(get_platform_info())
+    print()  # Add blank line after platform info
+    
+    # Start collection phase
+    print("collecting ... ", end="", flush=True)
+    
+    # Collect all eval cases
+    cases = await collect_eval_cases(args.eval_dirs)
+    valid_cases = [path for path, (is_valid, _) in cases.items() if is_valid]
+    
+    # Show final collection count
+    print(f"\rcollected {len(valid_cases)} items", flush=True)
+    print("", flush=True)  # Add blank line before starting tests
+    
+    if not valid_cases:
+        if not cases:
+            logging.error("No evaluation cases found in specified directories")
+        else:
+            logging.error("No valid evaluation cases found. Found partial cases:")
+            for path, (_, missing) in cases.items():
+                logging.error(f"  {path}: missing {', '.join(missing)}")
+        return EXIT_USAGE_ERROR
+=======
+SEARCH
+async def run_single_eval(
+    case_path: Path,
+    config_path: Optional[str] = None,
+    args_str: Optional[str] = None,
+    timeout: int = 45,
+    target_dir: Optional[Path] = None,
+    auto_approve: bool = False,
+    verbose: bool = False,
+    failures_show_agent_output: bool = False
+) -> EvalResult:
+    """Run a single evaluation case."""
+    start_time = time.time()
+    temp_dir = None
+    temp_root = None
+    original_dir = Path.cwd()
+    
+    try:
+=======
+REPLACE
+async def run_single_eval(
+    case_path: Path,
+    config_path: Optional[str] = None,
+    args_str: Optional[str] = None,
+    timeout: int = 45,
+    target_dir: Optional[Path] = None,
+    auto_approve: bool = False,
+    verbose: bool = False,
+    failures_show_agent_output: bool = False
+) -> EvalResult:
+    """Run a single evaluation case."""
+    start_time = time.time()
+    temp_dir = None
+    temp_root = None
+    original_dir = Path.cwd()
+    
+    try:
+        print("  checking out eval files ...", flush=True)
+=======
+SEARCH
+        # Run agent
+        success, agent_stdout, agent_stderr, agent_filtered_stdout, agent_filtered_stderr = await run_agent(
+=======
+REPLACE
+        print("  invoking agent ...", flush=True)
+        # Run agent
+        success, agent_stdout, agent_stderr, agent_filtered_stdout, agent_filtered_stderr = await run_agent(
+=======
+SEARCH
+        # Run evaluate script
+        evaluate_cmd = [str(case_path / 'evaluate'), str(temp_dir)]
+=======
+REPLACE
+        print("  running evaluation script ...", flush=True)
+        # Run evaluate script
+        evaluate_cmd = [str(case_path / 'evaluate'), str(temp_dir)]
+=======
+SEARCH
+            status_str = f"{Colors.YELLOW}ERROR{Colors.RESET}"
+=======
+REPLACE
+            status_str = f"{Colors.RED}ERROR{Colors.RESET}"
