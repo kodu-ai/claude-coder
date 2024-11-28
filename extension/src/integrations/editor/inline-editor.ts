@@ -389,47 +389,127 @@ export class InlineEditHandler {
 	 *
 	 * Note: Uses workspace edit API to ensure proper undo/redo support
 	 */
-	private async updateFileContent(): Promise<void> {
-		this.validateDocumentState()
-
-		try {
-			const document = await this.getDocument()
-			if (!document) {
-				throw new Error("No active document to update content.")
-			}
-
-			// Start with original content
-			let newContent = this.currentDocumentState.originalContent
-
-			// Apply all blocks in order
-			const sortedBlocks = Array.from(this.currentDocumentState.editBlocks.values()).sort((a, b) => {
-				const indexA = newContent.indexOf(a.searchContent)
-				const indexB = newContent.indexOf(b.searchContent)
-				return indexA - indexB
-			})
-
-			for (const block of sortedBlocks) {
-				newContent = newContent.replace(block.searchContent, block.currentContent)
-			}
-
-			// Update entire file
-			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
-
-			const workspaceEdit = new vscode.WorkspaceEdit()
-			workspaceEdit.replace(document.uri, entireRange, newContent)
-			const success = await vscode.workspace.applyEdit(workspaceEdit)
-
-			if (success) {
-				this.logger("File content updated", "info")
-				this.currentDocumentState.currentContent = newContent
-				await this.refreshEditor()
-			}
-
-			return
-		} catch (error) {
-			this.logger(`Failed to update file content: ${error}`, "error")
-			throw error
-		}
+	private async updateFileContent(): Promise<void> { 
+		this.validateDocumentState(); 
+	 
+		try { 
+			const document = await this.getDocument(); 
+			if (!document) { 
+				throw new Error("No active document to update content."); 
+			} 
+	 
+			let newContent = this.currentDocumentState.originalContent; 
+			this.logger(`Original content length: ${newContent.length}`, "debug"); 
+	 
+			const contentChunks = newContent.match(/.{1,1000}/g) || []; 
+			this.logger(`Original content in chunks:`, "debug"); 
+			contentChunks.forEach((chunk, i) => { 
+				this.logger(`Chunk ${i}:\n${chunk}`, "debug"); 
+			}); 
+	 
+			const normalize = (str: string) => 
+				str.replace(/\r\n/g, "\n").replace(/[ \t]+$/gm, ""); 
+			let normalizedContent = normalize(newContent); 
+	 
+			const sortedBlocks = Array.from( 
+				this.currentDocumentState.editBlocks.values() 
+			).sort((a, b) => { 
+				if (!this.currentDocumentState.originalContent) { 
+					return 0; 
+				} 
+				const indexA = normalizedContent.indexOf(normalize(a.searchContent)); 
+				const indexB = normalizedContent.indexOf(normalize(b.searchContent)); 
+				if (indexA === -1) return 1; 
+				if (indexB === -1) return -1; 
+				return indexA - indexB; 
+			}); 
+	 
+			this.logger(`Processing ${sortedBlocks.length} edit blocks`, "debug"); 
+	 
+			for (const block of sortedBlocks) { 
+				this.logger(`Processing block ${block.id}:`, "debug"); 
+				this.logger( 
+					`Search content length: ${block.searchContent.length}`, 
+					"debug" 
+				); 
+				this.logger( 
+					`Replace content length: ${block.currentContent.length}`, 
+					"debug" 
+				); 
+				this.logger( 
+					`Search content first line: ${block.searchContent.split("\n")[0]}`, 
+					"debug" 
+				); 
+				this.logger( 
+					`Replace content first line: ${block.currentContent.split("\n")[0]}`, 
+					"debug" 
+				); 
+	 
+				const normalizedSearch = normalize(block.searchContent); 
+				const normalizedReplace = normalize(block.currentContent); 
+	 
+				const beforeContent = normalizedContent; 
+				normalizedContent = normalizedContent.replace( 
+					normalizedSearch, 
+					normalizedReplace 
+				); 
+	 
+				if ( 
+					normalizedContent === beforeContent && 
+					normalizedSearch !== normalizedReplace 
+				) { 
+					this.logger(`Failed to apply block: ${block.id}`, "error"); 
+					this.logger(`Search content not found in file`, "error"); 
+					this.logger( 
+						`Differences:\n${this.generateDiff( 
+							normalizedSearch, 
+							beforeContent 
+						)}`, 
+						"debug" 
+					); 
+					throw new Error(`Failed to apply edit block: ${block.id}`); 
+				} else { 
+					this.logger(`Successfully applied block ${block.id}`, "debug"); 
+				} 
+			} 
+	 
+			const entireRange = new vscode.Range( 
+				document.positionAt(0), 
+				document.positionAt(document.getText().length) 
+			); 
+	 
+			const workspaceEdit = new vscode.WorkspaceEdit(); 
+			workspaceEdit.replace(document.uri, entireRange, normalizedContent); 
+			const success = await vscode.workspace.applyEdit(workspaceEdit); 
+	 
+			if (success) { 
+				this.logger("File content updated", "info"); 
+				this.currentDocumentState.currentContent = normalizedContent; 
+				await this.refreshEditor(); 
+			} else { 
+				this.logger("Failed to apply edit blocks", "error"); 
+				throw new Error("Failed to apply edit blocks"); 
+			} 
+	 
+			return; 
+		} catch (error) { 
+			this.logger(`Failed to update file content: ${error}`, "error"); 
+			throw error; 
+		} 
+	} 
+	 
+	private generateDiff(original: string, updated: string): string { 
+		const originalLines = original.split("\n"); 
+		const updatedLines = updated.split("\n"); 
+		const differences = originalLines.map((line, index) => { 
+			if (line !== updatedLines[index]) { 
+				return `Line ${index + 1}:\nOriginal: ${line}\nUpdated: ${ 
+					updatedLines[index] || "[MISSING]" 
+				}`; 
+			} 
+			return null; 
+		}); 
+		return differences.filter((diff) => diff).join("\n"); 
 	}
 
 	/**
