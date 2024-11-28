@@ -172,7 +172,7 @@ importers:
         specifier: ^2.4.1
         version: 2.4.1
       '@vscode/vsce':
-        specifier: ^2.15.0
+        specifier: ^2.32.0
         version: 2.32.0
       esbuild:
         specifier: ^0.24.0

@@ -1,14 +1,14 @@
 import { readdir } from "fs/promises"
 import path from "path"
 import * as vscode from "vscode"
+import { extensionName } from "../../../shared/Constants"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
 import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
-import { quickStart } from "./quick-start"
-import { extensionName } from "../../../shared/Constants"
 import { GlobalStateManager } from "../state/GlobalStateManager"
+import { quickStart } from "./quick-start"
 
 /**
  * Represents an item in the file tree structure.
@@ -243,10 +243,9 @@ export class WebviewManager {
 		// Updated codicons path and error handling
 		const codiconsUri = webview.asWebviewUri(
 			vscode.Uri.joinPath(
-				this.provider.context.extensionUri,
-				"node_modules",
-				"@vscode/codicons",
+				this.provider.getContext().extensionUri,
 				"dist",
+				"codicons",
 				"codicon.css"
 			)
 		)

@@ -1,4 +1,4 @@
-import esbuild, { BuildContext, BuildOptions } from "esbuild"
+import esbuild, { BuildOptions } from "esbuild"
 import fs from "fs"
 import path from "path"
 import { fileURLToPath } from "url"
@@ -66,7 +66,7 @@ const copyAssetsPlugin = {
 
 			// Copy codicons files
 			const codiconsDir = path.join(__dirname, "node_modules", "@vscode", "codicons", "dist")
-			const codiconsTargetDir = path.join(targetDir, "codicons")
+			const codiconsTargetDir = path.join(targetDir, "node_modules", "@vscode", "codicons", "dist")
 
 			if (!fs.existsSync(codiconsTargetDir)) {
 				fs.mkdirSync(codiconsTargetDir, { recursive: true })
@@ -92,9 +92,6 @@ const extensionConfig = {
 	platform: "node",
 	outfile: "dist/extension.js",
 	external: ["vscode", "chromium-bidi"],
-	alias: {
-		"@": path.resolve(__dirname, "src"),
-	},
 } satisfies BuildOptions
 
 async function main() {
