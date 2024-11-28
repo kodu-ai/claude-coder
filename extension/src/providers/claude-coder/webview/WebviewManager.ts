@@ -105,6 +105,8 @@ export class WebviewManager {
 			uriScheme: vscode.env.uriScheme,
 			extensionName,
 			claudeMessages: koduDevState?.claudeMessages ?? [],
+			currentChatMode: koduDevState?.currentChatMode ?? 'task',
+			chatHistory: koduDevState?.chatHistory ?? [],
 			taskHistory: (state.taskHistory || []).filter((item) => item.ts && item.task).sort((a, b) => b.ts - a.ts),
 			shouldShowAnnouncement: false,
 		} satisfies ExtensionState
@@ -229,6 +231,18 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "action":
+						if (message.action === "switchChatMode") {
+							await this.provider.getKoduDev()?.switchChatMode(message.mode);
+							await this.postStateToWebview();
+						} else if (message.action === "chatMessage") {
+							await this.provider.getKoduDev()?.handleWebviewAskResponse(
+								"messageResponse",
+								message.text,
+								message.images
+							);
+						}
+						break;
 					case "skipWriteAnimation":
 						await this.provider.getStateManager().setSkipWriteAnimation(!!message.bool)
 						await this.postStateToWebview()
