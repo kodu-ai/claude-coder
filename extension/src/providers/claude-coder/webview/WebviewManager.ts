@@ -1,14 +1,14 @@
 import { readdir } from "fs/promises"
 import path from "path"
 import * as vscode from "vscode"
+import { extensionName } from "../../../shared/Constants"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
 import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
-import { quickStart } from "./quick-start"
-import { extensionName } from "../../../shared/Constants"
 import { GlobalStateManager } from "../state/GlobalStateManager"
+import { quickStart } from "./quick-start"
 
 /**
  * Represents an item in the file tree structure.
@@ -165,7 +165,6 @@ export class WebviewManager {
 	 * @param message The message to send
 	 */
 	private sendMessageToWebview(message: ExtensionMessage) {
-		console.log(`Posting message at ${Date.now()}`)
 		this.provider["view"]?.webview.postMessage(message)
 	}
 
@@ -217,10 +216,12 @@ export class WebviewManager {
 	}
 
 	private getHtmlContent(webview: vscode.Webview): string {
+		const context = this.provider.getContext()
 		const localPort = "5173"
 		const localServerUrl = `localhost:${localPort}`
 		let scriptUri
 		const isProd = this.provider.getContext().extensionMode === vscode.ExtensionMode.Production
+
 		if (isProd) {
 			scriptUri = getUri(webview, this.provider.getContext().extensionUri, [
 				"webview-ui-vite",
@@ -231,6 +232,7 @@ export class WebviewManager {
 		} else {
 			scriptUri = `http://${localServerUrl}/src/index.tsx`
 		}
+
 		const stylesUri = getUri(webview, this.provider.getContext().extensionUri, [
 			"webview-ui-vite",
 			"build",
@@ -238,13 +240,15 @@ export class WebviewManager {
 			"index.css",
 		])
 
-		const codiconsUri = getUri(webview, this.provider.getContext().extensionUri, [
-			"node_modules",
-			"@vscode",
-			"codicons",
-			"dist",
-			"codicon.css",
-		])
+		// Updated codicons path and error handling
+		const codiconsUri = webview.asWebviewUri(
+			vscode.Uri.joinPath(
+				this.provider.getContext().extensionUri,
+				"dist",
+				"codicons",
+				"codicon.css"
+			)
+		)
 
 		const nonce = getNonce()
 
@@ -262,40 +266,39 @@ export class WebviewManager {
 					: `ws://${localServerUrl} ws://0.0.0.0:${localPort} http://${localServerUrl} http://0.0.0.0:${localPort}`
 			}`,
 		]
-		console.log("CSP", csp.join("; "))
 
 		return /*html*/ `
-        <!DOCTYPE html>
-        <html lang="en">
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
-            <meta name="theme-color" content="#000000">
-            <meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
-	        <link rel="stylesheet" type="text/css" href="${stylesUri}">
-			<link href="${codiconsUri}" rel="stylesheet" />
-            <title>Claude Coder</title>
-          </head>
-          <body>
-            <noscript>You need to enable JavaScript to run this app.</noscript>
-            <div id="root"></div>
-            ${
-				isProd
-					? ""
-					: `
-                <script type="module">
-                  import RefreshRuntime from "http://${localServerUrl}/@react-refresh"
-                  RefreshRuntime.injectIntoGlobalHook(window)
-                  window.$RefreshReg$ = () => {}
-                  window.$RefreshSig$ = () => (type) => type
-                  window.__vite_plugin_react_preamble_installed__ = true
-                </script>
-                `
-			}
-            <script type="module" src="${scriptUri}"></script>
-          </body>
-        </html>
-      `
+			<!DOCTYPE html>
+			<html lang="en">
+			  <head>
+				<meta charset="utf-8">
+				<meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
+				<meta name="theme-color" content="#000000">
+				<meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
+				<link rel="stylesheet" type="text/css" href="${stylesUri}">
+				<link href="${codiconsUri}" rel="stylesheet" />
+				<title>Claude Coder</title>
+			  </head>
+			  <body>
+				<noscript>You need to enable JavaScript to run this app.</noscript>
+				<div id="root"></div>
+				${
+					isProd
+						? ""
+						: `
+					<script type="module">
+					  import RefreshRuntime from "http://${localServerUrl}/@react-refresh"
+					  RefreshRuntime.injectIntoGlobalHook(window)
+					  window.$RefreshReg$ = () => {}
+					  window.$RefreshSig$ = () => (type) => type
+					  window.__vite_plugin_react_preamble_installed__ = true
+					</script>
+					`
+				}
+				<script type="module" src="${scriptUri}"></script>
+			  </body>
+			</html>
+		`
 	}
 
 	/**
@@ -348,6 +351,12 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "setInlineEditMode":
+						await this.provider
+							.getStateManager()
+							.setInlineEditModeType(message.inlineEditOutputType ?? "full")
+						await this.postStateToWebview()
+						break
 					case "pauseTemporayAutoMode":
 						this.provider.getKoduDev()?.getStateManager()?.setTemporaryPauseAutomaticMode(message.mode)
 						break
@@ -559,6 +568,13 @@ export class WebviewManager {
 						break
 					case "didClickKoduSignOut":
 						await this.provider.getApiManager().signOutKodu()
+						await this.postStateToWebview()
+						break
+					case "commandTimeout":
+						await GlobalStateManager.getInstance().updateGlobalState(
+							"commandTimeout",
+							message.commandTimeout
+						)
 						await this.postStateToWebview()
 						break
 					case "fetchKoduCredits":

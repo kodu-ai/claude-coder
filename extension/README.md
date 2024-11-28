@@ -80,7 +80,7 @@ If you're a developer and want to help make Claude Coder even better, here's how
 1. Clone the repo: `git clone https://github.com/kodu-ai/claude-coder.git`
 2. Open in VS Code: `code claude-coder`
 3. Navigate to extension folder: `cd extension`
-4. Install dependencies: `npm run install:all`
+4. Install dependencies: `pnpm run install:clean`
 5. Run with `F5`
 
 Pro tips:

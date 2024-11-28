@@ -67,7 +67,7 @@ export class FileEditorTool extends BaseAgentTool {
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
-		this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev)
+		this.diffViewProvider = new DiffViewProvider(getCwd())
 		this.inlineEditor = new InlineEditHandler()
 		if (!!this.koduDev.getStateManager().skipWriteAnimation) {
 			this.skipWriteAnimation = true
@@ -214,7 +214,7 @@ export class FileEditorTool extends BaseAgentTool {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
 			return
 		}
-		this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
+		await this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
 	}
 
 	/**
@@ -265,24 +265,20 @@ export class FileEditorTool extends BaseAgentTool {
 			this.ts
 		)
 
-		const currentTime = Date.now()
-		// don't push too many updates to the diff view provider to avoid performance issues
-		if (currentTime - this.lastUpdateTime < this.UPDATE_INTERVAL) {
-			return
-		}
-
-		if (!this.diffViewProvider.isDiffViewOpen() && this.updateNumber === 1) {
-			try {
-				// this actually opens the diff view but might take an extra few ms to be considered open requires interval check
-				// it can take up to 300ms to open the diff view
-				await this.diffViewProvider.open(relPath)
-			} catch (e) {
-				this.logger("Error opening diff view: " + e, "error")
-				return
+		await this.pQueue.add(async () => {
+			if (!this.diffViewProvider.isDiffViewOpen()) {
+				try {
+					const now = Date.now()
+					await this.diffViewProvider.open(relPath)
+					const elapsed = Date.now() - now
+					this.logger(`Diff view opened in ${elapsed}ms`, "debug")
+				} catch (e) {
+					this.logger("Error opening diff view: " + e, "error")
+					return
+				}
 			}
-		}
-		await this.diffViewProvider.update(acculmatedContent, false)
-		this.lastUpdateTime = currentTime
+			await this.diffViewProvider.update(acculmatedContent, false)
+		})
 	}
 
 	private async finalizeInlineEdit(path: string, content: string): Promise<ToolResponseV2> {
@@ -295,7 +291,7 @@ export class FileEditorTool extends BaseAgentTool {
 			throw new Error(`Error parsing diff blocks: ${err}`)
 		}
 		if (!this.inlineEditor.isOpen()) {
-			this.inlineEditor.open(
+			await this.inlineEditor.open(
 				this.editBlocks[0].id,
 				this.fileState?.absolutePath!,
 				this.editBlocks[0].searchContent
@@ -346,7 +342,7 @@ export class FileEditorTool extends BaseAgentTool {
 				images
 			)
 		}
-		await this.inlineEditor.saveChanges()
+		const finalContent = await this.inlineEditor.saveChanges()
 		this.koduDev.getStateManager().addErrorPath(path)
 
 		// Final approval state
@@ -364,7 +360,41 @@ export class FileEditorTool extends BaseAgentTool {
 			this.ts
 		)
 
-		return this.toolResponse("success", "The user approved the changes.")
+		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
+		if (currentOutputMode === "diff") {
+			return this.toolResponse(
+				"success",
+				`The content was successfully saved to ${path.toPosix()}
+				Here is the latests updates to the file after the changes were applied all the previous is the same as the original content except for the changes made, remember this for future reference:
+			<file>
+			<path>${path}</path>
+			<updated_blocks>${this.editBlocks
+				.map((block) => {
+					return `<block id="${block.id}">${block.replaceContent}</block>`
+				})
+				.join("\n")}</updated_blocks>
+			</file>
+			`
+			)
+		}
+		if (currentOutputMode === "none") {
+			return this.toolResponse(
+				"success",
+				`The content was successfully saved to ${path.toPosix()}
+			use the search and replace blocks as future reference for the changes made to the file, you should remember them while priotizing the latest content as the source of truth (original + changes made)`
+			)
+		}
+
+		return this.toolResponse(
+			"success",
+			`The content was successfully saved to ${path.toPosix()}
+			Here is the file latest content after the changes were applied from now on view this as the source of truth for this file unless you make further changes or the user tells you otherwise:
+			<file>
+			<path>${path}</path>
+			<content>${finalContent}</content>
+			</file>
+			`
+		)
 	}
 
 	private async finalizeFileEdit(relPath: string, content: string): Promise<ToolResponseV2> {
@@ -452,7 +482,7 @@ export class FileEditorTool extends BaseAgentTool {
 			return this.toolResponse(
 				"success",
 				`The user made the following updates to your content:\n\nThe updated content has been successfully saved to ${relPath.toPosix()}
-					Here is the latest file content:
+					Here is the latest file content after the changes were applied:
 					\`\`\`
 					${finalContent}
 					\`\`\`
@@ -461,10 +491,7 @@ export class FileEditorTool extends BaseAgentTool {
 		}
 
 		let toolMsg = `The content was successfully saved to ${relPath.toPosix()}.
-			Here is the latest file content:
-			\`\`\`
-			${finalContent}
-			\`\`\`
+			The latest content is the content inside of <kodu_content> the content you provided in the input has been applied to the file and saved. don't read the file again to get the latest content as it is already saved unless the user tells you otherwise.
 			`
 		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
 			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
@@ -521,7 +548,6 @@ export class FileEditorTool extends BaseAgentTool {
 			)
 		} finally {
 			this.isProcessingFinalContent = false
-			this.diffViewProvider.isEditing = false
 		}
 	}
 
@@ -542,9 +568,12 @@ export class FileEditorTool extends BaseAgentTool {
 	private async showChangesInDiffView(relPath: string, content: string): Promise<void> {
 		content = preprocessContent(content)
 		if (!this.diffViewProvider.isDiffViewOpen()) {
-			await this.diffViewProvider.open(relPath, true)
+			await this.diffViewProvider.open(relPath)
 		}
 
-		await this.diffViewProvider.update(content, true)
+		await this.pQueue.add(async () => {
+			await this.diffViewProvider.update(content, true)
+		})
+		await this.pQueue.onIdle()
 	}
 }

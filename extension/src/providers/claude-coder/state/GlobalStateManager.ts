@@ -27,6 +27,7 @@ export type GlobalState = {
 	useUdiff: boolean | undefined
 	alwaysAllowReadOnly: boolean | undefined
 	alwaysAllowWriteOnly: boolean | undefined
+	inlineEditOutputType?: "full" | "diff" | "none"
 	autoSummarize: boolean | undefined
 	taskHistory: HistoryItem[] | undefined
 	shouldShowKoduPromo: boolean | undefined
@@ -38,6 +39,7 @@ export type GlobalState = {
 	technicalBackground: "no-technical" | "technical" | "developer" | undefined
 	systemPromptVariants: SystemPromptVariant[] | undefined
 	activeSystemPromptVariantId: string | undefined
+	commandTimeout: number | undefined
 }
 
 export class GlobalStateManager {

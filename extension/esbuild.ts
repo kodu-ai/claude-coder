@@ -1,23 +1,15 @@
-// const esbuild = require("esbuild")
-// const fs = require("fs")
-// const path = require("path")
-import esbuild, { BuildContext, BuildOptions } from "esbuild"
+import esbuild, { BuildOptions } from "esbuild"
 import fs from "fs"
 import path from "path"
 import { fileURLToPath } from "url"
 
-// Fix for __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const production = process.argv.includes("--production")
 const watch = process.argv.includes("--watch")
 
-/**
- * @type {import('esbuild').Plugin}
- */
 const esbuildProblemMatcherPlugin = {
 	name: "esbuild-problem-matcher",
-
 	setup(build) {
 		build.onStart(() => {
 			console.log("[watch] build started")
@@ -32,16 +24,22 @@ const esbuildProblemMatcherPlugin = {
 	},
 }
 
-const copyWasmFiles = {
-	name: "copy-wasm-files",
+const copyAssetsPlugin = {
+	name: "copy-assets",
 	setup(build) {
 		build.onEnd(() => {
-			// tree sitter
-			const sourceDir = path.join(__dirname, "node_modules", "web-tree-sitter")
+			// Create dist directory if it doesn't exist
 			const targetDir = path.join(__dirname, "dist")
+			if (!fs.existsSync(targetDir)) {
+				fs.mkdirSync(targetDir, { recursive: true })
+			}
 
-			// Copy tree-sitter.wasm
-			fs.copyFileSync(path.join(sourceDir, "tree-sitter.wasm"), path.join(targetDir, "tree-sitter.wasm"))
+			// Copy tree-sitter WASM files
+			const treeSitterSourceDir = path.join(__dirname, "node_modules", "web-tree-sitter")
+			fs.copyFileSync(
+				path.join(treeSitterSourceDir, "tree-sitter.wasm"),
+				path.join(targetDir, "tree-sitter.wasm")
+			)
 
 			// Copy language-specific WASM files
 			const languageWasmDir = path.join(__dirname, "node_modules", "tree-sitter-wasms", "out")
@@ -65,6 +63,18 @@ const copyWasmFiles = {
 				const filename = `tree-sitter-${lang}.wasm`
 				fs.copyFileSync(path.join(languageWasmDir, filename), path.join(targetDir, filename))
 			})
+
+			// Copy codicons files
+			const codiconsDir = path.join(__dirname, "node_modules", "@vscode", "codicons", "dist")
+			const codiconsTargetDir = path.join(targetDir, "codicons")
+
+			if (!fs.existsSync(codiconsTargetDir)) {
+				fs.mkdirSync(codiconsTargetDir, { recursive: true })
+			}
+
+			// Copy codicon.css and codicon.ttf
+			fs.copyFileSync(path.join(codiconsDir, "codicon.css"), path.join(codiconsTargetDir, "codicon.css"))
+			fs.copyFileSync(path.join(codiconsDir, "codicon.ttf"), path.join(codiconsTargetDir, "codicon.ttf"))
 		})
 	},
 }
@@ -74,15 +84,11 @@ const extensionConfig = {
 	minify: production,
 	sourcemap: !production,
 	logLevel: "silent",
-	plugins: [
-		copyWasmFiles,
-		/* add to the end of plugins array */
-		esbuildProblemMatcherPlugin,
-	],
+	plugins: [copyAssetsPlugin, esbuildProblemMatcherPlugin],
 	entryPoints: ["src/extension.ts"],
 	format: "cjs",
 	sourcesContent: false,
-	keepNames: true, // Preserve function names during minification
+	keepNames: true,
 	platform: "node",
 	outfile: "dist/extension.js",
 	external: ["vscode", "chromium-bidi"],

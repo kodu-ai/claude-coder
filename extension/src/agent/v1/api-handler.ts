@@ -13,7 +13,7 @@ import { koduModels } from "../../shared/api"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
-import { estimateTokenCount, smartTruncation, truncateHalfConversation } from "../../utils/context-management"
+import { estimateTokenCount, smartTruncation, truncateHalfConversation } from "../../utils/context-managment"
 import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
 import { ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
@@ -31,40 +31,6 @@ interface ApiMetrics {
 	inputCacheRead: number
 	inputCacheWrite: number
 	cost: number
-}
-
-/**
- * Interface for tracking differences between strings
- */
-interface StringDifference {
-	index: number
-	char1: string
-	char2: string
-}
-
-/**
- * Compares two strings and finds all character differences
- * @param str1 - First string to compare
- * @param str2 - Second string to compare
- * @returns Array of differences with their positions
- */
-export function findStringDifferences(str1: string, str2: string): StringDifference[] {
-	const differences: StringDifference[] = []
-	const maxLength = Math.max(str1.length, str2.length)
-	const paddedStr1 = str1.padEnd(maxLength)
-	const paddedStr2 = str2.padEnd(maxLength)
-
-	for (let i = 0; i < maxLength; i++) {
-		if (paddedStr1[i] !== paddedStr2[i]) {
-			differences.push({
-				index: i,
-				char1: paddedStr1[i],
-				char2: paddedStr2[i],
-			})
-		}
-	}
-
-	return differences
 }
 
 /**
@@ -561,19 +527,20 @@ ${this.customInstructions.trim()}
 			estimateTokenCount(history[history.length - 1])
 
 		let contextWindow = this.api.getModel().info.contextWindow
-
-		const truncatedMessages = smartTruncation(history)
-		const newMemorySize = truncatedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
-		this.log("info", `API History before truncation:`, history)
-		this.log("info", `Compressed messages:`, truncatedMessages)
-		this.log("info", `Total tokens before truncation: ${totalTokens}`)
-		this.log("info", `Total tokens after truncation: ${newMemorySize}`)
+		const terminalCompressionThreshold = provider
+			.getGlobalStateManager()
+			.getGlobalState("terminalCompressionThreshold")
+		const compressedMessages = await smartTruncation(history, this.api, terminalCompressionThreshold)
+		const newMemorySize = compressedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
+		this.log("info", `API History before compression:`, history)
+		this.log("info", `Total tokens before compression: ${totalTokens}`)
+		this.log("info", `Total tokens after compression: ${newMemorySize}`)
 		const maxPostTruncationTokens = contextWindow - 13_314 + this.api.getModel().info.maxTokens
+		await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(compressedMessages)
 
 		// if this condition hit the task should be blocked
 		if (newMemorySize >= maxPostTruncationTokens) {
 			// we reached the end
-			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 			this.providerRef
 				.deref()
 				?.getKoduDev()
@@ -581,9 +548,9 @@ ${this.customInstructions.trim()}
 					"chat_finished",
 					`The chat has reached the maximum token limit. Please create a new task to continue.`
 				)
+			this.providerRef.deref()?.getKoduDev()?.taskExecutor.blockTask()
 			return "chat_finished"
 		}
-		await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 		await this.providerRef
 			.deref()
 			?.getKoduDev()

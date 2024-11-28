@@ -1,5 +1,14 @@
 import * as vscode from "vscode"
+import PQueue from "p-queue"
 
+/**
+ * Represents a block of text that is being edited inline
+ * @property id - Unique identifier for the edit block
+ * @property searchContent - Original content to search for in the document
+ * @property currentContent - Current content being shown (may be streaming)
+ * @property finalContent - Final content after streaming is complete
+ * @property status - Current state of the edit block (pending/streaming/final)
+ */
 interface EditBlock {
 	id: string
 	searchContent: string
@@ -8,27 +17,51 @@ interface EditBlock {
 	status: "pending" | "streaming" | "final"
 }
 
+/**
+ * Maintains the state of a document being edited
+ * @property uri - VSCode URI of the document
+ * @property originalContent - Original content when editing started
+ * @property currentContent - Current content with all edits applied
+ * @property editBlocks - Map of edit blocks being processed
+ */
 interface DocumentState {
-	uri: string
+	uri: vscode.Uri
 	originalContent: string
 	currentContent: string
 	editBlocks: Map<string, EditBlock>
 }
 
+/**
+ * Handles inline editing functionality in VSCode text editors
+ * Provides real-time updates, decorations, and manages edit state
+ *
+ * Key features:
+ * - Supports streaming updates with visual indicators
+ * - Maintains document state and edit history
+ * - Handles queuing and sequential processing of edits
+ * - Provides visual decorations for different edit states
+ * - Supports auto-scrolling to edited regions
+ */
 export class InlineEditHandler {
+	// Decorations for different edit states
 	private pendingDecoration: vscode.TextEditorDecorationType
 	private streamingDecoration: vscode.TextEditorDecorationType
 	private mergeDecoration: vscode.TextEditorDecorationType
+
+	// Controls auto-scroll behavior
 	private isAutoScrollEnabled: boolean = true
-	private currentDocumentState: DocumentState | undefined
+
+	// Maintains current document state
+	protected currentDocumentState: DocumentState | undefined
 
 	constructor() {
+		// Initialize PQueue with concurrency 1 to ensure sequential operations
 		this.pendingDecoration = this.createDecoration("⟳ Pending changes", "editorGhostText.foreground")
 		this.streamingDecoration = this.createDecoration("↻ Streaming changes...", "editorInfo.foreground")
 		this.mergeDecoration = this.createDecoration("⚡ Review changes", "editorInfo.foreground")
-	}
 
-	// Replace the createDecoration and scrollToRange methods, and update the decoration interfaces:
+		this.logger("InlineEditHandler initialized", "debug")
+	}
 
 	private createDecoration(text: string, color: string): vscode.TextEditorDecorationType {
 		return vscode.window.createTextEditorDecorationType({
@@ -57,6 +90,19 @@ export class InlineEditHandler {
 		})
 	}
 
+	/**
+	 * Scrolls the editor to show the edited range with context
+	 * Adds a temporary highlight effect to draw attention
+	 *
+	 * @param editor - The VSCode text editor to scroll
+	 * @param range - The range to scroll to and highlight
+	 *
+	 * Features:
+	 * - Centers the edit in view
+	 * - Shows context lines above/below
+	 * - Adds temporary highlight animation
+	 * - Respects auto-scroll setting
+	 */
 	private async scrollToRange(editor: vscode.TextEditor, range: vscode.Range) {
 		if (!this.isAutoScrollEnabled) {
 			return
@@ -99,26 +145,48 @@ export class InlineEditHandler {
 			// Remove highlight after a short delay
 			setTimeout(() => highlightDecoration.dispose(), 800)
 		} catch (error) {
-			console.error("Failed to scroll to range:", error)
+			this.logger(`Failed to scroll to range: ${error}`, "error")
 		}
 	}
 
-	public async open(id: string, filePath: string, searchContent: string): Promise<boolean> {
+	/**
+	 * Opens a file for editing and initializes the document state
+	 * Processes any pending operations that arrived before opening
+	 *
+	 * @param id - Unique identifier for this edit session
+	 * @param filePath - Path to the file to edit
+	 * @param searchContent - Initial content to search for
+	 *
+	 * Steps:
+	 * 1. Reads file content
+	 * 2. Shows document in editor
+	 * 3. Initializes document state
+	 * 4. Processes pending operations
+	 * 5. Applies initial decorations
+	 */
+	public async open(id: string, filePath: string, searchContent: string): Promise<void> {
+		this.logger(`Opening file ${filePath} with id ${id}`, "debug")
 		try {
-			const document = await vscode.workspace.openTextDocument(filePath)
+			if (this.currentDocumentState) {
+				this.logger(`Document already open, no need to open again`, "debug")
+				return
+			}
+			const uri = vscode.Uri.file(filePath)
+			const documentBuffer = await vscode.workspace.fs.readFile(uri)
+			const documentContent = Buffer.from(documentBuffer).toString("utf8")
+
 			// now let's make it focused and active
-			await vscode.window.showTextDocument(document, {
+			await vscode.window.showTextDocument(uri, {
 				viewColumn: vscode.ViewColumn.Active,
 				preserveFocus: false,
 				preview: false,
 			})
-			const originalContent = document.getText()
 
 			// Initialize or reset document state
 			this.currentDocumentState = {
-				uri: document.uri.toString(),
-				originalContent,
-				currentContent: originalContent,
+				uri: uri,
+				originalContent: documentContent,
+				currentContent: documentContent,
 				editBlocks: new Map(),
 			}
 
@@ -132,19 +200,39 @@ export class InlineEditHandler {
 
 			// Apply decorations
 			await this.refreshEditor()
-			return true
+			this.logger(`Successfully opened file ${filePath}`, "debug")
+			return
 		} catch (error) {
-			console.error("Failed to open document:", error)
-			return false
+			this.logger(`Failed to open document: ${error}`, "error")
+			throw error
 		}
 	}
 
-	public async applyStreamContent(id: string, searchContent: string, content: string): Promise<boolean> {
-		if (!this.currentDocumentState) {
-			return false
+	/**
+	 * Applies streaming content updates to an edit block
+	 * Used for real-time updates while content is being generated
+	 *
+	 * @param id - Unique identifier for the edit block
+	 * @param searchContent - Content to search for in the document
+	 * @param content - New content to apply (streaming)
+	 *
+	 * Features:
+	 * - Queues operations if editor isn't ready
+	 * - Creates new block if none exists
+	 * - Updates block status to "streaming"
+	 * - Triggers visual updates
+	 */
+	public async applyStreamContent(id: string, searchContent: string, content: string): Promise<void> {
+		this.logger(`Applying stream content for id ${id}`, "debug")
+
+		// If editor isn't open, queue the operation
+		if (!this.isOpen()) {
+			this.logger(`Editor not open, queueing stream operation for id ${id}`, "debug")
+			await this.open(id, searchContent, content)
 		}
 
 		try {
+			this.validateDocumentState()
 			let block = this.currentDocumentState.editBlocks.get(id)
 			if (!block) {
 				block = {
@@ -160,21 +248,43 @@ export class InlineEditHandler {
 			block.currentContent = content
 			block.status = "streaming"
 
+			this.logger(`Applying streaming content for id ${id}`, "info")
+			this.logger(`searchContent length: ${searchContent.length}`, "info")
+			this.logger(`replaceContent length: ${content.length}`, "info")
 			// Update entire file content
 			await this.updateFileContent()
-			return true
+			return
 		} catch (error) {
-			console.error("Failed to apply streaming content:", error)
-			return false
+			this.logger(`Failed to apply streaming content: ${error}`, "error")
+			throw error
 		}
 	}
 
-	public async applyFinalContent(id: string, searchContent: string, content: string): Promise<boolean> {
-		if (!this.currentDocumentState) {
-			return false
+	/**
+	 * Applies final content to an edit block
+	 * Used when content generation is complete
+	 *
+	 * @param id - Unique identifier for the edit block
+	 * @param searchContent - Content to search for in the document
+	 * @param content - Final content to apply
+	 *
+	 * Features:
+	 * - Queues operations if editor isn't ready
+	 * - Creates new block if none exists
+	 * - Updates block status to "final"
+	 * - Stores final content for future reference
+	 */
+	public async applyFinalContent(id: string, searchContent: string, content: string): Promise<void> {
+		this.logger(`Applying final content for id ${id}`, "debug")
+
+		// If editor isn't open, queue the operation
+		if (!this.isOpen()) {
+			this.logger(`Editor not open, queueing final operation for id ${id}`, "debug")
+			return
 		}
 
 		try {
+			this.validateDocumentState()
 			let block = this.currentDocumentState.editBlocks.get(id)
 			if (!block) {
 				block = {
@@ -193,22 +303,33 @@ export class InlineEditHandler {
 
 			// Update entire file content
 			await this.updateFileContent()
-			return true
+			return
 		} catch (error) {
-			console.error("Failed to apply final content:", error)
-			return false
+			this.logger(`Failed to apply final content: ${error}`, "error")
+			throw error
 		}
 	}
 
-	private async updateFileContent(): Promise<boolean> {
-		if (!this.currentDocumentState) {
-			return false
-		}
+	/**
+	 * Updates the entire file content with all edit blocks
+	 * Maintains order of edits and applies them sequentially
+	 *
+	 * Process:
+	 * 1. Starts with original document content
+	 * 2. Sorts blocks by their position in the document
+	 * 3. Applies each block's changes in order
+	 * 4. Updates the entire document at once
+	 * 5. Refreshes editor decorations
+	 *
+	 * Note: Uses workspace edit API to ensure proper undo/redo support
+	 */
+	private async updateFileContent(): Promise<void> {
+		this.validateDocumentState()
 
 		try {
 			const document = await this.getDocument()
 			if (!document) {
-				return false
+				throw new Error("No active document to update content.")
 			}
 
 			// Start with original content
@@ -222,7 +343,22 @@ export class InlineEditHandler {
 			})
 
 			for (const block of sortedBlocks) {
-				newContent = newContent.replace(block.searchContent, block.currentContent)
+				// Try direct replacement first
+				if (newContent.includes(block.searchContent)) {
+					newContent = newContent.replace(block.searchContent, block.currentContent)
+				} else {
+					// If direct replacement fails, try with normalized line endings
+					const normalizedSearchContent = block.searchContent.replace(/\n/g, "\r\n")
+					if (newContent.includes(normalizedSearchContent)) {
+						newContent = newContent.replace(normalizedSearchContent, block.currentContent)
+					} else {
+						// If both attempts fail, log a warning and continue
+						this.logger(
+							`Warning: Could not find exact match for search content. Original content length: ${newContent.length}, Search content length: ${block.searchContent.length}`,
+							"warn"
+						)
+					}
+				}
 			}
 
 			// Update entire file
@@ -233,25 +369,39 @@ export class InlineEditHandler {
 			const success = await vscode.workspace.applyEdit(workspaceEdit)
 
 			if (success) {
+				this.logger("File content updated", "info")
 				this.currentDocumentState.currentContent = newContent
 				await this.refreshEditor()
 			}
 
-			return success
+			return
 		} catch (error) {
-			console.error("Failed to update file content:", error)
-			return false
+			this.logger(`Failed to update file content: ${error}`, "error")
+			throw error
 		}
 	}
 
+	/**
+	 * Refreshes the editor's visual state
+	 * Updates decorations and scrolling for all edit blocks
+	 *
+	 * Process:
+	 * 1. Clears existing decorations
+	 * 2. Groups ranges by edit status
+	 * 3. Applies new decorations for each status
+	 * 4. Handles auto-scrolling to active edits
+	 *
+	 * Decorations:
+	 * - Pending: Awaiting changes
+	 * - Streaming: Currently receiving updates
+	 * - Merge: Ready for review
+	 */
 	private async refreshEditor(): Promise<void> {
-		if (!this.currentDocumentState) {
-			return
-		}
+		this.validateDocumentState()
 
 		const document = await this.getDocument()
 		if (!document) {
-			return
+			throw new Error("No active document to refresh editor.")
 		}
 
 		const editor = vscode.window.visibleTextEditors.find(
@@ -310,14 +460,28 @@ export class InlineEditHandler {
 		}
 	}
 
+	/**
+	 * Forces all edit blocks to their final state
+	 * Used when streaming needs to be completed immediately
+	 *
+	 * @param diffBlocks - Array of blocks with their final content
+	 *
+	 * Process:
+	 * 1. Shows document in active editor
+	 * 2. Updates all blocks to final state
+	 * 3. Applies changes to document
+	 * 4. Updates decorations
+	 *
+	 * Note: This is typically used when streaming needs to be
+	 * terminated early or when applying multiple changes at once
+	 */
 	public async forceFinalizeAll(
 		diffBlocks: { id: string; searchContent: string; replaceContent: string }[]
-	): Promise<boolean> {
-		if (!this.currentDocumentState) {
-			return false
-		}
+	): Promise<void> {
+		this.logger("Forcing finalization of all blocks", "debug")
+		this.validateDocumentState()
 		// let's open the document and make it focused and active
-		vscode.window.showTextDocument(vscode.Uri.parse(this.currentDocumentState.uri), {
+		await vscode.window.showTextDocument(this.currentDocumentState.uri, {
 			viewColumn: vscode.ViewColumn.Active,
 			preserveFocus: false,
 			preview: false,
@@ -345,66 +509,100 @@ export class InlineEditHandler {
 			// Update entire file content
 			return await this.updateFileContent()
 		} catch (error) {
-			console.error("Failed to finalize all blocks:", error)
-			return false
+			this.logger(`Failed to finalize all blocks: ${error}`, "error")
+			throw error
 		}
 	}
 
+	/**
+	 * Retrieves or opens the document being edited
+	 * Ensures we have a valid document reference
+	 *
+	 * Process:
+	 * 1. Checks for existing document in workspace
+	 * 2. Opens document if not found or closed
+	 * 3. Returns undefined if document cannot be accessed
+	 *
+	 * Note: This is a helper method used by other operations
+	 * that need to access or modify the document
+	 */
 	private async getDocument(): Promise<vscode.TextDocument | undefined> {
-		if (!this.currentDocumentState) {
-			return undefined
-		}
-
+		this.validateDocumentState()
 		try {
-			const uri = vscode.Uri.parse(this.currentDocumentState.uri)
+			const { uri } = this.currentDocumentState
 			let document = vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === uri.toString())
-			if (!document) {
+			if (!document || !document.isClosed) {
 				document = await vscode.workspace.openTextDocument(uri)
 			}
 			return document
 		} catch (error) {
-			console.error("Failed to get document:", error)
+			this.logger(`Failed to get document: ${error}`, "error")
 			return undefined
 		}
 	}
 
-	public async saveChanges(): Promise<{ finalContent: string }> {
-		if (!this.currentDocumentState) {
-			throw new Error("No active document")
-		}
+	/**
+	 * Saves all changes to the document
+	 * Preserves any user modifications made after our edits
+	 *
+	 * Process:
+	 * 1. Validates document state
+	 * 2. Saves current document content
+	 * 3. Returns final content including any user changes
+	 * 4. Cleans up resources after saving
+	 *
+	 * Note: This is typically called when all edits are complete
+	 * and changes need to be persisted to disk
+	 */
+	public async saveChanges(): Promise<string> {
+		this.logger("Saving changes", "debug")
+		this.validateDocumentState()
 
 		try {
 			const document = await this.getDocument()
-			if (!document) {
+			if (!document || document.isClosed) {
 				throw new Error("No active document to save changes.")
 			}
 
 			// We don't want to override any user changes made after our last edit
 			// So we'll just save whatever is currently in the document
-			await document.save()
-
+			const res = await document.save()
+			this.logger(`save reuslt: ${res}`, "info")
 			// Get the current content which might include user changes
 			const finalContent = document.getText()
 
 			// Clean up
-			this.dispose()
+			setTimeout(() => {
+				this.dispose()
+			}, 1)
 
-			return { finalContent }
+			return finalContent
 		} catch (error) {
-			console.error("Failed to save changes:", error)
+			this.logger(`Failed to save changes: ${error}`, "error")
 			throw error
 		}
 	}
 
-	public async rejectChanges(): Promise<boolean> {
-		if (!this.currentDocumentState) {
-			return false
-		}
+	/**
+	 * Rejects all changes and restores original content
+	 * Used when edits need to be discarded
+	 *
+	 * Process:
+	 * 1. Validates document state
+	 * 2. Restores original content from when file was opened
+	 * 3. Saves the restored content
+	 * 4. Cleans up resources
+	 *
+	 * Note: This completely discards all changes and cannot be undone
+	 */
+	public async rejectChanges(): Promise<void> {
+		this.logger("Rejecting changes", "debug")
+		this.validateDocumentState()
 
 		try {
 			const document = await this.getDocument()
 			if (!document) {
-				return false
+				throw new Error("No active document to reject changes.")
 			}
 
 			// Always restore to the original content from when we first opened the file
@@ -422,27 +620,31 @@ export class InlineEditHandler {
 
 				// Clean up
 				this.dispose()
+			} else {
+				this.logger("Failed to reject changes: workspaceEdit.applyEdit returned false", "error")
+				throw new Error("Failed to reject changes: workspaceEdit.applyEdit returned false")
 			}
-			return success
 		} catch (error) {
-			console.error("Failed to reject changes:", error)
-			return false
+			this.logger(`Failed to reject changes: ${error}`, "error")
+			throw error
 		}
 	}
 
 	public isOpen(): boolean {
-		return !!this.currentDocumentState
+		const isOpen = !!this.currentDocumentState
+		return isOpen
 	}
 
 	public setAutoScroll(enabled: boolean) {
 		this.isAutoScrollEnabled = enabled
+		this.logger(`Auto-scroll ${enabled ? "enabled" : "disabled"}`)
 	}
 
 	public dispose() {
+		this.logger("Disposing InlineEditHandler")
 		this.pendingDecoration.dispose()
 		this.streamingDecoration.dispose()
 		this.mergeDecoration.dispose()
-		this.currentDocumentState = undefined
 
 		// Force garbage collection of any remaining decorations
 		if (vscode.window.activeTextEditor) {
@@ -450,5 +652,37 @@ export class InlineEditHandler {
 			this.streamingDecoration.dispose()
 			this.mergeDecoration.dispose()
 		}
+	}
+
+	// type guard against this.currentDocumentState being undefined
+	/**
+	 * Type guard to ensure document state exists
+	 * Throws error if state is undefined
+	 *
+	 * This is used by methods that require access to document state
+	 * to ensure type safety and prevent undefined errors
+	 */
+	private validateDocumentState(): asserts this is { currentDocumentState: DocumentState } {
+		if (!this.currentDocumentState) {
+			this.logger("No active document state", "error")
+			throw new Error("No active document state.")
+		}
+	}
+
+	/**
+	 * Logs messages with contextual information
+	 * Includes operation queue size, pending operations count,
+	 * and editor state for better debugging
+	 *
+	 * @param message - The message to log
+	 * @param level - Log level (info/debug/warn/error)
+	 */
+	private logger(message: string, level: "info" | "debug" | "warn" | "error" = "debug") {
+		const timestamp = new Date().toISOString()
+		const isEditorOpen = this.isOpen()
+
+		console[level](
+			`[InlineEditHandler] ${timestamp} | ` + `Editor: ${isEditorOpen ? "open" : "closed"} | ` + message
+		)
 	}
 }
