@@ -66,7 +66,7 @@ const copyAssetsPlugin = {
 
 			// Copy codicons files
 			const codiconsDir = path.join(__dirname, "node_modules", "@vscode", "codicons", "dist")
-			const codiconsTargetDir = path.join(targetDir, "node_modules", "@vscode", "codicons", "dist")
+			const codiconsTargetDir = path.join(targetDir, "dist", "codicons")
 
 			if (!fs.existsSync(codiconsTargetDir)) {
 				fs.mkdirSync(codiconsTargetDir, { recursive: true })
