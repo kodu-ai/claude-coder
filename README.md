@@ -35,10 +35,6 @@ Here's a demo of Claude Coder helping Joy create her landing page for her busine
 <video alt="video" src="https://github.com/user-attachments/assets/4f00201e-12d1-4a91-aeb0-614726dab8b3" width="500" />
 </p>
 
-<p align="center">
-<img src="https://res.cloudinary.com/ddqtnp0ic/image/upload/v1727892212/50888505-4eb097dc4d688fd44252eafcae7c152e_mebjvs.webp" alt="Joy Website Preview">
-</p>
-
 ## 🛠 Getting Started
 
 1. **Install VS Code**: If you haven't already, [download it here](https://code.visualstudio.com/).
