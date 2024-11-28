@@ -3,7 +3,7 @@ import * as assert from "assert"
 import { InlineEditHandler } from "../../../../src/integrations/editor/inline-editor"
 import * as fs from "fs"
 import * as path from "path"
-import { EditBlock, parseDiffBlocks } from "../../../../src/agent/v1/tools/runners/coders/utils"
+import { EditBlock, normalize, parseDiffBlocks } from "../../../../src/agent/v1/tools/runners/coders/utils"
 
 const readBlock = (filePath: string) => {
 	const block6FilePath = path.join(__dirname, `${filePath}File.ts`)
@@ -25,7 +25,7 @@ const removeBlock = async (blockFilePath: string) => {
 async function simulateStreaming(diff: string, delayMs: number): Promise<AsyncGenerator<string, void, unknown>> {
 	// Get random chunk size between 6-24 chars
 	function getRandomChunkSize() {
-		return Math.floor(Math.random() * (64 - 6 + 1)) + 6
+		return Math.floor(Math.random() * (128 - 6 + 1)) + 24
 	}
 
 	// Accumulate the string as we stream
@@ -50,7 +50,7 @@ async function testBlock(
 	timeout?: number
 ) {
 	const inlineEditHandler = new InlineEditHandler()
-	const generator = await simulateStreaming(blockBlockContent, 50)
+	const generator = await simulateStreaming(blockBlockContent, 5)
 	let editBlocks: EditBlock[] = []
 	let lastAppliedBlockId: string | undefined
 	// Verify content
@@ -725,12 +725,43 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 
 	it("should test that block 6 is parsed and apllied correctly", async () => {
 		// blockFilePath: string, blockFileContentPath: string, blockBlockContent: string
-		await testBlock(block5FilePath, block5FileContentPath, block5BlockContent)
+		await testBlock(block6FilePath, block6FileContentPath, block6BlockContent)
 	})
 
-	it("should work even if the first open has a timeout", async () => {
-		// here we mimick a failure / delay on the first open
-		await testBlock(block6FilePath, block6FileContentPath, block6BlockContent)
+	it("should handle CRLF vs LF line endings correctly", async () => {
+		const searchContent = "function test() {\n    console.log('test');\n}"
+		const replaceContent = "function test() {\r\n    console.log('updated');\r\n}"
+
+		// Create test file with CRLF endings
+		const testContent = "// Some content\r\n" + searchContent.replace(/\n/g, "\r\n") + "\r\n// More content"
+		fs.writeFileSync(testFilePath, testContent, "utf8")
+
+		const diff = `SEARCH\n${searchContent}\n=======\nREPLACE\n${replaceContent}`
+		const generator = await simulateStreaming(diff, 25)
+
+		let editBlocks: EditBlock[] = []
+		for await (const chunk of generator) {
+			if (!chunk.includes("SEARCH") || !chunk.includes("REPLACE")) continue
+			try {
+				editBlocks = parseDiffBlocks(chunk, testFilePath)
+				if (!inlineEditHandler.isOpen()) {
+					await inlineEditHandler.open(editBlocks[0].id, testFilePath, editBlocks[0].searchContent)
+				}
+				const currentBlock = editBlocks[0]
+				await inlineEditHandler.applyStreamContent(
+					currentBlock.id,
+					currentBlock.searchContent,
+					currentBlock.replaceContent
+				)
+			} catch (err) {
+				console.warn("Warning: Block not parsable yet")
+			}
+		}
+
+		await inlineEditHandler.forceFinalizeAll(editBlocks)
+		const finalDocument = await inlineEditHandler.saveChanges()
+		const expectedContent = testContent.replace(searchContent.replace(/\n/g, "\r\n"), replaceContent)
+		assert.strictEqual(finalDocument, expectedContent)
 	})
 })
 

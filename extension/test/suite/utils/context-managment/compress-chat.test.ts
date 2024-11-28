@@ -1,8 +1,14 @@
 import * as assert from "assert"
-import { CompressToolExecution, compressToolFromMsg } from "../../../../src/utils/context-managment/compress-chat"
+import {
+	compressedTools,
+	CompressToolExecution,
+	compressToolFromMsg,
+} from "../../../../src/utils/context-managment/compress-chat"
 import { ApiHandler } from "../../../../src/api"
 import type { MessageParam, TextBlockParam, ImageBlockParam } from "@anthropic-ai/sdk/resources/messages.mjs"
 import apiHistory from "./api_conversation_history.json"
+import apiHistory2 from "./api_conversation_history_2.json"
+import { ToolName } from "@/shared/new-tools"
 // XML tag constants that help us maintain consistency in our test cases
 const TOOL_RESPONSE = "toolResponse" as const
 const TOOL_NAME = "toolName" as const
@@ -94,6 +100,142 @@ describe("compressToolFromMsg", () => {
 		} as unknown as ApiHandler
 	})
 
+	it("should compress a compressed conversation correctly", async () => {
+		const results = await compressToolFromMsg(apiHistory2 as MessageParam[], mockApiHandler, 30_000)
+
+		// First verify we haven't lost any messages
+		assert.strictEqual(results.length, apiHistory2.length)
+
+		// Helper functions to verify different compression formats
+		const verifyWriteToFileCompression = (text: string): boolean => {
+			// Should compress both the content and the tool result
+			const hasCompressedContent = text.includes("<kodu_content>Content Compressed (Original length:")
+			const hasCompressedResult = text.includes(
+				'The output for the "write_to_file" command was compressed for readability'
+			)
+			return hasCompressedContent && hasCompressedResult
+		}
+
+		const verifyEditFileBlocksCompression = (text: string): boolean => {
+			if (!text.includes("<toolName>edit_file_blocks</toolName>")) return false
+
+			// Check that the content is actually compressed
+			const result = text.match(/<toolResult>(.*?)<\/toolResult>/s)
+			if (!result) return false
+
+			const toolResult = result[1]
+			return toolResult === 'The output for the "edit_file_blocks" command was compressed for readability'
+		}
+
+		const verifyExecuteCommandCompression = (text: string): boolean => {
+			if (!text.includes("<toolName>execute_command</toolName>")) return false
+
+			// If status is not success, it shouldn't be compressed
+			if (!text.includes("<toolStatus>success</toolStatus>")) return true
+
+			const result = text.match(/<toolResult>(.*?)<\/toolResult>/s)
+			if (!result) return false
+
+			// Should either be the original content (if below threshold) or compressed summary
+			const toolResult = result[1]
+			return (
+				toolResult.includes("Compressed output summary") ||
+				toolResult.length < (mockApiHandler as any).threshold
+			)
+		}
+
+		// Track compression statistics
+		const stats = {
+			writeToFile: { total: 0, compressed: 0 },
+			editFileBlocks: { total: 0, compressed: 0 },
+			executeCommand: { total: 0, compressed: 0 },
+			readFile: { total: 0, compressed: 0 },
+		}
+
+		// Examine each message and block
+		results.forEach((msg, msgIndex) => {
+			if (!Array.isArray(msg.content)) return
+
+			msg.content.forEach((block, blockIndex) => {
+				if (typeof block !== "object" || !("text" in block)) return
+
+				const text = block.text
+
+				// Check write_to_file compression
+				if (text.includes("<write_to_file>")) {
+					stats.writeToFile.total++
+					if (verifyWriteToFileCompression(text)) {
+						stats.writeToFile.compressed++
+					} else {
+						assert.fail(
+							`Write to file not properly compressed at message ${msgIndex}, block ${blockIndex}:\n${text}`
+						)
+					}
+				}
+
+				// Check edit_file_blocks compression
+				if (text.includes("<toolName>edit_file_blocks</toolName>")) {
+					stats.editFileBlocks.total++
+					if (verifyEditFileBlocksCompression(text)) {
+						stats.editFileBlocks.compressed++
+					} else {
+						assert.fail(
+							`Edit file blocks not properly compressed at message ${msgIndex}, block ${blockIndex}:\n${text}`
+						)
+					}
+				}
+
+				// Check execute_command compression
+				if (text.includes("<toolName>execute_command</toolName>")) {
+					stats.executeCommand.total++
+					if (verifyExecuteCommandCompression(text)) {
+						stats.executeCommand.compressed++
+					} else {
+						assert.fail(
+							`Execute command not properly compressed at message ${msgIndex}, block ${blockIndex}:\n${text}`
+						)
+					}
+				}
+
+				// Check read_file compression
+				if (text.includes("<toolName>read_file</toolName>")) {
+					stats.readFile.total++
+					if (text.includes('The output for the "read_file" command was compressed for readability')) {
+						stats.readFile.compressed++
+					} else {
+						assert.fail(
+							`Read file not properly compressed at message ${msgIndex}, block ${blockIndex}:\n${text}`
+						)
+					}
+				}
+			})
+		})
+
+		// Log compression statistics for debugging
+		console.log("Compression statistics:", JSON.stringify(stats, null, 2))
+
+		// Verify we found and compressed at least some instances of each tool
+		const verifyToolCompression = (toolName: string, stats: { total: number; compressed: number }) => {
+			assert.ok(stats.total > 0, `Should have found at least one ${toolName} tool usage`)
+			assert.ok(
+				stats.compressed === stats.total,
+				`All ${toolName} tools should be compressed (found ${stats.total}, compressed ${stats.compressed})`
+			)
+		}
+
+		// Verify each tool type
+		verifyToolCompression("write_to_file", stats.writeToFile)
+		verifyToolCompression("edit_file_blocks", stats.editFileBlocks)
+		verifyToolCompression("read_file", stats.readFile)
+		// Execute command is special since it depends on threshold
+		if (stats.executeCommand.total > 0) {
+			assert.ok(
+				stats.executeCommand.compressed > 0,
+				"Should have compressed at least some execute_command responses"
+			)
+		}
+	})
+
 	it("should compress api conversation history and not have empty content array or empty content string", async () => {
 		const results = await compressToolFromMsg(apiHistory as MessageParam[], mockApiHandler)
 		// make sure there is no empty array
@@ -107,6 +249,69 @@ describe("compressToolFromMsg", () => {
 		assert.ok(!emptyContentArray)
 		assert.ok(!emptyContentString)
 		assert.strictEqual(results.length, apiHistory.length)
+	})
+
+	it("should compress a compressed conversation correctly", async () => {
+		const results = await compressToolFromMsg(apiHistory2 as MessageParam[], mockApiHandler)
+
+		// First verify we haven't lost any messages
+		assert.strictEqual(results.length, apiHistory2.length)
+
+		// Helper function to check if a block contains a compressed tool response
+		const isCompressedToolResponse = (text: string): boolean => {
+			// A compressed tool response should have the pattern:
+			// <toolResponse><toolName>{name}</toolName><toolStatus>{status}</toolStatus><toolResult>The output for the "{name}" command was compressed for readability</toolResult></toolResponse>
+			const match = text.match(/<toolResponse><toolName>([^<]+)<\/toolName>/)
+			if (!match) return false
+
+			const toolName = match[1]
+			if (!compressedTools.includes(toolName as ToolName)) return false
+
+			// For compressed tools, verify the compression message
+			if (text.includes(`The output for the "${toolName}" command was compressed for readability`)) {
+				return true
+			}
+
+			// Special case for write_to_file which has a different compression format
+			if (toolName === "write_to_file" && text.includes("Content Compressed (Original length:")) {
+				return true
+			}
+
+			return false
+		}
+
+		// Track which tools we've seen compressed
+		const seenCompressedTools = new Set<string>()
+
+		// Check each message for proper compression
+		results.forEach((msg) => {
+			if (Array.isArray(msg.content)) {
+				msg.content.forEach((block) => {
+					if (typeof block === "object" && "text" in block) {
+						// If the block contains a tool response, verify it's properly compressed
+						if (block.text.includes("<toolResponse>")) {
+							const toolNameMatch = block.text.match(/<toolName>([^<]+)<\/toolName>/)
+							if (toolNameMatch) {
+								const toolName = toolNameMatch[1]
+								if (compressedTools.includes(toolName as ToolName)) {
+									assert.ok(
+										isCompressedToolResponse(block.text),
+										`Tool ${toolName} should be properly compressed`
+									)
+									seenCompressedTools.add(toolName)
+								}
+							}
+						}
+					}
+				})
+			}
+		})
+
+		// Verify we've seen at least one compressed tool
+		assert.ok(seenCompressedTools.size > 0, "Should have found at least one compressed tool response")
+
+		// Log which tools we found for debugging purposes
+		console.log("Compressed tools found:", Array.from(seenCompressedTools))
 	})
 
 	it("should not compress execute_command tool responses for short output", async () => {

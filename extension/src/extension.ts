@@ -7,8 +7,7 @@ import { extensionName } from "./shared/Constants"
 import "./utils/path-helpers"
 import { TerminalManager } from "./integrations/terminal/terminal-manager"
 import { getCwd } from "./agent/v1/utils"
-import { CONSTANTS } from "./integrations/editor/full-file-editor"
-const { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } = CONSTANTS
+import { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } from "./integrations/editor/diff-view-provider"
 import { readFile } from "fs/promises"
 
 /*

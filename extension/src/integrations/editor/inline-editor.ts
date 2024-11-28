@@ -343,7 +343,22 @@ export class InlineEditHandler {
 			})
 
 			for (const block of sortedBlocks) {
-				newContent = newContent.replace(block.searchContent, block.currentContent)
+				// Try direct replacement first
+				if (newContent.includes(block.searchContent)) {
+					newContent = newContent.replace(block.searchContent, block.currentContent)
+				} else {
+					// If direct replacement fails, try with normalized line endings
+					const normalizedSearchContent = block.searchContent.replace(/\n/g, "\r\n")
+					if (newContent.includes(normalizedSearchContent)) {
+						newContent = newContent.replace(normalizedSearchContent, block.currentContent)
+					} else {
+						// If both attempts fail, log a warning and continue
+						this.logger(
+							`Warning: Could not find exact match for search content. Original content length: ${newContent.length}, Search content length: ${block.searchContent.length}`,
+							"warn"
+						)
+					}
+				}
 			}
 
 			// Update entire file

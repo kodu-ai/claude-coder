@@ -88,7 +88,7 @@ describe("FullFileEditor Integration Tests", async () => {
 		file2Path = await createTestFile("file2.txt", file2Before)
 		file3Path = await createTestFile("file3.txt", file3Before)
 
-		handler = new DiffViewProvider(__dirname, {} as any)
+		handler = new DiffViewProvider(__dirname)
 	})
 
 	afterEach(async () => {
@@ -124,6 +124,9 @@ describe("FullFileEditor Integration Tests", async () => {
 		await handler.update(preprocessContent(acc), true)
 		// Save the changes immediately
 		const { finalContent, userEdits } = await handler.saveChanges()
+
+		console.error(`userEdits: ${userEdits}`)
+		console.error(`finalContent: ${finalContent}`)
 		// Verify the final content didn't include "userEdits" if this fails it means the trailing update overwrote the final content
 		assert.strictEqual(userEdits, undefined, `Non-user edits should be detected`)
 		// if the final content is not equal to the expected content, the final content was overwritten
@@ -133,6 +136,7 @@ describe("FullFileEditor Integration Tests", async () => {
 			"Content integrity compromised during tab switching"
 		)
 	})
+
 	// it("should handle streamed content updates without line reference errors", async () => {
 	// 	await handler.open(file1Path)
 

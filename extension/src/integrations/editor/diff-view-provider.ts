@@ -176,6 +176,7 @@ class ModifiedContentProvider implements vscode.FileSystemProvider {
 }
 
 export class DiffViewProvider {
+	private updateQueue = new PQueue({ concurrency: 1 })
 	private diffEditor?: vscode.TextEditor
 	public originalContent: string = ""
 	public streamedContent: string = ""
@@ -199,7 +200,12 @@ export class DiffViewProvider {
 	private currentDocument: string[] = []
 	private lastModifiedLine: number = 0
 
-	constructor(private cwd: string, koduDev: KoduDev, private updateInterval: number = 16) {
+	constructor(private cwd: string) {
+		this.updateQueue = new PQueue({
+			concurrency: 1,
+			timeout: 30000, // 30 second timeout for any single operation
+			throwOnTimeout: true,
+		})
 		if (!DiffViewProvider.modifiedContentProvider) {
 			DiffViewProvider.modifiedContentProvider = new ModifiedContentProvider()
 			try {
@@ -243,14 +249,7 @@ export class DiffViewProvider {
 			this.logger(`Failed to read file: ${error}`, "error")
 			this.originalContent = ""
 		}
-
-		const nowBefore = Date.now()
 		await this.openDiffEditor(relPath, !!isFinal)
-		const nowAfter = Date.now()
-		this.logger(
-			`[${nowAfter}] opened diff editor [function open]: ${relPath} with content length ${this.originalContent.length}`,
-			"info"
-		)
 		this.activeLineController = new DecorationController("activeLine", this.diffEditor!)
 		this.fadedOverlayController = new DecorationController("fadedOverlay", this.diffEditor!)
 
@@ -376,18 +375,23 @@ export class DiffViewProvider {
 				"info"
 			)
 			this.isFinalReached = true
-			await this.applyUpdate(accumulatedContent)
-			await this.activeLineController.clear()
-			await this.fadedOverlayController.clear()
+			await this.updateQueue.add(async () => {
+				await this.applyUpdate(accumulatedContent)
+				await this?.activeLineController?.clear()
+				await this?.fadedOverlayController?.clear()
+			})
 			return
 		}
-
-		await this.applyLineByLineUpdate(accumulatedContent)
+		await this.updateQueue.add(async () => await this.applyLineByLineUpdate(accumulatedContent))
 	}
 
 	private async applyLineByLineUpdate(content: string): Promise<void> {
 		if (!this.diffEditor || !this.modifiedUri) {
 			this.logger("<applyLineByLineUpdate>: Diff editor not initialized", "error")
+			return
+		}
+		if (this.isFinalReached) {
+			this.logger("<applyLineByLineUpdate>: Final update already reached", "warn")
 			return
 		}
 
@@ -517,20 +521,22 @@ export class DiffViewProvider {
 			return
 		}
 
-		this.disposables.forEach((d) => d.dispose())
-		await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
+		await this.updateQueue.add(async () => {
+			this.disposables.forEach((d) => d.dispose())
+			await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor")
 
-		if (this.originalContent === "") {
-			const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
-			try {
-				await vscode.workspace.fs.delete(uri)
-			} catch (error) {
-				this.logger("Failed to delete new file:", "error")
+			if (this.originalContent === "") {
+				const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath!))
+				try {
+					await vscode.workspace.fs.delete(uri)
+				} catch (error) {
+					this.logger("Failed to delete new file:", "error")
+				}
 			}
-		}
 
-		this.isEditing = false
-		await this.reset()
+			this.isEditing = false
+			await this.reset()
+		})
 	}
 
 	private async reset(): Promise<void> {
@@ -567,7 +573,7 @@ export class DiffViewProvider {
 			if (!this.diffEditor || this.diffEditor.document.isClosed) {
 				throw new Error("Diff editor is not initialized or has been closed")
 			}
-
+			await this.updateQueue.onIdle()
 			const updatedDocument = this.diffEditor.document
 
 			const editedContent = updatedDocument.getText()

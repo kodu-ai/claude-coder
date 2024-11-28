@@ -8,7 +8,7 @@ import type {
 } from "@anthropic-ai/sdk/resources/messages.mjs"
 // import { ToolName } from "@/shared/new-tools"
 // import { parseToolResponse } from "@/shared/format-tools"
-import { parseToolResponse } from "../../shared/format-tools"
+import { isToolResponseV2, parseToolResponse } from "../../shared/format-tools"
 import { ApiHandler } from "../../api"
 import { ToolName } from "../../shared/new-tools"
 
@@ -27,7 +27,7 @@ export class CompressToolExecution {
 	private apiHandler: ApiHandler
 	private commandList: CommandListItem[] = []
 	constructor(apiHandler: ApiHandler, threshold?: number) {
-		this.threshold = threshold
+		this.threshold = threshold ?? 30_000
 		this.apiHandler = apiHandler
 	}
 
@@ -211,13 +211,13 @@ const processContentBlock = async (
 	}
 
 	// Handle execute_command blocks
-	if (content.text.includes("<execute_command>") && content.text.includes("</execute_command>")) {
+	if (content.text.includes("<command>") && content.text.includes("</command>")) {
 		const indexOfStartTag = content.text.indexOf("<command>")
 		const indexOfEndTag = content.text.indexOf("</command>")
 		if (indexOfStartTag !== -1 && indexOfEndTag !== -1) {
 			const command = content.text.slice(indexOfStartTag + "<command>".length, indexOfEndTag)
 			setCurrentCommandString(command)
-			logger(`Found execute_command block (${command})`, "info")
+			logger(`Found command block (${command})`, "info")
 		}
 	}
 
@@ -237,19 +237,62 @@ const processContentBlock = async (
 		const contentEnd = content.text.indexOf(`</${koduContentType}>`)
 
 		if (contentStart !== -1 && contentEnd !== -1) {
-			logger(`Found write_to_file block compressing content`, "info")
 			const textBeforeContent = content.text.slice(0, contentStart)
 			const textAfterContent = content.text.slice(contentEnd + `</${koduContentType}>`.length)
-			const truncatedLength = contentEnd - contentStart
-			const truncatedContentReplace = `<${koduContentType}>Content Compressed (Original length:${truncatedLength})</${koduContentType}>`
+			const fullContent = content.text.slice(contentStart + `<${koduContentType}>`.length, contentEnd)
+
+			// Ensure extracted content is logged for verification
+			logger(`Extracted content: "${fullContent}"`, "debug")
+
+			// Get first 3 lines
+			const lines = fullContent.split("\n")
+			const firstThreeLines = lines.slice(0, 3).join("\n")
+			const truncatedContent = firstThreeLines + (lines.length > 3 ? "\n..." : "")
+			const truncatedContentReplace = `<${koduContentType}>${truncatedContent}\n(Original length: ${fullContent.length}, lines: ${lines.length})</${koduContentType}>`
+
 			logger(
-				`Compressed content from ${truncatedLength} to ${truncatedContentReplace.length} (total length: ${content.text.length})`,
+				`Compressed content for ${koduContentType}: original length: ${fullContent.length}, new length: ${truncatedContentReplace.length}`,
 				"info"
 			)
+
 			return {
 				type: "text",
 				text: textBeforeContent + truncatedContentReplace + textAfterContent,
 			}
+		} else {
+			logger(`Failed to detect ${koduContentType} block boundaries, skipping compression`, "warn")
+		}
+	}
+
+	// Handle edit_file_blocks compression
+	if (content.text.includes("<kodu_diff>") && content.text.includes("</kodu_diff>")) {
+		const koduDiffStart = content.text.indexOf("<kodu_diff>")
+		const koduDiffEnd = content.text.indexOf("</kodu_diff>")
+
+		if (koduDiffStart !== -1 && koduDiffEnd !== -1) {
+			const textBeforeContent = content.text.slice(0, koduDiffStart)
+			const textAfterContent = content.text.slice(koduDiffEnd + "</kodu_diff>".length)
+			const fullContent = content.text.slice(koduDiffStart + "<kodu_diff>".length, koduDiffEnd)
+
+			// Log extracted content for debugging
+			logger(`Extracted kodu_diff content: "${fullContent}"`, "debug")
+
+			// Count SEARCH and REPLACE blocks
+			const searchCount = (fullContent.match(/SEARCH/g) || []).length
+			const replaceCount = (fullContent.match(/REPLACE/g) || []).length
+
+			const truncatedContent = `<kodu_diff>Compressed diff with ${searchCount} SEARCH/REPLACE blocks</kodu_diff>`
+			logger(
+				`Compressed kodu_diff: original length: ${fullContent.length}, SEARCH: ${searchCount}, REPLACE: ${replaceCount}`,
+				"info"
+			)
+
+			return {
+				type: "text",
+				text: textBeforeContent + truncatedContent + textAfterContent,
+			}
+		} else {
+			logger("Failed to detect kodu_diff boundaries, skipping compression", "warn")
 		}
 	}
 
@@ -262,15 +305,28 @@ const processContentBlock = async (
 			}
 
 			if (toolResponse.toolName === "execute_command") {
-				if (toolResponse.toolStatus !== "success") {
-					logger(`Skipping compression for rejected/pending execute_command`, "info")
+				if (toolResponse.toolResult.includes("<compressedToolResult>")) {
+					logger(`Skipping compression for already compressed execute_command`, "info")
 					return content
 				}
-				const output = await executionCompressor.compress(currentCommandString, toolResponse.toolResult)
-				logger(`Compressed execute_command output`, "info")
-				return {
-					type: "text",
-					text: `<toolResponse><toolName>${toolResponse.toolName}</toolName><toolStatus>${toolResponse.toolStatus}</toolStatus><toolResult>${output}</toolResult></toolResponse>`,
+				if (
+					(isToolResponseV2(toolResponse) && toolResponse.status === "success") ||
+					toolResponse.toolStatus === "success"
+				) {
+					const output = await executionCompressor.compress(currentCommandString, toolResponse.toolResult)
+					logger(`Compressed execute_command output ${currentCommandString}`, "info")
+					return {
+						type: "text",
+						text: `<toolResponse><toolName>${toolResponse.toolName}</toolName><toolStatus>${toolResponse.toolStatus}</toolStatus>
+						<<toolResult>
+						<compressedToolResult>
+						${output}
+						</compressedToolResult>
+						</toolResult></toolResponse>`,
+					}
+				} else {
+					logger(`Skipping compression for rejected/pending execute_command`, "info")
+					return content
 				}
 			}
 
@@ -294,6 +350,8 @@ const processContentBlock = async (
 	return content
 }
 
+export const compressedTools: ToolName[] = ["read_file", "edit_file_blocks", "execute_command", "write_to_file"]
+
 /**
  * Main function to compress tool outputs in a message array
  */
@@ -304,7 +362,6 @@ export const compressToolFromMsg = async (
 ): Promise<MessageParam[]> => {
 	const executionCompressor = new CompressToolExecution(apiHandler, executeCommandThreshold)
 	let currentCommandString = ""
-	const compressedTools: ToolName[] = ["read_file", "edit_file_blocks", "execute_command"]
 	const setCurrentCommandString = (command: string) => {
 		currentCommandString = command
 	}
@@ -322,27 +379,28 @@ export const compressToolFromMsg = async (
 			}
 		}
 
-		const processedContent: ContentBlockType[] = []
+		const processedContent: (ContentBlockType | null)[] = []
 
 		for (const block of msg.content) {
-			const processed = await processContentBlock(
+			const processedBlock = await processContentBlock(
 				block,
 				currentCommandString,
 				executionCompressor,
 				compressedTools,
 				setCurrentCommandString
 			)
-			if (processed) {
-				processedContent.push(processed)
-			}
+			processedContent.push(processedBlock ?? null)
 		}
 
 		return {
 			...msg,
-			content: processedContent,
+			content: processedContent.filter((block) => block !== null) as ContentBlockType[],
 		}
 	}
-
+	// const processedMsgs: MessageParam[] = []
+	// for (const msg of msgs) {
+	// 	processedMsgs.push(await processMessage(msg))
+	// }
 	const processedMsgs = await Promise.all(msgs.map(processMessage))
 	return processedMsgs
 }

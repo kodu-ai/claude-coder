@@ -67,7 +67,7 @@ export class FileEditorTool extends BaseAgentTool {
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
-		this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev)
+		this.diffViewProvider = new DiffViewProvider(getCwd())
 		this.inlineEditor = new InlineEditHandler()
 		if (!!this.koduDev.getStateManager().skipWriteAnimation) {
 			this.skipWriteAnimation = true
