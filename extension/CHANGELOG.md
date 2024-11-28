@@ -4,6 +4,13 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.13.12] - 2024-11-29
+
+### Fixed
+
+-   autosummary should now out perform the default algorithm for context management
+-   better inline edits for windows os
+
 ## [1.13.8] - 2024-11-28
 
 ### Fixed
