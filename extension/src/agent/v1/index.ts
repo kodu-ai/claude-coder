@@ -363,6 +363,24 @@ export class KoduDev {
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {
 		let details = ""
+		const lastTwoMsgs = this.stateManager.state.apiConversationHistory.slice(-2)
+		const awaitRequierdTools: ToolName[] = ["execute_command", "write_to_file", "edit_file_blocks"]
+		const isLastMsgMutable = lastTwoMsgs.some((msg) => {
+			if (Array.isArray(msg.content)) {
+				return msg.content.some(
+					(block) =>
+						block.type === "text" && awaitRequierdTools.map((i) => `<${i}>`).includes(block.text as any)
+				)
+			}
+			if (typeof msg.content === "string") {
+				return awaitRequierdTools.map((i) => `<${i}>`).includes(msg.content)
+			}
+			return false
+		})
+		if (isLastMsgMutable) {
+			// proper delay to make sure that the vscode diagnostics and server logs are updated
+			await delay(3000)
+		}
 		const devServers = TerminalRegistry.getAllDevServers()
 		const isDevServerRunning = devServers.length > 0
 		let devServerSection =
@@ -372,11 +390,8 @@ export class KoduDev {
 			isDevServerRunning ? "SERVER IS RUNNING" : "SERVER IS NOT RUNNING!"
 		}</dev_server_running>\n`
 		if (isDevServerRunning) {
-			// TODO find if last msg contained either execute_command or write_to_file if so wait 5 seconds before getting the logs
-			// this is to ensure that the logs are up to date
-			await delay(5000)
 			for (const server of devServers) {
-				const logs = server.logs.slice(-15)
+				const logs = server.logs.slice(-10)
 				const serverName = server.terminalInfo.name
 				devServerSection += `<dev_server_info>\n`
 				devServerSection += `<server_name>${serverName}</server_name>\n`
@@ -427,7 +442,9 @@ export class KoduDev {
 		const diagnosticsHandler = DiagnosticsHandler.getInstance()
 		const files = this.stateManager.historyErrors ? Object.keys(this.stateManager.historyErrors) : []
 		const diagnostics = diagnosticsHandler.getDiagnostics(files)
-		const newErrors = diagnostics.filter((diag) => diag.errorString !== null)
+		const newErrors = diagnostics.filter(
+			(diag) => diag.errorString !== null && diag.errorString !== undefined && diag.errorString !== ""
+		)
 		const taskErrorsRecord = newErrors.reduce((acc, curr) => {
 			acc[curr.key] = {
 				lastCheckedAt: Date.now(),
@@ -436,7 +453,11 @@ export class KoduDev {
 			return acc
 		}, {} as NonNullable<typeof this.stateManager.historyErrors>)
 		this.stateManager.historyErrors = taskErrorsRecord
-		console.log(`[ENVIRONMENT DETAILS] Errors found`, newErrors.map((diag) => diag.errorString).join("\n"))
+		if (newErrors.length === 0) {
+			console.log(`[ENVIRONMENT DETAILS] No errors found`)
+		} else {
+			console.log(`[ENVIRONMENT DETAILS] Errors found:`, newErrors.map((diag) => diag.errorString).join("\n"))
+		}
 
 		// map the diagnostics to the original file path
 		details +=

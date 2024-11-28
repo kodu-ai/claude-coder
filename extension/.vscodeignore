@@ -39,3 +39,6 @@ webview-ui-vite/node_modules/**
 
 # env
 .env.local
+
+# Ignore all files in the .vscode directory except for the settings.json file
+**/*.js.map

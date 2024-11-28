@@ -17,22 +17,6 @@ const useIsAutomaticMode = () => {
 	return useMemo(() => alwaysAllowWriteOnly, [alwaysAllowWriteOnly])
 }
 
-const useResetIsPausingNext = ({
-	isRequestRunning,
-	setIsPausingNext,
-}: {
-	isRequestRunning: boolean
-	setIsPausingNext: (value: boolean) => void
-}) => {
-	const [currentIsRequestRunning, setCurrentIsRequestRunning] = useState(isRequestRunning)
-
-	useEffect(() => {
-		if (currentIsRequestRunning && !isRequestRunning) {
-			setIsPausingNext(false)
-		}
-		setCurrentIsRequestRunning(isRequestRunning)
-	}, [isRequestRunning])
-}
 function ButtonSection({
 	primaryButtonText,
 	secondaryButtonText,
@@ -43,23 +27,28 @@ function ButtonSection({
 }: ButtonSectionProps) {
 	const [isPending, startTransition] = useTransition()
 	const isAutomaticMode = useIsAutomaticMode()
-	const [isPausingNext, setIsPausingNext] = useState(false)
-	useResetIsPausingNext({ isRequestRunning, setIsPausingNext })
-
+	const [isAutomaticPaused, setIsAutomaticPaused] = useState(false)
+	const isAnyMessageResumeTask =
+		primaryButtonText?.includes("Resume Task") || secondaryButtonText?.includes("Resume Task")
 	const handleAbort = useCallback(() => {
 		startTransition(() => {
 			vscode.postMessage({ type: "cancelCurrentRequest" })
 		})
 	}, [])
 
-	const handlePauseNext = useCallback(() => {
-		setIsPausingNext(true)
+	const handlePauseOrResumeAutomatic = useCallback(() => {
+		setIsAutomaticPaused(!isAutomaticPaused)
+		console.log(`Pause or Resume Automatic: ${!isAutomaticPaused}`)
 		startTransition(() => {
-			vscode.postMessage({ type: "pauseNext" })
+			vscode.postMessage({ type: "pauseTemporayAutoMode", mode: !isAutomaticPaused })
 		})
-	}, [])
+	}, [isAutomaticPaused])
 
-	if (isRequestRunning && isAutomaticMode) {
+	if (
+		isAutomaticMode &&
+		!isAnyMessageResumeTask &&
+		!(isAutomaticPaused && primaryButtonText && secondaryButtonText)
+	) {
 		return (
 			<div className="z-50 grid grid-cols-2 gap-2 px-4 pt-2">
 				<Button
@@ -74,9 +63,8 @@ function ButtonSection({
 					size="sm"
 					className="transition-colors duration-200 ease-in-out"
 					variant="secondary"
-					disabled={!isRequestRunning || isPausingNext}
-					onClick={handlePauseNext}>
-					Pause After
+					onClick={handlePauseOrResumeAutomatic}>
+					{isAutomaticPaused ? "Resume Automatic" : "Pause Automatic"}
 				</Button>
 			</div>
 		)

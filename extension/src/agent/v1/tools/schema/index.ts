@@ -12,6 +12,7 @@ import { urlScreenshotTool } from "./url_screenshot"
 import { askConsultantTool } from "./ask_consultant"
 import { upsertMemoryTool } from "./upsert_memory"
 import { devServerTool } from "./dev_server"
+import { computerUseTool } from "./computer_use"
 
 export const tools = [
 	executeCommandTool,
@@ -27,6 +28,7 @@ export const tools = [
 	askConsultantTool,
 	upsertMemoryTool,
 	devServerTool,
+	computerUseTool,
 ] as const
 
 export type Tool = (typeof tools)[number]
@@ -43,4 +45,5 @@ export {
 	urlScreenshotTool,
 	askConsultantTool,
 	upsertMemoryTool,
+	computerUseTool,
 }

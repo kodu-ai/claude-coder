@@ -30,6 +30,9 @@ export function useSettingsState() {
 	const [activeVariantId, setActiveVariantId] = useState<string | null>(
 		extensionState.activeSystemPromptVariantId || (systemPromptVariants[0]?.id ?? null)
 	)
+	const [terminalCompressionThreshold, setTerminalCompressionThreshold] = useState<number | undefined>(
+		extensionState.terminalCompressionThreshold
+	)
 
 	const handleAutoSkipWriteChange = useCallback((checked: boolean) => {
 		setAutoSkipWrite(checked)
@@ -135,6 +138,11 @@ export function useSettingsState() {
 		[extensionState.customInstructions]
 	)
 
+	const handleTerminalCompressionThresholdChange = useCallback((val: number | undefined) => {
+		setTerminalCompressionThreshold(val)
+		vscode.postMessage({ type: "terminalCompressionThreshold", value: val })
+	}, [])
+
 	return {
 		model,
 		browserModel,
@@ -146,6 +154,8 @@ export function useSettingsState() {
 		autoSkipWrite,
 		systemPromptVariants,
 		activeVariantId,
+		terminalCompressionThreshold,
+		handleTerminalCompressionThresholdChange,
 		handleAutoSkipWriteChange,
 		handleExperimentalFeatureChange,
 		handleTechnicalLevelChange,

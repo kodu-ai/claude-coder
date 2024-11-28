@@ -160,7 +160,25 @@ export type setAdvanceThinkingModeMessage = {
 	bool: boolean
 }
 
+export type switchAutomaticModeMessage = {
+	type: "switchAutomaticMode"
+	bool: boolean
+}
+
+export type terminalCompressionThresholdMessage = {
+	type: "terminalCompressionThreshold"
+	value?: number
+}
+
+export type pauseTemporayAutoModeMessage = {
+	type: "pauseTemporayAutoMode"
+	mode: boolean
+}
+
 export type WebviewMessage =
+	| pauseTemporayAutoModeMessage
+	| terminalCompressionThresholdMessage
+	| switchAutomaticModeMessage
 	| setAdvanceThinkingModeMessage
 	| setInlinedModeMessage
 	| setApiKeyDialogMessage

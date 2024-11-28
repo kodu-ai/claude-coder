@@ -30,6 +30,24 @@ describe("Tool Response Utilities", () => {
 			}
 		})
 
+		it("should work compress write_to_file with kodu_content", () => {
+			const toolCall = `<write_to_file><path>src/index.ts</path><kodu_content>export const test = 'test'</kodu_content></write_to_file>`
+			const result = compressToolFromMsg([{ type: "text", text: toolCall }])
+			expect(result[0].type).toBe("text")
+			if (isTextBlock(result[0])) {
+				expect(result[0].text).toContain("Compressed")
+			}
+		})
+
+		it("should work compress write_to_file with content", () => {
+			const toolCall = `<write_to_file><path>src/index.ts</path><content>export const test = 'test'</content></write_to_file>`
+			const result = compressToolFromMsg([{ type: "text", text: toolCall }])
+			expect(result[0].type).toBe("text")
+			if (isTextBlock(result[0])) {
+				expect(result[0].text).toContain("Compressed")
+			}
+		})
+
 		it("should return true for valid ToolResponseV2 object", () => {
 			const response = {
 				status: "success" as const,
@@ -65,7 +83,7 @@ describe("Tool Response Utilities", () => {
 
 			const result = compressToolFromMsg(msgs)
 			const textBlock = result[0] as TextBlockParam
-			expect(textBlock.text).toContain("[Compressed]")
+			expect(textBlock.text).toContain("Compressed")
 		})
 		it("should keep the edit_file_blocks kodu_content", () => {
 			const msgs: Array<TextBlockParam | ImageBlockParam> = [

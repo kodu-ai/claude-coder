@@ -1,7 +1,14 @@
-const esbuild = require("esbuild")
-const fs = require("fs")
-const path = require("path")
+// const esbuild = require("esbuild")
+// const fs = require("fs")
+// const path = require("path")
+import esbuild, { BuildContext, BuildOptions } from "esbuild"
+import fs from "fs"
+import path from "path"
+import { fileURLToPath } from "url"
 
+// Fix for __dirname in ES modules
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 const production = process.argv.includes("--production")
 const watch = process.argv.includes("--watch")
 
@@ -73,14 +80,13 @@ const extensionConfig = {
 		esbuildProblemMatcherPlugin,
 	],
 	entryPoints: ["src/extension.ts"],
-
 	format: "cjs",
 	sourcesContent: false,
 	keepNames: true, // Preserve function names during minification
 	platform: "node",
 	outfile: "dist/extension.js",
-	external: ["vscode", "chromium-bidi"], // Add "difflib" here
-}
+	external: ["vscode", "chromium-bidi"],
+} satisfies BuildOptions
 
 async function main() {
 	const extensionCtx = await esbuild.context(extensionConfig)

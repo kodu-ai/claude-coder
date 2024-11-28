@@ -42,11 +42,11 @@ export const experimentalFeatures: ExperimentalFeature[] = [
 		label: "Automatic Mode",
 		description: "Claude will automatically try to solve tasks without asking for permission",
 	},
-	{
-		id: "isAdvanceThinkingEnabled",
-		label: "Advance Thinking",
-		description: "Claude will generate more reasoning tokens before answering",
-	},
+	// {
+	// 	id: "isAdvanceThinkingEnabled",
+	// 	label: "Advance Thinking",
+	// 	description: "Claude will generate more reasoning tokens before answering",
+	// },
 	{
 		id: "isInlineEditingEnabled",
 		label: "Inline Editing",

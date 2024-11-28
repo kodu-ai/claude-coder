@@ -8,12 +8,12 @@ const IMAGE_TOKEN_ESTIMATE = 2000
 const CHARS_PER_TOKEN_ESTIMATE = 3
 
 export const isTextBlock = (block: any): block is Anthropic.TextBlockParam => {
-	if (!block || typeof block !== "object") return false
+	if (!block || typeof block !== "object") {return false}
 	return block.type === "text"
 }
 
 export const isImageBlock = (block: any): block is Anthropic.ImageBlockParam => {
-	if (!block || typeof block !== "object") return false
+	if (!block || typeof block !== "object") {return false}
 	return block.type === "image"
 }
 
@@ -40,6 +40,9 @@ export function truncateHalfConversation(
 
 	// Keep the first message and the remaining messages after truncation
 	const remainingMessages = messages.slice(messagePairsToRemove + 1)
+
+	// check if the first message exists appx twice if so pop the last instance and insert the first message again as last
+	// if it doesn't exist twice, insert the first message as the last message
 
 	return [firstMessage, ...remainingMessages]
 }
@@ -101,7 +104,7 @@ export function smartTruncation(messages: Anthropic.Messages.MessageParam[]): An
  */
 export const estimateTokenCount = (message: Anthropic.MessageParam): number => {
 	try {
-		if (!message.content) return 0
+		if (!message.content) {return 0}
 
 		if (typeof message.content === "string") {
 			return Math.ceil(message.content.length / CHARS_PER_TOKEN_ESTIMATE)
@@ -133,7 +136,7 @@ export const estimateTokenCount = (message: Anthropic.MessageParam): number => {
  * @returns Total estimated token count
  */
 export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.MessageParam[]): number => {
-	if (!Array.isArray(messages)) return 0
+	if (!Array.isArray(messages)) {return 0}
 
 	return messages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
 }

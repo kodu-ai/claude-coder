@@ -1,4 +1,5 @@
 import { before, suite, test } from "mocha"
+import { env } from "process"
 import * as vscode from "vscode"
 
 suite("Extension Test Suite", () => {
@@ -28,10 +29,10 @@ suite("Extension Test Suite", () => {
 		let task =
 			taskPrompt.toString() +
 			`
-			Here is the PR Issue you must give it the most amount of attention possible:
-			<pr_issue>
-			${parsedTask["problem_statement"]}
-			</pr_issue>`
+                Here is the PR Issue you must give it the most amount of attention possible:
+                <pr_issue>
+                ${parsedTask["problem_statement"]}
+                </pr_issue>`
 
 		console.log(`[DEBUG] Task is the following: ${task}`)
 

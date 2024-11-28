@@ -5,7 +5,7 @@
 		"forceConsistentCasingInFileNames": true,
 		"isolatedModules": true,
 		"lib": ["es2022", "DOM", "ES2021.WeakRef"],
-		"module": "esnext",
+		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"noFallthroughCasesInSwitch": true,
 		"noImplicitOverride": true,
@@ -19,7 +19,7 @@
 		"target": "es2022",
 		"useDefineForClassFields": true,
 		"useUnknownInCatchVariables": true,
-		"noEmit": true,
+		"noEmit": false,
 		"declaration": false,
 		"declarationMap": false,
 		"paths": {
@@ -27,6 +27,6 @@
 		},
 		"types": ["node", "vscode", "jest"]
 	},
-	"include": ["src/**/*", "scripts/**/*"],
+	"include": ["src/**/*", "scripts/**/*", "test/**/*.ts"],
 	"exclude": ["node_modules", ".vscode-test", "webview-ui", "**/*.d.ts"]
 }

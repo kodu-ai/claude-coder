@@ -7,8 +7,8 @@ import { extensionName } from "./shared/Constants"
 import "./utils/path-helpers"
 import { TerminalManager } from "./integrations/terminal/terminal-manager"
 import { getCwd } from "./agent/v1/utils"
-import { CONSTANTS } from "./integrations/editor/diff-view-provider";
-const { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } = CONSTANTS;
+import { CONSTANTS } from "./integrations/editor/diff-view-provider"
+const { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } = CONSTANTS
 import { readFile } from "fs/promises"
 import { startNewTask } from "./utils/command"
 
@@ -232,6 +232,7 @@ export function activate(context: vscode.ExtensionContext) {
 		// TODO: use better svg icon with light and dark variants (see https://stackoverflow.com/questions/58365687/vscode-extension-iconpath)
 		panel.iconPath = vscode.Uri.joinPath(context.extensionUri, "assets/icon.png")
 		tabProvider.resolveWebviewView(panel)
+		console.log("Opened Claude Coder in new tab")
 
 		// Lock the editor group so clicking on files doesn't open them over the panel
 		new Promise((resolve) => setTimeout(resolve, 100)).then(() => {

@@ -4,6 +4,36 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.13.2] - 2024-11-26
+
+### FIXED
+
+-   Fixed inline edit tab focus, now it correctly focus on the tab on open and before save.
+
+## [1.13.1] - 2024-11-26
+
+### Added
+
+-   Pause and Resume automatic mode mid task
+-   Terminal output compression with settings to configure the tokens
+
+### Changed
+
+-   Fixed inline edit animation behavior to work across all instances (closed tab / open tab)
+
+## [1.13.0] - 2024-11-25
+
+### Added
+
+-   New high-performance animation system for inline edits
+-   Support for concurrent multiple edits within a single tool request
+
+### Changed
+
+-   Significantly improved overall extension performance and resource utilization
+-   Enhanced code generation accuracy for inline edits
+-   Stabilized inline editing system for better reliability
+
 ## [1.11.4] - 2024-11-18
 
 -   Added way for vscodium users to login
