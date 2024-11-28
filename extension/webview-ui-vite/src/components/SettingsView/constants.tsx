@@ -20,6 +20,13 @@ export const models: Record<
 		isHardWorker: true,
 		isBrowserModel: true,
 	},
+	"claude-3-5-sonnet-20241022": {
+		...koduModels["claude-3-5-sonnet-20241022"],
+		label: "Claude 3.5 Sonnet (New)",
+		isRecommended: true,
+		isHardWorker: true,
+		isBrowserModel: true,
+	},
 	"claude-3-opus-20240229": {
 		...koduModels["claude-3-opus-20240229"],
 		label: "Claude 3 Opus",
