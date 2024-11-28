@@ -67,6 +67,7 @@ describe("FullFileEditor Integration Tests", async () => {
 	let file1Path: string
 	let file2Path: string
 	let file3Path: string
+	let activated = false
 
 	// Read test content from files
 	const file1Before = readTestFile("file1-before.txt")
@@ -77,6 +78,11 @@ describe("FullFileEditor Integration Tests", async () => {
 	const file3After = readTestFile("file3-after.txt")
 
 	beforeEach(async () => {
+		if (!activated) {
+			const extension = vscode.extensions.getExtension("kodu-ai.claude-dev-experimental")!
+			await extension.activate()
+			activated = true
+		}
 		// Create test files with initial content
 		file1Path = await createTestFile("file1.txt", file1Before)
 		file2Path = await createTestFile("file2.txt", file2Before)
@@ -93,54 +99,9 @@ describe("FullFileEditor Integration Tests", async () => {
 		await vscode.commands.executeCommand("workbench.action.closeAllEditors")
 	})
 
-	// it("should handle sequential file updates with streaming content", async () => {
-	// 	// Test each file in sequence with proper content verification
-	// 	const testCases = [
-	// 		{ path: file1Path, before: file1Before, after: file1After },
-	// 		{ path: file2Path, before: file2Before, after: file2After },
-	// 		{ path: file3Path, before: file3Before, after: file3After },
-	// 	]
-
-	// 	for (const { path, before, after } of testCases) {
-	// 		// Verify initial content
-	// 		assert.strictEqual(fs.readFileSync(path, "utf8"), before, "Initial content mismatch")
-
-	// 		// Open and update file
-	// 		const success = await handler.open(path)
-	// 		assert.strictEqual(success, true, "Failed to open file")
-
-	// 		// Stream content updates
-	// 		const contentStream = simulateStreamingContent(after)
-	// 		for await (const streamedContent of contentStream) {
-	// 			const updateSuccess = await handler.applyStreamContent(streamedContent)
-	// 			assert.strictEqual(updateSuccess, true, "Failed to apply streaming content")
-	// 		}
-
-	// 		// Finalize and verify
-	// 		await handler.finalize()
-	// 		const { finalContent } = await handler.saveChanges()
-	// 		assert.strictEqual(finalContent, after, "Final content mismatch")
-	// 	}
-	// })
-
-	it("should maintain content integrity during tab switches", async () => {
-		try {
-			const extension = vscode.extensions.getExtension("kodu-ai.claude-dev-experimental")!
-			await extension.activate()
-		} catch (err) {
-			console.log(err)
-		}
+	it("should write to file correctly even with race conditions at partial updates", async () => {
 		await handler.open(file1Path)
 		const stream1 = simulateStreamingContent(file1After)
-
-		// Switch between tabs while streaming
-		// const switchInterval = setInterval(async () => {
-		// 	const doc2 = await vscode.workspace.openTextDocument(file2Path)
-		// 	await vscode.window.showTextDocument(doc2)
-		// 	await delay(200)
-		// 	const doc1 = await vscode.workspace.openTextDocument(file1Path)
-		// 	await vscode.window.showTextDocument(doc1)
-		// }, 500)
 
 		let acc = ""
 		let previous = ""
@@ -151,71 +112,115 @@ describe("FullFileEditor Integration Tests", async () => {
 				if (index % 3 === 0 && previous !== acc) {
 					previous = acc
 				}
-				const success = await handler.update(content, false)
+				await handler.update(content, false)
 				index += 1
-				// assert.strictEqual(success, true, "Streaming update failed")
 			}
 		} finally {
-			// clearInterval(switchInterval)
 		}
 
-		// Finalize and verify content
+		// creating a race condition by voiding the update promise
 		handler.update(previous, false)
+		// Finalize the content by triggering final update
 		await handler.update(preprocessContent(acc), true)
-		// handler.update(trailingUpdate, false)
-		// await delay(15_000)
+		// Save the changes immediately
 		const { finalContent, userEdits } = await handler.saveChanges()
+		// Verify the final content didn't include "userEdits" if this fails it means the trailing update overwrote the final content
 		assert.strictEqual(userEdits, undefined, `Non-user edits should be detected`)
+		// if the final content is not equal to the expected content, the final content was overwritten
 		assert.strictEqual(
 			preprocessContent(finalContent),
 			preprocessContent(file1After),
 			"Content integrity compromised during tab switching"
 		)
 	})
+	// it("should handle streamed content updates without line reference errors", async () => {
+	// 	await handler.open(file1Path)
 
-	// it("should create and update non-existent files", async () => {
-	// 	const newFilePath = path.join(__dirname, "newfile.txt")
-	// 	const newContent = file1After // Use content from existing test file
+	// 	// Helper to get random chunk sizes
+	// 	function getRandomChunkSize(min: number = 10, max: number = 100): number {
+	// 		return Math.floor(Math.random() * (max - min + 1)) + min
+	// 	}
+
+	// 	// helper function to get random delay between 5-20ms
+	// 	function getRandomDelay(min: number = 5, max: number = 20): number {
+	// 		return Math.floor(Math.random() * (max - min + 1)) + min
+	// 	}
+
+	// 	// Create an async generator that yields random chunks
+	// 	async function* randomChunkStreaming(content: string): AsyncGenerator<string, void, unknown> {
+	// 		let streamedContent = ""
+
+	// 		while (streamedContent.length < content.length) {
+	// 			const chunkSize = getRandomChunkSize()
+	// 			const nextChunk = content.slice(streamedContent.length, streamedContent.length + chunkSize)
+	// 			streamedContent += nextChunk
+	// 			yield streamedContent // Always yield the full accumulated content
+	// 			await delay(getRandomDelay()) // Random delay between 5-20ms
+	// 		}
+	// 	}
+
+	// 	const stream = randomChunkStreaming(file1After)
+	// 	let lastContent = ""
 
 	// 	try {
-	// 		const success = await handler.open(newFilePath)
-	// 		assert.strictEqual(success, true, "Failed to create new file")
-
-	// 		const contentStream = simulateStreamingContent(newContent)
-	// 		for await (const content of contentStream) {
-	// 			const updateSuccess = await handler.applyStreamContent(content)
-	// 			assert.strictEqual(updateSuccess, true, "Failed to stream to new file")
+	// 		for await (const content of stream) {
+	// 			lastContent = content
+	// 			// Don't await some updates to create potential races
+	// 			if (content.length % 5 === 0) {
+	// 				handler.update(content, false)
+	// 			} else {
+	// 				await handler.update(content, false)
+	// 			}
 	// 		}
-
-	// 		await handler.finalize()
-	// 		const { finalContent } = await handler.saveChanges()
-	// 		assert.strictEqual(finalContent, newContent, "New file content mismatch")
 	// 	} finally {
-	// 		await deleteTestFile(newFilePath)
-	// 	}
-	// })
-
-	// it("should handle streaming interruptions gracefully", async () => {
-	// 	await handler.open(file1Path)
-	// 	const stream = simulateStreamingContent(file1After, 20, 50)
-	// 	let interruptedOnce = false
-
-	// 	for await (const content of stream) {
-	// 		if (!interruptedOnce && content.length > file1After.length / 2) {
-	// 			interruptedOnce = true
-	// 			await vscode.commands.executeCommand("workbench.action.closeAllEditors")
-	// 			await delay(100)
-	// 			await handler.open(file1Path)
-	// 		}
-
-	// 		const success = await handler.applyStreamContent(content)
-	// 		assert.strictEqual(success, true, "Failed to recover from interruption")
+	// 		// Ensure we get to final update
+	// 		await handler.update(lastContent, true)
 	// 	}
 
-	// 	await handler.finalize()
 	// 	const { finalContent } = await handler.saveChanges()
-	// 	assert.strictEqual(finalContent, file1After, "Content integrity lost after interruption")
+
+	// 	assert.strictEqual(
+	// 		preprocessContent(finalContent),
+	// 		preprocessContent(file1After),
+	// 		"Content should match despite random chunk streaming"
+	// 	)
 	// })
+
+	it("should handle progressively growing content without line reference errors", async () => {
+		await handler.open(file1Path)
+
+		let accumulatedContent = ""
+		const fullContent = file1After // Our target complete content
+
+		// Simulate gradual content accumulation like real LLM generation
+		for (let i = 1; i <= fullContent.length; i += 10) {
+			// Take 10 chars at a time
+			accumulatedContent = fullContent.slice(0, i)
+
+			// Each update gets the full accumulated content so far
+			await handler.update(accumulatedContent, false)
+
+			// Add minimal delay to simulate LLM generation time
+			await delay(1)
+
+			// Every now and then, quickly send same content again
+			// to create potential race conditions with line handling
+			if (i % 30 === 0) {
+				handler.update(accumulatedContent, false)
+				handler.update(accumulatedContent, false)
+			}
+		}
+
+		await handler.update(fullContent, true)
+
+		const { finalContent } = await handler.saveChanges()
+
+		assert.strictEqual(
+			preprocessContent(finalContent),
+			preprocessContent(fullContent),
+			"Content should match despite incremental updates"
+		)
+	})
 })
 
 function delay(ms: number): Promise<void> {

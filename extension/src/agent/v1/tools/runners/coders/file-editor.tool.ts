@@ -265,24 +265,19 @@ export class FileEditorTool extends BaseAgentTool {
 			this.ts
 		)
 
-		const currentTime = Date.now()
-		// don't push too many updates to the diff view provider to avoid performance issues
-		if (currentTime - this.lastUpdateTime < this.UPDATE_INTERVAL) {
-			return
-		}
-
-		if (!this.diffViewProvider.isDiffViewOpen() && this.updateNumber === 1) {
-			try {
-				// this actually opens the diff view but might take an extra few ms to be considered open requires interval check
-				// it can take up to 300ms to open the diff view
-				await this.diffViewProvider.open(relPath)
-			} catch (e) {
-				this.logger("Error opening diff view: " + e, "error")
-				return
+		this.pQueue.add(async () => {
+			if (!this.diffViewProvider.isDiffViewOpen()) {
+				try {
+					// this actually opens the diff view but might take an extra few ms to be considered open requires interval check
+					// it can take up to 300ms to open the diff view
+					await this.diffViewProvider.open(relPath)
+				} catch (e) {
+					this.logger("Error opening diff view: " + e, "error")
+					return
+				}
 			}
-		}
-		await this.diffViewProvider.update(acculmatedContent, false)
-		this.lastUpdateTime = currentTime
+			await this.diffViewProvider.update(acculmatedContent, false)
+		})
 	}
 
 	private async finalizeInlineEdit(path: string, content: string): Promise<ToolResponseV2> {
