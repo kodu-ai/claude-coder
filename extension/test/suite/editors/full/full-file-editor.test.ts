@@ -3,7 +3,6 @@ import * as assert from "assert"
 import * as fs from "fs"
 import * as path from "path"
 import { DiffViewProvider } from "../../../../src/integrations/editor/diff-view-provider"
-import { activate } from "@/extension"
 // import { DiffViewProvider } from "@/integrations/editor/diff-view-provider"
 
 // Helper function to read file content, with clear error handling for test clarity
@@ -125,8 +124,12 @@ describe("FullFileEditor Integration Tests", async () => {
 	// })
 
 	it("should maintain content integrity during tab switches", async () => {
-		const extension = vscode.extensions.getExtension("kodu-ai.claude-dev-experimental")!
-		await extension.activate()
+		try {
+			const extension = vscode.extensions.getExtension("kodu-ai.claude-dev-experimental")!
+			await extension.activate()
+		} catch (err) {
+			console.log(err)
+		}
 		await handler.open(file1Path)
 		const stream1 = simulateStreamingContent(file1After)
 

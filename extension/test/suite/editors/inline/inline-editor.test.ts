@@ -15,17 +15,11 @@ const readBlock = (filePath: string) => {
 }
 
 const writeBlock = async (testFilePath: string, toEditFilePath: string, toEditFileContent: string) => {
-	fs.writeFileSync(testFilePath, toEditFileContent, "utf8")
-	const workspaceEdit = new vscode.WorkspaceEdit()
-	workspaceEdit.createFile(vscode.Uri.file(testFilePath), { overwrite: true })
-	workspaceEdit.replace(vscode.Uri.file(testFilePath), new vscode.Range(0, 0, 0, 0), toEditFileContent)
-	await vscode.workspace.applyEdit(workspaceEdit)
+	await vscode.workspace.fs.writeFile(vscode.Uri.file(testFilePath), Buffer.from(toEditFileContent, "utf-8"))
 }
 
 const removeBlock = async (blockFilePath: string) => {
-	const workspaceEdit = new vscode.WorkspaceEdit()
-	workspaceEdit.deleteFile(vscode.Uri.file(blockFilePath))
-	await vscode.workspace.applyEdit(workspaceEdit)
+	vscode.workspace.fs.delete(vscode.Uri.file(blockFilePath))
 }
 
 async function simulateStreaming(diff: string, delayMs: number): Promise<AsyncGenerator<string, void, unknown>> {
@@ -258,17 +252,16 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		workspaceEdit.createFile(vscode.Uri.file(testFilePath), { overwrite: true })
 		workspaceEdit.replace(vscode.Uri.file(testFilePath), new vscode.Range(0, 0, 0, 0), toEditFileContent)
 		await vscode.workspace.applyEdit(workspaceEdit)
-
-		// create blocks
-		writeBlock(block3FilePath, block3FileContentPath, block3FileContent)
-		writeBlock(block4FilePath, block4FileContentPath, block4FileContent)
-		writeBlock(block5FilePath, block5FileContentPath, block5FileContent)
-		writeBlock(block6FilePath, block6FileContentPath, block6FileContent)
-
 		// Open the file in VSCode
 		const document = await vscode.workspace.openTextDocument(testFilePath)
 		await vscode.window.showTextDocument(document)
 		await document.save()
+
+		// create blocks
+		await writeBlock(block3FilePath, block3FileContentPath, block3FileContent)
+		await writeBlock(block4FilePath, block4FileContentPath, block4FileContent)
+		await writeBlock(block5FilePath, block5FileContentPath, block5FileContent)
+		await writeBlock(block6FilePath, block6FileContentPath, block6FileContent)
 
 		if (inlineEditHandler) {
 			inlineEditHandler.dispose()
@@ -284,21 +277,15 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		const workspaceEdit = new vscode.WorkspaceEdit()
 		workspaceEdit.deleteFile(vscode.Uri.file(testFilePath))
 		await vscode.workspace.applyEdit(workspaceEdit)
+		await vscode.workspace.saveAll()
 
 		// delete blocks
-		await removeBlock(block3FilePath)
-		await removeBlock(block4FilePath)
-		await removeBlock(block5FilePath)
-		await removeBlock(block6FilePath)
-
-		if (fs.existsSync(testFilePath)) {
-			fs.unlinkSync(testFilePath)
-			fs.unlinkSync(toEditFilePath)
-			fs.unlinkSync(block3FileContentPath)
-			fs.unlinkSync(block4FileContentPath)
-			fs.unlinkSync(block5FileContentPath)
-			fs.unlinkSync(block6FileContentPath)
-		}
+		await Promise.all([
+			removeBlock(block3FilePath),
+			removeBlock(block4FilePath),
+			removeBlock(block5FilePath),
+			removeBlock(block6FilePath),
+		])
 	})
 
 	it("should handle streaming updates for multiple blocks", async () => {
@@ -725,310 +712,15 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 	})
 
 	it("should test that block 3 is parsed and apllied correctly", async () => {
-		const generator = await simulateStreaming(block3BlockContent, 25)
-		let editBlocks: EditBlock[] = []
-		let lastAppliedBlockId: string | undefined
-		// Verify content
-		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(block3FileContentPath))
-
-		for await (const diff of generator) {
-			if (!(diff.includes("SEARCH") && diff.includes("REPLACE"))) {
-				continue
-			}
-			try {
-				editBlocks = parseDiffBlocks(diff, block3FilePath)
-			} catch (err) {
-				console.log(`Error parsing diff blocks: ${err}`, "error")
-				continue
-			}
-			if (!inlineEditHandler.isOpen()) {
-				try {
-					await inlineEditHandler.open(editBlocks[0].id, block3FilePath, editBlocks[0].searchContent)
-				} catch (e) {
-					console.log("Error opening diff view: " + e, "error")
-					continue
-				}
-			}
-			// now we are going to start applying the diff blocks
-			if (editBlocks.length > 0) {
-				const currentBlock = editBlocks.at(-1)
-				if (!currentBlock?.replaceContent) {
-					continue
-				}
-
-				// If this block hasn't been tracked yet, initialize it
-				if (!editBlocks.some((block) => block.id === currentBlock.id)) {
-					// Clean up any SEARCH text from the last block before starting new one
-					if (lastAppliedBlockId) {
-						const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-						if (lastBlock) {
-							const lines = lastBlock.replaceContent.split("\n")
-							// Only remove the last line if it ONLY contains a partial SEARCH
-							if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
-								lines.pop()
-								await inlineEditHandler.applyFinalContent(
-									lastBlock.id,
-									lastBlock.searchContent,
-									lines.join("\n")
-								)
-							} else {
-								await inlineEditHandler.applyFinalContent(
-									lastBlock.id,
-									lastBlock.searchContent,
-									lastBlock.replaceContent
-								)
-							}
-						}
-					}
-
-					await inlineEditHandler.open(currentBlock.id, block3FilePath, currentBlock.searchContent)
-					editBlocks.push({
-						id: currentBlock.id,
-						replaceContent: currentBlock.replaceContent,
-						path: block3FilePath,
-						searchContent: currentBlock.searchContent,
-					})
-					lastAppliedBlockId = currentBlock.id
-				}
-
-				const blockData = editBlocks.find((block) => block.id === currentBlock.id)
-				if (blockData) {
-					blockData.replaceContent = currentBlock.replaceContent
-					await inlineEditHandler.applyStreamContent(
-						currentBlock.id,
-						currentBlock.searchContent,
-						currentBlock.replaceContent
-					)
-				}
-			}
-
-			// Finalize the last block
-			if (lastAppliedBlockId) {
-				const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-				if (lastBlock) {
-					const lines = lastBlock.replaceContent.split("\n")
-					await inlineEditHandler.applyFinalContent(lastBlock.id, lastBlock.searchContent, lines.join("\n"))
-				}
-			}
-		}
-
-		await inlineEditHandler.forceFinalizeAll(editBlocks)
-
-		// Save with no tabs open
-		const finalDocument = await inlineEditHandler.saveChanges()
-
-		let expectedContent = Buffer.from(originalText).toString("utf-8")
-		for (const block of editBlocks) {
-			expectedContent = expectedContent.replace(block.searchContent, block.replaceContent)
-		}
-
-		assert.strictEqual(finalDocument, expectedContent)
+		await testBlock(block3FilePath, block3FileContentPath, block3BlockContent)
 	})
 
 	it("should test that block 4 is parsed and apllied correctly", async () => {
-		const generator = await simulateStreaming(block4BlockContent, 50)
-		let editBlocks: EditBlock[] = []
-		let lastAppliedBlockId: string | undefined
-		// Verify content
-		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(block4FileContentPath))
-
-		for await (const diff of generator) {
-			if (!(diff.includes("SEARCH") && diff.includes("REPLACE"))) {
-				continue
-			}
-			try {
-				editBlocks = parseDiffBlocks(diff, block4FilePath)
-			} catch (err) {
-				console.log(`Error parsing diff blocks: ${err}`, "error")
-				continue
-			}
-			if (!inlineEditHandler.isOpen()) {
-				try {
-					await inlineEditHandler.open(editBlocks[0].id, block4FilePath, editBlocks[0].searchContent)
-				} catch (e) {
-					console.log("Error opening diff view: " + e, "error")
-					continue
-				}
-			}
-			// now we are going to start applying the diff blocks
-			if (editBlocks.length > 0) {
-				const currentBlock = editBlocks.at(-1)
-				if (!currentBlock?.replaceContent) {
-					continue
-				}
-
-				// If this block hasn't been tracked yet, initialize it
-				if (!editBlocks.some((block) => block.id === currentBlock.id)) {
-					// Clean up any SEARCH text from the last block before starting new one
-					if (lastAppliedBlockId) {
-						const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-						if (lastBlock) {
-							const lines = lastBlock.replaceContent.split("\n")
-							// Only remove the last line if it ONLY contains a partial SEARCH
-							if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
-								lines.pop()
-								await inlineEditHandler.applyFinalContent(
-									lastBlock.id,
-									lastBlock.searchContent,
-									lines.join("\n")
-								)
-							} else {
-								await inlineEditHandler.applyFinalContent(
-									lastBlock.id,
-									lastBlock.searchContent,
-									lastBlock.replaceContent
-								)
-							}
-						}
-					}
-
-					setTimeout(async () => {
-						await inlineEditHandler.open(currentBlock.id, block4FilePath, currentBlock.searchContent)
-					}, 200)
-					editBlocks.push({
-						id: currentBlock.id,
-						replaceContent: currentBlock.replaceContent,
-						path: block3FilePath,
-						searchContent: currentBlock.searchContent,
-					})
-					lastAppliedBlockId = currentBlock.id
-				}
-
-				const blockData = editBlocks.find((block) => block.id === currentBlock.id)
-				if (blockData) {
-					blockData.replaceContent = currentBlock.replaceContent
-					await inlineEditHandler.applyStreamContent(
-						currentBlock.id,
-						currentBlock.searchContent,
-						currentBlock.replaceContent
-					)
-				}
-			}
-
-			// Finalize the last block
-			if (lastAppliedBlockId) {
-				const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-				if (lastBlock) {
-					const lines = lastBlock.replaceContent.split("\n")
-					await inlineEditHandler.applyFinalContent(lastBlock.id, lastBlock.searchContent, lines.join("\n"))
-				}
-			}
-		}
-
-		await inlineEditHandler.forceFinalizeAll(editBlocks)
-
-		// Save with no tabs open
-		const finalDocument = await inlineEditHandler.saveChanges()
-
-		let expectedContent = Buffer.from(originalText).toString("utf-8")
-		for (const block of editBlocks) {
-			expectedContent = expectedContent.replace(block.searchContent, block.replaceContent)
-		}
-
-		assert.strictEqual(finalDocument, expectedContent)
+		await testBlock(block4FilePath, block4FileContentPath, block4BlockContent)
 	})
 
 	it("should test that block 5 is parsed and apllied correctly", async () => {
-		const generator = await simulateStreaming(block5BlockContent, 50)
-		let editBlocks: EditBlock[] = []
-		let lastAppliedBlockId: string | undefined
-		// Verify content
-		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(block5FileContentPath))
-
-		for await (const diff of generator) {
-			if (!(diff.includes("SEARCH") && diff.includes("REPLACE"))) {
-				continue
-			}
-			try {
-				editBlocks = parseDiffBlocks(diff, block5FilePath)
-			} catch (err) {
-				console.log(`Error parsing diff blocks: ${err}`, "error")
-				continue
-			}
-			if (!inlineEditHandler.isOpen()) {
-				try {
-					await inlineEditHandler.open(editBlocks[0].id, block5FilePath, editBlocks[0].searchContent)
-				} catch (e) {
-					console.log("Error opening diff view: " + e, "error")
-					continue
-				}
-			}
-			// now we are going to start applying the diff blocks
-			if (editBlocks.length > 0) {
-				const currentBlock = editBlocks.at(-1)
-				if (!currentBlock?.replaceContent) {
-					continue
-				}
-
-				// If this block hasn't been tracked yet, initialize it
-				if (!editBlocks.some((block) => block.id === currentBlock.id)) {
-					// Clean up any SEARCH text from the last block before starting new one
-					if (lastAppliedBlockId) {
-						const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-						if (lastBlock) {
-							const lines = lastBlock.replaceContent.split("\n")
-							// Only remove the last line if it ONLY contains a partial SEARCH
-							if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
-								lines.pop()
-								await inlineEditHandler.applyFinalContent(
-									lastBlock.id,
-									lastBlock.searchContent,
-									lines.join("\n")
-								)
-							} else {
-								await inlineEditHandler.applyFinalContent(
-									lastBlock.id,
-									lastBlock.searchContent,
-									lastBlock.replaceContent
-								)
-							}
-						}
-					}
-
-					setTimeout(async () => {
-						await inlineEditHandler.open(currentBlock.id, block5FilePath, currentBlock.searchContent)
-					}, 200)
-					editBlocks.push({
-						id: currentBlock.id,
-						replaceContent: currentBlock.replaceContent,
-						path: block3FilePath,
-						searchContent: currentBlock.searchContent,
-					})
-					lastAppliedBlockId = currentBlock.id
-				}
-
-				const blockData = editBlocks.find((block) => block.id === currentBlock.id)
-				if (blockData) {
-					blockData.replaceContent = currentBlock.replaceContent
-					await inlineEditHandler.applyStreamContent(
-						currentBlock.id,
-						currentBlock.searchContent,
-						currentBlock.replaceContent
-					)
-				}
-			}
-
-			// Finalize the last block
-			if (lastAppliedBlockId) {
-				const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-				if (lastBlock) {
-					const lines = lastBlock.replaceContent.split("\n")
-					await inlineEditHandler.applyFinalContent(lastBlock.id, lastBlock.searchContent, lines.join("\n"))
-				}
-			}
-		}
-
-		await inlineEditHandler.forceFinalizeAll(editBlocks)
-
-		// Save with no tabs open
-		const finalDocument = await inlineEditHandler.saveChanges()
-
-		let expectedContent = Buffer.from(originalText).toString("utf-8")
-		for (const block of editBlocks) {
-			expectedContent = expectedContent.replace(block.searchContent, block.replaceContent)
-		}
-
-		assert.strictEqual(finalDocument, expectedContent)
+		await testBlock(block5FilePath, block5FileContentPath, block5BlockContent)
 	})
 
 	it("should test that block 6 is parsed and apllied correctly", async () => {
