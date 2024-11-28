@@ -145,6 +145,10 @@ class ModifiedContentProvider implements vscode.FileSystemProvider {
 			// Fire the change event
 			this._emitter.fire([{ type: vscode.FileChangeType.Changed, uri }])
 
+			// there is a timing between .fire and the actual change in the document so we need to wait for it we don't know how much time it takes
+			// but from our testing setting it below 25ms is not enough and it can take up to 500ms
+			// a save zone is 1s
+
 			// Create one-time listener for document change
 			const disposable = vscode.workspace.onDidChangeTextDocument((e) => {
 				if (e.document.uri.toString() === uriString) {
@@ -153,7 +157,7 @@ class ModifiedContentProvider implements vscode.FileSystemProvider {
 				}
 			})
 		})
-		const raceTimeout = delay(5000, { value: "timeout" })
+		const raceTimeout = delay(1000, { value: "timeout" })
 
 		// Store the promise and clean it up when done
 		this.pendingUpdates.set(uriString, updatePromise)
@@ -226,14 +230,27 @@ export class DiffViewProvider {
 		const absolutePath = path.resolve(this.cwd, relPath)
 
 		try {
-			this.originalContent = await fs.readFile(absolutePath, "utf-8")
+			const uri = vscode.Uri.file(absolutePath)
+			const now = Date.now()
+			const contentBuffer = await vscode.workspace.fs.readFile(uri)
+			this.logger(
+				`[${now}] opened file [function open]: ${relPath} with content length ${contentBuffer.length}`,
+				"info"
+			)
+			this.originalContent = Buffer.from(contentBuffer).toString("utf8")
 			this.previousLines = this.originalContent.split(/\r?\n/)
 		} catch (error) {
 			this.logger(`Failed to read file: ${error}`, "error")
 			this.originalContent = ""
 		}
 
+		const nowBefore = Date.now()
 		await this.openDiffEditor(relPath, !!isFinal)
+		const nowAfter = Date.now()
+		this.logger(
+			`[${nowAfter}] opened diff editor [function open]: ${relPath} with content length ${this.originalContent.length}`,
+			"info"
+		)
 		this.activeLineController = new DecorationController("activeLine", this.diffEditor!)
 		this.fadedOverlayController = new DecorationController("fadedOverlay", this.diffEditor!)
 
@@ -294,7 +311,8 @@ export class DiffViewProvider {
 
 		// Create modified content URI (initially empty)
 		this.modifiedUri = vscode.Uri.parse(`${MODIFIED_URI_SCHEME}:/${fileName}`)
-		await DiffViewProvider.modifiedContentProvider.writeFile(
+		// do not await this because we didn't open the editor yet
+		DiffViewProvider.modifiedContentProvider.writeFile(
 			this.modifiedUri,
 			new TextEncoder().encode(this.originalContent ?? ""),
 			{

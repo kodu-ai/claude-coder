@@ -214,7 +214,7 @@ export class FileEditorTool extends BaseAgentTool {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
 			return
 		}
-		this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
+		await this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
 	}
 
 	/**
@@ -265,12 +265,13 @@ export class FileEditorTool extends BaseAgentTool {
 			this.ts
 		)
 
-		this.pQueue.add(async () => {
+		await this.pQueue.add(async () => {
 			if (!this.diffViewProvider.isDiffViewOpen()) {
 				try {
-					// this actually opens the diff view but might take an extra few ms to be considered open requires interval check
-					// it can take up to 300ms to open the diff view
+					const now = Date.now()
 					await this.diffViewProvider.open(relPath)
+					const elapsed = Date.now() - now
+					this.logger(`Diff view opened in ${elapsed}ms`, "debug")
 				} catch (e) {
 					this.logger("Error opening diff view: " + e, "error")
 					return
@@ -570,6 +571,9 @@ export class FileEditorTool extends BaseAgentTool {
 			await this.diffViewProvider.open(relPath)
 		}
 
-		await this.diffViewProvider.update(content, true)
+		await this.pQueue.add(async () => {
+			await this.diffViewProvider.update(content, true)
+		})
+		await this.pQueue.onIdle()
 	}
 }
