@@ -36,6 +36,11 @@ type PostClaudeMessages = {
 	claudeMessages: ExtensionState["claudeMessages"]
 }
 
+type PutClaudeMessages = {
+	type: "putClaudeMessages"
+	claudeMessages: ExtensionState["claudeMessages"]
+}
+
 type PostTaskHistory = {
 	type: "taskHistory"
 	history: string
@@ -78,26 +83,27 @@ export type ExtensionMessage =
 	| SetCommandTimeoutMessage
 	| SetInlineEditModeMessage
 	| {
-			type: "action" | "state" | "selectedImages"
-			text?: string
-			user?: ExtensionState["user"]
-			action?:
-				| "chatButtonTapped"
-				| "settingsButtonTapped"
-				| "historyButtonTapped"
-				| "didBecomeVisible"
-				| "koduAuthenticated"
-				| "koduCreditsFetched"
+		type: "action" | "state" | "selectedImages"
+		text?: string
+		user?: ExtensionState["user"]
+		action?:
+		| "chatButtonTapped"
+		| "settingsButtonTapped"
+		| "historyButtonTapped"
+		| "didBecomeVisible"
+		| "koduAuthenticated"
+		| "koduCreditsFetched"
 
-			state?: ExtensionState
-			images?: string[]
-	  }
+		state?: ExtensionState
+		images?: string[]
+	}
 	| PostFoldersAndItems
 	| PostClaudeMessages
 	| PostGitLog
 	| PostGitBranches
 	| PostGitCheckoutSuccess
 	| PostTaskHistory
+	| PutClaudeMessages
 	| CommandExecutionResponse
 	| EnableTextAreasMessage
 	| HideCommandBlockMessage
@@ -249,20 +255,20 @@ export type AskConsultantTool = {
 export type ClaudeSayTool =
 	| ChatTool
 	| {
-			tool:
-				| "editedExistingFile"
-				| "newFileCreated"
-				| "readFile"
-				| "listFilesTopLevel"
-				| "listFilesRecursive"
-				| "listCodeDefinitionNames"
-				| "searchFiles"
-			path?: string
-			diff?: string
-			content?: string
-			regex?: string
-			filePattern?: string
-	  }
+		tool:
+		| "editedExistingFile"
+		| "newFileCreated"
+		| "readFile"
+		| "listFilesTopLevel"
+		| "listFilesRecursive"
+		| "listCodeDefinitionNames"
+		| "searchFiles"
+		path?: string
+		diff?: string
+		content?: string
+		regex?: string
+		filePattern?: string
+	}
 
 export type GitLogItem = {
 	hash: string

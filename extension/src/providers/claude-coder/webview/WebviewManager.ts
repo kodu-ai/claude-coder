@@ -2,7 +2,7 @@ import { readdir } from "fs/promises"
 import path from "path"
 import * as vscode from "vscode"
 import { extensionName } from "../../../shared/Constants"
-import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
+import { ClaudeMessage, ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
 import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
@@ -55,7 +55,7 @@ export class WebviewManager {
 	private static readonly latestAnnouncementId = "sep-13-2024"
 	private static readonly UPDATE_INTERVAL = 20 // 20ms debounce for webview updates
 	private static readonly MAX_POST_INTERVAL = 60 // max time to wait before forcing a post
-
+	private conversationHistory: ClaudeMessage[] = []
 	private lastPostTimeAt = 0
 	private debounceTimer: NodeJS.Timeout | null = null
 	private maxIntervalTimer: NodeJS.Timeout | null = null
@@ -111,6 +111,14 @@ export class WebviewManager {
 	 */
 	async showInputBox(options: vscode.InputBoxOptions): Promise<string | undefined> {
 		return vscode.window.showInputBox(options)
+	}
+	/**
+	 * Similar to postMessageToWebview, but for put operations instead
+	 * aims to add items to already existing state instead of overwriting it
+	 * @param messages The messages to add to the webview
+	 */
+	putMessageToWebview(message: ExtensionMessage) {
+		this.sendMessageToWebview(message)
 	}
 
 	/**
@@ -193,8 +201,35 @@ export class WebviewManager {
 		})
 	}
 
+	putClaudeMessagesToWebview(messages: ClaudeMessage[]) {
+		this.putMessageToWebview({ type: "putClaudeMessages", claudeMessages: messages })
+	}
+
 	async postStateToWebview() {
 		const state = await this.getStateToPostToWebview()
+		// Deep compare the arrays by converting to JSON strings
+		const areMessagesEqual = JSON.stringify(state.claudeMessages) === JSON.stringify(this.conversationHistory)
+		
+		if (!areMessagesEqual) {
+			const newMessages = state.claudeMessages.filter((msg) => !this.conversationHistory.includes(msg))
+			const payloadBytes = JSON.stringify(newMessages).length
+			// Deep copy of the messages array
+			this.conversationHistory = JSON.parse(JSON.stringify(state.claudeMessages))
+			console.debug(
+				`[DEBUG]: Posting ${newMessages.length} messages with size of ${payloadBytes} bytes (${
+					(payloadBytes / 1024).toFixed(2)
+				} KB or ${(payloadBytes / 1024 / 1024).toFixed(2)} MB)`
+			)
+			this.putClaudeMessagesToWebview(newMessages)
+			return
+		}
+		// Get the size in bytes of the state to post
+		const stateSize = JSON.stringify(state).length
+		console.debug(
+			`[DEBUG]: Posting state to webview with size of ${stateSize} bytes (${(stateSize / 1024).toFixed(
+				2
+			)} KB or ${(stateSize / 1024 / 1024).toFixed(2)} MB)`
+		)
 		await this.postMessageToWebview({ type: "state", state })
 	}
 

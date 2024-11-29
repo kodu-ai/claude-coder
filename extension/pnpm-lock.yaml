@@ -125,6 +125,9 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
+      vscode-messenger:
+        specifier: ^0.4.5
+        version: 0.4.5
       web-tree-sitter:
         specifier: ^0.22.6
         version: 0.22.6
@@ -3961,6 +3964,12 @@ packages:
         optional: true
       yaml:
         optional: true
+
+  vscode-messenger-common@0.4.5:
+    resolution: {integrity: sha512-opA+BEYTWdy1fFC3oOw30b0zc/KEuMtw+1pOiH5fEp+BGeA5xff7omSQTZeZJSDJszM471Vi+YY/ipRdRglAlQ==}
+
+  vscode-messenger@0.4.5:
+    resolution: {integrity: sha512-a6e54dpPRi/ITmVex49LGU6YXlqcuxGPlDPauvZig20G1D1/QD2E8GfhtvlTj3ml5aU/QV3LHghyepq3riy7sw==}
 
   walker@1.0.8:
     resolution: {integrity: sha512-ts/8E8l5b7kY0vlWLewOkDXMmPdLcVV4GmOQLyxuSswIJsweeFZtAsMF7k1Nszz+TYBQrlYRmzOnr398y1JemQ==}
@@ -8801,6 +8810,12 @@ snapshots:
       '@types/node': 20.17.8
       fsevents: 2.3.3
       tsx: 4.19.2
+
+  vscode-messenger-common@0.4.5: {}
+
+  vscode-messenger@0.4.5:
+    dependencies:
+      vscode-messenger-common: 0.4.5
 
   walker@1.0.8:
     dependencies:

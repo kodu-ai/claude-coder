@@ -465,6 +465,7 @@ export class StateManager {
 	async addToClaudeMessages(message: ClaudeMessage) {
 		this.state.claudeMessages.push(message)
 		await this.saveClaudeMessages()
+		await this.providerRef.deref()?.getWebviewManager().putClaudeMessagesToWebview([message])
 	}
 
 	async overwriteClaudeMessages(newMessages: ClaudeMessage[]) {

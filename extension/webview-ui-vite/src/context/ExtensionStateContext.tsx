@@ -1,12 +1,12 @@
-import React, { useEffect, useRef } from "react"
-import { useEvent } from "react-use"
 import { atom, useAtom, useSetAtom } from "jotai"
-import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/ExtensionMessage"
-import { vscode } from "../utils/vscode"
+import React, { useEffect } from "react"
+import { useEvent } from "react-use"
 import { ApiConfiguration } from "../../../src/api/index"
-import { HistoryItem } from "../../../src/shared/HistoryItem"
 import type { GlobalState } from "../../../src/providers/claude-coder/state/GlobalStateManager"
+import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/ExtensionMessage"
+import { HistoryItem } from "../../../src/shared/HistoryItem"
 import { SystemPromptVariant } from "../../../src/shared/SystemPromptVariant"
+import { vscode } from "../utils/vscode"
 
 // Define atoms for each piece of state
 const technicalBackgroundAtom = atom<GlobalState["technicalBackground"] | undefined>(undefined)
@@ -188,6 +188,11 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
+		if (message.type === "putClaudeMessages") {
+			console.debug(`[DEBUG]: Received ${message.claudeMessages.length} messages`)
+			setClaudeMessages((prev) => [...prev, ...message.claudeMessages])
+			return
+		}
 		if (message.type === "claudeMessages") {
 			setClaudeMessages(message.claudeMessages)
 		}

@@ -9,6 +9,7 @@ import { TerminalManager } from "./integrations/terminal/terminal-manager"
 import { getCwd } from "./agent/v1/utils"
 import { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } from "./integrations/editor/diff-view-provider"
 import { readFile } from "fs/promises"
+import { Messenger } from 'vscode-messenger';
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -18,6 +19,9 @@ https://github.com/microsoft/vscode-webview-ui-toolkit-samples/tree/main/default
 https://github.com/microsoft/vscode-webview-ui-toolkit-samples/tree/main/frameworks/hello-world-react-cra
 
 */
+
+
+const messenger = new Messenger();
 
 let outputChannel: vscode.OutputChannel
 var creditFetchInterval: NodeJS.Timeout | null | number = null
@@ -323,6 +327,7 @@ export function activate(context: vscode.ExtensionContext) {
 			},
 		})
 	)
+	return messenger.diagnosticApi();
 	// testWriteToFile(sidebarProvider)
 }
 
