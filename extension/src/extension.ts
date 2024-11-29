@@ -24,15 +24,23 @@ class QuickFixProvider implements vscode.CodeActionProvider {
 
         // For each diagnostic (error/warning) in the file
         for (const diagnostic of context.diagnostics) {
+            // Get surrounding code for better context
+            const startLine = Math.max(0, diagnostic.range.start.line - 2);
+            const endLine = Math.min(document.lineCount - 1, diagnostic.range.end.line + 2);
+            const surroundingCode = document.getText(new vscode.Range(
+                new vscode.Position(startLine, 0),
+                new vscode.Position(endLine, document.lineAt(endLine).text.length)
+            ));
+
             // Create a code action for the diagnostic
             const action = new vscode.CodeAction(
-                'Fix with Claude Coder',
+                `🔧 Fix with Kodu AI: ${diagnostic.message}`,
                 vscode.CodeActionKind.QuickFix
             );
             action.command = {
                 command: `${extensionName}.fixWithClaude`,
-                title: 'Fix with Claude Coder',
-                arguments: [document, diagnostic]
+                title: 'Fix with Kodu AI',
+                arguments: [document, diagnostic, surroundingCode]
             };
             action.diagnostics = [diagnostic];
             action.isPreferred = true;
@@ -172,10 +180,18 @@ export function activate(context: vscode.ExtensionContext) {
 
  // Register the fix command
  context.subscriptions.push(
-  vscode.commands.registerCommand(`${extensionName}.fixWithClaude`, async (document: vscode.TextDocument, diagnostic: vscode.Diagnostic) => {
+  vscode.commands.registerCommand(`${extensionName}.fixWithClaude`, async (document: vscode.TextDocument, diagnostic: vscode.Diagnostic, surroundingCode: string) => {
    const text = document.getText(diagnostic.range);
    const languageId = document.languageId;
-   const prompt = `Fix the following ${languageId} code issue: "${diagnostic.message}"\nCode:\n${text}`;
+   const prompt = `Fix the following ${languageId} code issue: "${diagnostic.message}"
+
+Problem code:
+${text}
+
+Context (surrounding code):
+${surroundingCode}
+
+Please provide a fix for this issue, explaining the problem and your solution. Focus on best practices and modern ${languageId} conventions.`;
    
    // Focus the sidebar
    await vscode.commands.executeCommand(`${extensionName}.SidebarProvider.focus`);
@@ -183,6 +199,9 @@ export function activate(context: vscode.ExtensionContext) {
    // Send the fix request to Claude through the sidebar provider
    await sidebarProvider?.getTaskManager().handleNewTask(prompt);
    await sidebarProvider?.getWebviewManager().postStateToWebview();
+
+   // Show notification that Kodu AI is working on the fix
+   vscode.window.showInformationMessage('🔧 Kodu AI is analyzing and fixing the issue...');
   })
  );
 
