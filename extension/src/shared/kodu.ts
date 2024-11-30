@@ -28,7 +28,7 @@ export function getKoduVisitorUrl() {
 }
 
 export function getKoduInferenceUrl() {
-	return `${KODU_BASE_URL}/api/inference-stream`
+	return `${KODU_BASE_URL}/api/eval-inference-stream`
 }
 
 export function getKoduBugReportUrl() {
@@ -146,10 +146,16 @@ export class KoduError extends Error {
 
 export type koduSSEResponse =
 	| {
+			/**
+			 * heart beat
+			 */
 			code: 0
 			body: undefined
 	  }
 	| {
+			/**
+			 * Prompt response received
+			 */
 			code: 1
 			body: {
 				anthropic: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage
@@ -164,6 +170,9 @@ export type koduSSEResponse =
 			}
 	  }
 	| {
+			/**
+			 * Text message received
+			 */
 			code: 2
 			body: {
 				/**
@@ -173,6 +182,9 @@ export type koduSSEResponse =
 			}
 	  }
 	| {
+			/**
+			 * Content block received
+			 */
 			code: 3
 			body: {
 				/**

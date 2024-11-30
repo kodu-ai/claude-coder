@@ -22,6 +22,49 @@ type CommandListItem = {
 	output: string
 }
 
+/**
+ * Compresses a long string to a maximum length of 200,000 characters by keeping parts
+ * from the beginning, middle, and end of the string. The compression adds markers
+ * to indicate which sections were removed.
+ *
+ * The function preserves:
+ * - 40% of the target length from the start
+ * - 20% of the target length from the middle
+ * - 40% of the target length from the end
+ *
+ * @param input The input string to compress
+ * @param maxLength The maximum length of the output string (defaults to 200000)
+ * @returns The compressed string with compression markers
+ */
+function compressLongString(input: string, maxLength: number = 200000): string {
+	// If the string is already under the limit, return it unchanged
+	if (input.length <= maxLength) {
+		return input
+	}
+
+	// Calculate the lengths for each section
+	const startLength = Math.floor(maxLength * 0.4)
+	const middleLength = Math.floor(maxLength * 0.2)
+	const endLength = maxLength - startLength - middleLength
+
+	// Extract the start section
+	const startSection = input.slice(0, startLength)
+
+	// Calculate middle section position
+	const middleStartPos = Math.floor((input.length - middleLength) / 2)
+	const middleSection = input.slice(middleStartPos, middleStartPos + middleLength)
+
+	// Extract the end section
+	const endSection = input.slice(-endLength)
+
+	// Create compression markers
+	const startCompressionMarker = `[...Compressed ${startLength} to ${middleStartPos}...]`
+	const endCompressionMarker = `[...Compressed ${middleStartPos + middleLength} to ${input.length - endLength}...]`
+
+	// Combine all sections with compression markers
+	return `${startSection}${startCompressionMarker}${middleSection}${endCompressionMarker}${endSection}`
+}
+
 export class CompressToolExecution {
 	private threshold: number | undefined
 	private apiHandler: ApiHandler
@@ -48,7 +91,7 @@ export class CompressToolExecution {
 		return await this.compressExecution(command, output)
 	}
 
-	private compressExecution = async (command: string, output: string): Promise<string> => {
+	private compressExecution = async (command: string, output: string, isError = -1): Promise<string> => {
 		const SYSTEM_PROMPT = `
 		You are an assistant tasked with analyzing and summarizing the output of commands run on a user's computer. Your goals are to:
 		
@@ -163,27 +206,43 @@ export class CompressToolExecution {
 			return output
 		}
 		logger(`Compressing output for command: ${command}`, "info")
-		const resultStream = this.apiHandler.createBaseMessageStream(
-			SYSTEM_PROMPT,
-			[
-				{
-					role: "user",
-					content: [
-						{
-							type: "text",
-							text: `The output for the "${command}" command was:\n\n${output}`,
-						},
-					],
-				},
-			],
-			"claude-3-5-haiku-20241022"
-		)
-		for await (const message of resultStream) {
-			if (message.code === 1 && isTextBlock(message.body.anthropic.content[0])) {
-				return message.body.anthropic.content[0].text
+		try {
+			const resultStream = this.apiHandler.createBaseMessageStream(
+				SYSTEM_PROMPT,
+				[
+					{
+						role: "user",
+						content: [
+							{
+								type: "text",
+								text: `The output for the "${command}" command was:\n\n${output}`,
+							},
+						],
+					},
+				],
+				"claude-3-5-haiku-20241022"
+			)
+			for await (const message of resultStream) {
+				if (message.code === 1 && isTextBlock(message.body.anthropic.content[0])) {
+					return message.body.anthropic.content[0].text
+				}
+				if (message.code === -1) {
+					throw new Error("Failed to compress output")
+				}
 			}
+			return output
+		} catch (err) {
+			logger(`Error compressing output for command: ${command}`, "error")
+			if (isError === 3) {
+				// try to compress the output again but with a compressed version of the output
+				return this.compressExecution(command, compressLongString(output), isError + 1)
+			}
+			// if the error is not resolved after 3 tries, return the output (should be already compressed using compressLongString)
+			if (isError > 3) {
+				return output
+			}
+			return this.compressExecution(command, output, isError + 1)
 		}
-		return output
 	}
 }
 
@@ -222,9 +281,13 @@ const processContentBlock = async (
 	}
 
 	// Skip specific context blocks
-	const includedTextToRemove = ["</most_important_context>", "</environment_details>"]
+	const includedTextToRemove = ["</most_important_context>", "</environment_details>", "</automatic_reminders>"]
 	if (includedTextToRemove.some((text) => content.text.includes(text))) {
-		if (content.text.includes("<most_important_context>") || content.text.includes("<environment_details>")) {
+		if (
+			content.text.includes("<most_important_context>") ||
+			content.text.includes("<environment_details>") ||
+			content.text.includes("<automatic_reminders>")
+		) {
 			logger(`Found and Removing either most_important_context or environment_details block`, "info")
 			return undefined
 		}

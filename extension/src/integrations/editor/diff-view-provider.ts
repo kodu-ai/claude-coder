@@ -248,6 +248,7 @@ export class DiffViewProvider {
 		} catch (error) {
 			this.logger(`Failed to read file: ${error}`, "error")
 			this.originalContent = ""
+			this.previousLines = []
 		}
 		await this.openDiffEditor(relPath, !!isFinal)
 		this.activeLineController = new DecorationController("activeLine", this.diffEditor!)
@@ -342,7 +343,7 @@ export class DiffViewProvider {
 				),
 			{
 				interval: 20,
-				timeout: 300,
+				timeout: 1_000,
 			}
 		)
 		const editor = vscode.window.visibleTextEditors.find(

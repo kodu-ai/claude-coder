@@ -1,12 +1,12 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "outDir": "./out/eval",
-    "noEmit": false,
-    "types": ["vscode", "mocha", "chai"],
-    "allowSyntheticDefaultImports": true
-  },
-  "include": ["src/test/suite/extension.test.ts", "src/test/suite/index.ts", "src/test/runTest.ts"]
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"module": "commonjs",
+		"moduleResolution": "node",
+		"outDir": "./out/eval",
+		"noEmit": false,
+		"types": ["vscode", "mocha"],
+		"allowSyntheticDefaultImports": true
+	},
+	"include": ["src/test/suite/extension.test.ts", "src/test/suite/index.ts", "src/test/runTest.ts"]
 }

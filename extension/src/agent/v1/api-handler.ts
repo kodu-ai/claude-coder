@@ -180,14 +180,15 @@ ${this.customInstructions.trim()}
 		const executeRequest = async () => {
 			const conversationHistory =
 				provider.koduDev?.getStateManager().state.apiConversationHistory || apiConversationHistory
-			// Process conversation history and manage context window
-			await this.processConversationHistory(conversationHistory)
 
 			let apiConversationHistoryCopy = conversationHistory.slice()
-			// remove the last message from it if it's assistant's message
-			if (apiConversationHistoryCopy[apiConversationHistoryCopy.length - 1].role === "assistant") {
-				apiConversationHistoryCopy = apiConversationHistoryCopy.slice(0, apiConversationHistoryCopy.length - 1)
-			}
+
+			// make sure the last message is from the user
+			const lastUserMessageIndx = apiConversationHistoryCopy.map((m) => m.role).lastIndexOf("user")
+			// slice the conversation history to the last user message
+			apiConversationHistoryCopy = apiConversationHistoryCopy.slice(0, lastUserMessageIndx + 1)
+			// Process conversation history and manage context window
+			await this.processConversationHistory(apiConversationHistoryCopy)
 
 			// log the last 2 messages
 			this.log("info", `Last 2 messages:`, apiConversationHistoryCopy.slice(-2))
@@ -281,7 +282,8 @@ ${this.customInstructions.trim()}
 							// clear the interval
 							clearInterval(checkInactivity)
 							// Compress the context and retry
-							await this.newCompression(apiConversationHistory, abortSignal)
+							// await this.newCompression(apiConversationHistory, abortSignal)
+							await this.manageContextWindow()
 							retryAttempt++
 							break // Break the for loop to retry with compressed history
 						}
@@ -366,6 +368,7 @@ ${this.customInstructions.trim()}
 					Please mention which edits you tried and didn't go well and why, which edits you tried and went well and why.
 					This is critical, red team your work, be your own devil's advocate, be your own critic, be your own judge, be your own jury.
 					This is a critical step to improve the quality of the conversation quickly.
+
 					`,
 				})
 			}
@@ -416,7 +419,7 @@ ${this.customInstructions.trim()}
 			return
 		}
 
-		const lastMessage = history[history.length - 2]
+		const lastMessage = history[history.length - 1]
 		const isLastMessageFromUser = lastMessage?.role === "user"
 
 		// Convert string content to structured content if needed
@@ -447,10 +450,11 @@ ${this.customInstructions.trim()}
 			return
 		}
 
-		// Add critical messages every 4th message or the first message
-		const shouldAddCriticalMsg = (history.length % 8 === 0 && history.length > 8) || history.length === 2
+		// Add critical messages every 3th message or the first message
+		const shouldAddCriticalMsg = history.length % 7 === 0 || history.length === 1
+		console.log(`current position in history: ${history.length}`)
 
-		const lastMessage = history[history.length - 2]
+		const lastMessage = history[history.length - 1]
 
 		const shouldAppendCriticalMsg =
 			(await this.providerRef.deref()?.getState())?.activeSystemPromptVariantId === "m-11-1-2024"
@@ -461,6 +465,7 @@ ${this.customInstructions.trim()}
 			Array.isArray(lastMessage.content) &&
 			shouldAppendCriticalMsg
 		) {
+			console.log(`Appending critical message current position in history: ${history.length}`)
 			const isInlineEditMode = await GlobalStateManager.getInstance().getGlobalState("isInlineEditingEnabled")
 			if (isInlineEditMode) {
 				const newCriticalMsg = (await import("./prompts/m-11-20-2024.prompt")).criticalMsg
@@ -531,6 +536,38 @@ ${this.customInstructions.trim()}
 			.getGlobalStateManager()
 			.getGlobalState("terminalCompressionThreshold")
 		const compressedMessages = await smartTruncation(history, this.api, terminalCompressionThreshold)
+		// we are going to inject to the last message some information regarding the conversation to mention that we compressed previous messages
+		for (const m of compressedMessages.slice(-2)) {
+			if (m.role === "user") {
+				if (Array.isArray(m.content)) {
+					m.content.push({
+						type: "text",
+						text: `
+	YOU MUST FOLLOW THIS SUPER CRITICAL INSTRUCTION BEFORE YOU CONTINUE:
+	<supert_critical>
+	- The chat has been compressed to prevent token overflow, it means that previous messages before this message might have been compressed.
+	You should take a moment to self reflect on your thought process and improve your problem solving skills as the conversation progresses.
+	This is a critical step to improve the quality of the conversation quickly, think about what you have done so far and how you can improve it.
+	Remember that you might have lost critical information during the compression, so you should take a moment to self reflect on your thought process.
+	If you forgot important files, you must read them again, if you forgot important information, you must gather it again.
+	your next thinking tag should be a self reflection on the current state of the task and how you can improve it.
+	you should take a step back and look from 3rd person perspective on your work and see how you can improve it, you might have been stuck in an editing loop where you are not making significant improvements.
+	or you might have diverted from the main problem and started solving symptoms not the root cause of the problem.
+	Remember that the first message in history is super critical and it includes the task description, you should read it carefully and understand it.
+	You should refresh your context and gather all the relevant context parts before you continue solving the task.
+	Sometimes a hotfix might be the thing you need to do so evaluate your work and see if you need a hotfix or deep refactor.
+	Sometimes hotfix / quick fix is what you need to do to solve the problem efficiently, not everything requires a deep refactor.
+	remember to always follow the <task> information from the first message in the conversation.
+	</supert_critical>`.trim(),
+					})
+				}
+			}
+		}
+		console.log(
+			`last two messages after compression:`,
+			JSON.stringify(compressedMessages[compressedMessages.length - 2].content)
+		)
+
 		const newMemorySize = compressedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
 		this.log("info", `API History before compression:`, history)
 		this.log("info", `Total tokens before compression: ${totalTokens}`)
@@ -548,7 +585,7 @@ ${this.customInstructions.trim()}
 					"chat_finished",
 					`The chat has reached the maximum token limit. Please create a new task to continue.`
 				)
-			this.providerRef.deref()?.getKoduDev()?.taskExecutor.blockTask()
+			await this.providerRef.deref()?.getKoduDev()?.taskExecutor.blockTask()
 			return "chat_finished"
 		}
 		await this.providerRef
