@@ -131,25 +131,25 @@ const AdvancedTab: React.FC = () => {
 								<Input
 									id="command-timeout"
 									type="number"
-									value={commandTimeout ?? 120}
+									value={commandTimeout ?? 30}
 									onChange={(e) => {
 										const value = parseInt(e.target.value)
 										if (!isNaN(value)) {
 											handleCommandTimeout(value)
 										}
 									}}
-									min={60}
+									min={10}
 									max={600}
 									step={10}
 									className="w-24"
 								/>
-								<span className="text-sm text-muted-foreground">(60 - 600)</span>
+								<span className="text-sm text-muted-foreground">(10 - 600)</span>
 							</div>
 							<Slider
-								min={60}
+								min={10}
 								max={600}
 								step={10}
-								value={[commandTimeout ?? 120]}
+								value={[commandTimeout ?? 30]}
 								onValueChange={(value) => handleCommandTimeout(value[0])}
 								className="w-full"
 							/>

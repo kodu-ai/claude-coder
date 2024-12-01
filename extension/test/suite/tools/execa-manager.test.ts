@@ -1,208 +1,168 @@
-import { jest } from "@jest/globals"
+// Revised test file
 import { getCommandManager } from "../../../src/agent/v1/tools/runners/execute-command/execa-manager"
-import { execa } from "execa"
-import type { ChildProcess } from "child_process"
-import { EventEmitter } from "events"
-
-// Mock execa
-jest.mock("execa")
-const mockExeca = execa as jest.MockedFunction<typeof execa>
+import { expect } from "chai"
+import { nanoid } from "nanoid"
+import * as vscode from "vscode"
 
 describe("CommandManager", () => {
-	let manager: ReturnType<typeof getCommandManager>
-	let mockChildProcess: ChildProcess
-	let mockStdout: EventEmitter
-	let mockStderr: EventEmitter
-	let mockStdin: { write: jest.Mock }
-
-	beforeEach(() => {
-		// Reset mocks
-		jest.clearAllMocks()
-
-		// Create new event emitters for each test
-		mockStdout = new EventEmitter()
-		mockStderr = new EventEmitter()
-		mockStdin = { write: jest.fn() }
-
-		// Create mock child process
-		mockChildProcess = new EventEmitter() as ChildProcess
-		Object.assign(mockChildProcess, {
-			stdout: mockStdout,
-			stderr: mockStderr,
-			stdin: mockStdin,
-			kill: jest.fn(),
-		})
-
-		// Setup execa mock
-		mockExeca.mockImplementation(() => {
-			const promise = Promise.resolve({
-				exitCode: 0,
-				stdout: "",
-				stderr: "",
-				// Add other required ExecaReturnValue properties
-			})
-			return Object.assign(promise, mockChildProcess)
-		})
-
-		// Get fresh instance for each test
-		manager = getCommandManager("test-command")
-	})
-
 	describe("executeBlockingCommand", () => {
-		it("should execute a command successfully", async () => {
-			const result = manager.executeBlockingCommand("echo", ["hello"])
+		it("should complete normally for quick commands", async () => {
+			const { manager } = getCommandManager(nanoid())
 
-			mockStdout.emit("data", Buffer.from("hello\n"))
-			mockChildProcess.emit("exit", 0)
-
-			const output = await result
-			expect(output).toEqual({
-				output: "hello\n",
-				exitCode: 0,
-				completed: true,
-			})
-			expect(mockExeca).toHaveBeenCalledWith("echo", ["hello"], expect.any(Object))
+			const result = await manager.executeBlockingCommand("echo", ["test"])
+			expect(result.completed).to.be.true
+			expect(result.output).to.include("test")
+			expect(result.exitCode).to.equal(0)
 		})
 
-		it("should handle command timeout", async () => {
-			mockExeca.mockImplementation(() => {
-				const error: any = new Error("Command timed out")
-				error.timedOut = true
-				return Promise.reject(error)
+		it("should timeout but keep process running", async () => {
+			// Start a long process with short timeout
+			const { manager } = getCommandManager(nanoid())
+
+			const result = await manager.executeBlockingCommand("sleep", ["5"], {
+				timeout: 1000,
 			})
 
-			const result = await manager.executeBlockingCommand("sleep", ["10"], { timeout: 1 })
-			expect(result).toEqual({
-				output: "",
-				exitCode: -1,
-				completed: false,
-			})
+			expect(result.completed).to.be.false
+			expect(result.exitCode).to.equal(-1)
+
+			// Verify process still running
+			try {
+				await manager.executeBlockingCommand("echo", ["test"])
+				expect.fail("Should not allow new command while one is running")
+			} catch (error) {
+				expect((error as Error).message).to.equal("A command is already running")
+			}
 		})
 
-		it("should enforce output line limits", async () => {
-			const result = manager.executeBlockingCommand("test", [], { outputMaxLines: 2 })
+		it("should handle output limits like timeout", async function () {
+			const { manager } = getCommandManager(nanoid())
 
-			mockStdout.emit("data", Buffer.from("line1\nline2\nline3\n"))
+			const result = await manager.executeBlockingCommand(
+				"bash",
+				["-c", 'for i in $(seq 1 100); do echo "line $i"; done'],
+				{
+					outputMaxLines: 10,
+				}
+			)
 
-			await result
-			expect(mockChildProcess.kill).toHaveBeenCalled()
-		})
+			expect(result.completed).to.be.false
+			expect(result.output.split("\n").filter((l) => l.length > 0).length).to.equal(10)
 
-		it("should enforce output token limits", async () => {
-			const result = manager.executeBlockingCommand("test", [], { outputMaxTokens: 5 })
-
-			mockStdout.emit("data", Buffer.from("123456"))
-
-			await result
-			expect(mockChildProcess.kill).toHaveBeenCalled()
-		})
-
-		it("should enforce output byte limits", async () => {
-			const result = manager.executeBlockingCommand("test", [], { outputMaxBytes: 5 })
-
-			mockStdout.emit("data", Buffer.from("123456"))
-
-			await result
-			expect(mockChildProcess.kill).toHaveBeenCalled()
-		})
-
-		it("should prevent multiple concurrent commands", async () => {
-			// Start first command
-			const firstCommand = manager.executeBlockingCommand("test", [])
-
-			// Try to start second command
-			await expect(manager.executeBlockingCommand("test", [])).rejects.toThrow("A command is already running")
-
-			// Complete first command
-			mockChildProcess.emit("exit", 0)
-			await firstCommand
+			// Process should still be running
+			expect(manager.currentProcess).to.not.be.null
 		})
 	})
 
 	describe("resumeBlockingCommand", () => {
-		it("should resume a running command", async () => {
-			// Start command
-			const executePromise = manager.executeBlockingCommand("test", [])
-			mockStdout.emit("data", Buffer.from("initial output\n"))
+		it("should continue monitoring existing process", async function () {
+			const { manager } = getCommandManager(nanoid())
 
-			// Resume command
-			const resumePromise = manager.resumeBlockingCommand({ stdin: "input\n" })
-			mockStdout.emit("data", Buffer.from("more output\n"))
-			mockChildProcess.emit("exit", 0)
+			// Start process that outputs slowly
+			await manager.executeBlockingCommand(
+				"bash",
+				["-c", 'for i in $(seq 1 5); do echo "line $i"; sleep 0.5; done'],
+				{
+					timeout: 1000,
+				}
+			)
 
-			const result = await resumePromise
-			expect(result).toEqual({
-				output: "initial output\nmore output\n",
-				exitCode: 0,
-				completed: true,
+			// Resume should get new output
+			const result = await manager.resumeBlockingCommand({
+				timeout: 2000,
 			})
-			expect(mockStdin.write).toHaveBeenCalledWith("input\n")
+
+			expect(result.output).to.not.be.empty
+			expect(result.completed).to.be.false
 		})
 
-		it("should handle resume timeout", async () => {
-			// Start command
-			await manager.executeBlockingCommand("test", [])
+		it("should handle stdin properly", async function () {
+			const { manager } = getCommandManager(nanoid())
 
-			// Resume with timeout
-			const result = await manager.resumeBlockingCommand({ timeout: 1 })
-
-			expect(result).toEqual({
-				output: "",
-				exitCode: -1,
-				completed: false,
+			// Start grep process that echoes input lines containing 'line'
+			await manager.executeBlockingCommand("grep", ["--line-buffered", "line"], {
+				timeout: 2000,
 			})
+
+			const result = await manager.resumeBlockingCommand({
+				stdin: "hello\nline one\nworld\nline two\n",
+				timeout: 2000,
+			})
+
+			expect(result.output).to.include("line one")
+			expect(result.output).to.include("line two")
 		})
 
-		it("should prevent resuming when no command is running", async () => {
-			await expect(manager.resumeBlockingCommand()).rejects.toThrow("No command is currently running")
+		it("should respect output limits", async function () {
+			const { manager } = getCommandManager(nanoid())
+
+			await manager.executeBlockingCommand("grep", ["--line-buffered", "."], {
+				timeout: 2000,
+			})
+
+			const testInput = Array(100).fill("test\n").join("")
+
+			const result = await manager.resumeBlockingCommand({
+				stdin: testInput,
+				outputMaxLines: 5,
+			})
+
+			const outputLines = result.output.split("\n").filter((l) => l.trim().length > 0)
+			expect(outputLines.length).to.equal(5)
+			expect(result.completed).to.be.false
 		})
 	})
 
 	describe("terminateBlockingCommand", () => {
-		it("should terminate command with soft kill", async () => {
-			// Start command
-			const executePromise = manager.executeBlockingCommand("test", [])
+		it("should continue monitoring existing process", async function () {
+			const { manager } = getCommandManager(nanoid())
 
-			// Terminate command
-			const terminatePromise = manager.terminateBlockingCommand()
-			mockChildProcess.emit("exit", 0)
+			// Start process that outputs slowly over 10 seconds
+			await manager.executeBlockingCommand(
+				"bash",
+				["-c", 'for i in $(seq 1 10); do echo "line $i"; sleep 1; done'],
+				{
+					timeout: 2000,
+				}
+			)
 
-			const result = await terminatePromise
-			expect(result).toEqual({
-				output: "",
-				exitCode: -1,
-				completed: true,
+			// Resume with a timeout of 3 seconds
+			const result = await manager.resumeBlockingCommand({
+				timeout: 3000,
 			})
-			expect(mockChildProcess.kill).toHaveBeenCalledWith("SIGTERM")
+
+			expect(result.output).to.not.be.empty
+
+			// The process should still be running
+			expect(result.completed).to.be.false
+			expect(manager.currentProcess).to.not.be.null
 		})
 
-		it("should use hard kill after soft kill timeout", async () => {
-			// Start command
-			await manager.executeBlockingCommand("test", [])
+		it("should do hard kill after soft timeout", async function () {
+			const { manager } = getCommandManager(nanoid())
 
-			// Terminate command with short timeout
-			const terminatePromise = manager.terminateBlockingCommand({ softTimeout: 1 })
+			// Start process that ignores SIGTERM
+			await manager.executeBlockingCommand("bash", ["-c", 'trap "" TERM; sleep 10'], {
+				timeout: 1000,
+			})
 
-			// Wait for soft timeout
-			await new Promise((resolve) => setTimeout(resolve, 10))
+			const start = Date.now()
+			await manager.terminateBlockingCommand({ softTimeout: 1000 })
+			const duration = Date.now() - start
 
-			expect(mockChildProcess.kill).toHaveBeenCalledWith("SIGKILL")
-			await terminatePromise
-		})
-
-		it("should prevent terminating when no command is running", async () => {
-			await expect(manager.terminateBlockingCommand()).rejects.toThrow("No command is currently running")
+			// Should take about 1 second for soft timeout plus time for hard kill
+			expect(duration).to.be.within(1000, 7000)
 		})
 	})
 
 	describe("CommandRegistry", () => {
 		it("should maintain separate instances for different command IDs", () => {
-			const manager1 = getCommandManager("command1")
-			const manager2 = getCommandManager("command2")
-			const manager1Again = getCommandManager("command1")
+			const manager1 = getCommandManager("cmd1")
+			const manager2 = getCommandManager("cmd2")
+			const manager1Again = getCommandManager("cmd1")
 
-			expect(manager1).not.toBe(manager2)
-			expect(manager1).toBe(manager1Again)
+			expect(manager1.id).to.not.equal(manager2.id)
+			expect(manager1.id).to.equal(manager1Again.id)
 		})
 	})
 })

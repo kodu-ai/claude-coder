@@ -18,8 +18,8 @@ interface UpdateAskParams {
 	output?: string
 }
 
-export class DevServerTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class DevServerTool extends BaseAgentTool<"server_runner_tool"> {
+	protected params: AgentToolParams<"server_runner_tool">
 	private static readonly ERROR_PATTERNS = [
 		/error/i,
 		/EADDRINUSE/i,
@@ -60,7 +60,7 @@ export class DevServerTool extends BaseAgentTool {
 		/rollup/i,
 	]
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"server_runner_tool">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 	}

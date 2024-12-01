@@ -68,7 +68,7 @@ export class GlobalStateManager {
 
 			// Import and update prompt files
 			const promptFiles = {
-				"m-11-1-2024": () => import("../../../agent/v1/prompts/m-11-1-2024.prompt"),
+				"m-20-1-2024": () => import("../../../agent/v1/prompts/m-11-20-2024.prompt"),
 				"c-11-1-2024": () => import("../../../agent/v1/prompts/c-11-1-2024.prompt"),
 			}
 
@@ -103,7 +103,7 @@ export class GlobalStateManager {
 			await this.updateGlobalState("systemPromptVariants", variants)
 			// now check if the active system prompt variant is set and is valid otherwise set m-11-1-2024 as the active system prompt variant
 			if (!activeId || !variants.find((v) => v.id === activeId)) {
-				await this.updateGlobalState("activeSystemPromptVariantId", "m-11-1-2024")
+				await this.updateGlobalState("activeSystemPromptVariantId", "m-11-20-2024")
 			}
 		} catch (error) {
 			console.error("Error initializing system prompts:", error)

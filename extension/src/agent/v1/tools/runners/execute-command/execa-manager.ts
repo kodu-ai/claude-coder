@@ -1,18 +1,18 @@
-import { execa, type Options as ExecaOptions, type ExecaError } from "execa"
-import type { ChildProcess } from "child_process"
+import type { execa } from "execa"
+import { nanoid } from "nanoid"
 
-// Interfaces
 interface CommandOutput {
 	output: string
 	exitCode: number
 	completed: boolean
+	returnReason: "timeout" | "maxOutput" | "completed" | "terminated"
 }
 
 interface ExecuteOptions {
 	timeout?: number
 	outputMaxLines?: number
 	outputMaxTokens?: number
-	outputMaxBytes?: number
+	cwd?: string
 }
 
 interface ResumeOptions extends ExecuteOptions {
@@ -23,7 +23,224 @@ interface TerminateOptions {
 	softTimeout?: number
 }
 
-// Command Registry to maintain singleton instances for different command types
+type ExecuteCommand = {
+	(command: string, options?: ExecuteOptions): Promise<CommandOutput>
+	(command: string, args: string[], options?: ExecuteOptions): Promise<CommandOutput>
+}
+class CommandManager {
+	private _currentProcess: ReturnType<typeof execa> | null = null
+	private output: string = ""
+	private lastCheckpoint: number = 0
+
+	get currentProcess() {
+		return this._currentProcess
+	}
+
+	// Our main methods remain largely the same, but with improved stdin handling
+	executeBlockingCommand: ExecuteCommand = async (
+		command: string,
+		argsOrOptions?: string[] | ExecuteOptions,
+		maybeOptions?: ExecuteOptions
+	): Promise<CommandOutput> => {
+		// Determine if we're using the single string or array arguments format
+		let options: ExecuteOptions
+		let args: string[] = []
+
+		if (Array.isArray(argsOrOptions)) {
+			args = argsOrOptions
+			options = maybeOptions || {}
+		} else {
+			options = argsOrOptions || {}
+		}
+
+		if (this._currentProcess) {
+			throw new Error("A command is already running")
+		}
+
+		const { execa } = await import("execa")
+		this.output = ""
+		this.lastCheckpoint = 0
+
+		this._currentProcess = execa({
+			stdout: "pipe",
+			stderr: "pipe",
+			stdin: "pipe",
+			reject: false,
+			killSignal: "SIGTERM",
+			cwd: options.cwd,
+			shell: true,
+		})`${command}${args ? " " + args.join(" ") : ""}`
+		const result = await this.collectOutput(this._currentProcess, options)
+
+		if (result.completed) {
+			this._currentProcess = null
+		}
+		this.lastCheckpoint = this.output.length
+
+		return result
+	}
+	private collectOutput(
+		process: ReturnType<typeof execa>,
+		options: ExecuteOptions,
+		isResume: boolean = false
+	): Promise<CommandOutput> {
+		return new Promise((resolve) => {
+			let output = ""
+			let hasReturned = false
+
+			const onData = (data: Buffer) => {
+				const chunk = data.toString()
+				output += chunk
+				this.output += chunk
+
+				// Check limits only on new data
+				const lines = output.split("\n").filter((l) => l.length > 0)
+				if (options.outputMaxLines && lines.length >= options.outputMaxLines) {
+					returnEarly(lines.slice(0, options.outputMaxLines).join("\n"))
+				}
+				if (options.outputMaxTokens && output.length >= options.outputMaxTokens) {
+					returnEarly(output.slice(0, options.outputMaxTokens))
+				}
+			}
+
+			const returnEarly = (limitedOutput: string) => {
+				if (!hasReturned) {
+					hasReturned = true
+					cleanup()
+					resolve({
+						output: limitedOutput,
+						exitCode: -1,
+						completed: false,
+						returnReason: "maxOutput",
+					})
+				}
+			}
+
+			const cleanup = () => {
+				process.stdout?.removeListener("data", onData)
+				process.stderr?.removeListener("data", onData)
+				process.removeListener("exit", onExit)
+				if (timeoutId) {
+					clearTimeout(timeoutId)
+				}
+			}
+
+			process.stdout?.on("data", onData)
+			process.stderr?.on("data", onData)
+
+			const onExit = (code: number | null) => {
+				if (!hasReturned) {
+					hasReturned = true
+					cleanup()
+					resolve({
+						output: output,
+						exitCode: code ?? -1,
+						// Key change: Only mark as completed on natural exit AND not during resume
+						completed: !isResume && code !== null,
+						returnReason: code === null ? "timeout" : "completed",
+					})
+				}
+			}
+
+			process.once("exit", onExit)
+
+			const timeoutId = options.timeout ? setTimeout(() => returnEarly(output), options.timeout) : null
+		})
+	}
+
+	async resumeBlockingCommand(options: ResumeOptions = {}): Promise<CommandOutput> {
+		const process = this._currentProcess
+		if (!process) {
+			return {
+				output: this.output.slice(this.lastCheckpoint),
+				exitCode: -1,
+				completed: true,
+				returnReason: "completed",
+			}
+		}
+
+		// Improved stdin handling that properly sequences write operations
+		if (options.stdin && process.stdin && !process.stdin.destroyed) {
+			try {
+				// First ensure the stream is ready
+				await new Promise<void>((resolve) => {
+					if (process.stdin?.writable) {
+						resolve()
+					} else {
+						process.stdin?.once("ready", resolve)
+					}
+				})
+
+				// Then write the data in a non-blocking way
+				process.stdin.write(options.stdin)
+
+				// Finally end the stream
+				process.stdin.end()
+			} catch {
+				// Ignore write errors per spec
+			}
+		}
+
+		// Pass isResume=true to indicate this is a resume operation
+		const result = await this.collectOutput(process, options, true)
+		this.lastCheckpoint = this.output.length
+		return result
+	}
+
+	async terminateBlockingCommand(options: TerminateOptions = {}): Promise<CommandOutput> {
+		const process = this._currentProcess
+		if (!process) {
+			return {
+				output: this.output.slice(this.lastCheckpoint),
+				exitCode: -1,
+				completed: true,
+				returnReason: "completed",
+			}
+		}
+
+		// Start collecting output immediately
+		let finalOutput = ""
+		const onData = (data: Buffer) => {
+			finalOutput += data.toString()
+			this.output += data.toString()
+		}
+
+		process.stdout?.on("data", onData)
+		process.stderr?.on("data", onData)
+
+		// First try SIGTERM
+		process.kill("SIGTERM")
+
+		// Wait for process to exit or soft timeout
+		const exitCode = await Promise.race([
+			new Promise<number>((resolve) => {
+				process.once("exit", (code) => resolve(code ?? -1))
+			}),
+			new Promise<number>((resolve) => {
+				setTimeout(() => {
+					// If process is still running, send SIGKILL
+					if (!process.killed) {
+						process.kill("SIGKILL")
+					}
+					resolve(-1)
+				}, options.softTimeout || 3000)
+			}),
+		])
+
+		// Clean up
+		process.stdout?.removeListener("data", onData)
+		process.stderr?.removeListener("data", onData)
+		this._currentProcess = null
+		this.lastCheckpoint = this.output.length
+
+		return {
+			output: finalOutput,
+			exitCode,
+			completed: true,
+			returnReason: "terminated",
+		}
+	}
+}
 class CommandRegistry {
 	private static instance: CommandRegistry
 	private managers: Map<string, CommandManager> = new Map()
@@ -37,174 +254,32 @@ class CommandRegistry {
 		return CommandRegistry.instance
 	}
 
-	getManager(commandId: string): CommandManager {
+	getManager(commandId: string) {
 		if (!this.managers.has(commandId)) {
 			this.managers.set(commandId, new CommandManager())
 		}
-		return this.managers.get(commandId)!
+		return { manager: this.managers.get(commandId)!, id: commandId }
+	}
+
+	clearManager(commandId: string) {
+		this.managers.delete(commandId)
+	}
+
+	// For testing purposes
+	clearAll() {
+		this.managers.clear()
 	}
 }
 
-// Command Manager Class
-class CommandManager {
-	private currentProcess: ChildProcess | null = null
-	private outputBuffer: string = ""
-	private isRunning: boolean = false
-
-	private checkOutputLimits(output: string, maxLines?: number, maxTokens?: number, maxBytes?: number): boolean {
-		if (maxLines && output.split("\n").length >= maxLines) {
-			return true
-		}
-		if (maxTokens && output.length >= maxTokens) {
-			return true
-		}
-		if (maxBytes && Buffer.from(output).length >= maxBytes) {
-			return true
-		}
-		return false
-	}
-
-	async executeBlockingCommand(
-		command: string,
-		args: string[] = [],
-		options: ExecuteOptions = {}
-	): Promise<CommandOutput> {
-		if (this.isRunning) {
-			throw new Error("A command is already running")
-		}
-
-		const { timeout = 30000, outputMaxLines = 1000, outputMaxTokens = 10000, outputMaxBytes = 100000 } = options
-
-		this.outputBuffer = ""
-		this.isRunning = true
-
-		try {
-			const execaOptions: ExecaOptions = {
-				timeout,
-				buffer: false,
-			}
-
-			const execaProcess = execa(command, args, execaOptions)
-			this.currentProcess = execaProcess
-
-			if (!this.currentProcess) {
-				throw new Error("Failed to start process")
-			}
-
-			execaProcess.stdout?.on("data", (data: Buffer) => {
-				this.outputBuffer += data.toString()
-				if (this.checkOutputLimits(this.outputBuffer, outputMaxLines, outputMaxTokens, outputMaxBytes)) {
-					execaProcess.kill()
-				}
-			})
-
-			execaProcess.stderr?.on("data", (data: Buffer) => {
-				this.outputBuffer += data.toString()
-				if (this.checkOutputLimits(this.outputBuffer, outputMaxLines, outputMaxTokens, outputMaxBytes)) {
-					execaProcess.kill()
-				}
-			})
-
-			const result = await execaProcess
-			this.isRunning = false
-
-			return {
-				output: this.outputBuffer,
-				exitCode: result.exitCode ?? -1,
-				completed: true,
-			}
-		} catch (error) {
-			const execaError = error as ExecaError
-			if (execaError.timedOut) {
-				return {
-					output: this.outputBuffer,
-					exitCode: -1,
-					completed: false,
-				}
-			}
-			throw error
-		}
-	}
-
-	async resumeBlockingCommand(options: ResumeOptions = {}): Promise<CommandOutput> {
-		if (!this.isRunning || !this.currentProcess) {
-			throw new Error("No command is currently running")
-		}
-
-		const {
-			timeout = 30000,
-			stdin = "",
-			outputMaxLines = 1000,
-			outputMaxTokens = 10000,
-			outputMaxBytes = 100000,
-		} = options
-
-		if (stdin) {
-			this.currentProcess.stdin?.write(stdin)
-		}
-
-		type ExitResult = { exitCode: number }
-		type TimeoutResult = never
-
-		try {
-			const result = await Promise.race<ExitResult | TimeoutResult>([
-				new Promise<ExitResult>((resolve, reject) => {
-					this.currentProcess!.on("exit", (code) => {
-						resolve({ exitCode: code ?? -1 })
-					})
-					this.currentProcess!.on("error", reject)
-				}),
-				new Promise<TimeoutResult>((_, reject) => setTimeout(() => reject(new Error("Timeout")), timeout)),
-			])
-
-			this.isRunning = false
-			return {
-				output: this.outputBuffer,
-				exitCode: result.exitCode,
-				completed: true,
-			}
-		} catch (error) {
-			return {
-				output: this.outputBuffer,
-				exitCode: -1,
-				completed: false,
-			}
-		}
-	}
-
-	async terminateBlockingCommand(options: TerminateOptions = {}): Promise<CommandOutput> {
-		if (!this.currentProcess) {
-			throw new Error("No command is currently running")
-		}
-
-		const { softTimeout = 5000 } = options
-
-		try {
-			// Attempt soft kill first
-			this.currentProcess.kill("SIGTERM")
-
-			// Wait for the process to exit gracefully
-			await Promise.race([
-				new Promise<void>((resolve) => {
-					this.currentProcess!.on("exit", () => resolve())
-				}),
-				new Promise<void>((_, reject) => setTimeout(() => reject(new Error("Soft kill timeout")), softTimeout)),
-			])
-		} catch (error) {
-			// If soft kill fails, force kill
-			this.currentProcess.kill("SIGKILL")
-		}
-
-		this.isRunning = false
-		return {
-			output: this.outputBuffer,
-			exitCode: -1,
-			completed: true,
-		}
-	}
+export const getCommandManager = (commandId?: string) => {
+	const id = commandId ?? nanoid(8)
+	return CommandRegistry.getInstance().getManager(id)
 }
 
-// Example usage
-export const getCommandManager = (commandId: string): CommandManager => {
-	return CommandRegistry.getInstance().getManager(commandId)
+export const clearCommandRegistry = () => {
+	CommandRegistry.getInstance().clearAll()
+}
+
+export const clearCommandManager = (commandId: string) => {
+	CommandRegistry.getInstance().clearManager(commandId)
 }

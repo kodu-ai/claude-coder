@@ -3,10 +3,10 @@ import { formatToolResponse } from "../../utils"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
 
-export class AskFollowupQuestionTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class AskFollowupQuestionTool extends BaseAgentTool<"ask_followup_question"> {
+	protected params: AgentToolParams<"ask_followup_question">
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"ask_followup_question">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 	}

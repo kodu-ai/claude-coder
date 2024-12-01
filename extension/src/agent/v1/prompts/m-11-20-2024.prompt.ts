@@ -10,7 +10,7 @@ import {
 	NonTechnicalSystemPromptSection,
 } from "../system-prompt"
 import { getCwd } from "../utils"
-import { toolsPrompt } from "./m-11-18-tools.prompt"
+import { toolsPrompt } from "./m-11-20-tools.prompt"
 
 export const BASE_SYSTEM_PROMPT = async (
 	cwd: string,

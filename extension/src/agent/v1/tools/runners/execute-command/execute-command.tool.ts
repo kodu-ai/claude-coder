@@ -1,13 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk"
 import delay from "delay"
 import { serializeError } from "serialize-error"
-import { AdvancedTerminalManager } from "../../../../../integrations/terminal"
 import { getCwd } from "../../../utils"
 import { BaseAgentTool } from "../../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../../types"
-import { ExecaTerminalManager } from "../../../../../integrations/terminal/execa-terminal-manager"
-import { TerminalProcessResultPromise } from "../../../../../integrations/terminal/terminal-manager"
-
+import { getCommandManager } from "./execa-manager"
 import { GlobalStateManager } from "../../../../../providers/claude-coder/state/GlobalStateManager"
 
 const COMMAND_TIMEOUT = 90 // 90 seconds
@@ -20,18 +17,28 @@ right now the command has been executed but the output cannot be read, unless th
 currently can only run commands without output, to run commands with output the user must enable shell integration tell the user to enable shell integration to run commands with output.
 `
 
-export class ExecuteCommandTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
+	protected params: AgentToolParams<"execute_command">
 	private output: string = ""
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"execute_command">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 	}
 
 	override async execute() {
-		const { input, say } = this.params
-		const { command } = input as { command?: string }
+		const {
+			input: { command, type, id, stdin },
+			say,
+		} = this.params
+
+		if (type === "resume_blocking_command") {
+			return this.resumeBlockingCommand()
+		}
+
+		if (type === "terminate_blocking_command") {
+			return this.terminateBlockingCommand()
+		}
 
 		if (!command?.trim()) {
 			await say(
@@ -47,18 +54,286 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		return this.executeShellTerminal(command)
 	}
 
-	private isApprovedState(state: EarlyExitState): state is "approved" {
-		return state === "approved"
+	private async resumeBlockingCommand() {
+		if (!this.paramsInput.id) {
+			this.logger(
+				"Missing id parameter when resuming blocking command you must provide the id of the command to resume.",
+				"error"
+			)
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						approvalState: "error",
+						ts: this.ts,
+						command: "",
+					},
+				},
+				this.ts
+			)
+			return this.toolResponse(
+				"error",
+				"Missing id parameter when resuming blocking command you must provide the id of the command to resume."
+			)
+		}
+		const timeout = GlobalStateManager.getInstance().getGlobalState("commandTimeout") ?? COMMAND_TIMEOUT
+
+		const { manager } = getCommandManager(this.paramsInput.id)
+		if (!manager) {
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						approvalState: "error",
+						ts: this.ts,
+						command: "",
+					},
+				},
+				this.ts
+			)
+			this.logger("No manager found for the provided id when resuming blocking command.", "error")
+			return this.toolResponse("error", "No manager found for the provided id when resuming blocking command.")
+		}
+		try {
+			const { response, text, images } = await this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						approvalState: "pending",
+						ts: this.ts,
+						command: "",
+					},
+				},
+				this.ts
+			)
+			if (response !== "yesButtonTapped") {
+				if (response === "messageResponse") {
+					await this.params.updateAsk(
+						"tool",
+						{
+							tool: {
+								tool: "execute_command",
+								approvalState: "rejected",
+								ts: this.ts,
+								command: "",
+								userFeedback: text,
+							},
+						},
+						this.ts
+					)
+					await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
+					return this.toolResponse("feedback", text, images)
+				}
+				this.params.updateAsk(
+					"tool",
+					{
+						tool: {
+							tool: "execute_command",
+							approvalState: "rejected",
+							ts: this.ts,
+							command: "",
+						},
+					},
+					this.ts
+				)
+				return this.toolResponse("rejected", this.formatToolDenied())
+			}
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						approvalState: "loading",
+						ts: this.ts,
+						command: "",
+					},
+				},
+				this.ts
+			)
+
+			const command = await manager.resumeBlockingCommand({
+				cwd: getCwd(),
+				outputMaxLines: this.paramsInput.outputMaxLines,
+				outputMaxTokens: this.paramsInput.outputMaxTokens,
+				timeout,
+			})
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						approvalState: "approved",
+						ts: this.ts,
+						command: "",
+						output: command.output,
+					},
+				},
+				this.ts
+			)
+
+			return this.toolResponse(
+				"success",
+				`
+				<output>${command.output}</output>
+				<exitCode>${command.exitCode}</exitCode>
+				<completed>${command.completed}</completed>
+				<returnReason>${command.returnReason}</returnReason>
+				<hint>
+				${command.exitCode === 0 ? "" : "The command exited with a non-zero exit code."}
+				${command.output.trim() ? "" : "The command did not produce any output."}
+				${command.returnReason === "timeout" ? `The command took longer than ${timeout / 1000} seconds to complete.` : ""}
+				${
+					command.returnReason === "maxOutput"
+						? `The command has outputted more than the maximum allowed output to get the full output please use the resume_blocking_command tool with the id ${this.paramsInput.id}.`
+						: ""
+				}
+				${command.returnReason === "completed" ? "The command has completed successfully." : ""}
+				</hint>
+				<id>${this.paramsInput.id}</id>
+				`
+			)
+		} catch (error) {
+			this.logger("Error resuming blocking command.", "error")
+			return this.toolResponse(
+				"error",
+				"Error resuming blocking command, the command is probably not running anymore."
+			)
+		}
+	}
+
+	private async terminateBlockingCommand() {
+		if (!this.paramsInput.id) {
+			this.logger(
+				"Missing id parameter when terminating blocking command you must provide the id of the command to terminate.",
+				"error"
+			)
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						approvalState: "error",
+						ts: this.ts,
+						command: "",
+					},
+				},
+				this.ts
+			)
+			return this.toolResponse(
+				"error",
+				"Missing id parameter when terminating blocking command you must provide the id of the command to terminate."
+			)
+		}
+		const { manager } = getCommandManager(this.paramsInput.id)
+		if (!manager) {
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						approvalState: "error",
+						ts: this.ts,
+						command: "",
+					},
+				},
+				this.ts
+			)
+			this.logger("No manager found for the provided id when terminating blocking command.", "error")
+			return this.toolResponse("error", "No manager found for the provided id when terminating blocking command.")
+		}
+		try {
+			const { response, text, images } = await this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						approvalState: "pending",
+						ts: this.ts,
+						command: "",
+					},
+				},
+				this.ts
+			)
+			if (response !== "yesButtonTapped") {
+				if (response === "messageResponse") {
+					await this.params.updateAsk(
+						"tool",
+						{
+							tool: {
+								tool: "execute_command",
+								approvalState: "rejected",
+								ts: this.ts,
+								command: "",
+								userFeedback: text,
+							},
+						},
+						this.ts
+					)
+					await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
+					return this.toolResponse("feedback", text, images)
+				}
+				this.params.updateAsk(
+					"tool",
+					{
+						tool: {
+							tool: "execute_command",
+							approvalState: "rejected",
+							ts: this.ts,
+							command: "",
+						},
+					},
+					this.ts
+				)
+				return this.toolResponse("rejected", this.formatToolDenied())
+			}
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						approvalState: "loading",
+						ts: this.ts,
+						command: "",
+					},
+				},
+				this.ts
+			)
+			const res = await manager.terminateBlockingCommand({
+				softTimeout: this.paramsInput.softTimeout,
+			})
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "execute_command",
+						approvalState: "approved",
+						ts: this.ts,
+						command: "",
+					},
+				},
+				this.ts
+			)
+			return this.toolResponse(
+				"success",
+				`
+				<terminated>true</terminated>
+				<completed>${res.completed}</completed>
+				<output>${res.output}</output>
+				<id>${this.paramsInput.id}</id>
+				<exitCode>${res.exitCode}</exitCode>
+				`
+			)
+		} catch (error) {
+			this.logger("Error terminating blocking command.", "error")
+			return this.toolResponse("error", "Error terminating blocking command.")
+		}
 	}
 
 	private async executeShellTerminal(command: string) {
-		const { terminalManager } = this.koduDev
-		if (!(terminalManager instanceof AdvancedTerminalManager)) {
-			throw new Error("AdvancedTerminalManager is not available")
-		}
-
 		const { ask, updateAsk, say, returnEmptyStringOnSuccess } = this.params
-		const cwd = getCwd()
 
 		// Initial approval request
 		const { response, text, images } = await ask(
@@ -126,105 +401,21 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			this.ts
 		)
 
-		let process: TerminalProcessResultPromise | null = null
-
-		const terminalInfo = await terminalManager.getOrCreateTerminal(this.cwd)
-		terminalInfo.terminal.show()
-
-		process = terminalManager.runCommand(terminalInfo, command, {
-			autoClose: this.koduDev.getStateManager().autoCloseTerminal ?? false,
-		})
-
-		if (!process) {
-			throw new Error("Failed to create terminal process after retries")
-		}
-
-		let userFeedback: { text?: string; images?: string[] } | undefined
-		let didContinue = false
-		let earlyExit: EarlyExitState = "pending"
-
-		let completed = false
-		let shellIntegrationWarningShown = false
-
 		try {
-			const completionPromise = new Promise<void>((resolve) => {
-				process!.once("completed", () => {
-					earlyExit = "approved"
-					completed = true
-					resolve()
-				})
-				process.once("no_shell_integration", async () => {
-					await say("shell_integration_warning")
-					await updateAsk(
-						"tool",
-						{
-							tool: {
-								tool: "execute_command",
-								command,
-								output: this.output,
-								approvalState: "error",
-								ts: this.ts,
-								error: "Shell integration is not available, cannot read output.",
-								earlyExit: undefined,
-								isSubMsg: this.params.isSubMsg,
-							},
-						},
-						this.ts
-					)
-					shellIntegrationWarningShown = true
-					completed = true
-					earlyExit = "approved"
-					resolve()
-				})
-			})
-			process.on("line", async (line) => {
-				const cleanedLine = line
-				if (cleanedLine) {
-					this.output += cleanedLine + "\n"
-					if (!didContinue || this.isApprovedState(earlyExit)) {
-						try {
-							await updateAsk(
-								"tool",
-								{
-									tool: {
-										tool: "execute_command",
-										command,
-										output: this.output,
-										approvalState: "loading",
-										ts: this.ts,
-										earlyExit,
-										isSubMsg: this.params.isSubMsg,
-									},
-								},
-								this.ts
-							)
-						} catch (error) {
-							console.error("Failed to update output:", error)
-						}
-					}
-				}
-			})
-			process.on("error", async (error) => {
-				console.log(`Error in process: ${error}`)
-			})
+			const { manager: commandManager, id } = getCommandManager()
 
 			const timeout = GlobalStateManager.getInstance().getGlobalState("commandTimeout")
 			const commandTimeout = (timeout ?? COMMAND_TIMEOUT) * 1000
-			// Wait for either completion or timeout
-			await Promise.race([
-				completionPromise,
-				delay(commandTimeout).then(() => {
-					if (!completed) {
-						console.log("Command timed out after", commandTimeout, "ms")
-					}
-				}),
-			])
 
-			// Ensure all output is processed
-			await delay(300)
-			if (shellIntegrationWarningShown) {
-				return this.toolResponse("error", shellIntegrationErrorOutput)
-			}
+			const result = await commandManager.executeBlockingCommand(command, {
+				timeout: commandTimeout,
+				cwd: getCwd(),
+				outputMaxLines: this.paramsInput.outputMaxLines,
+				outputMaxTokens: this.paramsInput.outputMaxTokens,
+			})
+			this.logger(`JSON.stringify(result): ${JSON.stringify(result)}`, "info")
+
+			this.output = result.output
 
 			await updateAsk(
 				"tool",
@@ -235,52 +426,36 @@ export class ExecuteCommandTool extends BaseAgentTool {
 						output: this.output,
 						approvalState: "approved",
 						ts: this.ts,
-						earlyExit,
 						isSubMsg: this.params.isSubMsg,
 					},
 				},
 				this.ts
 			)
 
-			let toolRes = "The command has been executed."
-			if (completed) {
-				toolRes = "Command execution completed successfully."
-			}
-
-			if ((userFeedback?.text && userFeedback.text.length) || userFeedback?.images?.length) {
-				toolRes += `\n\nUser feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
-				await this.params.updateAsk(
-					"tool",
-					{
-						tool: {
-							tool: "execute_command",
-							command,
-							output: this.output,
-							approvalState: "approved",
-							ts: this.ts,
-							earlyExit,
-							userFeedback: userFeedback.text,
-							isSubMsg: this.params.isSubMsg,
-						},
-					},
-					this.ts
-				)
-			}
-
-			if (returnEmptyStringOnSuccess) {
-				return this.toolResponse("success", "No output")
-			}
-
-			if (completed) {
-				toolRes += `\n\nOutput:\n<output>\n${this.output || "No output"}\n</output>`
-			} else {
-				toolRes += `\n\nPartial output available:\n<output>\n${this.output || "No output"}\n</output>`
-			}
-
-			return await this.toolResponse("success", toolRes, userFeedback?.images)
+			return this.toolResponse(
+				"success",
+				`
+				<output>${this.output}</output>
+				<completed>${result.completed}</completed>
+				<id>${id}</id>
+				<exitCode>${result.exitCode}</exitCode>
+				<returnReason>${result.returnReason}</returnReason>
+				<hint>
+				${result.exitCode === 0 ? "" : "The command exited with a non-zero exit code."}
+				${result.output.trim() ? "" : "The command did not produce any output."}
+				${result.returnReason === "timeout" ? `The command took longer than ${commandTimeout / 1000} seconds to complete.` : ""}
+				${
+					result.returnReason === "maxOutput"
+						? `The command has outputted more than the maximum allowed output to get the full output please use the resume_blocking_command tool with the id ${id}.`
+						: ""
+				}
+				${result.returnReason === "completed" ? "The command has completed successfully." : ""}
+				</hint>
+				`
+			)
 		} catch (error) {
 			const errorMessage = (error as Error)?.message || JSON.stringify(serializeError(error), null, 2)
-			updateAsk(
+			await updateAsk(
 				"tool",
 				{
 					tool: {
@@ -289,7 +464,6 @@ export class ExecuteCommandTool extends BaseAgentTool {
 						output: errorMessage,
 						approvalState: "error",
 						ts: this.ts,
-						earlyExit: undefined,
 						isSubMsg: this.params.isSubMsg,
 					},
 				},

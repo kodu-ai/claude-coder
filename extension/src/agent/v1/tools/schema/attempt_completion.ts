@@ -58,6 +58,8 @@ const examples = [
 </tool>`,
 ]
 
+export type AttemptCompletionParams = z.infer<typeof schema>
+
 export const attemptCompletionTool = {
 	schema: {
 		name: "attempt_completion",

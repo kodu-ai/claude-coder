@@ -76,6 +76,8 @@ const examples = [
 </tool>`,
 ]
 
+export type WebSearchParams = z.infer<typeof schema>
+
 export const webSearchTool = {
 	schema: {
 		name: "web_search",

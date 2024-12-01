@@ -176,6 +176,8 @@ from hello import hello
 </write_to_file>`,
 ]
 
+export type WriteToFileParams = z.infer<typeof schema>
+
 export const writeToFileTool = {
 	schema: {
 		name: "write_to_file",

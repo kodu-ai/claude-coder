@@ -9,12 +9,12 @@ import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from 
 import Anthropic from "@anthropic-ai/sdk"
 import { ChatTool } from "../../../../shared/new-tools"
 
-export class UrlScreenshotTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class UrlScreenshotTool extends BaseAgentTool<"url_screenshot"> {
+	protected params: AgentToolParams<"url_screenshot">
 	private abortController: AbortController
 	private isAborting: boolean = false
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"url_screenshot">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 		this.abortController = new AbortController()

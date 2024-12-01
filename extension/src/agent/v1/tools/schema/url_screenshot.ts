@@ -44,6 +44,8 @@ const examples = [
 </tool>`,
 ]
 
+export type UrlScreenshotParams = z.infer<typeof schema>
+
 export const urlScreenshotTool = {
 	schema: {
 		name: "url_screenshot",

@@ -8,10 +8,10 @@ import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AskDetails } from "../../task-executor/utils"
 
-export class ListFilesTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class ListFilesTool extends BaseAgentTool<"list_files"> {
+	protected params: AgentToolParams<"list_files">
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"list_files">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 	}

@@ -8,10 +8,10 @@ import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
 
-export class ListCodeDefinitionNamesTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class ListCodeDefinitionNamesTool extends BaseAgentTool<"list_code_definition_names"> {
+	protected params: AgentToolParams<"list_code_definition_names">
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"list_code_definition_names">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 	}

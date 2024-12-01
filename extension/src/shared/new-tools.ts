@@ -115,11 +115,6 @@ export type EditFileBlocks = {
 	kodu_diff: string
 }
 
-export type EditFileBlocksTool = {
-	tool: "edit_file_blocks"
-	diff: string
-}
-
 export type ComputerUseTool = {
 	tool: "computer_use"
 	action: ComputerUseAction
@@ -130,7 +125,6 @@ export type ComputerUseTool = {
 }
 
 export type ChatTool = (
-	| EditFileBlocksTool
 	| ExecuteCommandTool
 	| ListFilesTool
 	| ListCodeDefinitionNamesTool

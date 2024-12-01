@@ -1,10 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { KoduDev } from ".."
-import { ToolResponse, ToolResponseV2 } from "../types"
-import { AgentToolOptions, AgentToolParams } from "./types"
+import { ToolName, ToolResponse, ToolResponseV2 } from "../types"
+import { AgentToolOptions, AgentToolParams, ToolInput, ToolNames } from "./types"
 import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "../utils"
 
-export abstract class BaseAgentTool {
+// Make the class generic with ToolInputForName type parameter
+
+type ToolInputForName<T extends ToolNames> = Extract<ToolInput, { name: T }>
+
+export abstract class BaseAgentTool<TName extends ToolNames> {
 	protected cwd: string
 	protected alwaysAllowReadOnly: boolean
 	protected alwaysAllowWriteOnly: boolean
@@ -12,7 +16,16 @@ export abstract class BaseAgentTool {
 	protected isAbortingTool: boolean = false
 	protected setRunningProcessId: (pid: number | undefined) => void
 
-	protected abstract params: AgentToolParams
+	// Update params to use the generic type
+	protected abstract params: {
+		name: string
+		id: string
+		input: ToolInputForName<TName>
+		ts: number
+		isSubMsg?: boolean
+		isLastWriteToFile: boolean
+		isFinal?: boolean
+	}
 
 	constructor(options: AgentToolOptions) {
 		this.cwd = options.cwd
@@ -32,21 +45,33 @@ export abstract class BaseAgentTool {
 		return this.params.ts
 	}
 
-	get paramsInput(): AgentToolParams["input"] {
+	get paramsInput(): ToolInputForName<TName> {
 		return this.params.input
 	}
 
-	get toolParams(): AgentToolParams {
-		return this.params
+	get toolParams() {
+		return {
+			...this.params,
+			input: this.paramsInput,
+		}
 	}
 
 	get isFinal(): boolean {
 		return this.params.isFinal ?? false
 	}
 
-	abstract execute(params: AgentToolParams): Promise<ToolResponseV2>
+	// Update execute method to use the generic type
+	abstract execute(params: {
+		name: string
+		id: string
+		input: ToolInputForName<TName>
+		ts: number
+		isSubMsg?: boolean
+		isLastWriteToFile: boolean
+		isFinal?: boolean
+	}): Promise<ToolResponseV2>
 
-	public updateParams(input: AgentToolParams["input"]) {
+	public updateParams(input: ToolInputForName<TName>) {
 		this.params.input = input
 	}
 

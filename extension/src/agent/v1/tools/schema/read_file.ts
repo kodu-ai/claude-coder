@@ -45,6 +45,8 @@ const examples = [
 </tool>`,
 ]
 
+export type ReadFileParams = z.infer<typeof schema>
+
 export const readFileTool = {
 	schema: {
 		name: "read_file",

@@ -2,11 +2,12 @@
 	"extends": "./tsconfig.json",
 	"compilerOptions": {
 		"module": "commonjs",
-		"moduleResolution": "node",
+		"moduleResolution": "node16",
 		"outDir": "./out/test",
 		"noEmit": false,
 		"types": ["vscode", "mocha"],
-		"allowSyntheticDefaultImports": true
+		"allowSyntheticDefaultImports": true,
+		"esModuleInterop": true
 	},
 	"include": ["src/test/**/*"]
 }

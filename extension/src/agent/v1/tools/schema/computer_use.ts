@@ -55,6 +55,8 @@ const examples = [
 </tool>`,
 ]
 
+export type ComputerUseParams = z.infer<typeof schema>
+
 export const computerUseTool = {
 	schema: {
 		name: "computer_use",
