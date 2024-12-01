@@ -8,6 +8,13 @@
       "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
       "outFiles": ["${workspaceFolder}/extension/dist/**/*.js"],
       "preLaunchTask": "Run All"
+    },
+    {
+      "type": "extensionHost",
+      "request": "launch",
+      "name": "My extension tests",
+      "testConfiguration": "${workspaceFolder}/extension/.vscode-test.mjs",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}/extension"]
     }
   ],
   "compounds": [

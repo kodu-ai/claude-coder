@@ -3,7 +3,7 @@ import { ToolName } from "../../../../shared/Tool"
 import { ClaudeAskResponse } from "../../../../shared/WebviewMessage"
 import { KoduDev } from "../.."
 import { TaskExecutorUtils } from "../../task-executor/utils"
-import { ServerRunnerTool } from "../../../../shared/new-tools"
+import { ComputerUseAction, ServerRunnerTool } from "../../../../shared/new-tools"
 
 export type UpsertMemoryInput = {
 	milestoneName: string
@@ -33,6 +33,9 @@ export type ToolInput = {
 	browserModel?: "smart" | "fast"
 	browserMode?: "api_docs" | "generic"
 	url?: string
+	action?: ComputerUseAction
+	coordinate?: string
+	text?: string
 }
 
 type DevServerToolParams = {

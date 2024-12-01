@@ -1,0 +1,34 @@
+SEARCH
+:: Install/Update Python dependencies
+echo Installing Python dependencies...
+set "PYTHONPATH=%CD%;%PYTHONPATH%"
+for /f %%i in ('python -c "import sys; sys.path.insert(0, r'%CD%'.replace('\', '/')); from utils.fs_utils import FSUtils; print(FSUtils.get_python_command())"') do set PYTHON_CMD=%%i
+if errorlevel 1 (
+    echo Error: Could not determine Python command
+    echo Please ensure Python 3.9+ is installed and in your PATH
+    set "ERROR_OCCURRED=1"
+    goto :error
+)
+%PYTHON_CMD% -m pip install -r requirements.txt --user
+if errorlevel 1 (
+    echo Error: Python dependencies installation failed
+    set "ERROR_OCCURRED=1"
+    goto :error
+)
+
+%PYTHON_CMD% -m pip install -U aider-chat --user
+=======
+REPLACE
+:: Install/Update Python dependencies
+echo Installing Python dependencies...
+
+:: Install requirements
+python -m pip install -r requirements.txt --user
+if errorlevel 1 (
+    echo Error: Python dependencies installation failed
+    set "ERROR_OCCURRED=1"
+    goto :error
+)
+
+:: Install/Update aider-chat
+python -m pip install -U aider-chat --user

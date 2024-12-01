@@ -13,6 +13,7 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+!dist/codicons/**
 
 
 

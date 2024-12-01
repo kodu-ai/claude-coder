@@ -9,6 +9,7 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Code,
+	Computer,
 	Edit,
 	FileText,
 	FolderTree,
@@ -32,6 +33,7 @@ import {
 	AskFollowupQuestionTool,
 	AttemptCompletionTool,
 	ChatTool,
+	ComputerUseTool,
 	ExecuteCommandTool,
 	ListCodeDefinitionNamesTool,
 	ListFilesTool,
@@ -703,6 +705,43 @@ export const AskConsultantBlock: React.FC<AskConsultantTool & ToolAddons> = ({
 	</ToolBlock>
 )
 
+export const ComputerUseBlock: React.FC<ComputerUseTool & ToolAddons> = ({
+	action,
+	url,
+	base64Image,
+	approvalState,
+	onApprove,
+	onReject,
+	tool,
+	ts,
+	...rest
+}) => (
+	<ToolBlock
+		{...rest}
+		ts={ts}
+		tool={tool}
+		icon={Computer}
+		title="Computer Use"
+		variant="accent"
+		approvalState={approvalState}
+		onApprove={onApprove}
+		onReject={onReject}>
+		<p className="text-xs">
+			<span className="font-semibold">Action:</span> {action}
+		</p>
+		{url && (
+			<p className="text-xs">
+				<span className="font-semibold">URL:</span> {url}
+			</p>
+		)}
+		{base64Image && (
+			<div className="bg-muted rounded-md mt-2 text-xs w-full max-h-40 overflow-auto">
+				<img src={base64Image} alt="Computer Use" />
+			</div>
+		)}
+	</ToolBlock>
+)
+
 export const ToolContentBlock: React.FC<{
 	tool: ChatTool & {
 		onApprove?: () => void
@@ -748,7 +787,8 @@ export const ToolContentBlock: React.FC<{
 			return <UrlScreenshotBlock {...tool} />
 		case "ask_consultant":
 			return <AskConsultantBlock {...tool} />
-
+		case "computer_use":
+			return <ComputerUseBlock {...tool} />
 		case "server_runner_tool":
 			return <DevServerToolBlock {...tool} />
 		default:

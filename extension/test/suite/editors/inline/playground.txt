@@ -1,0 +1,139 @@
+import { Anthropic } from "@anthropic-ai/sdk"
+import { compressToolFromMsg } from "../shared/format-tools"
+
+// Constants for better maintainability
+const MIN_MESSAGES_TO_KEEP = 6 // Increased for better context retention
+const RECENT_MESSAGES_TO_PRESERVE = 8
+const IMAGE_TOKEN_ESTIMATE = 2000
+const CHARS_PER_TOKEN_ESTIMATE = 3
+
+export const isTextBlock = (block: any): block is Anthropic.TextBlockParam => {
+	if (!block || typeof block !== "object") return false
+	return block.type === "text"
+}
+
+export const isImageBlock = (block: any): block is Anthropic.ImageBlockParam => {
+	if (!block || typeof block !== "object") return false
+	return block.type === "image"
+}
+tttttttttttttttttttttttttttttttttttttttttttttttt
+export function truncateHalfConversation(
+	messages: Anthropic.Messages.MessageParam[]
+): Anthropic.Messages.MessageParam[] {
+	try {
+		if (!Array.isArray(messages) || messages.length < MIN_MESSAGES_TO_KEEP) {
+			return messages
+		}
+
+		if (!messages[0]) {
+			console.warn('First message is missing from conversation')
+			return messages
+		}
+
+		const firstMessage = messages[0]s.slice(messagePairsToRemove + 1)
+
+	return [firstMessage, ...remainingMessages]
+}
+
+/**
+ * Truncates tool calls except for the most recent messages
+ * @param messages Array of message parameters
+ * @returns Compressed messages array
+ */
+export function smartTruncation(messages: Anthropic.Messages.MessageParam[]): Anthropic.Messages.MessageParam[] {
+	if (!Array.isArray(messages) || messages.length === 0) {
+		return messages
+	}
+
+	return messages.map((msg, index) => {
+		if (index >= messages.length - RECENT_MESSAGES_TO_PRESERVE) {
+			return msg
+		}
+
+		// Handle message content
+		if (!msg.content) {
+			return msg
+		}
+
+		// If content is a string, wrap it in a text block
+		if (typeof msg.content === "string") {
+			return {
+				...msg,
+				content: [
+					{
+						type: "text",
+						text: msg.content,
+					},
+				],
+			}
+		}
+
+		// If content is an array, process each block
+		if (Array.isArray(msg.content)) {
+			// @ts-expect-error - correctly infers that msg is a MessageParam
+			const truncatedContent = compressToolFromMsg(msg.content)
+			// Only update if truncation produced different content
+			if (truncatedContent.length > 0) {
+				return {
+					...msg,
+					content: truncatedContent,
+				}
+			}
+		}
+
+		return msg
+	})
+}
+
+/**
+ * Self critque ContextManager, it takes the messages and run them again to generate a self critique and summary of the tool calls and changes
+ * @param messages Array of message parameters
+ * @returns string with the self critique and summary
+ */
+export function selfCritiqueManager(messages: Anthropic.Messages.MessageParam[]): string {
+	if (!Array.isArray(messages) || messages.length === 0) {
+		return "No messages to analyze"
+	}
+
+	let toolCalls = 0
+	let fileChanges = 0
+	let summary = []
+
+	messages.forEach(msg => {
+		if (typeof msg.content === "object" && Array.isArray(msg.content)) {
+			msg.content.forEach(block => {
+				if (isTextBlock(block)) {
+					const text = block.text.toLowerCase()
+					if (text.includes("write_to_file") || text.includes("edit_file_blocks")) {
+						fileChanges++
+					}
+					if (text.includes("<tool>") || text.includes("</tool>")) {
+						toolCalls++
+					}
+				}
+			})
+		}
+	})
+
+	summary.push(`Total tool calls: ${toolCalls}`)
+	summary.push(`Total file changes: ${fileChanges}`)
+	summary.push(`Message count: ${messages.length}`)
+
+	return summary.join('\n')
+}	return textTokens + imageTokens
+	} catch (error) {
+		console.error("Error estimating token count:", error)
+		return 0
+	}
+}
+
+/**
+ * Estimates total token count from an array of messages
+ * @param messages Array of messages to estimate tokens for
+ * @returns Total estimated token count
+ */
+export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.MessageParam[]): number => {
+	if (!Array.isArray(messages)) return 0
+
+	return messages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
+}

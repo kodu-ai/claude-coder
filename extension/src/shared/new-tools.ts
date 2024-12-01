@@ -110,7 +110,27 @@ export type SummarizeChatTool = {
 	output?: string
 }
 
+export type EditFileBlocks = {
+	tool: "edit_file_blocks"
+	kodu_diff: string
+}
+
+export type EditFileBlocksTool = {
+	tool: "edit_file_blocks"
+	diff: string
+}
+
+export type ComputerUseTool = {
+	tool: "computer_use"
+	action: ComputerUseAction
+	url?: string
+	base64Image?: string
+	coordinate?: string
+	text?: string
+}
+
 export type ChatTool = (
+	| EditFileBlocksTool
 	| ExecuteCommandTool
 	| ListFilesTool
 	| ListCodeDefinitionNamesTool
@@ -123,6 +143,8 @@ export type ChatTool = (
 	| UrlScreenshotTool
 	| AskConsultantTool
 	| ServerRunnerTool
+	| EditFileBlocks
+	| ComputerUseTool
 ) & {
 	ts: number
 	approvalState?: ToolStatus
@@ -135,3 +157,16 @@ export type ChatTool = (
 }
 
 export type ToolName = ChatTool["tool"]
+
+export const computerUseActions = [
+	"launch",
+	"system_screenshot",
+	"click",
+	"type",
+	"scroll_down",
+	"scroll_up",
+	"close",
+] as const
+
+export type ComputerUseAction = (typeof computerUseActions)[number]
+export type BrowserAction = Exclude<ComputerUseAction, "system_screenshot">

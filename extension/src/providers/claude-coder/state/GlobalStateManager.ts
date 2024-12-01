@@ -17,6 +17,7 @@ type CreativeMode = "creative" | "normal" | "deterministic"
 export type GlobalState = {
 	user: User | undefined | null
 	maxRequestsPerTask: number | undefined
+	terminalCompressionThreshold: number | undefined
 	lastShownAnnouncementId: string | undefined
 	customInstructions: string | undefined
 	isAdvanceThinkingEnabled: boolean | undefined
@@ -26,6 +27,7 @@ export type GlobalState = {
 	useUdiff: boolean | undefined
 	alwaysAllowReadOnly: boolean | undefined
 	alwaysAllowWriteOnly: boolean | undefined
+	inlineEditOutputType?: "full" | "diff" | "none"
 	autoSummarize: boolean | undefined
 	taskHistory: HistoryItem[] | undefined
 	shouldShowKoduPromo: boolean | undefined
@@ -37,6 +39,7 @@ export type GlobalState = {
 	technicalBackground: "no-technical" | "technical" | "developer" | undefined
 	systemPromptVariants: SystemPromptVariant[] | undefined
 	activeSystemPromptVariantId: string | undefined
+	commandTimeout: number | undefined
 }
 
 export class GlobalStateManager {
@@ -124,7 +127,9 @@ export class GlobalStateManager {
 	getActiveSystemPrompt(): string | undefined {
 		const variants = this.getGlobalState("systemPromptVariants")
 		const activeId = this.getGlobalState("activeSystemPromptVariantId")
-		if (!variants || !activeId) return undefined
+		if (!variants || !activeId) {
+			return undefined
+		}
 
 		const activeVariant = variants.find((v) => v.id === activeId)
 		return activeVariant?.content

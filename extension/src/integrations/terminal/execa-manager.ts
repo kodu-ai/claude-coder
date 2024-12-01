@@ -236,8 +236,8 @@ export class TerminalManager {
 	async getOrCreateTerminal(cwd: string, name?: string): Promise<TerminalInfo> {
 		// Find available terminal
 		const availableTerminal = TerminalRegistry.getAllTerminals().find((t) => {
-			if (t.busy) return false
-			if (name && t.name === name) return true
+			if (t.busy) {return false}
+			if (name && t.name === name) {return true}
 			return arePathsEqual(t.cwd, cwd)
 		})
 
@@ -259,19 +259,19 @@ export class TerminalManager {
 	}
 
 	getUnretrievedOutput(terminalId: number, updateRetrievedIndex: boolean = true): string {
-		if (!this.terminalIds.has(terminalId)) return ""
+		if (!this.terminalIds.has(terminalId)) {return ""}
 		const process = this.processes.get(terminalId)
 		return process ? process.getUnretrievedOutput(updateRetrievedIndex) : ""
 	}
 
 	getPartialOutput(terminalId: number, fromLineIndex: number, toLineIndex?: number): string {
-		if (!this.terminalIds.has(terminalId)) return ""
+		if (!this.terminalIds.has(terminalId)) {return ""}
 		const process = this.processes.get(terminalId)
 		return process ? process.getOutput(fromLineIndex, toLineIndex).join("\n") : ""
 	}
 
 	getFullOutput(terminalId: number): string {
-		if (!this.terminalIds.has(terminalId)) return ""
+		if (!this.terminalIds.has(terminalId)) {return ""}
 		const process = this.processes.get(terminalId)
 		return process ? process.getFullOutput().join("\n") : ""
 	}

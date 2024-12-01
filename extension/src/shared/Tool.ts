@@ -14,6 +14,8 @@ export type ToolName =
 	| "ask_consultant"
 	| "update_file"
 	| "upsert_memory"
+	| "edit_file_blocks"
+	| "computer_use"
 
 export type Tool = Omit<Anthropic.Tool, "name"> & {
 	name: ToolName

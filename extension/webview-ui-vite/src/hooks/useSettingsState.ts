@@ -22,6 +22,10 @@ export function useSettingsState() {
 		isInlineEditingEnabled: extensionState.inlineEditMode || false,
 		isAdvanceThinkingEnabled: extensionState.advanceThinkingMode || false,
 	})
+	const [commandTimeout, setCommandTimeout] = useState(extensionState.commandTimeout)
+
+	// 		inlineEditingType: extensionState.inlineEditModeType || "full",
+	const [inlineEditingType, setInlineEditingType] = useState(extensionState.inlineEditModeType || "full")
 	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
 	const [autoSkipWrite, setAutoSkipWrite] = useState(extensionState.skipWriteAnimation || false)
 	const [systemPromptVariants, setSystemPromptVariants] = useState<SystemPromptVariant[]>(
@@ -29,6 +33,9 @@ export function useSettingsState() {
 	)
 	const [activeVariantId, setActiveVariantId] = useState<string | null>(
 		extensionState.activeSystemPromptVariantId || (systemPromptVariants[0]?.id ?? null)
+	)
+	const [terminalCompressionThreshold, setTerminalCompressionThreshold] = useState<number | undefined>(
+		extensionState.terminalCompressionThreshold
 	)
 
 	const handleAutoSkipWriteChange = useCallback((checked: boolean) => {
@@ -65,6 +72,16 @@ export function useSettingsState() {
 		},
 		[extensionState]
 	)
+
+	const handleCommandTimeout = useCallback((val: number) => {
+		setCommandTimeout(val)
+		vscode.postMessage({ type: "commandTimeout", commandTimeout: val })
+	}, [])
+
+	const handleInlineEditingTypeChange = useCallback((type: "full" | "diff" | "none") => {
+		setInlineEditingType(type)
+		vscode.postMessage({ type: "setInlineEditMode", inlineEditOutputType: type })
+	}, [])
 
 	const handleTechnicalLevelChange = useCallback((setLevel: typeof technicalLevel) => {
 		console.log(`Setting technical level to: ${setLevel}`)
@@ -135,6 +152,11 @@ export function useSettingsState() {
 		[extensionState.customInstructions]
 	)
 
+	const handleTerminalCompressionThresholdChange = useCallback((val: number | undefined) => {
+		setTerminalCompressionThreshold(val)
+		vscode.postMessage({ type: "terminalCompressionThreshold", value: val })
+	}, [])
+
 	return {
 		model,
 		browserModel,
@@ -146,6 +168,12 @@ export function useSettingsState() {
 		autoSkipWrite,
 		systemPromptVariants,
 		activeVariantId,
+		terminalCompressionThreshold,
+		inlineEditingType,
+		commandTimeout,
+		handleCommandTimeout,
+		handleInlineEditingTypeChange,
+		handleTerminalCompressionThresholdChange,
 		handleAutoSkipWriteChange,
 		handleExperimentalFeatureChange,
 		handleTechnicalLevelChange,

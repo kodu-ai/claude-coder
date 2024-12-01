@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 import { GlobalState } from "../../../../src/providers/claude-coder/state/GlobalStateManager"
+import { cn } from "@/lib/utils"
 
 interface ExperimentalFeature {
 	id: keyof GlobalState
@@ -17,12 +18,14 @@ interface ExperimentalFeatureItemProps {
 	feature: ExperimentalFeature
 	checked: boolean
 	onCheckedChange: (checked: boolean) => void
+	className?: string
+	parentClassName?: string
 }
 
 export const ExperimentalFeatureItem: React.FC<ExperimentalFeatureItemProps> = React.memo(
-	({ feature, checked, onCheckedChange }) => (
-		<div className="flex items-center justify-between">
-			<div className="flex-1 pr-2">
+	({ feature, checked, onCheckedChange, className, parentClassName }) => (
+		<div className={cn("flex items-center justify-between", parentClassName)}>
+			<div className={cn("flex-1 pr-2", className)}>
 				<Label htmlFor={feature.id} className="text-xs font-medium flex items-center">
 					{feature.label}
 					{feature.dangerous && (

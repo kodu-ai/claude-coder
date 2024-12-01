@@ -1,0 +1,227 @@
+/**
+ * EditSubscriptionModal Component
+ *
+ * A modal component for editing existing subscription details. It provides a form interface
+ * to modify subscription properties such as name, URL, price, currency, billing cycle,
+ * and description. The component also includes functionality to delete subscriptions.
+ *
+ * Features:
+ * - Edit all subscription details
+ * - Delete existing subscriptions
+ * - Form validation for required fields
+ * - Responsive layout with grid system
+ * - Currency and billing cycle selection
+ *
+ * @component
+ */
+
+import { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '~/components/ui/dialog';
+import { Button } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
+import { Textarea } from '~/components/ui/textarea';
+import {
+  useSubscriptionStore,
+  Currency,
+  Subscription,
+} from '~/store/subscriptions';
+
+interface EditSubscriptionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  subscription: Subscription | null;
+}
+
+export function EditSubscriptionModal({
+  isOpen,
+  onClose,
+  subscription,
+}: EditSubscriptionModalProps) {
+  const editSubscription = useSubscriptionStore(
+    (state) => state.editSubscription
+  );
+  const deleteSubscription = useSubscriptionStore(
+    (state) => state.deleteSubscription
+  );
+  // Initialize form state with default values, excluding read-only fields
+  const [formData, setFormData] = useState<
+    Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>
+  >({
+    name: '',
+    url: '',
+    price: 0,
+    currency: 'USD',
+    billingCycle: 'monthly',
+    description: '',
+  });
+
+  // Populate form data when subscription prop changes
+  // This effect synchronizes the form state with the provided subscription data
+  useEffect(() => {
+    if (subscription) {
+      setFormData({
+        name: subscription.name,
+        url: subscription.url,
+        price: subscription.price,
+        currency: subscription.currency,
+        billingCycle: subscription.billingCycle,
+        description: subscription.description || '',
+      });
+    }
+  }, [subscription]);
+
+  // Handle form submission for updating subscription details
+  // Prevents default form behavior and updates the subscription in the store
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (subscription) {
+      editSubscription(subscription.id, formData);
+      onClose();
+    }
+  };
+
+  // Handle subscription deletion
+  // Removes the subscription from the store and closes the modal
+  const handleDelete = () => {
+    if (subscription) {
+      deleteSubscription(subscription.id);
+      onClose();
+    }
+  };
+
+  if (!subscription) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Edit Subscription</DialogTitle>
+        </DialogHeader>
+        {/* Form layout with responsive grid and spacing */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              required
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="url">Website URL</Label>
+            <Input
+              id="url"
+              required
+              type="url"
+              value={formData.url}
+              onChange={(e) =>
+                setFormData({ ...formData, url: e.target.value })
+              }
+            />
+          </div>
+
+          {/* Price and currency inputs in a 2-column grid layout */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="price">Price</Label>
+              <Input
+                id="price"
+                required
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.price}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    price: parseFloat(e.target.value),
+                  })
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="currency">Currency</Label>
+              <Select
+                value={formData.currency}
+                onValueChange={(value: Currency) =>
+                  setFormData({ ...formData, currency: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="GBP">GBP</SelectItem>
+                  <SelectItem value="JPY">JPY</SelectItem>
+                  <SelectItem value="CNY">CNY</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="billingCycle">Billing Cycle</Label>
+            <Select
+              value={formData.billingCycle}
+              onValueChange={(value: 'monthly' | 'yearly') =>
+                setFormData({ ...formData, billingCycle: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select billing cycle" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="yearly">Yearly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description (Optional)</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+            />
+          </div>
+
+          {/* Action buttons with flexible layout */}
+          <div className="flex justify-between">
+            <Button type="button" variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </div>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

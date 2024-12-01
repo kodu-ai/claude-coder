@@ -17,6 +17,9 @@ inlineEditModeAtom.debugLabel = "inlineEditMode"
 const advanceThinkingModeAtom = atom(false)
 advanceThinkingModeAtom.debugLabel = "advanceThinkingMode"
 
+const commandTimeoutAtom = atom<number | undefined>(undefined)
+commandTimeoutAtom.debugLabel = "commandTimeout"
+
 const versionAtom = atom("")
 versionAtom.debugLabel = "version"
 const claudeMessagesAtom = atom<ClaudeMessage[]>([])
@@ -78,6 +81,9 @@ lastShownAnnouncementIdAtom.debugLabel = "lastShownAnnouncementId"
 const isContinueGenerationEnabledAtom = atom(false)
 isContinueGenerationEnabledAtom.debugLabel = "isContinueGenerationEnabled"
 
+const inlineEditModeTypeAtom = atom<"full" | "diff" | "none">("full")
+inlineEditModeTypeAtom.debugLabel = "inlineEditModeType"
+
 const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	const currentTaskId = get(currentTaskIdAtom)
 	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
@@ -86,6 +92,8 @@ const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 // Derived atom for the entire state
 export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
+	commandTimeout: get(commandTimeoutAtom),
+	terminalCompressionThreshold: get(terminalCompressionThresholdAtom),
 	claudeMessages: get(claudeMessagesAtom),
 	lastShownAnnouncementId: get(lastShownAnnouncementIdAtom),
 	taskHistory: get(taskHistoryAtom),
@@ -96,6 +104,8 @@ export const extensionStateAtom = atom((get) => ({
 	currentContextTokens: get(currentContextTokensAtom),
 	currentTask: get(currentTaskAtom),
 	currentTaskId: get(currentTaskIdAtom),
+	inlineEditModeAtom: get(inlineEditModeAtom),
+	inlineEditModeType: get(inlineEditModeTypeAtom),
 	shouldShowAnnouncement: get(shouldShowAnnouncementAtom),
 	shouldShowKoduPromo: get(shouldShowKoduPromoAtom),
 	apiConfiguration: get(apiConfigurationAtom),
@@ -136,9 +146,13 @@ currentContextWindowAtom.debugLabel = "currentContextWindow"
 const autoSummarizeAtom = atom(false)
 autoSummarizeAtom.debugLabel = "autoSummarize"
 
+const terminalCompressionThresholdAtom = atom<number | undefined>(undefined)
+terminalCompressionThresholdAtom.debugLabel = "terminalCompressionThreshold"
+
 export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 	const setVersion = useSetAtom(versionAtom)
 	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
+	const setCommandTimeout = useSetAtom(commandTimeoutAtom)
 	const setTaskHistory = useSetAtom(taskHistoryAtom)
 	const setInlineEditMode = useSetAtom(inlineEditModeAtom)
 	const setAdvanceThinkingMode = useSetAtom(advanceThinkingModeAtom)
@@ -169,6 +183,8 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setExtensionName = useSetAtom(extensionNameAtom)
 	const setFpjsKey = useSetAtom(fpjsKeyAtom)
 	const setSystemPromptVariants = useSetAtom(systemPromptVariantsAtom)
+	const setTerminalCompressionThreshold = useSetAtom(terminalCompressionThresholdAtom)
+	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
 
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
@@ -179,11 +195,14 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 		if (message.type === "state" && message.state) {
 			setVersion(message.state.version)
 			setCurrentIdTask(message.state.currentTaskId)
+			setCommandTimeout(message.state.commandTimeout)
+			setTerminalCompressionThreshold(message.state.terminalCompressionThreshold)
 			setClaudeMessages(message.state.claudeMessages)
 			setTechnicalBackground(message.state.technicalBackground)
 			setInlineEditMode(!!message.state.inlineEditMode)
 			setAdvanceThinkingMode(!!message.state.advanceThinkingMode)
 			setAutoSummarize(!!message.state.autoSummarize)
+			setInlineEditModeType(message.state.inlineEditOutputType ?? "full")
 			setLastShownAnnouncementId(message.state.lastShownAnnouncementId)
 			setTaskHistory(message.state.taskHistory)
 			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)
@@ -236,8 +255,11 @@ export const useExtensionState = () => {
 	const setMaxRequestsPerTask = useSetAtom(maxRequestsPerTaskAtom)
 	const setCustomInstructions = useSetAtom(customInstructionsAtom)
 	const setLastShownAnnouncementId = useSetAtom(lastShownAnnouncementIdAtom)
+	const setTerminalCompressionThreshold = useSetAtom(terminalCompressionThresholdAtom)
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
+	const setCommandTimeout = useSetAtom(commandTimeoutAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
+	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
 	const setInlineEditMode = useSetAtom(inlineEditModeAtom)
 	const setAdvanceThinkingMode = useSetAtom(advanceThinkingModeAtom)
@@ -254,14 +276,17 @@ export const useExtensionState = () => {
 		...state,
 		setApiConfiguration,
 		setLastShownAnnouncementId,
+		setTerminalCompressionThreshold,
 		setTechnicalBackground,
 		setMaxRequestsPerTask,
 		setSkipWriteAnimation,
 		setUseUdiff,
+		setCommandTimeout,
 		setIsContinueGenerationEnabled,
 		setAutoCloseTerminal,
 		setCustomInstructions,
 		setAlwaysAllowWriteOnly,
+		setInlineEditModeType,
 		setCreativeMode,
 		setAutoSummarize,
 		setInlineEditMode,

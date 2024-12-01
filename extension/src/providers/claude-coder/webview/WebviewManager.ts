@@ -1,14 +1,14 @@
 import { readdir } from "fs/promises"
 import path from "path"
 import * as vscode from "vscode"
+import { extensionName } from "../../../shared/Constants"
 import { ExtensionMessage, ExtensionState } from "../../../shared/ExtensionMessage"
 import { WebviewMessage } from "../../../shared/WebviewMessage"
 import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
-import { quickStart } from "./quick-start"
-import { extensionName } from "../../../shared/Constants"
 import { GlobalStateManager } from "../state/GlobalStateManager"
+import { quickStart } from "./quick-start"
 
 /**
  * Represents an item in the file tree structure.
@@ -53,6 +53,13 @@ const excludedDirectories = [
 export class WebviewManager {
 	/** ID of the latest announcement to show to users */
 	private static readonly latestAnnouncementId = "sep-13-2024"
+	private static readonly UPDATE_INTERVAL = 20 // 20ms debounce for webview updates
+	private static readonly MAX_POST_INTERVAL = 60 // max time to wait before forcing a post
+
+	private lastPostTimeAt = 0
+	private debounceTimer: NodeJS.Timeout | null = null
+	private maxIntervalTimer: NodeJS.Timeout | null = null
+	private pendingMessage: ExtensionMessage | null = null
 
 	/**
 	 * Creates a new WebviewManager instance
@@ -60,7 +67,7 @@ export class WebviewManager {
 	 */
 	constructor(private provider: ExtensionProvider) {}
 
-		/**
+	/**
 	 * Initializes and configures a webview instance
 	 * Sets up message listeners, HTML content, and visibility handlers
 	 * @param webviewView The webview or webview panel to setup
@@ -97,7 +104,7 @@ export class WebviewManager {
 		}
 	}
 
-		/**
+	/**
 	 * Shows an input box to collect user input
 	 * @param options Configuration options for the input box
 	 * @returns Promise that resolves to the user's input or undefined if cancelled
@@ -107,13 +114,73 @@ export class WebviewManager {
 	}
 
 	/**
-	 * Posts a message from the extension to the webview
+	 * Posts a message to the webview with debouncing to prevent too frequent updates
+	 * while ensuring messages are not delayed too long
 	 * @param message The message to send to the webview
 	 */
 	async postMessageToWebview(message: ExtensionMessage) {
-		await this.provider["view"]?.webview.postMessage(message)
+		if (
+			message.type === "taskHistory" ||
+			message.type === "requestStatus" ||
+			message.type === "claudeMessages" ||
+			message.type === "enableTextAreas"
+		) {
+			// prioritize these messages
+			this.sendMessageToWebview(message)
+			return
+		}
+		const now = Date.now()
+		this.lastPostTimeAt = now
+		this.pendingMessage = message
+
+		// Clear existing timers
+		if (this.debounceTimer) {
+			clearTimeout(this.debounceTimer)
+		}
+		if (this.maxIntervalTimer) {
+			clearTimeout(this.maxIntervalTimer)
+		}
+
+		// Set up max interval timer to ensure message is sent within MAX_POST_INTERVAL
+		this.maxIntervalTimer = setTimeout(() => {
+			if (this.pendingMessage) {
+				this.sendMessageToWebview(this.pendingMessage)
+				this.pendingMessage = null
+				this.clearTimers()
+			}
+		}, WebviewManager.MAX_POST_INTERVAL)
+
+		// Set up debounce timer
+		this.debounceTimer = setTimeout(() => {
+			if (this.pendingMessage) {
+				this.sendMessageToWebview(this.pendingMessage)
+				this.pendingMessage = null
+				this.clearTimers()
+			}
+		}, WebviewManager.UPDATE_INTERVAL)
 	}
 
+	/**
+	 * Actually sends the message to the webview
+	 * @param message The message to send
+	 */
+	private sendMessageToWebview(message: ExtensionMessage) {
+		this.provider["view"]?.webview.postMessage(message)
+	}
+
+	/**
+	 * Cleans up any existing timers
+	 */
+	private clearTimers() {
+		if (this.debounceTimer) {
+			clearTimeout(this.debounceTimer)
+			this.debounceTimer = null
+		}
+		if (this.maxIntervalTimer) {
+			clearTimeout(this.maxIntervalTimer)
+			this.maxIntervalTimer = null
+		}
+	}
 	/**
 	 * only post claude messages to webview
 	 */
@@ -149,10 +216,12 @@ export class WebviewManager {
 	}
 
 	private getHtmlContent(webview: vscode.Webview): string {
+		const context = this.provider.getContext()
 		const localPort = "5173"
 		const localServerUrl = `localhost:${localPort}`
 		let scriptUri
 		const isProd = this.provider.getContext().extensionMode === vscode.ExtensionMode.Production
+
 		if (isProd) {
 			scriptUri = getUri(webview, this.provider.getContext().extensionUri, [
 				"webview-ui-vite",
@@ -163,6 +232,7 @@ export class WebviewManager {
 		} else {
 			scriptUri = `http://${localServerUrl}/src/index.tsx`
 		}
+
 		const stylesUri = getUri(webview, this.provider.getContext().extensionUri, [
 			"webview-ui-vite",
 			"build",
@@ -170,13 +240,15 @@ export class WebviewManager {
 			"index.css",
 		])
 
-		const codiconsUri = getUri(webview, this.provider.getContext().extensionUri, [
-			"node_modules",
-			"@vscode",
-			"codicons",
-			"dist",
-			"codicon.css",
-		])
+		// Updated codicons path and error handling
+		const codiconsUri = webview.asWebviewUri(
+			vscode.Uri.joinPath(
+				this.provider.getContext().extensionUri,
+				"dist",
+				"codicons",
+				"codicon.css"
+			)
+		)
 
 		const nonce = getNonce()
 
@@ -196,40 +268,40 @@ export class WebviewManager {
 		]
 
 		return /*html*/ `
-        <!DOCTYPE html>
-        <html lang="en">
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
-            <meta name="theme-color" content="#000000">
-            <meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
-	        <link rel="stylesheet" type="text/css" href="${stylesUri}">
-			<link href="${codiconsUri}" rel="stylesheet" />
-            <title>Claude Coder</title>
-          </head>
-          <body>
-            <noscript>You need to enable JavaScript to run this app.</noscript>
-            <div id="root"></div>
-            ${
-				isProd
-					? ""
-					: `
-                <script type="module">
-                  import RefreshRuntime from "http://${localServerUrl}/@react-refresh"
-                  RefreshRuntime.injectIntoGlobalHook(window)
-                  window.$RefreshReg$ = () => {}
-                  window.$RefreshSig$ = () => (type) => type
-                  window.__vite_plugin_react_preamble_installed__ = true
-                </script>
-                `
-			}
-            <script type="module" src="${scriptUri}"></script>
-          </body>
-        </html>
-      `
+			<!DOCTYPE html>
+			<html lang="en">
+			  <head>
+				<meta charset="utf-8">
+				<meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
+				<meta name="theme-color" content="#000000">
+				<meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
+				<link rel="stylesheet" type="text/css" href="${stylesUri}">
+				<link href="${codiconsUri}" rel="stylesheet" />
+				<title>Claude Coder</title>
+			  </head>
+			  <body>
+				<noscript>You need to enable JavaScript to run this app.</noscript>
+				<div id="root"></div>
+				${
+					isProd
+						? ""
+						: `
+					<script type="module">
+					  import RefreshRuntime from "http://${localServerUrl}/@react-refresh"
+					  RefreshRuntime.injectIntoGlobalHook(window)
+					  window.$RefreshReg$ = () => {}
+					  window.$RefreshSig$ = () => (type) => type
+					  window.__vite_plugin_react_preamble_installed__ = true
+					</script>
+					`
+				}
+				<script type="module" src="${scriptUri}"></script>
+			  </body>
+			</html>
+		`
 	}
 
-		/**
+	/**
 	 * Recursively builds a tree structure of files and folders in a directory
 	 * Excludes specified directories to keep the tree clean and relevant
 	 * @param dir The directory path to scan
@@ -270,7 +342,7 @@ export class WebviewManager {
 		return items
 	}
 
-		/**
+	/**
 	 * Sets up message handling for the webview
 	 * Processes various message types from the webview and triggers appropriate actions
 	 * @param webview The webview instance to attach the message listener to
@@ -279,6 +351,19 @@ export class WebviewManager {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
 				switch (message.type) {
+					case "setInlineEditMode":
+						await this.provider
+							.getStateManager()
+							.setInlineEditModeType(message.inlineEditOutputType ?? "full")
+						await this.postStateToWebview()
+						break
+					case "pauseTemporayAutoMode":
+						this.provider.getKoduDev()?.getStateManager()?.setTemporaryPauseAutomaticMode(message.mode)
+						break
+					case "terminalCompressionThreshold":
+						await this.provider.getStateManager().setTerminalCompressionThreshold(message.value)
+						await this.postStateToWebview()
+						break
 					case "skipWriteAnimation":
 						await this.provider.getStateManager().setSkipWriteAnimation(!!message.bool)
 						await this.postStateToWebview()
@@ -435,6 +520,9 @@ export class WebviewManager {
 						// trigger vscode.commands.registerCommand(`${extensionName}.setApiKey`
 						vscode.commands.executeCommand(`${extensionName}.setApiKey`)
 						break
+					case "switchAutomaticMode":
+						await this.provider.getTaskManager().switchAutomaticMode()
+						break
 					case "pauseNext":
 						await this.provider.getKoduDev()?.taskExecutor.pauseNextRequest()
 						break
@@ -482,6 +570,13 @@ export class WebviewManager {
 						await this.provider.getApiManager().signOutKodu()
 						await this.postStateToWebview()
 						break
+					case "commandTimeout":
+						await GlobalStateManager.getInstance().updateGlobalState(
+							"commandTimeout",
+							message.commandTimeout
+						)
+						await this.postStateToWebview()
+						break
 					case "fetchKoduCredits":
 						await this.provider.getApiManager().fetchKoduCredits()
 						await this.postMessageToWebview({
@@ -509,7 +604,7 @@ export class WebviewManager {
 		)
 	}
 
-		/**
+	/**
 	 * Handles debug instructions for the extension
 	 * Analyzes open tabs in the workspace and collects diagnostic information
 	 * Creates a new task if needed and processes debugging information
@@ -553,5 +648,11 @@ export class WebviewManager {
 		}
 		// flag this is legacy it should actually be handled by the task executor
 		return await agent.handleWebviewAskResponse("messageResponse", problemsString)
+	}
+	/**
+	 * Cleanup method to be called when the webview manager is disposed
+	 */
+	dispose() {
+		this.clearTimers()
 	}
 }

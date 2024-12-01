@@ -1,19 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk"
 import delay from "delay"
-import { ExecaError } from "execa"
 import { serializeError } from "serialize-error"
 import { AdvancedTerminalManager } from "../../../../integrations/terminal"
-import { COMMAND_OUTPUT_DELAY } from "../../constants"
-import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse, getCwd, getPotentiallyRelevantDetails } from "../../utils"
+import { getCwd } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { ExecaTerminalManager } from "../../../../integrations/terminal/execa-terminal-manager"
-import { WebviewMessage } from "../../../../shared/WebviewMessage"
-import { ChatTool } from "../../../../shared/new-tools"
 import { TerminalProcessResultPromise } from "../../../../integrations/terminal/terminal-manager"
 
-const COMMAND_TIMEOUT = 90_000 // 90 seconds
+import { GlobalStateManager } from "../../../../providers/claude-coder/state/GlobalStateManager"
+
+const COMMAND_TIMEOUT = 90 // 90 seconds
 const MAX_RETRIES = 3
 
 type EarlyExitState = "approved" | "rejected" | "pending"
@@ -95,7 +92,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				this.ts
 			)
 
-			if (response === "messageResponse" && !this.alwaysAllowWriteOnly) {
+			if (response === "messageResponse") {
 				await this.params.updateAsk(
 					"tool",
 					{
@@ -213,12 +210,14 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				console.log(`Error in process: ${error}`)
 			})
 
+			const timeout = GlobalStateManager.getInstance().getGlobalState("commandTimeout")
+			const commandTimeout = (timeout ?? COMMAND_TIMEOUT) * 1000
 			// Wait for either completion or timeout
 			await Promise.race([
 				completionPromise,
-				delay(COMMAND_TIMEOUT).then(() => {
+				delay(commandTimeout).then(() => {
 					if (!completed) {
-						console.log("Command timed out after", COMMAND_TIMEOUT, "ms")
+						console.log("Command timed out after", commandTimeout, "ms")
 					}
 				}),
 			])
@@ -249,8 +248,6 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			if (completed) {
 				toolRes = "Command execution completed successfully."
 			}
-
-			this.logger(`Output: ${this.output}`)
 
 			if ((userFeedback?.text && userFeedback.text.length) || userFeedback?.images?.length) {
 				toolRes += `\n\nUser feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
