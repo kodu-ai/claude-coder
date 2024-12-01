@@ -554,7 +554,7 @@ export class InlineEditHandler {
 	 * Note: This is typically called when all edits are complete
 	 * and changes need to be persisted to disk
 	 */
-	public async saveChanges(): Promise<string> {
+	public async saveChanges() {
 		this.logger("Saving changes", "debug")
 		this.validateDocumentState()
 
@@ -567,16 +567,22 @@ export class InlineEditHandler {
 			// We don't want to override any user changes made after our last edit
 			// So we'll just save whatever is currently in the document
 			const res = await document.save()
-			this.logger(`save reuslt: ${res}`, "info")
+			this.logger(`save result: ${res}`, "info")
 			// Get the current content which might include user changes
 			const finalContent = document.getText()
+			const finalEditBlocks = Array.from(this.currentDocumentState.editBlocks.values()).map((block) => ({
+				id: block.id,
+				searchContent: block.searchContent,
+				replaceContent: block.currentContent,
+			}))
+			const appliedBlocks = this.verifyReplaceBlocksWereApplied(finalEditBlocks)
 
 			// Clean up
 			setTimeout(() => {
 				this.dispose()
 			}, 1)
 
-			return finalContent
+			return { finalContent, appliedBlocks }
 		} catch (error) {
 			this.logger(`Failed to save changes: ${error}`, "error")
 			throw error
@@ -684,5 +690,149 @@ export class InlineEditHandler {
 		console[level](
 			`[InlineEditHandler] ${timestamp} | ` + `Editor: ${isEditorOpen ? "open" : "closed"} | ` + message
 		)
+	}
+
+	/**
+	 * Calculates similarity between two strings
+	 * Uses Levenshtein distance normalized by string length
+	 * @param str1 First string to compare
+	 * @param str2 Second string to compare
+	 * @returns Similarity score between 0 and 1 (1 being identical)
+	 */
+	private calculateStringSimilarity(str1: string, str2: string): number {
+		const len1 = str1.length
+		const len2 = str2.length
+		const matrix: number[][] = []
+
+		// Initialize matrix
+		for (let i = 0; i <= len1; i++) {
+			matrix[i] = [i]
+		}
+		for (let j = 0; j <= len2; j++) {
+			matrix[0][j] = j
+		}
+
+		// Fill matrix
+		for (let i = 1; i <= len1; i++) {
+			for (let j = 1; j <= len2; j++) {
+				const cost = str1[i - 1] === str2[j - 1] ? 0 : 1
+				matrix[i][j] = Math.min(
+					matrix[i - 1][j] + 1, // deletion
+					matrix[i][j - 1] + 1, // insertion
+					matrix[i - 1][j - 1] + cost // substitution
+				)
+			}
+		}
+
+		// Calculate similarity score
+		const maxLen = Math.max(len1, len2)
+		const distance = matrix[len1][len2]
+		return 1 - distance / maxLen
+	}
+
+	/**
+	 * Verifies if replace blocks were successfully applied to the document
+	 * Allows for some flexibility in matching using string similarity
+	 *
+	 * @param blocks Array of blocks to verify
+	 * @param similarityThreshold Minimum similarity score to consider a match (0-1, default 0.9)
+	 * @returns Array of verification results for each block
+	 */
+	public verifyReplaceBlocksWereApplied(
+		blocks: Array<{ id: string; searchContent: string; replaceContent: string }>,
+		similarityThreshold: number = 0.9
+	): Array<{
+		id: string
+		searchContent: string
+		replaceContent: string
+		wasApplied: boolean
+		currentContent: string
+		similarity: number
+	}> {
+		this.validateDocumentState()
+		this.logger("Verifying replace blocks application", "debug")
+
+		const document = vscode.window.activeTextEditor?.document
+		if (!document) {
+			throw new Error("No active document to verify blocks.")
+		}
+
+		const currentContent = document.getText()
+		const results = []
+
+		for (const block of blocks) {
+			// First, find where the original searchContent was located
+			const originalSearchIndex = this.currentDocumentState.originalContent.indexOf(block.searchContent)
+			if (originalSearchIndex === -1) {
+				// If we can't find the original search content, something is wrong
+				results.push({
+					id: block.id,
+					searchContent: block.searchContent,
+					replaceContent: block.replaceContent,
+					wasApplied: false,
+					currentContent: "",
+					similarity: 0,
+				})
+				continue
+			}
+
+			// Calculate the approximate range where the replacement should be
+			const approximateStart = Math.max(0, originalSearchIndex - block.replaceContent.length / 2)
+			const approximateEnd = Math.min(
+				currentContent.length,
+				originalSearchIndex + block.replaceContent.length * 1.5
+			)
+
+			// Extract the content from the approximate area
+			const searchArea = currentContent.slice(approximateStart, approximateEnd)
+
+			// First try exact match in the search area
+			const exactMatch = searchArea.includes(block.replaceContent)
+			if (exactMatch) {
+				results.push({
+					id: block.id,
+					searchContent: block.searchContent,
+					replaceContent: block.replaceContent,
+					wasApplied: true,
+					currentContent: block.replaceContent,
+					similarity: 1,
+				})
+				continue
+			}
+
+			// If no exact match, look for similar content in chunks
+			let maxSimilarity = 0
+			let bestMatch = ""
+
+			// Use variable chunk sizes to account for potential differences
+			const minChunkSize = Math.floor(block.replaceContent.length * 0.8)
+			const maxChunkSize = Math.ceil(block.replaceContent.length * 1.2)
+
+			for (let size = minChunkSize; size <= maxChunkSize; size++) {
+				for (let i = 0; i < searchArea.length - size + 1; i++) {
+					const chunk = searchArea.slice(i, i + size)
+					const similarity = this.calculateStringSimilarity(chunk, block.replaceContent)
+
+					if (similarity > maxSimilarity) {
+						maxSimilarity = similarity
+						bestMatch = chunk
+					}
+
+					// Optimization: if we find a very close match, we can stop searching
+					if (maxSimilarity > 0.95) break
+				}
+			}
+
+			results.push({
+				id: block.id,
+				searchContent: block.searchContent,
+				replaceContent: block.replaceContent,
+				wasApplied: maxSimilarity >= similarityThreshold,
+				currentContent: bestMatch || block.replaceContent,
+				similarity: maxSimilarity,
+			})
+		}
+
+		return results
 	}
 }

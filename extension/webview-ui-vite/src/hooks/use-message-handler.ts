@@ -154,6 +154,11 @@ export const useChatMessageHandling = (
 						textAreaDisabled: false,
 						enableButtons: true,
 					},
+					computer_use: {
+						...baseState,
+						primaryButtonText: "Grant Access",
+						secondaryButtonText: "Cancel",
+					},
 					write_to_file: {
 						...baseState,
 						primaryButtonText: "Save",

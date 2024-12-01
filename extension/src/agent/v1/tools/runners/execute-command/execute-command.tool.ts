@@ -1,14 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk"
 import delay from "delay"
 import { serializeError } from "serialize-error"
-import { AdvancedTerminalManager } from "../../../../integrations/terminal"
-import { getCwd } from "../../utils"
-import { BaseAgentTool } from "../base-agent.tool"
-import { AgentToolOptions, AgentToolParams } from "../types"
-import { ExecaTerminalManager } from "../../../../integrations/terminal/execa-terminal-manager"
-import { TerminalProcessResultPromise } from "../../../../integrations/terminal/terminal-manager"
+import { AdvancedTerminalManager } from "../../../../../integrations/terminal"
+import { getCwd } from "../../../utils"
+import { BaseAgentTool } from "../../base-agent.tool"
+import { AgentToolOptions, AgentToolParams } from "../../types"
+import { ExecaTerminalManager } from "../../../../../integrations/terminal/execa-terminal-manager"
+import { TerminalProcessResultPromise } from "../../../../../integrations/terminal/terminal-manager"
 
-import { GlobalStateManager } from "../../../../providers/claude-coder/state/GlobalStateManager"
+import { GlobalStateManager } from "../../../../../providers/claude-coder/state/GlobalStateManager"
 
 const COMMAND_TIMEOUT = 90 // 90 seconds
 const MAX_RETRIES = 3
@@ -22,13 +22,11 @@ currently can only run commands without output, to run commands with output the 
 
 export class ExecuteCommandTool extends BaseAgentTool {
 	protected params: AgentToolParams
-	private execaTerminalManager: ExecaTerminalManager
 	private output: string = ""
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
-		this.execaTerminalManager = new ExecaTerminalManager()
 	}
 
 	override async execute() {

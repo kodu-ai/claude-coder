@@ -278,7 +278,12 @@ ${this.customInstructions.trim()}
 							console.log("Error in stream", chunk.body.msg)
 						}
 
-						if (chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) {
+						if (
+							(chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) ||
+							(chunk.code === -1 && chunk.body.msg?.includes("middle-out")) ||
+							(chunk.code === -1 &&
+								chunk.body.msg?.includes("transform to compress your prompt automatically"))
+						) {
 							// clear the interval
 							clearInterval(checkInactivity)
 							// Compress the context and retry
@@ -543,22 +548,14 @@ ${this.customInstructions.trim()}
 					m.content.push({
 						type: "text",
 						text: `
-	YOU MUST FOLLOW THIS SUPER CRITICAL INSTRUCTION BEFORE YOU CONTINUE:
-	<supert_critical>
-	- The chat has been compressed to prevent token overflow, it means that previous messages before this message might have been compressed.
-	You should take a moment to self reflect on your thought process and improve your problem solving skills as the conversation progresses.
-	This is a critical step to improve the quality of the conversation quickly, think about what you have done so far and how you can improve it.
-	Remember that you might have lost critical information during the compression, so you should take a moment to self reflect on your thought process.
-	If you forgot important files, you must read them again, if you forgot important information, you must gather it again.
-	your next thinking tag should be a self reflection on the current state of the task and how you can improve it.
-	you should take a step back and look from 3rd person perspective on your work and see how you can improve it, you might have been stuck in an editing loop where you are not making significant improvements.
-	or you might have diverted from the main problem and started solving symptoms not the root cause of the problem.
-	Remember that the first message in history is super critical and it includes the task description, you should read it carefully and understand it.
-	You should refresh your context and gather all the relevant context parts before you continue solving the task.
-	Sometimes a hotfix might be the thing you need to do so evaluate your work and see if you need a hotfix or deep refactor.
-	Sometimes hotfix / quick fix is what you need to do to solve the problem efficiently, not everything requires a deep refactor.
+	<compression_additional_context>
+	The chat has been compressed to prevent context window token overflow, it means that previous messages before this message might have been compressed.
+	You should take a moment to see what context are you missing that is critical to retrieve before you continue the conversation, this will let you refresh your context and gather all the relevant context parts before you continue solving the task.
+	This is a critical step that should not be skipped, you should take your time to understand the context and gather the information you need.
+	Also it might be a good time to self reflect and check how is your progress so far, what you have learned.
 	remember to always follow the <task> information from the first message in the conversation.
-	</supert_critical>`.trim(),
+	Good luck and lets pick up the conversation from the current message.
+	</compression_additional_context>`.trim(),
 					})
 				}
 			}

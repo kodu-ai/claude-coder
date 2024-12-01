@@ -342,7 +342,7 @@ export class FileEditorTool extends BaseAgentTool {
 				images
 			)
 		}
-		const finalContent = await this.inlineEditor.saveChanges()
+		const { finalContent, appliedBlocks } = await this.inlineEditor.saveChanges()
 		this.koduDev.getStateManager().addErrorPath(path)
 
 		// Final approval state
@@ -359,8 +359,48 @@ export class FileEditorTool extends BaseAgentTool {
 			},
 			this.ts
 		)
-
 		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
+
+		if (appliedBlocks.some((block) => block.wasApplied === false)) {
+			this.logger(`Some blocks could not be applied to the file: ${path}`, "warn")
+			appliedBlocks.forEach((block) => {
+				if (!block.wasApplied) {
+					this.logger(
+						`Block ${block.id} could not be applied
+SEARCH:
+${block.searchContent}
+=======
+REPLACE:
+${block.replaceContent}					
+`,
+						"warn"
+					)
+				}
+			})
+			return this.toolResponse(
+				"error",
+				`A partial update was applied to the file, but some changes could not be applied. Please try again with a better search and replace block match, currently the following blocks could not be applied:
+				${appliedBlocks
+					.filter((block) => block.wasApplied === false)
+					.map((block) => {
+						return `
+						<failed_to_apply_block>
+SEARCH
+${block.searchContent}
+=======
+REPLACE
+${block.replaceContent}
+`
+					})
+					.join("\n")}
+				Here is the the latest content for ${path} after the changes were applied:
+				<file>
+				<path>${path}</path>
+				<content>${finalContent}</content>
+				</file>	
+				`
+			)
+		}
 		if (currentOutputMode === "diff") {
 			return this.toolResponse(
 				"success",
