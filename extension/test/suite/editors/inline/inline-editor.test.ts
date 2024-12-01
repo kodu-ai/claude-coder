@@ -139,7 +139,7 @@ async function testBlock(
 	await inlineEditHandler.forceFinalizeAll(editBlocks)
 
 	// Save with no tabs open
-	const finalDocument = await inlineEditHandler.saveChanges()
+	const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 	let expectedContent = Buffer.from(originalText).toString("utf-8")
 	for (const block of editBlocks) {
@@ -366,7 +366,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		}
 
 		// Save changes
-		const finalDocument = await inlineEditHandler.saveChanges()
+		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 		// Verify both changes were applied correctly
 		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
@@ -484,7 +484,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 			await inlineEditHandler.forceFinalizeAll(editBlocks)
 
 			// Save changes
-			const finalDocument = await inlineEditHandler.saveChanges()
+			const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 			// Verify both changes were applied correctly
 			const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
@@ -589,7 +589,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 			}
 
 			// Save while different tab is active
-			const finalDocument = await inlineEditHandler.saveChanges()
+			const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 			// Verify content
 			const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
@@ -702,7 +702,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		await inlineEditHandler.forceFinalizeAll(editBlocks)
 
 		// Save with no tabs open
-		const finalDocument = await inlineEditHandler.saveChanges()
+		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 		let expectedContent = Buffer.from(originalText).toString("utf-8")
 		expectedContent = expectedContent.replace(search, replace)
@@ -759,9 +759,105 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		}
 
 		await inlineEditHandler.forceFinalizeAll(editBlocks)
-		const finalDocument = await inlineEditHandler.saveChanges()
+		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 		const expectedContent = testContent.replace(searchContent.replace(/\n/g, "\r\n"), replaceContent)
 		assert.strictEqual(finalDocument, expectedContent)
+	})
+
+	it("should verify replace blocks were applied correctly", async () => {
+		const searchContent = "function test() {\n    console.log('test');\n}"
+		const replaceContent = "function test() {\n    console.log('updated');\n}"
+		const slightlyDifferentContent = "function test() {\n    console.log('updated!!');\n}" // Note the extra !
+
+		// Create test file
+		const testContent = "// Some content\n" + searchContent + "\n// More content"
+		fs.writeFileSync(testFilePath, testContent, "utf8")
+
+		// Apply the changes
+		const blockId = "test-block"
+		await inlineEditHandler.open(blockId, testFilePath, searchContent)
+		await inlineEditHandler.applyFinalContent(blockId, searchContent, replaceContent)
+
+		// Test exact match
+		const exactResults = inlineEditHandler.verifyReplaceBlocksWereApplied([
+			{
+				id: blockId,
+				searchContent,
+				replaceContent,
+			},
+		])
+
+		assert.strictEqual(exactResults.length, 1)
+		assert.strictEqual(exactResults[0].wasApplied, true)
+		assert.strictEqual(exactResults[0].similarity, 1)
+		assert.strictEqual(exactResults[0].currentContent, replaceContent)
+
+		// Test similar content with high threshold
+		const similarResults = inlineEditHandler.verifyReplaceBlocksWereApplied(
+			[
+				{
+					id: blockId,
+					searchContent,
+					replaceContent: slightlyDifferentContent,
+				},
+			],
+			0.95
+		)
+
+		assert.strictEqual(similarResults.length, 1)
+		assert.strictEqual(similarResults[0].wasApplied, false) // Should fail with high threshold
+		assert.ok(similarResults[0].similarity > 0.8) // But similarity should still be high
+		assert.ok(similarResults[0].similarity < 1)
+
+		// Test similar content with lower threshold
+		const lenientResults = inlineEditHandler.verifyReplaceBlocksWereApplied(
+			[
+				{
+					id: blockId,
+					searchContent,
+					replaceContent: slightlyDifferentContent,
+				},
+			],
+			0.8
+		)
+
+		assert.strictEqual(lenientResults.length, 1)
+		assert.strictEqual(lenientResults[0].wasApplied, true) // Should pass with lower threshold
+		assert.ok(lenientResults[0].similarity > 0.8)
+	})
+
+	it("should verify multiple replace blocks correctly", async () => {
+		const blocks = [
+			{
+				id: "block1",
+				searchContent: "function one() {\n    return 1;\n}",
+				replaceContent: "function one() {\n    return 'one';\n}",
+			},
+			{
+				id: "block2",
+				searchContent: "function two() {\n    return 2;\n}",
+				replaceContent: "function two() {\n    return 'two';\n}",
+			},
+		]
+
+		// Create test file with both functions
+		const testContent = blocks.map((b) => b.searchContent).join("\n\n")
+		fs.writeFileSync(testFilePath, testContent, "utf8")
+
+		// Apply changes
+		await inlineEditHandler.open(blocks[0].id, testFilePath, blocks[0].searchContent)
+		await inlineEditHandler.applyFinalContent(blocks[0].id, blocks[0].searchContent, blocks[0].replaceContent)
+		await inlineEditHandler.applyFinalContent(blocks[1].id, blocks[1].searchContent, blocks[1].replaceContent)
+
+		// Verify both blocks
+		const results = inlineEditHandler.verifyReplaceBlocksWereApplied(blocks)
+
+		assert.strictEqual(results.length, 2)
+		results.forEach((result, index) => {
+			assert.strictEqual(result.wasApplied, true)
+			assert.strictEqual(result.similarity, 1)
+			assert.strictEqual(result.currentContent, blocks[index].replaceContent)
+		})
 	})
 })
 

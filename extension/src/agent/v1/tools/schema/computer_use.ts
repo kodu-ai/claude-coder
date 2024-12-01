@@ -1,5 +1,5 @@
 // schema/computer_use.ts
-import { computerUseActions } from "@/shared/new-tools"
+import { computerUseActions } from "../../../../shared/new-tools"
 import { z } from "zod"
 
 /**

@@ -1,6 +1,7 @@
 import { writeToFileTool } from "../tools/schema"
 
-export const toolsPrompt = (cwd: string, supportsImages: boolean, id?: string) => `# Tools
+export const toolsPrompt = (cwd: string, supportsImages: boolean, id?: string) => `
+# Tools
 
 ## server_runner_tool
 Description: start a server / development server. This tool is used to run web applications locally, backend server, or anytype of server. this is tool allow you to start, stop, restart, or get logs from a server instance and keep it in memory.

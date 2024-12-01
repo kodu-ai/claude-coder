@@ -2,7 +2,7 @@ import { ToolResponse, ToolResponseV2 } from "../../types"
 import { formatToolResponse, isTextBlock } from "../../utils"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
-import { ExecuteCommandTool } from "./execute-command.tool"
+import { ExecuteCommandTool } from "./execute-command/execute-command.tool"
 
 export class AttemptCompletionTool extends BaseAgentTool {
 	protected params: AgentToolParams
