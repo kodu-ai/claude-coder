@@ -139,7 +139,7 @@ async function testBlock(
 	await inlineEditHandler.forceFinalizeAll(editBlocks)
 
 	// Save with no tabs open
-	const finalDocument = await inlineEditHandler.saveChanges()
+	const { finalContent: finalDocument, results } = await inlineEditHandler.saveChanges()
 
 	let expectedContent = Buffer.from(originalText).toString("utf-8")
 	for (const block of editBlocks) {
@@ -245,6 +245,9 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 	let inlineEditHandler: InlineEditHandler
 
 	beforeEach(async () => {
+		const extension = vscode.extensions.getExtension("kodu-ai.claude-dev-experimental")!
+		await extension.activate()
+		await delay(1000)
 		const toEditFileContent = fs.readFileSync(toEditFilePath, "utf8")
 		// Create a dummy file for testing
 		fs.writeFileSync(testFilePath, toEditFileContent, "utf8")
@@ -366,7 +369,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		}
 
 		// Save changes
-		const finalDocument = await inlineEditHandler.saveChanges()
+		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 		// Verify both changes were applied correctly
 		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
@@ -484,7 +487,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 			await inlineEditHandler.forceFinalizeAll(editBlocks)
 
 			// Save changes
-			const finalDocument = await inlineEditHandler.saveChanges()
+			const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 			// Verify both changes were applied correctly
 			const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
@@ -589,7 +592,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 			}
 
 			// Save while different tab is active
-			const finalDocument = await inlineEditHandler.saveChanges()
+			const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 			// Verify content
 			const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
@@ -702,7 +705,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		await inlineEditHandler.forceFinalizeAll(editBlocks)
 
 		// Save with no tabs open
-		const finalDocument = await inlineEditHandler.saveChanges()
+		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 		let expectedContent = Buffer.from(originalText).toString("utf-8")
 		expectedContent = expectedContent.replace(search, replace)
@@ -759,7 +762,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		}
 
 		await inlineEditHandler.forceFinalizeAll(editBlocks)
-		const finalDocument = await inlineEditHandler.saveChanges()
+		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 		const expectedContent = testContent.replace(searchContent.replace(/\n/g, "\r\n"), replaceContent)
 		assert.strictEqual(finalDocument, expectedContent)
 	})
