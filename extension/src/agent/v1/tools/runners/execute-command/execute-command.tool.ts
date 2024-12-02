@@ -67,7 +67,8 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 						tool: "execute_command",
 						approvalState: "error",
 						ts: this.ts,
-						command: "",
+						...this.paramsInput,
+						command: "Command not found",
 					},
 				},
 				this.ts
@@ -79,7 +80,8 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 		}
 		const timeout = GlobalStateManager.getInstance().getGlobalState("commandTimeout") ?? COMMAND_TIMEOUT
 
-		const { manager } = getCommandManager(this.paramsInput.id)
+		const { manager, command } = getCommandManager(this.paramsInput.id)
+		this.paramsInput.command = command
 		if (!manager) {
 			this.params.updateAsk(
 				"tool",
@@ -88,7 +90,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 						tool: "execute_command",
 						approvalState: "error",
 						ts: this.ts,
-						command: "",
+						...this.paramsInput,
 					},
 				},
 				this.ts
@@ -104,7 +106,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 						tool: "execute_command",
 						approvalState: "pending",
 						ts: this.ts,
-						command: "",
+						...this.paramsInput,
 					},
 				},
 				this.ts
@@ -118,7 +120,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 								tool: "execute_command",
 								approvalState: "rejected",
 								ts: this.ts,
-								command: "",
+								...this.paramsInput,
 								userFeedback: text,
 							},
 						},
@@ -134,7 +136,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 							tool: "execute_command",
 							approvalState: "rejected",
 							ts: this.ts,
-							command: "",
+							...this.paramsInput,
 						},
 					},
 					this.ts
@@ -148,7 +150,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 						tool: "execute_command",
 						approvalState: "loading",
 						ts: this.ts,
-						command: "",
+						...this.paramsInput,
 					},
 				},
 				this.ts
@@ -159,6 +161,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 				outputMaxLines: this.paramsInput.outputMaxLines,
 				outputMaxTokens: this.paramsInput.outputMaxTokens,
 				timeout,
+				stdin: this.paramsInput.stdin,
 			})
 			this.params.updateAsk(
 				"tool",
@@ -167,7 +170,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 						tool: "execute_command",
 						approvalState: "approved",
 						ts: this.ts,
-						command: "",
+						...this.paramsInput,
 						output: command.output,
 					},
 				},
@@ -184,7 +187,12 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 				<hint>
 				${command.exitCode === 0 ? "" : "The command exited with a non-zero exit code."}
 				${command.output.trim() ? "" : "The command did not produce any output."}
-				${command.returnReason === "timeout" ? `The command took longer than ${timeout / 1000} seconds to complete.` : ""}
+				${
+					command.returnReason === "timeout"
+						? `The command took longer than ${timeout / 1000} seconds to complete.
+				it might be posssible that the command is interactive and requires calling resume with stdin param or it might be long running command that requires polling to get the full results (use execute_command with resume and the id)`
+						: ""
+				}
 				${
 					command.returnReason === "maxOutput"
 						? `The command has outputted more than the maximum allowed output to get the full output please use the resume_blocking_command tool with the id ${this.paramsInput.id}.`
@@ -217,7 +225,9 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 						tool: "execute_command",
 						approvalState: "error",
 						ts: this.ts,
-						command: "",
+						...this.paramsInput,
+						command: "Command not found",
+						error: "Missing id parameter when terminating blocking command you must provide the id of the command to terminate.",
 					},
 				},
 				this.ts
@@ -227,7 +237,8 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 				"Missing id parameter when terminating blocking command you must provide the id of the command to terminate."
 			)
 		}
-		const { manager } = getCommandManager(this.paramsInput.id)
+		const { manager, command } = getCommandManager(this.paramsInput.id)
+		this.paramsInput.command = command
 		if (!manager) {
 			this.params.updateAsk(
 				"tool",
@@ -236,7 +247,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 						tool: "execute_command",
 						approvalState: "error",
 						ts: this.ts,
-						command: "",
+						...this.paramsInput,
 					},
 				},
 				this.ts
@@ -252,7 +263,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 						tool: "execute_command",
 						approvalState: "pending",
 						ts: this.ts,
-						command: "",
+						...this.paramsInput,
 					},
 				},
 				this.ts
@@ -266,8 +277,8 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 								tool: "execute_command",
 								approvalState: "rejected",
 								ts: this.ts,
-								command: "",
 								userFeedback: text,
+								...this.paramsInput,
 							},
 						},
 						this.ts
@@ -282,7 +293,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 							tool: "execute_command",
 							approvalState: "rejected",
 							ts: this.ts,
-							command: "",
+							...this.paramsInput,
 						},
 					},
 					this.ts
@@ -296,7 +307,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 						tool: "execute_command",
 						approvalState: "loading",
 						ts: this.ts,
-						command: "",
+						...this.paramsInput,
 					},
 				},
 				this.ts
@@ -311,7 +322,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 						tool: "execute_command",
 						approvalState: "approved",
 						ts: this.ts,
-						command: "",
+						...this.paramsInput,
 					},
 				},
 				this.ts
@@ -345,6 +356,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 					approvalState: "pending",
 					ts: this.ts,
 					isSubMsg: this.params.isSubMsg,
+					...this.paramsInput,
 				},
 			},
 			this.ts
@@ -360,6 +372,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 						approvalState: "rejected",
 						ts: this.ts,
 						isSubMsg: this.params.isSubMsg,
+						...this.paramsInput,
 					},
 				},
 				this.ts
@@ -374,6 +387,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 							command,
 							approvalState: "rejected",
 							ts: this.ts,
+							...this.paramsInput,
 							userFeedback: text,
 							isSubMsg: this.params.isSubMsg,
 						},
@@ -394,6 +408,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 					tool: "execute_command",
 					command,
 					approvalState: "loading",
+					...this.paramsInput,
 					ts: this.ts,
 					isSubMsg: this.params.isSubMsg,
 				},
@@ -413,7 +428,6 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 				outputMaxLines: this.paramsInput.outputMaxLines,
 				outputMaxTokens: this.paramsInput.outputMaxTokens,
 			})
-			this.logger(`JSON.stringify(result): ${JSON.stringify(result)}`, "info")
 
 			this.output = result.output
 
@@ -422,7 +436,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 				{
 					tool: {
 						tool: "execute_command",
-						command,
+						...this.paramsInput,
 						output: this.output,
 						approvalState: "approved",
 						ts: this.ts,
@@ -460,6 +474,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 				{
 					tool: {
 						tool: "execute_command",
+						...this.paramsInput,
 						command,
 						output: errorMessage,
 						approvalState: "error",

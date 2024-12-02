@@ -1,5 +1,6 @@
 import { ComputerUseAction } from "@/agent/v1/tools/schema/computer_use"
 import { ToolStatus } from "./ExtensionMessage"
+import { ExecuteCommandToolParams } from "@/agent/v1/tools/schema/execute_command"
 
 /**
  * This is the input and output for execute_command tool
@@ -7,18 +8,10 @@ import { ToolStatus } from "./ExtensionMessage"
 export type ExecuteCommandTool = {
 	tool: "execute_command"
 	/**
-	 * the command to execute
-	 */
-	command: string
-	/**
 	 * the output of the command
 	 */
 	output?: string
-	/**
-	 * this is a long running command so ask user if they want to continue
-	 */
-	earlyExit?: "pending" | "approved" | "rejected"
-}
+} & ExecuteCommandToolParams
 
 export type ListFilesTool = {
 	tool: "list_files"

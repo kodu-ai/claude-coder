@@ -27,18 +27,18 @@ or to get logs
 
 ## execute_command
 
-Description: Request to execute a CLI command on the system. Use this when you need to perform system operations or run specific commands to accomplish steps in the user's task. You must tailor your command to the user's system and provide a clear explanation of what the command does. The tool provides extensive control over command execution, including timeouts and output limitations. Prefer to execute complex CLI commands over creating executable scripts, as they are more flexible and easier to run. Commands will be executed in the current working directory: ${cwd.toPosix()}
+Description: Request to execute a CLI command on the system. Use this when you need to perform system operations or run specific commands to accomplish steps in the user's task. You must tailor your command to the user's system and provide a clear explanation of what the command does. The tool provides extensive control over command execution, including timeouts, output limitations and interactive command exeuction. Prefer to execute complex CLI commands over creating executable scripts, as they are more flexible and easier to run. Commands will be executed in the current working directory: ${cwd.toPosix()}
 
-IMPORTANT: This is a primitive tool designed for simple command execution. It cannot execute long-running server commands or interactive processes like 'npm start', 'yarn start', 'python -m http.server', etc. For server operations, you must use the server_runner_tool instead.
+IMPORTANT: This is a primitive tool designed for command execution and interactive command exeuction. It cannot execute long-running server commands or interactive processes like 'npm start', 'yarn start', 'python -m http.server', etc. For server operations, you must use the server_runner_tool instead.
 
 Parameters:
-- id: (optional) A unique identifier for the command execution. Use this when you need to resume or terminate a long-running command later.
+- id: (optional) A unique identifier for the command execution. It's mandatory to provide id when you try to resume or terminate a long-running command later (type: resume_blocking_command or terminate_blocking_command).
 - type: (required) The execution mode for the command. Must be one of:
-  - execute_blocking_command: Standard execution that blocks until completion
-  - terminate_blocking_command: Stops a running command using its ID
-  - resume_blocking_command: Continues a previously paused command using its ID
+  - execute_blocking_command: Standard execution that blocks until completion, does not require id.
+  - terminate_blocking_command: Stops a running command using its ID, requires id.
+  - resume_blocking_command: Continues a previously paused command using its ID, requires id and allows for interactive input using stdin (optional) see examples below.
 - command: (required for execute_blocking_command) The CLI command to execute. This must be valid for the current operating system and properly formatted without harmful instructions.
-- stdin: (optional, only for resume_blocking_command) Standard input to provide when resuming a paused command that requires input.
+- stdin: (optional, only for resume_blocking_command) Standard input to provide when resuming a paused command that requires input, it requires adding \\n to continue the stdin else where we will consider this as the end of the stdin and it might cause EOF errors if the file has more input, stdin can be used multiple times if the command requires multiple inputs or has multiple pauses, it's extremely powerful for interactive commands.
 - timeout: (optional) Maximum execution time in milliseconds before the command is forcefully terminated.
 - softTimeout: (optional) Grace period in milliseconds before hard termination, allowing the command to clean up.
 - outputMaxLines: (optional, default: 1,000) Maximum number of lines to return in the command output.
@@ -48,7 +48,7 @@ Command Response Structure:
 Every command execution returns a structured response containing:
 - output: The command's stdout/stderr output
 - completed: Whether the command finished execution
-- id: Unique identifier for the command execution
+- id: Unique identifier for the command execution mandatory when calling <execute_command> with type: resume_blocking_command or terminate_blocking_command
 - exitCode: The command's exit status code
 - returnReason: Why the command returned (completed, timeout, maxOutput)
 - hint: Human-readable guidance based on the execution result, including:
@@ -80,15 +80,16 @@ drwxr-xr-x  3 user  group   96 Dec  2 10:00 ..</output>
 \`\`\`
 
 2. Resume Command for Additional Output:
-When a command hits the output limit, use resume to get remaining output:
+When a command hits the output limit, use resume to get remaining output, note command field is not needed for resume but id is mandatory.
+First we run a command:
 \`\`\`xml
 <execute_command>
 <type>execute_blocking_command</type>
-<command>find / -type f -name "*.log"</command>
+<command>ls -la</command>
 <outputMaxLines>1000</outputMaxLines>
 </execute_command>
 \`\`\`
-Response indicating output limit reached:
+Then we get a Response indicating output limit reached:
 \`\`\`xml
 <output>[First 1000 lines of output]</output>
 <completed>false</completed>
@@ -98,7 +99,7 @@ Response indicating output limit reached:
 <hint>The command has outputted more than the maximum allowed output to get the full output please use the resume_blocking_command tool with the id cmd-67890.</hint>
 \`\`\`
 
-Then resume to get more output:
+Then we can call resume to get more output using the id from the command response:
 \`\`\`xml
 <execute_command>
 <type>resume_blocking_command</type>
@@ -106,17 +107,27 @@ Then resume to get more output:
 </execute_command>
 \`\`\`
 
-3. Resume Command with Input:
-When a command needs additional input to continue:
+3. Resume Command with Input super powerful for interactive commands:
+When a command needs additional input or is interactive, you can use resume with stdin to provide the required input.
+Here we call resume with stdin to provide input 'y' to command with id cmd-54321:
 \`\`\`xml
 <execute_command>
 <type>resume_blocking_command</type>
 <id>cmd-54321</id>
-<stdin>y</stdin>
+<stdin>y</stdin> ---> we didn't include \\n here so this is the end of the stdin
 </execute_command>
 \`\`\`
 
+here we call resume and we don't call EOF so we can continue the stdin in the next resume:
+\`\`\`xml
+<execute_command>
+<type>resume_blocking_command</type>
+<id>cmd-54321</id>
+<stdin>y\n</stdin> ---> we included \\n here so we can continue the stdin in the next resume and the command won't consider this as the end of the stdin
+</execute_command>
+
 4. Terminating a Running Command:
+If a command is taking too long or needs to be stopped, you can terminate it using the command id.
 \`\`\`xml
 <execute_command>
 <type>terminate_blocking_command</type>
@@ -137,7 +148,7 @@ When to Use Resume:
    - Repeat until all output is received (completed = true)
 
 2. Interactive Input:
-   - When a command pauses for user input
+   - When a command pauses for user input and requires interaction
    - Use resume with stdin to provide the required input
    - Can be used multiple times if the command needs multiple inputs
 

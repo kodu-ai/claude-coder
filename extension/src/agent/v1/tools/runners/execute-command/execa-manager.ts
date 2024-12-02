@@ -27,22 +27,26 @@ type ExecuteCommand = {
 	(command: string, options?: ExecuteOptions): Promise<CommandOutput>
 	(command: string, args: string[], options?: ExecuteOptions): Promise<CommandOutput>
 }
+
 class CommandManager {
 	private _currentProcess: ReturnType<typeof execa> | null = null
 	private output: string = ""
 	private lastCheckpoint: number = 0
+	private _currentCommand: string = ""
 
 	get currentProcess() {
 		return this._currentProcess
 	}
 
-	// Our main methods remain largely the same, but with improved stdin handling
+	get currentCommand() {
+		return this._currentCommand
+	}
+
 	executeBlockingCommand: ExecuteCommand = async (
 		command: string,
 		argsOrOptions?: string[] | ExecuteOptions,
 		maybeOptions?: ExecuteOptions
 	): Promise<CommandOutput> => {
-		// Determine if we're using the single string or array arguments format
 		let options: ExecuteOptions
 		let args: string[] = []
 
@@ -60,96 +64,157 @@ class CommandManager {
 		const { execa } = await import("execa")
 		this.output = ""
 		this.lastCheckpoint = 0
+		this._currentCommand = `${command}${args.length ? " " + args.join(" ") : ""}`
 
-		this._currentProcess = execa({
+		const isShell = (cmd: string): boolean => {
+			const commonShells = ["bash", "sh", "zsh", "fish", "dash", "powershell", "cmd", "python3", "python"]
+			return commonShells.some((shell) => cmd.toLowerCase().startsWith(shell))
+		}
+
+		this._currentProcess = execa(command, args, {
 			stdout: "pipe",
 			stderr: "pipe",
 			stdin: "pipe",
 			reject: false,
 			killSignal: "SIGTERM",
 			cwd: options.cwd,
-			shell: true,
-		})`${command}${args ? " " + args.join(" ") : ""}`
+			shell: !isShell(command),
+			all: true,
+		})
+
 		const result = await this.collectOutput(this._currentProcess, options)
 
 		if (result.completed) {
 			this._currentProcess = null
 		}
-		this.lastCheckpoint = this.output.length
 
 		return result
 	}
+
 	private collectOutput(
 		process: ReturnType<typeof execa>,
 		options: ExecuteOptions,
 		isResume: boolean = false
 	): Promise<CommandOutput> {
 		return new Promise((resolve) => {
-			let output = ""
 			let hasReturned = false
+			const startIndex = this.lastCheckpoint
 
-			const onData = (data: Buffer) => {
-				const chunk = data.toString()
-				output += chunk
-				this.output += chunk
+			console.log(`Starting collection from index ${startIndex}, current output length: ${this.output.length}`)
 
-				// Check limits only on new data
-				const lines = output.split("\n").filter((l) => l.length > 0)
-				if (options.outputMaxLines && lines.length >= options.outputMaxLines) {
-					returnEarly(lines.slice(0, options.outputMaxLines).join("\n"))
+			const checkOutputLimits = () => {
+				if (hasReturned) {
+					return
 				}
-				if (options.outputMaxTokens && output.length >= options.outputMaxTokens) {
-					returnEarly(output.slice(0, options.outputMaxTokens))
-				}
-			}
 
-			const returnEarly = (limitedOutput: string) => {
-				if (!hasReturned) {
+				const pendingOutput = this.output.slice(startIndex)
+				console.log(`Checking limits - Pending output length: ${pendingOutput.length}`)
+				console.log(`Current lines:\n${pendingOutput}`)
+
+				// Check tokens first since it's simpler
+				if (options.outputMaxTokens && pendingOutput.length >= options.outputMaxTokens) {
 					hasReturned = true
-					cleanup()
+					// Important: Set checkpoint based on the limit, not the total length
+					this.lastCheckpoint = startIndex + options.outputMaxTokens
 					resolve({
-						output: limitedOutput,
+						output: pendingOutput.slice(0, options.outputMaxTokens),
 						exitCode: -1,
 						completed: false,
 						returnReason: "maxOutput",
 					})
+					return
+				}
+
+				// Then check lines
+				if (options.outputMaxLines) {
+					const lines = pendingOutput.split("\n")
+					const nonEmptyLines = lines.filter((l) => l.length > 0)
+					if (nonEmptyLines.length >= options.outputMaxLines) {
+						hasReturned = true
+						let lineCount = 0
+						let cutoffIndex = 0
+						for (let i = 0; i < lines.length && lineCount < options.outputMaxLines; i++) {
+							if (lines[i].length > 0) {
+								lineCount++
+							}
+							cutoffIndex = i + 1
+						}
+						const returnOutput = lines.slice(0, cutoffIndex).join("\n")
+						this.lastCheckpoint = startIndex + returnOutput.length + (returnOutput.endsWith("\n") ? 0 : 1)
+						resolve({
+							output: returnOutput,
+							exitCode: -1,
+							completed: false,
+							returnReason: "maxOutput",
+						})
+					}
 				}
 			}
 
-			const cleanup = () => {
-				process.stdout?.removeListener("data", onData)
-				process.stderr?.removeListener("data", onData)
-				process.removeListener("exit", onExit)
-				if (timeoutId) {
-					clearTimeout(timeoutId)
-				}
+			const handleOutput = (data: Buffer) => {
+				const chunk = data.toString()
+				console.log(`Received chunk:\n${chunk}`)
+				console.log(`Buffer before: ${this.output.length}`)
+				this.output += chunk
+				console.log(`Buffer after: ${this.output.length}`)
+				checkOutputLimits()
 			}
 
-			process.stdout?.on("data", onData)
-			process.stderr?.on("data", onData)
+			// Only use one event handler for the combined stream
+			process.all?.on("data", handleOutput)
 
-			const onExit = (code: number | null) => {
+			const tryResolveOnExit = () => {
 				if (!hasReturned) {
 					hasReturned = true
-					cleanup()
+					const pendingOutput = this.output.slice(startIndex)
 					resolve({
-						output: output,
-						exitCode: code ?? -1,
-						// Key change: Only mark as completed on natural exit AND not during resume
-						completed: !isResume && code !== null,
-						returnReason: code === null ? "timeout" : "completed",
+						output: pendingOutput,
+						exitCode: exitCode ?? -1,
+						completed: true,
+						returnReason: "completed",
 					})
 				}
 			}
 
-			process.once("exit", onExit)
+			let exitCode: number | null = null
+			process.once("exit", (code: number | null) => {
+				exitCode = code
+				tryResolveOnExit()
+			})
 
-			const timeoutId = options.timeout ? setTimeout(() => returnEarly(output), options.timeout) : null
+			if (options.timeout) {
+				setTimeout(() => {
+					if (!hasReturned) {
+						hasReturned = true
+						const pendingOutput = this.output.slice(startIndex)
+						resolve({
+							output: pendingOutput,
+							exitCode: -1,
+							completed: false,
+							returnReason: "timeout",
+						})
+					}
+				}, options.timeout)
+			}
 		})
 	}
 
 	async resumeBlockingCommand(options: ResumeOptions = {}): Promise<CommandOutput> {
 		const process = this._currentProcess
+
+		if (process && process.exitCode !== null) {
+			const pendingOutput = this.output.slice(this.lastCheckpoint)
+			const exitCode = process.exitCode ?? -1
+			this.lastCheckpoint = this.output.length
+			this._currentProcess = null
+			return {
+				output: pendingOutput,
+				exitCode,
+				completed: true,
+				returnReason: "completed",
+			}
+		}
+
 		if (!process) {
 			return {
 				output: this.output.slice(this.lastCheckpoint),
@@ -159,10 +224,8 @@ class CommandManager {
 			}
 		}
 
-		// Improved stdin handling that properly sequences write operations
-		if (options.stdin && process.stdin && !process.stdin.destroyed) {
+		if (typeof options.stdin !== "undefined" && !process.stdin?.destroyed) {
 			try {
-				// First ensure the stream is ready
 				await new Promise<void>((resolve) => {
 					if (process.stdin?.writable) {
 						resolve()
@@ -171,19 +234,20 @@ class CommandManager {
 					}
 				})
 
-				// Then write the data in a non-blocking way
-				process.stdin.write(options.stdin)
+				process.stdin?.write(options.stdin)
 
-				// Finally end the stream
-				process.stdin.end()
+				if (!options.stdin.endsWith("\n")) {
+					process.stdin?.end()
+				}
 			} catch {
 				// Ignore write errors per spec
 			}
 		}
 
-		// Pass isResume=true to indicate this is a resume operation
 		const result = await this.collectOutput(process, options, true)
-		this.lastCheckpoint = this.output.length
+		if (result.completed) {
+			this._currentProcess = null
+		}
 		return result
 	}
 
@@ -198,27 +262,16 @@ class CommandManager {
 			}
 		}
 
-		// Start collecting output immediately
-		let finalOutput = ""
-		const onData = (data: Buffer) => {
-			finalOutput += data.toString()
-			this.output += data.toString()
-		}
+		const startIndex = this.lastCheckpoint
 
-		process.stdout?.on("data", onData)
-		process.stderr?.on("data", onData)
-
-		// First try SIGTERM
 		process.kill("SIGTERM")
 
-		// Wait for process to exit or soft timeout
 		const exitCode = await Promise.race([
 			new Promise<number>((resolve) => {
 				process.once("exit", (code) => resolve(code ?? -1))
 			}),
 			new Promise<number>((resolve) => {
 				setTimeout(() => {
-					// If process is still running, send SIGKILL
 					if (!process.killed) {
 						process.kill("SIGKILL")
 					}
@@ -227,20 +280,20 @@ class CommandManager {
 			}),
 		])
 
-		// Clean up
-		process.stdout?.removeListener("data", onData)
-		process.stderr?.removeListener("data", onData)
+		const pendingOutput = this.output.slice(startIndex)
+		this.lastCheckpoint = startIndex + pendingOutput.length
+
 		this._currentProcess = null
-		this.lastCheckpoint = this.output.length
 
 		return {
-			output: finalOutput,
+			output: pendingOutput,
 			exitCode,
 			completed: true,
 			returnReason: "terminated",
 		}
 	}
 }
+
 class CommandRegistry {
 	private static instance: CommandRegistry
 	private managers: Map<string, CommandManager> = new Map()
@@ -258,14 +311,16 @@ class CommandRegistry {
 		if (!this.managers.has(commandId)) {
 			this.managers.set(commandId, new CommandManager())
 		}
-		return { manager: this.managers.get(commandId)!, id: commandId }
+
+		const manager = this.managers.get(commandId)!
+		const command = manager.currentCommand
+		return { manager, id: commandId, command }
 	}
 
 	clearManager(commandId: string) {
 		this.managers.delete(commandId)
 	}
 
-	// For testing purposes
 	clearAll() {
 		this.managers.clear()
 	}
