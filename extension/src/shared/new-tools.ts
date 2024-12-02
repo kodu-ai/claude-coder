@@ -1,3 +1,4 @@
+import { ComputerUseAction } from "@/agent/v1/tools/schema/computer_use"
 import { ToolStatus } from "./ExtensionMessage"
 
 /**
@@ -151,16 +152,3 @@ export type ChatTool = (
 }
 
 export type ToolName = ChatTool["tool"]
-
-export const computerUseActions = [
-	"launch",
-	"system_screenshot",
-	"click",
-	"type",
-	"scroll_down",
-	"scroll_up",
-	"close",
-] as const
-
-export type ComputerUseAction = (typeof computerUseActions)[number]
-export type BrowserAction = Exclude<ComputerUseAction, "system_screenshot">
