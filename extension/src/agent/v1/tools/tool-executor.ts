@@ -2,9 +2,8 @@
  * @fileoverview Tool Executor manages the lifecycle and execution of various tools in the Kodu extension.
  * It handles tool creation, execution queuing, state management, and cleanup of running tools.
  */
-
 import treeKill from "tree-kill"
-import { ToolName, ToolResponse, ToolResponseV2, UserContent } from "../types"
+import { ToolName, ToolResponseV2 } from "../types"
 import { KoduDev } from ".."
 import { AgentToolOptions, AgentToolParams } from "./types"
 import {
@@ -25,9 +24,7 @@ import ToolParser from "./tool-parser/tool-parser"
 import { tools, writeToFileTool } from "./schema"
 import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
-import { ChatTool } from "../../../shared/new-tools"
 import { DevServerTool } from "./runners/dev-server.tool"
-import delay from "delay"
 import { ComputerUseTool } from "./runners/computer-use.tool"
 
 /**
@@ -38,7 +35,7 @@ interface ToolContext {
 	/** Unique identifier for the tool context */
 	id: string
 	/** Instance of the tool being executed */
-	tool: BaseAgentTool
+	tool: BaseAgentTool<any>
 	/** Current execution status of the tool */
 	status: "pending" | "processing" | "completed" | "error"
 	/** Error object if the tool execution failed */
@@ -122,7 +119,7 @@ export class ToolExecutor {
 	 * @returns New instance of the specified tool
 	 * @throws Error if the tool type is unknown
 	 */
-	private createTool(params: AgentToolParams): BaseAgentTool {
+	private createTool(params: AgentToolParams<any>): BaseAgentTool<any> {
 		const toolMap = {
 			read_file: ReadFileTool,
 			list_files: ListFilesTool,
@@ -145,7 +142,7 @@ export class ToolExecutor {
 			throw new Error(`Unknown tool: ${params.name}`)
 		}
 
-		return new ToolClass(params, this.options)
+		return new ToolClass(params as any, this.options)
 	}
 
 	/**
@@ -354,9 +351,8 @@ export class ToolExecutor {
 		await this.koduDev.taskExecutor.updateAsk(
 			"tool",
 			{
-				// @ts-expect-error - not typedd correctly
 				tool: {
-					tool: toolName as ChatTool["tool"],
+					tool: toolName as any,
 					ts,
 					approvalState: "error",
 					...context?.tool.paramsInput!,
@@ -418,6 +414,7 @@ export class ToolExecutor {
 				ts: context.tool.ts,
 				isFinal: true,
 				isLastWriteToFile: false,
+				// @ts-expect-error - 'ask' is a function
 				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
 				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.koduDev.taskExecutor),

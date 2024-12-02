@@ -26,19 +26,15 @@ import PQueue from "p-queue"
  * The tool supports both complete file rewrites and partial edits through diff blocks.
  * It includes features for animation control and update throttling to ensure smooth performance.
  */
-export class FileEditorTool extends BaseAgentTool {
+export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 	/** Tool parameters including update callbacks and input */
-	protected params: AgentToolParams
+	protected params: AgentToolParams<"write_to_file">
 	/** Provider for showing file diffs in VSCode */
 	public diffViewProvider: DiffViewProvider
 	/** Handler for inline file editing operations */
 	public inlineEditor: InlineEditHandler
 	/** Flag indicating if final content is being processed */
 	private isProcessingFinalContent: boolean = false
-	/** Timestamp of last update for throttling */
-	private lastUpdateTime: number = 0
-	/** Minimum interval between updates in milliseconds */
-	private readonly UPDATE_INTERVAL = 16
 	/** Queue for processing partial updates sequentially */
 	private pQueue: PQueue = new PQueue({ concurrency: 1 })
 	/** Flag to control write animation display */
@@ -64,7 +60,7 @@ export class FileEditorTool extends BaseAgentTool {
 	 * @param params - Tool parameters including callbacks and input
 	 * @param options - Configuration options for the tool
 	 */
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"write_to_file">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 		this.diffViewProvider = new DiffViewProvider(getCwd())

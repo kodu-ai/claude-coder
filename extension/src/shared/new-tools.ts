@@ -1,6 +1,6 @@
-import { ComputerUseAction } from "@/agent/v1/tools/schema/computer_use"
+import { ComputerUseAction } from "../agent/v1/tools/schema/computer_use"
 import { ToolStatus } from "./ExtensionMessage"
-import { ExecuteCommandToolParams } from "@/agent/v1/tools/schema/execute_command"
+import { ExecuteCommandToolParams } from "../agent/v1/tools/schema/execute_command"
 
 /**
  * This is the input and output for execute_command tool
