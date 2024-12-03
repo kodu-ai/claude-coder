@@ -40,9 +40,10 @@ export class GitHandler {
 			if (!isInitSuccess) {
 				return false
 			}
-
-			const userName = (await this.getGlobalConfigValue("user.name")) ?? this.DEFAULT_USER_NAME
-			const userEmail = (await this.getGlobalConfigValue("user.email")) ?? this.DEFAULT_USER_EMAIL
+			const userName = this.DEFAULT_USER_NAME
+			const userEmail = this.DEFAULT_USER_EMAIL
+			// const userName = (await this.getGlobalConfigValue("user.name")) ?? this.DEFAULT_USER_NAME
+			// const userEmail = (await this.getGlobalConfigValue("user.email")) ?? this.DEFAULT_USER_EMAIL
 			await this.setGitConfig("user.name", userName)
 			await this.setGitConfig("user.email", userEmail)
 
@@ -99,13 +100,17 @@ export class GitHandler {
 
 	private async commitWithMessage(path: string, message: string): Promise<GitCommitResult> {
 		return new Promise((resolve) => {
-			exec(`git add ${path} && git commit -m "${message}"`, { cwd: this.repoPath }, (error, stdout, stderr) => {
-				if (error) {
-					throw new Error(`Error committing changes: ${error} \n ${stderr}`)
-				} else {
-					resolve(this.getCommittedHash(stdout.trim()))
+			exec(
+				`git add ${path} && git commit -m "${message}"`,
+				{ cwd: this.repoPath, timeout: 15_000 },
+				(error, stdout, stderr) => {
+					if (error) {
+						throw new Error(`Error committing changes: ${error} \n ${stderr}`)
+					} else {
+						resolve(this.getCommittedHash(stdout.trim()))
+					}
 				}
-			})
+			)
 		})
 	}
 
@@ -273,6 +278,91 @@ export class GitHandler {
 		})
 	}
 
+	async getCurrentBranch(): Promise<string | null> {
+		if (!this.repoPath) {
+			return null
+		}
+
+		return new Promise((resolve) => {
+			exec("git rev-parse --abbrev-ref HEAD", { cwd: this.repoPath }, (error, stdout) => {
+				if (error) {
+					console.error(`Error getting current branch: ${error}`)
+					resolve(null)
+				} else {
+					resolve(stdout.trim())
+				}
+			})
+		})
+	}
+
+	async getCurrentCommit(): Promise<string | null> {
+		if (!this.repoPath) {
+			return null
+		}
+
+		return new Promise((resolve) => {
+			exec("git rev-parse HEAD", { cwd: this.repoPath }, (error, stdout) => {
+				if (error) {
+					console.error(`Error getting current commit: ${error}`)
+					resolve(null)
+				} else {
+					resolve(stdout.trim())
+				}
+			})
+		})
+	}
+
+	async createBranchAtCommit(branchName: string, commitHash: string): Promise<boolean> {
+		if (!this.repoPath) {
+			return false
+		}
+
+		return new Promise((resolve) => {
+			exec(`git branch ${branchName} ${commitHash}`, { cwd: this.repoPath }, (error) => {
+				if (error) {
+					console.error(`Error creating branch at commit: ${error}`)
+					resolve(false)
+				} else {
+					resolve(true)
+				}
+			})
+		})
+	}
+
+	async resetHardTo(commitHash: string): Promise<boolean> {
+		if (!this.repoPath) {
+			return false
+		}
+
+		return new Promise((resolve) => {
+			exec(`git reset --hard ${commitHash}`, { cwd: this.repoPath }, (error) => {
+				if (error) {
+					console.error(`Error resetting to commit: ${error}`)
+					resolve(false)
+				} else {
+					resolve(true)
+				}
+			})
+		})
+	}
+
+	async deleteBranch(branchName: string): Promise<boolean> {
+		if (!this.repoPath) {
+			return false
+		}
+
+		return new Promise((resolve) => {
+			exec(`git branch -D ${branchName}`, { cwd: this.repoPath }, (error) => {
+				if (error) {
+					console.error(`Error deleting branch: ${error}`)
+					resolve(false)
+				} else {
+					resolve(true)
+				}
+			})
+		})
+	}
+
 	private isGitInstalled(): Promise<boolean> {
 		return new Promise((resolve) => {
 			exec("git --version", (error, stdout) => {
@@ -367,6 +457,26 @@ export class GitHandler {
 					resolve(null)
 				} else {
 					resolve(stdout.trim())
+				}
+			})
+		})
+	}
+
+	/**
+	 * Gets the content of a file at a specific commit
+	 * @param repoPath The path to the git repository
+	 * @param filePath The path to the file relative to the repository root
+	 * @param commitHash The commit hash to get the file content from
+	 * @returns Promise resolving to the file content as a string, or null if there was an error
+	 */
+	static async getFileContent(repoPath: string, filePath: string, commitHash: string): Promise<string | null> {
+		return new Promise((resolve) => {
+			exec(`git show ${commitHash}:${filePath}`, { cwd: repoPath }, (error, stdout, stderr) => {
+				if (error) {
+					console.error(`Error getting file content: ${error} \n ${stderr}`)
+					resolve(null)
+				} else {
+					resolve(stdout)
 				}
 			})
 		})

@@ -281,10 +281,6 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				)
 			}
 
-			if (returnEmptyStringOnSuccess) {
-				return this.toolResponse("success", "No output")
-			}
-
 			if (completed) {
 				let commitResult: GitCommitResult | undefined = undefined
 				try {
@@ -293,6 +289,10 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					)
 				} catch (error) {
 					console.error("Failed to get post-command commit:", error)
+				}
+
+				if (returnEmptyStringOnSuccess) {
+					return this.toolResponse("success", "No output", undefined, commitResult)
 				}
 
 				toolRes +=

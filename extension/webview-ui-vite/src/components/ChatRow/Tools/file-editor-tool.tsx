@@ -79,6 +79,11 @@ export const FileEditorTool: React.FC<WriteToFileTool & ToolAddons> = memo(
 
 		// Handler for viewing the file
 		const handleViewFile = () => {
+			console.log("handleViewFile", {
+				commitHash,
+				branch,
+				path,
+			})
 			if (!commitHash || !branch) return
 			vscode.postMessage({
 				type: "viewFile",
@@ -174,6 +179,7 @@ export const FileEditorTool: React.FC<WriteToFileTool & ToolAddons> = memo(
 							<Button
 								variant="outline"
 								size="sm"
+								disabled={!commitHash || !branch}
 								onClick={handleViewFile}
 								className="flex items-center space-x-1 w-[94px]">
 								<ExternalLink className="w-4 h-4" />
@@ -181,6 +187,7 @@ export const FileEditorTool: React.FC<WriteToFileTool & ToolAddons> = memo(
 							</Button>
 							<Button
 								variant="destructive"
+								disabled={!commitHash || !branch}
 								size="sm"
 								onClick={() => setIsRollbackDialogOpen(true)}
 								className="flex items-center space-x-1 w-[94px]">

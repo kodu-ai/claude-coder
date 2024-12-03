@@ -421,7 +421,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 					if (chunk.code === 1) {
 						const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
 							chunk.body.internal
-						await this.stateManager.updateClaudeMessage(startedReqId, {
+						this.stateManager.updateClaudeMessage(startedReqId, {
 							...this.stateManager.getMessageById(startedReqId)!,
 							apiMetrics: {
 								cost: chunk.body.internal.cost,
@@ -433,18 +433,18 @@ export class TaskExecutor extends TaskExecutorUtils {
 							isDone: true,
 							isFetching: false,
 						})
-						await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 					}
 
 					if (chunk.code === -1) {
-						await this.stateManager.updateClaudeMessage(startedReqId, {
+						this.stateManager.updateClaudeMessage(startedReqId, {
 							...this.stateManager.getMessageById(startedReqId)!,
 							isDone: true,
 							isFetching: false,
 							errorText: chunk.body.msg ?? "Internal Server Error",
 							isError: true,
 						})
-						await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 						throw new KoduError({ code: chunk.body.status ?? 500 })
 					}
 				},
@@ -591,6 +591,12 @@ export class TaskExecutor extends TaskExecutorUtils {
 				}
 			} else {
 				this.state = TaskState.WAITING_FOR_API
+				const resultWithCommit = currentToolResults
+					.reverse()
+					.find((result) => result.result.branch && result.result.commitHash)
+				if (resultWithCommit) {
+					this.lastResultWithCommit = resultWithCommit.result
+				}
 				// we have the git commit info here
 				this.currentUserContent = currentToolResults.flatMap(({ result }) => {
 					if (result) {
@@ -601,13 +607,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 						text: `The tool did not return a valid response.`,
 					}
 				})
-
-				const resultWithCommit = currentToolResults
-					.reverse()
-					.find((result) => result.result.branch && result.result.commitHash)
-				if (resultWithCommit) {
-					this.lastResultWithCommit = resultWithCommit.result
-				}
 
 				await this.makeClaudeRequest()
 			}

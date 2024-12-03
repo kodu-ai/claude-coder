@@ -246,7 +246,7 @@ export class StateManager {
 		return taskDir
 	}
 
-	async getSavedApiConversationHistory(): Promise<Anthropic.MessageParam[]> {
+	async getSavedApiConversationHistory(): Promise<ApiHistoryItem[]> {
 		// no need to read from file if we already have the history in memory
 		if (this.state.apiConversationHistory.length > 0) {
 			return this.state.apiConversationHistory

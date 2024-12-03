@@ -234,7 +234,11 @@ export class ToolExecutor {
 	 */
 	public async waitForToolProcessing(): Promise<void> {
 		// use pwaitfor to wait for the queue to be idle
-		await pWaitFor(() => this.queue.size === 0 && this.queue.pending === 0, { interval: 50 })
+		await pWaitFor(() => this.queue.size === 0 && this.queue.pending === 0, {
+			interval: 50,
+			// after 6 minutes, give up
+			timeout: 6 * 60 * 1000,
+		})
 	}
 
 	/**
@@ -421,6 +425,7 @@ export class ToolExecutor {
 			})
 
 			this.toolResults.push({ name: context.tool.name, result })
+			console.log(`Tool execution completed: ${context.tool.name}`)
 			context.status = "completed"
 		} catch (error) {
 			console.error(`Error executing tool: ${context.tool.name}`, error)

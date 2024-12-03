@@ -445,7 +445,9 @@ export class FileEditorTool extends BaseAgentTool {
 					.join("\n")}
 				</updated_blocks>
 				${commitXmlInfo}
-			  </file>`
+			  </file>`,
+				undefined,
+				commitResult
 			)
 		}
 
@@ -461,7 +463,9 @@ export class FileEditorTool extends BaseAgentTool {
 		<validation>${validationMsg}</validation>
 		${commitXmlInfo}
 		</file>
-		`
+		`,
+				undefined,
+				commitResult
 			)
 		}
 
@@ -479,7 +483,9 @@ export class FileEditorTool extends BaseAgentTool {
 		<validation>${validationMsg}</validation>
 		${commitXmlInfo}
 		</file>
-		`
+		`,
+			undefined,
+			commitResult
 		)
 	}
 

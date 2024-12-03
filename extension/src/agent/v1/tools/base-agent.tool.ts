@@ -71,6 +71,7 @@ export abstract class BaseAgentTool {
 	}
 
 	public formatToolError(error?: string) {
+		this.logger(`Tool execution failed with the following error: ${error}`, "error")
 		return `The tool execution failed with the following error:\n<error>\n${error}\n</error>`
 	}
 	public formatToolResponseWithImages(text: string, images?: string[]): ToolResponse {
