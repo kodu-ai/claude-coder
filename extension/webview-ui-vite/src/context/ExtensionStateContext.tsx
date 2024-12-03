@@ -189,8 +189,12 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
 		if (message.type === "putClaudeMessages") {
-			console.debug(`[DEBUG]: Received ${message.claudeMessages.length} messages`)
-			setClaudeMessages((prev) => [...prev, ...message.claudeMessages])
+			setClaudeMessages((prev) => {
+				const newMessages = message.claudeMessages.filter(
+					newMsg => !prev.some(existingMsg => existingMsg.ts === newMsg.ts)
+				)
+				return [...prev, ...newMessages]
+			})
 			return
 		}
 		if (message.type === "claudeMessages") {
