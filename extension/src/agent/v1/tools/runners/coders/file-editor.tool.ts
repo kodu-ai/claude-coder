@@ -81,6 +81,21 @@ export class FileEditorTool extends BaseAgentTool {
 
 	public async _handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
 		if (!this.fileState) {
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "write_to_file",
+						diff,
+						path: relPath,
+						content: diff,
+						mode: "inline",
+						ts: this.ts,
+						approvalState: "loading",
+					},
+				},
+				this.ts
+			)
 			const absolutePath = path.resolve(getCwd(), relPath)
 			const isExistingFile = await checkFileExists(relPath)
 			if (!isExistingFile) {
@@ -105,21 +120,6 @@ export class FileEditorTool extends BaseAgentTool {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
 			return
 		}
-		this.params.updateAsk(
-			"tool",
-			{
-				tool: {
-					tool: "write_to_file",
-					diff,
-					path: relPath,
-					content: diff,
-					mode: "inline",
-					ts: this.ts,
-					approvalState: "loading",
-				},
-			},
-			this.ts
-		)
 
 		if (!diff.includes("REPLACE")) {
 			this.logger("Skipping partial update because the diff does not contain REPLACE keyword.", "warn")

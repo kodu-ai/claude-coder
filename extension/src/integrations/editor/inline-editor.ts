@@ -121,23 +121,6 @@ export class InlineEditHandler {
 		}
 	}
 
-	private async waitForDocumentSync(document: vscode.TextDocument): Promise<void> {
-		return new Promise<void>((resolve) => {
-			const disposable = vscode.workspace.onDidChangeTextDocument((e) => {
-				if (e.document === document) {
-					disposable.dispose()
-					resolve()
-				}
-			})
-
-			// Timeout safety in case event never fires
-			setTimeout(() => {
-				disposable.dispose()
-				resolve()
-			}, 1000)
-		})
-	}
-
 	/**
 	 * Opens a file for editing and initializes the document state
 	 * Processes any pending operations that arrived before opening
@@ -292,7 +275,8 @@ export class InlineEditHandler {
 
 			// Update entire file content
 			await this.updateFileContent()
-			// remove formatting because it switches /t to actual spacing
+
+			// format
 			// await vscode.commands.executeCommand("editor.action.formatDocument")
 
 			return
@@ -317,6 +301,16 @@ export class InlineEditHandler {
 	 * - Streaming: Currently receiving updates
 	 * - Merge: Ready for review
 	 */
+	private getLatestEditBlock(): EditBlock | undefined {
+		if (!this.currentDocumentState?.editBlocks.size) {
+			return undefined
+		}
+
+		// Get all blocks sorted by their position in the document
+		const blocks = Array.from(this.currentDocumentState.editBlocks.values())
+		return blocks[blocks.length - 1]
+	}
+
 	private async refreshEditor(): Promise<void> {
 		this.validateDocumentState()
 
@@ -330,38 +324,35 @@ export class InlineEditHandler {
 		)
 
 		if (editor) {
-			// Clear existing decorations
-
-			// Group ranges by status
-			const pendingRanges: vscode.Range[] = []
-			const streamingRanges: vscode.Range[] = []
-			const mergeRanges: vscode.Range[] = []
-
-			// Apply new decorations based on block status
-			for (const block of this.currentDocumentState.editBlocks.values()) {
-				const searchIndex = document.getText().indexOf(block.currentContent)
+			// Get the latest block that was modified
+			const latestBlock = this.getLatestEditBlock()
+			if (latestBlock && this.isAutoScrollEnabled) {
+				const searchIndex = document.getText().indexOf(latestBlock.currentContent)
 				if (searchIndex !== -1) {
-					const range = new vscode.Range(
-						document.positionAt(searchIndex),
-						document.positionAt(searchIndex + block.currentContent.length)
+					const startPos = document.positionAt(searchIndex)
+					const endPos = document.positionAt(searchIndex + latestBlock.currentContent.length)
+
+					// Calculate visible range for centering
+					const visibleRanges = editor.visibleRanges
+					if (visibleRanges.length === 0) {
+						return
+					}
+
+					const visibleLines = visibleRanges[0].end.line - visibleRanges[0].start.line
+					const contentLines = latestBlock.currentContent.split("\n")
+
+					// Adjusted proportions for more stability
+					const contextLinesAbove = Math.min(Math.floor(visibleLines * 0.45), contentLines.length)
+					const contextLinesBelow = Math.floor(visibleLines * 0.25) // Reduced bottom margin slightly
+
+					const focusRange = new vscode.Range(
+						Math.max(0, endPos.line - contextLinesAbove),
+						0,
+						Math.min(document.lineCount - 1, endPos.line + contextLinesBelow),
+						0
 					)
 
-					switch (block.status) {
-						case "pending":
-							pendingRanges.push(range)
-							break
-						case "streaming":
-							streamingRanges.push(range)
-							break
-						case "final":
-							mergeRanges.push(range)
-							break
-					}
-
-					// Only scroll to streaming or final changes
-					if ((block.status === "streaming" || block.status === "final") && this.isAutoScrollEnabled) {
-						await this.scrollToRange(editor, range)
-					}
+					await editor.revealRange(focusRange, vscode.TextEditorRevealType.InCenter)
 				}
 			}
 		}
@@ -413,6 +404,8 @@ export class InlineEditHandler {
 				}
 				this.applyFinalContent(block.id, block.searchContent, block.replaceContent)
 			}
+			// await vscode.commands.executeCommand("editor.action.formatDocument")
+
 			return
 		} catch (error) {
 			this.logger(`Failed to finalize all blocks: ${error}`, "error")
@@ -523,10 +516,19 @@ export class InlineEditHandler {
 		const replaceMinIndent = this.getMinimalIndentation(replaceLines)
 
 		// 3. Remove the minimal indentation from each line in replaceLines
-		const adjustedReplaceLines = replaceLines.map((line) => line.substring(replaceMinIndent.length))
+		const adjustedReplaceLines = replaceLines.map((line) =>
+			line.startsWith(replaceMinIndent) ? line.substring(replaceMinIndent.length) : line
+		)
 
 		// 4. Add the original content's minimal indentation to each line
-		const finalReplaceLines = adjustedReplaceLines.map((line) => searchMinIndent + line)
+		const finalReplaceLines = adjustedReplaceLines.map((line) => {
+			if (line.trim() === "") {
+				// Keep empty lines empty without adding indentation
+				return ""
+			} else {
+				return searchMinIndent + line
+			}
+		})
 
 		// Prepare the diff with adjusted indentation
 		const diffAsReplaceLines = this.formatToDiff(originalLines.join("\n"), finalReplaceLines.join("\n")).split("\n")
@@ -548,7 +550,9 @@ export class InlineEditHandler {
 	private getMinimalIndentation(lines: string[]): string {
 		let minIndent: string | null = null
 		for (const line of lines) {
-			if (line.trim() === "") continue // Skip empty lines
+			if (line.trim() === "") {
+				continue
+			} // Skip empty lines
 			const match = line.match(/^(\s*)/)
 			const indent = match ? match[1] : ""
 			if (minIndent === null || indent.length < minIndent.length) {
@@ -743,36 +747,13 @@ export class InlineEditHandler {
 			let content = document.getText()
 
 			// Clean up merge markers and keep only the replacement content
-			while (content.includes("<<<<<<< SEARCH")) {
-				const startMarker = "<<<<<<< SEARCH"
-				const middleMarker = "======="
-				const endMarker = ">>>>>>> REPLACE"
-
-				const startIndex = content.indexOf(startMarker)
-				const middleIndex = content.indexOf(middleMarker, startIndex)
-				const endIndex = content.indexOf(endMarker, middleIndex)
-
-				if (startIndex === -1 || middleIndex === -1 || endIndex === -1) {
-					break
+			content = content.replace(
+				/<<<<<<< SEARCH\r?\n[\s\S]*?\r?\n=======\r?\n([\s\S]*?)\r?\n>>>>>>> REPLACE/g,
+				(_, replacement) => {
+					// Trim any leading/trailing newlines from the replacement
+					return replacement.replace(/^\r?\n|\r?\n$/g, "")
 				}
-
-				// Extract just the replacement content (between ======= and >>>>>>>)
-				let replaceContent = content.substring(middleIndex + middleMarker.length, endIndex)
-				// we need to remove the \n at the start of the replaceContent
-				const startAndEndPattern = ["\r\n", "\n", "\r"]
-				const startPattern = startAndEndPattern.find((pattern) => replaceContent.startsWith(pattern))
-				const endPattern = startAndEndPattern.find((pattern) => replaceContent.endsWith(pattern))
-				if (startPattern) {
-					replaceContent = replaceContent.substring(startPattern.length)
-				}
-				if (endPattern) {
-					replaceContent = replaceContent.substring(0, replaceContent.length - endPattern.length)
-				}
-
-				// Replace the entire merge block with just the replacement content
-				content =
-					content.substring(0, startIndex) + replaceContent + content.substring(endIndex + endMarker.length)
-			}
+			)
 
 			// Apply the cleaned content back to the document
 			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))

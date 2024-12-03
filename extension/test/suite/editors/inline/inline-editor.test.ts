@@ -5,8 +5,8 @@ import * as fs from "fs"
 import * as path from "path"
 import { EditBlock, normalize, parseDiffBlocks } from "../../../../src/agent/v1/tools/runners/coders/utils"
 
-const readBlock = (filePath: string) => {
-	const block6FilePath = path.join(__dirname, `${filePath}File.ts`)
+const readBlock = (filePath: string, extension = "ts") => {
+	const block6FilePath = path.join(__dirname, `${filePath}File.${extension}`)
 	const block6FileContentPath = path.join(__dirname, `${filePath}-pre-content.txt`)
 	const block6FileContent = fs.readFileSync(block6FileContentPath, "utf8")
 	const block6BlockContentPath = path.join(__dirname, `${filePath}.txt`)
@@ -50,7 +50,7 @@ async function testBlock(
 	timeout?: number
 ) {
 	const inlineEditHandler = new InlineEditHandler()
-	const generator = await simulateStreaming(blockBlockContent, 0.5)
+	const generator = await simulateStreaming(blockBlockContent, 20)
 	let editBlocks: EditBlock[] = []
 	let lastAppliedBlockId: string | undefined
 	// Verify content
@@ -138,9 +138,11 @@ async function testBlock(
 
 	await inlineEditHandler.forceFinalizeAll(editBlocks)
 
-	// await delay(3_000)
+	// await delay(10_000)
 	// Save with no tabs open
 	const { finalContent: finalDocument, results } = await inlineEditHandler.saveChanges()
+
+	await delay(10_000)
 
 	let expectedContent = Buffer.from(originalText).toString("utf-8")
 	for (const block of editBlocks) {
@@ -158,7 +160,7 @@ const [block4FilePath, block4FileContentPath, block4FileContent, block4BlockCont
 const [block5FilePath, block5FileContentPath, block5FileContent, block5BlockContentPath, block5BlockContent] =
 	readBlock("block5")
 const [block6FilePath, block6FileContentPath, block6FileContent, block6BlockContentPath, block6BlockContent] =
-	readBlock("block6")
+	readBlock("block6", "py")
 
 describe("InlineEditHandler End-to-End Test", () => {
 	const search = `/*
@@ -724,7 +726,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		await testBlock(block5FilePath, block5FileContentPath, block5BlockContent)
 	})
 
-	it("should test that block 6 is parsed and apllied correctly", async () => {
+	it("make sure that incorrect LLM spacing / tabs is auto fixed (python", async () => {
 		// blockFilePath: string, blockFileContentPath: string, blockBlockContent: string
 		await testBlock(block6FilePath, block6FileContentPath, block6BlockContent)
 	})

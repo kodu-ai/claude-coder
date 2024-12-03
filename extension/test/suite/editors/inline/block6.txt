@@ -31,7 +31,6 @@ Technical Details:
 Author: Kodu.AI
 Version: 2.0.0
 """
-
 import sys
 import hashlib
 import random
