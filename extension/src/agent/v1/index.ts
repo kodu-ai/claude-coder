@@ -13,7 +13,7 @@ import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
 import { AdvancedTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
-import { DiagnosticsHandler } from "./handlers"
+import { DiagnosticsHandler, GitHandler } from "./handlers"
 import vscode from "vscode"
 import path from "path"
 import { TerminalRegistry } from "../../integrations/terminal/terminal-manager"
@@ -40,6 +40,7 @@ export class KoduDev {
 	public browserManager: BrowserManager
 	public isFirstMessage: boolean = true
 	private isAborting: boolean = false
+	public gitHandler: GitHandler
 
 	constructor(
 		options: KoduDevOptions & {
@@ -48,6 +49,8 @@ export class KoduDev {
 	) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
 		this.stateManager = new StateManager(options)
+
+		console.error(`>>> historyItem`, historyItem)
 
 		this.stateManager.setState({
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
@@ -71,6 +74,7 @@ export class KoduDev {
 		this.browserManager = new BrowserManager(this.providerRef.deref()!.context)
 
 		this.setupTaskExecutor()
+		this.gitHandler = new GitHandler(getCwd())
 
 		amplitudeTracker.updateUserSettings({
 			AlwaysAllowReads: this.stateManager.alwaysAllowReadOnly,
@@ -87,6 +91,7 @@ export class KoduDev {
 		if (historyItem) {
 			this.stateManager.state.isHistoryItem = true
 			this.resumeTaskFromHistory()
+			this.gitHandler.init()
 		} else if (task || images) {
 			this.startTask(task, images)
 		} else {

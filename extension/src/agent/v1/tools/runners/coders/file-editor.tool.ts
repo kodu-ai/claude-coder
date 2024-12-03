@@ -557,12 +557,23 @@ ${finalContent}
 			// wait for the queue to be idle
 			await this.pQueue.onIdle()
 
+			let result: ToolResponseV2
 			if (diff) {
-				return await this.finalizeInlineEdit(relPath, diff)
+				result = await this.finalizeInlineEdit(relPath, diff)
 			} else if (content) {
-				return await this.finalizeFileEdit(relPath, content)
+				result = await this.finalizeFileEdit(relPath, content)
+			} else {
+				throw new Error("Missing required parameter 'kodu_content' or 'kodu_diff'")
 			}
-			throw new Error("Missing required parameter 'kodu_content' or 'kodu_diff'")
+
+			try {
+				const hash = await this.koduDev.gitHandler.commitChanges(relPath)
+				console.log(`Committed changes with hash: ${hash}`)
+			} catch (error) {
+				this.logger(`Error committing changes: ${error}`, "error")
+			}
+
+			return result
 		} catch (error) {
 			this.logger(`Error in processFileWrite: ${error}`, "error")
 			this.params.updateAsk(

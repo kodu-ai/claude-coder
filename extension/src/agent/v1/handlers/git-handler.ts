@@ -1,22 +1,20 @@
-import * as path from "path"
 import { exec } from "child_process"
 import { promises as fs } from "fs"
-import { ClaudeMessage, GitBranchItem, GitLogItem } from "../../../shared/ExtensionMessage"
-import { ToolName } from "../types"
-import { has } from "lodash"
+import { GitBranchItem, GitLogItem } from "../../../shared/ExtensionMessage"
 
 export class GitHandler {
 	private repoPath: string | undefined
 	private DEFAULT_USER_NAME = "kodu-ai"
 	private DEFAULT_USER_EMAIL = "bot@kodu.ai"
 
-	constructor() {}
+	constructor(repoPath: string) {
+		this.repoPath = repoPath
+	}
 
-	async init(dirAbsolutePath: string): Promise<boolean> {
-		if (!dirAbsolutePath) {
+	async init(): Promise<boolean> {
+		if (!this.repoPath) {
 			return false
 		}
-		this.repoPath = dirAbsolutePath
 
 		return await this.setupRepository()
 	}
@@ -50,7 +48,7 @@ export class GitHandler {
 		}
 	}
 
-	async commitChanges(branchName: string, message: string): Promise<boolean> {
+	async commitChanges(path: string): Promise<string> {
 		try {
 			if (!(await this.isGitInstalled())) {
 				throw new Error("Git is not installed")
@@ -64,28 +62,63 @@ export class GitHandler {
 				}
 			}
 
-			if (!message || !branchName) {
-				throw new Error("Message and branch name are required")
+			if (!path) {
+				throw new Error("Path is required")
 			}
-			branchName = branchName.replace(/ /g, "-")
+
+			const message = await this.getCommitMessage(path)
+			if (!message) {
+				throw new Error("Failed to get commit message")
+			}
 
 			return new Promise((resolve) => {
 				exec(
-					`git checkout -b ${branchName} && git add . && git commit -m "${message}"`,
+					`git add ${path} && git commit -m "${message}"`,
 					{ cwd: this.repoPath },
 					(error, stdout, stderr) => {
 						if (error) {
 							throw new Error(`Error committing changes: ${error} \n ${stderr}`)
 						} else {
-							resolve(true)
+							resolve(this.getCommittedHash(stdout.trim()))
 						}
 					}
 				)
 			})
 		} catch (error) {
-			console.error(`Error committing changes: ${error}`)
-			return false
+			throw new Error(`Error committing changes: ${error}`)
 		}
+	}
+
+	private async getCommitMessage(path: string): Promise<string> {
+		const gitStatusText = await this.getGitStatusText()
+		const statusLines = gitStatusText.split("\n")
+		const statusLine = statusLines.find((line) => line.includes(path))
+
+		if (statusLine?.startsWith("M")) {
+			return `Updated ${path}`
+		}
+
+		return `Added ${path}`
+	}
+
+	private async getGitStatusText(): Promise<string> {
+		return new Promise((resolve) => {
+			exec("git status -s", { cwd: this.repoPath }, (error, stdout, stderr) => {
+				if (error) {
+					console.error(`Error getting git status: ${error} \n ${stderr}`)
+					resolve("")
+				} else {
+					resolve(stdout.trim())
+				}
+			})
+		})
+	}
+
+	private getCommittedHash(gitCommitStdOut: string): string {
+		const firstLine = gitCommitStdOut.split("\n")[0]
+
+		// example line: [master 812f9b0] Added cpp-poem.txt
+		return firstLine.trim().split(" ")[1].slice(0, -1)
 	}
 
 	static async getLog(repoAbsolutePath: string): Promise<GitLogItem[]> {
