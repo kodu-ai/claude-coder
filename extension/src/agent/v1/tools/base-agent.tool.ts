@@ -1,8 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { KoduDev } from ".."
 import { ToolResponse, ToolResponseV2 } from "../types"
-import { AgentToolOptions, AgentToolParams } from "./types"
+import { AgentToolOptions, AgentToolParams, CommitInfo } from "./types"
 import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "../utils"
+import { GitCommitResult } from "../handlers"
 
 export abstract class BaseAgentTool {
 	protected cwd: string
@@ -92,13 +93,19 @@ export abstract class BaseAgentTool {
 		console.log(`Aborted tool execution for ${this.name} with id ${this.id}`)
 	}
 
-	protected toolResponse(status: ToolResponseV2["status"], text?: string, images?: string[]) {
+	protected toolResponse(
+		status: ToolResponseV2["status"],
+		text?: string,
+		images?: string[],
+		commitResult?: CommitInfo
+	) {
 		return {
 			toolName: this.name,
 			toolId: this.id,
 			text,
 			images,
 			status,
+			...commitResult,
 		}
 	}
 

@@ -24,6 +24,7 @@ interface BlockValidationResult {
 	similarityScore: number
 	partiallyApplied: boolean
 }
+import { GitCommitResult } from "@/agent/v1/handlers"
 
 /**
  * FileEditorTool handles file editing operations in the VSCode extension.
@@ -87,6 +88,17 @@ export class FileEditorTool extends BaseAgentTool {
 	override async execute() {
 		const result = await this.processFileWrite()
 		return result
+	}
+
+	private commitXMLGenerator(commitResult: GitCommitResult): string {
+		return `
+<git_commit_info>
+<branch>${commitResult.branch}</branch>
+<commit_hash>${commitResult.commitHash}</commit_hash>
+<createdAt>${new Date().toISOString()}</createdAt>
+<generalMessage>you can use this commit hash to refer to this commit in the future, if you need to revert the changes or check the changes made in this commit.</generalMessage>
+</git_commit_info>
+`
 	}
 
 	public async _handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
@@ -352,6 +364,7 @@ export class FileEditorTool extends BaseAgentTool {
 			)
 		}
 		const { finalContent, results } = await this.inlineEditor.saveChanges()
+
 		this.koduDev.getStateManager().addErrorPath(path)
 		// count how many of the changes were not applied
 		const notAppliedCount = results.filter((result) => !result.wasApplied).length
@@ -360,22 +373,6 @@ export class FileEditorTool extends BaseAgentTool {
 		// Add content validation
 		const validationResults = this.validateAppliedContent(finalContent, successBlocks)
 		const validationMsg = this.generateValidationMessage(validationResults)
-
-		await this.params.updateAsk(
-			"tool",
-			{
-				tool: {
-					tool: "write_to_file",
-					content,
-					mode: "inline",
-					approvalState: "approved",
-					path,
-					ts: this.ts,
-					notAppliedCount,
-				},
-			},
-			this.ts
-		)
 
 		const approvedMsg = `
 		The user approved the changes and the content was successfully saved to ${path.toPosix()}.
@@ -390,6 +387,34 @@ export class FileEditorTool extends BaseAgentTool {
 		`
 
 		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
+
+		let commitXmlInfo = ""
+		let commitResult: GitCommitResult | undefined
+		try {
+			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(path)
+			commitXmlInfo = this.commitXMLGenerator(commitResult)
+		} catch (error) {
+			this.logger(`Error committing changes: ${error}`, "error")
+		}
+
+		await this.params.updateAsk(
+			"tool",
+			{
+				tool: {
+					tool: "write_to_file",
+					content,
+					mode: "inline",
+					approvalState: "approved",
+					path,
+					ts: this.ts,
+					notAppliedCount,
+					commitHash: commitResult?.commitHash,
+					branch: commitResult?.branch,
+				},
+			},
+			this.ts
+		)
+
 		if (currentOutputMode === "diff") {
 			return this.toolResponse(
 				"success",
@@ -419,6 +444,7 @@ export class FileEditorTool extends BaseAgentTool {
 					})
 					.join("\n")}
 				</updated_blocks>
+				${commitXmlInfo}
 			  </file>`
 			)
 		}
@@ -433,6 +459,7 @@ export class FileEditorTool extends BaseAgentTool {
 		</information>
 		<path>${path}</path>
 		<validation>${validationMsg}</validation>
+		${commitXmlInfo}
 		</file>
 		`
 			)
@@ -450,6 +477,7 @@ export class FileEditorTool extends BaseAgentTool {
 		${finalContent}
 		</updated_file_content>
 		<validation>${validationMsg}</validation>
+		${commitXmlInfo}
 		</file>
 		`
 		)
@@ -513,6 +541,16 @@ export class FileEditorTool extends BaseAgentTool {
 		this.logger(`Changes saved to file: ${relPath}`, "info")
 		this.koduDev.getStateManager().addErrorPath(relPath)
 
+		this.logger(`Final approval state set for file: ${relPath}`, "info")
+
+		let commitXmlInfo = ""
+		let commitResult: GitCommitResult | undefined
+		try {
+			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(relPath)
+			commitXmlInfo = this.commitXMLGenerator(commitResult)
+		} catch (error) {
+			this.logger(`Error committing changes: ${error}`, "error")
+		}
 		// Final approval state
 		await this.params.updateAsk(
 			"tool",
@@ -523,11 +561,12 @@ export class FileEditorTool extends BaseAgentTool {
 					approvalState: "approved",
 					path: relPath,
 					ts: this.ts,
+					commitHash: commitResult?.commitHash,
+					branch: commitResult?.branch,
 				},
 			},
 			this.ts
 		)
-		this.logger(`Final approval state set for file: ${relPath}`, "info")
 		if (userEdits) {
 			await this.params.say(
 				"user_feedback_diff",
@@ -544,12 +583,16 @@ export class FileEditorTool extends BaseAgentTool {
 					\`\`\`
 					${finalContent}
 					\`\`\`
-					`
+					${commitXmlInfo}
+					`,
+				undefined,
+				commitResult
 			)
 		}
 
 		let toolMsg = `The content was successfully saved to ${relPath.toPosix()}.
 			The latest content is the content inside of <kodu_content> the content you provided in the input has been applied to the file and saved. don't read the file again to get the latest content as it is already saved unless the user tells you otherwise.
+			${commitXmlInfo}
 			`
 		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
 			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
@@ -561,7 +604,7 @@ export class FileEditorTool extends BaseAgentTool {
 				\`\`\``
 		}
 
-		return this.toolResponse("success", toolMsg)
+		return this.toolResponse("success", toolMsg, undefined, commitResult)
 	}
 
 	private async processFileWrite() {
@@ -577,12 +620,14 @@ export class FileEditorTool extends BaseAgentTool {
 			// wait for the queue to be idle
 			await this.pQueue.onIdle()
 
+			let result: ToolResponseV2
 			if (diff) {
 				return await this.finalizeInlineEdit(relPath, diff)
 			} else if (content) {
 				return await this.finalizeFileEdit(relPath, content)
+			} else {
+				throw new Error("Missing required parameter 'kodu_content' or 'kodu_diff'")
 			}
-			throw new Error("Missing required parameter 'kodu_content' or 'kodu_diff'")
 		} catch (error) {
 			this.logger(`Error in processFileWrite: ${error}`, "error")
 			this.params.updateAsk(

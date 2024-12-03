@@ -17,6 +17,9 @@ export type ExecuteCommandTool = {
 	 * this is a long running command so ask user if they want to continue
 	 */
 	earlyExit?: "pending" | "approved" | "rejected"
+
+	commitHash?: string
+	branch?: string
 }
 
 export type ListFilesTool = {
@@ -53,6 +56,8 @@ export type WriteToFileTool = {
 	content?: string
 	diff?: string
 	notAppliedCount?: number
+	branch?: string
+	commitHash?: string
 }
 
 export type AskFollowupQuestionTool = {
@@ -112,13 +117,7 @@ export type SummarizeChatTool = {
 	output?: string
 }
 
-export type EditFileBlocksTool = {
-	tool: "edit_file_blocks"
-	diff: string
-}
-
 export type ChatTool = (
-	| EditFileBlocksTool
 	| ExecuteCommandTool
 	| ListFilesTool
 	| ListCodeDefinitionNamesTool

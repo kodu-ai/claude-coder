@@ -185,7 +185,23 @@ export type setCommandTimeoutMessage = {
 	commandTimeout: number
 }
 
+export type viewFileMessage = {
+	type: "viewFile"
+	path: string
+	branch: string
+	commitHash: string
+}
+
+export type rollbackToCheckpointMessage = {
+	type: "rollbackToCheckpoint"
+	commitHash: string
+	branch: string
+	ts: number
+}
+
 export type WebviewMessage =
+	| rollbackToCheckpointMessage
+	| viewFileMessage
 	| setCommandTimeoutMessage
 	| setInlineEditModeMessage
 	| pauseTemporayAutoModeMessage
