@@ -1,187 +1,94 @@
 SEARCH
-	public async applyStreamContent(content: string): Promise<boolean> {
-		await this.documentReadyPromise
-		if (!this.currentDocumentState) {
-			throw new Error("No active document")
-		}
+import sys
+import hashlib
+import random
+import os
+from typing import Tuple, List, Optional
 
-		try {
-			const document = await this.getDocument()
-			if (!document) return false
-
-			const editor = vscode.window.activeTextEditor
-			if (!editor || editor.document.uri.toString() !== document.uri.toString()) {
-				return false
-			}
-
-			// Initialize streaming if needed
-			if (!this.currentDocumentState.isStreaming) {
-				this.currentDocumentState.isStreaming = true
-				this.currentDocumentState.currentContent = this.currentDocumentState.originalContent
-
-				// Display original content first
-				const initialEdit = new vscode.WorkspaceEdit()
-				initialEdit.replace(
-					document.uri,
-					new vscode.Range(0, 0, document.lineCount, 0),
-					this.currentDocumentState.originalContent
-				)
-				await vscode.workspace.applyEdit(initialEdit)
-				await this.refreshEditor()
-				await new Promise(resolve => setTimeout(resolve, 100))
-			}
-
-			// Split content into lines
-			const newLines = content.split("\n")
-			const originalLines = this.currentDocumentState.originalContent.split("\n")
-			const currentLines = this.currentDocumentState.currentContent.split("\n")
-
-			// Create chunks of changes (max 5 lines per chunk)
-			const chunkSize = 5
-			const chunks: Array<{ start: number; end: number; content: string[] }> = []
-			let currentChunk: { start: number; end: number; content: string[] } | null = null
-
-			for (let i = 0; i < newLines.length; i++) {
-				if (i >= currentLines.length || currentLines[i] !== newLines[i]) {
-					if (!currentChunk) {
-						currentChunk = { start: i, end: i, content: [newLines[i]] }
-					} else if (i === currentChunk.end + 1 && chunks.length < chunkSize) {
-						currentChunk.end = i
-						currentChunk.content.push(newLines[i])
-					} else {
-						chunks.push(currentChunk)
-						currentChunk = { start: i, end: i, content: [newLines[i]] }
-					}
-				} else if (currentChunk) {
-					chunks.push(currentChunk)
-					currentChunk = null
-				}
-			}
-
-			if (currentChunk) {
-				chunks.push(currentChunk)
-			}
-
-			// Apply chunks with visual feedback
-			for (const chunk of chunks) {
-				const workspaceEdit = new vscode.WorkspaceEdit()
-				const chunkContent = chunk.content.join("\n")
-				const startPos = new vscode.Position(chunk.start, 0)
-				const endPos = chunk.end < currentLines.length
-					? new vscode.Position(chunk.end, currentLines[chunk.end].length)
-					: new vscode.Position(chunk.end, 0)
-
-				workspaceEdit.replace(document.uri, new vscode.Range(startPos, endPos), chunkContent)
-				await vscode.workspace.applyEdit(workspaceEdit)
-
-				// Update current content
-				const updatedLines = [...this.currentDocumentState.currentContent.split("\n")]
-				for (let i = 0; i < chunk.content.length; i++) {
-					const lineIndex = chunk.start + i
-					if (lineIndex < updatedLines.length) {
-						updatedLines[lineIndex] = chunk.content[i]
-					} else {
-						updatedLines.push(chunk.content[i])
-					}
-				}
-				this.currentDocumentState.currentContent = updatedLines.join("\n")
-
-				// Refresh decorations and scroll
-				await this.refreshEditor()
-				await this.scrollToRange(editor, new vscode.Range(startPos, endPos))
-				await new Promise(resolve => setTimeout(resolve, 50))
-			}
-
-			// Handle case where new content is shorter
-			if (newLines.length < currentLines.length) {
-				const deleteEdit = new vscode.WorkspaceEdit()
-				deleteEdit.delete(document.uri, new vscode.Range(
-					new vscode.Position(newLines.length, 0),
-					new vscode.Position(currentLines.length, 0)
-				))
-				await vscode.workspace.applyEdit(deleteEdit)
-				this.currentDocumentState.currentContent = newLines.join("\n")
-				await this.refreshEditor()
-			}
-
-			return true
+def get_user_info() -> None:    
 =======
 REPLACE
-	public async applyStreamContent(content: string): Promise<boolean> {
-		await this.documentReadyPromise
-		if (!this.currentDocumentState) {
-			throw new Error("No active document")
-		}
+"""
+Interactive Greeter - A Personality-Driven User Interaction System
 
-		try {
-			const document = await this.getDocument()
-			if (!document) return false
+This module implements an engaging interactive greeting system that creates
+a personalized experience for each user. It uses various psychological and
+social engagement techniques to make the interaction more meaningful and memorable.
 
-			const editor = vscode.window.activeTextEditor
-			if (!editor || editor.document.uri.toString() !== document.uri.toString()) {
-				return false
-			}
+Features:
+- Randomized question order for dynamic interactions
+- Personalized responses based on user input
+- Age-appropriate feedback
+- Contextual responses for hobbies, colors, and locations
+- Secure token generation using cryptographic hashing
 
-			// Initialize streaming if needed
-			if (!this.currentDocumentState.isStreaming) {
-				this.currentDocumentState.isStreaming = true
-				
-				// Show original content first
-				const workspaceEdit = new vscode.WorkspaceEdit()
-				workspaceEdit.replace(
-					document.uri,
-					new vscode.Range(0, 0, document.lineCount, 0),
-					this.currentDocumentState.originalContent
-				)
-				await vscode.workspace.applyEdit(workspaceEdit)
-				this.currentDocumentState.currentContent = this.currentDocumentState.originalContent
-				await this.refreshEditor()
-				await new Promise(resolve => setTimeout(resolve, 100))
-			}
+Technical Details:
+- Uses MD5 for path-based seed generation (non-security context)
+- Implements SHA256 for secure token generation
+- Maintains consistent session state using path-based seeding
+- Ensures proper output flushing for interactive environments
 
-			// Split both contents into lines
-			const newLines = content.split("\n")
-			const originalLines = this.currentDocumentState.originalContent.split("\n")
+Author: Kodu.AI
+Version: 2.0.0
+"""
+import sys
+import hashlib
+import random
+import os
+from typing import Tuple, List, Optional, Dict, Any
 
-			// Create combined content with both versions
-			const combinedLines: string[] = []
-			const maxLines = Math.max(originalLines.length, newLines.length)
-
-			for (let i = 0; i < maxLines; i++) {
-				if (i < originalLines.length) {
-					combinedLines.push(originalLines[i])
-				}
-				if (i < newLines.length && (i >= originalLines.length || originalLines[i] !== newLines[i])) {
-					combinedLines.push(newLines[i])
-				}
-			}
-
-			// Apply combined content
-			const workspaceEdit = new vscode.WorkspaceEdit()
-			workspaceEdit.replace(
-				document.uri,
-				new vscode.Range(0, 0, document.lineCount, 0),
-				combinedLines.join("\n")
-			)
-			await vscode.workspace.applyEdit(workspaceEdit)
-
-			// Update current content and refresh decorations
-			this.currentDocumentState.currentContent = content
-			await this.refreshEditor()
-
-			// Find the last different line for scrolling
-			let lastDiffLine = 0
-			for (let i = 0; i < maxLines; i++) {
-				if (i >= originalLines.length || i >= newLines.length || originalLines[i] !== newLines[i]) {
-					lastDiffLine = i
-				}
-			}
-
-			// Scroll to the last difference
-			const scrollRange = new vscode.Range(
-				new vscode.Position(lastDiffLine, 0),
-				new vscode.Position(lastDiffLine + 1, 0)
-			)
-			await this.scrollToRange(editor, scrollRange)
-
-			return true
+def get_user_info() -> None:
+    """
+    Conducts an interactive session with the user, collecting personal information
+    and providing engaging, contextual responses.
+    
+    The function implements a sophisticated interaction flow:
+    1. Initializes a deterministic random seed based on script path
+    2. Presents randomized questions about personal details
+    3. Provides contextual, personality-driven responses
+    4. Generates a secure token based on user information
+    
+    Note: All outputs are immediately flushed to ensure smooth interaction
+    in various terminal environments.
+    """
+=======
+SEARCH
+    questions: List[Tuple[str, str]] = [
+        ("Hey there! What's your name? We're excited to meet you! ", "name"),
+        ("Awesome! And how many trips around the sun have you completed? (age) ", "age"),
+        ("If you could paint the world one color, what would it be? ", "color"),
+        ("What activity makes time fly for you? (your favorite hobby) ", "hobby"),
+        ("Which part of this amazing world do you call home? ", "location")
+    ]
+=======
+REPLACE
+    # Enhanced question set with more engaging and thought-provoking queries
+    questions: List[Tuple[str, str]] = [
+        ("Hey there! What's your name? We're excited to meet you! 😊 ", "name"),
+        ("Awesome! And how many trips around the sun have you completed? (age) 🌟 ", "age"),
+        ("If you could paint the world one color, what would it be? Let your imagination soar! 🎨 ", "color"),
+        ("What activity makes time disappear like magic for you? (your favorite hobby) ✨ ", "hobby"),
+        ("Which wonderful corner of this vast world do you call home? 🌍 ", "location")
+    ]
+=======
+SEARCH
+            color_responses = [
+                f"Ah, {answer}! That's a color that speaks of depth and imagination!",
+                f"{answer} - what an intriguing choice! It tells me you're thoughtful about your preferences.",
+                f"People who choose {answer} often have fascinating perspectives on life!",
+                f"Oh, {answer}! That's often associated with creativity and emotional depth!",
+                f"Interesting choice with {answer}! It's known to influence mood and perception.",
+                f"The psychology behind choosing {answer} is quite fascinating!"
+            ]
+=======
+REPLACE
+            # Enhanced color responses with more psychological insights and cultural references
+            color_responses = [
+                f"Ah, {answer}! That's a color that speaks of depth and imagination! Did you know it's often associated with emotional intelligence? 🎨",
+                f"{answer} - what an intriguing choice! In many cultures, this color represents harmony and balance. Your thoughtfulness shows! ✨",
+                f"People who choose {answer} often have fascinating perspectives on life! It's a color that appears frequently in nature's masterpieces! 🌿",
+                f"Oh, {answer}! Artists throughout history have used this color to evoke powerful emotions and tell compelling stories! 🎭",
+                f"Interesting choice with {answer}! Color psychologists say it can significantly influence creativity and emotional well-being! 🌈",
+                f"The psychology behind choosing {answer} is quite fascinating! It often reveals a deep connection to our innermost thoughts! 💭",
+                f"In the world of art and design, {answer} is known to create spaces that inspire and energize! Your choice speaks volumes! 🎪"
+            ]

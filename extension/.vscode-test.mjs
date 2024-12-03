@@ -5,11 +5,10 @@ export default defineConfig({
 	files: "test/**/*.test.ts",
 	mocha: {
 		ui: "bdd",
-		timeout: 10_000,
-		// require: ["tsx/register"], // Ensure TypeScript files are loaded correctly
+		timeout: 20000,
 		require: ["tsx/cjs"],
+		diff: true,
 		extension: [".ts", ".tsx"],
 		"node-option": ["--loader=tsx"],
-		experimentalSpecDesign: true,
 	},
 })

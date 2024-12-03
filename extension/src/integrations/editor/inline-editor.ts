@@ -1,20 +1,35 @@
 import * as vscode from "vscode"
-import PQueue from "p-queue"
+import * as DMP from "diff-match-patch"
+import delay from "delay"
 
-/**
- * Represents a block of text that is being edited inline
- * @property id - Unique identifier for the edit block
- * @property searchContent - Original content to search for in the document
- * @property currentContent - Current content being shown (may be streaming)
- * @property finalContent - Final content after streaming is complete
- * @property status - Current state of the edit block (pending/streaming/final)
- */
+interface MatchResult {
+	success: boolean
+	newContent?: string
+	lineStart?: number
+	lineEnd?: number
+	failureReason?: string
+}
+
+// Add these to the EditBlock interface
 interface EditBlock {
 	id: string
 	searchContent: string
 	currentContent: string
 	finalContent?: string
 	status: "pending" | "streaming" | "final"
+	matchedLocation?: {
+		lineStart: number
+		lineEnd: number
+	}
+	dmpAttempted?: boolean
+}
+
+interface BlockResult {
+	id: string
+	searchContent: string
+	replaceContent: string
+	wasApplied: boolean
+	failureReason?: string
 }
 
 /**
@@ -29,8 +44,16 @@ interface DocumentState {
 	originalContent: string
 	currentContent: string
 	editBlocks: Map<string, EditBlock>
+	lastUpdateResults?: BlockResult[] // Add this line
 }
 
+interface BlockResult {
+	id: string
+	searchContent: string
+	replaceContent: string
+	wasApplied: boolean
+	failureReason?: string
+}
 /**
  * Handles inline editing functionality in VSCode text editors
  * Provides real-time updates, decorations, and manages edit state
@@ -43,11 +66,6 @@ interface DocumentState {
  * - Supports auto-scrolling to edited regions
  */
 export class InlineEditHandler {
-	// Decorations for different edit states
-	private pendingDecoration: vscode.TextEditorDecorationType
-	private streamingDecoration: vscode.TextEditorDecorationType
-	private mergeDecoration: vscode.TextEditorDecorationType
-
 	// Controls auto-scroll behavior
 	private isAutoScrollEnabled: boolean = true
 
@@ -55,39 +73,7 @@ export class InlineEditHandler {
 	protected currentDocumentState: DocumentState | undefined
 
 	constructor() {
-		// Initialize PQueue with concurrency 1 to ensure sequential operations
-		this.pendingDecoration = this.createDecoration("⟳ Pending changes", "editorGhostText.foreground")
-		this.streamingDecoration = this.createDecoration("↻ Streaming changes...", "editorInfo.foreground")
-		this.mergeDecoration = this.createDecoration("⚡ Review changes", "editorInfo.foreground")
-
 		this.logger("InlineEditHandler initialized", "debug")
-	}
-
-	private createDecoration(text: string, color: string): vscode.TextEditorDecorationType {
-		return vscode.window.createTextEditorDecorationType({
-			isWholeLine: true,
-			backgroundColor: new vscode.ThemeColor("editor.findMatchHighlightBackground"),
-			after: {
-				margin: "0 0 0 1em",
-				contentText: text,
-				color: new vscode.ThemeColor(color),
-			},
-			before: {
-				margin: "0 0 0 1em",
-			},
-			light: {
-				backgroundColor: new vscode.ThemeColor("editor.findMatchHighlightBackground"),
-				before: {
-					color: new vscode.ThemeColor("editor.foreground"),
-				},
-			},
-			dark: {
-				backgroundColor: new vscode.ThemeColor("editor.findMatchHighlightBackground"),
-				before: {
-					color: new vscode.ThemeColor("editor.foreground"),
-				},
-			},
-		})
 	}
 
 	/**
@@ -130,20 +116,6 @@ export class InlineEditHandler {
 
 			// Reveal with smooth scrolling
 			await editor.revealRange(revealRange, vscode.TextEditorRevealType.InCenterIfOutsideViewport)
-
-			// Add a temporary highlight effect
-			const highlightDecoration = vscode.window.createTextEditorDecorationType({
-				backgroundColor: new vscode.ThemeColor("editor.findMatchHighlightBackground"),
-				borderColor: new vscode.ThemeColor("editor.findMatchBorder"),
-				borderWidth: "1px",
-				borderStyle: "solid",
-				isWholeLine: true,
-			})
-
-			editor.setDecorations(highlightDecoration, [range])
-
-			// Remove highlight after a short delay
-			setTimeout(() => highlightDecoration.dispose(), 800)
 		} catch (error) {
 			this.logger(`Failed to scroll to range: ${error}`, "error")
 		}
@@ -248,9 +220,9 @@ export class InlineEditHandler {
 			block.currentContent = content
 			block.status = "streaming"
 
-			this.logger(`Applying streaming content for id ${id}`, "info")
-			this.logger(`searchContent length: ${searchContent.length}`, "info")
-			this.logger(`replaceContent length: ${content.length}`, "info")
+			// this.logger(`Applying streaming content for id ${id}`, "info")
+			// this.logger(`searchContent length: ${searchContent.length}`, "info")
+			// this.logger(`replaceContent length: ${content.length}`, "info")
 			// Update entire file content
 			await this.updateFileContent()
 			return
@@ -303,80 +275,13 @@ export class InlineEditHandler {
 
 			// Update entire file content
 			await this.updateFileContent()
+
+			// format
+			// await vscode.commands.executeCommand("editor.action.formatDocument")
+
 			return
 		} catch (error) {
 			this.logger(`Failed to apply final content: ${error}`, "error")
-			throw error
-		}
-	}
-
-	/**
-	 * Updates the entire file content with all edit blocks
-	 * Maintains order of edits and applies them sequentially
-	 *
-	 * Process:
-	 * 1. Starts with original document content
-	 * 2. Sorts blocks by their position in the document
-	 * 3. Applies each block's changes in order
-	 * 4. Updates the entire document at once
-	 * 5. Refreshes editor decorations
-	 *
-	 * Note: Uses workspace edit API to ensure proper undo/redo support
-	 */
-	private async updateFileContent(): Promise<void> {
-		this.validateDocumentState()
-
-		try {
-			const document = await this.getDocument()
-			if (!document) {
-				throw new Error("No active document to update content.")
-			}
-
-			// Start with original content
-			let newContent = this.currentDocumentState.originalContent
-
-			// Apply all blocks in order
-			const sortedBlocks = Array.from(this.currentDocumentState.editBlocks.values()).sort((a, b) => {
-				const indexA = newContent.indexOf(a.searchContent)
-				const indexB = newContent.indexOf(b.searchContent)
-				return indexA - indexB
-			})
-
-			for (const block of sortedBlocks) {
-				// Try direct replacement first
-				if (newContent.includes(block.searchContent)) {
-					newContent = newContent.replace(block.searchContent, block.currentContent)
-				} else {
-					// If direct replacement fails, try with normalized line endings
-					const normalizedSearchContent = block.searchContent.replace(/\n/g, "\r\n")
-					if (newContent.includes(normalizedSearchContent)) {
-						newContent = newContent.replace(normalizedSearchContent, block.currentContent)
-					} else {
-						// If both attempts fail, log a warning and continue
-						this.logger(
-							`Warning: Could not find exact match for search content. Original content length: ${newContent.length}, Search content length: ${block.searchContent.length}`,
-							"warn"
-						)
-					}
-				}
-			}
-
-			// Update entire file
-			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
-
-			const workspaceEdit = new vscode.WorkspaceEdit()
-			workspaceEdit.replace(document.uri, entireRange, newContent)
-			const success = await vscode.workspace.applyEdit(workspaceEdit)
-
-			if (success) {
-				this.logger("File content updated", "info")
-				this.currentDocumentState.currentContent = newContent
-				await this.refreshEditor()
-			}
-
-			return
-		} catch (error) {
-			this.logger(`Failed to update file content: ${error}`, "error")
 			throw error
 		}
 	}
@@ -396,6 +301,16 @@ export class InlineEditHandler {
 	 * - Streaming: Currently receiving updates
 	 * - Merge: Ready for review
 	 */
+	private getLatestEditBlock(): EditBlock | undefined {
+		if (!this.currentDocumentState?.editBlocks.size) {
+			return undefined
+		}
+
+		// Get all blocks sorted by their position in the document
+		const blocks = Array.from(this.currentDocumentState.editBlocks.values())
+		return blocks[blocks.length - 1]
+	}
+
 	private async refreshEditor(): Promise<void> {
 		this.validateDocumentState()
 
@@ -409,53 +324,36 @@ export class InlineEditHandler {
 		)
 
 		if (editor) {
-			// Clear existing decorations
-			editor.setDecorations(this.pendingDecoration, [])
-			editor.setDecorations(this.streamingDecoration, [])
-			editor.setDecorations(this.mergeDecoration, [])
-
-			// Group ranges by status
-			const pendingRanges: vscode.Range[] = []
-			const streamingRanges: vscode.Range[] = []
-			const mergeRanges: vscode.Range[] = []
-
-			// Apply new decorations based on block status
-			for (const block of this.currentDocumentState.editBlocks.values()) {
-				const searchIndex = document.getText().indexOf(block.currentContent)
+			// Get the latest block that was modified
+			const latestBlock = this.getLatestEditBlock()
+			if (latestBlock && this.isAutoScrollEnabled) {
+				const searchIndex = document.getText().indexOf(latestBlock.currentContent)
 				if (searchIndex !== -1) {
-					const range = new vscode.Range(
-						document.positionAt(searchIndex),
-						document.positionAt(searchIndex + block.currentContent.length)
+					const startPos = document.positionAt(searchIndex)
+					const endPos = document.positionAt(searchIndex + latestBlock.currentContent.length)
+
+					// Calculate visible range for centering
+					const visibleRanges = editor.visibleRanges
+					if (visibleRanges.length === 0) {
+						return
+					}
+
+					const visibleLines = visibleRanges[0].end.line - visibleRanges[0].start.line
+					const contentLines = latestBlock.currentContent.split("\n")
+
+					// Adjusted proportions for more stability
+					const contextLinesAbove = Math.min(Math.floor(visibleLines * 0.45), contentLines.length)
+					const contextLinesBelow = Math.floor(visibleLines * 0.25) // Reduced bottom margin slightly
+
+					const focusRange = new vscode.Range(
+						Math.max(0, endPos.line - contextLinesAbove),
+						0,
+						Math.min(document.lineCount - 1, endPos.line + contextLinesBelow),
+						0
 					)
 
-					switch (block.status) {
-						case "pending":
-							pendingRanges.push(range)
-							break
-						case "streaming":
-							streamingRanges.push(range)
-							break
-						case "final":
-							mergeRanges.push(range)
-							break
-					}
-
-					// Only scroll to streaming or final changes
-					if ((block.status === "streaming" || block.status === "final") && this.isAutoScrollEnabled) {
-						await this.scrollToRange(editor, range)
-					}
+					await editor.revealRange(focusRange, vscode.TextEditorRevealType.InCenter)
 				}
-			}
-
-			// Apply all decorations at once for better performance
-			if (pendingRanges.length > 0) {
-				editor.setDecorations(this.pendingDecoration, pendingRanges)
-			}
-			if (streamingRanges.length > 0) {
-				editor.setDecorations(this.streamingDecoration, streamingRanges)
-			}
-			if (mergeRanges.length > 0) {
-				editor.setDecorations(this.mergeDecoration, mergeRanges)
 			}
 		}
 	}
@@ -478,7 +376,7 @@ export class InlineEditHandler {
 	public async forceFinalizeAll(
 		diffBlocks: { id: string; searchContent: string; replaceContent: string }[]
 	): Promise<void> {
-		this.logger("Forcing finalization of all blocks", "debug")
+		this.logger("Forcing finalization of all blocks", "info")
 		this.validateDocumentState()
 		// let's open the document and make it focused and active
 		await vscode.window.showTextDocument(this.currentDocumentState.uri, {
@@ -504,10 +402,11 @@ export class InlineEditHandler {
 						status: "final",
 					})
 				}
+				this.applyFinalContent(block.id, block.searchContent, block.replaceContent)
 			}
+			// await vscode.commands.executeCommand("editor.action.formatDocument")
 
-			// Update entire file content
-			return await this.updateFileContent()
+			return
 		} catch (error) {
 			this.logger(`Failed to finalize all blocks: ${error}`, "error")
 			throw error
@@ -541,20 +440,300 @@ export class InlineEditHandler {
 		}
 	}
 
+	private formatToDiff(searchContent: string, replaceContent: string): string {
+		return `<<<<<<< SEARCH\n${searchContent}\n=======\n${replaceContent}\n>>>>>>> REPLACE`
+	}
+
+	private findAndReplace(content: string, searchContent: string, replaceContent: string): MatchResult {
+		const blocks = this.currentDocumentState?.editBlocks.values()
+		// Look up if we've already found this block's match
+		const matchedBlock = Array.from(blocks ?? []).find((block) => block.searchContent === searchContent)
+
+		// If we already found the match location, just do the replacement
+		if (matchedBlock?.matchedLocation) {
+			return this.performReplace(
+				content,
+				matchedBlock.matchedLocation.lineStart,
+				matchedBlock.matchedLocation.lineEnd,
+				replaceContent
+			)
+		}
+
+		// 1. Perfect match
+		const perfectMatch = this.findPerfectMatch(content, searchContent)
+		if (perfectMatch.success && matchedBlock) {
+			matchedBlock.matchedLocation = {
+				lineStart: perfectMatch.lineStart!,
+				lineEnd: perfectMatch.lineEnd!,
+			}
+			return this.performReplace(content, perfectMatch.lineStart!, perfectMatch.lineEnd!, replaceContent)
+		}
+
+		// 2. White space match
+		const whitespaceMatch = this.findWhitespaceMatch(content, searchContent)
+		if (whitespaceMatch.success && matchedBlock) {
+			matchedBlock.matchedLocation = {
+				lineStart: whitespaceMatch.lineStart!,
+				lineEnd: whitespaceMatch.lineEnd!,
+			}
+			return this.performReplace(content, whitespaceMatch.lineStart!, whitespaceMatch.lineEnd!, replaceContent)
+		}
+
+		// 3. Trailing space match
+		const trailingMatch = this.findTrailingMatch(content, searchContent)
+		if (trailingMatch.success && matchedBlock) {
+			matchedBlock.matchedLocation = {
+				lineStart: trailingMatch.lineStart!,
+				lineEnd: trailingMatch.lineEnd!,
+			}
+			return this.performReplace(content, trailingMatch.lineStart!, trailingMatch.lineEnd!, replaceContent)
+		}
+
+		// 4. Last resort: DMP match (only if we haven't tried it yet)
+		if (matchedBlock && !matchedBlock.dmpAttempted) {
+			matchedBlock.dmpAttempted = true // Mark that we've tried DMP
+			const dmpMatch = this.findDMPMatch(content, searchContent)
+			if (dmpMatch.success) {
+				matchedBlock.matchedLocation = {
+					lineStart: dmpMatch.lineStart!,
+					lineEnd: dmpMatch.lineEnd!,
+				}
+				return this.performReplace(content, dmpMatch.lineStart!, dmpMatch.lineEnd!, replaceContent)
+			}
+		}
+
+		return { success: false }
+	}
+
+	private performReplace(content: string, startLine: number, endLine: number, replaceContent: string): MatchResult {
+		const contentLines = content.split("\n")
+		const originalLines = contentLines.slice(startLine, endLine + 1)
+		const replaceLines = replaceContent.split("\n")
+
+		// 1. Get minimal indentation of the original content
+		const searchMinIndent = this.getMinimalIndentation(originalLines)
+		// 2. Get minimal indentation of the replacement content
+		const replaceMinIndent = this.getMinimalIndentation(replaceLines)
+
+		// 3. Remove the minimal indentation from each line in replaceLines
+		const adjustedReplaceLines = replaceLines.map((line) =>
+			line.startsWith(replaceMinIndent) ? line.substring(replaceMinIndent.length) : line
+		)
+
+		// 4. Add the original content's minimal indentation to each line
+		const finalReplaceLines = adjustedReplaceLines.map((line) => {
+			if (line.trim() === "") {
+				// Keep empty lines empty without adding indentation
+				return ""
+			} else {
+				return searchMinIndent + line
+			}
+		})
+
+		// Prepare the diff with adjusted indentation
+		const diffAsReplaceLines = this.formatToDiff(originalLines.join("\n"), finalReplaceLines.join("\n")).split("\n")
+
+		// Construct the new content by replacing the old content with the new adjusted content
+		const newContentLines = [
+			...contentLines.slice(0, startLine),
+			...diffAsReplaceLines,
+			...contentLines.slice(endLine + 1),
+		]
+
+		return {
+			success: true,
+			newContent: newContentLines.join("\n"),
+		}
+	}
+
+	// Helper function to calculate minimal indentation
+	private getMinimalIndentation(lines: string[]): string {
+		let minIndent: string | null = null
+		for (const line of lines) {
+			if (line.trim() === "") {
+				continue
+			} // Skip empty lines
+			const match = line.match(/^(\s*)/)
+			const indent = match ? match[1] : ""
+			if (minIndent === null || indent.length < minIndent.length) {
+				minIndent = indent
+			}
+		}
+		return minIndent || ""
+	}
+
+	private findPerfectMatch(content: string, searchContent: string): MatchResult {
+		const contentLines = content.split("\n")
+		const searchLines = searchContent.split("\n")
+
+		for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
+			if (contentLines.slice(i, i + searchLines.length).join("\n") === searchLines.join("\n")) {
+				return {
+					success: true,
+					newContent: content,
+					lineStart: i,
+					lineEnd: i + searchLines.length - 1,
+				}
+			}
+		}
+		return { success: false }
+	}
+
+	private findWhitespaceMatch(content: string, searchContent: string): MatchResult {
+		const contentLines = content.split("\n")
+		const searchLines = searchContent.split("\n")
+
+		for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
+			const matches = searchLines.every((searchLine, j) => {
+				const contentLine = contentLines[i + j]
+				return contentLine.replace(/\s+/g, " ") === searchLine.replace(/\s+/g, " ")
+			})
+
+			if (matches) {
+				return {
+					success: true,
+					newContent: content,
+					lineStart: i,
+					lineEnd: i + searchLines.length - 1,
+				}
+			}
+		}
+		return { success: false }
+	}
+
+	private findTrailingMatch(content: string, searchContent: string): MatchResult {
+		const contentLines = content.split("\n")
+		const searchLines = searchContent.split("\n")
+
+		for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
+			const matches = searchLines.every((searchLine, j) => {
+				const contentLine = contentLines[i + j]
+				return contentLine.trimEnd() === searchLine.trimEnd()
+			})
+
+			if (matches) {
+				return {
+					success: true,
+					newContent: content,
+					lineStart: i,
+					lineEnd: i + searchLines.length - 1,
+				}
+			}
+		}
+		return { success: false }
+	}
+
+	private findDMPMatch(content: string, searchContent: string): MatchResult {
+		const dmp = new DMP.diff_match_patch()
+		const diffs = dmp.diff_main(content, searchContent)
+		dmp.diff_cleanupSemantic(diffs)
+
+		// Look for the longest equal section that matches our search content
+		let bestMatch = { start: -1, end: -1, length: 0 }
+		let currentPos = 0
+
+		for (const [type, text] of diffs) {
+			if (type === 0 && text.length > bestMatch.length) {
+				// DIFF_EQUAL
+				bestMatch = {
+					start: currentPos,
+					end: currentPos + text.length,
+					length: text.length,
+				}
+			}
+			currentPos += text.length
+		}
+
+		if (bestMatch.length > searchContent.length * 0.9) {
+			// 90% match threshold
+			const startLine = content.substr(0, bestMatch.start).split("\n").length - 1
+			const endLine = startLine + searchContent.split("\n").length - 1
+
+			return {
+				success: true,
+				newContent: content,
+				lineStart: startLine,
+				lineEnd: endLine,
+			}
+		}
+
+		return { success: false }
+	}
+
+	private async updateFileContent(): Promise<void> {
+		this.validateDocumentState()
+
+		try {
+			const document = await this.getDocument()
+			if (!document) {
+				throw new Error("No active document to update content.")
+			}
+
+			// Start with original content
+			let newContent = this.currentDocumentState.originalContent
+			const results: BlockResult[] = []
+
+			// Apply all blocks in order
+			const sortedBlocks = Array.from(this.currentDocumentState.editBlocks.values()).sort((a, b) => {
+				const indexA = newContent.indexOf(a.searchContent)
+				const indexB = newContent.indexOf(b.searchContent)
+				return indexA - indexB
+			})
+
+			for (const block of sortedBlocks) {
+				// const formattedGitDiff = `<<<<<<< SEARCH\n${block.searchContent}\n=======\n${block.currentContent}\n>>>>>>> REPLACE`
+				const matchResult = this.findAndReplace(newContent, block.searchContent, block.currentContent)
+
+				if (matchResult.success && matchResult.newContent) {
+					newContent = matchResult.newContent
+					results.push({
+						id: block.id,
+						searchContent: block.searchContent,
+						replaceContent: block.currentContent,
+						wasApplied: true,
+					})
+				} else {
+					results.push({
+						id: block.id,
+						searchContent: block.searchContent,
+						replaceContent: block.currentContent,
+						wasApplied: false,
+						failureReason: matchResult.failureReason,
+					})
+
+					this.logger(`Failed to apply block ${block.id}: ${matchResult.failureReason}`, "warn")
+				}
+			}
+			if (newContent === this.currentDocumentState.currentContent) {
+				this.logger("No changes to apply", "info")
+				return
+			}
+
+			// Store results for save changes
+			this.currentDocumentState.lastUpdateResults = results
+
+			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
+
+			const workspaceEdit = new vscode.WorkspaceEdit()
+			workspaceEdit.replace(document.uri, entireRange, newContent)
+			const success = await vscode.workspace.applyEdit(workspaceEdit)
+
+			if (success) {
+				this.logger("File content updated", "info")
+				this.currentDocumentState.currentContent = newContent
+				await this.refreshEditor()
+			}
+			return
+		} catch (error) {
+			this.logger(`Failed to update file content: ${error}`, "error")
+			throw error
+		}
+	}
+
 	/**
-	 * Saves all changes to the document
-	 * Preserves any user modifications made after our edits
-	 *
-	 * Process:
-	 * 1. Validates document state
-	 * 2. Saves current document content
-	 * 3. Returns final content including any user changes
-	 * 4. Cleans up resources after saving
-	 *
-	 * Note: This is typically called when all edits are complete
-	 * and changes need to be persisted to disk
+	 * Enhanced saveChanges with block status reporting
 	 */
-	public async saveChanges() {
+	public async saveChanges(): Promise<{ finalContent: string; results: BlockResult[] }> {
 		this.logger("Saving changes", "debug")
 		this.validateDocumentState()
 
@@ -564,31 +743,42 @@ export class InlineEditHandler {
 				throw new Error("No active document to save changes.")
 			}
 
-			// We don't want to override any user changes made after our last edit
-			// So we'll just save whatever is currently in the document
-			const res = await document.save()
-			this.logger(`save result: ${res}`, "info")
-			// Get the current content which might include user changes
-			const finalContent = document.getText()
-			const finalEditBlocks = Array.from(this.currentDocumentState.editBlocks.values()).map((block) => ({
-				id: block.id,
-				searchContent: block.searchContent,
-				replaceContent: block.currentContent,
-			}))
-			const appliedBlocks = this.verifyReplaceBlocksWereApplied(finalEditBlocks)
+			// Get the current content with merge markers
+			let content = document.getText()
+
+			// Clean up merge markers and keep only the replacement content
+			content = content.replace(
+				/<<<<<<< SEARCH\r?\n[\s\S]*?\r?\n=======\r?\n([\s\S]*?)\r?\n>>>>>>> REPLACE/g,
+				(_, replacement) => {
+					// Trim any leading/trailing newlines from the replacement
+					return replacement.replace(/^\r?\n|\r?\n$/g, "")
+				}
+			)
+
+			// Apply the cleaned content back to the document
+			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
+
+			const workspaceEdit = new vscode.WorkspaceEdit()
+			workspaceEdit.replace(document.uri, entireRange, content)
+			await vscode.workspace.applyEdit(workspaceEdit)
+
+			// Save the document
+			await delay(150)
+			await document.save()
+
+			const results = this.currentDocumentState.lastUpdateResults || []
 
 			// Clean up
 			setTimeout(() => {
 				this.dispose()
 			}, 1)
 
-			return { finalContent, appliedBlocks }
+			return { finalContent: content, results }
 		} catch (error) {
 			this.logger(`Failed to save changes: ${error}`, "error")
 			throw error
 		}
 	}
-
 	/**
 	 * Rejects all changes and restores original content
 	 * Used when edits need to be discarded
@@ -648,16 +838,6 @@ export class InlineEditHandler {
 
 	public dispose() {
 		this.logger("Disposing InlineEditHandler")
-		this.pendingDecoration.dispose()
-		this.streamingDecoration.dispose()
-		this.mergeDecoration.dispose()
-
-		// Force garbage collection of any remaining decorations
-		if (vscode.window.activeTextEditor) {
-			this.pendingDecoration.dispose()
-			this.streamingDecoration.dispose()
-			this.mergeDecoration.dispose()
-		}
 	}
 
 	// type guard against this.currentDocumentState being undefined
@@ -690,149 +870,5 @@ export class InlineEditHandler {
 		console[level](
 			`[InlineEditHandler] ${timestamp} | ` + `Editor: ${isEditorOpen ? "open" : "closed"} | ` + message
 		)
-	}
-
-	/**
-	 * Calculates similarity between two strings
-	 * Uses Levenshtein distance normalized by string length
-	 * @param str1 First string to compare
-	 * @param str2 Second string to compare
-	 * @returns Similarity score between 0 and 1 (1 being identical)
-	 */
-	private calculateStringSimilarity(str1: string, str2: string): number {
-		const len1 = str1.length
-		const len2 = str2.length
-		const matrix: number[][] = []
-
-		// Initialize matrix
-		for (let i = 0; i <= len1; i++) {
-			matrix[i] = [i]
-		}
-		for (let j = 0; j <= len2; j++) {
-			matrix[0][j] = j
-		}
-
-		// Fill matrix
-		for (let i = 1; i <= len1; i++) {
-			for (let j = 1; j <= len2; j++) {
-				const cost = str1[i - 1] === str2[j - 1] ? 0 : 1
-				matrix[i][j] = Math.min(
-					matrix[i - 1][j] + 1, // deletion
-					matrix[i][j - 1] + 1, // insertion
-					matrix[i - 1][j - 1] + cost // substitution
-				)
-			}
-		}
-
-		// Calculate similarity score
-		const maxLen = Math.max(len1, len2)
-		const distance = matrix[len1][len2]
-		return 1 - distance / maxLen
-	}
-
-	/**
-	 * Verifies if replace blocks were successfully applied to the document
-	 * Allows for some flexibility in matching using string similarity
-	 *
-	 * @param blocks Array of blocks to verify
-	 * @param similarityThreshold Minimum similarity score to consider a match (0-1, default 0.9)
-	 * @returns Array of verification results for each block
-	 */
-	public verifyReplaceBlocksWereApplied(
-		blocks: Array<{ id: string; searchContent: string; replaceContent: string }>,
-		similarityThreshold: number = 0.9
-	): Array<{
-		id: string
-		searchContent: string
-		replaceContent: string
-		wasApplied: boolean
-		currentContent: string
-		similarity: number
-	}> {
-		this.validateDocumentState()
-		this.logger("Verifying replace blocks application", "debug")
-
-		const document = vscode.window.activeTextEditor?.document
-		if (!document) {
-			throw new Error("No active document to verify blocks.")
-		}
-
-		const currentContent = document.getText()
-		const results = []
-
-		for (const block of blocks) {
-			// First, find where the original searchContent was located
-			const originalSearchIndex = this.currentDocumentState.originalContent.indexOf(block.searchContent)
-			if (originalSearchIndex === -1) {
-				// If we can't find the original search content, something is wrong
-				results.push({
-					id: block.id,
-					searchContent: block.searchContent,
-					replaceContent: block.replaceContent,
-					wasApplied: false,
-					currentContent: "",
-					similarity: 0,
-				})
-				continue
-			}
-
-			// Calculate the approximate range where the replacement should be
-			const approximateStart = Math.max(0, originalSearchIndex - block.replaceContent.length / 2)
-			const approximateEnd = Math.min(
-				currentContent.length,
-				originalSearchIndex + block.replaceContent.length * 1.5
-			)
-
-			// Extract the content from the approximate area
-			const searchArea = currentContent.slice(approximateStart, approximateEnd)
-
-			// First try exact match in the search area
-			const exactMatch = searchArea.includes(block.replaceContent)
-			if (exactMatch) {
-				results.push({
-					id: block.id,
-					searchContent: block.searchContent,
-					replaceContent: block.replaceContent,
-					wasApplied: true,
-					currentContent: block.replaceContent,
-					similarity: 1,
-				})
-				continue
-			}
-
-			// If no exact match, look for similar content in chunks
-			let maxSimilarity = 0
-			let bestMatch = ""
-
-			// Use variable chunk sizes to account for potential differences
-			const minChunkSize = Math.floor(block.replaceContent.length * 0.8)
-			const maxChunkSize = Math.ceil(block.replaceContent.length * 1.2)
-
-			for (let size = minChunkSize; size <= maxChunkSize; size++) {
-				for (let i = 0; i < searchArea.length - size + 1; i++) {
-					const chunk = searchArea.slice(i, i + size)
-					const similarity = this.calculateStringSimilarity(chunk, block.replaceContent)
-
-					if (similarity > maxSimilarity) {
-						maxSimilarity = similarity
-						bestMatch = chunk
-					}
-
-					// Optimization: if we find a very close match, we can stop searching
-					if (maxSimilarity > 0.95) break
-				}
-			}
-
-			results.push({
-				id: block.id,
-				searchContent: block.searchContent,
-				replaceContent: block.replaceContent,
-				wasApplied: maxSimilarity >= similarityThreshold,
-				currentContent: bestMatch || block.replaceContent,
-				similarity: maxSimilarity,
-			})
-		}
-
-		return results
 	}
 }

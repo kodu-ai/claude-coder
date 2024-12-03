@@ -42,9 +42,11 @@ export type ReadFileTool = {
 
 export type WriteToFileTool = {
 	tool: "write_to_file"
+	mode?: "inline" | "whole"
 	path: string
 	content?: string
 	diff?: string
+	notAppliedCount?: number
 }
 
 export type AskFollowupQuestionTool = {

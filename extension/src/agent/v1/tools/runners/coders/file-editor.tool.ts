@@ -35,6 +35,10 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 	public inlineEditor: InlineEditHandler
 	/** Flag indicating if final content is being processed */
 	private isProcessingFinalContent: boolean = false
+	/** Timestamp of last update for throttling */
+	private lastUpdateTime: number = 0
+	/** Minimum interval between updates in milliseconds */
+	private readonly UPDATE_INTERVAL = 16
 	/** Queue for processing partial updates sequentially */
 	private pQueue: PQueue = new PQueue({ concurrency: 1 })
 	/** Flag to control write animation display */
@@ -76,25 +80,46 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 	}
 
 	public async _handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
+		if (!this.fileState) {
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "write_to_file",
+						diff,
+						path: relPath,
+						content: diff,
+						mode: "inline",
+						ts: this.ts,
+						approvalState: "loading",
+					},
+				},
+				this.ts
+			)
+			const absolutePath = path.resolve(getCwd(), relPath)
+			const isExistingFile = await checkFileExists(relPath)
+			if (!isExistingFile) {
+				this.logger(`File does not exist: ${relPath}`, "error")
+				this.fileState = {
+					absolutePath,
+					orignalContent: "",
+					isExistingFile: false,
+				}
+				return
+			}
+			const originalContent = fs.readFileSync(absolutePath, "utf8")
+			this.fileState = {
+				absolutePath,
+				orignalContent: originalContent,
+				isExistingFile,
+			}
+		}
+
 		// this might happen because the diff view are not instant.
 		if (this.isProcessingFinalContent) {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
 			return
 		}
-		this.params.updateAsk(
-			"tool",
-			{
-				tool: {
-					tool: "write_to_file",
-					diff,
-					path: relPath,
-					content: diff,
-					ts: this.ts,
-					approvalState: "loading",
-				},
-			},
-			this.ts
-		)
 
 		if (!diff.includes("REPLACE")) {
 			this.logger("Skipping partial update because the diff does not contain REPLACE keyword.", "warn")
@@ -186,30 +211,6 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 	}
 
 	public async handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
-		if (!this.fileState) {
-			const absolutePath = path.resolve(getCwd(), relPath)
-			const isExistingFile = await checkFileExists(relPath)
-			if (!isExistingFile) {
-				this.logger(`File does not exist: ${relPath}`, "error")
-				this.fileState = {
-					absolutePath,
-					orignalContent: "",
-					isExistingFile: false,
-				}
-				return
-			}
-			const originalContent = fs.readFileSync(absolutePath, "utf8")
-			this.fileState = {
-				absolutePath,
-				orignalContent: originalContent,
-				isExistingFile,
-			}
-		}
-		// this might happen because the diff view are not instant.
-		if (this.isProcessingFinalContent) {
-			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
-			return
-		}
 		await this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
 	}
 
@@ -301,6 +302,7 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 				tool: {
 					tool: "write_to_file",
 					content,
+					mode: "inline",
 					approvalState: "pending",
 					path,
 					ts: this.ts,
@@ -315,6 +317,7 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 					tool: {
 						tool: "write_to_file",
 						content,
+						mode: "inline",
 						approvalState: "rejected",
 						path,
 						ts: this.ts,
@@ -338,77 +341,63 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 				images
 			)
 		}
-		const { finalContent, appliedBlocks } = await this.inlineEditor.saveChanges()
+		const { finalContent, results } = await this.inlineEditor.saveChanges()
 		this.koduDev.getStateManager().addErrorPath(path)
-
-		// Final approval state
+		// count how many of the changes were not applied
+		const notAppliedCount = results.filter((result) => !result.wasApplied).length
+		const successBlock = results.filter((result) => result.wasApplied)
 		await this.params.updateAsk(
 			"tool",
 			{
 				tool: {
 					tool: "write_to_file",
 					content,
+					mode: "inline",
 					approvalState: "approved",
 					path,
 					ts: this.ts,
+					notAppliedCount,
 				},
 			},
 			this.ts
 		)
-		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
 
-		if (appliedBlocks.some((block) => block.wasApplied === false)) {
-			this.logger(`Some blocks could not be applied to the file: ${path}`, "warn")
-			appliedBlocks.forEach((block) => {
-				if (!block.wasApplied) {
-					this.logger(
-						`Block ${block.id} could not be applied
-SEARCH:
-${block.searchContent}
-=======
-REPLACE:
-${block.replaceContent}					
-`,
-						"warn"
-					)
-				}
-			})
-			return this.toolResponse(
-				"error",
-				`A partial update was applied to the file, but some changes could not be applied. Please try again with a better search and replace block match, currently the following blocks could not be applied:
-				${appliedBlocks
-					.filter((block) => block.wasApplied === false)
-					.map((block) => {
-						return `
-						<failed_to_apply_block>
-SEARCH
-${block.searchContent}
-=======
-REPLACE
-${block.replaceContent}
+		const approvedMsg = `
+The user approved the changes and the content was successfully saved to ${path.toPosix()}.
+Make sure to remember the updated content (REPLACE BLOCK + Original FILE) file content unless you change the file again or the user tells you otherwise.
+${
+	notAppliedCount > 0
+		? `However, ${notAppliedCount} changes were not applied. it's critical and must be acknowledged by you, please review the following code blocks and fix the issues. a good idea is to maybe re read the file to see why the changes were not applied maybe the content was changed or the search content you wrote is not correct.
+${results.map((result) => `<search_block>${result.searchContent}</search_block>`).join("\n")}`
+		: ""
+}
 `
-					})
-					.join("\n")}
-				Here is the the latest content for ${path} after the changes were applied:
-				<file>
-				<path>${path}</path>
-				<content>${finalContent}</content>
-				</file>	
-				`
-			)
-		}
+
+		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
 		if (currentOutputMode === "diff") {
 			return this.toolResponse(
 				"success",
-				`The content was successfully saved to ${path.toPosix()}
-				Here is the latests updates to the file after the changes were applied all the previous is the same as the original content except for the changes made, remember this for future reference:
-			<file>
+				`<file>
+			<information>${approvedMsg}</information>
 			<path>${path}</path>
-			<updated_blocks>${this.editBlocks
+			<updated_blocks>
+			Here are the updated blocks that were successfully applied to the file:
+			${successBlock
 				.map((block) => {
-					return `<block id="${block.id}">${block.replaceContent}</block>`
+					return `
+<updated_block>
+SEARCH
+${block.searchContent.substring(0, 100)}${
+						block.searchContent.length > 100 ? "... the rest of the block from your input" : ""
+					}
+=======
+${block.replaceContent.substring(0, 100)}${
+						block.replaceContent.length > 100 ? "... the rest of the block from your input" : ""
+					}
+
+</updated_blocks>`.trim()
 				})
-				.join("\n")}</updated_blocks>
+				.join("\n")}
 			</file>
 			`
 			)
@@ -416,20 +405,29 @@ ${block.replaceContent}
 		if (currentOutputMode === "none") {
 			return this.toolResponse(
 				"success",
-				`The content was successfully saved to ${path.toPosix()}
-			use the search and replace blocks as future reference for the changes made to the file, you should remember them while priotizing the latest content as the source of truth (original + changes made)`
+				`
+<file>
+<information>${approvedMsg}
+CRITICAL THE CONTENT YOU PROVIDED IN THE REPLACE HAS REPLACED THE SEARCH CONTENT, YOU SHOULD REMEMBER THE CONTENT YOU PROVIDED IN THE REPLACE BLOCK AND THE ORIGINAL FILE CONTENT UNLESS YOU CHANGE THE FILE AGAIN OR THE USER TELLS YOU OTHERWISE.
+</information>
+<path>${path}</path>
+</file>
+`
 			)
 		}
 
 		return this.toolResponse(
 			"success",
-			`The content was successfully saved to ${path.toPosix()}
-			Here is the file latest content after the changes were applied from now on view this as the source of truth for this file unless you make further changes or the user tells you otherwise:
-			<file>
-			<path>${path}</path>
-			<content>${finalContent}</content>
-			</file>
 			`
+<file>
+<information>${approvedMsg}
+CRITICAL the file content has been updated to <updated_file_content> content below, you should remember this as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.
+</information>
+<path>${path}</path>
+<updated_file_content>
+${finalContent}
+</updated_file_content>
+`
 		)
 	}
 
