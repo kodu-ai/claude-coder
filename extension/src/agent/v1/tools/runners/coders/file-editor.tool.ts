@@ -93,6 +93,7 @@ export class FileEditorTool extends BaseAgentTool {
 					diff,
 					path: relPath,
 					content: diff,
+					mode: "inline",
 					ts: this.ts,
 					approvalState: "loading",
 				},
@@ -305,6 +306,7 @@ export class FileEditorTool extends BaseAgentTool {
 				tool: {
 					tool: "write_to_file",
 					content,
+					mode: "inline",
 					approvalState: "pending",
 					path,
 					ts: this.ts,
@@ -319,6 +321,7 @@ export class FileEditorTool extends BaseAgentTool {
 					tool: {
 						tool: "write_to_file",
 						content,
+						mode: "inline",
 						approvalState: "rejected",
 						path,
 						ts: this.ts,
@@ -342,37 +345,63 @@ export class FileEditorTool extends BaseAgentTool {
 				images
 			)
 		}
-		const finalContent = await this.inlineEditor.saveChanges()
+		const { finalContent, results } = await this.inlineEditor.saveChanges()
 		this.koduDev.getStateManager().addErrorPath(path)
-
-		// Final approval state
+		// count how many of the changes were not applied
+		const notAppliedCount = results.filter((result) => !result.wasApplied).length
+		const successBlock = results.filter((result) => result.wasApplied)
 		await this.params.updateAsk(
 			"tool",
 			{
 				tool: {
 					tool: "write_to_file",
 					content,
+					mode: "inline",
 					approvalState: "approved",
 					path,
 					ts: this.ts,
+					notAppliedCount,
 				},
 			},
 			this.ts
 		)
 
+		const approvedMsg = `
+The user approved the changes and the content was successfully saved to ${path.toPosix()}.
+Make sure to remember the updated content (REPLACE BLOCK + Original FILE) file content unless you change the file again or the user tells you otherwise.
+${
+	notAppliedCount > 0
+		? `However, ${notAppliedCount} changes were not applied. it's critical and must be acknowledged by you, please review the following code blocks and fix the issues. a good idea is to maybe re read the file to see why the changes were not applied maybe the content was changed or the search content you wrote is not correct.
+${results.map((result) => `<search_block>${result.searchContent}</search_block>`).join("\n")}`
+		: ""
+}
+`
+
 		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
 		if (currentOutputMode === "diff") {
 			return this.toolResponse(
 				"success",
-				`The content was successfully saved to ${path.toPosix()}
-				Here is the latests updates to the file after the changes were applied all the previous is the same as the original content except for the changes made, remember this for future reference:
-			<file>
+				`<file>
+			<information>${approvedMsg}</information>
 			<path>${path}</path>
-			<updated_blocks>${this.editBlocks
+			<updated_blocks>
+			Here are the updated blocks that were successfully applied to the file:
+			${successBlock
 				.map((block) => {
-					return `<block id="${block.id}">${block.replaceContent}</block>`
+					return `
+<updated_block>
+SEARCH
+${block.searchContent.substring(0, 100)}${
+						block.searchContent.length > 100 ? "... the rest of the block from your input" : ""
+					}
+=======
+${block.replaceContent.substring(0, 100)}${
+						block.replaceContent.length > 100 ? "... the rest of the block from your input" : ""
+					}
+
+</updated_blocks>`.trim()
 				})
-				.join("\n")}</updated_blocks>
+				.join("\n")}
 			</file>
 			`
 			)
@@ -380,20 +409,29 @@ export class FileEditorTool extends BaseAgentTool {
 		if (currentOutputMode === "none") {
 			return this.toolResponse(
 				"success",
-				`The content was successfully saved to ${path.toPosix()}
-			use the search and replace blocks as future reference for the changes made to the file, you should remember them while priotizing the latest content as the source of truth (original + changes made)`
+				`
+<file>
+<information>${approvedMsg}
+CRITICAL THE CONTENT YOU PROVIDED IN THE REPLACE HAS REPLACED THE SEARCH CONTENT, YOU SHOULD REMEMBER THE CONTENT YOU PROVIDED IN THE REPLACE BLOCK AND THE ORIGINAL FILE CONTENT UNLESS YOU CHANGE THE FILE AGAIN OR THE USER TELLS YOU OTHERWISE.
+</information>
+<path>${path}</path>
+</file>
+`
 			)
 		}
 
 		return this.toolResponse(
 			"success",
-			`The content was successfully saved to ${path.toPosix()}
-			Here is the file latest content after the changes were applied from now on view this as the source of truth for this file unless you make further changes or the user tells you otherwise:
-			<file>
-			<path>${path}</path>
-			<content>${finalContent}</content>
-			</file>
 			`
+<file>
+<information>${approvedMsg}
+CRITICAL the file content has been updated to <updated_file_content> content below, you should remember this as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.
+</information>
+<path>${path}</path>
+<updated_file_content>
+${finalContent}
+</updated_file_content>
+`
 		)
 	}
 

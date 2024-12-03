@@ -1,5 +1,6 @@
 import * as vscode from "vscode"
 import * as DMP from "diff-match-patch"
+import delay from "delay"
 
 interface MatchResult {
 	success: boolean
@@ -65,11 +66,6 @@ interface BlockResult {
  * - Supports auto-scrolling to edited regions
  */
 export class InlineEditHandler {
-	// Decorations for different edit states
-	private pendingDecoration: vscode.TextEditorDecorationType
-	private streamingDecoration: vscode.TextEditorDecorationType
-	private mergeDecoration: vscode.TextEditorDecorationType
-
 	// Controls auto-scroll behavior
 	private isAutoScrollEnabled: boolean = true
 
@@ -77,39 +73,7 @@ export class InlineEditHandler {
 	protected currentDocumentState: DocumentState | undefined
 
 	constructor() {
-		// Initialize PQueue with concurrency 1 to ensure sequential operations
-		this.pendingDecoration = this.createDecoration("⟳ Pending changes", "editorGhostText.foreground")
-		this.streamingDecoration = this.createDecoration("↻ Streaming changes...", "editorInfo.foreground")
-		this.mergeDecoration = this.createDecoration("⚡ Review changes", "editorInfo.foreground")
-
 		this.logger("InlineEditHandler initialized", "debug")
-	}
-
-	private createDecoration(text: string, color: string): vscode.TextEditorDecorationType {
-		return vscode.window.createTextEditorDecorationType({
-			isWholeLine: true,
-			backgroundColor: new vscode.ThemeColor("editor.findMatchHighlightBackground"),
-			after: {
-				margin: "0 0 0 1em",
-				contentText: text,
-				color: new vscode.ThemeColor(color),
-			},
-			before: {
-				margin: "0 0 0 1em",
-			},
-			light: {
-				backgroundColor: new vscode.ThemeColor("editor.findMatchHighlightBackground"),
-				before: {
-					color: new vscode.ThemeColor("editor.foreground"),
-				},
-			},
-			dark: {
-				backgroundColor: new vscode.ThemeColor("editor.findMatchHighlightBackground"),
-				before: {
-					color: new vscode.ThemeColor("editor.foreground"),
-				},
-			},
-		})
 	}
 
 	/**
@@ -152,20 +116,6 @@ export class InlineEditHandler {
 
 			// Reveal with smooth scrolling
 			await editor.revealRange(revealRange, vscode.TextEditorRevealType.InCenterIfOutsideViewport)
-
-			// Add a temporary highlight effect
-			const highlightDecoration = vscode.window.createTextEditorDecorationType({
-				backgroundColor: new vscode.ThemeColor("editor.findMatchHighlightBackground"),
-				borderColor: new vscode.ThemeColor("editor.findMatchBorder"),
-				borderWidth: "1px",
-				borderStyle: "solid",
-				isWholeLine: true,
-			})
-
-			editor.setDecorations(highlightDecoration, [range])
-
-			// Remove highlight after a short delay
-			setTimeout(() => highlightDecoration.dispose(), 800)
 		} catch (error) {
 			this.logger(`Failed to scroll to range: ${error}`, "error")
 		}
@@ -361,9 +311,6 @@ export class InlineEditHandler {
 
 		if (editor) {
 			// Clear existing decorations
-			editor.setDecorations(this.pendingDecoration, [])
-			editor.setDecorations(this.streamingDecoration, [])
-			editor.setDecorations(this.mergeDecoration, [])
 
 			// Group ranges by status
 			const pendingRanges: vscode.Range[] = []
@@ -396,17 +343,6 @@ export class InlineEditHandler {
 						await this.scrollToRange(editor, range)
 					}
 				}
-			}
-
-			// Apply all decorations at once for better performance
-			if (pendingRanges.length > 0) {
-				editor.setDecorations(this.pendingDecoration, pendingRanges)
-			}
-			if (streamingRanges.length > 0) {
-				editor.setDecorations(this.streamingDecoration, streamingRanges)
-			}
-			if (mergeRanges.length > 0) {
-				editor.setDecorations(this.mergeDecoration, mergeRanges)
 			}
 		}
 	}
@@ -458,7 +394,14 @@ export class InlineEditHandler {
 			}
 
 			// Update entire file content
-			return await this.updateFileContent()
+			await this.updateFileContent()
+			// format the document
+			// const isDocumentPython = this.currentDocumentState.uri.fsPath.endsWith(".py")
+			// if (isDocumentPython) {
+			// 	await vscode.commands.executeCommand("editor.action.formatDocument")
+			// }
+			// await vscode.commands.executeCommand("editor.action.formatDocument")
+			return
 		} catch (error) {
 			this.logger(`Failed to finalize all blocks: ${error}`, "error")
 			throw error
@@ -492,6 +435,10 @@ export class InlineEditHandler {
 		}
 	}
 
+	private formatToDiff(searchContent: string, replaceContent: string): string {
+		return `<<<<<<< SEARCH\n${searchContent}\n=======\n${replaceContent}\n>>>>>>> REPLACE`
+	}
+
 	private findAndReplace(content: string, searchContent: string, replaceContent: string): MatchResult {
 		const blocks = this.currentDocumentState?.editBlocks.values()
 		// Look up if we've already found this block's match
@@ -500,11 +447,11 @@ export class InlineEditHandler {
 		// If we already found the match location, just do the replacement
 		if (matchedBlock?.matchedLocation) {
 			const contentLines = content.split("\n")
-			const replaceLines = replaceContent.split("\n")
+			const diffAsReplaceLines = this.formatToDiff(searchContent, replaceContent).split("\n")
 
 			const newContent = [
 				...contentLines.slice(0, matchedBlock.matchedLocation.lineStart),
-				...replaceLines,
+				...diffAsReplaceLines,
 				...contentLines.slice(matchedBlock.matchedLocation.lineEnd + 1),
 			].join("\n")
 
@@ -562,17 +509,30 @@ export class InlineEditHandler {
 
 	private performReplace(content: string, startLine: number, endLine: number, replaceContent: string): MatchResult {
 		const contentLines = content.split("\n")
+		const originalLines = contentLines.slice(startLine, endLine + 1)
 		const replaceLines = replaceContent.split("\n")
 
-		const newContent = [
+		// Determine the indentation of the starting line
+		const startLineIndent = originalLines[0].match(/^(\s*)/)
+		const indent = startLineIndent ? startLineIndent[1] : ""
+
+		const adjustedReplaceLines = replaceLines.map((line, index) => {
+			return indent + line.trimStart()
+		})
+
+		console.log("adjustedReplaceLines", adjustedReplaceLines)
+
+		const diffAsReplaceLines = this.formatToDiff(content, adjustedReplaceLines.join("\n")).split("\n")
+
+		const newContentLines = [
 			...contentLines.slice(0, startLine),
-			...replaceLines,
+			...diffAsReplaceLines,
 			...contentLines.slice(endLine + 1),
-		].join("\n")
+		]
 
 		return {
 			success: true,
-			newContent,
+			newContent: newContentLines.join("\n"),
 		}
 	}
 
@@ -695,6 +655,7 @@ export class InlineEditHandler {
 			})
 
 			for (const block of sortedBlocks) {
+				// const formattedGitDiff = `<<<<<<< SEARCH\n${block.searchContent}\n=======\n${block.currentContent}\n>>>>>>> REPLACE`
 				const matchResult = this.findAndReplace(newContent, block.searchContent, block.currentContent)
 
 				if (matchResult.success && matchResult.newContent) {
@@ -721,7 +682,6 @@ export class InlineEditHandler {
 			// Store results for save changes
 			this.currentDocumentState.lastUpdateResults = results
 
-			// Update the document
 			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
 
 			const workspaceEdit = new vscode.WorkspaceEdit()
@@ -733,7 +693,6 @@ export class InlineEditHandler {
 				this.currentDocumentState.currentContent = newContent
 				await this.refreshEditor()
 			}
-
 			return
 		} catch (error) {
 			this.logger(`Failed to update file content: ${error}`, "error")
@@ -754,8 +713,51 @@ export class InlineEditHandler {
 				throw new Error("No active document to save changes.")
 			}
 
+			// Get the current content with merge markers
+			let content = document.getText()
+
+			// Clean up merge markers and keep only the replacement content
+			while (content.includes("<<<<<<< SEARCH")) {
+				const startMarker = "<<<<<<< SEARCH"
+				const middleMarker = "======="
+				const endMarker = ">>>>>>> REPLACE"
+
+				const startIndex = content.indexOf(startMarker)
+				const middleIndex = content.indexOf(middleMarker, startIndex)
+				const endIndex = content.indexOf(endMarker, middleIndex)
+
+				if (startIndex === -1 || middleIndex === -1 || endIndex === -1) {
+					break
+				}
+
+				// Extract just the replacement content (between ======= and >>>>>>>)
+				let replaceContent = content.substring(middleIndex + middleMarker.length, endIndex)
+				// we need to remove the \n at the start of the replaceContent
+				const startAndEndPattern = ["\r\n", "\n", "\r"]
+				const startPattern = startAndEndPattern.find((pattern) => replaceContent.startsWith(pattern))
+				const endPattern = startAndEndPattern.find((pattern) => replaceContent.endsWith(pattern))
+				if (startPattern) {
+					replaceContent = replaceContent.substring(startPattern.length)
+				}
+				if (endPattern) {
+					replaceContent = replaceContent.substring(0, replaceContent.length - endPattern.length)
+				}
+
+				// Replace the entire merge block with just the replacement content
+				content =
+					content.substring(0, startIndex) + replaceContent + content.substring(endIndex + endMarker.length)
+			}
+
+			// Apply the cleaned content back to the document
+			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
+
+			const workspaceEdit = new vscode.WorkspaceEdit()
+			workspaceEdit.replace(document.uri, entireRange, content)
+			await vscode.workspace.applyEdit(workspaceEdit)
+
+			// Save the document
 			await document.save()
-			const finalContent = document.getText()
+			await delay(300)
 
 			const results = this.currentDocumentState.lastUpdateResults || []
 
@@ -764,13 +766,12 @@ export class InlineEditHandler {
 				this.dispose()
 			}, 1)
 
-			return { finalContent, results }
+			return { finalContent: content, results }
 		} catch (error) {
 			this.logger(`Failed to save changes: ${error}`, "error")
 			throw error
 		}
 	}
-
 	/**
 	 * Rejects all changes and restores original content
 	 * Used when edits need to be discarded
@@ -830,16 +831,6 @@ export class InlineEditHandler {
 
 	public dispose() {
 		this.logger("Disposing InlineEditHandler")
-		this.pendingDecoration.dispose()
-		this.streamingDecoration.dispose()
-		this.mergeDecoration.dispose()
-
-		// Force garbage collection of any remaining decorations
-		if (vscode.window.activeTextEditor) {
-			this.pendingDecoration.dispose()
-			this.streamingDecoration.dispose()
-			this.mergeDecoration.dispose()
-		}
 	}
 
 	// type guard against this.currentDocumentState being undefined

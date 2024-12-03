@@ -25,7 +25,7 @@ const removeBlock = async (blockFilePath: string) => {
 async function simulateStreaming(diff: string, delayMs: number): Promise<AsyncGenerator<string, void, unknown>> {
 	// Get random chunk size between 6-24 chars
 	function getRandomChunkSize() {
-		return Math.floor(Math.random() * (128 - 6 + 1)) + 24
+		return Math.floor(Math.random() * (25 - 6 + 1)) + 24
 	}
 
 	// Accumulate the string as we stream
@@ -50,7 +50,7 @@ async function testBlock(
 	timeout?: number
 ) {
 	const inlineEditHandler = new InlineEditHandler()
-	const generator = await simulateStreaming(blockBlockContent, 5)
+	const generator = await simulateStreaming(blockBlockContent, 25)
 	let editBlocks: EditBlock[] = []
 	let lastAppliedBlockId: string | undefined
 	// Verify content
@@ -245,9 +245,6 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 	let inlineEditHandler: InlineEditHandler
 
 	beforeEach(async () => {
-		const extension = vscode.extensions.getExtension("kodu-ai.claude-dev-experimental")!
-		await extension.activate()
-		await delay(1000)
 		const toEditFileContent = fs.readFileSync(toEditFilePath, "utf8")
 		// Create a dummy file for testing
 		fs.writeFileSync(testFilePath, toEditFileContent, "utf8")
