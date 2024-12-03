@@ -55,10 +55,10 @@ export default function AnnouncementBanner() {
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🛠️ Automatic tab generation fixes for inline edits</p>
+						<p>🔧 Automatic tab generation fixes for inline edits</p>
 						<p>✨ New inline edit viewer using git format</p>
-						<p>📊 Better support for broken edits</p>
-						<p>🚀 Enhanced autosummary performance</p>
+						<p>⚡️ Better support for broken edits</p>
+						<p>📈 Enhanced autosummary performance</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">
