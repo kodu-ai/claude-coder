@@ -16,8 +16,8 @@ export type ToolResponseV2 = {
 	images?: string[]
 	text?: string
 	branch?: string
-	preCommit?: string
-	commit?: string
+	preCommitHash?: string
+	commitHash?: string
 }
 
 export type UserContent = Array<
@@ -49,6 +49,9 @@ export interface KoduDevOptions {
 
 export type ApiHistoryItem = Anthropic.MessageParam & {
 	ts?: number
+	commitHash?: string
+	branch?: string
+	preCommitHash?: string
 }
 
 export interface KoduDevState {

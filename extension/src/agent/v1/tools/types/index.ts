@@ -73,6 +73,6 @@ export type AgentToolOptions = {
 
 export type CommitInfo = {
 	branch: string
-	hash: string
+	commitHash: string
 	preCommitHash?: string
 }

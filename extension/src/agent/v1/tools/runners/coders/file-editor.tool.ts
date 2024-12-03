@@ -384,7 +384,7 @@ ${results.map((result) => `<search_block>${result.searchContent}</search_block>`
 		let commitResult: GitCommitResult | undefined
 		try {
 			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(path)
-			commitXmlInfo = `\n<git_commit_info>\n<branch>${commitResult.branch}</branch>\n<commit_hash>${commitResult.hash}</commit_hash>\n</git_commit_info>`
+			commitXmlInfo = `\n<git_commit_info>\n<branch>${commitResult.branch}</branch>\n<commit_hash>${commitResult.commitHash}</commit_hash>\n</git_commit_info>`
 		} catch (error) {
 			this.logger(`Error committing changes: ${error}`, "error")
 		}
@@ -532,7 +532,7 @@ ${commitXmlInfo}
 		let commitResult: GitCommitResult | undefined
 		try {
 			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(relPath)
-			commitXmlInfo = `\n<git_commit_info>\n<branch>${commitResult.branch}</branch>\n<commit_hash>${commitResult.hash}</commit_hash>\n</git_commit_info>`
+			commitXmlInfo = `\n<git_commit_info>\n<branch>${commitResult.branch}</branch>\n<commit_hash>${commitResult.commitHash}</commit_hash>\n</git_commit_info>`
 		} catch (error) {
 			this.logger(`Error committing changes: ${error}`, "error")
 		}

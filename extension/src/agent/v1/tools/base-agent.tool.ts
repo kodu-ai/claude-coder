@@ -105,7 +105,7 @@ export abstract class BaseAgentTool {
 			text,
 			images,
 			status,
-			commitResult,
+			...commitResult,
 		}
 	}
 

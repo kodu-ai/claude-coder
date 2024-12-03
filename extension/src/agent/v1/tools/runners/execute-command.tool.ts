@@ -138,9 +138,9 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		let preCommandCommit = ""
 		try {
 			const commitResult = await this.koduDev.gitHandler.commitEverything(
-				`State before executing command ${command}`
+				`State before executing command \`${command}\``
 			)
-			preCommandCommit = commitResult.hash
+			preCommandCommit = commitResult.commitHash
 		} catch (error) {
 			console.error("Failed to get pre-command commit:", error)
 		}
@@ -289,7 +289,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				let commitResult: GitCommitResult | undefined = undefined
 				try {
 					commitResult = await this.koduDev.gitHandler.commitEverything(
-						`State after executing command ${command}`
+						`State after executing command \`${command}\``
 					)
 				} catch (error) {
 					console.error("Failed to get post-command commit:", error)
@@ -303,7 +303,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				</content>\n` + commitResult
 						? `<branch>${commitResult?.branch}</branch>\n` +
 						  `<pre_commit>${preCommandCommit}</pre_commit>\n` +
-						  `<commit>${commitResult?.hash}</commit>\n`
+						  `<commit>${commitResult?.commitHash}</commit>\n`
 						: "" + `</output>`
 
 				return await this.toolResponse("success", toolRes, userFeedback?.images, commitResult)

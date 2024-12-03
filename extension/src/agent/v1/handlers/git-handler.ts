@@ -4,7 +4,7 @@ import { GitBranchItem, GitLogItem } from "../../../shared/ExtensionMessage"
 
 export type GitCommitResult = {
 	branch: string
-	hash: string
+	commitHash: string
 }
 
 export class GitHandler {
@@ -139,11 +139,11 @@ export class GitHandler {
 
 		// example line: [master 812f9b0] Added cpp-poem.txt
 		const branch = firstLine.trim().split(" ")[0].slice(1)
-		const hash = firstLine.trim().split(" ")[1].slice(0, -1)
+		const commitHash = firstLine.trim().split(" ")[1].slice(0, -1)
 
 		return {
 			branch,
-			hash,
+			commitHash,
 		}
 	}
 
