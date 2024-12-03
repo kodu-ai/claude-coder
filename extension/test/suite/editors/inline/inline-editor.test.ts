@@ -50,7 +50,7 @@ async function testBlock(
 	timeout?: number
 ) {
 	const inlineEditHandler = new InlineEditHandler()
-	const generator = await simulateStreaming(blockBlockContent, 25)
+	const generator = await simulateStreaming(blockBlockContent, 0.5)
 	let editBlocks: EditBlock[] = []
 	let lastAppliedBlockId: string | undefined
 	// Verify content
@@ -138,6 +138,7 @@ async function testBlock(
 
 	await inlineEditHandler.forceFinalizeAll(editBlocks)
 
+	// await delay(3_000)
 	// Save with no tabs open
 	const { finalContent: finalDocument, results } = await inlineEditHandler.saveChanges()
 

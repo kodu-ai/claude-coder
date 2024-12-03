@@ -80,6 +80,26 @@ export class FileEditorTool extends BaseAgentTool {
 	}
 
 	public async _handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
+		if (!this.fileState) {
+			const absolutePath = path.resolve(getCwd(), relPath)
+			const isExistingFile = await checkFileExists(relPath)
+			if (!isExistingFile) {
+				this.logger(`File does not exist: ${relPath}`, "error")
+				this.fileState = {
+					absolutePath,
+					orignalContent: "",
+					isExistingFile: false,
+				}
+				return
+			}
+			const originalContent = fs.readFileSync(absolutePath, "utf8")
+			this.fileState = {
+				absolutePath,
+				orignalContent: originalContent,
+				isExistingFile,
+			}
+		}
+
 		// this might happen because the diff view are not instant.
 		if (this.isProcessingFinalContent) {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
@@ -191,30 +211,6 @@ export class FileEditorTool extends BaseAgentTool {
 	}
 
 	public async handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
-		if (!this.fileState) {
-			const absolutePath = path.resolve(getCwd(), relPath)
-			const isExistingFile = await checkFileExists(relPath)
-			if (!isExistingFile) {
-				this.logger(`File does not exist: ${relPath}`, "error")
-				this.fileState = {
-					absolutePath,
-					orignalContent: "",
-					isExistingFile: false,
-				}
-				return
-			}
-			const originalContent = fs.readFileSync(absolutePath, "utf8")
-			this.fileState = {
-				absolutePath,
-				orignalContent: originalContent,
-				isExistingFile,
-			}
-		}
-		// this might happen because the diff view are not instant.
-		if (this.isProcessingFinalContent) {
-			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
-			return
-		}
 		await this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
 	}
 

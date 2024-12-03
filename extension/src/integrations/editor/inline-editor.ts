@@ -121,6 +121,23 @@ export class InlineEditHandler {
 		}
 	}
 
+	private async waitForDocumentSync(document: vscode.TextDocument): Promise<void> {
+		return new Promise<void>((resolve) => {
+			const disposable = vscode.workspace.onDidChangeTextDocument((e) => {
+				if (e.document === document) {
+					disposable.dispose()
+					resolve()
+				}
+			})
+
+			// Timeout safety in case event never fires
+			setTimeout(() => {
+				disposable.dispose()
+				resolve()
+			}, 1000)
+		})
+	}
+
 	/**
 	 * Opens a file for editing and initializes the document state
 	 * Processes any pending operations that arrived before opening
@@ -220,9 +237,9 @@ export class InlineEditHandler {
 			block.currentContent = content
 			block.status = "streaming"
 
-			this.logger(`Applying streaming content for id ${id}`, "info")
-			this.logger(`searchContent length: ${searchContent.length}`, "info")
-			this.logger(`replaceContent length: ${content.length}`, "info")
+			// this.logger(`Applying streaming content for id ${id}`, "info")
+			// this.logger(`searchContent length: ${searchContent.length}`, "info")
+			// this.logger(`replaceContent length: ${content.length}`, "info")
 			// Update entire file content
 			await this.updateFileContent()
 			return
@@ -275,6 +292,9 @@ export class InlineEditHandler {
 
 			// Update entire file content
 			await this.updateFileContent()
+			// remove formatting because it switches /t to actual spacing
+			// await vscode.commands.executeCommand("editor.action.formatDocument")
+
 			return
 		} catch (error) {
 			this.logger(`Failed to apply final content: ${error}`, "error")
@@ -365,7 +385,7 @@ export class InlineEditHandler {
 	public async forceFinalizeAll(
 		diffBlocks: { id: string; searchContent: string; replaceContent: string }[]
 	): Promise<void> {
-		this.logger("Forcing finalization of all blocks", "debug")
+		this.logger("Forcing finalization of all blocks", "info")
 		this.validateDocumentState()
 		// let's open the document and make it focused and active
 		await vscode.window.showTextDocument(this.currentDocumentState.uri, {
@@ -391,16 +411,8 @@ export class InlineEditHandler {
 						status: "final",
 					})
 				}
+				this.applyFinalContent(block.id, block.searchContent, block.replaceContent)
 			}
-
-			// Update entire file content
-			await this.updateFileContent()
-			// format the document
-			// const isDocumentPython = this.currentDocumentState.uri.fsPath.endsWith(".py")
-			// if (isDocumentPython) {
-			// 	await vscode.commands.executeCommand("editor.action.formatDocument")
-			// }
-			// await vscode.commands.executeCommand("editor.action.formatDocument")
 			return
 		} catch (error) {
 			this.logger(`Failed to finalize all blocks: ${error}`, "error")
@@ -446,19 +458,12 @@ export class InlineEditHandler {
 
 		// If we already found the match location, just do the replacement
 		if (matchedBlock?.matchedLocation) {
-			const contentLines = content.split("\n")
-			const diffAsReplaceLines = this.formatToDiff(searchContent, replaceContent).split("\n")
-
-			const newContent = [
-				...contentLines.slice(0, matchedBlock.matchedLocation.lineStart),
-				...diffAsReplaceLines,
-				...contentLines.slice(matchedBlock.matchedLocation.lineEnd + 1),
-			].join("\n")
-
-			return {
-				success: true,
-				newContent,
-			}
+			return this.performReplace(
+				content,
+				matchedBlock.matchedLocation.lineStart,
+				matchedBlock.matchedLocation.lineEnd,
+				replaceContent
+			)
 		}
 
 		// 1. Perfect match
@@ -512,18 +517,21 @@ export class InlineEditHandler {
 		const originalLines = contentLines.slice(startLine, endLine + 1)
 		const replaceLines = replaceContent.split("\n")
 
-		// Determine the indentation of the starting line
-		const startLineIndent = originalLines[0].match(/^(\s*)/)
-		const indent = startLineIndent ? startLineIndent[1] : ""
+		// 1. Get minimal indentation of the original content
+		const searchMinIndent = this.getMinimalIndentation(originalLines)
+		// 2. Get minimal indentation of the replacement content
+		const replaceMinIndent = this.getMinimalIndentation(replaceLines)
 
-		const adjustedReplaceLines = replaceLines.map((line, index) => {
-			return indent + line.trimStart()
-		})
+		// 3. Remove the minimal indentation from each line in replaceLines
+		const adjustedReplaceLines = replaceLines.map((line) => line.substring(replaceMinIndent.length))
 
-		console.log("adjustedReplaceLines", adjustedReplaceLines)
+		// 4. Add the original content's minimal indentation to each line
+		const finalReplaceLines = adjustedReplaceLines.map((line) => searchMinIndent + line)
 
-		const diffAsReplaceLines = this.formatToDiff(content, adjustedReplaceLines.join("\n")).split("\n")
+		// Prepare the diff with adjusted indentation
+		const diffAsReplaceLines = this.formatToDiff(originalLines.join("\n"), finalReplaceLines.join("\n")).split("\n")
 
+		// Construct the new content by replacing the old content with the new adjusted content
 		const newContentLines = [
 			...contentLines.slice(0, startLine),
 			...diffAsReplaceLines,
@@ -534,6 +542,20 @@ export class InlineEditHandler {
 			success: true,
 			newContent: newContentLines.join("\n"),
 		}
+	}
+
+	// Helper function to calculate minimal indentation
+	private getMinimalIndentation(lines: string[]): string {
+		let minIndent: string | null = null
+		for (const line of lines) {
+			if (line.trim() === "") continue // Skip empty lines
+			const match = line.match(/^(\s*)/)
+			const indent = match ? match[1] : ""
+			if (minIndent === null || indent.length < minIndent.length) {
+				minIndent = indent
+			}
+		}
+		return minIndent || ""
 	}
 
 	private findPerfectMatch(content: string, searchContent: string): MatchResult {
@@ -678,6 +700,10 @@ export class InlineEditHandler {
 					this.logger(`Failed to apply block ${block.id}: ${matchResult.failureReason}`, "warn")
 				}
 			}
+			if (newContent === this.currentDocumentState.currentContent) {
+				this.logger("No changes to apply", "info")
+				return
+			}
 
 			// Store results for save changes
 			this.currentDocumentState.lastUpdateResults = results
@@ -756,8 +782,8 @@ export class InlineEditHandler {
 			await vscode.workspace.applyEdit(workspaceEdit)
 
 			// Save the document
+			await delay(150)
 			await document.save()
-			await delay(300)
 
 			const results = this.currentDocumentState.lastUpdateResults || []
 
