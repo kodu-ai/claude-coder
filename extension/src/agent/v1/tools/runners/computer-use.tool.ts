@@ -5,7 +5,6 @@ import { BaseAgentTool } from "../base-agent.tool"
 import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "../types"
 import { computerUseActions } from "../schema/computer_use"
 import { BrowserManager } from "../../browser-manager"
-import screenshotDesktop from "screenshot-desktop"
 import { exec } from "child_process"
 // import * as puppeteer from 'puppeteer';
 
