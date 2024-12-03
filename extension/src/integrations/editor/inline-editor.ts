@@ -1,20 +1,35 @@
 import * as vscode from "vscode"
-import PQueue from "p-queue"
+import * as DMP from "diff-match-patch"
+import delay from "delay"
 
-/**
- * Represents a block of text that is being edited inline
- * @property id - Unique identifier for the edit block
- * @property searchContent - Original content to search for in the document
- * @property currentContent - Current content being shown (may be streaming)
- * @property finalContent - Final content after streaming is complete
- * @property status - Current state of the edit block (pending/streaming/final)
- */
+interface MatchResult {
+	success: boolean
+	newContent?: string
+	lineStart?: number
+	lineEnd?: number
+	failureReason?: string
+}
+
+// Add these to the EditBlock interface
 interface EditBlock {
 	id: string
 	searchContent: string
 	currentContent: string
 	finalContent?: string
 	status: "pending" | "streaming" | "final"
+	matchedLocation?: {
+		lineStart: number
+		lineEnd: number
+	}
+	dmpAttempted?: boolean
+}
+
+interface BlockResult {
+	id: string
+	searchContent: string
+	replaceContent: string
+	wasApplied: boolean
+	failureReason?: string
 }
 
 /**
@@ -29,8 +44,16 @@ interface DocumentState {
 	originalContent: string
 	currentContent: string
 	editBlocks: Map<string, EditBlock>
+	lastUpdateResults?: BlockResult[] // Add this line
 }
 
+interface BlockResult {
+	id: string
+	searchContent: string
+	replaceContent: string
+	wasApplied: boolean
+	failureReason?: string
+}
 /**
  * Handles inline editing functionality in VSCode text editors
  * Provides real-time updates, decorations, and manages edit state
@@ -43,11 +66,6 @@ interface DocumentState {
  * - Supports auto-scrolling to edited regions
  */
 export class InlineEditHandler {
-	// Decorations for different edit states
-	private pendingDecoration: vscode.TextEditorDecorationType
-	private streamingDecoration: vscode.TextEditorDecorationType
-	private mergeDecoration: vscode.TextEditorDecorationType
-
 	// Controls auto-scroll behavior
 	private isAutoScrollEnabled: boolean = true
 
@@ -55,39 +73,7 @@ export class InlineEditHandler {
 	protected currentDocumentState: DocumentState | undefined
 
 	constructor() {
-		// Initialize PQueue with concurrency 1 to ensure sequential operations
-		this.pendingDecoration = this.createDecoration("⟳ Pending changes", "editorGhostText.foreground")
-		this.streamingDecoration = this.createDecoration("↻ Streaming changes...", "editorInfo.foreground")
-		this.mergeDecoration = this.createDecoration("⚡ Review changes", "editorInfo.foreground")
-
 		this.logger("InlineEditHandler initialized", "debug")
-	}
-
-	private createDecoration(text: string, color: string): vscode.TextEditorDecorationType {
-		return vscode.window.createTextEditorDecorationType({
-			isWholeLine: true,
-			backgroundColor: new vscode.ThemeColor("editor.findMatchHighlightBackground"),
-			after: {
-				margin: "0 0 0 1em",
-				contentText: text,
-				color: new vscode.ThemeColor(color),
-			},
-			before: {
-				margin: "0 0 0 1em",
-			},
-			light: {
-				backgroundColor: new vscode.ThemeColor("editor.findMatchHighlightBackground"),
-				before: {
-					color: new vscode.ThemeColor("editor.foreground"),
-				},
-			},
-			dark: {
-				backgroundColor: new vscode.ThemeColor("editor.findMatchHighlightBackground"),
-				before: {
-					color: new vscode.ThemeColor("editor.foreground"),
-				},
-			},
-		})
 	}
 
 	/**
@@ -130,20 +116,6 @@ export class InlineEditHandler {
 
 			// Reveal with smooth scrolling
 			await editor.revealRange(revealRange, vscode.TextEditorRevealType.InCenterIfOutsideViewport)
-
-			// Add a temporary highlight effect
-			const highlightDecoration = vscode.window.createTextEditorDecorationType({
-				backgroundColor: new vscode.ThemeColor("editor.findMatchHighlightBackground"),
-				borderColor: new vscode.ThemeColor("editor.findMatchBorder"),
-				borderWidth: "1px",
-				borderStyle: "solid",
-				isWholeLine: true,
-			})
-
-			editor.setDecorations(highlightDecoration, [range])
-
-			// Remove highlight after a short delay
-			setTimeout(() => highlightDecoration.dispose(), 800)
 		} catch (error) {
 			this.logger(`Failed to scroll to range: ${error}`, "error")
 		}
@@ -311,77 +283,6 @@ export class InlineEditHandler {
 	}
 
 	/**
-	 * Updates the entire file content with all edit blocks
-	 * Maintains order of edits and applies them sequentially
-	 *
-	 * Process:
-	 * 1. Starts with original document content
-	 * 2. Sorts blocks by their position in the document
-	 * 3. Applies each block's changes in order
-	 * 4. Updates the entire document at once
-	 * 5. Refreshes editor decorations
-	 *
-	 * Note: Uses workspace edit API to ensure proper undo/redo support
-	 */
-	private async updateFileContent(): Promise<void> {
-		this.validateDocumentState()
-
-		try {
-			const document = await this.getDocument()
-			if (!document) {
-				throw new Error("No active document to update content.")
-			}
-
-			// Start with original content
-			let newContent = this.currentDocumentState.originalContent
-
-			// Apply all blocks in order
-			const sortedBlocks = Array.from(this.currentDocumentState.editBlocks.values()).sort((a, b) => {
-				const indexA = newContent.indexOf(a.searchContent)
-				const indexB = newContent.indexOf(b.searchContent)
-				return indexA - indexB
-			})
-
-			for (const block of sortedBlocks) {
-				// Try direct replacement first
-				if (newContent.includes(block.searchContent)) {
-					newContent = newContent.replace(block.searchContent, block.currentContent)
-				} else {
-					// If direct replacement fails, try with normalized line endings
-					const normalizedSearchContent = block.searchContent.replace(/\n/g, "\r\n")
-					if (newContent.includes(normalizedSearchContent)) {
-						newContent = newContent.replace(normalizedSearchContent, block.currentContent)
-					} else {
-						// If both attempts fail, log a warning and continue
-						this.logger(
-							`Warning: Could not find exact match for search content. Original content length: ${newContent.length}, Search content length: ${block.searchContent.length}`,
-							"warn"
-						)
-					}
-				}
-			}
-
-			// Update entire file
-			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
-
-			const workspaceEdit = new vscode.WorkspaceEdit()
-			workspaceEdit.replace(document.uri, entireRange, newContent)
-			const success = await vscode.workspace.applyEdit(workspaceEdit)
-
-			if (success) {
-				this.logger("File content updated", "info")
-				this.currentDocumentState.currentContent = newContent
-				await this.refreshEditor()
-			}
-
-			return
-		} catch (error) {
-			this.logger(`Failed to update file content: ${error}`, "error")
-			throw error
-		}
-	}
-
-	/**
 	 * Refreshes the editor's visual state
 	 * Updates decorations and scrolling for all edit blocks
 	 *
@@ -410,9 +311,6 @@ export class InlineEditHandler {
 
 		if (editor) {
 			// Clear existing decorations
-			editor.setDecorations(this.pendingDecoration, [])
-			editor.setDecorations(this.streamingDecoration, [])
-			editor.setDecorations(this.mergeDecoration, [])
 
 			// Group ranges by status
 			const pendingRanges: vscode.Range[] = []
@@ -445,17 +343,6 @@ export class InlineEditHandler {
 						await this.scrollToRange(editor, range)
 					}
 				}
-			}
-
-			// Apply all decorations at once for better performance
-			if (pendingRanges.length > 0) {
-				editor.setDecorations(this.pendingDecoration, pendingRanges)
-			}
-			if (streamingRanges.length > 0) {
-				editor.setDecorations(this.streamingDecoration, streamingRanges)
-			}
-			if (mergeRanges.length > 0) {
-				editor.setDecorations(this.mergeDecoration, mergeRanges)
 			}
 		}
 	}
@@ -507,7 +394,14 @@ export class InlineEditHandler {
 			}
 
 			// Update entire file content
-			return await this.updateFileContent()
+			await this.updateFileContent()
+			// format the document
+			// const isDocumentPython = this.currentDocumentState.uri.fsPath.endsWith(".py")
+			// if (isDocumentPython) {
+			// 	await vscode.commands.executeCommand("editor.action.formatDocument")
+			// }
+			// await vscode.commands.executeCommand("editor.action.formatDocument")
+			return
 		} catch (error) {
 			this.logger(`Failed to finalize all blocks: ${error}`, "error")
 			throw error
@@ -541,20 +435,275 @@ export class InlineEditHandler {
 		}
 	}
 
+	private formatToDiff(searchContent: string, replaceContent: string): string {
+		return `<<<<<<< SEARCH\n${searchContent}\n=======\n${replaceContent}\n>>>>>>> REPLACE`
+	}
+
+	private findAndReplace(content: string, searchContent: string, replaceContent: string): MatchResult {
+		const blocks = this.currentDocumentState?.editBlocks.values()
+		// Look up if we've already found this block's match
+		const matchedBlock = Array.from(blocks ?? []).find((block) => block.searchContent === searchContent)
+
+		// If we already found the match location, just do the replacement
+		if (matchedBlock?.matchedLocation) {
+			const contentLines = content.split("\n")
+			const diffAsReplaceLines = this.formatToDiff(searchContent, replaceContent).split("\n")
+
+			const newContent = [
+				...contentLines.slice(0, matchedBlock.matchedLocation.lineStart),
+				...diffAsReplaceLines,
+				...contentLines.slice(matchedBlock.matchedLocation.lineEnd + 1),
+			].join("\n")
+
+			return {
+				success: true,
+				newContent,
+			}
+		}
+
+		// 1. Perfect match
+		const perfectMatch = this.findPerfectMatch(content, searchContent)
+		if (perfectMatch.success && matchedBlock) {
+			matchedBlock.matchedLocation = {
+				lineStart: perfectMatch.lineStart!,
+				lineEnd: perfectMatch.lineEnd!,
+			}
+			return this.performReplace(content, perfectMatch.lineStart!, perfectMatch.lineEnd!, replaceContent)
+		}
+
+		// 2. White space match
+		const whitespaceMatch = this.findWhitespaceMatch(content, searchContent)
+		if (whitespaceMatch.success && matchedBlock) {
+			matchedBlock.matchedLocation = {
+				lineStart: whitespaceMatch.lineStart!,
+				lineEnd: whitespaceMatch.lineEnd!,
+			}
+			return this.performReplace(content, whitespaceMatch.lineStart!, whitespaceMatch.lineEnd!, replaceContent)
+		}
+
+		// 3. Trailing space match
+		const trailingMatch = this.findTrailingMatch(content, searchContent)
+		if (trailingMatch.success && matchedBlock) {
+			matchedBlock.matchedLocation = {
+				lineStart: trailingMatch.lineStart!,
+				lineEnd: trailingMatch.lineEnd!,
+			}
+			return this.performReplace(content, trailingMatch.lineStart!, trailingMatch.lineEnd!, replaceContent)
+		}
+
+		// 4. Last resort: DMP match (only if we haven't tried it yet)
+		if (matchedBlock && !matchedBlock.dmpAttempted) {
+			matchedBlock.dmpAttempted = true // Mark that we've tried DMP
+			const dmpMatch = this.findDMPMatch(content, searchContent)
+			if (dmpMatch.success) {
+				matchedBlock.matchedLocation = {
+					lineStart: dmpMatch.lineStart!,
+					lineEnd: dmpMatch.lineEnd!,
+				}
+				return this.performReplace(content, dmpMatch.lineStart!, dmpMatch.lineEnd!, replaceContent)
+			}
+		}
+
+		return { success: false }
+	}
+
+	private performReplace(content: string, startLine: number, endLine: number, replaceContent: string): MatchResult {
+		const contentLines = content.split("\n")
+		const originalLines = contentLines.slice(startLine, endLine + 1)
+		const replaceLines = replaceContent.split("\n")
+
+		// Determine the indentation of the starting line
+		const startLineIndent = originalLines[0].match(/^(\s*)/)
+		const indent = startLineIndent ? startLineIndent[1] : ""
+
+		const adjustedReplaceLines = replaceLines.map((line, index) => {
+			return indent + line.trimStart()
+		})
+
+		console.log("adjustedReplaceLines", adjustedReplaceLines)
+
+		const diffAsReplaceLines = this.formatToDiff(content, adjustedReplaceLines.join("\n")).split("\n")
+
+		const newContentLines = [
+			...contentLines.slice(0, startLine),
+			...diffAsReplaceLines,
+			...contentLines.slice(endLine + 1),
+		]
+
+		return {
+			success: true,
+			newContent: newContentLines.join("\n"),
+		}
+	}
+
+	private findPerfectMatch(content: string, searchContent: string): MatchResult {
+		const contentLines = content.split("\n")
+		const searchLines = searchContent.split("\n")
+
+		for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
+			if (contentLines.slice(i, i + searchLines.length).join("\n") === searchLines.join("\n")) {
+				return {
+					success: true,
+					newContent: content,
+					lineStart: i,
+					lineEnd: i + searchLines.length - 1,
+				}
+			}
+		}
+		return { success: false }
+	}
+
+	private findWhitespaceMatch(content: string, searchContent: string): MatchResult {
+		const contentLines = content.split("\n")
+		const searchLines = searchContent.split("\n")
+
+		for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
+			const matches = searchLines.every((searchLine, j) => {
+				const contentLine = contentLines[i + j]
+				return contentLine.replace(/\s+/g, " ") === searchLine.replace(/\s+/g, " ")
+			})
+
+			if (matches) {
+				return {
+					success: true,
+					newContent: content,
+					lineStart: i,
+					lineEnd: i + searchLines.length - 1,
+				}
+			}
+		}
+		return { success: false }
+	}
+
+	private findTrailingMatch(content: string, searchContent: string): MatchResult {
+		const contentLines = content.split("\n")
+		const searchLines = searchContent.split("\n")
+
+		for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
+			const matches = searchLines.every((searchLine, j) => {
+				const contentLine = contentLines[i + j]
+				return contentLine.trimEnd() === searchLine.trimEnd()
+			})
+
+			if (matches) {
+				return {
+					success: true,
+					newContent: content,
+					lineStart: i,
+					lineEnd: i + searchLines.length - 1,
+				}
+			}
+		}
+		return { success: false }
+	}
+
+	private findDMPMatch(content: string, searchContent: string): MatchResult {
+		const dmp = new DMP.diff_match_patch()
+		const diffs = dmp.diff_main(content, searchContent)
+		dmp.diff_cleanupSemantic(diffs)
+
+		// Look for the longest equal section that matches our search content
+		let bestMatch = { start: -1, end: -1, length: 0 }
+		let currentPos = 0
+
+		for (const [type, text] of diffs) {
+			if (type === 0 && text.length > bestMatch.length) {
+				// DIFF_EQUAL
+				bestMatch = {
+					start: currentPos,
+					end: currentPos + text.length,
+					length: text.length,
+				}
+			}
+			currentPos += text.length
+		}
+
+		if (bestMatch.length > searchContent.length * 0.9) {
+			// 90% match threshold
+			const startLine = content.substr(0, bestMatch.start).split("\n").length - 1
+			const endLine = startLine + searchContent.split("\n").length - 1
+
+			return {
+				success: true,
+				newContent: content,
+				lineStart: startLine,
+				lineEnd: endLine,
+			}
+		}
+
+		return { success: false }
+	}
+
+	private async updateFileContent(): Promise<void> {
+		this.validateDocumentState()
+
+		try {
+			const document = await this.getDocument()
+			if (!document) {
+				throw new Error("No active document to update content.")
+			}
+
+			// Start with original content
+			let newContent = this.currentDocumentState.originalContent
+			const results: BlockResult[] = []
+
+			// Apply all blocks in order
+			const sortedBlocks = Array.from(this.currentDocumentState.editBlocks.values()).sort((a, b) => {
+				const indexA = newContent.indexOf(a.searchContent)
+				const indexB = newContent.indexOf(b.searchContent)
+				return indexA - indexB
+			})
+
+			for (const block of sortedBlocks) {
+				// const formattedGitDiff = `<<<<<<< SEARCH\n${block.searchContent}\n=======\n${block.currentContent}\n>>>>>>> REPLACE`
+				const matchResult = this.findAndReplace(newContent, block.searchContent, block.currentContent)
+
+				if (matchResult.success && matchResult.newContent) {
+					newContent = matchResult.newContent
+					results.push({
+						id: block.id,
+						searchContent: block.searchContent,
+						replaceContent: block.currentContent,
+						wasApplied: true,
+					})
+				} else {
+					results.push({
+						id: block.id,
+						searchContent: block.searchContent,
+						replaceContent: block.currentContent,
+						wasApplied: false,
+						failureReason: matchResult.failureReason,
+					})
+
+					this.logger(`Failed to apply block ${block.id}: ${matchResult.failureReason}`, "warn")
+				}
+			}
+
+			// Store results for save changes
+			this.currentDocumentState.lastUpdateResults = results
+
+			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
+
+			const workspaceEdit = new vscode.WorkspaceEdit()
+			workspaceEdit.replace(document.uri, entireRange, newContent)
+			const success = await vscode.workspace.applyEdit(workspaceEdit)
+
+			if (success) {
+				this.logger("File content updated", "info")
+				this.currentDocumentState.currentContent = newContent
+				await this.refreshEditor()
+			}
+			return
+		} catch (error) {
+			this.logger(`Failed to update file content: ${error}`, "error")
+			throw error
+		}
+	}
+
 	/**
-	 * Saves all changes to the document
-	 * Preserves any user modifications made after our edits
-	 *
-	 * Process:
-	 * 1. Validates document state
-	 * 2. Saves current document content
-	 * 3. Returns final content including any user changes
-	 * 4. Cleans up resources after saving
-	 *
-	 * Note: This is typically called when all edits are complete
-	 * and changes need to be persisted to disk
+	 * Enhanced saveChanges with block status reporting
 	 */
-	public async saveChanges(): Promise<string> {
+	public async saveChanges(): Promise<{ finalContent: string; results: BlockResult[] }> {
 		this.logger("Saving changes", "debug")
 		this.validateDocumentState()
 
@@ -564,25 +713,65 @@ export class InlineEditHandler {
 				throw new Error("No active document to save changes.")
 			}
 
-			// We don't want to override any user changes made after our last edit
-			// So we'll just save whatever is currently in the document
-			const res = await document.save()
-			this.logger(`save reuslt: ${res}`, "info")
-			// Get the current content which might include user changes
-			const finalContent = document.getText()
+			// Get the current content with merge markers
+			let content = document.getText()
+
+			// Clean up merge markers and keep only the replacement content
+			while (content.includes("<<<<<<< SEARCH")) {
+				const startMarker = "<<<<<<< SEARCH"
+				const middleMarker = "======="
+				const endMarker = ">>>>>>> REPLACE"
+
+				const startIndex = content.indexOf(startMarker)
+				const middleIndex = content.indexOf(middleMarker, startIndex)
+				const endIndex = content.indexOf(endMarker, middleIndex)
+
+				if (startIndex === -1 || middleIndex === -1 || endIndex === -1) {
+					break
+				}
+
+				// Extract just the replacement content (between ======= and >>>>>>>)
+				let replaceContent = content.substring(middleIndex + middleMarker.length, endIndex)
+				// we need to remove the \n at the start of the replaceContent
+				const startAndEndPattern = ["\r\n", "\n", "\r"]
+				const startPattern = startAndEndPattern.find((pattern) => replaceContent.startsWith(pattern))
+				const endPattern = startAndEndPattern.find((pattern) => replaceContent.endsWith(pattern))
+				if (startPattern) {
+					replaceContent = replaceContent.substring(startPattern.length)
+				}
+				if (endPattern) {
+					replaceContent = replaceContent.substring(0, replaceContent.length - endPattern.length)
+				}
+
+				// Replace the entire merge block with just the replacement content
+				content =
+					content.substring(0, startIndex) + replaceContent + content.substring(endIndex + endMarker.length)
+			}
+
+			// Apply the cleaned content back to the document
+			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
+
+			const workspaceEdit = new vscode.WorkspaceEdit()
+			workspaceEdit.replace(document.uri, entireRange, content)
+			await vscode.workspace.applyEdit(workspaceEdit)
+
+			// Save the document
+			await document.save()
+			await delay(300)
+
+			const results = this.currentDocumentState.lastUpdateResults || []
 
 			// Clean up
 			setTimeout(() => {
 				this.dispose()
 			}, 1)
 
-			return finalContent
+			return { finalContent: content, results }
 		} catch (error) {
 			this.logger(`Failed to save changes: ${error}`, "error")
 			throw error
 		}
 	}
-
 	/**
 	 * Rejects all changes and restores original content
 	 * Used when edits need to be discarded
@@ -642,16 +831,6 @@ export class InlineEditHandler {
 
 	public dispose() {
 		this.logger("Disposing InlineEditHandler")
-		this.pendingDecoration.dispose()
-		this.streamingDecoration.dispose()
-		this.mergeDecoration.dispose()
-
-		// Force garbage collection of any remaining decorations
-		if (vscode.window.activeTextEditor) {
-			this.pendingDecoration.dispose()
-			this.streamingDecoration.dispose()
-			this.mergeDecoration.dispose()
-		}
 	}
 
 	// type guard against this.currentDocumentState being undefined

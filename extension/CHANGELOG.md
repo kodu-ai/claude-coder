@@ -4,6 +4,13 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.14.0] - 2024-12-03
+
+### Changed
+
+-   New Inline edit viewer using the default git format
+-   Better support for broken edits and higher accuracy at applying the edit.
+
 ## [1.13.12] - 2024-11-29
 
 ### Fixed

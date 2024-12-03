@@ -25,7 +25,7 @@ const removeBlock = async (blockFilePath: string) => {
 async function simulateStreaming(diff: string, delayMs: number): Promise<AsyncGenerator<string, void, unknown>> {
 	// Get random chunk size between 6-24 chars
 	function getRandomChunkSize() {
-		return Math.floor(Math.random() * (128 - 6 + 1)) + 24
+		return Math.floor(Math.random() * (25 - 6 + 1)) + 24
 	}
 
 	// Accumulate the string as we stream
@@ -50,7 +50,7 @@ async function testBlock(
 	timeout?: number
 ) {
 	const inlineEditHandler = new InlineEditHandler()
-	const generator = await simulateStreaming(blockBlockContent, 5)
+	const generator = await simulateStreaming(blockBlockContent, 25)
 	let editBlocks: EditBlock[] = []
 	let lastAppliedBlockId: string | undefined
 	// Verify content
@@ -139,7 +139,7 @@ async function testBlock(
 	await inlineEditHandler.forceFinalizeAll(editBlocks)
 
 	// Save with no tabs open
-	const finalDocument = await inlineEditHandler.saveChanges()
+	const { finalContent: finalDocument, results } = await inlineEditHandler.saveChanges()
 
 	let expectedContent = Buffer.from(originalText).toString("utf-8")
 	for (const block of editBlocks) {
@@ -366,7 +366,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		}
 
 		// Save changes
-		const finalDocument = await inlineEditHandler.saveChanges()
+		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 		// Verify both changes were applied correctly
 		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
@@ -484,7 +484,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 			await inlineEditHandler.forceFinalizeAll(editBlocks)
 
 			// Save changes
-			const finalDocument = await inlineEditHandler.saveChanges()
+			const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 			// Verify both changes were applied correctly
 			const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
@@ -589,7 +589,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 			}
 
 			// Save while different tab is active
-			const finalDocument = await inlineEditHandler.saveChanges()
+			const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 			// Verify content
 			const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
@@ -702,7 +702,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		await inlineEditHandler.forceFinalizeAll(editBlocks)
 
 		// Save with no tabs open
-		const finalDocument = await inlineEditHandler.saveChanges()
+		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
 		let expectedContent = Buffer.from(originalText).toString("utf-8")
 		expectedContent = expectedContent.replace(search, replace)
@@ -759,7 +759,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		}
 
 		await inlineEditHandler.forceFinalizeAll(editBlocks)
-		const finalDocument = await inlineEditHandler.saveChanges()
+		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 		const expectedContent = testContent.replace(searchContent.replace(/\n/g, "\r\n"), replaceContent)
 		assert.strictEqual(finalDocument, expectedContent)
 	})
