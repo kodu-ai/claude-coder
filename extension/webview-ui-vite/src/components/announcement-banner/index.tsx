@@ -50,15 +50,15 @@ export default function AnnouncementBanner() {
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
 						<p>📂 File history control with branch-specific file viewing</p>
 						<p>⏪ Rollback conversation to set file edit checkpoints</p>
-						<p>🔄 Automatic Git commit handling for better change tracking</p>
+						<p>🔄 Automatic Git commit handling for easy change tracking</p>
 						<p>🎯 Improved error handling for inline edits</p>
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>✨ Automatic tab generation and file formatting for inline edits</p>
-						<p>🔍 New inline edit viewer using default git format</p>
-						<p>⚡️ Better support for broken edits and higher accuracy</p>
-						<p>🚀 Enhanced autosummary performance for context management</p>
+						<p>🛠️ Automatic tab generation fixes for inline edits</p>
+						<p>✨ New inline edit viewer using git format</p>
+						<p>📊 Better support for broken edits</p>
+						<p>🚀 Enhanced autosummary performance</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">
