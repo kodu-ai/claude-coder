@@ -3,10 +3,9 @@
 	"compilerOptions": {
 		"module": "ESNext", // Use ES modules
 		"target": "es2020",
-		"moduleResolution": "node16",
+		"moduleResolution": "node",
 		"outDir": "../out/test",
-		"noEmit": false,
-		"esModuleInterop": true
+		"noEmit": false
 	},
 	"include": ["**/*.ts"]
 }

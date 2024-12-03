@@ -171,12 +171,14 @@
 	},
 	"devDependencies": {
 		"@jest/globals": "^29.7.0",
+		"@types/chai": "^5.0.1",
 		"@types/diff": "^5.2.3",
 		"@types/diff-match-patch": "^1.0.36",
 		"@types/jest": "^29.5.14",
 		"@types/lodash": "^4.17.13",
 		"@types/mocha": "^10.0.10",
 		"@types/node": "~20.17.7",
+		"@types/sinon": "^17.0.3",
 		"@types/vscode": "^1.93.0",
 		"@typescript-eslint/eslint-plugin": "^8.15.0",
 		"@typescript-eslint/parser": "^8.15.0",
@@ -184,8 +186,10 @@
 		"@vscode/test-cli": "^0.0.10",
 		"@vscode/test-electron": "^2.4.1",
 		"@vscode/vsce": "^3.2.1",
+		"chai": "^5.1.2",
 		"esbuild": "^0.24.0",
 		"eslint": "^9.15.0",
+		"sinon": "^19.0.2",
 		"typescript": "^5.7.2"
 	},
 	"dependencies": {
