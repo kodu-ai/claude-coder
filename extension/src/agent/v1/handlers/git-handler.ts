@@ -2,6 +2,11 @@ import { exec } from "child_process"
 import { promises as fs } from "fs"
 import { GitBranchItem, GitLogItem } from "../../../shared/ExtensionMessage"
 
+export type GitCommitResult = {
+	branch: string
+	hash: string
+}
+
 export class GitHandler {
 	private repoPath: string | undefined
 	private DEFAULT_USER_NAME = "kodu-ai"
@@ -48,19 +53,20 @@ export class GitHandler {
 		}
 	}
 
-	async commitChanges(path: string): Promise<string> {
+	async commitEverything(message: string): Promise<GitCommitResult> {
 		try {
-			if (!(await this.isGitInstalled())) {
-				throw new Error("Git is not installed")
-			}
+			await this.prepareForCommit()
+			const gitPathForCommingEverything = "."
 
-			if (!(await this.isRepositorySetup())) {
-				const isSetup = await this.setupRepository()
+			return await this.commitWithMessage(gitPathForCommingEverything, message)
+		} catch (error) {
+			throw new Error(`Error committing changes: ${error}`)
+		}
+	}
 
-				if (!isSetup) {
-					throw new Error("Failed to setup repository")
-				}
-			}
+	async commitOnFileWrite(path: string): Promise<GitCommitResult> {
+		try {
+			await this.prepareForCommit()
 
 			if (!path) {
 				throw new Error("Path is required")
@@ -68,25 +74,39 @@ export class GitHandler {
 
 			const message = await this.getCommitMessage(path)
 			if (!message) {
-				throw new Error("Failed to get commit message")
+				throw new Error("Failed to generate commit message")
 			}
 
-			return new Promise((resolve) => {
-				exec(
-					`git add ${path} && git commit -m "${message}"`,
-					{ cwd: this.repoPath },
-					(error, stdout, stderr) => {
-						if (error) {
-							throw new Error(`Error committing changes: ${error} \n ${stderr}`)
-						} else {
-							resolve(this.getCommittedHash(stdout.trim()))
-						}
-					}
-				)
-			})
+			return await this.commitWithMessage(path, message)
 		} catch (error) {
 			throw new Error(`Error committing changes: ${error}`)
 		}
+	}
+
+	private async prepareForCommit(): Promise<void> {
+		if (!(await this.isGitInstalled())) {
+			throw new Error("Git is not installed")
+		}
+
+		if (!(await this.isRepositorySetup())) {
+			const isSetup = await this.setupRepository()
+
+			if (!isSetup) {
+				throw new Error("Failed to setup repository")
+			}
+		}
+	}
+
+	private async commitWithMessage(path: string, message: string): Promise<GitCommitResult> {
+		return new Promise((resolve) => {
+			exec(`git add ${path} && git commit -m "${message}"`, { cwd: this.repoPath }, (error, stdout, stderr) => {
+				if (error) {
+					throw new Error(`Error committing changes: ${error} \n ${stderr}`)
+				} else {
+					resolve(this.getCommittedHash(stdout.trim()))
+				}
+			})
+		})
 	}
 
 	private async getCommitMessage(path: string): Promise<string> {
@@ -114,11 +134,17 @@ export class GitHandler {
 		})
 	}
 
-	private getCommittedHash(gitCommitStdOut: string): string {
+	private getCommittedHash(gitCommitStdOut: string): GitCommitResult {
 		const firstLine = gitCommitStdOut.split("\n")[0]
 
 		// example line: [master 812f9b0] Added cpp-poem.txt
-		return firstLine.trim().split(" ")[1].slice(0, -1)
+		const branch = firstLine.trim().split(" ")[0].slice(1)
+		const hash = firstLine.trim().split(" ")[1].slice(0, -1)
+
+		return {
+			branch,
+			hash,
+		}
 	}
 
 	static async getLog(repoAbsolutePath: string): Promise<GitLogItem[]> {

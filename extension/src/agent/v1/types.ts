@@ -15,6 +15,9 @@ export type ToolResponseV2 = {
 	toolId: string
 	images?: string[]
 	text?: string
+	branch?: string
+	preCommit?: string
+	commit?: string
 }
 
 export type UserContent = Array<

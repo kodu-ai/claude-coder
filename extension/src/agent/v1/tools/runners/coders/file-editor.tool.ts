@@ -14,6 +14,7 @@ import { InlineEditHandler } from "../../../../../integrations/editor/inline-edi
 import { ToolResponseV2 } from "../../../../../agent/v1/types"
 import delay from "delay"
 import PQueue from "p-queue"
+import { GitCommitResult } from "@/agent/v1/handlers"
 
 /**
  * FileEditorTool handles file editing operations in the VSCode extension.
@@ -378,6 +379,16 @@ ${results.map((result) => `<search_block>${result.searchContent}</search_block>`
 `
 
 		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
+
+		let commitXmlInfo = ""
+		let commitResult: GitCommitResult | undefined
+		try {
+			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(path)
+			commitXmlInfo = `\n<git_commit_info>\n<branch>${commitResult.branch}</branch>\n<commit_hash>${commitResult.hash}</commit_hash>\n</git_commit_info>`
+		} catch (error) {
+			this.logger(`Error committing changes: ${error}`, "error")
+		}
+
 		if (currentOutputMode === "diff") {
 			return this.toolResponse(
 				"success",
@@ -402,6 +413,7 @@ ${block.replaceContent.substring(0, 100)}${
 </updated_blocks>`.trim()
 				})
 				.join("\n")}
+			${commitXmlInfo}
 			</file>
 			`
 			)
@@ -415,8 +427,11 @@ ${block.replaceContent.substring(0, 100)}${
 CRITICAL THE CONTENT YOU PROVIDED IN THE REPLACE HAS REPLACED THE SEARCH CONTENT, YOU SHOULD REMEMBER THE CONTENT YOU PROVIDED IN THE REPLACE BLOCK AND THE ORIGINAL FILE CONTENT UNLESS YOU CHANGE THE FILE AGAIN OR THE USER TELLS YOU OTHERWISE.
 </information>
 <path>${path}</path>
+${commitXmlInfo}
 </file>
-`
+`,
+				undefined,
+				commitResult
 			)
 		}
 
@@ -431,7 +446,11 @@ CRITICAL the file content has been updated to <updated_file_content> content bel
 <updated_file_content>
 ${finalContent}
 </updated_file_content>
-`
+${commitXmlInfo}
+</file>
+`,
+			undefined,
+			commitResult
 		)
 	}
 
@@ -508,6 +527,16 @@ ${finalContent}
 			this.ts
 		)
 		this.logger(`Final approval state set for file: ${relPath}`, "info")
+
+		let commitXmlInfo = ""
+		let commitResult: GitCommitResult | undefined
+		try {
+			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(relPath)
+			commitXmlInfo = `\n<git_commit_info>\n<branch>${commitResult.branch}</branch>\n<commit_hash>${commitResult.hash}</commit_hash>\n</git_commit_info>`
+		} catch (error) {
+			this.logger(`Error committing changes: ${error}`, "error")
+		}
+
 		if (userEdits) {
 			await this.params.say(
 				"user_feedback_diff",
@@ -524,12 +553,16 @@ ${finalContent}
 					\`\`\`
 					${finalContent}
 					\`\`\`
-					`
+					${commitXmlInfo}
+					`,
+				undefined,
+				commitResult
 			)
 		}
 
 		let toolMsg = `The content was successfully saved to ${relPath.toPosix()}.
 			The latest content is the content inside of <kodu_content> the content you provided in the input has been applied to the file and saved. don't read the file again to get the latest content as it is already saved unless the user tells you otherwise.
+			${commitXmlInfo}
 			`
 		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
 			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
@@ -541,7 +574,7 @@ ${finalContent}
 				\`\`\``
 		}
 
-		return this.toolResponse("success", toolMsg)
+		return this.toolResponse("success", toolMsg, undefined, commitResult)
 	}
 
 	private async processFileWrite() {
@@ -559,21 +592,12 @@ ${finalContent}
 
 			let result: ToolResponseV2
 			if (diff) {
-				result = await this.finalizeInlineEdit(relPath, diff)
+				return await this.finalizeInlineEdit(relPath, diff)
 			} else if (content) {
-				result = await this.finalizeFileEdit(relPath, content)
+				return await this.finalizeFileEdit(relPath, content)
 			} else {
 				throw new Error("Missing required parameter 'kodu_content' or 'kodu_diff'")
 			}
-
-			try {
-				const hash = await this.koduDev.gitHandler.commitChanges(relPath)
-				console.log(`Committed changes with hash: ${hash}`)
-			} catch (error) {
-				this.logger(`Error committing changes: ${error}`, "error")
-			}
-
-			return result
 		} catch (error) {
 			this.logger(`Error in processFileWrite: ${error}`, "error")
 			this.params.updateAsk(

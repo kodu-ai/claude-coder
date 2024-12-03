@@ -9,6 +9,8 @@ import { ExecaTerminalManager } from "../../../../integrations/terminal/execa-te
 import { TerminalProcessResultPromise } from "../../../../integrations/terminal/terminal-manager"
 
 import { GlobalStateManager } from "../../../../providers/claude-coder/state/GlobalStateManager"
+import { ToolResponseV2 } from "../../types"
+import { GitCommitResult } from "../../handlers"
 
 const COMMAND_TIMEOUT = 90 // 90 seconds
 const MAX_RETRIES = 3
@@ -53,7 +55,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		return state === "approved"
 	}
 
-	private async executeShellTerminal(command: string) {
+	private async executeShellTerminal(command: string): Promise<ToolResponseV2> {
 		const { terminalManager } = this.koduDev
 		if (!(terminalManager instanceof AdvancedTerminalManager)) {
 			throw new Error("AdvancedTerminalManager is not available")
@@ -132,6 +134,16 @@ export class ExecuteCommandTool extends BaseAgentTool {
 
 		const terminalInfo = await terminalManager.getOrCreateTerminal(this.cwd)
 		terminalInfo.terminal.show()
+
+		let preCommandCommit = ""
+		try {
+			const commitResult = await this.koduDev.gitHandler.commitEverything(
+				`State before executing command ${command}`
+			)
+			preCommandCommit = commitResult.hash
+		} catch (error) {
+			console.error("Failed to get pre-command commit:", error)
+		}
 
 		process = terminalManager.runCommand(terminalInfo, command, {
 			autoClose: this.koduDev.getStateManager().autoCloseTerminal ?? false,
@@ -274,12 +286,34 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			}
 
 			if (completed) {
-				toolRes += `\n\nOutput:\n<output>\n${this.output || "No output"}\n</output>`
-			} else {
-				toolRes += `\n\nPartial output available:\n<output>\n${this.output || "No output"}\n</output>`
-			}
+				let commitResult: GitCommitResult | undefined = undefined
+				try {
+					commitResult = await this.koduDev.gitHandler.commitEverything(
+						`State after executing command ${command}`
+					)
+				} catch (error) {
+					console.error("Failed to get post-command commit:", error)
+				}
 
-			return await this.toolResponse("success", toolRes, userFeedback?.images)
+				toolRes +=
+					`
+				<output>
+				<content>
+				${this.output || "No output"}
+				</content>\n` + commitResult
+						? `<branch>${commitResult?.branch}</branch>\n` +
+						  `<pre_commit>${preCommandCommit}</pre_commit>\n` +
+						  `<commit>${commitResult?.hash}</commit>\n`
+						: "" + `</output>`
+
+				return await this.toolResponse("success", toolRes, userFeedback?.images, commitResult)
+			} else {
+				toolRes += `<partial_output>
+				${this.output || "No output"}
+				</partial_output>`
+
+				return await this.toolResponse("success", toolRes, userFeedback?.images)
+			}
 		} catch (error) {
 			const errorMessage = (error as Error)?.message || JSON.stringify(serializeError(error), null, 2)
 			updateAsk(
