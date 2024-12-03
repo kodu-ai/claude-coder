@@ -224,6 +224,7 @@
 		"puppeteer-core": "^23.9.0",
 		"rxjs": "^7.8.1",
 		"serialize-error": "^11.0.3",
+		"string-similarity-js": "^2.1.4",
 		"strip-ansi": "^7.1.0",
 		"tree-kill": "^1.2.2",
 		"tree-sitter-wasms": "^0.1.12",

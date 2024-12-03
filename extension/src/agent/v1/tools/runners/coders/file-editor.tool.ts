@@ -12,8 +12,18 @@ import { detectCodeOmission } from "./detect-code-omission"
 import { parseDiffBlocks, applyEditBlocksToFile, checkFileExists, preprocessContent, EditBlock } from "./utils"
 import { InlineEditHandler } from "../../../../../integrations/editor/inline-editor"
 import { ToolResponseV2 } from "../../../../../agent/v1/types"
-import delay from "delay"
 import PQueue from "p-queue"
+import { stringSimilarity } from "string-similarity-js"
+
+interface BlockValidationResult {
+	block: {
+		searchContent: string
+		replaceContent: string
+	}
+	wasFullyApplied: boolean
+	similarityScore: number
+	partiallyApplied: boolean
+}
 
 /**
  * FileEditorTool handles file editing operations in the VSCode extension.
@@ -345,7 +355,12 @@ export class FileEditorTool extends BaseAgentTool {
 		this.koduDev.getStateManager().addErrorPath(path)
 		// count how many of the changes were not applied
 		const notAppliedCount = results.filter((result) => !result.wasApplied).length
-		const successBlock = results.filter((result) => result.wasApplied)
+		const successBlocks = results.filter((result) => result.wasApplied)
+
+		// Add content validation
+		const validationResults = this.validateAppliedContent(finalContent, successBlocks)
+		const validationMsg = this.generateValidationMessage(validationResults)
+
 		await this.params.updateAsk(
 			"tool",
 			{
@@ -363,71 +378,80 @@ export class FileEditorTool extends BaseAgentTool {
 		)
 
 		const approvedMsg = `
-The user approved the changes and the content was successfully saved to ${path.toPosix()}.
-Make sure to remember the updated content (REPLACE BLOCK + Original FILE) file content unless you change the file again or the user tells you otherwise.
-${
-	notAppliedCount > 0
-		? `However, ${notAppliedCount} changes were not applied. it's critical and must be acknowledged by you, please review the following code blocks and fix the issues. a good idea is to maybe re read the file to see why the changes were not applied maybe the content was changed or the search content you wrote is not correct.
-${results.map((result) => `<search_block>${result.searchContent}</search_block>`).join("\n")}`
-		: ""
-}
-`
+		The user approved the changes and the content was successfully saved to ${path.toPosix()}.
+		Make sure to remember the updated content (REPLACE BLOCK + Original FILE) file content unless you change the file again or the user tells you otherwise.
+		${
+			notAppliedCount > 0
+				? `However, ${notAppliedCount} changes were not applied. it's critical and must be acknowledged by you, please review the following code blocks and fix the issues. a good idea is to maybe re read the file to see why the changes were not applied maybe the content was changed or the search content you wrote is not correct.
+		${results.map((result) => `<search_block>${result.searchContent}</search_block>`).join("\n")}`
+				: ""
+		}
+		${validationMsg}
+		`
 
 		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
 		if (currentOutputMode === "diff") {
 			return this.toolResponse(
 				"success",
 				`<file>
-			<information>${approvedMsg}</information>
-			<path>${path}</path>
-			<updated_blocks>
-			Here are the updated blocks that were successfully applied to the file:
-			${successBlock
-				.map((block) => {
-					return `
-<updated_block>
-SEARCH
-${block.searchContent.substring(0, 100)}${
-						block.searchContent.length > 100 ? "... the rest of the block from your input" : ""
-					}
-=======
-${block.replaceContent.substring(0, 100)}${
-						block.replaceContent.length > 100 ? "... the rest of the block from your input" : ""
-					}
-
-</updated_blocks>`.trim()
-				})
-				.join("\n")}
-			</file>
-			`
+				<information>${approvedMsg}</information>
+				<path>${path}</path>
+				<updated_blocks>
+				Here are the updated blocks that were successfully applied to the file:
+				${successBlocks
+					.map((block) => {
+						const validation = validationResults.find(
+							(v) => v.block.replaceContent === block.replaceContent
+						)
+						return `
+		<updated_block ${validation?.partiallyApplied ? 'status="partial"' : ""} ${
+							validation?.wasFullyApplied ? 'status="success"' : 'status="warning"'
+						} similarity="${validation?.similarityScore.toFixed(3) ?? 0}">
+		SEARCH
+		${block.searchContent.substring(0, 100)}${
+							block.searchContent.length > 100 ? "... the rest of the block from your input" : ""
+						}
+		=======
+		${block.replaceContent.substring(0, 100)}${
+							block.replaceContent.length > 100 ? "... the rest of the block from your input" : ""
+						}
+		</updated_block>`.trim()
+					})
+					.join("\n")}
+				</updated_blocks>
+			  </file>`
 			)
 		}
+
 		if (currentOutputMode === "none") {
 			return this.toolResponse(
 				"success",
 				`
-<file>
-<information>${approvedMsg}
-CRITICAL THE CONTENT YOU PROVIDED IN THE REPLACE HAS REPLACED THE SEARCH CONTENT, YOU SHOULD REMEMBER THE CONTENT YOU PROVIDED IN THE REPLACE BLOCK AND THE ORIGINAL FILE CONTENT UNLESS YOU CHANGE THE FILE AGAIN OR THE USER TELLS YOU OTHERWISE.
-</information>
-<path>${path}</path>
-</file>
-`
+		<file>
+		<information>${approvedMsg}
+		CRITICAL THE CONTENT YOU PROVIDED IN THE REPLACE HAS REPLACED THE SEARCH CONTENT, YOU SHOULD REMEMBER THE CONTENT YOU PROVIDED IN THE REPLACE BLOCK AND THE ORIGINAL FILE CONTENT UNLESS YOU CHANGE THE FILE AGAIN OR THE USER TELLS YOU OTHERWISE.
+		</information>
+		<path>${path}</path>
+		<validation>${validationMsg}</validation>
+		</file>
+		`
 			)
 		}
 
 		return this.toolResponse(
 			"success",
 			`
-<file>
-<information>${approvedMsg}
-CRITICAL the file content has been updated to <updated_file_content> content below, you should remember this as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.
-</information>
-<path>${path}</path>
-<updated_file_content>
-${finalContent}
-</updated_file_content>
-`
+		<file>
+		<information>${approvedMsg}
+		CRITICAL the file content has been updated to <updated_file_content> content below, you should remember this as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.
+		</information>
+		<path>${path}</path>
+		<updated_file_content>
+		${finalContent}
+		</updated_file_content>
+		<validation>${validationMsg}</validation>
+		</file>
+		`
 		)
 	}
 
@@ -609,5 +633,52 @@ ${finalContent}
 			await this.diffViewProvider.update(content, true)
 		})
 		await this.pQueue.onIdle()
+	}
+
+	private validateAppliedContent(finalContent: string, successBlocks: any[]): BlockValidationResult[] {
+		const validationResults: BlockValidationResult[] = []
+
+		for (const block of successBlocks) {
+			// Check if the replace content exists in the final content
+			const similarityScore = stringSimilarity(block.replaceContent.trim(), finalContent)
+
+			// Consider a block partially applied if similarity is between 0.7 and 0.95
+			const partiallyApplied = similarityScore >= 0.7 && similarityScore < 0.95
+			// Consider a block fully applied if similarity is >= 0.95
+			const wasFullyApplied = similarityScore >= 0.95
+
+			validationResults.push({
+				block,
+				wasFullyApplied,
+				similarityScore,
+				partiallyApplied,
+			})
+		}
+
+		return validationResults
+	}
+
+	private generateValidationMessage(validationResults: BlockValidationResult[]): string {
+		const issues = validationResults.filter((result) => !result.wasFullyApplied || result.partiallyApplied)
+
+		if (issues.length === 0) {
+			return ""
+		}
+
+		return `
+	  WARNING: Some content blocks may not have been properly applied, it might be due to the user changing the content or the search content not being correct, here are the blocks that were not fully applied:
+	  ${issues
+			.map(
+				(result) => `
+	  <validation_issue>
+		${result.partiallyApplied ? "PARTIALLY APPLIED" : "NOT FULLY APPLIED"}
+		Similarity Score: ${(result.similarityScore * 100).toFixed(1)}%
+		Block Content (first 100 chars):
+		${result.block.replaceContent.substring(0, 100)}${result.block.replaceContent.length > 100 ? "..." : ""}
+	  </validation_issue>`
+			)
+			.join("\n")}
+	  It's recommended to verify these blocks, and if necessary, reapply the changes, key note is that the user might have corrected the content or the search content you provided is not correct.
+	  `
 	}
 }
