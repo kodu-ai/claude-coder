@@ -356,7 +356,7 @@ export class InlineEditHandler {
 			const lastBlock = this.getLatestEditBlock()
 			if (lastBlock) {
 				// find the last REPLACE marker
-				const lastChars = ``
+				const lastChars = `>>>>>>> REPLACE`
 				const searchIndex = document.getText().lastIndexOf(lastChars)
 
 				if (searchIndex !== -1) {
@@ -461,7 +461,7 @@ export class InlineEditHandler {
 	}
 
 	private formatToDiff(searchContent: string, replaceContent: string): string {
-		return `<<<<<<< SEARCH\n${searchContent}\n\n${replaceContent}\n`
+		return `<<<<<<< SEARCH\n${searchContent}\n=======\n${replaceContent}\n>>>>>>> REPLACE`
 	}
 
 	private findAndReplace(content: string, searchContent: string, replaceContent: string): MatchResult {
@@ -732,10 +732,10 @@ export class InlineEditHandler {
 		content = content.replace(/<<<<<<< SEARCH\r?\n[\s\S]*?(?=<<<<<<< SEARCH|$)/g, "")
 
 		// Remove any incomplete/corrupted REPLACE markers
-		content = content.replace(/\r?\n?/g, "")
+		content = content.replace(/>>>>>>> REPLACE\r?\n?/g, "")
 
 		// Remove any leftover separator markers
-		content = content.replace(/\r?\n?/g, "")
+		content = content.replace(/=======\r?\n?/g, "")
 
 		// Remove any empty lines that might have been left
 		content = content.replace(/\n\s*\n\s*\n/g, "\n\n")
@@ -748,13 +748,13 @@ export class InlineEditHandler {
 	 * Returns true if the format is valid, false otherwise
 	 */
 	private validateGitDiffFormat(content: string): boolean {
-		const diffMarkers = content.match(/<<<<<<< SEARCH[\s\S]*?/g) || []
+		const diffMarkers = content.match(/<<<<<<< SEARCH[\s\S]*?>>>>>>> REPLACE/g) || []
 
 		for (const marker of diffMarkers) {
 			// Check if the marker has all required parts
 			const hasSearch = marker.includes("<<<<<<< SEARCH")
-			const hasSeparator = marker.includes("")
-			const hasReplace = marker.includes("")
+			const hasSeparator = marker.includes("=======")
+			const hasReplace = marker.includes(">>>>>>> REPLACE")
 
 			if (!hasSearch || !hasSeparator || !hasReplace) {
 				return false
@@ -762,8 +762,8 @@ export class InlineEditHandler {
 
 			// Check correct order of markers
 			const searchIndex = marker.indexOf("<<<<<<< SEARCH")
-			const separatorIndex = marker.indexOf("")
-			const replaceIndex = marker.indexOf("")
+			const separatorIndex = marker.indexOf("=======")
+			const replaceIndex = marker.indexOf(">>>>>>> REPLACE")
 
 			if (!(searchIndex < separatorIndex && separatorIndex < replaceIndex)) {
 				return false
@@ -793,10 +793,13 @@ export class InlineEditHandler {
 			}
 
 			// First pass: Clean up merge markers using the main regex
-			content = content.replace(/<<<<<<< SEARCH\r?\n[\s\S]*?\r?\n\r?\n([\s\S]*?)\r?\n/g, (_, replacement) => {
-				// Trim any leading/trailing newlines from the replacement
-				return replacement.replace(/^\r?\n|\r?\n$/g, "")
-			})
+			content = content.replace(
+				/<<<<<<< SEARCH\r?\n[\s\S]*?\r?\n=======\r?\n([\s\S]*?)\r?\n>>>>>>> REPLACE/g,
+				(_, replacement) => {
+					// Trim any leading/trailing newlines from the replacement
+					return replacement.replace(/^\r?\n|\r?\n$/g, "")
+				}
+			)
 
 			// Second pass: Clean up any leftover markers that might have been corrupted
 			content = this.cleanupLeftoverMarkers(content)

@@ -4,7 +4,20 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
-## [1.15.1] - 2024-04-13
+## [1.16.0] - 2024-12-05
+
+### Changed
+
+-   Tool response adjusted to xml to better match the current structure this increases Kodu understanding and accuracy
+-   Linter error response format - now we format the error with clear guidelines and indicators to where the error have occurred giving Kodu easier time resolving bugs
+-   Reduced Environment details, this reduces the total amount of tokens used by Kodu by a solid 10-20% on large projects and long tasks.
+-   New Adjusted system prompt with less noise and more focus on the task inhand this helps Kodu stay on track and reason his way more correctly.
+
+### Fixed
+
+-   Inline editing would cache incorrect editing position causing edits to be displayed incorrectly
+
+## [1.15.1] - 2024-12-04
 
 ### Changed
 
@@ -15,7 +28,7 @@ All notable changes to the "claude-coder" extension will be documented in this f
 -   Command execution Tool now properly gets the output
 -   Auto chat scrolling to only occur on first render of a task or if the user is in the bottom of the chat
 
-## [1.15.0] - 2024-04-13
+## [1.15.0] - 2024-12-04
 
 ### New
 
