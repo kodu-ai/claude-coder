@@ -2,11 +2,31 @@ import { execa, ExecaError } from "execa"
 import { promises as fs } from "fs"
 import { GitBranchItem, GitLogItem } from "../../../shared/ExtensionMessage"
 import { StateManager } from "../state-manager"
+import { ApiManager } from "../api-handler"
+import { ApiConfiguration } from "../../../api"
 
 export type GitCommitResult = {
 	branch: string
 	commitHash: string
 }
+
+const COMMIT_MESSAGE_PROMPT = `Generate a concise and descriptive commit message following the Conventional Commits specification (https://www.conventionalcommits.org/).
+The message should be in the format: <type>(<scope>): <description>
+
+Given the following git diff and file information, generate an appropriate commit message:
+
+File: {filePath}
+Diff:
+{diff}
+
+The commit message should:
+1. Use appropriate type (feat, fix, docs, style, refactor, perf, test, chore)
+2. Include scope when relevant
+3. Have a clear, concise description
+4. Focus on the "what" and "why" rather than the "how"
+5. Be written in imperative mood
+
+Respond with ONLY the commit message, nothing else.`
 
 export class GitHandler {
 	private repoPath: string | undefined
