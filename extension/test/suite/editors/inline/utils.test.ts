@@ -6,7 +6,7 @@ import {
 	adjustIndentationPerLine,
 	EditBlock,
 	preprocessContent,
-} from "../../src/agent/v1/tools/runners/coders/utils"
+} from "../../../../src/agent/v1/tools/runners/coders/utils"
 import * as assert from "assert"
 
 const block = `

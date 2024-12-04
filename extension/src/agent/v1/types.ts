@@ -30,6 +30,7 @@ export interface KoduDevOptions {
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
 	experimentalTerminal?: boolean
+	inlineEditOutputType?: "full" | "diff" | "none"
 	alwaysAllowWriteOnly?: boolean
 	skipWriteAnimation?: boolean
 	autoCloseTerminal?: boolean
@@ -87,6 +88,5 @@ export interface ClaudeRequestResult {
 
 // Re-export types from other files to centralize type definitions
 export type { ClaudeMessage } from "../../shared/ExtensionMessage"
-export type { ToolName } from "../../shared/Tool"
-
+export type { ToolName } from "../../shared/new-tools"
 export type VsCodeDiagnostics = [vscode.Uri, vscode.Diagnostic[]][]

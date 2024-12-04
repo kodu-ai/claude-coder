@@ -1,10 +1,13 @@
 out
 dist
 node_modules
-webview-ui-vite/node_modules
+build
 .vscode-test/
 *.vsix
 .env
 .env.local
 
 eval/env
+.DS_Store
+extension/webview-ui-vite/build
+extension/webview-ui-vite/tsconfig.app.tsbuildinfo

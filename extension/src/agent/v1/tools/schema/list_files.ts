@@ -56,6 +56,8 @@ const examples = [
 </tool>`,
 ]
 
+export type ListFilesParams = z.infer<typeof schema>
+
 export const listFilesTool = {
 	schema: {
 		name: "list_files",

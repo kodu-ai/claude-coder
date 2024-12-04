@@ -1,4 +1,6 @@
+import { ComputerUseAction } from "../agent/v1/tools/schema/computer_use"
 import { ToolStatus } from "./ExtensionMessage"
+import { ExecuteCommandToolParams } from "../agent/v1/tools/schema/execute_command"
 
 /**
  * This is the input and output for execute_command tool
@@ -6,18 +8,10 @@ import { ToolStatus } from "./ExtensionMessage"
 export type ExecuteCommandTool = {
 	tool: "execute_command"
 	/**
-	 * the command to execute
-	 */
-	command: string
-	/**
 	 * the output of the command
 	 */
 	output?: string
-	/**
-	 * this is a long running command so ask user if they want to continue
-	 */
-	earlyExit?: "pending" | "approved" | "rejected"
-}
+} & ExecuteCommandToolParams
 
 export type ListFilesTool = {
 	tool: "list_files"
@@ -48,9 +42,11 @@ export type ReadFileTool = {
 
 export type WriteToFileTool = {
 	tool: "write_to_file"
+	mode?: "inline" | "whole"
 	path: string
 	content?: string
 	diff?: string
+	notAppliedCount?: number
 }
 
 export type AskFollowupQuestionTool = {
@@ -110,9 +106,9 @@ export type SummarizeChatTool = {
 	output?: string
 }
 
-export type EditFileBlocksTool = {
+export type EditFileBlocks = {
 	tool: "edit_file_blocks"
-	diff: string
+	kodu_diff: string
 }
 
 export type ComputerUseTool = {
@@ -125,7 +121,6 @@ export type ComputerUseTool = {
 }
 
 export type ChatTool = (
-	| EditFileBlocksTool
 	| ExecuteCommandTool
 	| ListFilesTool
 	| ListCodeDefinitionNamesTool
@@ -138,6 +133,7 @@ export type ChatTool = (
 	| UrlScreenshotTool
 	| AskConsultantTool
 	| ServerRunnerTool
+	| EditFileBlocks
 	| ComputerUseTool
 ) & {
 	ts: number
@@ -151,16 +147,3 @@ export type ChatTool = (
 }
 
 export type ToolName = ChatTool["tool"]
-
-export const computerUseActions = [
-	"launch",
-	"system_screenshot",
-	"click",
-	"type",
-	"scroll_down",
-	"scroll_up",
-	"close",
-] as const
-
-export type ComputerUseAction = (typeof computerUseActions)[number]
-export type BrowserAction = Exclude<ComputerUseAction, "system_screenshot">

@@ -2,8 +2,11 @@ import { ImageBlockParam, TextBlock, TextBlockParam } from "@anthropic-ai/sdk/re
 import type { ToolResponseV2 } from "../agent/v1/types"
 import { ToolName } from "./new-tools"
 import { base64StringToImageBlock } from "./format-images"
+// import { GlobalStateManager } from "@/providers/claude-coder/state/GlobalStateManager"
+import { GlobalStateManager } from "../providers/claude-coder/state/GlobalStateManager"
+import { ApiHandler } from "../api"
 
-type ContentBlock = TextBlock | ImageBlockParam | TextBlockParam
+export type ContentBlock = TextBlock | ImageBlockParam | TextBlockParam
 
 export const isTextBlock = (block: any): block is TextBlock => {
 	if (typeof block === "object") {
@@ -40,7 +43,7 @@ const toolFeedbackToMsg = (result: ToolResponseV2["status"]) => {
 	}
 }
 
-export const toolResponseToAIState = (result: ToolResponseV2): ContentBlock[] => {
+export const toolResponseToAIState = (result: ToolResponseV2, isCompressed?: boolean): ContentBlock[] => {
 	const blocks: ContentBlock[] = []
 	if (typeof result.text === "string") {
 		blocks.push({
@@ -50,7 +53,16 @@ export const toolResponseToAIState = (result: ToolResponseV2): ContentBlock[] =>
             <toolName>${result.toolName}</toolName>
             <toolStatus>${result.status}</toolStatus>
             <toolResult>${toolFeedbackToMsg(result.status)(result.text)}</toolResult>
-            ${result.images?.length ? `check the images attached to the request` : ""}
+			${
+				result.images?.length
+					? `<images>there is ${result.images.length} image attached to the request, please check them.</images>`
+					: ""
+			}
+			${
+				isCompressed
+					? `<isToolCompressed description="true if the tool output / input been compressed">true</isToolCompressed>`
+					: ""
+			}
             </toolResponse>
             `,
 		})
@@ -95,67 +107,6 @@ export function getBase64ImageType(base64String: string): ImageBlockParam["sourc
 	}
 
 	return null
-}
-
-/**
- * Takes a msg of ContentBlock and returns the text content without the tool result to compress it
- */
-export const compressToolFromMsg = (msgs: ContentBlock[]): ContentBlock[] => {
-	const blocks: ContentBlock[] = []
-	const compressedTools: ToolName[] = ["write_to_file", "read_file", "edit_file_blocks"]
-	for (const msg of msgs) {
-		if (isTextBlock(msg)) {
-			if (msg.text.includes("<write_to_file>")) {
-				// find <content> tag and replace it with a placeholder
-				const koduContentType = msg.text.includes("</kodu_content>") ? "kodu_content" : "content"
-				const contentStart = msg.text.indexOf(`<${koduContentType}>`)
-				const contentEnd = msg.text.indexOf(`</${koduContentType}>`)
-				console.log(contentStart, contentEnd)
-				if (contentStart !== -1 && contentEnd !== -1) {
-					// replace content with placeholder Compressed and keep the existing text before and after the content
-					const textBeforeContent = msg.text.slice(0, contentStart)
-					const textAfterContent = msg.text.slice(contentEnd + `</${koduContentType}>`.length)
-					const truncatedLength = contentEnd - contentStart
-					const truncatedContentReplace = `<${koduContentType}>Content Compressed (Original length:${truncatedLength})</${koduContentType}>`
-					const truncatedText = textBeforeContent + truncatedContentReplace + textAfterContent
-					blocks.push({
-						type: "text",
-						text: truncatedText,
-					})
-					continue
-				}
-			}
-			if (msg.text.includes("<toolResponse>")) {
-				try {
-					// Parse the tool response and add Compressed version
-					const toolResponse = parseToolResponse(msg.text)
-					if (!compressedTools.includes(toolResponse.toolName as ToolName)) {
-						// Keep non-compressible tools as is
-						blocks.push(msg)
-						continue
-					}
-					blocks.push({
-						type: "text",
-						text: `[Compressed] Tool ${toolResponse.toolName} (${toolResponse.toolStatus})`,
-					})
-				} catch (error) {
-					// If parsing fails, add a generic Compressed message
-					blocks.push({
-						type: "text",
-						text: "[Compressed] Tool response errored",
-					})
-				}
-			} else {
-				// Keep non-tool messages as is
-				blocks.push(msg)
-			}
-		} else if (msg.type === "image") {
-			// Keep image blocks
-			blocks.push(msg)
-		}
-	}
-
-	return blocks
 }
 
 interface ToolResponse {

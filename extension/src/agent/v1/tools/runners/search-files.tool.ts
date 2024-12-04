@@ -7,10 +7,10 @@ import { regexSearchFiles } from "../../../../utils/ripgrep"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
 
-export class SearchFilesTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class SearchFilesTool extends BaseAgentTool<"search_files"> {
+	protected params: AgentToolParams<"search_files">
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"search_files">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 	}

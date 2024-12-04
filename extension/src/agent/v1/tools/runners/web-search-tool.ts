@@ -3,11 +3,11 @@ import { ToolName, ToolResponse } from "../../types"
 import { BaseAgentTool } from "../base-agent.tool"
 import type { AgentToolOptions, AgentToolParams } from "../types"
 
-export class WebSearchTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class WebSearchTool extends BaseAgentTool<"web_search"> {
+	protected params: AgentToolParams<"web_search">
 	private abortController: AbortController
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"web_search">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 		this.abortController = new AbortController()

@@ -4,17 +4,16 @@ import fs from "fs/promises"
 import { ToolStatus } from "../../../../shared/ExtensionMessage"
 import { BaseAgentTool } from "../base-agent.tool"
 import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "../types"
-import { computerUseActions } from "../../../../shared/new-tools"
+import { computerUseActions } from "../schema/computer_use"
 import { BrowserManager } from "../../browser-manager"
-import screenshotDesktop from "screenshot-desktop"
 import { exec } from "child_process"
 
-export class ComputerUseTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class ComputerUseTool extends BaseAgentTool<"computer_use"> {
+	protected params: AgentToolParams<"computer_use">
 	private abortController: AbortController
 	private isAborting: boolean = false
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"computer_use">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 		this.abortController = new AbortController()
@@ -61,6 +60,22 @@ export class ComputerUseTool extends BaseAgentTool {
 				)
 			}
 		} catch (err) {
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "computer_use",
+						action: this.params.input.action!,
+						url: this.params.input.url!,
+						coordinate: this.params.input.coordinate!,
+						text: this.params.input.text!,
+						approvalState: "rejected",
+						ts: this.ts,
+						error: err instanceof Error ? err.message : `${err}`,
+					},
+				},
+				this.ts
+			)
 			if (this.isAborting) {
 				await this.cleanup()
 				return this.toolResponse("error", "The tool execution was aborted.")
@@ -102,7 +117,22 @@ export class ComputerUseTool extends BaseAgentTool {
 				: badTypeMsg
 
 		if (!action || !computerUseActions.includes(action)) {
-			await this.params.say("error", errorMessage)
+			this.params.ask(
+				"tool",
+				{
+					tool: {
+						tool: "computer_use",
+						action: this.params.input.action!,
+						url: this.params.input.url!,
+						coordinate: this.params.input.coordinate!,
+						text: this.params.input.text!,
+						approvalState: "rejected",
+						ts: this.ts,
+						error: errorMessage,
+					},
+				},
+				this.ts
+			)
 		}
 
 		const errMsg = `Error: Missing value for required parameter(s) 'action', 'url', 'coordinate', or 'text'. Please retry with complete response.

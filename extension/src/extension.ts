@@ -7,10 +7,9 @@ import { extensionName } from "./shared/Constants"
 import "./utils/path-helpers"
 import { TerminalManager } from "./integrations/terminal/terminal-manager"
 import { getCwd } from "./agent/v1/utils"
-import { CONSTANTS } from "./integrations/editor/diff-view-provider"
-const { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } = CONSTANTS
 import { readFile } from "fs/promises"
 import { startNewTask } from "./utils/command"
+import { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } from "./integrations/editor/decoration-controller"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit

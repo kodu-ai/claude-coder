@@ -1,0 +1,94 @@
+SEARCH
+import sys
+import hashlib
+import random
+import os
+from typing import Tuple, List, Optional
+
+def get_user_info() -> None:    
+=======
+REPLACE
+"""
+Interactive Greeter - A Personality-Driven User Interaction System
+
+This module implements an engaging interactive greeting system that creates
+a personalized experience for each user. It uses various psychological and
+social engagement techniques to make the interaction more meaningful and memorable.
+
+Features:
+- Randomized question order for dynamic interactions
+- Personalized responses based on user input
+- Age-appropriate feedback
+- Contextual responses for hobbies, colors, and locations
+- Secure token generation using cryptographic hashing
+
+Technical Details:
+- Uses MD5 for path-based seed generation (non-security context)
+- Implements SHA256 for secure token generation
+- Maintains consistent session state using path-based seeding
+- Ensures proper output flushing for interactive environments
+
+Author: Kodu.AI
+Version: 2.0.0
+"""
+import sys
+import hashlib
+import random
+import os
+from typing import Tuple, List, Optional, Dict, Any
+
+def get_user_info() -> None:
+    """
+    Conducts an interactive session with the user, collecting personal information
+    and providing engaging, contextual responses.
+    
+    The function implements a sophisticated interaction flow:
+    1. Initializes a deterministic random seed based on script path
+    2. Presents randomized questions about personal details
+    3. Provides contextual, personality-driven responses
+    4. Generates a secure token based on user information
+    
+    Note: All outputs are immediately flushed to ensure smooth interaction
+    in various terminal environments.
+    """
+=======
+SEARCH
+    questions: List[Tuple[str, str]] = [
+        ("Hey there! What's your name? We're excited to meet you! ", "name"),
+        ("Awesome! And how many trips around the sun have you completed? (age) ", "age"),
+        ("If you could paint the world one color, what would it be? ", "color"),
+        ("What activity makes time fly for you? (your favorite hobby) ", "hobby"),
+        ("Which part of this amazing world do you call home? ", "location")
+    ]
+=======
+REPLACE
+    # Enhanced question set with more engaging and thought-provoking queries
+    questions: List[Tuple[str, str]] = [
+        ("Hey there! What's your name? We're excited to meet you! 😊 ", "name"),
+        ("Awesome! And how many trips around the sun have you completed? (age) 🌟 ", "age"),
+        ("If you could paint the world one color, what would it be? Let your imagination soar! 🎨 ", "color"),
+        ("What activity makes time disappear like magic for you? (your favorite hobby) ✨ ", "hobby"),
+        ("Which wonderful corner of this vast world do you call home? 🌍 ", "location")
+    ]
+=======
+SEARCH
+            color_responses = [
+                f"Ah, {answer}! That's a color that speaks of depth and imagination!",
+                f"{answer} - what an intriguing choice! It tells me you're thoughtful about your preferences.",
+                f"People who choose {answer} often have fascinating perspectives on life!",
+                f"Oh, {answer}! That's often associated with creativity and emotional depth!",
+                f"Interesting choice with {answer}! It's known to influence mood and perception.",
+                f"The psychology behind choosing {answer} is quite fascinating!"
+            ]
+=======
+REPLACE
+            # Enhanced color responses with more psychological insights and cultural references
+            color_responses = [
+                f"Ah, {answer}! That's a color that speaks of depth and imagination! Did you know it's often associated with emotional intelligence? 🎨",
+                f"{answer} - what an intriguing choice! In many cultures, this color represents harmony and balance. Your thoughtfulness shows! ✨",
+                f"People who choose {answer} often have fascinating perspectives on life! It's a color that appears frequently in nature's masterpieces! 🌿",
+                f"Oh, {answer}! Artists throughout history have used this color to evoke powerful emotions and tell compelling stories! 🎭",
+                f"Interesting choice with {answer}! Color psychologists say it can significantly influence creativity and emotional well-being! 🌈",
+                f"The psychology behind choosing {answer} is quite fascinating! It often reveals a deep connection to our innermost thoughts! 💭",
+                f"In the world of art and design, {answer} is known to create spaces that inspire and energize! Your choice speaks volumes! 🎪"
+            ]

@@ -10,7 +10,6 @@ import { attemptCompletionTool } from "./attempt_completion"
 import { webSearchTool } from "./web_search"
 import { urlScreenshotTool } from "./url_screenshot"
 import { askConsultantTool } from "./ask_consultant"
-import { upsertMemoryTool } from "./upsert_memory"
 import { devServerTool } from "./dev_server"
 import { computerUseTool } from "./computer_use"
 
@@ -26,7 +25,6 @@ export const tools = [
 	webSearchTool,
 	urlScreenshotTool,
 	askConsultantTool,
-	upsertMemoryTool,
 	devServerTool,
 	computerUseTool,
 ] as const
@@ -44,6 +42,5 @@ export {
 	webSearchTool,
 	urlScreenshotTool,
 	askConsultantTool,
-	upsertMemoryTool,
 	computerUseTool,
 }

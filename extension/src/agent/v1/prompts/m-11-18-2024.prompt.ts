@@ -229,7 +229,7 @@ Key notes:
 `
 
 export const criticalMsg = `
-<most_important_context>
+<automatic_reminders>
 # PLANNING:
 - Ask your self the required questions.
 - Think about the current step and the next step.
@@ -288,7 +288,7 @@ It will make you more efficient and better at debugging your code and writing hi
 - if there is any tests that you can run to make sure the code is working, you should run them before being confident that the task is completed.
 - for example if you have test case that you can run to make sure the code is working, you should run them when you think the task is completed, if the tests pass, you can be confident that the task is completed.
 
-</most_important_context>
+</automatic_reminders>
 `
 
 export default {

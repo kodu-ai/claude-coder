@@ -6,21 +6,21 @@
 
 import Anthropic from "@anthropic-ai/sdk"
 import { AxiosError } from "axios"
-import { findLast } from "lodash"
+import { findLast, first } from "lodash"
 import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
 import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
 import { koduModels } from "../../shared/api"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
-import { estimateTokenCount, smartTruncation, truncateHalfConversation } from "../../utils/context-management"
+import { estimateTokenCount, smartTruncation, truncateHalfConversation } from "../../utils/context-managment"
 import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
 import { ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
 import { writeFile } from "fs/promises"
 import path from "path"
-
 import { GlobalStateManager } from "../../providers/claude-coder/state/GlobalStateManager"
+import { hardRollbackToStart } from "../../utils/command"
 
 /**
  * Interface for tracking API usage metrics
@@ -31,40 +31,6 @@ interface ApiMetrics {
 	inputCacheRead: number
 	inputCacheWrite: number
 	cost: number
-}
-
-/**
- * Interface for tracking differences between strings
- */
-interface StringDifference {
-	index: number
-	char1: string
-	char2: string
-}
-
-/**
- * Compares two strings and finds all character differences
- * @param str1 - First string to compare
- * @param str2 - Second string to compare
- * @returns Array of differences with their positions
- */
-export function findStringDifferences(str1: string, str2: string): StringDifference[] {
-	const differences: StringDifference[] = []
-	const maxLength = Math.max(str1.length, str2.length)
-	const paddedStr1 = str1.padEnd(maxLength)
-	const paddedStr2 = str2.padEnd(maxLength)
-
-	for (let i = 0; i < maxLength; i++) {
-		if (paddedStr1[i] !== paddedStr2[i]) {
-			differences.push({
-				index: i,
-				char1: paddedStr1[i],
-				char2: paddedStr2[i],
-			})
-		}
-	}
-
-	return differences
 }
 
 /**
@@ -214,14 +180,15 @@ ${this.customInstructions.trim()}
 		const executeRequest = async () => {
 			const conversationHistory =
 				provider.koduDev?.getStateManager().state.apiConversationHistory || apiConversationHistory
-			// Process conversation history and manage context window
-			await this.processConversationHistory(conversationHistory)
 
 			let apiConversationHistoryCopy = conversationHistory.slice()
-			// remove the last message from it if it's assistant's message
-			if (apiConversationHistoryCopy[apiConversationHistoryCopy.length - 1].role === "assistant") {
-				apiConversationHistoryCopy = apiConversationHistoryCopy.slice(0, apiConversationHistoryCopy.length - 1)
-			}
+
+			// make sure the last message is from the user
+			const lastUserMessageIndx = apiConversationHistoryCopy.map((m) => m.role).lastIndexOf("user")
+			// slice the conversation history to the last user message
+			apiConversationHistoryCopy = apiConversationHistoryCopy.slice(0, lastUserMessageIndx + 1)
+			// Process conversation history and manage context window
+			await this.processConversationHistory(apiConversationHistoryCopy)
 
 			// log the last 2 messages
 			this.log("info", `Last 2 messages:`, apiConversationHistoryCopy.slice(-2))
@@ -311,15 +278,17 @@ ${this.customInstructions.trim()}
 							console.log("Error in stream", chunk.body.msg)
 						}
 
-						if (chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) {
+						if (
+							(chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) ||
+							(chunk.code === -1 && chunk.body.msg?.includes("middle-out")) ||
+							(chunk.code === -1 &&
+								chunk.body.msg?.includes("transform to compress your prompt automatically"))
+						) {
 							// clear the interval
 							clearInterval(checkInactivity)
 							// Compress the context and retry
-							const result = await this.manageContextWindow()
-							if (result === "chat_finished") {
-								// if the chat is finsihed, throw an error
-								throw new KoduError({ code: 413 })
-							}
+							// await this.newCompression(apiConversationHistory, abortSignal)
+							await this.manageContextWindow()
 							retryAttempt++
 							break // Break the for loop to retry with compressed history
 						}
@@ -355,6 +324,96 @@ ${this.customInstructions.trim()}
 		}
 	}
 
+	private async newCompression(history: Anthropic.MessageParam[], abortSignal?: AbortSignal | null): Promise<void> {
+		const provider = this.providerRef.deref()
+		if (!provider) {
+			throw new Error("Provider reference has been garbage collected")
+		}
+		console.log(`Hard compression started`)
+		const koduDev = provider.getKoduDev()
+		const state = await provider.getStateManager()?.getState()
+		const creativeMode = state?.creativeMode ?? "normal"
+		const technicalBackground = state?.technicalBackground ?? "no-technical"
+		const isImageSupported = koduModels[this.getModelId()].supportsImages
+		const systemPromptVariants = state?.systemPromptVariants || []
+		const activeVariantId = state?.activeSystemPromptVariantId
+		const activeVariant = systemPromptVariants.find((variant) => variant.id === activeVariantId)
+		const customInstructions = this.formatCustomInstructions()
+		let systemPrompt = ""
+
+		if (activeVariant) {
+			systemPrompt = activeVariant.content
+		} else {
+			systemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), isImageSupported, technicalBackground)
+		}
+		// first message is task description
+		const firstMessage = history[0]
+
+		// Create copy instead of mutating original array
+		const newHistory = history.slice(0, -2)
+		if (newHistory.at(-1)?.role === "assistant") {
+			newHistory.pop()
+		}
+		const lastMessage = newHistory.at(-1)
+		if (lastMessage?.role === "user") {
+			if (Array.isArray(lastMessage.content)) {
+				lastMessage.content.push({
+					type: "text",
+					text: `The chat has reached the maximum token limit.
+					It's time to self-reflect and critque your work so far,
+					You should evaulate every single step you have taken and see if you can improve it.
+					Your evaulation, self reflect and critque will be used to continue the conversation on a empty slate.
+					This means you forgot everything you have done so far and you are starting from scratch.
+					You you will be using your evaulation, self reflect and critque to guide yourself to a better conversation quality quickly.
+					This means you should mention what important files have you read, what important information you have gathered, what important steps you have taken and what important decisions you have made.
+					What edits didn't go well, what edits went well. What you have learned from the conversation so far and what parts are you looking forward to improve.
+					You will rollback to the start of the conversation and your project will be reset to the start of the conversation it means you will lose all the progress you have made so far.
+					And have to start from scratch based on your evaulation, self reflect and critque it will make it quickly to pick up all the good progress you have made.
+					Please mention clearly which files to read and why, which edits you should change and why, which commands you should run and why.
+					Please mention which edits you tried and didn't go well and why, which edits you tried and went well and why.
+					This is critical, red team your work, be your own devil's advocate, be your own critic, be your own judge, be your own jury.
+					This is a critical step to improve the quality of the conversation quickly.
+
+					`,
+				})
+			}
+		}
+		console.log(`New history last item:`, newHistory[newHistory.length - 1])
+
+		try {
+			const stream = await this.api.createMessageStream(
+				systemPrompt.trim(),
+				newHistory,
+				creativeMode,
+				abortSignal,
+				customInstructions
+			)
+
+			for await (const chunk of stream) {
+				if (chunk.code === 1 && chunk.body.anthropic.content && isTextBlock(chunk.body.anthropic.content[0])) {
+					const finalText = chunk.body.anthropic.content[0].text
+					console.log(`Observation:\n${finalText}`)
+					if (Array.isArray(firstMessage.content)) {
+						firstMessage.content.push({
+							type: "text",
+							text: `Here are some critical observations we have found from running the task before:
+							<observation>
+							${finalText}
+							</observation>
+							`,
+						})
+						await koduDev?.getStateManager().overwriteApiConversationHistory([firstMessage])
+						await hardRollbackToStart()
+					}
+					return
+				}
+			}
+		} catch (error) {
+			console.error("Compression failed:", error)
+			throw error
+		}
+	}
+
 	/**
 	 * Processes the conversation history and manages context window
 	 * @param history - Conversation history to process
@@ -365,7 +424,7 @@ ${this.customInstructions.trim()}
 			return
 		}
 
-		const lastMessage = history[history.length - 2]
+		const lastMessage = history[history.length - 1]
 		const isLastMessageFromUser = lastMessage?.role === "user"
 
 		// Convert string content to structured content if needed
@@ -396,10 +455,11 @@ ${this.customInstructions.trim()}
 			return
 		}
 
-		// Add critical messages every 4th message or the first message
-		const shouldAddCriticalMsg = (history.length % 8 === 0 && history.length > 8) || history.length === 2
+		// Add critical messages every 3th message or the first message
+		const shouldAddCriticalMsg = history.length % 7 === 0 || history.length === 1
+		console.log(`current position in history: ${history.length}`)
 
-		const lastMessage = history[history.length - 2]
+		const lastMessage = history[history.length - 1]
 
 		const shouldAppendCriticalMsg =
 			(await this.providerRef.deref()?.getState())?.activeSystemPromptVariantId === "m-11-1-2024"
@@ -410,6 +470,7 @@ ${this.customInstructions.trim()}
 			Array.isArray(lastMessage.content) &&
 			shouldAppendCriticalMsg
 		) {
+			console.log(`Appending critical message current position in history: ${history.length}`)
 			const isInlineEditMode = await GlobalStateManager.getInstance().getGlobalState("isInlineEditingEnabled")
 			if (isInlineEditMode) {
 				const newCriticalMsg = (await import("./prompts/m-11-20-2024.prompt")).criticalMsg
@@ -476,19 +537,44 @@ ${this.customInstructions.trim()}
 			estimateTokenCount(history[history.length - 1])
 
 		let contextWindow = this.api.getModel().info.contextWindow
+		const terminalCompressionThreshold = provider
+			.getGlobalStateManager()
+			.getGlobalState("terminalCompressionThreshold")
+		const compressedMessages = await smartTruncation(history, this.api, terminalCompressionThreshold)
+		// we are going to inject to the last message some information regarding the conversation to mention that we compressed previous messages
+		for (const m of compressedMessages.slice(-2)) {
+			if (m.role === "user") {
+				if (Array.isArray(m.content)) {
+					m.content.push({
+						type: "text",
+						text: `
+	<compression_additional_context>
+	The chat has been compressed to prevent context window token overflow, it means that previous messages before this message might have been compressed.
+	You should take a moment to see what context are you missing that is critical to retrieve before you continue the conversation, this will let you refresh your context and gather all the relevant context parts before you continue solving the task.
+	This is a critical step that should not be skipped, you should take your time to understand the context and gather the information you need.
+	Also it might be a good time to self reflect and check how is your progress so far, what you have learned.
+	remember to always follow the <task> information from the first message in the conversation.
+	Good luck and lets pick up the conversation from the current message.
+	</compression_additional_context>`.trim(),
+					})
+				}
+			}
+		}
+		console.log(
+			`last two messages after compression:`,
+			JSON.stringify(compressedMessages[compressedMessages.length - 2].content)
+		)
 
-		const truncatedMessages = smartTruncation(history)
-		const newMemorySize = truncatedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
-		this.log("info", `API History before truncation:`, history)
-		this.log("info", `Compressed messages:`, truncatedMessages)
-		this.log("info", `Total tokens before truncation: ${totalTokens}`)
-		this.log("info", `Total tokens after truncation: ${newMemorySize}`)
+		const newMemorySize = compressedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
+		this.log("info", `API History before compression:`, history)
+		this.log("info", `Total tokens before compression: ${totalTokens}`)
+		this.log("info", `Total tokens after compression: ${newMemorySize}`)
 		const maxPostTruncationTokens = contextWindow - 13_314 + this.api.getModel().info.maxTokens
+		await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(compressedMessages)
 
 		// if this condition hit the task should be blocked
 		if (newMemorySize >= maxPostTruncationTokens) {
 			// we reached the end
-			await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 			this.providerRef
 				.deref()
 				?.getKoduDev()
@@ -496,9 +582,9 @@ ${this.customInstructions.trim()}
 					"chat_finished",
 					`The chat has reached the maximum token limit. Please create a new task to continue.`
 				)
+			await this.providerRef.deref()?.getKoduDev()?.taskExecutor.blockTask()
 			return "chat_finished"
 		}
-		await provider.getKoduDev()?.getStateManager().overwriteApiConversationHistory(truncatedMessages)
 		await this.providerRef
 			.deref()
 			?.getKoduDev()

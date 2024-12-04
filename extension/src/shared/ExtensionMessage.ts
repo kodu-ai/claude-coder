@@ -63,8 +63,20 @@ export type RequestStatus = {
 	isRunning: boolean
 }
 
+export type SetInlineEditModeMessage = {
+	type: "setInlineEditMode"
+	inlineEditOutputType?: "full" | "diff" | "none"
+}
+
+export type SetCommandTimeoutMessage = {
+	type: "setCommandTimeout"
+	commandTimeout: number
+}
+
 // webview will hold state
 export type ExtensionMessage =
+	| SetCommandTimeoutMessage
+	| SetInlineEditModeMessage
 	| {
 			type: "action" | "state" | "selectedImages"
 			text?: string
@@ -99,6 +111,8 @@ export interface ExtensionState {
 	currentContextWindow: number
 	terminalCompressionThreshold: number | undefined
 	inlineEditMode?: boolean
+	inlineEditOutputType?: "full" | "diff" | "none"
+	commandTimeout: number
 	advanceThinkingMode?: boolean
 	skipWriteAnimation?: boolean
 	autoSummarize?: boolean

@@ -22,6 +22,10 @@ export function useSettingsState() {
 		isInlineEditingEnabled: extensionState.inlineEditMode || false,
 		isAdvanceThinkingEnabled: extensionState.advanceThinkingMode || false,
 	})
+	const [commandTimeout, setCommandTimeout] = useState(extensionState.commandTimeout)
+
+	// 		inlineEditingType: extensionState.inlineEditModeType || "full",
+	const [inlineEditingType, setInlineEditingType] = useState(extensionState.inlineEditModeType || "full")
 	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
 	const [autoSkipWrite, setAutoSkipWrite] = useState(extensionState.skipWriteAnimation || false)
 	const [systemPromptVariants, setSystemPromptVariants] = useState<SystemPromptVariant[]>(
@@ -68,6 +72,16 @@ export function useSettingsState() {
 		},
 		[extensionState]
 	)
+
+	const handleCommandTimeout = useCallback((val: number) => {
+		setCommandTimeout(val)
+		vscode.postMessage({ type: "commandTimeout", commandTimeout: val })
+	}, [])
+
+	const handleInlineEditingTypeChange = useCallback((type: "full" | "diff" | "none") => {
+		setInlineEditingType(type)
+		vscode.postMessage({ type: "setInlineEditMode", inlineEditOutputType: type })
+	}, [])
 
 	const handleTechnicalLevelChange = useCallback((setLevel: typeof technicalLevel) => {
 		console.log(`Setting technical level to: ${setLevel}`)
@@ -155,6 +169,10 @@ export function useSettingsState() {
 		systemPromptVariants,
 		activeVariantId,
 		terminalCompressionThreshold,
+		inlineEditingType,
+		commandTimeout,
+		handleCommandTimeout,
+		handleInlineEditingTypeChange,
 		handleTerminalCompressionThresholdChange,
 		handleAutoSkipWriteChange,
 		handleExperimentalFeatureChange,

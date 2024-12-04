@@ -2,19 +2,19 @@ import { ToolResponse, ToolResponseV2 } from "../../types"
 import { formatToolResponse, isTextBlock } from "../../utils"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
-import { ExecuteCommandTool } from "./execute-command.tool"
+import { ExecuteCommandTool } from "./execute-command/execute-command.tool"
 
-export class AttemptCompletionTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class AttemptCompletionTool extends BaseAgentTool<"attempt_completion"> {
+	protected params: AgentToolParams<"attempt_completion">
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"attempt_completion">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 	}
 
 	async execute() {
 		const { input, ask, say } = this.params
-		const { result, command } = input
+		const { result } = input
 
 		if (result === undefined) {
 			await say(
@@ -33,16 +33,6 @@ export class AttemptCompletionTool extends BaseAgentTool {
 
 		let resultToSend = result
 		let commandOutput: ToolResponseV2 | undefined
-		if (command) {
-			const executeCommandParams: AgentToolParams = {
-				...this.params,
-				returnEmptyStringOnSuccess: true,
-				isSubMsg: true,
-				ts: Date.now(), // add a timestamp to the command to ensure it is unique and goes to next msg
-			}
-
-			commandOutput = await new ExecuteCommandTool(executeCommandParams, this.options).execute()
-		}
 
 		console.log(result)
 		console.log("Raising attempt completion.")

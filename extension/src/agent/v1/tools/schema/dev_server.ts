@@ -55,6 +55,8 @@ const schema = z.object({
 	lines: z.string().default("-1").optional().describe("The number of lines to retrieve from the logs."),
 })
 
+export type DevServerParams = z.infer<typeof schema>
+
 const examples = [
 	`<tool name="dev_server">
   <commandType>start</commandType>

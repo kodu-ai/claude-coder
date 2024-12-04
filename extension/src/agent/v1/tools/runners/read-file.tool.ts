@@ -9,10 +9,10 @@ import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
 import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
 
-export class ReadFileTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class ReadFileTool extends BaseAgentTool<"read_file"> {
+	protected params: AgentToolParams<"read_file">
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"read_file">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 	}

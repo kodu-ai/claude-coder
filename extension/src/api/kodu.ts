@@ -397,6 +397,7 @@ export class KoduHandler implements ApiHandler {
 		// if it's inline edit we import different prompt
 		if (isInlineEditingMode) {
 			system.pop()
+			console.log("Inline edit mode - m-11-20-2024.prompt")
 			const { BASE_SYSTEM_PROMPT } = await import("../agent/v1/prompts/m-11-20-2024.prompt")
 			const prompt = await BASE_SYSTEM_PROMPT(
 				getCwd(),

@@ -49,6 +49,8 @@ const examples = [
 </tool>`,
 ]
 
+export type ListCodeDefinitionNamesParams = z.infer<typeof schema>
+
 export const listCodeDefinitionNamesTool = {
 	schema: {
 		name: "list_code_definition_names",

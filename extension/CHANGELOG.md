@@ -4,6 +4,65 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.14.1] - 2024-12-03
+
+### New
+
+-   Inline edits automatically fix LLM bad tab generation
+-   Inline edits automatically format the file post edit block
+
+## [1.14.0] - 2024-12-03
+
+### Changed
+
+-   New Inline edit viewer using the default git format
+-   Better support for broken edits and higher accuracy at applying the edit.
+
+## [1.13.12] - 2024-11-29
+
+### Fixed
+
+-   autosummary should now out perform the default algorithm for context management
+-   better inline edits for windows os
+
+## [1.13.8] - 2024-11-28
+
+### Fixed
+
+-   Fixed inline edit edge cases and improved fluency across devices with different latency
+-   Fixed whole file write editor edge cases and improved fluency across devices with different latency
+
+## [1.13.7] - 2024-11-27
+
+### Added
+
+-   Added an option to configure the timeout for command execution
+
+### Fixed
+
+-   Feedback on tool is now working as expected (before was broken on command execution with automatic mode)
+-   Fix inline edit selector to work as expected
+
+## [1.13.6] - 2024-11-27
+
+### Changed
+
+-   Added option to select inline edit output (full,diff,none)
+
+## [1.13.5] - 2024-11-27
+
+### Changed
+
+-   Reworked autosummary algorithim resulting in upwards of 80% context saving on first compression
+-   Improved coverage across extension
+-   Fixed extension build and debugging
+
+## [1.13.3] - 2024-11-26
+
+### Changed
+
+-   Improved accuracy of inline edits by outputting the entire file content as the edit result.
+
 ## [1.13.2] - 2024-11-26
 
 ### FIXED

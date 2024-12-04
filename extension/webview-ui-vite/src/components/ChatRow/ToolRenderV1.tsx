@@ -133,6 +133,103 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 	)
 }
 
+export const ExecuteCommandBlock: React.FC<
+	ExecuteCommandTool &
+		ToolAddons & {
+			hasNextMessage?: boolean
+		}
+> = ({
+	id,
+	type,
+	command,
+	stdin,
+	timeout,
+	softTimeout,
+	outputMaxLines = 1000,
+	outputMaxTokens = 10000,
+	output,
+	approvalState,
+	onApprove,
+	onReject,
+	tool,
+	ts,
+	...rest
+}) => {
+	const [isOpen, setIsOpen] = React.useState(false)
+
+	const renderCommandInfo = () => (
+		<div className="space-y-2">
+			<div className="bg-muted p-2 rounded font-mono text-xs overflow-x-auto">
+				<span className="text-success">$</span> {command}
+			</div>
+
+			{stdin && (
+				<div className="text-xs">
+					<span className="font-semibold">Standard Input:</span> {stdin}
+				</div>
+			)}
+
+			{(timeout || softTimeout) && (
+				<div className="text-xs space-x-4">
+					{timeout && (
+						<span>
+							<span className="font-semibold">Timeout:</span> {timeout}ms
+						</span>
+					)}
+					{softTimeout && (
+						<span>
+							<span className="font-semibold">Soft Timeout:</span> {softTimeout}ms
+						</span>
+					)}
+				</div>
+			)}
+
+			<div className="text-xs space-x-4">
+				<span>
+					<span className="font-semibold">Max Lines:</span> {outputMaxLines.toLocaleString()}
+				</span>
+				<span>
+					<span className="font-semibold">Max Tokens:</span> {outputMaxTokens.toLocaleString()}
+				</span>
+			</div>
+		</div>
+	)
+
+	return (
+		<ToolBlock
+			{...rest}
+			ts={ts}
+			tool={tool}
+			icon={Terminal}
+			title={`Execute Command${id ? ` (ID: ${id})` : ""}`}
+			variant="info"
+			approvalState={approvalState}
+			onApprove={onApprove}
+			onReject={onReject}>
+			{renderCommandInfo()}
+
+			{output && (
+				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
+					<CollapsibleTrigger asChild>
+						<Button variant="ghost" size="sm" className="flex items-center w-full justify-between">
+							<span>View Output</span>
+							{isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+						</Button>
+					</CollapsibleTrigger>
+					<CollapsibleContent className="mt-2">
+						<ScrollArea className="h-[200px] w-full rounded-md border">
+							<div className="bg-secondary/20 p-3 rounded-md text-sm">
+								<pre className="whitespace-pre-wrap text-pretty break-all">{output}</pre>
+							</div>
+							<ScrollBar orientation="vertical" />
+						</ScrollArea>
+					</CollapsibleContent>
+				</Collapsible>
+			)}
+		</ToolBlock>
+	)
+}
+
 export const DevServerToolBlock: React.FC<ServerRunnerTool & ToolAddons> = ({
 	commandType,
 	commandToRun,
@@ -302,60 +399,6 @@ export const ChatMaxWindowBlock = ({ ts }: { ts: number }) => (
 		</div>
 	</ToolBlock>
 )
-
-export const ExecuteCommandBlock: React.FC<
-	ExecuteCommandTool &
-		ToolAddons & {
-			hasNextMessage?: boolean
-		}
-> = ({ command, output, approvalState, onApprove, tool, ts, onReject, ...rest }) => {
-	const [isOpen, setIsOpen] = React.useState(false)
-
-	return (
-		<ToolBlock
-			{...rest}
-			ts={ts}
-			tool={tool}
-			icon={Terminal}
-			title="Execute Command"
-			variant="info"
-			approvalState={approvalState}
-			onApprove={onApprove}
-			onReject={onReject}>
-			<div className="bg-muted p-2 rounded font-mono text-xs overflow-x-auto">
-				<span className="text-success">$</span> {command}
-			</div>
-
-			{/* {approvalState === "loading" && earlyExit === "pending" && (
-				<>
-					<div className="flex justify-end space-x-1 mt-2">
-						<Button variant="outline" size="sm" onClick={onApprove}>
-							Continue while running
-						</Button>
-					</div>
-				</>
-			)} */}
-			{output && (
-				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
-					<CollapsibleTrigger asChild>
-						<Button variant="ghost" size="sm" className="flex items-center w-full justify-between">
-							<span>View Output</span>
-							{isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-						</Button>
-					</CollapsibleTrigger>
-					<CollapsibleContent className="mt-2">
-						<ScrollArea className="h-[200px] w-full rounded-md border">
-							<div className="bg-secondary/20 p-3 rounded-md text-sm">
-								<pre className="whitespace-pre-wrap text-pretty break-all">{output}</pre>
-							</div>
-							<ScrollBar orientation="vertical" />
-						</ScrollArea>
-					</CollapsibleContent>
-				</Collapsible>
-			)}
-		</ToolBlock>
-	)
-}
 
 export const ListFilesBlock: React.FC<ListFilesTool & ToolAddons> = ({
 	path,

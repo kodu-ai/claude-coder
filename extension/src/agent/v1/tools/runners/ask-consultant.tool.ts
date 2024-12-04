@@ -4,10 +4,10 @@ import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "../types"
 
-export class AskConsultantTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class AskConsultantTool extends BaseAgentTool<"ask_consultant"> {
+	protected params: AgentToolParams<"ask_consultant">
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"ask_consultant">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
 	}

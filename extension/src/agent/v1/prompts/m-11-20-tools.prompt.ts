@@ -26,15 +26,139 @@ or to get logs
 </server_runner_tool>
 
 ## execute_command
-Description: Request to execute a CLI command on the system. Use this when you need to perform system operations or run specific commands to accomplish any step in the user's task. You must tailor your command to the user's system and provide a clear explanation of what the command does. Prefer to execute complex CLI commands over creating executable scripts, as they are more flexible and easier to run. Commands will be executed in the current working directory: ${cwd.toPosix()}
-This is very primitive tool, it cant execute commands like "npm start", "yarn start", "python -m http.server", etc. (if you want to start a server, you must use the server_runner_tool tool.)
+
+Description: Request to execute a CLI command on the system. Use this when you need to perform system operations or run specific commands to accomplish steps in the user's task. You must tailor your command to the user's system and provide a clear explanation of what the command does. The tool provides extensive control over command execution, including timeouts, output limitations and interactive command exeuction. Prefer to execute complex CLI commands over creating executable scripts, as they are more flexible and easier to run. Commands will be executed in the current working directory: ${cwd.toPosix()}
+
+IMPORTANT: This is a primitive tool designed for command execution and interactive command exeuction. It cannot execute long-running server commands or interactive processes like 'npm start', 'yarn start', 'python -m http.server', etc. For server operations, you must use the server_runner_tool instead.
+
 Parameters:
-- command: (required) The CLI command to execute. This should be valid for the current operating system. Ensure the command is properly formatted and does not contain any harmful instructions.
-COMMAND CANNOT RUN SOMETHING like 'npm start', 'yarn start', 'python -m http.server', etc. (if you want to start a server, you must use the server_runner_tool tool.)
-Usage:
+- id: (optional) A unique identifier for the command execution. It's mandatory to provide id when you try to resume or terminate a long-running command later (type: resume_blocking_command or terminate_blocking_command).
+- type: (required) The execution mode for the command. Must be one of:
+  - execute_blocking_command: Standard execution that blocks until completion, does not require id.
+  - terminate_blocking_command: Stops a running command using its ID, requires id.
+  - resume_blocking_command: Continues a previously paused command using its ID, requires id and allows for interactive input using stdin (optional) see examples below.
+- command: (required for execute_blocking_command) The CLI command to execute. This must be valid for the current operating system and properly formatted without harmful instructions.
+- stdin: (optional, only for resume_blocking_command) Standard input to provide when resuming a paused command that requires input, it requires adding \\n to continue the stdin else where we will consider this as the end of the stdin and it might cause EOF errors if the file has more input, stdin can be used multiple times if the command requires multiple inputs or has multiple pauses, it's extremely powerful for interactive commands.
+- timeout: (optional) Maximum execution time in milliseconds before the command is forcefully terminated.
+- softTimeout: (optional) Grace period in milliseconds before hard termination, allowing the command to clean up.
+- outputMaxLines: (optional, default: 1,000) Maximum number of lines to return in the command output.
+- outputMaxTokens: (optional, default: 10,000) Maximum number of tokens to return in the command output.
+
+Command Response Structure:
+Every command execution returns a structured response containing:
+- output: The command's stdout/stderr output
+- completed: Whether the command finished execution
+- id: Unique identifier for the command execution mandatory when calling <execute_command> with type: resume_blocking_command or terminate_blocking_command
+- exitCode: The command's exit status code
+- returnReason: Why the command returned (completed, timeout, maxOutput)
+- hint: Human-readable guidance based on the execution result, including:
+  - Non-zero exit code warnings
+  - Empty output notifications
+  - Timeout notifications
+  - Maximum output limit notifications
+  - Completion confirmations
+
+Usage Examples:
+
+1. Basic Command Execution:
+\`\`\`xml
 <execute_command>
-<command>Your command here</command>
+<type>execute_blocking_command</type>
+<command>ls -la</command>
 </execute_command>
+\`\`\`
+Response example:
+\`\`\`xml
+<output>total 32
+drwxr-xr-x  5 user  group  160 Dec  2 10:00 .
+drwxr-xr-x  3 user  group   96 Dec  2 10:00 ..</output>
+<completed>true</completed>
+<id>cmd-12345</id>
+<exitCode>0</exitCode>
+<returnReason>completed</returnReason>
+<hint>The command has completed successfully.</hint>
+\`\`\`
+
+2. Resume Command for Additional Output:
+When a command hits the output limit, use resume to get remaining output, note command field is not needed for resume but id is mandatory.
+First we run a command:
+\`\`\`xml
+<execute_command>
+<type>execute_blocking_command</type>
+<command>ls -la</command>
+<outputMaxLines>1000</outputMaxLines>
+</execute_command>
+\`\`\`
+Then we get a Response indicating output limit reached:
+\`\`\`xml
+<output>[First 1000 lines of output]</output>
+<completed>false</completed>
+<id>cmd-67890</id>
+<exitCode>null</exitCode>
+<returnReason>maxOutput</returnReason>
+<hint>The command has outputted more than the maximum allowed output to get the full output please use the resume_blocking_command tool with the id cmd-67890.</hint>
+\`\`\`
+
+Then we can call resume to get more output using the id from the command response:
+\`\`\`xml
+<execute_command>
+<type>resume_blocking_command</type>
+<id>cmd-67890</id>
+</execute_command>
+\`\`\`
+
+3. Resume Command with Input super powerful for interactive commands:
+When a command needs additional input or is interactive, you can use resume with stdin to provide the required input.
+Here we call resume with stdin to provide input 'y' to command with id cmd-54321:
+\`\`\`xml
+<execute_command>
+<type>resume_blocking_command</type>
+<id>cmd-54321</id>
+<stdin>y</stdin> ---> we didn't include \\n here so this is the end of the stdin
+</execute_command>
+\`\`\`
+
+here we call resume and we don't call EOF so we can continue the stdin in the next resume:
+\`\`\`xml
+<execute_command>
+<type>resume_blocking_command</type>
+<id>cmd-54321</id>
+<stdin>y\n</stdin> ---> we included \\n here so we can continue the stdin in the next resume and the command won't consider this as the end of the stdin
+</execute_command>
+
+4. Terminating a Running Command:
+If a command is taking too long or needs to be stopped, you can terminate it using the command id.
+\`\`\`xml
+<execute_command>
+<type>terminate_blocking_command</type>
+<id>cmd-12345</id>
+</execute_command>
+\`\`\`
+
+Common Return Reasons:
+- completed: Command finished execution normally
+- timeout: Command exceeded specified timeout duration
+- maxOutput: Command reached output line or token limit
+- terminated: Command was manually terminated by the user
+  
+When to Use Resume:
+1. Output Continuation:
+   - When a command hits outputMaxLines or outputMaxTokens limits
+   - Use resume without stdin to fetch the next chunk of output
+   - Repeat until all output is received (completed = true)
+
+2. Interactive Input:
+   - When a command pauses for user input and requires interaction
+   - Use resume with stdin to provide the required input
+   - Can be used multiple times if the command needs multiple inputs
+
+Remember:
+- Always check the response structure for execution status and hints
+- Use the id from the response for resume or terminate operations
+- Monitor returnReason to understand why a command stopped
+- Resume can be used both for getting more output and providing input
+- Commands still follow all original restrictions regarding servers and long-running processes
+
 
 ## read_file
 Description: Request to read the contents of a file at the specified path. Use this when you need to examine the contents of an existing file you do not know the contents of, for example to analyze code, review text files, or extract information from configuration files. Automatically extracts raw text from PDF and DOCX files. May not be suitable for other types of binary files, as it returns the raw content as a string.
@@ -402,53 +526,6 @@ Usage:
 <baseLink>Base link for search (optional)</baseLink>
 </web_search>
 
-# Tool Use Examples
-
-## Example 0: start a development server using server_runner_tool
-
-Explanation: In this we finished setting our react project, and now we need to start the development server to run the application, we will use the server_runner_tool to start the server with the command 'npm run dev'.
-**KEY NOTES:**
-if you want to start a server, you must use the server_runner_tool tool, do not use the execute_command tool to start a server.
-Ensure the commandToRun is valid for the user's system and the path is correct.
-Always wait for user confirmation after each tool use before proceeding.
-This output will be appended to the system prompt (<server_runner_tool_status> information) to keep track of the server status.
-Don't assume the server is running, you must only take the server_runner_tool_status> information as the source of truth (search for <server_runner_tool_status> tags in the system prompt).
-YOU MUST PREPEND THE PATH TO THE DIRECTORY WHERE THE COMMAND SHOULD BASED ON ${cwd.toPosix()}.
-<server_runner_tool>
-<commandType>start</commandType>
-<commandToRun>npm run dev</commandToRun>
-<serverName>frontend</serverName>
-</server_runner_tool>
-
-## Example 1: Requesting to execute a command
-Explanation: In this example, the user requests to install the 'express' package using npm. We choose the execute_command tool to run the npm install command for the 'express' package.
-
-<execute_command>
-<command>npm install express</command>
-</execute_command>
-
-## Example 2: Requesting to write to a file
-
-<write_to_file>
-<path>frontend-config.json</path>
-<kodu_content>
-{
-  "apiEndpoint": "https://api.example.com",
-  "theme": {
-    "primaryColor": "#007bff",
-    "secondaryColor": "#6c757d",
-    "fontFamily": "Arial, sans-serif"
-  },
-  "features": {
-    "darkMode": true,
-    "notifications": true,
-    "analytics": false
-  },
-  "version": "1.0.0"
-}
-</kodu_content>
-</write_to_file>
-
 ## computer_use
 Description: Request to interact with a Puppeteer-controlled browser or take a screenshot of the current desktop. Every action, except \`close\`, will be responded to with a screenshot of the browser's current state, along with any new console logs. You may only perform one browser action per message, and wait for the user's response including a screenshot and logs to determine the next action.
 - The sequence of actions except the \`system_screenshot\` action **must always start with** launching the browser at a URL, and **must always end with** closing the browser. If you need to visit a new URL that is not possible to navigate to from the current webpage, you must first close the browser, then launch again at the new URL.
@@ -484,15 +561,55 @@ Usage:
 <text>Text to type (optional)</text>
 </computer_use>
 
-## Example 3: start a server with server_runner_tool
-Explanation: In this example we finished creating a node.js server file, and now we need to start the server. We will use the server_runner_tool to start the server with the command 'node server.js'.
+# Tool Use Examples
+
+## Example 0: running a simple command using execute_command
+
+Explanation: In this example, we will run a simple command "pnpm run test" using the execute_command tool. This command will run the tests for the project.
+<execute_command>
+<type>execute_blocking_command</type>
+<command>pnpm run test</command>
+</execute_command>
+
+## Example 1: start a development server using server_runner_tool
+
+Explanation: In this we finished setting our react project, and now we need to start the development server to run the application, we will use the server_runner_tool to start the server with the command 'npm run dev'.
+**KEY NOTES:**
+if you want to start a server, you must use the server_runner_tool tool, do not use the execute_command tool to start a server.
+Ensure the commandToRun is valid for the user's system and the path is correct.
+Always wait for user confirmation after each tool use before proceeding.
+This output will be appended to the system prompt (<server_runner_tool_status> information) to keep track of the server status.
+Don't assume the server is running, you must only take the server_runner_tool_status> information as the source of truth (search for <server_runner_tool_status> tags in the system prompt).
+YOU MUST PREPEND THE PATH TO THE DIRECTORY WHERE THE COMMAND SHOULD BASED ON ${cwd.toPosix()}.
 <server_runner_tool>
 <commandType>start</commandType>
-<commandToRun>node server.js</commandToRun>
-<serverName>node-server</serverName>
+<commandToRun>npm run dev</commandToRun>
+<serverName>frontend</serverName>
 </server_runner_tool>
 
-## Example 4: Editing a file block with edit_file_blocks
+## Example 2: Requesting to write to a file
+
+<write_to_file>
+<path>frontend-config.json</path>
+<kodu_content>
+{
+  "apiEndpoint": "https://api.example.com",
+  "theme": {
+    "primaryColor": "#007bff",
+    "secondaryColor": "#6c757d",
+    "fontFamily": "Arial, sans-serif"
+  },
+  "features": {
+    "darkMode": true,
+    "notifications": true,
+    "analytics": false
+  },
+  "version": "1.0.0"
+}
+</kodu_content>
+</write_to_file>
+
+## Example 3: Editing a file block with edit_file_blocks
 Explanation: In this example, we need to update a specific block of code in a file. We will use the edit_file_blocks tool to replace the existing block with the new block.
 <edit_file_blocks>
 <path>src/example.js</path>

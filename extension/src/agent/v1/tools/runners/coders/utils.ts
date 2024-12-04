@@ -14,6 +14,29 @@ export interface EditBlock {
 	isDelete?: boolean
 }
 
+/**
+ * Normalizes text content for cross-platform comparison
+ * Handles different line endings (CRLF vs LF) and path separators
+ *
+ * @param text - The text content to normalize
+ * @returns Normalized text suitable for cross-platform comparison
+ */
+export function normalize(text: string): string {
+	if (!text) return text
+
+	return (
+		text
+			// First normalize all line endings to LF
+			.replace(/\r\n/g, "\n")
+			// Normalize all backslashes in path-like strings
+			.replace(/\\+/g, "/")
+			// Collapse multiple forward slashes to single
+			.replace(/\/+/g, "/")
+			// Trim any trailing/leading whitespace
+			.trim()
+	)
+}
+
 export function generateEditBlockId(searchContent: string): string {
 	// fast hash the search content to generate a unique id
 	let hash = 0

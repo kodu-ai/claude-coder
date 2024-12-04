@@ -26,9 +26,9 @@ import PQueue from "p-queue"
  * The tool supports both complete file rewrites and partial edits through diff blocks.
  * It includes features for animation control and update throttling to ensure smooth performance.
  */
-export class FileEditorTool extends BaseAgentTool {
+export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 	/** Tool parameters including update callbacks and input */
-	protected params: AgentToolParams
+	protected params: AgentToolParams<"write_to_file">
 	/** Provider for showing file diffs in VSCode */
 	public diffViewProvider: DiffViewProvider
 	/** Handler for inline file editing operations */
@@ -64,10 +64,10 @@ export class FileEditorTool extends BaseAgentTool {
 	 * @param params - Tool parameters including callbacks and input
 	 * @param options - Configuration options for the tool
 	 */
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
+	constructor(params: AgentToolParams<"write_to_file">, options: AgentToolOptions) {
 		super(options)
 		this.params = params
-		this.diffViewProvider = new DiffViewProvider(getCwd(), this.koduDev)
+		this.diffViewProvider = new DiffViewProvider(getCwd())
 		this.inlineEditor = new InlineEditHandler()
 		if (!!this.koduDev.getStateManager().skipWriteAnimation) {
 			this.skipWriteAnimation = true
@@ -80,25 +80,46 @@ export class FileEditorTool extends BaseAgentTool {
 	}
 
 	public async _handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
+		if (!this.fileState) {
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "write_to_file",
+						diff,
+						path: relPath,
+						content: diff,
+						mode: "inline",
+						ts: this.ts,
+						approvalState: "loading",
+					},
+				},
+				this.ts
+			)
+			const absolutePath = path.resolve(getCwd(), relPath)
+			const isExistingFile = await checkFileExists(relPath)
+			if (!isExistingFile) {
+				this.logger(`File does not exist: ${relPath}`, "error")
+				this.fileState = {
+					absolutePath,
+					orignalContent: "",
+					isExistingFile: false,
+				}
+				return
+			}
+			const originalContent = fs.readFileSync(absolutePath, "utf8")
+			this.fileState = {
+				absolutePath,
+				orignalContent: originalContent,
+				isExistingFile,
+			}
+		}
+
 		// this might happen because the diff view are not instant.
 		if (this.isProcessingFinalContent) {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
 			return
 		}
-		this.params.updateAsk(
-			"tool",
-			{
-				tool: {
-					tool: "write_to_file",
-					diff,
-					path: relPath,
-					content: diff,
-					ts: this.ts,
-					approvalState: "loading",
-				},
-			},
-			this.ts
-		)
 
 		if (!diff.includes("REPLACE")) {
 			this.logger("Skipping partial update because the diff does not contain REPLACE keyword.", "warn")
@@ -190,31 +211,7 @@ export class FileEditorTool extends BaseAgentTool {
 	}
 
 	public async handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
-		if (!this.fileState) {
-			const absolutePath = path.resolve(getCwd(), relPath)
-			const isExistingFile = await checkFileExists(relPath)
-			if (!isExistingFile) {
-				this.logger(`File does not exist: ${relPath}`, "error")
-				this.fileState = {
-					absolutePath,
-					orignalContent: "",
-					isExistingFile: false,
-				}
-				return
-			}
-			const originalContent = fs.readFileSync(absolutePath, "utf8")
-			this.fileState = {
-				absolutePath,
-				orignalContent: originalContent,
-				isExistingFile,
-			}
-		}
-		// this might happen because the diff view are not instant.
-		if (this.isProcessingFinalContent) {
-			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
-			return
-		}
-		this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
+		await this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
 	}
 
 	/**
@@ -265,24 +262,20 @@ export class FileEditorTool extends BaseAgentTool {
 			this.ts
 		)
 
-		const currentTime = Date.now()
-		// don't push too many updates to the diff view provider to avoid performance issues
-		if (currentTime - this.lastUpdateTime < this.UPDATE_INTERVAL) {
-			return
-		}
-
-		if (!this.diffViewProvider.isDiffViewOpen() && this.updateNumber === 1) {
-			try {
-				// this actually opens the diff view but might take an extra few ms to be considered open requires interval check
-				// it can take up to 300ms to open the diff view
-				await this.diffViewProvider.open(relPath)
-			} catch (e) {
-				this.logger("Error opening diff view: " + e, "error")
-				return
+		await this.pQueue.add(async () => {
+			if (!this.diffViewProvider.isDiffViewOpen()) {
+				try {
+					const now = Date.now()
+					await this.diffViewProvider.open(relPath)
+					const elapsed = Date.now() - now
+					this.logger(`Diff view opened in ${elapsed}ms`, "debug")
+				} catch (e) {
+					this.logger("Error opening diff view: " + e, "error")
+					return
+				}
 			}
-		}
-		await this.diffViewProvider.update(acculmatedContent, false)
-		this.lastUpdateTime = currentTime
+			await this.diffViewProvider.update(acculmatedContent, false)
+		})
 	}
 
 	private async finalizeInlineEdit(path: string, content: string): Promise<ToolResponseV2> {
@@ -295,7 +288,7 @@ export class FileEditorTool extends BaseAgentTool {
 			throw new Error(`Error parsing diff blocks: ${err}`)
 		}
 		if (!this.inlineEditor.isOpen()) {
-			this.inlineEditor.open(
+			await this.inlineEditor.open(
 				this.editBlocks[0].id,
 				this.fileState?.absolutePath!,
 				this.editBlocks[0].searchContent
@@ -309,6 +302,7 @@ export class FileEditorTool extends BaseAgentTool {
 				tool: {
 					tool: "write_to_file",
 					content,
+					mode: "inline",
 					approvalState: "pending",
 					path,
 					ts: this.ts,
@@ -323,6 +317,7 @@ export class FileEditorTool extends BaseAgentTool {
 					tool: {
 						tool: "write_to_file",
 						content,
+						mode: "inline",
 						approvalState: "rejected",
 						path,
 						ts: this.ts,
@@ -346,25 +341,94 @@ export class FileEditorTool extends BaseAgentTool {
 				images
 			)
 		}
-		await this.inlineEditor.saveChanges()
+		const { finalContent, results } = await this.inlineEditor.saveChanges()
 		this.koduDev.getStateManager().addErrorPath(path)
-
-		// Final approval state
+		// count how many of the changes were not applied
+		const notAppliedCount = results.filter((result) => !result.wasApplied).length
+		const successBlock = results.filter((result) => result.wasApplied)
 		await this.params.updateAsk(
 			"tool",
 			{
 				tool: {
 					tool: "write_to_file",
 					content,
+					mode: "inline",
 					approvalState: "approved",
 					path,
 					ts: this.ts,
+					notAppliedCount,
 				},
 			},
 			this.ts
 		)
 
-		return this.toolResponse("success", "The user approved the changes.")
+		const approvedMsg = `
+The user approved the changes and the content was successfully saved to ${path.toPosix()}.
+Make sure to remember the updated content (REPLACE BLOCK + Original FILE) file content unless you change the file again or the user tells you otherwise.
+${
+	notAppliedCount > 0
+		? `However, ${notAppliedCount} changes were not applied. it's critical and must be acknowledged by you, please review the following code blocks and fix the issues. a good idea is to maybe re read the file to see why the changes were not applied maybe the content was changed or the search content you wrote is not correct.
+${results.map((result) => `<search_block>${result.searchContent}</search_block>`).join("\n")}`
+		: ""
+}
+`
+
+		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
+		if (currentOutputMode === "diff") {
+			return this.toolResponse(
+				"success",
+				`<file>
+			<information>${approvedMsg}</information>
+			<path>${path}</path>
+			<updated_blocks>
+			Here are the updated blocks that were successfully applied to the file:
+			${successBlock
+				.map((block) => {
+					return `
+<updated_block>
+SEARCH
+${block.searchContent.substring(0, 100)}${
+						block.searchContent.length > 100 ? "... the rest of the block from your input" : ""
+					}
+=======
+${block.replaceContent.substring(0, 100)}${
+						block.replaceContent.length > 100 ? "... the rest of the block from your input" : ""
+					}
+
+</updated_blocks>`.trim()
+				})
+				.join("\n")}
+			</file>
+			`
+			)
+		}
+		if (currentOutputMode === "none") {
+			return this.toolResponse(
+				"success",
+				`
+<file>
+<information>${approvedMsg}
+CRITICAL THE CONTENT YOU PROVIDED IN THE REPLACE HAS REPLACED THE SEARCH CONTENT, YOU SHOULD REMEMBER THE CONTENT YOU PROVIDED IN THE REPLACE BLOCK AND THE ORIGINAL FILE CONTENT UNLESS YOU CHANGE THE FILE AGAIN OR THE USER TELLS YOU OTHERWISE.
+</information>
+<path>${path}</path>
+</file>
+`
+			)
+		}
+
+		return this.toolResponse(
+			"success",
+			`
+<file>
+<information>${approvedMsg}
+CRITICAL the file content has been updated to <updated_file_content> content below, you should remember this as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.
+</information>
+<path>${path}</path>
+<updated_file_content>
+${finalContent}
+</updated_file_content>
+`
+		)
 	}
 
 	private async finalizeFileEdit(relPath: string, content: string): Promise<ToolResponseV2> {
@@ -452,7 +516,7 @@ export class FileEditorTool extends BaseAgentTool {
 			return this.toolResponse(
 				"success",
 				`The user made the following updates to your content:\n\nThe updated content has been successfully saved to ${relPath.toPosix()}
-					Here is the latest file content:
+					Here is the latest file content after the changes were applied:
 					\`\`\`
 					${finalContent}
 					\`\`\`
@@ -461,10 +525,7 @@ export class FileEditorTool extends BaseAgentTool {
 		}
 
 		let toolMsg = `The content was successfully saved to ${relPath.toPosix()}.
-			Here is the latest file content:
-			\`\`\`
-			${finalContent}
-			\`\`\`
+			The latest content is the content inside of <kodu_content> the content you provided in the input has been applied to the file and saved. don't read the file again to get the latest content as it is already saved unless the user tells you otherwise.
 			`
 		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
 			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
@@ -521,7 +582,6 @@ export class FileEditorTool extends BaseAgentTool {
 			)
 		} finally {
 			this.isProcessingFinalContent = false
-			this.diffViewProvider.isEditing = false
 		}
 	}
 
@@ -542,9 +602,12 @@ export class FileEditorTool extends BaseAgentTool {
 	private async showChangesInDiffView(relPath: string, content: string): Promise<void> {
 		content = preprocessContent(content)
 		if (!this.diffViewProvider.isDiffViewOpen()) {
-			await this.diffViewProvider.open(relPath, true)
+			await this.diffViewProvider.open(relPath)
 		}
 
-		await this.diffViewProvider.update(content, true)
+		await this.pQueue.add(async () => {
+			await this.diffViewProvider.update(content, true)
+		})
+		await this.pQueue.onIdle()
 	}
 }

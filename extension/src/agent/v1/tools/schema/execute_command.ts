@@ -2,6 +2,15 @@
 import { z } from "zod"
 
 /**
+ * The type of command to execute.
+ */
+export const COMMAND_TYPE = [
+	"execute_blocking_command",
+	"terminate_blocking_command",
+	"resume_blocking_command",
+] as const
+
+/**
  * @tool execute_command
  * @description Execute a CLI command on the system. Use this when you need to perform system operations or run specific commands to accomplish any step in the user's task. You must tailor your command to the user's system and provide a clear explanation of what the command does. Prefer to execute complex CLI commands over creating executable scripts, as they are more flexible and easier to run. Commands will be executed in the current working directory.
  * @schema
@@ -28,12 +37,31 @@ import { z } from "zod"
  * ```
  */
 const schema = z.object({
-	command: z
-		.string()
+	id: z.string().optional().describe("The ID of the command to resume or terminate."),
+	type: z
+		.enum(COMMAND_TYPE)
 		.describe(
-			"The CLI command to execute. This should be valid for the current operating system. Ensure the command is properly formatted and does not contain any harmful instructions."
+			"The type of command to execute (execute_blocking_command, terminate_blocking_command, resume_blocking_command)."
 		),
+	command: z.string().optional().describe("The CLI command to execute."),
+	stdin: z.string().optional().describe("The standard input to provide to the command."),
+	timeout: z.coerce.number().optional().describe("The maximum time in milliseconds the command is allowed to run."),
+	softTimeout: z.coerce
+		.number()
+		.optional()
+		.describe("The time in milliseconds to wait before sending a termination signal."),
+	outputMaxLines: z.coerce
+		.number()
+		.default(1000)
+		.optional()
+		.describe("The maximum number of lines to return in the output. default: 1,000"),
+	outputMaxTokens: z.coerce
+		.number()
+		.default(10_000)
+		.optional()
+		.describe("The maximum number of tokens to return in the output. default: 10,000"),
 })
+export type ExecuteCommandToolParams = z.infer<typeof schema>
 
 const examples = [
 	`<tool name="execute_command">

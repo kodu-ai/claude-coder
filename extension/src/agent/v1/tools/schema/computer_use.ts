@@ -1,6 +1,19 @@
 // schema/computer_use.ts
-import { computerUseActions } from "@/shared/new-tools"
 import { z } from "zod"
+
+/**
+ * the actions that can be performed by the computer_use tool
+ */
+export const computerUseActions = [
+	"launch",
+	"system_screenshot",
+	"click",
+	"type",
+	"scroll_down",
+	"scroll_up",
+	"close",
+	"refresh",
+] as const
 
 /**
  * @tool computer_use
@@ -29,7 +42,7 @@ import { z } from "zod"
  */
 const schema = z.object({
 	action: z.enum(computerUseActions).describe("The action to perform."),
-	url: z.string().describe("The URL to launch the browser at (optional).").optional(),
+	url: z.string().describe("The URL to launch the browser at or scorll to (optional).").optional(),
 	coordinate: z.string().describe("The x,y coordinates for the click action (optional).").optional(),
 	text: z.string().describe("The text to type (optional).").optional(),
 })
@@ -55,6 +68,8 @@ const examples = [
 </tool>`,
 ]
 
+export type ComputerUseParams = z.infer<typeof schema>
+
 export const computerUseTool = {
 	schema: {
 		name: "computer_use",
@@ -62,3 +77,6 @@ export const computerUseTool = {
 	},
 	examples,
 }
+
+export type ComputerUseAction = (typeof computerUseActions)[number]
+export type BrowserAction = Exclude<ComputerUseAction, "system_screenshot">

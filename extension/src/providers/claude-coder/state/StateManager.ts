@@ -6,9 +6,9 @@ import { HistoryItem } from "../../../shared/HistoryItem"
 import { SecretStateManager } from "./SecretStateManager"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
 import { ExtensionProvider } from "../ClaudeCoderProvider"
-import { ExtensionState } from "../../../shared/ExtensionMessage"
+import { ExtensionState, isV1ClaudeMessage, V1ClaudeMessage } from "../../../shared/ExtensionMessage"
 import { SystemPromptVariant } from "../../../shared/SystemPromptVariant"
-import { estimateTokenCount, estimateTokenCountFromMessages } from "../../../utils/context-management"
+import { estimateTokenCount, estimateTokenCountFromMessages } from "../../../utils/context-managment"
 import { BASE_SYSTEM_PROMPT } from "../../../agent/v1/prompts/base-system"
 import { getCwd } from "../../../agent/v1/utils"
 
@@ -53,6 +53,8 @@ export class StateManager {
 			isInlineEditingEnabled,
 			isAdvanceThinkingEnabled,
 			terminalCompressionThreshold,
+			inlineEditOutputType,
+			commandTimeout,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.globalStateManager.getGlobalState("browserModelId"),
@@ -79,6 +81,8 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("isInlineEditingEnabled"),
 			this.globalStateManager.getGlobalState("isAdvanceThinkingEnabled"),
 			this.globalStateManager.getGlobalState("terminalCompressionThreshold"),
+			this.globalStateManager.getGlobalState("inlineEditOutputType"),
+			this.globalStateManager.getGlobalState("commandTimeout"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -102,7 +106,15 @@ export class StateManager {
 				},
 			],
 		})
-		const tokens = estimateTokenCountFromMessages(currentApiHistory ?? []) + systemPromptTokens
+		const clone = currentClaudeMessage?.slice(-24).reverse()
+		const lastClaudeApiFinished = clone?.find(
+			(m) => isV1ClaudeMessage(m) && m.type === "say" && !!m.apiMetrics?.cost
+		) as V1ClaudeMessage | undefined
+		const tokens =
+			(lastClaudeApiFinished?.apiMetrics?.inputTokens ?? 0) +
+			(lastClaudeApiFinished?.apiMetrics?.outputTokens ?? 0) +
+			(lastClaudeApiFinished?.apiMetrics?.inputCacheRead ?? 0) +
+			(lastClaudeApiFinished?.apiMetrics?.inputCacheWrite ?? 0)
 		const currentContextWindow = this.context
 			.getKoduDev()
 			?.getStateManager()
@@ -120,6 +132,7 @@ export class StateManager {
 			lastShownAnnouncementId,
 			customInstructions,
 			technicalBackground,
+			commandTimeout: commandTimeout ?? 120,
 			systemPromptVariants,
 			activeSystemPromptVariantId,
 			experimentalTerminal:
@@ -145,6 +158,7 @@ export class StateManager {
 			currentContextTokens: tokens ?? 0,
 			autoSummarize: autoSummarize ?? false,
 			isContinueGenerationEnabled: isContinueGenerationEnabled ?? false,
+			inlineEditOutputType,
 		} satisfies ExtensionState
 	}
 
@@ -169,6 +183,11 @@ export class StateManager {
 	async setTerminalCompressionThreshold(value: number | undefined) {
 		this.context.getKoduDev()?.getStateManager()?.setTerminalCompressionThreshold(value)
 		return this.globalStateManager.updateGlobalState("terminalCompressionThreshold", value)
+	}
+
+	async setInlineEditModeType(value: "full" | "diff" | "none") {
+		this.context.getKoduDev()?.getStateManager()?.setInlineEditOutputType(value)
+		return this.globalStateManager.updateGlobalState("inlineEditOutputType", value)
 	}
 
 	async updateTaskHistory(item: HistoryItem): Promise<HistoryItem[]> {
