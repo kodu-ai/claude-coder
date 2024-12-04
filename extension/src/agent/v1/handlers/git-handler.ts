@@ -131,63 +131,142 @@ export class GitHandler {
 		try {
 			const { stdout } = await execa("git", ["diff", "--cached", "--unified=0", path], { cwd: this.repoPath })
 			const prefix = this.getCommitPrefix(path, stdout)
-			const isNewFile = !stdout.includes("--- a/")
+			const scope = this.getCommitScope(path)
+			const description = this.generateCommitDescription(path, stdout)
 
-			if (isNewFile) {
-				return `${prefix}: add ${path}`
-			}
-
-			const changes = this.extractChangesFromDiff(stdout)
-			return `${prefix}: ${changes} in ${path}`
+			// Format: <type>(<scope>): <description>
+			return scope ? `${prefix}(${scope}): ${description}` : `${prefix}: ${description}`
 		} catch (error) {
 			console.error(`Error generating commit message: ${error}`)
-			return `chore: update ${path}`
+			return `chore: update ${this.getFileNameFromPath(path)}`
 		}
 	}
 
 	private getCommitPrefix(path: string, diff: string): string {
-		// Check file path patterns first
-		if (path.includes('test/') || path.endsWith('.test.ts') || path.endsWith('.spec.ts')) {
+		// Configuration changes
+		if (path.match(/\.(json|yaml|yml|toml|ini)$/i)) {
+			return 'config'
+		}
+
+		// Test files
+		if (path.includes('test/') || path.match(/\.(test|spec)\.(ts|js|tsx|jsx)$/)) {
 			return 'test'
 		}
+
+		// Documentation
 		if (path.endsWith('.md') || path.includes('/docs/')) {
 			return 'docs'
 		}
 
-		// If it's a new file, it's likely a feature
-		if (!diff.includes("--- a/")) {
-			return 'feat'
+		// Dependencies
+		if (path.match(/package(-lock)?\.json$/) || path.match(/yarn\.lock$/)) {
+			return 'deps'
 		}
 
-		// Check diff content for type hints
+		// Check diff content for semantic hints
 		const diffContent = diff.toLowerCase()
-		if (diffContent.includes('fix') || diffContent.includes('bug') || diffContent.includes('issue')) {
+		if (diffContent.includes('fix:') || diffContent.includes('bug:') || diffContent.includes('issue:')) {
 			return 'fix'
 		}
-		if (diffContent.includes('refactor') || diffContent.includes('clean')) {
+		if (diffContent.includes('refactor:') || diffContent.includes('clean:')) {
 			return 'refactor'
 		}
-		if (diffContent.includes('style') || diffContent.match(/^\+\s*[\t ]*$/m)) {
+		if (diffContent.includes('perf:') || diffContent.includes('performance:')) {
+			return 'perf'
+		}
+		if (diffContent.includes('style:') || diffContent.match(/^\+\s*[\t ]*$/m)) {
 			return 'style'
+		}
+
+		// New files are features by default
+		if (!diff.includes("--- a/")) {
+			return 'feat'
 		}
 
 		// Default to chore for maintenance tasks
 		return 'chore'
 	}
 
-	private extractChangesFromDiff(diffOutput: string): string {
-		const addedLines = (diffOutput.match(/^\+(?!\+\+)/gm) || []).length
-		const deletedLines = (diffOutput.match(/^-(?!--)/gm) || []).length
+	private getCommitScope(path: string): string | null {
+		// Extract meaningful scope from file path
+		const parts = path.split('/')
 
-		if (addedLines > 0 && deletedLines > 0) {
-			return `update with ${addedLines} addition${addedLines !== 1 ? 's' : ''} and ${deletedLines} deletion${deletedLines !== 1 ? 's' : ''}`
-		} else if (addedLines > 0) {
-			return `add ${addedLines} line${addedLines !== 1 ? 's' : ''}`
-		} else if (deletedLines > 0) {
-			return `remove ${deletedLines} line${deletedLines !== 1 ? 's' : ''}`
+		// Handle special cases first
+		if (path.includes('test/')) {
+			return 'tests'
+		}
+		if (path.includes('docs/')) {
+			return 'docs'
+		}
+		if (path.match(/\.(test|spec)\.(ts|js|tsx|jsx)$/)) {
+			return 'tests'
 		}
 
-		return 'update'
+		// Extract scope from directory structure
+		if (parts.length > 1) {
+			// Use the first meaningful directory as scope
+			const scopeDirs = parts.filter(part => 
+				!part.match(/^(src|lib|app|dist|build|public)$/) && 
+				!part.match(/\.[a-z]+$/)
+			)
+			if (scopeDirs.length > 0) {
+				return scopeDirs[0]
+			}
+		}
+
+		return null
+	}
+
+	private generateCommitDescription(path: string, diff: string): string {
+		const fileName = this.getFileNameFromPath(path)
+		const isNewFile = !diff.includes("--- a/")
+
+		if (isNewFile) {
+			return `add ${fileName}`
+		}
+
+		// Analyze diff to generate meaningful description
+		const changes = this.analyzeChanges(diff)
+		if (changes.significant) {
+			return `${changes.action} ${fileName}`
+		}
+
+		return `update ${fileName}`
+	}
+
+	private getFileNameFromPath(path: string): string {
+		return path.split('/').pop() || path
+	}
+
+	private analyzeChanges(diff: string): { action: string; significant: boolean } {
+		const addedLines = (diff.match(/^\+(?!\+\+)/gm) || []).length
+		const deletedLines = (diff.match(/^-(?!--)/gm) || []).length
+		const totalChanges = addedLines + deletedLines
+
+		// Determine if changes are significant (more than just formatting)
+		const significant = totalChanges > 5 || diff.includes('class ') || diff.includes('function ')
+
+		if (addedLines > 0 && deletedLines > 0) {
+			return {
+				action: significant ? 'refactor' : 'modify',
+				significant
+			}
+		} else if (addedLines > deletedLines) {
+			return {
+				action: significant ? 'implement' : 'enhance',
+				significant
+			}
+		} else if (deletedLines > addedLines) {
+			return {
+				action: significant ? 'remove' : 'cleanup',
+				significant
+			}
+		}
+
+		return {
+			action: 'update',
+			significant: false
+		}
 	}
 
 	private getCommittedHash(gitCommitStdOut: string): GitCommitResult {
