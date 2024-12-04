@@ -18,6 +18,7 @@ import { vscode } from "@/utils/vscode"
 import { WriteToFileTool } from "../../../../../src/shared/new-tools"
 import { ToolAddons, ToolBlock } from "../ToolRenderV1"
 import { memo } from "react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Animation variants for the streaming text
 const textVariants = {
@@ -176,24 +177,60 @@ export const FileEditorTool: React.FC<WriteToFileTool & ToolAddons> = memo(
 							{isStreaming ? "Streaming..." : `${totalLines} lines written`}
 						</span>
 						<div className="flex gap-2  grow-1 max-[288px]:flex-wrap max-[288px]:justify-end">
-							<Button
-								variant="outline"
-								size="sm"
-								disabled={!commitHash || !branch}
-								onClick={handleViewFile}
-								className="flex items-center space-x-1 w-[94px]">
-								<ExternalLink className="w-4 h-4" />
-								<span>View File</span>
-							</Button>
-							<Button
-								variant="destructive"
-								disabled={!commitHash || !branch}
-								size="sm"
-								onClick={() => setIsRollbackDialogOpen(true)}
-								className="flex items-center space-x-1 w-[94px]">
-								<Undo2 className="w-4 h-4" />
-								<span>Rollback</span>
-							</Button>
+							{(!commitHash || !branch) && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span>
+											<Button
+												variant="outline"
+												size="sm"
+												disabled
+												className="flex items-center space-x-1 w-[94px]">
+												<ExternalLink className="w-4 h-4" />
+												<span>View File</span>
+											</Button>
+										</span>
+									</TooltipTrigger>
+									<TooltipContent>Requires Git handler to be enabled.</TooltipContent>
+								</Tooltip>
+							)}
+							{commitHash && branch && (
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={handleViewFile}
+									className="flex items-center space-x-1 w-[94px]">
+									<ExternalLink className="w-4 h-4" />
+									<span>View File</span>
+								</Button>
+							)}
+							{(!commitHash || !branch) && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span>
+											<Button
+												variant="destructive"
+												size="sm"
+												disabled
+												className="flex items-center space-x-1 w-[94px]">
+												<Undo2 className="w-4 h-4" />
+												<span>Rollback</span>
+											</Button>
+										</span>
+									</TooltipTrigger>
+									<TooltipContent>Requires Git handler to be enabled.</TooltipContent>
+								</Tooltip>
+							)}
+							{commitHash && branch && (
+								<Button
+									variant="destructive"
+									size="sm"
+									onClick={() => setIsRollbackDialogOpen(true)}
+									className="flex items-center space-x-1 w-[94px]">
+									<Undo2 className="w-4 h-4" />
+									<span>Rollback</span>
+								</Button>
+							)}
 						</div>
 					</div>
 				</div>
