@@ -80,10 +80,15 @@ export class FileEditorTool extends BaseAgentTool {
 	private commitXMLGenerator(commitResult: GitCommitResult): string {
 		return `
 <git_commit_info>
-<branch>${commitResult.branch}</branch>
-<commit_hash>${commitResult.commitHash}</commit_hash>
-<createdAt>${new Date().toISOString()}</createdAt>
-<generalMessage>you can use this commit hash to refer to this commit in the future, if you need to revert the changes or check the changes made in this commit.</generalMessage>
+    <metadata>
+        <branch>${commitResult.branch}</branch>
+        <commit_hash>${commitResult.commitHash}</commit_hash>
+        <timestamp>${new Date().toISOString()}</timestamp>
+    </metadata>
+    <description>
+        <purpose>Version control reference for future operations</purpose>
+        <usage>This commit hash can be used to revert changes or review modifications</usage>
+    </description>
 </git_commit_info>
 `
 	}
@@ -409,12 +414,24 @@ export class FileEditorTool extends BaseAgentTool {
 			const diffData = createPatch(path, this.fileState?.orignalContent ?? "", finalContent)
 			return this.toolResponse(
 				"success",
-				`<file>
-				<information>${approvedMsg}\n Please check <post_save_diff> it includes a diff that holds the a diff for the updated content use this with your original in memory version to remember the file in memory</information>
-				<path>${path}</path>
-				<post_save_diff>${diffData}</post_save_diff>
-				${commitXmlInfo}
-			  </file>`,
+				`<file_editor_response>
+					<status>
+						<result>success</result>
+						<operation>file_edit_with_diff</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<file_info>
+						<path>${path}</path>
+						<operation_details>
+							<message>${approvedMsg}</message>
+							<diff_data>
+								<description>Diff data for tracking changes between versions</description>
+								<content>${diffData}</content>
+							</diff_data>
+						</operation_details>
+					</file_info>
+					${commitXmlInfo}
+				</file_editor_response>`,
 				undefined,
 				commitResult
 			)
@@ -424,14 +441,24 @@ export class FileEditorTool extends BaseAgentTool {
 			return this.toolResponse(
 				"success",
 				`
-		<file>
-		<information>${approvedMsg}
-		CRITICAL THE CONTENT YOU PROVIDED IN THE REPLACE HAS REPLACED THE SEARCH CONTENT, YOU SHOULD REMEMBER THE CONTENT YOU PROVIDED IN THE REPLACE BLOCK AND THE ORIGINAL FILE CONTENT UNLESS YOU CHANGE THE FILE AGAIN OR THE USER TELLS YOU OTHERWISE.
-		</information>
-		<path>${path}</path>
-		<validation>${validationMsg}</validation>
-		${commitXmlInfo}
-		</file>
+		<file_editor_response>
+			<status>
+				<result>success</result>
+				<operation>file_edit</operation>
+				<timestamp>${new Date().toISOString()}</timestamp>
+			</status>
+			<file_info>
+				<path>${path}</path>
+				<operation_details>
+					<message>${approvedMsg}</message>
+					<critical_note>THE CONTENT YOU PROVIDED IN THE REPLACE HAS REPLACED THE SEARCH CONTENT. REMEMBER THIS NEW CONTENT AS THE CURRENT STATE UNTIL FURTHER MODIFICATIONS.</critical_note>
+				</operation_details>
+				<validation>
+					<message>${validationMsg}</message>
+				</validation>
+			</file_info>
+			${commitXmlInfo}
+		</file_editor_response>
 		`,
 				undefined,
 				commitResult
