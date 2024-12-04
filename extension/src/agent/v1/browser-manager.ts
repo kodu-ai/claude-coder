@@ -54,6 +54,10 @@ export class BrowserManager {
 			args: ["--no-sandbox", "--disable-setuid-sandbox"],
 			executablePath: stats.executablePath,
 			headless: true,
+			defaultViewport: {
+				width: 900,
+				height: 600,
+			},
 		})
 
 		this.page = await this.createNewPage()
