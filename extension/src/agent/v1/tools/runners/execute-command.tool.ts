@@ -276,7 +276,6 @@ export class ExecuteCommandTool extends BaseAgentTool {
 			}
 
 			if ((userFeedback?.text && userFeedback.text.length) || userFeedback?.images?.length) {
-				toolRes += `\n\nUser feedback:\n<feedback>\n${userFeedback.text}\n</feedback>`
 				await this.params.updateAsk(
 					"tool",
 					{
@@ -288,35 +287,25 @@ export class ExecuteCommandTool extends BaseAgentTool {
 							ts: this.ts,
 							earlyExit,
 							userFeedback: userFeedback.text,
-			toolRes = `
-				<command_execution_response>
-					<status>
-						<result>success</result>
-						<operation>command_execution</operation>
-						<timestamp>${new Date().toISOString()}</timestamp>
-					</status>
-					<execution_details>
-						<command_info>
-							<executed_command>${command}</executed_command>
-							<working_directory>${this.cwd}</working_directory>
-						</command_info>
-						<output>
-							<content>${this.output}</content>
-						</output>
-						<version_control>
-							<git_commit>${commitResult?.commitHash}</git_commit>
-							<git_branch>${commitResult?.branch}</git_branch>
-						</version_control>
-					</execution_details>
-				</command_execution_response>
-				`
-				let commitResult: GitCommitResult | undefined = undefined
+							isSubMsg: this.params.isSubMsg,
+						},
+					},
+					this.ts
+				)
+
+				let commitResult: GitCommitResult | undefined
 				try {
 					commitResult = await this.koduDev.gitHandler.commitEverything(
-				toolRes += `
+						`State after executing command \`${command}\``
+					)
+				} catch (error) {
+					console.error("Failed to get post-command commit:", error)
+				}
+
+				const toolRes = `
 					<command_execution_response>
 						<status>
-							<result>partial</result>
+							<result>success</result>
 							<operation>command_execution</operation>
 							<timestamp>${new Date().toISOString()}</timestamp>
 						</status>
@@ -326,34 +315,44 @@ export class ExecuteCommandTool extends BaseAgentTool {
 								<working_directory>${this.cwd}</working_directory>
 							</command_info>
 							<output>
-								<content>${this.output || "No output"}</content>
-								<note>This is a partial output as the command is still running</note>
+								<content>${this.output}</content>
 							</output>
+							<version_control>
+								<git_commit>${commitResult?.commitHash}</git_commit>
+								<git_branch>${commitResult?.branch}</git_branch>
+							</version_control>
+							<user_feedback>
+								<message>${userFeedback?.text || ""}</message>
+							</user_feedback>
 						</execution_details>
 					</command_execution_response>`
-					console.error("Failed to get post-command commit:", error)
-				}
 
 				if (returnEmptyStringOnSuccess) {
 					return this.toolResponse("success", "No output", undefined, commitResult)
 				}
 
-				toolRes = `
-				<payload>
-				<information>The command has been executed you can check the output below in command_output field.</information>
-				<command_output>${this.output}</command_output>
-				<git_commit>${commitResult?.commitHash}</git_commit>
-				<git_branch>${commitResult?.branch}</git_branch>
-				</payload>
-				`
-
-				return await this.toolResponse("success", toolRes, userFeedback?.images, commitResult)
+				return this.toolResponse("success", toolRes, userFeedback?.images, commitResult)
 			} else {
-				toolRes += `<partial_output>
-				${this.output || "No output"}
-				</partial_output>`
+				const toolRes = `
+			<command_execution_response>
+				<status>
+					<result>partial</result>
+					<operation>command_execution</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<execution_details>
+					<command_info>
+						<executed_command>${command}</executed_command>
+						<working_directory>${this.cwd}</working_directory>
+					</command_info>
+					<output>
+						<content>${this.output || "No output"}</content>
+						<note>This is a partial output as the command is still running</note>
+					</output>
+				</execution_details>
+			</command_execution_response>`
 
-				return await this.toolResponse("success", toolRes, userFeedback?.images)
+				return this.toolResponse("success", toolRes, userFeedback?.images)
 			}
 		} catch (error) {
 			const errorMessage = (error as Error)?.message || JSON.stringify(serializeError(error), null, 2)
