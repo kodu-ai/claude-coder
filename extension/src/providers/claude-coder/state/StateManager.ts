@@ -55,6 +55,7 @@ export class StateManager {
 			terminalCompressionThreshold,
 			inlineEditOutputType,
 			commandTimeout,
+			gitHandlerEnabled,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.globalStateManager.getGlobalState("browserModelId"),
@@ -83,11 +84,11 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("terminalCompressionThreshold"),
 			this.globalStateManager.getGlobalState("inlineEditOutputType"),
 			this.globalStateManager.getGlobalState("commandTimeout"),
+			this.globalStateManager.getGlobalState("gitHandlerEnabled"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
 		const currentClaudeMessage = this.context.getKoduDev()?.getStateManager()?.state.claudeMessages
-		const currentApiHistory = await this.context.getKoduDev()?.getStateManager()?.getSavedApiConversationHistory()
 		const activeVariant = systemPromptVariants?.find((variant) => variant.id === activeSystemPromptVariantId)
 		let systemPrompt = ""
 
@@ -159,6 +160,7 @@ export class StateManager {
 			autoSummarize: autoSummarize ?? false,
 			isContinueGenerationEnabled: isContinueGenerationEnabled ?? false,
 			inlineEditOutputType,
+			gitHandlerEnabled: gitHandlerEnabled ?? true,
 		} satisfies ExtensionState
 	}
 
@@ -250,6 +252,10 @@ export class StateManager {
 
 	setAutoSummarize(value: boolean) {
 		return this.globalStateManager.updateGlobalState("autoSummarize", value)
+	}
+
+	setGitHandlerEnabled(value: boolean) {
+		return this.globalStateManager.updateGlobalState("gitHandlerEnabled", value)
 	}
 
 	setAlwaysAllowReadOnly(value: boolean) {

@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { KoduDev } from ".."
 import { ToolName, ToolResponse, ToolResponseV2 } from "../types"
-import { AgentToolOptions, AgentToolParams, ToolInput, ToolNames } from "./types"
+import { AgentToolOptions, AgentToolParams, ToolInput, ToolNames, CommitInfo } from "./types"
 import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "../utils"
 
 // Make the class generic with ToolInputForName type parameter
@@ -95,6 +95,7 @@ export abstract class BaseAgentTool<TName extends ToolNames> {
 	}
 
 	public formatToolError(error?: string) {
+		this.logger(`Tool execution failed with the following error: ${error}`, "error")
 		return `The tool execution failed with the following error:\n<error>\n${error}\n</error>`
 	}
 	public formatToolResponseWithImages(text: string, images?: string[]): ToolResponse {
@@ -117,13 +118,19 @@ export abstract class BaseAgentTool<TName extends ToolNames> {
 		console.log(`Aborted tool execution for ${this.name} with id ${this.id}`)
 	}
 
-	protected toolResponse(status: ToolResponseV2["status"], text?: string, images?: string[]) {
+	protected toolResponse(
+		status: ToolResponseV2["status"],
+		text?: string,
+		images?: string[],
+		commitResult?: CommitInfo
+	) {
 		return {
 			toolName: this.name,
 			toolId: this.id,
 			text,
 			images,
 			status,
+			...commitResult,
 		}
 	}
 

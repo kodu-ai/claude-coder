@@ -9,11 +9,13 @@ import { BaseAgentTool } from "../../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../../types"
 import fs from "fs"
 import { detectCodeOmission } from "./detect-code-omission"
-import { parseDiffBlocks, applyEditBlocksToFile, checkFileExists, preprocessContent, EditBlock } from "./utils"
+import { parseDiffBlocks, checkFileExists, preprocessContent, EditBlock } from "./utils"
 import { InlineEditHandler } from "../../../../../integrations/editor/inline-editor"
 import { ToolResponseV2 } from "../../../../../agent/v1/types"
-import delay from "delay"
 import PQueue from "p-queue"
+
+import { GitCommitResult } from "../../../handlers/git-handler"
+import { createPatch } from "diff"
 
 /**
  * FileEditorTool handles file editing operations in the VSCode extension.
@@ -35,10 +37,6 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 	public inlineEditor: InlineEditHandler
 	/** Flag indicating if final content is being processed */
 	private isProcessingFinalContent: boolean = false
-	/** Timestamp of last update for throttling */
-	private lastUpdateTime: number = 0
-	/** Minimum interval between updates in milliseconds */
-	private readonly UPDATE_INTERVAL = 16
 	/** Queue for processing partial updates sequentially */
 	private pQueue: PQueue = new PQueue({ concurrency: 1 })
 	/** Flag to control write animation display */
@@ -77,6 +75,22 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 	override async execute() {
 		const result = await this.processFileWrite()
 		return result
+	}
+
+	private commitXMLGenerator(commitResult: GitCommitResult): string {
+		return `
+<git_commit_info>
+    <metadata>
+        <branch>${commitResult.branch}</branch>
+        <commit_hash>${commitResult.commitHash}</commit_hash>
+        <timestamp>${new Date().toISOString()}</timestamp>
+    </metadata>
+    <description>
+        <purpose>Version control reference for future operations</purpose>
+        <usage>This commit hash can be used to revert changes or review modifications</usage>
+    </description>
+</git_commit_info>
+`
 	}
 
 	public async _handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
@@ -129,18 +143,20 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 		if (this.skipWriteAnimation) {
 			return
 		}
+		let editBlocks: EditBlock[] = []
 		try {
-			this.editBlocks = parseDiffBlocks(diff, this.fileState!.absolutePath)
+			editBlocks = parseDiffBlocks(diff, this.fileState.absolutePath)
+			this.editBlocks = editBlocks
 		} catch (err) {
 			this.logger(`Error parsing diff blocks: ${err}`, "error")
 			return
 		}
-		if (!this.inlineEditor.isOpen()) {
+		if (!this.inlineEditor.isOpen() && this.editBlocks.length > 0) {
 			try {
 				await this.inlineEditor.open(
-					this.editBlocks[0].id,
+					editBlocks[0].id,
 					this.fileState!.absolutePath,
-					this.editBlocks[0].searchContent
+					editBlocks[0].searchContent
 				)
 			} catch (e) {
 				this.logger("Error opening diff view: " + e, "error")
@@ -148,17 +164,17 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 			}
 		}
 		// now we are going to start applying the diff blocks
-		if (this.editBlocks.length > 0) {
-			const currentBlock = this.editBlocks.at(-1)
+		if (editBlocks.length > 0) {
+			const currentBlock = editBlocks.at(-1)
 			if (!currentBlock?.replaceContent) {
 				return
 			}
 
 			// If this block hasn't been tracked yet, initialize it
-			if (!this.editBlocks.some((block) => block.id === currentBlock.id)) {
+			if (!editBlocks.some((block) => block.id === currentBlock.id)) {
 				// Clean up any SEARCH text from the last block before starting new one
 				if (this.lastAppliedEditBlockId) {
-					const lastBlock = this.editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
+					const lastBlock = editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
 					if (lastBlock) {
 						const lines = lastBlock.replaceContent.split("\n")
 						// Only remove the last line if it ONLY contains a partial SEARCH
@@ -189,7 +205,7 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 				this.lastAppliedEditBlockId = currentBlock.id
 			}
 
-			const blockData = this.editBlocks.find((block) => block.id === currentBlock.id)
+			const blockData = editBlocks.find((block) => block.id === currentBlock.id)
 			if (blockData) {
 				blockData.replaceContent = currentBlock.replaceContent
 				await this.inlineEditor.applyStreamContent(
@@ -202,10 +218,13 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 
 		// Finalize the last block
 		if (this.lastAppliedEditBlockId) {
-			const lastBlock = this.editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
+			const lastBlock = editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
 			if (lastBlock) {
-				const lines = lastBlock.replaceContent.split("\n")
-				await this.inlineEditor.applyFinalContent(lastBlock.id, lastBlock.searchContent, lines.join("\n"))
+				await this.inlineEditor.applyFinalContent(
+					lastBlock.id,
+					lastBlock.searchContent,
+					lastBlock.replaceContent
+				)
 			}
 		}
 	}
@@ -281,20 +300,18 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 	private async finalizeInlineEdit(path: string, content: string): Promise<ToolResponseV2> {
 		// we are going to parse the content and apply the changes to the file
 		this.isProcessingFinalContent = true
+		let editBlocks: EditBlock[] = []
 		try {
-			this.editBlocks = parseDiffBlocks(content, path)
+			editBlocks = parseDiffBlocks(content, path)
+			this.editBlocks = editBlocks
 		} catch (err) {
 			this.logger(`Error parsing diff blocks: ${err}`, "error")
 			throw new Error(`Error parsing diff blocks: ${err}`)
 		}
-		if (!this.inlineEditor.isOpen()) {
-			await this.inlineEditor.open(
-				this.editBlocks[0].id,
-				this.fileState?.absolutePath!,
-				this.editBlocks[0].searchContent
-			)
+		if (!this.inlineEditor.isOpen() && editBlocks.length > 0) {
+			await this.inlineEditor.open(editBlocks[0]?.id, this.fileState?.absolutePath!, editBlocks[0].searchContent)
 		}
-		await this.inlineEditor.forceFinalizeAll(this.editBlocks!)
+		await this.inlineEditor.forceFinalizeAll(editBlocks!)
 		// now we are going to prompt the user to approve the changes
 		const { response, text, images } = await this.params.ask(
 			"tool",
@@ -342,10 +359,38 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 			)
 		}
 		const { finalContent, results } = await this.inlineEditor.saveChanges()
+
 		this.koduDev.getStateManager().addErrorPath(path)
 		// count how many of the changes were not applied
 		const notAppliedCount = results.filter((result) => !result.wasApplied).length
-		const successBlock = results.filter((result) => result.wasApplied)
+		const validationMsg =
+			notAppliedCount === 0
+				? `The user might have changed the content of the file, we detected that your changes were initially applied to the file, but the user might have changed the content of the file, please review the file content to make sure that the changes were applied correctly.`
+				: `You have failed to apply ${notAppliedCount} changes, this is most likely related to you and the search content you provided, you must provide at least 3 lines of context for the search content to make sure that the changes are applied correctly.`
+
+		const approvedMsg = `
+		The user approved the changes and the content was successfully saved to ${path.toPosix()}.
+		Make sure to remember the updated content (REPLACE BLOCK + Original FILE) file content unless you change the file again or the user tells you otherwise.
+		${validationMsg}
+		${
+			notAppliedCount > 0
+				? `here are are the search blocks that were not applied on this tool execution, if you want to apply them make sure to provide the correct search content, it might be good to refresh your memory with the latest content of the file if you want to re try applying the changes.
+		${results.map((result) => `<search_block>${result.searchContent}</search_block>`).join("\n")}`
+				: ""
+		}
+		`
+
+		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
+
+		let commitXmlInfo = ""
+		let commitResult: GitCommitResult | undefined
+		try {
+			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(path)
+			commitXmlInfo = this.commitXMLGenerator(commitResult)
+		} catch (error) {
+			this.logger(`Error committing changes: ${error}`, "error")
+		}
+
 		await this.params.updateAsk(
 			"tool",
 			{
@@ -357,77 +402,87 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 					path,
 					ts: this.ts,
 					notAppliedCount,
+					commitHash: commitResult?.commitHash,
+					branch: commitResult?.branch,
 				},
 			},
 			this.ts
 		)
 
-		const approvedMsg = `
-The user approved the changes and the content was successfully saved to ${path.toPosix()}.
-Make sure to remember the updated content (REPLACE BLOCK + Original FILE) file content unless you change the file again or the user tells you otherwise.
-${
-	notAppliedCount > 0
-		? `However, ${notAppliedCount} changes were not applied. it's critical and must be acknowledged by you, please review the following code blocks and fix the issues. a good idea is to maybe re read the file to see why the changes were not applied maybe the content was changed or the search content you wrote is not correct.
-${results.map((result) => `<search_block>${result.searchContent}</search_block>`).join("\n")}`
-		: ""
-}
-`
-
-		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
 		if (currentOutputMode === "diff") {
+			// generate a diff between the file original content and the final content
+			const diffData = createPatch(path, this.fileState?.orignalContent ?? "", finalContent)
 			return this.toolResponse(
 				"success",
-				`<file>
-			<information>${approvedMsg}</information>
-			<path>${path}</path>
-			<updated_blocks>
-			Here are the updated blocks that were successfully applied to the file:
-			${successBlock
-				.map((block) => {
-					return `
-<updated_block>
-SEARCH
-${block.searchContent.substring(0, 100)}${
-						block.searchContent.length > 100 ? "... the rest of the block from your input" : ""
-					}
-=======
-${block.replaceContent.substring(0, 100)}${
-						block.replaceContent.length > 100 ? "... the rest of the block from your input" : ""
-					}
-
-</updated_blocks>`.trim()
-				})
-				.join("\n")}
-			</file>
-			`
+				`<file_editor_response>
+					<status>
+						<result>success</result>
+						<operation>file_edit_with_diff</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<file_info>
+						<path>${path}</path>
+						<operation_details>
+							<message>${approvedMsg}</message>
+							<diff_data>
+								<description>Diff data for tracking changes between versions</description>
+								<content>${diffData}</content>
+							</diff_data>
+						</operation_details>
+					</file_info>
+					${commitXmlInfo}
+				</file_editor_response>`,
+				undefined,
+				commitResult
 			)
 		}
+
 		if (currentOutputMode === "none") {
 			return this.toolResponse(
 				"success",
 				`
-<file>
-<information>${approvedMsg}
-CRITICAL THE CONTENT YOU PROVIDED IN THE REPLACE HAS REPLACED THE SEARCH CONTENT, YOU SHOULD REMEMBER THE CONTENT YOU PROVIDED IN THE REPLACE BLOCK AND THE ORIGINAL FILE CONTENT UNLESS YOU CHANGE THE FILE AGAIN OR THE USER TELLS YOU OTHERWISE.
-</information>
-<path>${path}</path>
-</file>
-`
+		<file_editor_response>
+			<status>
+				<result>success</result>
+				<operation>file_edit</operation>
+				<timestamp>${new Date().toISOString()}</timestamp>
+			</status>
+			<file_info>
+				<path>${path}</path>
+				<operation_details>
+					<message>${approvedMsg}</message>
+					<critical_note>THE CONTENT YOU PROVIDED IN THE REPLACE HAS REPLACED THE SEARCH CONTENT. REMEMBER THIS NEW CONTENT AS THE CURRENT STATE UNTIL FURTHER MODIFICATIONS.</critical_note>
+				</operation_details>
+				<validation>
+					<message>${validationMsg}</message>
+				</validation>
+			</file_info>
+			${commitXmlInfo}
+		</file_editor_response>
+		`,
+				undefined,
+				commitResult
 			)
 		}
 
 		return this.toolResponse(
 			"success",
 			`
-<file>
-<information>${approvedMsg}
-CRITICAL the file content has been updated to <updated_file_content> content below, you should remember this as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.
-</information>
-<path>${path}</path>
-<updated_file_content>
-${finalContent}
-</updated_file_content>
-`
+		<update_file_payload>
+		<information>
+		CRITICAL the file content has been updated to <updated_file_content> content below, you should remember this as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.
+		Remember there is no extra need to edit the file unless you forgot to add or remove something or you have linting errors, over editing is a source of looping and getting stuck without thinking through the problem / task.
+		</information>
+		<path>${path}</path>
+		<updated_file_content>
+		${finalContent}
+		</updated_file_content>
+		<validation>${validationMsg}</validation>
+		${commitXmlInfo}
+		</update_file_payload>
+		`,
+			undefined,
+			commitResult
 		)
 	}
 
@@ -489,6 +544,16 @@ ${finalContent}
 		this.logger(`Changes saved to file: ${relPath}`, "info")
 		this.koduDev.getStateManager().addErrorPath(relPath)
 
+		this.logger(`Final approval state set for file: ${relPath}`, "info")
+
+		let commitXmlInfo = ""
+		let commitResult: GitCommitResult | undefined
+		try {
+			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(relPath)
+			commitXmlInfo = this.commitXMLGenerator(commitResult)
+		} catch (error) {
+			this.logger(`Error committing changes: ${error}`, "error")
+		}
 		// Final approval state
 		await this.params.updateAsk(
 			"tool",
@@ -499,11 +564,12 @@ ${finalContent}
 					approvalState: "approved",
 					path: relPath,
 					ts: this.ts,
+					commitHash: commitResult?.commitHash,
+					branch: commitResult?.branch,
 				},
 			},
 			this.ts
 		)
-		this.logger(`Final approval state set for file: ${relPath}`, "info")
 		if (userEdits) {
 			await this.params.say(
 				"user_feedback_diff",
@@ -520,12 +586,16 @@ ${finalContent}
 					\`\`\`
 					${finalContent}
 					\`\`\`
-					`
+					${commitXmlInfo}
+					`,
+				undefined,
+				commitResult
 			)
 		}
 
 		let toolMsg = `The content was successfully saved to ${relPath.toPosix()}.
 			The latest content is the content inside of <kodu_content> the content you provided in the input has been applied to the file and saved. don't read the file again to get the latest content as it is already saved unless the user tells you otherwise.
+			${commitXmlInfo}
 			`
 		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
 			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
@@ -537,7 +607,7 @@ ${finalContent}
 				\`\`\``
 		}
 
-		return this.toolResponse("success", toolMsg)
+		return this.toolResponse("success", toolMsg, undefined, commitResult)
 	}
 
 	private async processFileWrite() {
@@ -557,8 +627,9 @@ ${finalContent}
 				return await this.finalizeInlineEdit(relPath, diff)
 			} else if (content) {
 				return await this.finalizeFileEdit(relPath, content)
+			} else {
+				throw new Error("Missing required parameter 'kodu_content' or 'kodu_diff'")
 			}
-			throw new Error("Missing required parameter 'kodu_content' or 'kodu_diff'")
 		} catch (error) {
 			this.logger(`Error in processFileWrite: ${error}`, "error")
 			this.params.updateAsk(

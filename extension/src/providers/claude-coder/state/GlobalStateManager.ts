@@ -20,6 +20,7 @@ export type GlobalState = {
 	terminalCompressionThreshold: number | undefined
 	lastShownAnnouncementId: string | undefined
 	customInstructions: string | undefined
+	gitHandlerEnabled: boolean | undefined
 	isAdvanceThinkingEnabled: boolean | undefined
 	isInlineEditingEnabled: boolean | undefined
 	apiModelId: KoduModelId | undefined

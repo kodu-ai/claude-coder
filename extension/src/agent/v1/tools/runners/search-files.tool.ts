@@ -25,15 +25,29 @@ export class SearchFilesTool extends BaseAgentTool<"search_files"> {
 				"Claude tried to use search_files without value for required parameter 'path'. Retrying..."
 			)
 
-			const errorMsg = `Error: Missing value for required parameter 'path'. Please retry with complete response.
-			An example of a good tool call is:
-			{
-				"tool": "search_files",
-				"path": "path/to/directory",
-				"regex": "pattern",
-			}
-			Please try again with the correct regex and path, you are not allowed to search files without a regex or path.
-			`
+			const errorMsg = `
+			<search_files_response>
+				<status>
+					<result>error</result>
+					<operation>search_files</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>missing_parameter</type>
+					<message>Missing required parameter 'path'</message>
+					<help>
+						<example_usage>
+							<tool>search_files</tool>
+							<parameters>
+								<path>path/to/directory</path>
+								<regex>search pattern</regex>
+								<file_pattern>optional glob pattern</file_pattern>
+							</parameters>
+						</example_usage>
+						<note>Both path and regex parameters are required for file searching</note>
+					</help>
+				</error_details>
+			</search_files_response>`
 			return this.toolResponse("error", errorMsg)
 		}
 
@@ -43,14 +57,29 @@ export class SearchFilesTool extends BaseAgentTool<"search_files"> {
 				"Claude tried to use search_files without value for required parameter 'regex'. Retrying..."
 			)
 
-			const errorMsg = `Error: Missing value for required parameter 'regex'. Please retry with complete response.
-			{
-				"tool": "search_files",
-				"regex": "pattern",
-				"path": "path/to/directory",
-			}
-			Please try again with the correct regex and path, you are not allowed to search files without a regex or path.
-			`
+			const errorMsg = `
+			<search_files_response>
+				<status>
+					<result>error</result>
+					<operation>search_files</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>missing_parameter</type>
+					<message>Missing required parameter 'regex'</message>
+					<help>
+						<example_usage>
+							<tool>search_files</tool>
+							<parameters>
+								<path>path/to/directory</path>
+								<regex>search pattern</regex>
+								<file_pattern>optional glob pattern</file_pattern>
+							</parameters>
+						</example_usage>
+						<note>A valid regex pattern is required for searching files</note>
+					</help>
+				</error_details>
+			</search_files_response>`
 			return this.toolResponse("error", errorMsg)
 		}
 
@@ -108,10 +137,42 @@ export class SearchFilesTool extends BaseAgentTool<"search_files"> {
 						this.ts
 					)
 					await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-					return this.toolResponse("feedback", text, images)
+					return this.toolResponse(
+						"feedback",
+						`<search_files_response>
+							<status>
+								<result>feedback</result>
+								<operation>search_files</operation>
+								<timestamp>${new Date().toISOString()}</timestamp>
+							</status>
+							<feedback_details>
+								<directory>${getReadablePath(relDirPath, this.cwd)}</directory>
+								<pattern>${regex}</pattern>
+								${filePattern ? `<file_pattern>${filePattern}</file_pattern>` : ""}
+								<user_feedback>${text || "No feedback provided"}</user_feedback>
+								${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
+							</feedback_details>
+						</search_files_response>`,
+						images
+					)
 				}
 
-				return this.toolResponse("rejected", "Search operation cancelled by user.")
+				return this.toolResponse(
+					"rejected",
+					`<search_files_response>
+						<status>
+							<result>rejected</result>
+							<operation>search_files</operation>
+							<timestamp>${new Date().toISOString()}</timestamp>
+						</status>
+						<rejection_details>
+							<directory>${getReadablePath(relDirPath, this.cwd)}</directory>
+							<pattern>${regex}</pattern>
+							${filePattern ? `<file_pattern>${filePattern}</file_pattern>` : ""}
+							<message>Search operation was rejected by the user</message>
+						</rejection_details>
+					</search_files_response>`
+				)
 			}
 
 			this.params.updateAsk(
@@ -130,17 +191,53 @@ export class SearchFilesTool extends BaseAgentTool<"search_files"> {
 				this.ts
 			)
 
-			return this.toolResponse("success", results)
+			return this.toolResponse(
+				"success",
+				`<search_files_response>
+					<status>
+						<result>success</result>
+						<operation>search_files</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<search_info>
+						<directory>${getReadablePath(relDirPath, this.cwd)}</directory>
+						<pattern>${regex}</pattern>
+						${filePattern ? `<file_pattern>${filePattern}</file_pattern>` : ""}
+					</search_info>
+					<results>
+						${results}
+					</results>
+				</search_files_response>`
+			)
 		} catch (error) {
-			const errorString = `Error searching files: ${JSON.stringify(serializeError(error))}
-			An example of a good searchFiles tool call is:
-			{
-				"tool": "search_files",
-				"path": "path/to/directory",
-				"regex": "pattern",
-			}
-			Please try again with the correct regex and path, you are not allowed to search files without a regex or path.
-			`
+			const errorString = `
+			<search_files_response>
+				<status>
+					<result>error</result>
+					<operation>search_files</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>search_error</type>
+					<message>Failed to search files</message>
+					<context>
+						<directory>${getReadablePath(relDirPath, this.cwd)}</directory>
+						<pattern>${regex}</pattern>
+						${filePattern ? `<file_pattern>${filePattern}</file_pattern>` : ""}
+						<error_data>${JSON.stringify(serializeError(error))}</error_data>
+					</context>
+					<help>
+						<example_usage>
+							<tool>search_files</tool>
+							<parameters>
+								<path>path/to/directory</path>
+								<regex>search pattern</regex>
+								<file_pattern>optional glob pattern</file_pattern>
+							</parameters>
+						</example_usage>
+					</help>
+				</error_details>
+			</search_files_response>`
 			await say(
 				"error",
 				`Error searching files:\n${(error as Error).message ?? JSON.stringify(serializeError(error), null, 2)}`

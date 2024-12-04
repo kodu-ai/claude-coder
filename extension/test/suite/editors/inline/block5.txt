@@ -1,34 +1,145 @@
 SEARCH
-:: Install/Update Python dependencies
-echo Installing Python dependencies...
-set "PYTHONPATH=%CD%;%PYTHONPATH%"
-for /f %%i in ('python -c "import sys; sys.path.insert(0, r'%CD%'.replace('\', '/')); from utils.fs_utils import FSUtils; print(FSUtils.get_python_command())"') do set PYTHON_CMD=%%i
-if errorlevel 1 (
-    echo Error: Could not determine Python command
-    echo Please ensure Python 3.9+ is installed and in your PATH
-    set "ERROR_OCCURRED=1"
-    goto :error
-)
-%PYTHON_CMD% -m pip install -r requirements.txt --user
-if errorlevel 1 (
-    echo Error: Python dependencies installation failed
-    set "ERROR_OCCURRED=1"
-    goto :error
-)
-
-%PYTHON_CMD% -m pip install -U aider-chat --user
+		const errorMsg = `Error: Missing value for required parameter 'query'. Please retry with complete response.
+		A good example of a ask_consultant tool call is:
+		{
+			"tool": "ask_consultant",
+			"query": "I want to build a multiplayer game where 100 players would be playing together at once. What framework should I choose for the backend? I'm confused between Elixir and colyseus",
+		}
+		Please try again with the correct query, you are not allowed to search without a query.`
+		return this.toolResponse("error", errorMsg)
 =======
 REPLACE
-:: Install/Update Python dependencies
-echo Installing Python dependencies...
-
-:: Install requirements
-python -m pip install -r requirements.txt --user
-if errorlevel 1 (
-    echo Error: Python dependencies installation failed
-    set "ERROR_OCCURRED=1"
-    goto :error
-)
-
-:: Install/Update aider-chat
-python -m pip install -U aider-chat --user
+		const errorMsg = `
+		<consultant_tool_response>
+			<status>
+				<result>error</result>
+				<operation>ask_consultant</operation>
+				<timestamp>${new Date().toISOString()}</timestamp>
+			</status>
+			<error_details>
+				<type>missing_parameter</type>
+				<message>Missing required parameter 'query'</message>
+				<help>
+					<example_usage>
+						<tool>ask_consultant</tool>
+						<parameters>
+							<query>I want to build a multiplayer game where 100 players would be playing together at once. What framework should I choose for the backend? I'm confused between Elixir and colyseus</query>
+						</parameters>
+					</example_usage>
+					<note>Consultant queries require a valid query parameter to proceed</note>
+				</help>
+			</error_details>
+		</consultant_tool_response>`
+		return this.toolResponse("error", errorMsg)
+=======
+SEARCH
+				const errorMsg = `Consultant failed to answer your question.`
+				return this.toolResponse("error", errorMsg)
+=======
+REPLACE
+				const errorMsg = `
+				<consultant_tool_response>
+					<status>
+						<result>error</result>
+						<operation>ask_consultant</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<error_details>
+						<type>consultant_error</type>
+						<message>Consultant failed to answer your question</message>
+						<context>
+							<query>${query}</query>
+							<error_type>no_response</error_type>
+						</context>
+					</error_details>
+				</consultant_tool_response>`
+				return this.toolResponse("error", errorMsg)
+=======
+SEARCH
+			const result = `This is the advice from the consultant: ${response.result}`
+			return this.toolResponse("success", result)
+=======
+REPLACE
+			const result = `
+			<consultant_tool_response>
+				<status>
+					<result>success</result>
+					<operation>ask_consultant</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<interaction>
+					<query>${query}</query>
+					<response>
+						<content>${response.result}</content>
+						<metadata>
+							<response_type>text</response_type>
+							<response_length>${response.result.length}</response_length>
+						</metadata>
+					</response>
+				</interaction>
+			</consultant_tool_response>`
+			return this.toolResponse("success", result)
+=======
+SEARCH
+			const errorMsg = `Consultant failed to answer your question with the error: ${err}`
+			return this.toolResponse("error", errorMsg)
+=======
+REPLACE
+			const errorMsg = `
+			<consultant_tool_response>
+				<status>
+					<result>error</result>
+					<operation>ask_consultant</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>execution_error</type>
+					<message>Consultant failed to answer your question</message>
+					<context>
+						<query>${query}</query>
+						<error_message>${(err as Error)?.message || String(err)}</error_message>
+						<error_type>execution_failure</error_type>
+					</context>
+				</error_details>
+			</consultant_tool_response>`
+			return this.toolResponse("error", errorMsg)
+=======
+SEARCH
+			return this.toolResponse("feedback", this.formatGenericToolFeedback(text), images)
+=======
+REPLACE
+			return this.toolResponse(
+				"feedback",
+				`<consultant_tool_response>
+					<status>
+						<result>feedback</result>
+						<operation>ask_consultant</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<feedback_details>
+						<query>${this.params.input.query!}</query>
+						<user_feedback>${text || 'No feedback provided'}</user_feedback>
+						${images ? `<has_images>true</has_images>` : '<has_images>false</has_images>'}
+					</feedback_details>
+				</consultant_tool_response>`,
+				images
+			)
+=======
+SEARCH
+		return this.toolResponse("rejected", this.formatGenericToolFeedback())
+=======
+REPLACE
+		return this.toolResponse(
+			"rejected",
+			`<consultant_tool_response>
+				<status>
+					<result>rejected</result>
+					<operation>ask_consultant</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<rejection_details>
+					<query>${this.params.input.query!}</query>
+					<message>Operation was rejected by the user</message>
+				</rejection_details>
+			</consultant_tool_response>`
+		)

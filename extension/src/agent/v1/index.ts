@@ -12,7 +12,7 @@ import { amplitudeTracker } from "../../utils/amplitude"
 import { ToolInput } from "./tools/types"
 import { AdvancedTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
-import { DiagnosticsHandler } from "./handlers"
+import { DiagnosticsHandler, GitHandler } from "./handlers"
 import vscode from "vscode"
 import path from "path"
 import { TerminalRegistry } from "../../integrations/terminal/terminal-manager"
@@ -39,6 +39,7 @@ export class KoduDev {
 	public browserManager: BrowserManager
 	public isFirstMessage: boolean = true
 	private isAborting: boolean = false
+	public gitHandler: GitHandler
 
 	constructor(
 		options: KoduDevOptions & {
@@ -47,7 +48,6 @@ export class KoduDev {
 	) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
 		this.stateManager = new StateManager(options)
-
 		this.stateManager.setState({
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
 			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
@@ -70,6 +70,7 @@ export class KoduDev {
 		this.browserManager = new BrowserManager(this.providerRef.deref()!.context)
 
 		this.setupTaskExecutor()
+		this.gitHandler = new GitHandler(getCwd(), this.stateManager)
 
 		amplitudeTracker.updateUserSettings({
 			AlwaysAllowReads: this.stateManager.alwaysAllowReadOnly,
@@ -86,6 +87,7 @@ export class KoduDev {
 		if (historyItem) {
 			this.stateManager.state.isHistoryItem = true
 			this.resumeTaskFromHistory()
+			this.gitHandler.init()
 		} else if (task || images) {
 			this.startTask(task, images)
 		} else {
@@ -360,10 +362,119 @@ export class KoduDev {
 		}
 	}
 
+	async rollbackToCheckpoint(ts: number, commitHash: string, branch: string) {
+		// we first need to check if this ts exists in the history
+		const message = this.stateManager.state.claudeMessages.find((m) => m.ts === ts)
+		const apiConversationHistory = await this.stateManager.getSavedApiConversationHistory()
+		const apiCommitHash = apiConversationHistory.find((m) => m.commitHash === commitHash)
+		if (!message || !apiCommitHash) {
+			throw new Error("Message not found, cannot rollback")
+		}
+
+		console.log(`[ROLLBACK] Attempting rollback to checkpoint`, { ts, commitHash, branch })
+
+		// Get current branch name for safety
+		const currentBranch = await this.gitHandler.getCurrentBranch()
+		if (!currentBranch) {
+			throw new Error("Failed to get current branch name")
+		}
+
+		// Create a temporary branch name for safety
+		const tempBranchName = `temp-rollback-${Date.now()}`
+
+		try {
+			// First create a temporary branch at the target commit
+			const createTempBranchSuccess = await this.gitHandler.createBranchAtCommit(tempBranchName, commitHash)
+			if (!createTempBranchSuccess) {
+				throw new Error(`Failed to create temporary branch at commit ${commitHash}`)
+			}
+
+			// Checkout to our temporary branch
+			const checkoutSuccess = await this.gitHandler.checkoutTo(tempBranchName)
+			if (!checkoutSuccess) {
+				throw new Error(`Failed to checkout to temporary branch ${tempBranchName}`)
+			}
+
+			// Verify we're at the correct commit
+			const currentCommit = await this.gitHandler.getCurrentCommit()
+			// the commit hash is a short hash, so we need to check if the current commit starts with the commit hash
+			if (!currentCommit || !currentCommit.startsWith(commitHash)) {
+				throw new Error(`Failed to checkout to correct commit. Expected ${commitHash}, got ${currentCommit}`)
+			}
+
+			// Find the index of the message we're rolling back to
+			const messageIndex = this.stateManager.state.claudeMessages.findIndex((m) => m.ts === ts)
+			if (messageIndex === -1) {
+				throw new Error("Failed to find message index")
+			}
+			// checkout to the target branch first before we start deleting messages
+			const finalCheckoutSuccess = await this.gitHandler.checkoutTo(branch)
+			if (!finalCheckoutSuccess) {
+				throw new Error(`Failed to checkout to target branch ${branch}`)
+			}
+
+			// Keep only messages up to and including the rollback point
+			const updatedClaudeMessages = this.stateManager.state.claudeMessages.slice(0, messageIndex + 1)
+			await this.stateManager.overwriteClaudeMessages(updatedClaudeMessages)
+
+			// Find index in API conversation history
+			const apiHistoryIndex = apiConversationHistory.findIndex((m) => m.commitHash === commitHash)
+			if (apiHistoryIndex === -1) {
+				throw new Error("Failed to find API history index")
+			}
+
+			// Keep only API history up to and including the rollback point
+			const updatedApiHistory = apiConversationHistory.slice(0, apiHistoryIndex + 1)
+			await this.stateManager.overwriteApiConversationHistory(updatedApiHistory)
+
+			// Reset the target branch to our verified commit state
+			const resetSuccess = await this.gitHandler.resetHardTo(commitHash)
+			if (!resetSuccess) {
+				throw new Error(`Failed to reset ${branch} to commit ${commitHash}`)
+			}
+
+			console.log(`[ROLLBACK] Successfully rolled back to checkpoint`, {
+				ts,
+				commitHash,
+				branch,
+				messageCount: updatedClaudeMessages.length,
+				apiHistoryCount: updatedApiHistory.length,
+				fromBranch: currentBranch,
+			})
+			// we must update the webview to reflect the changes
+			await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
+			vscode.window.showInformationMessage(`Successfully rolled back to checkpoint at commit ${commitHash}`)
+			return true
+		} catch (error) {
+			console.error(`[ROLLBACK] Failed to rollback:`, error)
+			// Attempt to restore to previous state
+			try {
+				vscode.window.showErrorMessage(
+					`Failed to rollback to checkpoint. Please manually checkout to branch ${currentBranch}`
+				)
+				console.log(`[ROLLBACK] Attempting to restore to original branch ${currentBranch}`)
+				await this.gitHandler.checkoutTo(currentBranch)
+			} catch (restoreError) {
+				vscode.window.showErrorMessage(
+					`Failed to rollback to checkpoint. Please manually checkout to branch ${currentBranch}`
+				)
+				console.error(`[ROLLBACK] Failed to restore to previous branch:`, restoreError)
+			}
+			throw error
+		} finally {
+			// Cleanup: try to delete temporary branch if it exists
+			try {
+				await this.gitHandler.deleteBranch(tempBranchName)
+			} catch (cleanupError) {
+				console.error(`[ROLLBACK] Failed to cleanup temporary branch:`, cleanupError)
+			}
+		}
+	}
+
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {
 		let details = ""
 		const lastTwoMsgs = this.stateManager.state.apiConversationHistory.slice(-2)
-		const awaitRequierdTools: ToolName[] = ["execute_command", "write_to_file", "edit_file_blocks"]
+		const awaitRequierdTools: ToolName[] = ["execute_command", "write_to_file"]
 		const isLastMsgMutable = lastTwoMsgs.some((msg) => {
 			if (Array.isArray(msg.content)) {
 				return msg.content.some(

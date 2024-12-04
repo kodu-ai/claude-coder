@@ -14,7 +14,7 @@ import OnboardingDialog from "./components/onboarding"
 import OutOfCreditDialog from "./components/dialogs/out-of-credit-dialog"
 import SettingsPage from "./components/SettingsView/settings-tabs"
 import { useAtom, useAtomValue } from "jotai"
-import AnnouncementBanner from "./components/ announcement-banner"
+import AnnouncementBanner from "./components/announcement-banner"
 const queryClient = new QueryClient()
 
 const AppContent = () => {

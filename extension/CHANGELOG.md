@@ -4,6 +4,45 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.16.0] - 2024-12-05
+
+### Changed
+
+-   Tool response adjusted to xml to better match the current structure this increases Kodu understanding and accuracy
+-   Linter error response format - now we format the error with clear guidelines and indicators to where the error have occurred giving Kodu easier time resolving bugs
+-   Reduced Environment details, this reduces the total amount of tokens used by Kodu by a solid 10-20% on large projects and long tasks.
+-   New Adjusted system prompt with less noise and more focus on the task inhand this helps Kodu stay on track and reason his way more correctly.
+
+### Fixed
+
+-   Inline editing would cache incorrect editing position causing edits to be displayed incorrectly
+
+## [1.15.1] - 2024-12-04
+
+### Changed
+
+-   Git Handler can now be toggled on and off in the settings
+
+### Fixed
+
+-   Command execution Tool now properly gets the output
+-   Auto chat scrolling to only occur on first render of a task or if the user is in the bottom of the chat
+
+## [1.15.0] - 2024-12-04
+
+### New
+
+-   File history control
+    -   Automatic checkpoint creation at file edits, Kodu now remembers old files and let you easily view previous version or do a full rollback.
+    -   You can now view old files from the history as long as you're on the related project workspace.
+    -   You can now rollback conversation to one of your task checkpoints, reverting the chat history and file changes.
+-   Automatic Git commit handling, Kodu will automatically commit any changes made making it easy to identify changes and remove if needed
+-   Automatic commit awareness, Kodu is now aware of each commit it made
+
+### Fixed
+
+-   Improved error handling for inline edits.
+
 ## [1.14.1] - 2024-12-03
 
 ### New

@@ -48,16 +48,21 @@ Usage:
 </read_file>
 
 ## edit_file_blocks
-Description: Request to edit specific blocks of content within a file. This tool is used to modify existing files by replacing or deleting specific blocks of content. It is particularly useful for updating code, configuration files, or structured documents. You must provide the 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly, and each 'REPLACE' block should provide the intended changes.
-This is more powerful than the write_to_file tool as it allows you to modify specific blocks of content within a file without replacing the entire file content. reduce the risk of errors and unintended changes.
-A good example of using this tool is when you need to update specific functions, lines of code or configuration settings within a file without affecting the rest of the content.
+Description: Request to edit specific blocks of content within a file. This tool is used to modify existing files by replacing or deleting specific blocks of content. It is particularly useful for updating code, configuration files, or structured documents. You must provide the 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly in addition to 5 prior context lines, each 'REPLACE' block should provide the intended changes to fix / adjust / or create new content, think about this as your own version of a git diff.
+Edit file blocks is more powerful than the write_to_file tool as it allows you to modify specific blocks of content within a file without replacing the entire file content.
+When you apply surgent like edit blocks you reduce the risk of errors and unintended changes, it allow you to do more complex changes to the file content.
+Using this requires you to provide prior context lines before the edit, this should help you figure out where are you editing and what are you editing.
+Finally A good example of using this tool is when you need to update specific functions, lines of code or configuration settings within a file without affecting the rest of the content.
+Another great example is when you want to create new functions or classes in a file without affecting the existing content.
 Parameters:
 - path: (required) The path of the file to edit (relative to the current working directory ${cwd.toPosix()})
 - kodu_diff: (required) The 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly, and each 'REPLACE' block should provide the intended changes.
-  - SEARCH block must contain at least 5 contiguous lines of code or additional context from the original file to ensure a robust match. This approach improves the reliability of matching and minimizes unintended changes during modification.
+  - SEARCH block must contain at least 5 prior lines context from the original file to ensure a robust match this is similar to how git diff works with their context. This approach improves the reliability of matching and minimizes unintended changes during modification, it also helps you understand where you are editing and what you are editing.
   - The 'SEARCH' and 'REPLACE' blocks must be separated by '======='.
   - The REPLACE block should contain the updated content to replace the existing content matched by the SEARCH block.
-  - You can go do up to 3 SEARCH/REPLACE blocks in a single tool call, but each SEARCH/REPLACE block must be complete and accurate avoid doing partial changes or placeholders in the REPLACE block.
+  - You can use as many search and replaces blocks as necessary within the same tool but make sure that every block is unique and does not overlap with others to avoid conflicts, it's also absolutely necessary to have at least 5 lines of context in the SEARCH block so BEFORE the edited content you must include at least 5 lines of context this provides a robust match and also improves your chances of not making unintended changes.
+  - Before calling edit file blocks it's absolutely necessary to understand the file, and first inside a <thinking> tag "SPEAK" out loud about what are you going to do and even show small snippets of the the changes, it will help you reason about the changes you are going to make.
+  - When using edit file blocks try to bundle as many changes as possible in a single tool call, this will help you avoid conflicts and make the changes more robust, it's okay to do only one small change but it's most powerful when bundling many changes in a single tool call as one tool call can have multiple SEARCH/REPLACE blocks.
 
 CRITICAL GUIDANCE FOR USING SEARCH/REPLACE:
 
@@ -93,10 +98,11 @@ Accurately generating 'SEARCH/REPLACE' blocks when using the edit_file_blocks to
         REPLACE
         // updated code block
 
-5. **ENSURE** that the SEARCH block contains at least 5 contiguous lines of code or additional context, such as comments, from the original file. This approach improves the reliability of matching and minimizes unintended changes during modification.
+5. **ENSURE** that the each SEARCH block contains at least 5 prior lines context from the original file. This approach improves the reliability of matching and minimizes unintended changes during modification.
   - Always strive to capture surrounding lines that help uniquely identify the location of your intended change.
   - Contextual lines may include comments, whitespace, and code directly before or after the target change to ensure a robust match.
   - When in doubt, prioritize including more lines for context while maintaining SEARCH sections that are concise and relevant to avoid overwhelming matches.
+  - Also it's super powerful to add a few extra line past your edited content to ensure you are not making unintended changes.
 
 6. **ENSURE** that you only include one tool call per message to avoid confusion and ensure that each tool call is processed correctly.
 this means you can only use one <edit_file_blocks> tool per message, but you can use multiple SEARCH/REPLACE blocks within that tool.

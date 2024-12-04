@@ -8,10 +8,11 @@ import { ChatTool } from "../../../shared/new-tools"
 import { ChunkProcessor } from "../chunk-proccess"
 import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
-import { ApiHistoryItem, UserContent } from "../types"
+import { ApiHistoryItem, ToolResponseV2, UserContent } from "../types"
 import { formatImagesIntoBlocks, isTextBlock } from "../utils"
 import { AskManager } from "./ask-manager"
 import { AskDetails, AskResponse, TaskError, TaskExecutorUtils, TaskState } from "./utils"
+import { CommitInfo } from "../tools/types"
 
 // Constants for buffer management - modified for instant output
 const BUFFER_SIZE_THRESHOLD = 5 // Reduced to 1 character for near-instant output
@@ -29,6 +30,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	public askManager: AskManager
 	private currentReplyId: number | null = null
 	private pauseNext: boolean = false
+	private lastResultWithCommit: ToolResponseV2 | undefined = undefined
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
@@ -324,9 +326,19 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.logState("Making Claude API request")
 
 			// Add user content to history and start request
+			let attributesToAdd = {}
+			if (this.lastResultWithCommit) {
+				attributesToAdd = {
+					preCommitHash: this.lastResultWithCommit.preCommitHash,
+					commitHash: this.lastResultWithCommit.commitHash,
+					branch: this.lastResultWithCommit.branch,
+				}
+				this.lastResultWithCommit = undefined
+			}
 			await this.stateManager.addToApiConversationHistory({
 				role: "user",
 				content: this.currentUserContent,
+				...attributesToAdd,
 			})
 
 			const startedReqId = await this.say(
@@ -409,7 +421,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 					if (chunk.code === 1) {
 						const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
 							chunk.body.internal
-						await this.stateManager.updateClaudeMessage(startedReqId, {
+						this.stateManager.updateClaudeMessage(startedReqId, {
 							...this.stateManager.getMessageById(startedReqId)!,
 							apiMetrics: {
 								cost: chunk.body.internal.cost,
@@ -421,18 +433,18 @@ export class TaskExecutor extends TaskExecutorUtils {
 							isDone: true,
 							isFetching: false,
 						})
-						await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 					}
 
 					if (chunk.code === -1) {
-						await this.stateManager.updateClaudeMessage(startedReqId, {
+						this.stateManager.updateClaudeMessage(startedReqId, {
 							...this.stateManager.getMessageById(startedReqId)!,
 							isDone: true,
 							isFetching: false,
 							errorText: chunk.body.msg ?? "Internal Server Error",
 							isError: true,
 						})
-						await this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
 						throw new KoduError({ code: chunk.body.status ?? 500 })
 					}
 				},
@@ -579,6 +591,13 @@ export class TaskExecutor extends TaskExecutorUtils {
 				}
 			} else {
 				this.state = TaskState.WAITING_FOR_API
+				const resultWithCommit = currentToolResults
+					.reverse()
+					.find((result) => result.result.branch && result.result.commitHash)
+				if (resultWithCommit) {
+					this.lastResultWithCommit = resultWithCommit.result
+				}
+				// we have the git commit info here
 				this.currentUserContent = currentToolResults.flatMap(({ result }) => {
 					if (result) {
 						return toolResponseToAIState(result)
@@ -588,6 +607,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 						text: `The tool did not return a valid response.`,
 					}
 				})
+
 				await this.makeClaudeRequest()
 			}
 		} else {

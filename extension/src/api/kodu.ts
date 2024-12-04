@@ -308,11 +308,11 @@ export class KoduHandler implements ApiHandler {
 			getKoduInferenceUrl(),
 			{
 				...requestBody,
-				temperature: 0.1,
-				top_p: 0.9,
 			},
 			{
-				headers: this.requestHeaders,
+				headers: {
+					...this.requestHeaders,
+				},
 				responseType: "stream",
 				signal: abortSignal ?? undefined,
 				timeout: 60_000,
@@ -382,7 +382,6 @@ export class KoduHandler implements ApiHandler {
 		environmentDetails?: string
 	): AsyncIterableIterator<koduSSEResponse> {
 		const modelId = this.getModel().id
-		const isAdvanceThinkingMode = GlobalStateManager.getInstance().getGlobalState("isAdvanceThinkingEnabled")
 		const isInlineEditingMode = GlobalStateManager.getInstance().getGlobalState("isInlineEditingEnabled")
 		const technicalBackground = GlobalStateManager.getInstance().getGlobalState("technicalBackground")
 
@@ -397,8 +396,8 @@ export class KoduHandler implements ApiHandler {
 		// if it's inline edit we import different prompt
 		if (isInlineEditingMode) {
 			system.pop()
-			console.log("Inline edit mode - m-11-20-2024.prompt")
-			const { BASE_SYSTEM_PROMPT } = await import("../agent/v1/prompts/m-11-20-2024.prompt")
+			console.log("Inline edit mode - m-11-18-2024.prompt")
+			const { BASE_SYSTEM_PROMPT } = await import("../agent/v1/prompts/m-11-18-2024.prompt")
 			const prompt = await BASE_SYSTEM_PROMPT(
 				getCwd(),
 				this.getModel().info.supportsImages,
@@ -414,13 +413,6 @@ export class KoduHandler implements ApiHandler {
 		if (customInstructions && customInstructions.trim()) {
 			system.push({
 				text: customInstructions,
-				type: "text",
-			})
-		}
-		if (isAdvanceThinkingMode) {
-			const { advanceThinkingPrompt } = await import("../agent/v1/prompts/advance-thinking.prompt")
-			system.push({
-				text: advanceThinkingPrompt,
 				type: "text",
 			})
 		}
@@ -445,7 +437,8 @@ export class KoduHandler implements ApiHandler {
 		const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 		// Prepare messages up to the last user message
 		const messagesToCache: ApiHistoryItem[] = messages.map((msg, index) => {
-			const { ts, ...message } = msg
+			const { ts, commitHash, branch, preCommitHash, ...message } = msg
+
 			if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
 				return {
 					...message,

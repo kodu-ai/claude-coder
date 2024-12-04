@@ -76,7 +76,22 @@ export class AskConsultantTool extends BaseAgentTool<"ask_consultant"> {
 					},
 					this.ts
 				)
-				const errorMsg = `Consultant failed to answer your question.`
+				const errorMsg = `
+				<consultant_tool_response>
+					<status>
+						<result>error</result>
+						<operation>ask_consultant</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<error_details>
+						<type>consultant_error</type>
+						<message>Consultant failed to answer your question</message>
+						<context>
+							<query>${query}</query>
+							<error_type>no_response</error_type>
+						</context>
+					</error_details>
+				</consultant_tool_response>`
 				return this.toolResponse("error", errorMsg)
 			}
 
@@ -93,7 +108,25 @@ export class AskConsultantTool extends BaseAgentTool<"ask_consultant"> {
 				},
 				this.ts
 			)
-			const result = `This is the advice from the consultant: ${response.result}`
+			const result = `
+			<consultant_tool_response>
+				<status>
+					<result>success</result>
+					<operation>ask_consultant</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<interaction>
+					<query>${query}</query>
+					<response>
+						<content>${response.result}</content>
+						<metadata>
+							<response_type>text</response_type>
+							<response_length>${response.result.length}</response_length>
+							<timestamp>${new Date().toISOString()}</timestamp>
+						</metadata>
+					</response>
+				</interaction>
+			</consultant_tool_response>`
 			return this.toolResponse("success", result)
 		} catch (err) {
 			this.params.updateAsk(
@@ -109,7 +142,23 @@ export class AskConsultantTool extends BaseAgentTool<"ask_consultant"> {
 				},
 				this.ts
 			)
-			const errorMsg = `Consultant failed to answer your question with the error: ${err}`
+			const errorMsg = `
+			<consultant_tool_response>
+				<status>
+					<result>error</result>
+					<operation>ask_consultant</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>execution_error</type>
+					<message>Consultant failed to answer your question</message>
+					<context>
+						<query>${query}</query>
+						<error_message>${(err as Error)?.message || String(err)}</error_message>
+						<error_type>execution_failure</error_type>
+					</context>
+				</error_details>
+			</consultant_tool_response>`
 			return this.toolResponse("error", errorMsg)
 		}
 	}
@@ -133,13 +182,27 @@ export class AskConsultantTool extends BaseAgentTool<"ask_consultant"> {
 			"Claude tried to use `ask_consultant` without required parameter `query`. Retrying..."
 		)
 
-		const errorMsg = `Error: Missing value for required parameter 'query'. Please retry with complete response.
-		A good example of a ask_consultant tool call is:
-		{
-			"tool": "ask_consultant",
-			"query": "I want to build a multiplayer game where 100 players would be playing together at once. What framework should I choose for the backend? I'm confused between Elixir and colyseus",
-		}
-		Please try again with the correct query, you are not allowed to search without a query.`
+		const errorMsg = `
+		<consultant_tool_response>
+			<status>
+				<result>error</result>
+				<operation>ask_consultant</operation>
+				<timestamp>${new Date().toISOString()}</timestamp>
+			</status>
+			<error_details>
+				<type>missing_parameter</type>
+				<message>Missing required parameter 'query'</message>
+				<help>
+					<example_usage>
+						<tool>ask_consultant</tool>
+						<parameters>
+							<query>I want to build a multiplayer game where 100 players would be playing together at once. What framework should I choose for the backend? I'm confused between Elixir and colyseus</query>
+						</parameters>
+					</example_usage>
+					<note>Consultant queries require a valid query parameter to proceed</note>
+				</help>
+			</error_details>
+		</consultant_tool_response>`
 		return this.toolResponse("error", errorMsg)
 	}
 
@@ -161,9 +224,37 @@ export class AskConsultantTool extends BaseAgentTool<"ask_consultant"> {
 			)
 			await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 
-			return this.toolResponse("feedback", this.formatGenericToolFeedback(text), images)
+			return this.toolResponse(
+				"feedback",
+				`<consultant_tool_response>
+					<status>
+						<result>feedback</result>
+						<operation>ask_consultant</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<feedback_details>
+						<query>${this.params.input.query!}</query>
+						<user_feedback>${text || "No feedback provided"}</user_feedback>
+						${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
+					</feedback_details>
+				</consultant_tool_response>`,
+				images
+			)
 		}
 
-		return this.toolResponse("rejected", this.formatGenericToolFeedback())
+		return this.toolResponse(
+			"rejected",
+			`<consultant_tool_response>
+				<status>
+					<result>rejected</result>
+					<operation>ask_consultant</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<rejection_details>
+					<query>${this.params.input.query!}</query>
+					<message>Operation was rejected by the user</message>
+				</rejection_details>
+			</consultant_tool_response>`
+		)
 	}
 }

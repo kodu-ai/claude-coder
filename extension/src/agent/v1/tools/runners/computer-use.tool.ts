@@ -7,6 +7,7 @@ import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from 
 import { computerUseActions } from "../schema/computer_use"
 import { BrowserManager } from "../../browser-manager"
 import { exec } from "child_process"
+import screenshotDesktop from "screenshot-desktop"
 
 export class ComputerUseTool extends BaseAgentTool<"computer_use"> {
 	protected params: AgentToolParams<"computer_use">

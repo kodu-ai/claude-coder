@@ -63,6 +63,9 @@ currentTaskIdAtom.debugLabel = "currentTask"
 const autoCloseTerminalAtom = atom(false)
 autoCloseTerminalAtom.debugLabel = "autoCloseTerminal"
 
+const gitHandlerEnabledAtom = atom(true)
+gitHandlerEnabledAtom.debugLabel = "gitHandlerEnabled"
+
 const useUdiffAtom = atom(false)
 useUdiffAtom.debugLabel = "useUdiff"
 
@@ -92,6 +95,7 @@ const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 // Derived atom for the entire state
 export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
+	gitHandlerEnabled: get(gitHandlerEnabledAtom),
 	commandTimeout: get(commandTimeoutAtom),
 	terminalCompressionThreshold: get(terminalCompressionThresholdAtom),
 	claudeMessages: get(claudeMessagesAtom),
@@ -154,6 +158,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
 	const setCommandTimeout = useSetAtom(commandTimeoutAtom)
 	const setTaskHistory = useSetAtom(taskHistoryAtom)
+	const setGitHandlerEnabled = useSetAtom(gitHandlerEnabledAtom)
 	const setInlineEditMode = useSetAtom(inlineEditModeAtom)
 	const setAdvanceThinkingMode = useSetAtom(advanceThinkingModeAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
@@ -208,14 +213,16 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)
 			setShouldShowKoduPromo(message.state.shouldShowKoduPromo)
 			setCurrentContextTokens(message.state.currentContextTokens)
-			setIsContinueGenerationEnabled(!!message.state.isContinueGenerationEnabled)
-			setApiConfiguration(message.state.apiConfiguration)
-			setActiveSystemPromptVariantId(message.state.activeSystemPromptVariantId)
+			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
+			setGitHandlerEnabled(message.state.gitHandlerEnabled ?? true)
+			setUser(message.state.user)
+			setExtensionName(message.state.extensionName)
 			setMaxRequestsPerTask(message.state.maxRequestsPerTask)
 			setCustomInstructions(message.state.customInstructions)
 			setAlwaysAllowReadOnly(!!message.state.alwaysAllowReadOnly)
 			setCurrentContextWindow(message.state.currentContextWindow)
 			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
+			setActiveSystemPromptVariantId(message.state.activeSystemPromptVariantId)
 			setUser(message.state.user)
 			setExtensionName(message.state.extensionName)
 			setSkipWriteAnimation(!!message.state.skipWriteAnimation)
@@ -228,6 +235,8 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setUriScheme(message.state.uriScheme)
 			setCreativeMode(message.state.creativeMode ?? "normal")
 			setSystemPromptVariants(message.state.systemPromptVariants ?? [])
+			setApiConfiguration(message.state.apiConfiguration)
+			setIsContinueGenerationEnabled(!!message.state.isContinueGenerationEnabled)
 		}
 		if (message.type === "action" && message.action === "koduCreditsFetched") {
 			setUser(message.user)
@@ -268,6 +277,7 @@ export const useExtensionState = () => {
 	const setUseUdiff = useSetAtom(useUdiffAtom)
 	const setAutoSummarize = useSetAtom(autoSummarizeAtom)
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
+	const setGitHandlerEnabled = useSetAtom(gitHandlerEnabledAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 	const setSystemPromptVariants = useSetAtom(systemPromptVariantsAtom)
@@ -295,5 +305,6 @@ export const useExtensionState = () => {
 		setActiveSystemPromptVariantId,
 		setShowAnnouncement: setShouldShowAnnouncement,
 		setSystemPromptVariants,
+		setGitHandlerEnabled,
 	}
 }

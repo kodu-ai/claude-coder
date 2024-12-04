@@ -14,6 +14,7 @@ export function useSettingsState() {
 	const [technicalLevel, setTechnicalLevel] = useState(extensionState.technicalBackground)
 	const [readOnly, setReadOnly] = useState(extensionState.alwaysAllowReadOnly || false)
 	const [autoCloseTerminal, setAutoCloseTerminal] = useState(extensionState.autoCloseTerminal || false)
+	const [gitHandlerEnabled, setGitHandlerEnabled] = useState(extensionState.gitHandlerEnabled ?? true)
 	const [experimentalFeatureStates, setExperimentalFeatureStates] = useState({
 		alwaysAllowWriteOnly: extensionState.alwaysAllowWriteOnly || false,
 		autoSummarize: extensionState.autoSummarize || false,
@@ -109,6 +110,11 @@ export function useSettingsState() {
 		vscode.postMessage({ type: "autoCloseTerminal", bool: checked })
 	}, [])
 
+	const handleSetGitHandlerEnabled = useCallback((checked: boolean) => {
+		setGitHandlerEnabled(checked)
+		vscode.postMessage({ type: "toggleGitHandler", enabled: checked })
+	}, [])
+
 	const handleSaveSystemPrompt = useCallback((variant: SystemPromptVariant) => {
 		setSystemPromptVariants((prev) => {
 			const updatedVariants = prev.map((v) => (v.id === variant.id ? variant : v))
@@ -163,6 +169,7 @@ export function useSettingsState() {
 		technicalLevel,
 		readOnly,
 		autoCloseTerminal,
+		gitHandlerEnabled,
 		experimentalFeatureStates,
 		customInstructions,
 		autoSkipWrite,
@@ -181,6 +188,7 @@ export function useSettingsState() {
 		handleBrowserModelChange,
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
+		handleSetGitHandlerEnabled,
 		handleSaveSystemPrompt,
 		handleDeleteSystemPrompt,
 		handleSetActiveVariant,

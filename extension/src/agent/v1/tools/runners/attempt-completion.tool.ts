@@ -21,13 +21,27 @@ export class AttemptCompletionTool extends BaseAgentTool<"attempt_completion"> {
 				"error",
 				"Claude tried to use attempt_completion without value for required parameter 'result'. Retrying..."
 			)
-			const errorMsg = `Error: Missing value for required parameter 'result'. Please retry with complete response.
-			An example of a good attemptCompletion tool call is:
-			{
-				"tool": "attempt_completion",
-				"result": "result to attempt completion with"
-			}
-			`
+			const errorMsg = `
+			<completion_tool_response>
+				<status>
+					<result>error</result>
+					<operation>attempt_completion</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>missing_parameter</type>
+					<message>Missing required parameter 'result'</message>
+					<help>
+						<example_usage>
+							<tool>attempt_completion</tool>
+							<parameters>
+								<result>Your completion result here</result>
+							</parameters>
+						</example_usage>
+						<note>Completion attempts require a valid result parameter to proceed</note>
+					</help>
+				</error_details>
+			</completion_tool_response>`
 			return this.toolResponse("error", errorMsg)
 		}
 
@@ -49,15 +63,48 @@ export class AttemptCompletionTool extends BaseAgentTool<"attempt_completion"> {
 			this.ts
 		)
 		if (response === "yesButtonTapped") {
-			return this.toolResponse("success", `<answer>\nThe user is happy with the results\n</answer>`, images)
+			return this.toolResponse(
+				"success",
+				`<completion_tool_response>
+					<status>
+						<result>success</result>
+						<operation>attempt_completion</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<completion_details>
+						<state>approved</state>
+						<message>The user is happy with the results</message>
+						${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
+					</completion_details>
+				</completion_tool_response>`,
+				images
+			)
 		}
 
 		await say("user_feedback", text ?? "", images)
 		return this.toolResponse(
 			"feedback",
-			`The user is not pleased with the results. Use the feedback they provided to successfully complete the task, and then attempt completion again.\n
-			${commandOutput?.text ? `<commandOutput>\n${commandOutput.text}\n</commandOutput>\n` : ""}
-			<feedback>\n${text}\n</feedback>`,
+			`<completion_tool_response>
+				<status>
+					<result>feedback</result>
+					<operation>attempt_completion</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<feedback_details>
+					<state>needs_improvement</state>
+					<message>The user is not pleased with the results</message>
+					<action_required>Use the feedback provided to complete the task and attempt completion again</action_required>
+					${
+						commandOutput?.text
+							? `<command_output>
+							<content>${commandOutput.text}</content>
+						</command_output>`
+							: ""
+					}
+					<user_feedback>${text || "No specific feedback provided"}</user_feedback>
+					${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
+				</feedback_details>
+			</completion_tool_response>`,
 			images
 		)
 	}

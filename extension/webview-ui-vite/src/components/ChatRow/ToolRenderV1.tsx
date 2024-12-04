@@ -47,6 +47,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/colla
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { EnhancedWebSearchBlock } from "./Tools/WebSearchTool"
+import { FileEditorTool } from "./Tools/file-editor-tool"
 
 type ApprovalState = ToolStatus
 export type ToolAddons = {
@@ -540,107 +541,6 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 
 export type ToolStatus = "pending" | "rejected" | "approved" | "error" | "loading" | undefined
 
-const CHUNK_SIZE = 50
-
-const textVariants = {
-	hidden: { opacity: 0, y: 20 },
-	visible: { opacity: 1, y: 0 },
-}
-
-export const WriteToFileBlock: React.FC<WriteToFileTool & ToolAddons> = memo(
-	({ path, content, approvalState, onApprove, onReject, tool, ts, ...rest }) => {
-		content = content ?? ""
-		const [visibleContent, setVisibleContent] = useState<string[]>([])
-		const [totalLines, setTotalLines] = useState(0)
-		const isStreaming = approvalState === "loading"
-		const scrollAreaRef = useRef<HTMLDivElement>(null)
-		const lastChunkRef = useRef<HTMLPreElement>(null)
-		const animationCompleteCountRef = useRef(0)
-
-		useEffect(() => {
-			const text = content ?? ""
-			setTotalLines(text.split("\n").length)
-
-			if (isStreaming) {
-				const chunks = text.match(new RegExp(`.{1,${CHUNK_SIZE * 2}}`, "g")) || []
-				setVisibleContent(chunks)
-			} else {
-				setVisibleContent([text])
-			}
-
-			// Reset the animation complete count when content changes
-			animationCompleteCountRef.current = 0
-		}, [content, isStreaming])
-
-		return (
-			<ToolBlock
-				{...rest}
-				ts={ts}
-				tool={tool}
-				icon={Edit}
-				title="Write to File"
-				variant="info"
-				approvalState={approvalState}
-				onApprove={onApprove}
-				onReject={onReject}>
-				<p className="text-xs mb-1">
-					<span className="font-semibold">File:</span> {path}
-				</p>
-				<ScrollArea viewProps={{ ref: scrollAreaRef }} className="h-24 rounded border bg-background p-2">
-					<ScrollBar orientation="vertical" />
-					<ScrollBar orientation="horizontal" />
-					<div className="relative">
-						{isStreaming && (
-							<motion.div
-								className="sticky left-0 top-0 w-full h-1 bg-primary"
-								initial={{ scaleX: 0 }}
-								animate={{ scaleX: 1 }}
-								transition={{
-									repeat: Infinity,
-									duration: 2,
-									ease: "linear",
-								}}
-							/>
-						)}
-						{!isStreaming ? (
-							<pre className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
-								{content?.trim() ?? ""}
-							</pre>
-						) : (
-							<AnimatePresence>
-								{visibleContent.map((chunk, index) => (
-									<motion.pre
-										key={index}
-										ref={index === visibleContent.length - 1 ? lastChunkRef : null}
-										variants={textVariants}
-										initial="hidden"
-										animate="visible"
-										transition={{ duration: 0.3, delay: index * 0.03 }}
-										className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
-										{index === 0 ? chunk.trim() : chunk}
-									</motion.pre>
-								))}
-							</AnimatePresence>
-						)}
-					</div>
-				</ScrollArea>
-				<div className="mt-2 flex justify-between items-center">
-					<span className="text-xs text-muted-foreground">
-						{isStreaming ? "Streaming..." : `Completed: ${totalLines} lines written`}
-					</span>
-				</div>
-			</ToolBlock>
-		)
-	},
-	(prevProps, nextProps) => {
-		return (
-			prevProps.approvalState === nextProps.approvalState &&
-			prevProps.content === nextProps.content &&
-			prevProps.ts === nextProps.ts &&
-			prevProps.path === nextProps.path
-		)
-	}
-)
 export const AskFollowupQuestionBlock: React.FC<AskFollowupQuestionTool & ToolAddons> = ({
 	question,
 	approvalState,
@@ -819,7 +719,7 @@ export const ToolContentBlock: React.FC<{
 		case "read_file":
 			return <ReadFileBlock {...tool} />
 		case "write_to_file":
-			return <WriteToFileBlock {...tool} />
+			return <FileEditorTool {...tool} />
 		case "ask_followup_question":
 			return <AskFollowupQuestionBlock {...tool} approvalState="pending" />
 		case "attempt_completion":

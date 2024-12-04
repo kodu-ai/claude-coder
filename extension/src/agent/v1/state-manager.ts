@@ -28,6 +28,7 @@ export class StateManager {
 	private _autoSummarize?: boolean
 	private _temporayPauseAutomaticMode: boolean = false
 	private _inlineEditOutputType?: "full" | "diff" | "none" = "full"
+	private _gitHandlerEnabled: boolean = true
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -44,6 +45,7 @@ export class StateManager {
 			skipWriteAnimation,
 			autoSummarize,
 			terminalCompressionThreshold,
+			gitHandlerEnabled,
 		} = options
 		this._creativeMode = creativeMode ?? "normal"
 		this._autoSummarize = autoSummarize
@@ -54,6 +56,7 @@ export class StateManager {
 		this._customInstructions = customInstructions
 		this._terminalCompressionThreshold = terminalCompressionThreshold
 		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
+		this._gitHandlerEnabled = gitHandlerEnabled ?? true
 		this._experimentalTerminal = experimentalTerminal
 		this._inlineEditOutputType = options.inlineEditOutputType
 		this._autoCloseTerminal = autoCloseTerminal
@@ -154,6 +157,10 @@ export class StateManager {
 		return this._skipWriteAnimation
 	}
 
+	get gitHandlerEnabled(): boolean {
+		return this._gitHandlerEnabled
+	}
+
 	// Methods to modify the properties
 	public setState(newState: KoduDevState): void {
 		this._state = newState
@@ -161,6 +168,11 @@ export class StateManager {
 
 	public setSkipWriteAnimation(newValue: boolean | undefined) {
 		this._skipWriteAnimation = newValue
+	}
+
+	public setGitHandlerEnabled(newValue: boolean): void {
+		this._gitHandlerEnabled = newValue
+		this.state.gitHandlerEnabled = newValue
 	}
 
 	get historyErrors(): KoduDevState["historyErrors"] | undefined {
@@ -246,7 +258,7 @@ export class StateManager {
 		return taskDir
 	}
 
-	async getSavedApiConversationHistory(): Promise<Anthropic.MessageParam[]> {
+	async getSavedApiConversationHistory(): Promise<ApiHistoryItem[]> {
 		// no need to read from file if we already have the history in memory
 		if (this.state.apiConversationHistory.length > 0) {
 			return this.state.apiConversationHistory

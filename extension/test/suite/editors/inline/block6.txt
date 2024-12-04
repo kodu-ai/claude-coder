@@ -1,94 +1,152 @@
 SEARCH
-import sys
-import hashlib
-import random
-import os
-from typing import Tuple, List, Optional
-
-def get_user_info() -> None:    
-=======
-REPLACE
 """
-Interactive Greeter - A Personality-Driven User Interaction System
-
-This module implements an engaging interactive greeting system that creates
-a personalized experience for each user. It uses various psychological and
-social engagement techniques to make the interaction more meaningful and memorable.
-
-Features:
-- Randomized question order for dynamic interactions
-- Personalized responses based on user input
-- Age-appropriate feedback
-- Contextual responses for hobbies, colors, and locations
-- Secure token generation using cryptographic hashing
-
-Technical Details:
-- Uses MD5 for path-based seed generation (non-security context)
-- Implements SHA256 for secure token generation
-- Maintains consistent session state using path-based seeding
-- Ensures proper output flushing for interactive environments
-
-Author: Kodu.AI
-Version: 2.0.0
+Interactive script that demonstrates blocking input.
+Gets user's name and age along with other questions in a deterministic random order
+based on the file location. Successfully completing the interaction reveals a CTF token.
 """
 import sys
 import hashlib
 import random
 import os
-from typing import Tuple, List, Optional, Dict, Any
 
-def get_user_info() -> None:
+def get_user_info():
+=======
+REPLACE
+"""
+Interactive Personality Greeter and CTF Challenge
+
+This script implements an engaging interactive questionnaire that demonstrates secure
+blocking input handling while creating a fun and personalized experience for users.
+It combines personality assessment with cryptographic concepts to generate a unique
+CTF (Capture The Flag) token.
+
+Key Features:
+    - Deterministic question randomization based on file location
+    - Secure token generation using SHA-256 hashing
+    - Personalized responses based on user input
+    - Age-appropriate engagement messages
+    - Input validation and error handling
+
+Security Aspects:
+    - Uses file path as a deterministic seed for question ordering
+    - Implements MD5 for seed generation (non-security critical)
+    - Uses SHA-256 for token generation with a secret salt
+    - Ensures consistent output flushing for reliable interaction
+
+Example Usage:
+    $ ./greeter
+    Welcome to the Interactive Greeter!
+    What's your name? Alice
+    How old are you? 25
+    ... (additional questions in random order)
+    Congratulations! Here's your token: CTF_abc123def456
+"""
+import sys
+import hashlib
+import random
+import os
+
+def get_user_info():
     """
-    Conducts an interactive session with the user, collecting personal information
-    and providing engaging, contextual responses.
+    Manages the interactive questionnaire session and generates a CTF token.
     
-    The function implements a sophisticated interaction flow:
-    1. Initializes a deterministic random seed based on script path
-    2. Presents randomized questions about personal details
-    3. Provides contextual, personality-driven responses
-    4. Generates a secure token based on user information
+    The function implements a deterministic yet randomized questioning system
+    where the order of questions is based on the script's file location hash.
+    It provides personalized responses and validates user input where appropriate.
     
-    Note: All outputs are immediately flushed to ensure smooth interaction
-    in various terminal environments.
+    Returns:
+        None: Prints interaction messages and final CTF token to stdout
+    
+    Security Notes:
+        - Token generation uses SHA-256 with a secret salt
+        - Question order is deterministic per installation
+        - All outputs are flushed to ensure reliable interaction
     """
 =======
 SEARCH
-    questions: List[Tuple[str, str]] = [
-        ("Hey there! What's your name? We're excited to meet you! ", "name"),
-        ("Awesome! And how many trips around the sun have you completed? (age) ", "age"),
-        ("If you could paint the world one color, what would it be? ", "color"),
-        ("What activity makes time fly for you? (your favorite hobby) ", "hobby"),
-        ("Which part of this amazing world do you call home? ", "location")
-    ]
+    # Ask all questions in our determined order
+    for question, q_type in questions:
+        # Ask the question
+        answer = input(question)
+        
+        # Process the answer based on type
+        if q_type == "name":
+            name = answer
+            print(f"Nice to meet you, {name}!", flush=True)
+        elif q_type == "age":
+            while True:
+                try:
+                    age = int(answer)
+                    # Provide age-specific response
+                    if age < 18:
+                        print("Hey, you're still young! Enjoy your youth!", flush=True)
+                    elif age < 30:
+                        print("Your twenties are a great time to learn and grow!", flush=True)
+                    elif age < 50:
+                        print("Hope you're enjoying life's adventures!", flush=True)
+                    else:
+                        print("Your wisdom and experience are valuable!", flush=True)
+                    break
 =======
 REPLACE
-    # Enhanced question set with more engaging and thought-provoking queries
-    questions: List[Tuple[str, str]] = [
-        ("Hey there! What's your name? We're excited to meet you! 😊 ", "name"),
-        ("Awesome! And how many trips around the sun have you completed? (age) 🌟 ", "age"),
-        ("If you could paint the world one color, what would it be? Let your imagination soar! 🎨 ", "color"),
-        ("What activity makes time disappear like magic for you? (your favorite hobby) ✨ ", "hobby"),
-        ("Which wonderful corner of this vast world do you call home? 🌍 ", "location")
-    ]
+    # Ask all questions in our determined order
+    for question, q_type in questions:
+        # Ask the question and ensure proper output flushing
+        print(question, end='', flush=True)
+        answer = input()
+        
+        # Process the answer based on type with enhanced interaction
+        if q_type == "name":
+            # Validate name input (non-empty and contains valid characters)
+            while not answer.strip() or not all(c.isalpha() or c.isspace() for c in answer):
+                print("Please enter a valid name (letters and spaces only):", end='', flush=True)
+                answer = input()
+            name = answer.strip()
+            print(f"✨ Wonderful to meet you, {name}! Your name has a lovely ring to it!", flush=True)
+        
+        elif q_type == "age":
+            while True:
+                try:
+                    age = int(answer)
+                    if age <= 0 or age > 120:
+                        raise ValueError("Age out of realistic range")
+                    
+                    # Enhanced age-specific responses with emojis and personality
+                    if age < 18:
+                        print("🌟 Ah, the wonder years! The world is full of possibilities waiting for you.", flush=True)
+                        print("Remember, every great journey starts with curiosity! 🚀", flush=True)
+                    elif age < 25:
+                        print("🎓 Early twenties - what an exciting time! You're writing the first chapters", flush=True)
+                        print("of your adult life story. Make it a page-turner! ✨", flush=True)
+                    elif age < 35:
+                        print("💫 The golden age of discovery! You've got the perfect blend of", flush=True)
+                        print("energy and wisdom to chase your dreams! 🌈", flush=True)
+                    elif age < 50:
+                        print("🌺 Life's adventures are in full swing! Your experience is your superpower,", flush=True)
+                        print("and the best chapters are still being written! 📖", flush=True)
+                    else:
+                        print("🌟 A lifetime of wisdom! You've collected so many amazing stories,", flush=True)
+                        print("and there's still so much more to explore! 🎨", flush=True)
+                    break
 =======
 SEARCH
-            color_responses = [
-                f"Ah, {answer}! That's a color that speaks of depth and imagination!",
-                f"{answer} - what an intriguing choice! It tells me you're thoughtful about your preferences.",
-                f"People who choose {answer} often have fascinating perspectives on life!",
-                f"Oh, {answer}! That's often associated with creativity and emotional depth!",
-                f"Interesting choice with {answer}! It's known to influence mood and perception.",
-                f"The psychology behind choosing {answer} is quite fascinating!"
-            ]
+        else:
+            # Generic response for other questions
+            print(f"Thanks for sharing that!", flush=True)
+        
+        sys.stdout.flush()
 =======
 REPLACE
-            # Enhanced color responses with more psychological insights and cultural references
-            color_responses = [
-                f"Ah, {answer}! That's a color that speaks of depth and imagination! Did you know it's often associated with emotional intelligence? 🎨",
-                f"{answer} - what an intriguing choice! In many cultures, this color represents harmony and balance. Your thoughtfulness shows! ✨",
-                f"People who choose {answer} often have fascinating perspectives on life! It's a color that appears frequently in nature's masterpieces! 🌿",
-                f"Oh, {answer}! Artists throughout history have used this color to evoke powerful emotions and tell compelling stories! 🎭",
-                f"Interesting choice with {answer}! Color psychologists say it can significantly influence creativity and emotional well-being! 🌈",
-                f"The psychology behind choosing {answer} is quite fascinating! It often reveals a deep connection to our innermost thoughts! 💭",
-                f"In the world of art and design, {answer} is known to create spaces that inspire and energize! Your choice speaks volumes! 🎪"
-            ]
+        else:
+            # Enhanced responses for other questions
+            if q_type == "color":
+                print(f"🎨 {answer.capitalize()}! A color that speaks volumes about personality!", flush=True)
+                print("Did you know colors can influence our mood and creativity? ✨", flush=True)
+            elif q_type == "hobby":
+                print(f"🌟 {answer.capitalize()} - what a fantastic way to express yourself!", flush=True)
+                print("The best hobbies are the ones that make our hearts smile! 💫", flush=True)
+            elif q_type == "location":
+                print(f"🌍 {answer.capitalize()}! Every place has its own magical story to tell!", flush=True)
+                print("Thank you for sharing a piece of your world with me! ✨", flush=True)
+        
+        sys.stdout.flush()

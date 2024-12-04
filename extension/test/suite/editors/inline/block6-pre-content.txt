@@ -1,44 +1,52 @@
+#!/usr/bin/env python3
+
+"""
+Interactive script that demonstrates blocking input.
+Gets user's name and age along with other questions in a deterministic random order
+based on the file location. Successfully completing the interaction reveals a CTF token.
+"""
 import sys
 import hashlib
 import random
 import os
-from typing import Tuple, List, Optional
 
-def get_user_info() -> None:    
+def get_user_info():
+    # Get the absolute path of this script to use as seed
     script_path = os.path.abspath(__file__)
     
-    
+    # Create a deterministic seed from the file path
     path_hash = hashlib.md5(script_path.encode()).hexdigest()
-    seed = int(path_hash[:8], 16)  
+    seed = int(path_hash[:8], 16)  # Use first 8 chars of hash as seed
     
-    
+    # Set the random seed for deterministic ordering
     random.seed(seed)
     
     print("Welcome to the Interactive Greeter!", flush=True)
     print("Please answer a few questions:", flush=True)
     sys.stdout.flush()
     
-    
+    # Initialize variables to store required info
     name = None
     age = None
     
-    questions: List[Tuple[str, str]] = [
-        ("Hey there! What's your name? We're excited to meet you! ", "name"),
-        ("Awesome! And how many trips around the sun have you completed? (age) ", "age"),
-        ("If you could paint the world one color, what would it be? ", "color"),
-        ("What activity makes time fly for you? (your favorite hobby) ", "hobby"),
-        ("Which part of this amazing world do you call home? ", "location")
+    # Create list of questions
+    questions = [
+        ("What's your name? ", "name"),
+        ("How old are you? ", "age"),
+        ("What's your favorite color? ", "color"),
+        ("What's your favorite hobby? ", "hobby"),
+        ("Where are you from? ", "location")
     ]
     
-    
+    # Shuffle questions once using our deterministic seed
     random.shuffle(questions)
     
-    
+    # Ask all questions in our determined order
     for question, q_type in questions:
-        
+        # Ask the question
         answer = input(question)
         
-        
+        # Process the answer based on type
         if q_type == "name":
             name = answer
             print(f"Nice to meet you, {name}!", flush=True)
@@ -46,7 +54,7 @@ def get_user_info() -> None:
             while True:
                 try:
                     age = int(answer)
-                    
+                    # Provide age-specific response
                     if age < 18:
                         print("Hey, you're still young! Enjoy your youth!", flush=True)
                     elif age < 30:
@@ -60,49 +68,16 @@ def get_user_info() -> None:
                     print("Please enter a valid number for age.", flush=True)
                     answer = input(question)
         else:
-            
-            if q_type == "color":
-                color_responses = [
-                    f"Ah, {answer}! That's a color that speaks of depth and imagination!",
-                    f"{answer} - what an intriguing choice! It tells me you're thoughtful about your preferences.",
-                    f"People who choose {answer} often have fascinating perspectives on life!",
-                    f"Oh, {answer}! That's often associated with creativity and emotional depth!",
-                    f"Interesting choice with {answer}! It's known to influence mood and perception.",
-                    f"The psychology behind choosing {answer} is quite fascinating!"
-                ]
-                print(random.choice(color_responses), flush=True)
-            elif q_type == "hobby":
-                hobby_responses = [
-                    f"{answer}? That's incredible! It's amazing how hobbies shape who we are!",
-                    f"I love that you enjoy {answer}! It's these passions that make life rich and meaningful.",
-                    f"{answer} is such a rewarding pursuit! It says a lot about your character!",
-                    f"Wow, {answer}! That must bring so much joy and fulfillment to your life!",
-                    f"People who pursue {answer} often have such interesting stories to share!",
-                    f"There's something special about dedicating time to {answer}. It shows commitment!"
-                ]
-                print(random.choice(hobby_responses), flush=True)
-            elif q_type == "location":
-                location_responses = [
-                    f"{answer} - what a wonderful part of the world! Each place has its own magic.",
-                    f"Ah, {answer}! The cultural tapestry there must be fascinating!",
-                    f"I've heard amazing things about {answer}! Your perspective must be unique!",
-                    f"Living in {answer} must provide such interesting daily experiences!",
-                    f"The stories from {answer} always captivate me! What a great place to call home!",
-                    f"{answer} has such a rich history and culture! You must have amazing insights!"
-                ]
-                print(random.choice(location_responses), flush=True)
-            else:
-                print(f"Thank you for sharing that fascinating detail!", flush=True)
+            # Generic response for other questions
+            print(f"Thanks for sharing that!", flush=True)
         
         sys.stdout.flush()
     
-    
-    
+    # Generate a CTF token based on the interaction
     token_data = f"{name}{age}secret_salt_2024".encode('utf-8')
     token = f"CTF_{hashlib.sha256(token_data).hexdigest()[:12]}"
     
-    print(f"\nFantastic! You've completed the interactive session!", flush=True)
-    print(f"Here's your unique CTF token: {token}", flush=True)
+    print(f"\nCongratulations! Here's your token: {token}", flush=True)
     sys.stdout.flush()
 
 if __name__ == "__main__":

@@ -38,14 +38,62 @@ export class DiagnosticsHandler {
 
 	private formatDiagnostics(uri: vscode.Uri, diagnostics: vscode.Diagnostic[]): string {
 		const relativePath = vscode.workspace.asRelativePath(uri.fsPath).replace(/\\/g, "/")
-		let result = `Errors in ${relativePath}:\n`
+
+		// Start building XML structure
+		let result = "<diagnostics>\n"
+		result += `  <file path="${this.escapeXml(relativePath)}">\n`
+
+		// Get the document to access its content
+		const document = vscode.workspace.textDocuments.find((doc) => doc.uri.fsPath === uri.fsPath)
 
 		for (const diagnostic of diagnostics) {
 			const line = diagnostic.range.start.line + 1 // VSCode lines are 0-indexed
+			const startChar = diagnostic.range.start.character
+			const endChar = diagnostic.range.end.character
 			const message = diagnostic.message
-			result += `- Line ${line}: ${message}\n`
+
+			// Get the line content if document is available
+			let lineContent = "Unable to retrieve line content"
+			let errorPointer = ""
+
+			if (document) {
+				lineContent = document.lineAt(diagnostic.range.start.line).text
+				// Create a pointer to show exactly where the error is
+				errorPointer = " ".repeat(startChar) + "^".repeat(Math.max(1, endChar - startChar))
+			}
+
+			// Add error information in XML format
+			result += "    <error>\n"
+			result += `      <line>${line}</line>\n`
+			result += `      <message>${this.escapeXml(message)}</message>\n`
+			result += `      <code>${this.escapeXml(lineContent)}</code>\n`
+			result += `      <pointer>${this.escapeXml(errorPointer)}</pointer>\n`
+			result += `      <position start="${startChar}" end="${endChar}" />\n`
+			result += "    </error>\n"
 		}
 
-		return result.trim()
+		result += "  </file>\n"
+		result += "</diagnostics>"
+
+		return result
+	}
+
+	private escapeXml(unsafe: string): string {
+		return unsafe.replace(/[<>&'"]/g, (c) => {
+			switch (c) {
+				case "<":
+					return "&lt;"
+				case ">":
+					return "&gt;"
+				case "&":
+					return "&amp;"
+				case "'":
+					return "&apos;"
+				case '"':
+					return "&quot;"
+				default:
+					return c
+			}
+		})
 	}
 }

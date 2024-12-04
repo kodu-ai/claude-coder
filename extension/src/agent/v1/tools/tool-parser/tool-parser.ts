@@ -7,10 +7,10 @@ type ToolSchema = {
 	schema: z.ZodObject<any>
 }
 
-type ToolUpdateCallback = (id: string, toolName: string, params: any, ts: number) => void
-type ToolEndCallback = (id: string, toolName: string, params: any, ts: number) => void
-type ToolErrorCallback = (id: string, toolName: string, error: Error, ts: number) => void
-type ToolClosingErrorCallback = (error: Error) => void
+type ToolUpdateCallback = (id: string, toolName: string, params: any, ts: number) => Promise<void>
+type ToolEndCallback = (id: string, toolName: string, params: any, ts: number) => Promise<void>
+type ToolErrorCallback = (id: string, toolName: string, error: Error, ts: number) => Promise<void>
+type ToolClosingErrorCallback = (error: Error) => Promise<void>
 
 interface Context {
 	id: string
@@ -169,7 +169,9 @@ export class ToolParser {
 	}
 
 	private sendProgressUpdate(): void {
-		if (!this.currentContext) {return}
+		if (!this.currentContext) {
+			return
+		}
 
 		// Update the params with current buffer content
 		if (this.currentContext.currentParam) {
@@ -191,7 +193,9 @@ export class ToolParser {
 	}
 
 	private handleTag(tag: string): void {
-		if (!this.currentContext) {return}
+		if (!this.currentContext) {
+			return
+		}
 
 		const isClosingTag = tag.startsWith("</")
 		const tagContent = isClosingTag ? tag.slice(2, -1) : tag.slice(1, -1)
@@ -205,7 +209,9 @@ export class ToolParser {
 	}
 
 	private handleOpeningTag(tagName: string): void {
-		if (!this.currentContext) {return}
+		if (!this.currentContext) {
+			return
+		}
 
 		if (this.currentContext.currentParam) {
 			// We're in a parameter, increment its nesting level if we see its tag
@@ -234,7 +240,9 @@ export class ToolParser {
 	}
 
 	private handleClosingTag(tagName: string): void {
-		if (!this.currentContext) {return}
+		if (!this.currentContext) {
+			return
+		}
 
 		if (tagName === this.currentContext.toolName) {
 			this.currentContext.nestingLevel--

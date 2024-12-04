@@ -413,7 +413,7 @@ const processContentBlock = async (
 	return content
 }
 
-export const compressedTools: ToolName[] = ["read_file", "edit_file_blocks", "execute_command", "write_to_file"]
+export const compressedTools: ToolName[] = ["read_file", "execute_command", "write_to_file"]
 
 /**
  * Main function to compress tool outputs in a message array

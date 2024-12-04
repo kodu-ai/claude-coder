@@ -86,3 +86,9 @@ export type AgentToolOptions = {
 	koduDev: KoduDev
 	setRunningProcessId?: (pid: number | undefined) => void
 }
+
+export type CommitInfo = {
+	branch: string
+	commitHash: string
+	preCommitHash?: string
+}

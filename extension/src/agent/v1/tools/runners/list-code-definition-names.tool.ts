@@ -25,14 +25,27 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool<"list_code_defini
 				"error",
 				"Claude tried to use list_code_definition_names without value for required parameter 'path'. Retrying..."
 			)
-			const errorMsg = `Error: Missing value for required parameter 'path'. Please retry with complete response.
-			an example of a good listCodeDefinitionNames tool call is:
-			{
-				"tool": "list_code_definition_names",
-				"path": "path/to/directory"
-			}
-			Please try again with the correct path, you are not allowed to list code definitions without a path.
-			`
+			const errorMsg = `
+			<code_definitions_response>
+				<status>
+					<result>error</result>
+					<operation>list_code_definitions</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>missing_parameter</type>
+					<message>Missing required parameter 'path'</message>
+					<help>
+						<example_usage>
+							<tool>list_code_definition_names</tool>
+							<parameters>
+								<path>path/to/directory</path>
+							</parameters>
+						</example_usage>
+						<note>A valid directory path is required to list code definitions</note>
+					</help>
+				</error_details>
+			</code_definitions_response>`
 			return this.toolResponse("error", errorMsg)
 		}
 
@@ -83,9 +96,37 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool<"list_code_defini
 						this.ts
 					)
 					await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-					return this.toolResponse("feedback", formatGenericToolFeedback(text), images)
+					return this.toolResponse(
+						"feedback",
+						`<code_definitions_response>
+							<status>
+								<result>feedback</result>
+								<operation>list_code_definitions</operation>
+								<timestamp>${new Date().toISOString()}</timestamp>
+							</status>
+							<feedback_details>
+								<directory>${getReadablePath(relDirPath)}</directory>
+								<user_feedback>${text || "No feedback provided"}</user_feedback>
+								${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
+							</feedback_details>
+						</code_definitions_response>`,
+						images
+					)
 				}
-				return this.toolResponse("rejected", this.formatToolDenied())
+				return this.toolResponse(
+					"rejected",
+					`<code_definitions_response>
+						<status>
+							<result>rejected</result>
+							<operation>list_code_definitions</operation>
+							<timestamp>${new Date().toISOString()}</timestamp>
+						</status>
+						<rejection_details>
+							<directory>${getReadablePath(relDirPath)}</directory>
+							<message>Operation was rejected by the user</message>
+						</rejection_details>
+					</code_definitions_response>`
+				)
 			}
 			this.params.updateAsk(
 				"tool",
@@ -100,9 +141,40 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool<"list_code_defini
 				},
 				this.ts
 			)
-			return this.toolResponse("success", result)
+			return this.toolResponse(
+				"success",
+				`<code_definitions_response>
+					<status>
+						<result>success</result>
+						<operation>list_code_definitions</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<analysis_info>
+						<directory>${getReadablePath(relDirPath)}</directory>
+						<content_type>code_definitions</content_type>
+					</analysis_info>
+					<definitions>
+						${result}
+					</definitions>
+				</code_definitions_response>`
+			)
 		} catch (error) {
-			const errorString = `Error parsing source code definitions: ${JSON.stringify(serializeError(error))}`
+			const errorString = `
+			<code_definitions_response>
+				<status>
+					<result>error</result>
+					<operation>list_code_definitions</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>parsing_error</type>
+					<message>Failed to parse source code definitions</message>
+					<context>
+						<directory>${getReadablePath(relDirPath)}</directory>
+						<error_data>${JSON.stringify(serializeError(error))}</error_data>
+					</context>
+				</error_details>
+			</code_definitions_response>`
 			this.params.updateAsk(
 				"tool",
 				{

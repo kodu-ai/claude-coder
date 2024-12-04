@@ -47,6 +47,8 @@ export type WriteToFileTool = {
 	content?: string
 	diff?: string
 	notAppliedCount?: number
+	branch?: string
+	commitHash?: string
 }
 
 export type AskFollowupQuestionTool = {
@@ -106,11 +108,6 @@ export type SummarizeChatTool = {
 	output?: string
 }
 
-export type EditFileBlocks = {
-	tool: "edit_file_blocks"
-	kodu_diff: string
-}
-
 export type ComputerUseTool = {
 	tool: "computer_use"
 	action: ComputerUseAction
@@ -133,7 +130,6 @@ export type ChatTool = (
 	| UrlScreenshotTool
 	| AskConsultantTool
 	| ServerRunnerTool
-	| EditFileBlocks
 	| ComputerUseTool
 ) & {
 	ts: number
