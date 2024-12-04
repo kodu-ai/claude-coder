@@ -63,6 +63,9 @@ currentTaskIdAtom.debugLabel = "currentTask"
 const autoCloseTerminalAtom = atom(false)
 autoCloseTerminalAtom.debugLabel = "autoCloseTerminal"
 
+const gitHandlerEnabledAtom = atom(true)
+gitHandlerEnabledAtom.debugLabel = "gitHandlerEnabled"
+
 const useUdiffAtom = atom(false)
 useUdiffAtom.debugLabel = "useUdiff"
 
@@ -92,6 +95,7 @@ const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 // Derived atom for the entire state
 export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
+	gitHandlerEnabled: get(gitHandlerEnabledAtom),
 	commandTimeout: get(commandTimeoutAtom),
 	terminalCompressionThreshold: get(terminalCompressionThresholdAtom),
 	claudeMessages: get(claudeMessagesAtom),
@@ -208,9 +212,10 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)
 			setShouldShowKoduPromo(message.state.shouldShowKoduPromo)
 			setCurrentContextTokens(message.state.currentContextTokens)
-			setIsContinueGenerationEnabled(!!message.state.isContinueGenerationEnabled)
-			setApiConfiguration(message.state.apiConfiguration)
-			setActiveSystemPromptVariantId(message.state.activeSystemPromptVariantId)
+			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
+			setGitHandlerEnabled(message.state.gitHandlerEnabled ?? true)
+			setUser(message.state.user)
+			setExtensionName(message.state.extensionName)
 			setMaxRequestsPerTask(message.state.maxRequestsPerTask)
 			setCustomInstructions(message.state.customInstructions)
 			setAlwaysAllowReadOnly(!!message.state.alwaysAllowReadOnly)
@@ -268,6 +273,7 @@ export const useExtensionState = () => {
 	const setUseUdiff = useSetAtom(useUdiffAtom)
 	const setAutoSummarize = useSetAtom(autoSummarizeAtom)
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
+	const setGitHandlerEnabled = useSetAtom(gitHandlerEnabledAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 	const setSystemPromptVariants = useSetAtom(systemPromptVariantsAtom)
