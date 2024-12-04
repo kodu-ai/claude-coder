@@ -158,6 +158,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
 	const setCommandTimeout = useSetAtom(commandTimeoutAtom)
 	const setTaskHistory = useSetAtom(taskHistoryAtom)
+	const setGitHandlerEnabled = useSetAtom(gitHandlerEnabledAtom)
 	const setInlineEditMode = useSetAtom(inlineEditModeAtom)
 	const setAdvanceThinkingMode = useSetAtom(advanceThinkingModeAtom)
 	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
@@ -194,6 +195,10 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 		const message: ExtensionMessage = event.data
 		if (message.type === "claudeMessages") {
 			setClaudeMessages(message.claudeMessages)
+		}
+
+		if (message.type === "toggleGitHandler") {
+			setGitHandlerEnabled(message.enabled)
 		}
 
 		if (message.type === "state" && message.state) {
