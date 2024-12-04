@@ -56,9 +56,41 @@ export class WebSearchTool extends BaseAgentTool {
 			if (response === "messageResponse") {
 				await say("user_feedback", text, images)
 				// return this.formatToolResponseWithImages(await this.formatGenericToolFeedback(text), images)
-				return this.toolResponse("feedback", text, images)
+				return this.toolResponse(
+					"feedback",
+					`<web_search_response>
+						<status>
+							<result>feedback</result>
+							<operation>web_search</operation>
+							<timestamp>${new Date().toISOString()}</timestamp>
+						</status>
+						<feedback_details>
+							<query>${searchQuery}</query>
+							<browser_mode>${browserMode}</browser_mode>
+							${baseLink ? `<base_link>${baseLink}</base_link>` : ""}
+							<user_feedback>${text || "No feedback provided"}</user_feedback>
+							${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
+						</feedback_details>
+					</web_search_response>`,
+					images
+				)
 			}
-			return this.toolResponse("rejected", "The user denied this operation.")
+			return this.toolResponse(
+				"rejected",
+				`<web_search_response>
+					<status>
+						<result>rejected</result>
+						<operation>web_search</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<rejection_details>
+						<query>${searchQuery}</query>
+						<browser_mode>${browserMode}</browser_mode>
+						${baseLink ? `<base_link>${baseLink}</base_link>` : ""}
+						<message>Operation was rejected by the user</message>
+					</rejection_details>
+				</web_search_response>`
+			)
 		}
 
 		try {
@@ -136,7 +168,25 @@ export class WebSearchTool extends BaseAgentTool {
 						},
 						this.ts
 					)
-					return this.toolResponse("error", "Web search was aborted")
+					return this.toolResponse(
+						"error",
+						`<web_search_response>
+							<status>
+								<result>error</result>
+								<operation>web_search</operation>
+								<timestamp>${new Date().toISOString()}</timestamp>
+							</status>
+							<error_details>
+								<type>search_aborted</type>
+								<message>Web search was aborted</message>
+								<context>
+									<query>${searchQuery}</query>
+									<browser_mode>${browserMode}</browser_mode>
+									${baseLink ? `<base_link>${baseLink}</base_link>` : ""}
+								</context>
+							</error_details>
+						</web_search_response>`
+					)
 				}
 				throw err
 			}
@@ -156,7 +206,25 @@ export class WebSearchTool extends BaseAgentTool {
 				this.ts
 			)
 
-			return this.toolResponse("success", fullContent)
+			return this.toolResponse(
+				"success",
+				`<web_search_response>
+					<status>
+						<result>success</result>
+						<operation>web_search</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<search_info>
+						<query>${searchQuery}</query>
+						<browser_mode>${browserMode}</browser_mode>
+						${baseLink ? `<base_link>${baseLink}</base_link>` : ""}
+						${browserModel ? `<browser_model>${browserModel}</browser_model>` : ""}
+					</search_info>
+					<search_results>
+						<content>${fullContent}</content>
+					</search_results>
+				</web_search_response>`
+			)
 		} catch (err) {
 			await updateAsk(
 				"tool",
@@ -173,26 +241,64 @@ export class WebSearchTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			return this.toolResponse("error", `Web search failed with error: ${err}`)
+			return this.toolResponse(
+				"error",
+				`<web_search_response>
+					<status>
+						<result>error</result>
+						<operation>web_search</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<error_details>
+						<type>search_failed</type>
+						<message>Web search failed</message>
+						<context>
+							<query>${searchQuery}</query>
+							<browser_mode>${browserMode}</browser_mode>
+							${baseLink ? `<base_link>${baseLink}</base_link>` : ""}
+							<error_message>${err}</error_message>
+						</context>
+					</error_details>
+				</web_search_response>`
+			)
 		}
 	}
 
 	private async onBadInputReceived() {
+		const { searchQuery, browserMode } = this.params.input
 		await this.params.say(
 			"error",
 			"Claude tried to use `web_search` without required parameter `searchQuery` or `browserMode`. Retrying..."
 		)
 
-		const errorMsg = `Error: Missing value for required parameter 'searchQuery' or 'browserMode'. Please retry with complete response.
-			A good example of a web_search tool call is:
-			{
-				"tool": "web_search",
-				"searchQuery": "How to import jotai in a react project",
-				"baseLink": "https://jotai.org/docs/introduction",
-				"browserMode": "api_docs",
-				"browserModel": "smart"
-			}
-			Please try again with the correct searchQuery, you are not allowed to search without a searchQuery.`
+		const errorMsg = `
+		<web_search_response>
+			<status>
+				<result>error</result>
+				<operation>web_search</operation>
+				<timestamp>${new Date().toISOString()}</timestamp>
+			</status>
+			<error_details>
+				<type>missing_parameters</type>
+				<message>Missing required parameters 'searchQuery' or 'browserMode'</message>
+				<validation>
+					<searchQuery_provided>${!!searchQuery}</searchQuery_provided>
+					<browserMode_provided>${!!browserMode}</browserMode_provided>
+					<browserMode_valid>${["api_docs", "generic"].includes(browserMode || "")}</browserMode_valid>
+				</validation>
+				<help>
+					<example_usage>
+						<tool>web_search</tool>
+						<parameters>
+							<searchQuery>How to import jotai in a react project</searchQuery>
+							<baseLink>https://jotai.org/docs/introduction</baseLink>
+							<browserMode>api_docs</browserMode>
+						</parameters>
+					</example_usage>
+					<note>Both searchQuery and a valid browserMode are required for web searches</note>
+				</help>
+			</error_details>
+		</web_search_response>`
 		return this.toolResponse("error", errorMsg)
 	}
 

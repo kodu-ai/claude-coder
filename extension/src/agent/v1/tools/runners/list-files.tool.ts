@@ -25,14 +25,28 @@ export class ListFilesTool extends BaseAgentTool {
 				"error",
 				"Claude tried to use list_files without value for required parameter 'path'. Retrying..."
 			)
-			const errorMsg = `Error: Missing value for required parameter 'path'. Please retry with complete response.
-						A good example of a listFiles tool call is:
-			{
-				"tool": "list_files",
-				"path": "path/to/directory"
-			}
-			Please try again with the correct path, you are not allowed to list files without a path.
-			`
+			const errorMsg = `
+			<file_list_response>
+				<status>
+					<result>error</result>
+					<operation>list_files</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>missing_parameter</type>
+					<message>Missing required parameter 'path'</message>
+					<help>
+						<example_usage>
+							<tool>list_files</tool>
+							<parameters>
+								<path>path/to/directory</path>
+								<recursive>true</recursive>
+							</parameters>
+						</example_usage>
+						<note>A valid directory path is required to list files</note>
+					</help>
+				</error_details>
+			</file_list_response>`
 			return this.toolResponse("error", errorMsg)
 		}
 
@@ -88,10 +102,40 @@ export class ListFilesTool extends BaseAgentTool {
 						this.ts
 					)
 					await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-					return this.toolResponse("feedback", formatGenericToolFeedback(text), images)
+					return this.toolResponse(
+						"feedback",
+						`<file_list_response>
+							<status>
+								<result>feedback</result>
+								<operation>list_files</operation>
+								<timestamp>${new Date().toISOString()}</timestamp>
+							</status>
+							<feedback_details>
+								<directory>${getReadablePath(relDirPath, this.cwd)}</directory>
+								<recursive>${recursive}</recursive>
+								<user_feedback>${text || "No feedback provided"}</user_feedback>
+								${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
+							</feedback_details>
+						</file_list_response>`,
+						images
+					)
 				}
 
-				return this.toolResponse("rejected", this.formatToolDenied())
+				return this.toolResponse(
+					"rejected",
+					`<file_list_response>
+						<status>
+							<result>rejected</result>
+							<operation>list_files</operation>
+							<timestamp>${new Date().toISOString()}</timestamp>
+						</status>
+						<rejection_details>
+							<directory>${getReadablePath(relDirPath, this.cwd)}</directory>
+							<recursive>${recursive}</recursive>
+							<message>Operation was rejected by the user</message>
+						</rejection_details>
+					</file_list_response>`
+				)
 			}
 
 			this.params.updateAsk(
@@ -109,7 +153,23 @@ export class ListFilesTool extends BaseAgentTool {
 				this.ts
 			)
 
-			return this.toolResponse("success", result)
+			return this.toolResponse(
+				"success",
+				`<file_list_response>
+					<status>
+						<result>success</result>
+						<operation>list_files</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<directory_info>
+						<path>${getReadablePath(relDirPath, this.cwd)}</path>
+						<recursive>${recursive}</recursive>
+					</directory_info>
+					<files>
+						${result}
+					</files>
+				</file_list_response>`
+			)
 		} catch (error) {
 			this.params.updateAsk(
 				"tool",
@@ -124,7 +184,22 @@ export class ListFilesTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-			const errorString = `Error listing files and directories: ${JSON.stringify(serializeError(error))}`
+			const errorString = `
+			<file_list_response>
+				<status>
+					<result>error</result>
+					<operation>list_files</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>listing_error</type>
+					<message>Failed to list files and directories</message>
+					<context>
+						<directory>${getReadablePath(relDirPath, this.cwd)}</directory>
+						<error_data>${JSON.stringify(serializeError(error))}</error_data>
+					</context>
+				</error_details>
+			</file_list_response>`
 			await say(
 				"error",
 				`Error listing files and directories:\n${
@@ -166,11 +241,28 @@ export class ListFilesTool extends BaseAgentTool {
 			})
 		if (sorted.length >= LIST_FILES_LIMIT) {
 			const truncatedList = sorted.slice(0, LIST_FILES_LIMIT).join("\n")
-			return `${truncatedList}\n\n(Truncated at ${LIST_FILES_LIMIT} results. Try listing files in subdirectories if you need to explore further.)`
+			return `<file_entries>
+				<status>truncated</status>
+				<entries>
+					${sorted
+						.slice(0, LIST_FILES_LIMIT)
+						.map((file) => `<entry>${file}</entry>`)
+						.join("\n")}
+				</entries>
+				<truncation_info>
+					<limit>${LIST_FILES_LIMIT}</limit>
+					<message>Results truncated. Try listing files in subdirectories if you need to explore further.</message>
+				</truncation_info>
+			</file_entries>`
 		} else if (sorted.length === 0 || (sorted.length === 1 && sorted[0] === "")) {
-			return "No files found or you do not have permission to view this directory."
+			return `<file_entries>
+				<status>empty</status>
+				<message>No files found or you do not have permission to view this directory</message>
+			</file_entries>`
 		} else {
-			return sorted.join("\n")
+			return `<file_entries>
+				${sorted.map((file) => `<entry>${file}</entry>`).join("\n")}
+			</file_entries>`
 		}
 	}
 }

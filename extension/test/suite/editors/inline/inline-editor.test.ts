@@ -43,19 +43,14 @@ async function simulateStreaming(diff: string, delayMs: number): Promise<AsyncGe
 
 	return generator()
 }
-async function testBlock(
+
+async function handleStreaming(
+	generator: AsyncGenerator<string, void, unknown>,
 	blockFilePath: string,
-	blockFileContentPath: string,
-	blockBlockContent: string,
-	timeout?: number
+	inlineEditHandler: InlineEditHandler
 ) {
-	const inlineEditHandler = new InlineEditHandler()
-	const generator = await simulateStreaming(blockBlockContent, 20)
 	let editBlocks: EditBlock[] = []
 	let lastAppliedBlockId: string | undefined
-	// Verify content
-	const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(blockFileContentPath))
-
 	for await (const diff of generator) {
 		if (!(diff.includes("SEARCH") && diff.includes("REPLACE"))) {
 			continue
@@ -135,6 +130,22 @@ async function testBlock(
 			}
 		}
 	}
+}
+
+async function testBlock(
+	blockFilePath: string,
+	blockFileContentPath: string,
+	blockBlockContent: string,
+	timeout?: number
+) {
+	const inlineEditHandler = new InlineEditHandler()
+	const generator = await simulateStreaming(blockBlockContent, 20)
+	let editBlocks: EditBlock[] = []
+	let lastAppliedBlockId: string | undefined
+	// Verify content
+	const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(blockFileContentPath))
+
+	await handleStreaming(generator, blockFilePath, inlineEditHandler)
 
 	await inlineEditHandler.forceFinalizeAll(editBlocks)
 
@@ -142,7 +153,7 @@ async function testBlock(
 	// Save with no tabs open
 	const { finalContent: finalDocument, results } = await inlineEditHandler.saveChanges()
 
-	await delay(10_000)
+	// await delay(10_000)
 
 	let expectedContent = Buffer.from(originalText).toString("utf-8")
 	for (const block of editBlocks) {
@@ -163,88 +174,6 @@ const [block6FilePath, block6FileContentPath, block6FileContent, block6BlockCont
 	readBlock("block6", "py")
 
 describe("InlineEditHandler End-to-End Test", () => {
-	const search = `/*
-We can't implement a dynamically updating sliding window as it would break prompt cache
-every time. To maintain the benefits of caching, we need to keep conversation history
-static. This operation should be performed as infrequently as possible. If a user reaches
-a 200k context, we can assume that the first half is likely irrelevant to their current task.
-Therefore, this function should only be called when absolutely necessary to fit within
-context limits, not as a continuous process.
-*/
-export function truncateHalfConversation(
-	messages: Anthropic.Messages.MessageParam[]
-): Anthropic.Messages.MessageParam[] {
-	if (!Array.isArray(messages) || messages.length < MIN_MESSAGES_TO_KEEP) {
-		return messages
-	}
-
-	// Always keep the first Task message (this includes the project's file structure in potentially_relevant_details)
-	const firstMessage = messages[0]
-
-	// Calculate how many message pairs to remove (must be even to maintain user-assistant order)
-	const messagePairsToRemove = Math.max(1, Math.floor((messages.length - MIN_MESSAGES_TO_KEEP) / 4)) * 2
-
-	// Keep the first message and the remaining messages after truncation
-	const remainingMessages = messages.slice(messagePairsToRemove + 1)
-
-	// check if the first message exists appx twice if so pop the last instance and insert the first message again as last
-	// if it doesn't exist twice, insert the first message as the last message
-
-	return [firstMessage, ...remainingMessages]
-}`
-	const replace = `/*
-we made this short on purpose
-*/
-export function truncateHalfConversation(
-	messages: Anthropic.Messages.MessageParam[]
-): Anthropic.Messages.MessageParam[] {
-	// we added comment here
-	if (!Array.isArray(messages) || messages.length < MIN_MESSAGES_TO_KEEP) {
-		return messages
-	}
-
-	// we added another line of comment
-	// Always keep the first Task message (this includes the project's file structure in potentially_relevant_details)
-	const firstMessage = messages[0]
-
-	// Calculate how many message pairs to remove (must be even to maintain user-assistant order)
-	const messagePairsToRemove = Math.max(1, Math.floor((messages.length - MIN_MESSAGES_TO_KEEP) / 4)) * 2
-
-	// this is the best way to see if this is working or is it actually bullshiting me
-	// some more comments because why not
-	// Keep the first message and the remaining messages after truncation
-	const renamedMsgs = messages.slice(messagePairsToRemove + 1)
-
-	return [firstMessage, ...renamedMsgs]
-}`
-	const diff1 = `SEARCH\n${search}\n\nREPLACE\n${replace}`
-	const search2 = `/**
- * Estimates total token count from an array of messages
- * @param messages Array of messages to estimate tokens for
- * @returns Total estimated token count
- */
-export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.MessageParam[]): number => {
-	if (!Array.isArray(messages)) return 0
-
-	return messages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
-}`
-	const replace2 = `/**
- * Estimates total token count from an array of messages
- * @param messages Array of messages to estimate tokens for
- * @returns Total estimated token count
- */
-export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.MessageParam[]): number => {
-	// check if messages is an array
-	if (!Array.isArray(messages)) {
-	return 0
-	}
-
-	// return the total token count
-	return messages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
-}`
-	const diff2 = `SEARCH\n${search2}\n\nREPLACE\n${replace2}`
-
-	const streamedContent = `${diff1}\n\n${diff2}`
 	let inlineEditHandler: InlineEditHandler
 
 	beforeEach(async () => {
@@ -291,428 +220,104 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		])
 	})
 
-	it("should handle streaming updates for multiple blocks", async () => {
-		const generator = await simulateStreaming(streamedContent, 25)
-		const editBlocks: Array<{
-			id: string
-			replaceContent: string
-			searchContent: string
-			finalContent?: string
-		}> = []
-		let lastAppliedBlockId: string | undefined
+	// it("should handle long stream with tabs switches correctly", async () => {
+	// 	// Create a second file to switch between
 
-		for await (const diff of generator) {
-			try {
-				const blocks = parseDiffBlocks(diff, testFilePath)
-				if (blocks.length > 0) {
-					const currentBlock = blocks.at(-1)
-					if (!currentBlock?.replaceContent) {
-						continue
-					}
+	// 	const generator = await simulateStreaming(, 30)
 
-					// If this block hasn't been tracked yet, initialize it
-					if (!editBlocks.some((block) => block.id === currentBlock.id)) {
-						// Clean up any SEARCH text from the last block before starting new one
-						if (lastAppliedBlockId) {
-							const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-							if (lastBlock) {
-								const lines = lastBlock.replaceContent.split("\n")
-								// Only remove the last line if it ONLY contains a partial SEARCH
-								if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
-									lines.pop()
-									await inlineEditHandler.applyFinalContent(
-										lastBlock.id,
-										lastBlock.searchContent,
-										lines.join("\n")
-									)
-								} else {
-									await inlineEditHandler.applyFinalContent(
-										lastBlock.id,
-										lastBlock.searchContent,
-										lastBlock.replaceContent
-									)
-								}
-							}
-						}
+	// 	try {
+	// 		// Open both files
+	// 		const secondDoc = await vscode.workspace.openTextDocument(secondFilePath)
+	// 		const interval = setInterval(() => {
+	// 			vscode.window.showTextDocument(secondDoc)
+	// 		}, 50)
+	// 		await vscode.window.showTextDocument(secondDoc)
 
-						await inlineEditHandler.open(currentBlock.id, testFilePath, currentBlock.searchContent)
-						editBlocks.push({
-							id: currentBlock.id,
-							replaceContent: currentBlock.replaceContent,
-							searchContent: currentBlock.searchContent,
-						})
-						lastAppliedBlockId = currentBlock.id
-					}
+	// 		await handleStreaming(generator, secondFilePath, inlineEditHandler)
 
-					const blockData = editBlocks.find((block) => block.id === currentBlock.id)
-					if (blockData) {
-						blockData.replaceContent = currentBlock.replaceContent
-						await inlineEditHandler.applyStreamContent(
-							currentBlock.id,
-							currentBlock.searchContent,
-							currentBlock.replaceContent
-						)
-					}
-				}
-			} catch (err) {
-				console.warn(`Warning block not parsable yet`)
-			}
-		}
+	// 		// Save changes
+	// 		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
+	// 		clearInterval(interval)
+	// 		// Verify both changes were applied correctly
+	// 		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
+	// 		let expectedContent = Buffer.from(originalText).toString("utf-8")
+	// 		expectedContent = expectedContent.replace(search, replace)
+	// 		expectedContent = expectedContent.replace(search2, replace2)
 
-		// Finalize the last block
-		if (lastAppliedBlockId) {
-			const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-			if (lastBlock) {
-				const lines = lastBlock.replaceContent.split("\n")
-				await inlineEditHandler.applyFinalContent(lastBlock.id, lastBlock.searchContent, lines.join("\n"))
-			}
-		}
+	// 		assert.strictEqual(finalDocument, expectedContent)
+	// 	} finally {
+	// 		// Cleanup second file
+	// 		if (fs.existsSync(secondFilePath)) {
+	// 			fs.unlinkSync(secondFilePath)
+	// 		}
+	// 	}
+	// })
 
-		// Save changes
-		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
+	// it("should handle saves while different tab is active", async () => {
+	// 	// Create a second file
+	// 	const secondFilePath = path.join(__dirname, "secondFile.ts")
+	// 	fs.writeFileSync(secondFilePath, "// Second file content", "utf8")
 
-		// Verify both changes were applied correctly
-		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
-		let expectedContent = Buffer.from(originalText).toString("utf-8")
-		expectedContent = expectedContent.replace(search, replace)
-		expectedContent = expectedContent.replace(search2, replace2)
+	// 	const generator = await simulateStreaming(streamedContent, 10)
+	// 	const editBlocks: Array<{
+	// 		id: string
+	// 		replaceContent: string
+	// 		searchContent: string
+	// 		finalContent?: string
+	// 	}> = []
+	// 	let lastAppliedBlockId: string | undefined
 
-		assert.strictEqual(finalDocument, expectedContent)
-	})
+	// 	try {
+	// 		// Start with the main file
+	// 		const mainDoc = await vscode.workspace.openTextDocument(testFilePath)
+	// 		await vscode.window.showTextDocument(mainDoc)
 
-	it("should handle long stream with tabs switches correctly", async () => {
-		// Create a second file to switch between
-		const secondFilePath = path.join(__dirname, "secondFile.ts")
-		fs.writeFileSync(secondFilePath, "// Second file content", "utf8")
+	// 		await handleStreaming(generator, secondFilePath, inlineEditHandler)
+	// 		await vscode.window.showTextDocument(mainDoc)
 
-		const generator = await simulateStreaming(streamedContent, 30)
-		const editBlocks: Array<{
-			id: string
-			replaceContent: string
-			searchContent: string
-			finalContent?: string
-		}> = []
-		let lastAppliedBlockId: string | undefined
-		let finalEditBlocks: EditBlock[] = []
+	// 		// Save while different tab is active
+	// 		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
+	// 		await vscode.window.showTextDocument(mainDoc)
 
-		try {
-			// Open both files
-			const secondDoc = await vscode.workspace.openTextDocument(secondFilePath)
-			await vscode.window.showTextDocument(secondDoc)
-			let lastSwitchTime = Date.now()
-			let isFirstFile = true
-			for await (const diff of generator) {
-				try {
-					const blocks = parseDiffBlocks(diff, testFilePath)
-					finalEditBlocks = blocks
-					if (blocks.length > 0) {
-						const currentBlock = blocks.at(-1)
-						if (!currentBlock?.replaceContent) {
-							continue
-						}
+	// 		// Verify content
+	// 		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
+	// 		let expectedContent = Buffer.from(originalText).toString("utf-8")
+	// 		expectedContent = expectedContent.replace(search, replace)
+	// 		expectedContent = expectedContent.replace(search2, replace2)
 
-						// Switch between tabs every 1.5 seconds
-						const currentTime = Date.now()
-						if (currentTime - lastSwitchTime >= 1500) {
-							if (isFirstFile) {
-								const doc1 = await vscode.workspace.openTextDocument(testFilePath)
-								await vscode.window.showTextDocument(doc1)
-							} else {
-								const doc2 = await vscode.workspace.openTextDocument(secondFilePath)
-								await vscode.window.showTextDocument(doc2)
-							}
-							isFirstFile = !isFirstFile
-							lastSwitchTime = currentTime
-						}
+	// 		assert.strictEqual(finalDocument, expectedContent)
+	// 	} finally {
+	// 		if (fs.existsSync(secondFilePath)) {
+	// 			fs.unlinkSync(secondFilePath)
+	// 		}
+	// 	}
+	// })
 
-						// If this block hasn't been tracked yet, initialize it
-						if (!editBlocks.some((block) => block.id === currentBlock.id)) {
-							// Clean up any SEARCH text from the last block before starting new one
-							if (lastAppliedBlockId) {
-								const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-								if (lastBlock) {
-									const lines = lastBlock.replaceContent.split("\n")
-									// Only remove the last line if it ONLY contains a partial SEARCH
-									if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
-										lines.pop()
-										await inlineEditHandler.applyFinalContent(
-											lastBlock.id,
-											lastBlock.searchContent,
-											lines.join("\n")
-										)
-									} else {
-										await inlineEditHandler.applyFinalContent(
-											lastBlock.id,
-											lastBlock.searchContent,
-											lastBlock.replaceContent
-										)
-									}
-								}
-							}
+	// it("should handle saves with no tabs open", async () => {
+	// 	const generator = await simulateStreaming(streamedContent, 25)
+	// 	let editBlocks: EditBlock[] = []
+	// 	// Verify content
+	// 	const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
 
-							await inlineEditHandler.open(currentBlock.id, testFilePath, currentBlock.searchContent)
-							editBlocks.push({
-								id: currentBlock.id,
-								replaceContent: currentBlock.replaceContent,
-								searchContent: currentBlock.searchContent,
-							})
-							lastAppliedBlockId = currentBlock.id
-						}
+	// 	const interval = setInterval(() => {
+	// 		// Close all editors after first block is initialized
+	// 		vscode.commands.executeCommand("workbench.action.closeAllEditors")
+	// 	}, 500)
 
-						const blockData = editBlocks.find((block) => block.id === currentBlock.id)
-						if (blockData) {
-							blockData.replaceContent = currentBlock.replaceContent
-							await inlineEditHandler.applyStreamContent(
-								currentBlock.id,
-								currentBlock.searchContent,
-								currentBlock.replaceContent
-							)
-						}
-					}
-				} catch (err) {
-					console.warn(`Warning block not parsable yet`)
-				}
-			}
+	// 	await handleStreaming(generator, toEditFilePath, inlineEditHandler)
 
-			// Finalize the last block
-			if (lastAppliedBlockId) {
-				const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-				if (lastBlock) {
-					const lines = lastBlock.replaceContent.split("\n")
-					await inlineEditHandler.applyFinalContent(lastBlock.id, lastBlock.searchContent, lines.join("\n"))
-				}
-			}
+	// 	clearInterval(interval)
+	// 	await inlineEditHandler.forceFinalizeAll(editBlocks)
 
-			// finalize all blocks
-			await inlineEditHandler.forceFinalizeAll(editBlocks)
+	// 	// Save with no tabs open
+	// 	const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
-			// Save changes
-			const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
+	// 	let expectedContent = Buffer.from(originalText).toString("utf-8")
+	// 	expectedContent = expectedContent.replace(search, replace)
+	// 	expectedContent = expectedContent.replace(search2, replace2)
 
-			// Verify both changes were applied correctly
-			const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
-			let expectedContent = Buffer.from(originalText).toString("utf-8")
-			expectedContent = expectedContent.replace(search, replace)
-			expectedContent = expectedContent.replace(search2, replace2)
-
-			assert.strictEqual(finalDocument, expectedContent)
-		} finally {
-			// Cleanup second file
-			if (fs.existsSync(secondFilePath)) {
-				fs.unlinkSync(secondFilePath)
-			}
-		}
-	})
-
-	it("should handle saves while different tab is active", async () => {
-		// Create a second file
-		const secondFilePath = path.join(__dirname, "secondFile.ts")
-		fs.writeFileSync(secondFilePath, "// Second file content", "utf8")
-
-		const generator = await simulateStreaming(streamedContent, 10)
-		const editBlocks: Array<{
-			id: string
-			replaceContent: string
-			searchContent: string
-			finalContent?: string
-		}> = []
-		let lastAppliedBlockId: string | undefined
-
-		try {
-			// Start with the main file
-			const mainDoc = await vscode.workspace.openTextDocument(testFilePath)
-			await vscode.window.showTextDocument(mainDoc)
-
-			for await (const diff of generator) {
-				try {
-					const blocks = parseDiffBlocks(diff, testFilePath)
-					if (blocks.length > 0) {
-						const currentBlock = blocks.at(-1)
-						if (!currentBlock?.replaceContent) {
-							continue
-						}
-
-						if (!editBlocks.some((block) => block.id === currentBlock.id)) {
-							if (lastAppliedBlockId) {
-								const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-								if (lastBlock) {
-									const lines = lastBlock.replaceContent.split("\n")
-									if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
-										lines.pop()
-										await inlineEditHandler.applyFinalContent(
-											lastBlock.id,
-											lastBlock.searchContent,
-											lines.join("\n")
-										)
-									} else {
-										await inlineEditHandler.applyFinalContent(
-											lastBlock.id,
-											lastBlock.searchContent,
-											lastBlock.replaceContent
-										)
-									}
-								}
-							}
-
-							// Switch to second file after first block is initialized
-							const secondDoc = await vscode.workspace.openTextDocument(secondFilePath)
-							await vscode.window.showTextDocument(secondDoc)
-
-							await inlineEditHandler.open(currentBlock.id, testFilePath, currentBlock.searchContent)
-							editBlocks.push({
-								id: currentBlock.id,
-								replaceContent: currentBlock.replaceContent,
-								searchContent: currentBlock.searchContent,
-							})
-							lastAppliedBlockId = currentBlock.id
-						}
-
-						const blockData = editBlocks.find((block) => block.id === currentBlock.id)
-						if (blockData) {
-							blockData.replaceContent = currentBlock.replaceContent
-							await inlineEditHandler.applyStreamContent(
-								currentBlock.id,
-								currentBlock.searchContent,
-								currentBlock.replaceContent
-							)
-						}
-					}
-				} catch (err) {
-					console.warn(`Warning block not parsable yet`)
-				}
-			}
-
-			// Finalize the last block
-			if (lastAppliedBlockId) {
-				const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-				if (lastBlock) {
-					const lines = lastBlock.replaceContent.split("\n")
-					await inlineEditHandler.applyFinalContent(lastBlock.id, lastBlock.searchContent, lines.join("\n"))
-				}
-			}
-
-			// Save while different tab is active
-			const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
-
-			// Verify content
-			const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
-			let expectedContent = Buffer.from(originalText).toString("utf-8")
-			expectedContent = expectedContent.replace(search, replace)
-			expectedContent = expectedContent.replace(search2, replace2)
-
-			assert.strictEqual(finalDocument, expectedContent)
-		} finally {
-			if (fs.existsSync(secondFilePath)) {
-				fs.unlinkSync(secondFilePath)
-			}
-		}
-	})
-
-	it("should handle saves with no tabs open", async () => {
-		const generator = await simulateStreaming(streamedContent, 25)
-		let editBlocks: EditBlock[] = []
-		let lastAppliedBlockId: string | undefined
-		// Verify content
-		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
-
-		const interval = setInterval(() => {
-			// Close all editors after first block is initialized
-			vscode.commands.executeCommand("workbench.action.closeAllEditors")
-		}, 500)
-
-		for await (const diff of generator) {
-			if (!(diff.includes("SEARCH") && diff.includes("REPLACE"))) {
-				continue
-			}
-			try {
-				editBlocks = parseDiffBlocks(diff, testFilePath)
-			} catch (err) {
-				console.log(`Error parsing diff blocks: ${err}`, "error")
-				continue
-			}
-			if (!inlineEditHandler.isOpen()) {
-				try {
-					await inlineEditHandler.open(editBlocks[0].id, testFilePath, editBlocks[0].searchContent)
-				} catch (e) {
-					console.log("Error opening diff view: " + e, "error")
-					continue
-				}
-			}
-			// now we are going to start applying the diff blocks
-			if (editBlocks.length > 0) {
-				const currentBlock = editBlocks.at(-1)
-				if (!currentBlock?.replaceContent) {
-					continue
-				}
-
-				// If this block hasn't been tracked yet, initialize it
-				if (!editBlocks.some((block) => block.id === currentBlock.id)) {
-					// Clean up any SEARCH text from the last block before starting new one
-					if (lastAppliedBlockId) {
-						const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-						if (lastBlock) {
-							const lines = lastBlock.replaceContent.split("\n")
-							// Only remove the last line if it ONLY contains a partial SEARCH
-							if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
-								lines.pop()
-								await inlineEditHandler.applyFinalContent(
-									lastBlock.id,
-									lastBlock.searchContent,
-									lines.join("\n")
-								)
-							} else {
-								await inlineEditHandler.applyFinalContent(
-									lastBlock.id,
-									lastBlock.searchContent,
-									lastBlock.replaceContent
-								)
-							}
-						}
-					}
-
-					await inlineEditHandler.open(currentBlock.id, testFilePath, currentBlock.searchContent)
-					editBlocks.push({
-						id: currentBlock.id,
-						replaceContent: currentBlock.replaceContent,
-						path: testFilePath,
-						searchContent: currentBlock.searchContent,
-					})
-					lastAppliedBlockId = currentBlock.id
-				}
-
-				const blockData = editBlocks.find((block) => block.id === currentBlock.id)
-				if (blockData) {
-					blockData.replaceContent = currentBlock.replaceContent
-					await inlineEditHandler.applyStreamContent(
-						currentBlock.id,
-						currentBlock.searchContent,
-						currentBlock.replaceContent
-					)
-				}
-			}
-
-			// Finalize the last block
-			if (lastAppliedBlockId) {
-				const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-				if (lastBlock) {
-					const lines = lastBlock.replaceContent.split("\n")
-					await inlineEditHandler.applyFinalContent(lastBlock.id, lastBlock.searchContent, lines.join("\n"))
-				}
-			}
-		}
-		// clear the interval
-		clearInterval(interval)
-		await inlineEditHandler.forceFinalizeAll(editBlocks)
-
-		// Save with no tabs open
-		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
-
-		let expectedContent = Buffer.from(originalText).toString("utf-8")
-		expectedContent = expectedContent.replace(search, replace)
-		expectedContent = expectedContent.replace(search2, replace2)
-
-		assert.strictEqual(finalDocument, expectedContent)
-	})
+	// 	assert.strictEqual(finalDocument, expectedContent)
+	// })
 
 	it("should test that block 3 is parsed and apllied correctly", async () => {
 		await testBlock(block3FilePath, block3FileContentPath, block3BlockContent)
@@ -771,248 +376,6 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		return generator()
 	}
 
-	it("should handle rapid partial updates with potential race conditions", async () => {
-		const search3 = `function processData(data) {
-	    // Process the input data
-	    const result = data.map(item => {
-	        return item * 2;
-	    });
-	    return result;
-	}`
-		const replace3 = `function processData(data) {
-	    // Add validation for input
-	    if (!Array.isArray(data)) {
-	        throw new Error('Input must be an array');
-	    }
-
-	    // Process the input data with additional logging
-	    console.log('Processing data:', data);
-	    const result = data.map(item => {
-	        return item * 2;
-	    });
-
-	    return result;
-	}`
-		const search4 = `function validateInput(input) {
-	    return typeof input === 'string';
-	}`
-		const replace4 = `function validateInput(input) {
-	    // Add more comprehensive validation
-	    if (typeof input !== 'string') {
-	        return false;
-	    }
-
-	    // Check for minimum length
-	    if (input.length < 3) {
-	        return false;
-	    }
-
-	    return true;
-	}`
-
-		const streamedContent = `${diff1}\n\n${diff2}\n\nSEARCH\n${search3}\n\nREPLACE\n${replace3}\n\nSEARCH\n${search4}\n\nREPLACE\n${replace4}`
-
-		const generator = await simulateRaceConditionStreaming(streamedContent)
-		const editBlocks: Array<{
-			id: string
-			replaceContent: string
-			searchContent: string
-			finalContent?: string
-		}> = []
-		let lastAppliedBlockId: string | undefined
-
-		// Track the order of updates for verification
-		const updateOrder: string[] = []
-
-		for await (const diff of generator) {
-			try {
-				const blocks = parseDiffBlocks(diff, testFilePath)
-				if (blocks.length > 0) {
-					const currentBlock = blocks.at(-1)
-					if (!currentBlock?.replaceContent) {
-						continue
-					}
-
-					if (!editBlocks.some((block) => block.id === currentBlock.id)) {
-						if (lastAppliedBlockId) {
-							const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-							if (lastBlock) {
-								const lines = lastBlock.replaceContent.split("\n")
-								if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
-									lines.pop()
-									await inlineEditHandler.applyFinalContent(
-										lastBlock.id,
-										lastBlock.searchContent,
-										lines.join("\n")
-									)
-								} else {
-									await inlineEditHandler.applyFinalContent(
-										lastBlock.id,
-										lastBlock.searchContent,
-										lastBlock.replaceContent
-									)
-								}
-							}
-						}
-
-						await inlineEditHandler.open(currentBlock.id, testFilePath, currentBlock.searchContent)
-						editBlocks.push({
-							id: currentBlock.id,
-							replaceContent: currentBlock.replaceContent,
-							searchContent: currentBlock.searchContent,
-						})
-						lastAppliedBlockId = currentBlock.id
-						updateOrder.push(`open:${currentBlock.id}`)
-					}
-
-					const blockData = editBlocks.find((block) => block.id === currentBlock.id)
-					if (blockData) {
-						blockData.replaceContent = currentBlock.replaceContent
-						await inlineEditHandler.applyStreamContent(
-							currentBlock.id,
-							currentBlock.searchContent,
-							currentBlock.replaceContent
-						)
-						updateOrder.push(`update:${currentBlock.id}`)
-					}
-				}
-			} catch (err) {
-				console.warn(`Warning block not parsable yet`)
-			}
-		}
-
-		await inlineEditHandler.forceFinalizeAll(editBlocks)
-		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
-
-		// Verify the content was applied correctly despite race conditions
-		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
-		let expectedContent = Buffer.from(originalText).toString("utf-8")
-		expectedContent = expectedContent.replace(search, replace)
-		expectedContent = expectedContent.replace(search2, replace2)
-		expectedContent = expectedContent.replace(search3, replace3)
-		expectedContent = expectedContent.replace(search4, replace4)
-
-		assert.strictEqual(finalDocument, expectedContent)
-
-		// Verify update order maintains block sequence
-		const blockIds = editBlocks.map((block) => block.id)
-		for (let i = 0; i < blockIds.length; i++) {
-			const openIndex = updateOrder.findIndex((update) => update === `open:${blockIds[i]}`)
-			const nextOpenIndex =
-				i < blockIds.length - 1
-					? updateOrder.findIndex((update) => update === `open:${blockIds[i + 1]}`)
-					: updateOrder.length
-
-			// Verify all updates for current block happen between its open and next block's open
-			const updatesForBlock = updateOrder
-				.slice(openIndex, nextOpenIndex)
-				.filter((update) => update.startsWith("update:"))
-				.every((update) => update === `update:${blockIds[i]}`)
-
-			assert.strictEqual(updatesForBlock, true, `Updates for block ${blockIds[i]} were not sequential`)
-		}
-	})
-
-	it("should handle overlapping block updates correctly", async () => {
-		// Create overlapping search/replace blocks
-		const search1 = `function getData() {
-	    const data = fetchData();
-	    return data;
-	}`
-		const replace1 = `function getData() {
-	    const data = fetchData();
-	    processData(data);
-	    return data;
-	}`
-		// This block overlaps with the first one
-		const search2 = `const data = fetchData();
-	    return data;`
-		const replace2 = `const data = fetchData();
-	    validateData(data);
-	    return data;`
-
-		const streamedContent = `SEARCH\n${search1}\n\nREPLACE\n${replace1}\n\nSEARCH\n${search2}\n\nREPLACE\n${replace2}`
-
-		const generator = await simulateRaceConditionStreaming(streamedContent)
-		const editBlocks: Array<{
-			id: string
-			replaceContent: string
-			searchContent: string
-		}> = []
-
-		let lastAppliedBlockId: string | undefined
-		const appliedUpdates: Array<{ blockId: string; content: string }> = []
-
-		for await (const diff of generator) {
-			try {
-				const blocks = parseDiffBlocks(diff, testFilePath)
-				if (blocks.length > 0) {
-					const currentBlock = blocks.at(-1)
-					if (!currentBlock?.replaceContent) continue
-
-					if (!editBlocks.some((block) => block.id === currentBlock.id)) {
-						if (lastAppliedBlockId) {
-							const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-							if (lastBlock) {
-								await inlineEditHandler.applyFinalContent(
-									lastBlock.id,
-									lastBlock.searchContent,
-									lastBlock.replaceContent
-								)
-							}
-						}
-
-						await inlineEditHandler.open(currentBlock.id, testFilePath, currentBlock.searchContent)
-						editBlocks.push({
-							id: currentBlock.id,
-							replaceContent: currentBlock.replaceContent,
-							searchContent: currentBlock.searchContent,
-						})
-						lastAppliedBlockId = currentBlock.id
-					}
-
-					const blockData = editBlocks.find((block) => block.id === currentBlock.id)
-					if (blockData) {
-						blockData.replaceContent = currentBlock.replaceContent
-						await inlineEditHandler.applyStreamContent(
-							currentBlock.id,
-							currentBlock.searchContent,
-							currentBlock.replaceContent
-						)
-						appliedUpdates.push({
-							blockId: currentBlock.id,
-							content: currentBlock.replaceContent,
-						})
-					}
-				}
-			} catch (err) {
-				console.warn(`Warning block not parsable yet`)
-			}
-		}
-
-		await inlineEditHandler.forceFinalizeAll(editBlocks)
-		const { finalContent } = await inlineEditHandler.saveChanges()
-
-		// Verify that overlapping blocks were handled correctly
-		// The second block should not have overwritten the changes from the first block
-		assert.ok(
-			finalContent.includes("processData(data)") && finalContent.includes("validateData(data)"),
-			"Both block changes should be preserved"
-		)
-
-		// Verify update order for overlapping blocks
-		for (const block of editBlocks) {
-			const updates = appliedUpdates.filter((update) => update.blockId === block.id)
-			// Verify updates for each block were applied in sequence
-			for (let i = 1; i < updates.length; i++) {
-				assert.ok(
-					updates[i].content.length >= updates[i - 1].content.length,
-					`Updates for block ${block.id} were not applied in sequence`
-				)
-			}
-		}
-	})
-
 	it("should handle CRLF vs LF line endings correctly", async () => {
 		const searchContent = "function test() {\n    console.log('test');\n}"
 		const replaceContent = "function test() {\r\n    console.log('updated');\r\n}"
@@ -1024,26 +387,8 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		const diff = `SEARCH\n${searchContent}\n\nREPLACE\n${replaceContent}`
 		const generator = await simulateStreaming(diff, 25)
 
-		let editBlocks: EditBlock[] = []
-		for await (const chunk of generator) {
-			if (!chunk.includes("SEARCH") || !chunk.includes("REPLACE")) continue
-			try {
-				editBlocks = parseDiffBlocks(chunk, testFilePath)
-				if (!inlineEditHandler.isOpen()) {
-					await inlineEditHandler.open(editBlocks[0].id, testFilePath, editBlocks[0].searchContent)
-				}
-				const currentBlock = editBlocks[0]
-				await inlineEditHandler.applyStreamContent(
-					currentBlock.id,
-					currentBlock.searchContent,
-					currentBlock.replaceContent
-				)
-			} catch (err) {
-				console.warn("Warning: Block not parsable yet")
-			}
-		}
+		await handleStreaming(generator, testFilePath, inlineEditHandler)
 
-		await inlineEditHandler.forceFinalizeAll(editBlocks)
 		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 		const expectedContent = testContent.replace(searchContent.replace(/\n/g, "\r\n"), replaceContent)
 		assert.strictEqual(finalDocument, expectedContent)

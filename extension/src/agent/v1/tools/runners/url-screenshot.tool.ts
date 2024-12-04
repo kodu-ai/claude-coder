@@ -47,7 +47,21 @@ export class UrlScreenshotTool extends BaseAgentTool {
 		} catch (err) {
 			if (this.isAborting) {
 				await this.cleanup()
-				return this.toolResponse("error", "The tool execution was aborted.")
+				return this.toolResponse(
+					"error",
+					`<screenshot_tool_response>
+						<status>
+							<result>error</result>
+							<operation>url_screenshot</operation>
+							<timestamp>${new Date().toISOString()}</timestamp>
+						</status>
+						<error_details>
+							<type>execution_aborted</type>
+							<message>The tool execution was aborted</message>
+							<url>${url}</url>
+						</error_details>
+					</screenshot_tool_response>`
+				)
 			}
 			throw err
 		}
@@ -115,16 +129,22 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			await fs.writeFile(absolutePath, buffer)
 
 			const textBlock = `
-                The screenshot was saved to file path: ${absolutePath}.
-                Here is the updated browser logs, THIS IS THE ONLY RELEVANT INFORMATION, all previous logs are irrelevant:
-                <browser_logs>
-                You should only care about mission critical errors, you shouldn't care about warnings or info logs.
-                YOU SHOULD ONLY care about errors that mention there is a clear error like a missing import or a syntax error.
-                <log>
-                ${logs}
-                </log>
-                </browser_logs>
-                `
+			<screenshot_tool_response>
+				<status>
+					<result>success</result>
+					<operation>url_screenshot</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<screenshot_info>
+					<url>${url}</url>
+					<file_path>${absolutePath}</file_path>
+					<capture_time>${new Date().toISOString()}</capture_time>
+				</screenshot_info>
+				<browser_logs>
+					<note>Only mission-critical errors are relevant. Warnings and info logs should be ignored.</note>
+					<content>${logs}</content>
+				</browser_logs>
+			</screenshot_tool_response>`
 			const imageBlock = [imageToBase64]
 
 			// Final abort check before completing
@@ -168,13 +188,27 @@ export class UrlScreenshotTool extends BaseAgentTool {
 			"Claude tried to use `url_screenshot` without required parameter `url`. Retrying..."
 		)
 
-		const errMsg = `Error: Missing value for required parameter 'url'. Please retry with complete response.
-            A good example of a web_search tool call is:
-            {
-                "tool": "url_screenshot",
-                "url": "How to import jotai in a react project",
-            }
-            Please try again with the correct url, you are not allowed to search without a url.`
+		const errMsg = `
+		<screenshot_tool_response>
+			<status>
+				<result>error</result>
+				<operation>url_screenshot</operation>
+				<timestamp>${new Date().toISOString()}</timestamp>
+			</status>
+			<error_details>
+				<type>missing_parameter</type>
+				<message>Missing required parameter 'url'</message>
+				<help>
+					<example_usage>
+						<tool>url_screenshot</tool>
+						<parameters>
+							<url>http://localhost:3000</url>
+						</parameters>
+					</example_usage>
+					<note>A valid URL is required to capture screenshots</note>
+				</help>
+			</error_details>
+		</screenshot_tool_response>`
 		return this.toolResponse("error", errMsg)
 	}
 
@@ -214,9 +248,37 @@ export class UrlScreenshotTool extends BaseAgentTool {
 				this.ts
 			)
 			await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-			return this.toolResponse("feedback", text ?? "The user denied this operation.", images)
+			return this.toolResponse(
+				"feedback",
+				`<screenshot_tool_response>
+					<status>
+						<result>feedback</result>
+						<operation>url_screenshot</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<feedback_details>
+						<url>${this.params.input.url!}</url>
+						<user_feedback>${text || "No feedback provided"}</user_feedback>
+						${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
+					</feedback_details>
+				</screenshot_tool_response>`,
+				images
+			)
 		}
 
-		return this.toolResponse("rejected", "The user denied this operation.")
+		return this.toolResponse(
+			"rejected",
+			`<screenshot_tool_response>
+				<status>
+					<result>rejected</result>
+					<operation>url_screenshot</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<rejection_details>
+					<url>${this.params.input.url!}</url>
+					<message>Operation was rejected by the user</message>
+				</rejection_details>
+			</screenshot_tool_response>`
+		)
 	}
 }

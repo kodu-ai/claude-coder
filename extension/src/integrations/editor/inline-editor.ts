@@ -44,7 +44,9 @@ interface DocumentState {
 	originalContent: string
 	currentContent: string
 	editBlocks: Map<string, EditBlock>
-	lastUpdateResults?: BlockResult[] // Add this line
+	editBlocksInsertionIndex: Map<string, number> // Track insertion order of edit blocks
+	lastInsertionIndex: number // Keep track of the last used index
+	lastUpdateResults?: BlockResult[]
 }
 
 interface BlockResult {
@@ -160,6 +162,8 @@ export class InlineEditHandler {
 				originalContent: documentContent,
 				currentContent: documentContent,
 				editBlocks: new Map(),
+				editBlocksInsertionIndex: new Map(),
+				lastInsertionIndex: 0,
 			}
 
 			// Add initial block
@@ -169,6 +173,9 @@ export class InlineEditHandler {
 				currentContent: searchContent,
 				status: "pending",
 			})
+			// Track initial block insertion order
+			this.currentDocumentState.lastInsertionIndex++
+			this.currentDocumentState.editBlocksInsertionIndex.set(id, this.currentDocumentState.lastInsertionIndex)
 
 			// Apply decorations
 			await this.refreshEditor()
@@ -214,6 +221,9 @@ export class InlineEditHandler {
 					status: "pending",
 				}
 				this.currentDocumentState.editBlocks.set(id, block)
+				// Track insertion order
+				this.currentDocumentState.lastInsertionIndex++
+				this.currentDocumentState.editBlocksInsertionIndex.set(id, this.currentDocumentState.lastInsertionIndex)
 			}
 
 			// Update block content
@@ -266,6 +276,14 @@ export class InlineEditHandler {
 					status: "pending",
 				}
 				this.currentDocumentState.editBlocks.set(id, block)
+				// Track insertion order if not already tracked
+				if (!this.currentDocumentState.editBlocksInsertionIndex.has(id)) {
+					this.currentDocumentState.lastInsertionIndex++
+					this.currentDocumentState.editBlocksInsertionIndex.set(
+						id,
+						this.currentDocumentState.lastInsertionIndex
+					)
+				}
 			}
 
 			// Update block content
@@ -306,9 +324,19 @@ export class InlineEditHandler {
 			return undefined
 		}
 
-		// Get all blocks sorted by their position in the document
-		const blocks = Array.from(this.currentDocumentState.editBlocks.values())
-		return blocks[blocks.length - 1]
+		// Find the block with the highest insertion index
+		let latestBlock: EditBlock | undefined
+		let highestIndex = -1
+
+		for (const [blockId, block] of this.currentDocumentState.editBlocks) {
+			const insertionIndex = this.currentDocumentState.editBlocksInsertionIndex.get(blockId) ?? -1
+			if (insertionIndex > highestIndex) {
+				highestIndex = insertionIndex
+				latestBlock = block
+			}
+		}
+
+		return latestBlock
 	}
 
 	private async refreshEditor(): Promise<void> {
@@ -328,7 +356,7 @@ export class InlineEditHandler {
 			const lastBlock = this.getLatestEditBlock()
 			if (lastBlock) {
 				// find the last REPLACE marker
-				const lastChars = `>>>>>>> REPLACE`
+				const lastChars = ``
 				const searchIndex = document.getText().lastIndexOf(lastChars)
 
 				if (searchIndex !== -1) {
@@ -337,6 +365,8 @@ export class InlineEditHandler {
 					const end = document.positionAt(searchIndex)
 					const range = new vscode.Range(start, end)
 					await this.scrollToRange(editor, range)
+				} else {
+					this.logger("Could not determine scroll position for last edit block", "warn")
 				}
 			}
 		}
@@ -385,6 +415,12 @@ export class InlineEditHandler {
 						finalContent: block.replaceContent,
 						status: "final",
 					})
+					// Track insertion order for new blocks
+					this.currentDocumentState.lastInsertionIndex++
+					this.currentDocumentState.editBlocksInsertionIndex.set(
+						block.id,
+						this.currentDocumentState.lastInsertionIndex
+					)
 				}
 				this.applyFinalContent(block.id, block.searchContent, block.replaceContent)
 			}
@@ -425,65 +461,33 @@ export class InlineEditHandler {
 	}
 
 	private formatToDiff(searchContent: string, replaceContent: string): string {
-		return `<<<<<<< SEARCH\n${searchContent}\n=======\n${replaceContent}\n>>>>>>> REPLACE`
+		return `<<<<<<< SEARCH\n${searchContent}\n\n${replaceContent}\n`
 	}
 
 	private findAndReplace(content: string, searchContent: string, replaceContent: string): MatchResult {
-		const blocks = this.currentDocumentState?.editBlocks.values()
-		// Look up if we've already found this block's match
-		const matchedBlock = Array.from(blocks ?? []).find((block) => block.searchContent === searchContent)
-
-		// If we already found the match location, just do the replacement
-		if (matchedBlock?.matchedLocation) {
-			return this.performReplace(
-				content,
-				matchedBlock.matchedLocation.lineStart,
-				matchedBlock.matchedLocation.lineEnd,
-				replaceContent
-			)
-		}
-
+		// Always attempt to find the match in the current content
 		// 1. Perfect match
 		const perfectMatch = this.findPerfectMatch(content, searchContent)
-		if (perfectMatch.success && matchedBlock) {
-			matchedBlock.matchedLocation = {
-				lineStart: perfectMatch.lineStart!,
-				lineEnd: perfectMatch.lineEnd!,
-			}
+		if (perfectMatch.success) {
 			return this.performReplace(content, perfectMatch.lineStart!, perfectMatch.lineEnd!, replaceContent)
 		}
 
-		// 2. White space match
+		// 2. Whitespace match
 		const whitespaceMatch = this.findWhitespaceMatch(content, searchContent)
-		if (whitespaceMatch.success && matchedBlock) {
-			matchedBlock.matchedLocation = {
-				lineStart: whitespaceMatch.lineStart!,
-				lineEnd: whitespaceMatch.lineEnd!,
-			}
+		if (whitespaceMatch.success) {
 			return this.performReplace(content, whitespaceMatch.lineStart!, whitespaceMatch.lineEnd!, replaceContent)
 		}
 
 		// 3. Trailing space match
 		const trailingMatch = this.findTrailingMatch(content, searchContent)
-		if (trailingMatch.success && matchedBlock) {
-			matchedBlock.matchedLocation = {
-				lineStart: trailingMatch.lineStart!,
-				lineEnd: trailingMatch.lineEnd!,
-			}
+		if (trailingMatch.success) {
 			return this.performReplace(content, trailingMatch.lineStart!, trailingMatch.lineEnd!, replaceContent)
 		}
 
-		// 4. Last resort: DMP match (only if we haven't tried it yet)
-		if (matchedBlock && !matchedBlock.dmpAttempted) {
-			matchedBlock.dmpAttempted = true // Mark that we've tried DMP
-			const dmpMatch = this.findDMPMatch(content, searchContent)
-			if (dmpMatch.success) {
-				matchedBlock.matchedLocation = {
-					lineStart: dmpMatch.lineStart!,
-					lineEnd: dmpMatch.lineEnd!,
-				}
-				return this.performReplace(content, dmpMatch.lineStart!, dmpMatch.lineEnd!, replaceContent)
-			}
+		// 4. Last resort: DMP match
+		const dmpMatch = this.findDMPMatch(content, searchContent)
+		if (dmpMatch.success) {
+			return this.performReplace(content, dmpMatch.lineStart!, dmpMatch.lineEnd!, replaceContent)
 		}
 
 		return { success: false }
@@ -728,10 +732,10 @@ export class InlineEditHandler {
 		content = content.replace(/<<<<<<< SEARCH\r?\n[\s\S]*?(?=<<<<<<< SEARCH|$)/g, "")
 
 		// Remove any incomplete/corrupted REPLACE markers
-		content = content.replace(/>>>>>>> REPLACE\r?\n?/g, "")
+		content = content.replace(/\r?\n?/g, "")
 
 		// Remove any leftover separator markers
-		content = content.replace(/=======\r?\n?/g, "")
+		content = content.replace(/\r?\n?/g, "")
 
 		// Remove any empty lines that might have been left
 		content = content.replace(/\n\s*\n\s*\n/g, "\n\n")
@@ -744,13 +748,13 @@ export class InlineEditHandler {
 	 * Returns true if the format is valid, false otherwise
 	 */
 	private validateGitDiffFormat(content: string): boolean {
-		const diffMarkers = content.match(/<<<<<<< SEARCH[\s\S]*?>>>>>>> REPLACE/g) || []
+		const diffMarkers = content.match(/<<<<<<< SEARCH[\s\S]*?/g) || []
 
 		for (const marker of diffMarkers) {
 			// Check if the marker has all required parts
 			const hasSearch = marker.includes("<<<<<<< SEARCH")
-			const hasSeparator = marker.includes("=======")
-			const hasReplace = marker.includes(">>>>>>> REPLACE")
+			const hasSeparator = marker.includes("")
+			const hasReplace = marker.includes("")
 
 			if (!hasSearch || !hasSeparator || !hasReplace) {
 				return false
@@ -758,8 +762,8 @@ export class InlineEditHandler {
 
 			// Check correct order of markers
 			const searchIndex = marker.indexOf("<<<<<<< SEARCH")
-			const separatorIndex = marker.indexOf("=======")
-			const replaceIndex = marker.indexOf(">>>>>>> REPLACE")
+			const separatorIndex = marker.indexOf("")
+			const replaceIndex = marker.indexOf("")
 
 			if (!(searchIndex < separatorIndex && separatorIndex < replaceIndex)) {
 				return false
@@ -789,13 +793,10 @@ export class InlineEditHandler {
 			}
 
 			// First pass: Clean up merge markers using the main regex
-			content = content.replace(
-				/<<<<<<< SEARCH\r?\n[\s\S]*?\r?\n=======\r?\n([\s\S]*?)\r?\n>>>>>>> REPLACE/g,
-				(_, replacement) => {
-					// Trim any leading/trailing newlines from the replacement
-					return replacement.replace(/^\r?\n|\r?\n$/g, "")
-				}
-			)
+			content = content.replace(/<<<<<<< SEARCH\r?\n[\s\S]*?\r?\n\r?\n([\s\S]*?)\r?\n/g, (_, replacement) => {
+				// Trim any leading/trailing newlines from the replacement
+				return replacement.replace(/^\r?\n|\r?\n$/g, "")
+			})
 
 			// Second pass: Clean up any leftover markers that might have been corrupted
 			content = this.cleanupLeftoverMarkers(content)

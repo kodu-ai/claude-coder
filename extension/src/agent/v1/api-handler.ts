@@ -388,7 +388,7 @@ ${this.customInstructions.trim()}
 			}
 		}
 
-		const isFirstRequest = provider.getKoduDev()?.isFirstMessage ?? false
+		const isFirstRequest = history.length < 2
 		const environmentDetails = await provider.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
 
 		if (Array.isArray(lastMessage.content) && environmentDetails && isLastMessageFromUser) {

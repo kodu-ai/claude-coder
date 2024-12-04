@@ -92,27 +92,64 @@ export class DevServerTool extends BaseAgentTool {
 
 		if (!commandType || !serverName) {
 			await say("error", "Missing required parameters 'commandType' or 'serverName'")
-			const errorMsg = `Error: Missing required parameters. Please provide all required parameters:
-            - commandType: ${commandType ? "✓" : "✗"}
-            - serverName: ${serverName ? "✓" : "✗"}
-            Example:
-            <server_runner_tool>
-                <commandType>start</commandType>
-                <commandToRun>npm run dev</commandToRun>
-                <serverName>my-dev-server</serverName>
-            </server_runner_tool>`
+			const errorMsg = `
+			<server_tool_response>
+				<status>
+					<result>error</result>
+					<operation>server_runner</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>missing_parameters</type>
+					<validation>
+						<parameter name="commandType" provided="${!!commandType}"/>
+						<parameter name="serverName" provided="${!!serverName}"/>
+					</validation>
+					<help>
+						<example_usage>
+							<tool>server_runner_tool</tool>
+							<parameters>
+								<commandType>start</commandType>
+								<commandToRun>npm run dev</commandToRun>
+								<serverName>my-dev-server</serverName>
+							</parameters>
+						</example_usage>
+						<note>All required parameters must be provided for server operations</note>
+					</help>
+				</error_details>
+			</server_tool_response>`
 			return this.toolResponse("error", errorMsg)
 		}
 
 		if ((commandType === "start" || commandType === "restart") && !commandToRun) {
 			await say("error", "Missing required parameter 'commandToRun' for start/restart operation")
-			const errorMsg = `Error: Missing 'commandToRun' parameter for ${commandType} operation.
-            Example:
-            <server_runner_tool>
-                <commandType>${commandType}</commandType>
-                <commandToRun>npm run dev</commandToRun>
-                <serverName>${serverName}</serverName>
-            </server_runner_tool>`
+			const errorMsg = `
+			<server_tool_response>
+				<status>
+					<result>error</result>
+					<operation>server_runner</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>missing_command</type>
+					<message>Missing 'commandToRun' parameter for ${commandType} operation</message>
+					<context>
+						<operation_type>${commandType}</operation_type>
+						<server_name>${serverName}</server_name>
+					</context>
+					<help>
+						<example_usage>
+							<tool>server_runner_tool</tool>
+							<parameters>
+								<commandType>${commandType}</commandType>
+								<commandToRun>npm run dev</commandToRun>
+								<serverName>${serverName}</serverName>
+							</parameters>
+						</example_usage>
+						<note>The commandToRun parameter is required for start and restart operations</note>
+					</help>
+				</error_details>
+			</server_tool_response>`
 			return this.toolResponse("error", errorMsg)
 		}
 
@@ -276,7 +313,19 @@ export class DevServerTool extends BaseAgentTool {
 	private async startServer(terminalManager: TerminalManager, command: string, serverName: string): Promise<string> {
 		if (TerminalRegistry.isDevServerRunningByName(serverName)) {
 			await this.updateToolState("approved", "start", command, serverName)
-			return `Server "${serverName}" is already running.`
+			return `
+			<server_tool_response>
+				<status>
+					<result>info</result>
+					<operation>server_runner</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<server_info>
+					<name>${serverName}</name>
+					<state>running</state>
+					<message>Server is already running</message>
+				</server_info>
+			</server_tool_response>`
 		}
 
 		await this.updateToolState("loading", "start", command, serverName)
@@ -355,23 +404,43 @@ export class DevServerTool extends BaseAgentTool {
 			if (startData.hasError) {
 				TerminalRegistry.updateDevServerStatus(terminalInfo.id, "error", startData.errorMessage)
 				await this.updateToolState("error", "start", command, serverName, logs.join("\n"))
-				return `Failed to start server "${serverName}":
-                ${startData.errorMessage}
-                
-                <error_logs>
-                ${logs.join("\n")}
-                </error_logs>`
+				return `
+				<server_tool_response>
+					<status>
+						<result>error</result>
+						<operation>server_start</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<error_details>
+						<server_name>${serverName}</server_name>
+						<error_message>${startData.errorMessage}</error_message>
+						<logs>
+							<content>${logs.join("\n")}</content>
+						</logs>
+					</error_details>
+				</server_tool_response>`
 			}
 
 			// Mark server as running if we've detected it's ready
 			if (startData.serverReady) {
 				TerminalRegistry.updateDevServerStatus(terminalInfo.id, "running")
 				await this.updateToolState("approved", "start", command, serverName, logs.join("\n"))
-				return `Server "${serverName}" started successfully${serverUrl ? ` at ${serverUrl}` : ""}
-                
-                <server_logs>
-                ${logs.join("\n")}
-                </server_logs>`
+				return `
+				<server_tool_response>
+					<status>
+						<result>success</result>
+						<operation>server_start</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<server_info>
+						<name>${serverName}</name>
+						<state>running</state>
+						${serverUrl ? `<url>${serverUrl}</url>` : ""}
+						<logs>
+							<content>${logs.join("\n")}</content>
+						</logs>
+					</server_info>
+				</server_tool_response>`
 			}
 
 			// If we get here, something unexpected happened
@@ -431,7 +500,19 @@ export class DevServerTool extends BaseAgentTool {
 	private async stopServer(serverName: string): Promise<string> {
 		const devServer = TerminalRegistry.getDevServerByName(serverName)
 		if (!devServer) {
-			return `No server named "${serverName}" is currently running.`
+			return `
+			<server_tool_response>
+				<status>
+					<result>error</result>
+					<operation>server_stop</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>server_not_found</type>
+					<message>No server is currently running with the specified name</message>
+					<server_name>${serverName}</server_name>
+				</error_details>
+			</server_tool_response>`
 		}
 
 		const logs = devServer.logs || []
@@ -441,11 +522,21 @@ export class DevServerTool extends BaseAgentTool {
 
 		await this.updateToolState("approved", "stop", undefined, serverName, logs.join("\n"))
 
-		return `Server "${serverName}" stopped successfully.
-        
-        <server_logs>
-        ${logs.join("\n")}
-        </server_logs>`
+		return `
+		<server_tool_response>
+			<status>
+				<result>success</result>
+				<operation>server_stop</operation>
+				<timestamp>${new Date().toISOString()}</timestamp>
+			</status>
+			<server_info>
+				<name>${serverName}</name>
+				<state>stopped</state>
+				<logs>
+					<content>${logs.join("\n")}</content>
+				</logs>
+			</server_info>
+		</server_tool_response>`
 	}
 
 	private async restartServer(
@@ -464,17 +555,40 @@ export class DevServerTool extends BaseAgentTool {
 	private async getLogs(serverName: string, lines: number): Promise<string> {
 		const devServer = TerminalRegistry.getDevServerByName(serverName)
 		if (!devServer) {
-			return `No server named "${serverName}" is currently running. No logs available.`
+			return `
+			<server_tool_response>
+				<status>
+					<result>error</result>
+					<operation>get_logs</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>server_not_found</type>
+					<message>No server is currently running with the specified name</message>
+					<server_name>${serverName}</server_name>
+				</error_details>
+			</server_tool_response>`
 		}
 
 		const logs = devServer.logs || []
 		const logLines = lines === -1 ? logs : logs.slice(-lines)
 		await this.updateToolState("approved", "getLogs", undefined, serverName, logLines.join("\n"))
 
-		return `Server Logs for "${serverName}":
-
-        <server_logs>
-        ${logLines.join("\n")}
-        </server_logs>`
+		return `
+		<server_tool_response>
+			<status>
+				<result>success</result>
+				<operation>get_logs</operation>
+				<timestamp>${new Date().toISOString()}</timestamp>
+			</status>
+			<server_info>
+				<name>${serverName}</name>
+				<state>running</state>
+				<logs>
+					<requested_lines>${lines}</requested_lines>
+					<content>${logLines.join("\n")}</content>
+				</logs>
+			</server_info>
+		</server_tool_response>`
 	}
 }

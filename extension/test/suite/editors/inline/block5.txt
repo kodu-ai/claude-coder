@@ -1,101 +1,145 @@
 SEARCH
-"""
-Interactive script that demonstrates blocking input.
-Gets user's name and age along with other questions in a deterministic random order
-based on the file location. Successfully completing the interaction reveals a CTF token.
-"""
-import sys
-import hashlib
-import random
-import os
+		const errorMsg = `Error: Missing value for required parameter 'query'. Please retry with complete response.
+		A good example of a ask_consultant tool call is:
+		{
+			"tool": "ask_consultant",
+			"query": "I want to build a multiplayer game where 100 players would be playing together at once. What framework should I choose for the backend? I'm confused between Elixir and colyseus",
+		}
+		Please try again with the correct query, you are not allowed to search without a query.`
+		return this.toolResponse("error", errorMsg)
 =======
 REPLACE
-"""
-Interactive Personality Greeter (CTF Challenge)
-
-This script demonstrates secure interactive input handling with a personality-driven
-approach to user engagement. It implements a deterministic randomization system
-for question ordering based on the script's file location, making the interaction
-both unpredictable yet reproducible.
-
-Security Features:
-- Deterministic randomization using file path as seed
-- Secure token generation using SHA-256
-- Input validation and sanitization
-- Flush-controlled output for reliable terminal interaction
-
-The script serves as both an educational tool for secure input handling and
-an engaging CTF (Capture The Flag) challenge where users must complete the
-interaction to receive a unique token.
-"""
-import sys
-import hashlib
-import random
-import os
-from typing import Tuple, List, Optional
+		const errorMsg = `
+		<consultant_tool_response>
+			<status>
+				<result>error</result>
+				<operation>ask_consultant</operation>
+				<timestamp>${new Date().toISOString()}</timestamp>
+			</status>
+			<error_details>
+				<type>missing_parameter</type>
+				<message>Missing required parameter 'query'</message>
+				<help>
+					<example_usage>
+						<tool>ask_consultant</tool>
+						<parameters>
+							<query>I want to build a multiplayer game where 100 players would be playing together at once. What framework should I choose for the backend? I'm confused between Elixir and colyseus</query>
+						</parameters>
+					</example_usage>
+					<note>Consultant queries require a valid query parameter to proceed</note>
+				</help>
+			</error_details>
+		</consultant_tool_response>`
+		return this.toolResponse("error", errorMsg)
 =======
 SEARCH
-def get_user_info():
-    # Get the absolute path of this script to use as seed
-    script_path = os.path.abspath(__file__)
-    
-    # Create a deterministic seed from the file path
-    path_hash = hashlib.md5(script_path.encode()).hexdigest()
-    seed = int(path_hash[:8], 16)  # Use first 8 chars of hash as seed
+				const errorMsg = `Consultant failed to answer your question.`
+				return this.toolResponse("error", errorMsg)
 =======
 REPLACE
-def get_user_info() -> None:
-    """
-    Conducts an interactive personality-driven questionnaire with secure token generation.
-    
-    The function implements a deterministic yet seemingly random question order by:
-    1. Using the script's absolute path as a seed source
-    2. Generating a reproducible MD5 hash from the path
-    3. Converting the first 8 characters of the hash to an integer seed
-    
-    This ensures that while the question order appears random to users,
-    it remains consistent for the same script location, aiding in testing
-    and verification.
-    
-    Returns:
-        None: Outputs are printed directly to stdout with flush control
-    """
-    # Get the absolute path of this script to use as seed
-    script_path = os.path.abspath(__file__)
-    
-    # Create a deterministic seed from the file path for reproducible randomization
-    path_hash = hashlib.md5(script_path.encode()).hexdigest()
-    seed = int(path_hash[:8], 16)  # Use first 8 chars of hash as seed
+				const errorMsg = `
+				<consultant_tool_response>
+					<status>
+						<result>error</result>
+						<operation>ask_consultant</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<error_details>
+						<type>consultant_error</type>
+						<message>Consultant failed to answer your question</message>
+						<context>
+							<query>${query}</query>
+							<error_type>no_response</error_type>
+						</context>
+					</error_details>
+				</consultant_tool_response>`
+				return this.toolResponse("error", errorMsg)
 =======
 SEARCH
-    # Create list of questions
-    questions = [
-        ("What's your name? ", "name"),
-        ("How old are you? ", "age"),
-        ("What's your favorite color? ", "color"),
-        ("What's your favorite hobby? ", "hobby"),
-        ("Where are you from? ", "location")
-    ]
+			const result = `This is the advice from the consultant: ${response.result}`
+			return this.toolResponse("success", result)
 =======
 REPLACE
-    # Define our personality-driven questionnaire
-    questions: List[Tuple[str, str]] = [
-        ("Hey there! What's your name? 😊 ", "name"),
-        ("Awesome! And how many trips around the sun have you completed? (age) ", "age"),
-        ("If you could paint the world one color, what would it be? 🎨 ", "color"),
-        ("What activity makes time fly for you? 🌟 ", "hobby"),
-        ("Which corner of this beautiful world do you call home? 🌍 ", "location")
-    ]
+			const result = `
+			<consultant_tool_response>
+				<status>
+					<result>success</result>
+					<operation>ask_consultant</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<interaction>
+					<query>${query}</query>
+					<response>
+						<content>${response.result}</content>
+						<metadata>
+							<response_type>text</response_type>
+							<response_length>${response.result.length}</response_length>
+						</metadata>
+					</response>
+				</interaction>
+			</consultant_tool_response>`
+			return this.toolResponse("success", result)
 =======
 SEARCH
-            # Generic response for other questions
-            print(f"Thanks for sharing that!", flush=True)
+			const errorMsg = `Consultant failed to answer your question with the error: ${err}`
+			return this.toolResponse("error", errorMsg)
 =======
 REPLACE
-            # Personalized responses based on question type
-            if q_type == "color":
-                print(f"Ooh, {answer}! That says a lot about your personality! 🎨", flush=True)
-            elif q_type == "hobby":
-                print(f"Wow! {answer} sounds like an amazing way to spend time! 🌟", flush=True)
-            elif q_type == "location":
-                print(f"Ah, {answer}! I've heard wonderful things about that place! 🌍", flush=True)
+			const errorMsg = `
+			<consultant_tool_response>
+				<status>
+					<result>error</result>
+					<operation>ask_consultant</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>execution_error</type>
+					<message>Consultant failed to answer your question</message>
+					<context>
+						<query>${query}</query>
+						<error_message>${(err as Error)?.message || String(err)}</error_message>
+						<error_type>execution_failure</error_type>
+					</context>
+				</error_details>
+			</consultant_tool_response>`
+			return this.toolResponse("error", errorMsg)
+=======
+SEARCH
+			return this.toolResponse("feedback", this.formatGenericToolFeedback(text), images)
+=======
+REPLACE
+			return this.toolResponse(
+				"feedback",
+				`<consultant_tool_response>
+					<status>
+						<result>feedback</result>
+						<operation>ask_consultant</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<feedback_details>
+						<query>${this.params.input.query!}</query>
+						<user_feedback>${text || 'No feedback provided'}</user_feedback>
+						${images ? `<has_images>true</has_images>` : '<has_images>false</has_images>'}
+					</feedback_details>
+				</consultant_tool_response>`,
+				images
+			)
+=======
+SEARCH
+		return this.toolResponse("rejected", this.formatGenericToolFeedback())
+=======
+REPLACE
+		return this.toolResponse(
+			"rejected",
+			`<consultant_tool_response>
+				<status>
+					<result>rejected</result>
+					<operation>ask_consultant</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<rejection_details>
+					<query>${this.params.input.query!}</query>
+					<message>Operation was rejected by the user</message>
+				</rejection_details>
+			</consultant_tool_response>`
+		)

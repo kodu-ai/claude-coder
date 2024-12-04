@@ -1,227 +1,299 @@
-/**
- * EditSubscriptionModal Component
- *
- * A modal component for editing existing subscription details. It provides a form interface
- * to modify subscription properties such as name, URL, price, currency, billing cycle,
- * and description. The component also includes functionality to delete subscriptions.
- *
- * Features:
- * - Edit all subscription details
- * - Delete existing subscriptions
- * - Form validation for required fields
- * - Responsive layout with grid system
- * - Currency and billing cycle selection
- *
- * @component
- */
+import React, { useEffect, useRef } from "react"
+import { useEvent } from "react-use"
+import { atom, useAtom, useSetAtom } from "jotai"
+import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/ExtensionMessage"
+import { vscode } from "../utils/vscode"
+import { ApiConfiguration } from "../../../src/api/index"
+import { HistoryItem } from "../../../src/shared/HistoryItem"
+import type { GlobalState } from "../../../src/providers/claude-coder/state/GlobalStateManager"
+import { SystemPromptVariant } from "../../../src/shared/SystemPromptVariant"
 
-import { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '~/components/ui/dialog';
-import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
-import { Label } from '~/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '~/components/ui/select';
-import { Textarea } from '~/components/ui/textarea';
-import {
-  useSubscriptionStore,
-  Currency,
-  Subscription,
-} from '~/store/subscriptions';
+// Define atoms for each piece of state
+const technicalBackgroundAtom = atom<GlobalState["technicalBackground"] | undefined>(undefined)
+technicalBackgroundAtom.debugLabel = "technicalBackground"
 
-interface EditSubscriptionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  subscription: Subscription | null;
+const inlineEditModeAtom = atom(false)
+inlineEditModeAtom.debugLabel = "inlineEditMode"
+const advanceThinkingModeAtom = atom(false)
+advanceThinkingModeAtom.debugLabel = "advanceThinkingMode"
+
+const commandTimeoutAtom = atom<number | undefined>(undefined)
+commandTimeoutAtom.debugLabel = "commandTimeout"
+
+const versionAtom = atom("")
+versionAtom.debugLabel = "version"
+const claudeMessagesAtom = atom<ClaudeMessage[]>([])
+claudeMessagesAtom.debugLabel = "claudeMessages"
+const taskHistoryAtom = atom<HistoryItem[]>([])
+taskHistoryAtom.debugLabel = "taskHistory"
+export const shouldShowAnnouncementAtom = atom(false)
+shouldShowAnnouncementAtom.debugLabel = "shouldShowAnnouncement"
+const shouldShowKoduPromoAtom = atom(false)
+shouldShowKoduPromoAtom.debugLabel = "shouldShowKoduPromo"
+const apiConfigurationAtom = atom<ApiConfiguration | undefined>(undefined)
+apiConfigurationAtom.debugLabel = "apiConfiguration"
+const maxRequestsPerTaskAtom = atom<number | undefined>(undefined)
+maxRequestsPerTaskAtom.debugLabel = "maxRequestsPerTask"
+const customInstructionsAtom = atom<string | undefined>(undefined)
+customInstructionsAtom.debugLabel = "customInstructions"
+const alwaysAllowReadOnlyAtom = atom(false)
+alwaysAllowReadOnlyAtom.debugLabel = "alwaysAllowReadOnly"
+const alwaysAllowApproveOnlyAtom = atom(false)
+alwaysAllowApproveOnlyAtom.debugLabel = "alwaysAllowApproveOnly"
+const userAtom = atom<GlobalState["user"]>(undefined)
+userAtom.debugLabel = "user"
+const uriSchemeAtom = atom<string | undefined>(undefined)
+uriSchemeAtom.debugLabel = "uriScheme"
+const themeNameAtom = atom<string | undefined>(undefined)
+themeNameAtom.debugLabel = "themeName"
+export const creativeModeAtom = atom<"creative" | "normal" | "deterministic">("normal")
+creativeModeAtom.debugLabel = "creativeMode"
+const extensionNameAtom = atom<string | undefined>(undefined)
+extensionNameAtom.debugLabel = "extensionName"
+
+const fingerprintAtom = atom<string | undefined>(undefined)
+fingerprintAtom.debugLabel = "fingerprint"
+
+const fpjsKeyAtom = atom<string | undefined>(undefined)
+fpjsKeyAtom.debugLabel = "fpjsKey"
+
+const currentTaskIdAtom = atom<string | undefined>(undefined)
+currentTaskIdAtom.debugLabel = "currentTask"
+
+const autoCloseTerminalAtom = atom(false)
+autoCloseTerminalAtom.debugLabel = "autoCloseTerminal"
+
+const useUdiffAtom = atom(false)
+useUdiffAtom.debugLabel = "useUdiff"
+
+const skipWriteAnimationAtom = atom(false)
+skipWriteAnimationAtom.debugLabel = "skipWriteAnimation"
+
+const systemPromptVariantsAtom = atom<SystemPromptVariant[]>([])
+systemPromptVariantsAtom.debugLabel = "systemPromptVariants"
+
+const activeSystemPromptVariantIdAtom = atom<string | undefined>(undefined)
+activeSystemPromptVariantIdAtom.debugLabel = "activeSystemPromptVariantId"
+
+const lastShownAnnouncementIdAtom = atom<string | undefined>(undefined)
+lastShownAnnouncementIdAtom.debugLabel = "lastShownAnnouncementId"
+
+const isContinueGenerationEnabledAtom = atom(false)
+isContinueGenerationEnabledAtom.debugLabel = "isContinueGenerationEnabled"
+
+const inlineEditModeTypeAtom = atom<"full" | "diff" | "none">("full")
+inlineEditModeTypeAtom.debugLabel = "inlineEditModeType"
+
+const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
+	const currentTaskId = get(currentTaskIdAtom)
+	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
+})
+
+// Derived atom for the entire state
+export const extensionStateAtom = atom((get) => ({
+	version: get(versionAtom),
+	commandTimeout: get(commandTimeoutAtom),
+	terminalCompressionThreshold: get(terminalCompressionThresholdAtom),
+	claudeMessages: get(claudeMessagesAtom),
+	lastShownAnnouncementId: get(lastShownAnnouncementIdAtom),
+	taskHistory: get(taskHistoryAtom),
+	isContinueGenerationEnabled: get(isContinueGenerationEnabledAtom),
+	currentContextWindow: get(currentContextWindowAtom),
+	useUdiff: get(useUdiffAtom),
+	autoSummarize: get(autoSummarizeAtom),
+	currentContextTokens: get(currentContextTokensAtom),
+	currentTask: get(currentTaskAtom),
+	currentTaskId: get(currentTaskIdAtom),
+	inlineEditModeAtom: get(inlineEditModeAtom),
+	inlineEditModeType: get(inlineEditModeTypeAtom),
+	shouldShowAnnouncement: get(shouldShowAnnouncementAtom),
+	shouldShowKoduPromo: get(shouldShowKoduPromoAtom),
+	apiConfiguration: get(apiConfigurationAtom),
+	inlineEditMode: get(inlineEditModeAtom),
+	advanceThinkingMode: get(advanceThinkingModeAtom),
+	uriScheme: get(uriSchemeAtom),
+	maxRequestsPerTask: get(maxRequestsPerTaskAtom),
+	customInstructions: get(customInstructionsAtom),
+	fingerprint: get(fingerprintAtom),
+	skipWriteAnimation: get(skipWriteAnimationAtom),
+	technicalBackground: get(technicalBackgroundAtom),
+	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
+	activeSystemPromptVariantId: get(activeSystemPromptVariantIdAtom),
+	autoCloseTerminal: get(autoCloseTerminalAtom),
+	fpjsKey: get(fpjsKeyAtom),
+	extensionName: get(extensionNameAtom),
+	themeName: get(themeNameAtom),
+	user: get(userAtom),
+	alwaysAllowWriteOnly: get(alwaysAllowApproveOnlyAtom),
+	creativeMode: get(creativeModeAtom),
+	systemPromptVariants: get(systemPromptVariantsAtom),
+}))
+extensionStateAtom.debugLabel = "extensionState"
+
+// Atom to track if state has been hydrated
+const didHydrateStateAtom = atom(false)
+didHydrateStateAtom.debugLabel = "didHydrateState"
+
+export const showSettingsAtom = atom(false)
+showSettingsAtom.debugLabel = "showSettings"
+
+const currentContextTokensAtom = atom(0)
+currentContextTokensAtom.debugLabel = "currentContextTokens"
+
+const currentContextWindowAtom = atom(0)
+currentContextWindowAtom.debugLabel = "currentContextWindow"
+
+const autoSummarizeAtom = atom(false)
+autoSummarizeAtom.debugLabel = "autoSummarize"
+
+const terminalCompressionThresholdAtom = atom<number | undefined>(undefined)
+terminalCompressionThresholdAtom.debugLabel = "terminalCompressionThreshold"
+
+export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+	const setVersion = useSetAtom(versionAtom)
+	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
+	const setCommandTimeout = useSetAtom(commandTimeoutAtom)
+	const setTaskHistory = useSetAtom(taskHistoryAtom)
+	const setInlineEditMode = useSetAtom(inlineEditModeAtom)
+	const setAdvanceThinkingMode = useSetAtom(advanceThinkingModeAtom)
+	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
+	const setShouldShowKoduPromo = useSetAtom(shouldShowKoduPromoAtom)
+	const setApiConfiguration = useSetAtom(apiConfigurationAtom)
+	const setIsContinueGenerationEnabled = useSetAtom(isContinueGenerationEnabledAtom)
+	const setMaxRequestsPerTask = useSetAtom(maxRequestsPerTaskAtom)
+	const setCustomInstructions = useSetAtom(customInstructionsAtom)
+	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
+	const setAutoSummarize = useSetAtom(autoSummarizeAtom)
+	const setUser = useSetAtom(userAtom)
+	const setLastShownAnnouncementId = useSetAtom(lastShownAnnouncementIdAtom)
+	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
+	const setUseUdiff = useSetAtom(useUdiffAtom)
+	const setThemeName = useSetAtom(themeNameAtom)
+	const setCurrentIdTask = useSetAtom(currentTaskIdAtom)
+	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
+	const setActiveSystemPromptVariantId = useSetAtom(activeSystemPromptVariantIdAtom)
+	const setFingerprint = useSetAtom(fingerprintAtom)
+	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
+	const setUriScheme = useSetAtom(uriSchemeAtom)
+	const setCurrentContextWindow = useSetAtom(currentContextWindowAtom)
+	const setDidHydrateState = useSetAtom(didHydrateStateAtom)
+	const setCurrentContextTokens = useSetAtom(currentContextTokensAtom)
+	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
+	const setCreativeMode = useSetAtom(creativeModeAtom)
+	const setExtensionName = useSetAtom(extensionNameAtom)
+	const setFpjsKey = useSetAtom(fpjsKeyAtom)
+	const setSystemPromptVariants = useSetAtom(systemPromptVariantsAtom)
+	const setTerminalCompressionThreshold = useSetAtom(terminalCompressionThresholdAtom)
+	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
+
+	const handleMessage = (event: MessageEvent) => {
+		const message: ExtensionMessage = event.data
+		if (message.type === "claudeMessages") {
+			setClaudeMessages(message.claudeMessages)
+		}
+
+		if (message.type === "state" && message.state) {
+			setVersion(message.state.version)
+			setCurrentIdTask(message.state.currentTaskId)
+			setCommandTimeout(message.state.commandTimeout)
+			setTerminalCompressionThreshold(message.state.terminalCompressionThreshold)
+			setClaudeMessages(message.state.claudeMessages)
+			setTechnicalBackground(message.state.technicalBackground)
+			setInlineEditMode(!!message.state.inlineEditMode)
+			setAdvanceThinkingMode(!!message.state.advanceThinkingMode)
+			setAutoSummarize(!!message.state.autoSummarize)
+			setInlineEditModeType(message.state.inlineEditOutputType ?? "full")
+			setLastShownAnnouncementId(message.state.lastShownAnnouncementId)
+			setTaskHistory(message.state.taskHistory)
+			setShouldShowAnnouncement(message.state.shouldShowAnnouncement)
+			setShouldShowKoduPromo(message.state.shouldShowKoduPromo)
+			setCurrentContextTokens(message.state.currentContextTokens)
+			setIsContinueGenerationEnabled(!!message.state.isContinueGenerationEnabled)
+			setApiConfiguration(message.state.apiConfiguration)
+			setActiveSystemPromptVariantId(message.state.activeSystemPromptVariantId)
+			setMaxRequestsPerTask(message.state.maxRequestsPerTask)
+			setCustomInstructions(message.state.customInstructions)
+			setAlwaysAllowReadOnly(!!message.state.alwaysAllowReadOnly)
+			setCurrentContextWindow(message.state.currentContextWindow)
+			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
+			setUser(message.state.user)
+			setExtensionName(message.state.extensionName)
+			setSkipWriteAnimation(!!message.state.skipWriteAnimation)
+			setAlwaysAllowWriteOnly(!!message.state.alwaysAllowWriteOnly)
+			setDidHydrateState(true)
+			setUseUdiff(!!message.state.useUdiff)
+			setThemeName(message.state.themeName)
+			setFpjsKey(message.state.fpjsKey)
+			setFingerprint(message.state.fingerprint)
+			setUriScheme(message.state.uriScheme)
+			setCreativeMode(message.state.creativeMode ?? "normal")
+			setSystemPromptVariants(message.state.systemPromptVariants ?? [])
+		}
+		if (message.type === "action" && message.action === "koduCreditsFetched") {
+			setUser(message.user)
+		}
+	}
+
+	useEvent("message", handleMessage)
+
+	useEffect(() => {
+		vscode.postMessage({ type: "webviewDidLaunch" })
+	}, [])
+
+	const [didHydrateState] = useAtom(didHydrateStateAtom)
+
+	if (!didHydrateState) {
+		return null
+	}
+
+	return <>{children}</>
 }
 
-export function EditSubscriptionModal({
-  isOpen,
-  onClose,
-  subscription,
-}: EditSubscriptionModalProps) {
-  const editSubscription = useSubscriptionStore(
-    (state) => state.editSubscription
-  );
-  const deleteSubscription = useSubscriptionStore(
-    (state) => state.deleteSubscription
-  );
-  // Initialize form state with default values, excluding read-only fields
-  const [formData, setFormData] = useState<
-    Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>
-  >({
-    name: '',
-    url: '',
-    price: 0,
-    currency: 'USD',
-    billingCycle: 'monthly',
-    description: '',
-  });
-
-  // Populate form data when subscription prop changes
-  // This effect synchronizes the form state with the provided subscription data
-  useEffect(() => {
-    if (subscription) {
-      setFormData({
-        name: subscription.name,
-        url: subscription.url,
-        price: subscription.price,
-        currency: subscription.currency,
-        billingCycle: subscription.billingCycle,
-        description: subscription.description || '',
-      });
-    }
-  }, [subscription]);
-
-  // Handle form submission for updating subscription details
-  // Prevents default form behavior and updates the subscription in the store
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (subscription) {
-      editSubscription(subscription.id, formData);
-      onClose();
-    }
-  };
-
-  // Handle subscription deletion
-  // Removes the subscription from the store and closes the modal
-  const handleDelete = () => {
-    if (subscription) {
-      deleteSubscription(subscription.id);
-      onClose();
-    }
-  };
-
-  if (!subscription) return null;
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Edit Subscription</DialogTitle>
-        </DialogHeader>
-        {/* Form layout with responsive grid and spacing */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              required
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="url">Website URL</Label>
-            <Input
-              id="url"
-              required
-              type="url"
-              value={formData.url}
-              onChange={(e) =>
-                setFormData({ ...formData, url: e.target.value })
-              }
-            />
-          </div>
-
-          {/* Price and currency inputs in a 2-column grid layout */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="price">Price</Label>
-              <Input
-                id="price"
-                required
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.price}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    price: parseFloat(e.target.value),
-                  })
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="currency">Currency</Label>
-              <Select
-                value={formData.currency}
-                onValueChange={(value: Currency) =>
-                  setFormData({ ...formData, currency: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="GBP">GBP</SelectItem>
-                  <SelectItem value="JPY">JPY</SelectItem>
-                  <SelectItem value="CNY">CNY</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="billingCycle">Billing Cycle</Label>
-            <Select
-              value={formData.billingCycle}
-              onValueChange={(value: 'monthly' | 'yearly') =>
-                setFormData({ ...formData, billingCycle: value })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select billing cycle" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="yearly">Yearly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-            />
-          </div>
-
-          {/* Action buttons with flexible layout */}
-          <div className="flex justify-between">
-            <Button type="button" variant="destructive" onClick={handleDelete}>
-              Delete
-            </Button>
-            <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit">Save Changes</Button>
-            </div>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+export const useExtensionState = () => {
+	const [state] = useAtom(extensionStateAtom)
+	const setApiConfiguration = useSetAtom(apiConfigurationAtom)
+	const setMaxRequestsPerTask = useSetAtom(maxRequestsPerTaskAtom)
+	const setCustomInstructions = useSetAtom(customInstructionsAtom)
+	const setLastShownAnnouncementId = useSetAtom(lastShownAnnouncementIdAtom)
+	const setTerminalCompressionThreshold = useSetAtom(terminalCompressionThresholdAtom)
+	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
+	const setCommandTimeout = useSetAtom(commandTimeoutAtom)
+	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
+	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
+	const setShouldShowAnnouncement = useSetAtom(shouldShowAnnouncementAtom)
+	const setInlineEditMode = useSetAtom(inlineEditModeAtom)
+	const setAdvanceThinkingMode = useSetAtom(advanceThinkingModeAtom)
+	const setActiveSystemPromptVariantId = useSetAtom(activeSystemPromptVariantIdAtom)
+	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
+	const setUseUdiff = useSetAtom(useUdiffAtom)
+	const setAutoSummarize = useSetAtom(autoSummarizeAtom)
+	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
+	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
+	const setCreativeMode = useSetAtom(creativeModeAtom)
+	const setSystemPromptVariants = useSetAtom(systemPromptVariantsAtom)
+	const setIsContinueGenerationEnabled = useSetAtom(isContinueGenerationEnabledAtom)
+	return {
+		...state,
+		setApiConfiguration,
+		setLastShownAnnouncementId,
+		setTerminalCompressionThreshold,
+		setTechnicalBackground,
+		setMaxRequestsPerTask,
+		setSkipWriteAnimation,
+		setUseUdiff,
+		setCommandTimeout,
+		setIsContinueGenerationEnabled,
+		setAutoCloseTerminal,
+		setCustomInstructions,
+		setAlwaysAllowWriteOnly,
+		setInlineEditModeType,
+		setCreativeMode,
+		setAutoSummarize,
+		setInlineEditMode,
+		setAdvanceThinkingMode,
+		setAlwaysAllowReadOnly,
+		setActiveSystemPromptVariantId,
+		setShowAnnouncement: setShouldShowAnnouncement,
+		setSystemPromptVariants,
+	}
 }
