@@ -37,7 +37,7 @@ async function simulateStreaming(diff: string, delayMs: number): Promise<AsyncGe
 			const nextChunk = diff.slice(streamedContent.length, streamedContent.length + chunkSize)
 			streamedContent += nextChunk
 			yield streamedContent
-			await delay(5)
+			await delay(25)
 		}
 	}
 

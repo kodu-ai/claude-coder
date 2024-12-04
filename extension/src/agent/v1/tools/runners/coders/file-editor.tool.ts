@@ -9,22 +9,13 @@ import { BaseAgentTool } from "../../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../../types"
 import fs from "fs"
 import { detectCodeOmission } from "./detect-code-omission"
-import { parseDiffBlocks, applyEditBlocksToFile, checkFileExists, preprocessContent, EditBlock } from "./utils"
+import { parseDiffBlocks, checkFileExists, preprocessContent, EditBlock } from "./utils"
 import { InlineEditHandler } from "../../../../../integrations/editor/inline-editor"
 import { ToolResponseV2 } from "../../../../../agent/v1/types"
 import PQueue from "p-queue"
-import { stringSimilarity } from "string-similarity-js"
 
-interface BlockValidationResult {
-	block: {
-		searchContent: string
-		replaceContent: string
-	}
-	wasFullyApplied: boolean
-	similarityScore: number
-	partiallyApplied: boolean
-}
-import { GitCommitResult } from "@/agent/v1/handlers"
+import { GitCommitResult } from "../../../handlers/git-handler"
+import { createPatch } from "diff"
 
 /**
  * FileEditorTool handles file editing operations in the VSCode extension.
@@ -46,10 +37,6 @@ export class FileEditorTool extends BaseAgentTool {
 	public inlineEditor: InlineEditHandler
 	/** Flag indicating if final content is being processed */
 	private isProcessingFinalContent: boolean = false
-	/** Timestamp of last update for throttling */
-	private lastUpdateTime: number = 0
-	/** Minimum interval between updates in milliseconds */
-	private readonly UPDATE_INTERVAL = 16
 	/** Queue for processing partial updates sequentially */
 	private pQueue: PQueue = new PQueue({ concurrency: 1 })
 	/** Flag to control write animation display */
@@ -151,18 +138,20 @@ export class FileEditorTool extends BaseAgentTool {
 		if (this.skipWriteAnimation) {
 			return
 		}
+		let editBlocks: EditBlock[] = []
 		try {
-			this.editBlocks = parseDiffBlocks(diff, this.fileState!.absolutePath)
+			editBlocks = parseDiffBlocks(diff, this.fileState.absolutePath)
+			this.editBlocks = editBlocks
 		} catch (err) {
 			this.logger(`Error parsing diff blocks: ${err}`, "error")
 			return
 		}
-		if (!this.inlineEditor.isOpen()) {
+		if (!this.inlineEditor.isOpen() && this.editBlocks.length > 0) {
 			try {
 				await this.inlineEditor.open(
-					this.editBlocks[0].id,
+					editBlocks[0].id,
 					this.fileState!.absolutePath,
-					this.editBlocks[0].searchContent
+					editBlocks[0].searchContent
 				)
 			} catch (e) {
 				this.logger("Error opening diff view: " + e, "error")
@@ -170,17 +159,17 @@ export class FileEditorTool extends BaseAgentTool {
 			}
 		}
 		// now we are going to start applying the diff blocks
-		if (this.editBlocks.length > 0) {
-			const currentBlock = this.editBlocks.at(-1)
+		if (editBlocks.length > 0) {
+			const currentBlock = editBlocks.at(-1)
 			if (!currentBlock?.replaceContent) {
 				return
 			}
 
 			// If this block hasn't been tracked yet, initialize it
-			if (!this.editBlocks.some((block) => block.id === currentBlock.id)) {
+			if (!editBlocks.some((block) => block.id === currentBlock.id)) {
 				// Clean up any SEARCH text from the last block before starting new one
 				if (this.lastAppliedEditBlockId) {
-					const lastBlock = this.editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
+					const lastBlock = editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
 					if (lastBlock) {
 						const lines = lastBlock.replaceContent.split("\n")
 						// Only remove the last line if it ONLY contains a partial SEARCH
@@ -211,7 +200,7 @@ export class FileEditorTool extends BaseAgentTool {
 				this.lastAppliedEditBlockId = currentBlock.id
 			}
 
-			const blockData = this.editBlocks.find((block) => block.id === currentBlock.id)
+			const blockData = editBlocks.find((block) => block.id === currentBlock.id)
 			if (blockData) {
 				blockData.replaceContent = currentBlock.replaceContent
 				await this.inlineEditor.applyStreamContent(
@@ -224,10 +213,13 @@ export class FileEditorTool extends BaseAgentTool {
 
 		// Finalize the last block
 		if (this.lastAppliedEditBlockId) {
-			const lastBlock = this.editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
+			const lastBlock = editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
 			if (lastBlock) {
-				const lines = lastBlock.replaceContent.split("\n")
-				await this.inlineEditor.applyFinalContent(lastBlock.id, lastBlock.searchContent, lines.join("\n"))
+				await this.inlineEditor.applyFinalContent(
+					lastBlock.id,
+					lastBlock.searchContent,
+					lastBlock.replaceContent
+				)
 			}
 		}
 	}
@@ -303,20 +295,18 @@ export class FileEditorTool extends BaseAgentTool {
 	private async finalizeInlineEdit(path: string, content: string): Promise<ToolResponseV2> {
 		// we are going to parse the content and apply the changes to the file
 		this.isProcessingFinalContent = true
+		let editBlocks: EditBlock[] = []
 		try {
-			this.editBlocks = parseDiffBlocks(content, path)
+			editBlocks = parseDiffBlocks(content, path)
+			this.editBlocks = editBlocks
 		} catch (err) {
 			this.logger(`Error parsing diff blocks: ${err}`, "error")
 			throw new Error(`Error parsing diff blocks: ${err}`)
 		}
-		if (!this.inlineEditor.isOpen()) {
-			await this.inlineEditor.open(
-				this.editBlocks[0].id,
-				this.fileState?.absolutePath!,
-				this.editBlocks[0].searchContent
-			)
+		if (!this.inlineEditor.isOpen() && editBlocks.length > 0) {
+			await this.inlineEditor.open(editBlocks[0]?.id, this.fileState?.absolutePath!, editBlocks[0].searchContent)
 		}
-		await this.inlineEditor.forceFinalizeAll(this.editBlocks!)
+		await this.inlineEditor.forceFinalizeAll(editBlocks!)
 		// now we are going to prompt the user to approve the changes
 		const { response, text, images } = await this.params.ask(
 			"tool",
@@ -368,22 +358,21 @@ export class FileEditorTool extends BaseAgentTool {
 		this.koduDev.getStateManager().addErrorPath(path)
 		// count how many of the changes were not applied
 		const notAppliedCount = results.filter((result) => !result.wasApplied).length
-		const successBlocks = results.filter((result) => result.wasApplied)
-
-		// Add content validation
-		const validationResults = this.validateAppliedContent(finalContent, successBlocks)
-		const validationMsg = this.generateValidationMessage(validationResults)
+		const validationMsg =
+			notAppliedCount === 0
+				? `The user might have changed the content of the file, we detected that your changes were initially applied to the file, but the user might have changed the content of the file, please review the file content to make sure that the changes were applied correctly.`
+				: `You have failed to apply ${notAppliedCount} changes, this is most likely related to you and the search content you provided, you must provide at least 3 lines of context for the search content to make sure that the changes are applied correctly.`
 
 		const approvedMsg = `
 		The user approved the changes and the content was successfully saved to ${path.toPosix()}.
 		Make sure to remember the updated content (REPLACE BLOCK + Original FILE) file content unless you change the file again or the user tells you otherwise.
+		${validationMsg}
 		${
 			notAppliedCount > 0
-				? `However, ${notAppliedCount} changes were not applied. it's critical and must be acknowledged by you, please review the following code blocks and fix the issues. a good idea is to maybe re read the file to see why the changes were not applied maybe the content was changed or the search content you wrote is not correct.
+				? `here are are the search blocks that were not applied on this tool execution, if you want to apply them make sure to provide the correct search content, it might be good to refresh your memory with the latest content of the file if you want to re try applying the changes.
 		${results.map((result) => `<search_block>${result.searchContent}</search_block>`).join("\n")}`
 				: ""
 		}
-		${validationMsg}
 		`
 
 		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
@@ -416,34 +405,14 @@ export class FileEditorTool extends BaseAgentTool {
 		)
 
 		if (currentOutputMode === "diff") {
+			// generate a diff between the file original content and the final content
+			const diffData = createPatch(path, this.fileState?.orignalContent ?? "", finalContent)
 			return this.toolResponse(
 				"success",
 				`<file>
-				<information>${approvedMsg}</information>
+				<information>${approvedMsg}\n Please check <post_save_diff> it includes a diff that holds the a diff for the updated content use this with your original in memory version to remember the file in memory</information>
 				<path>${path}</path>
-				<updated_blocks>
-				Here are the updated blocks that were successfully applied to the file:
-				${successBlocks
-					.map((block) => {
-						const validation = validationResults.find(
-							(v) => v.block.replaceContent === block.replaceContent
-						)
-						return `
-		<updated_block ${validation?.partiallyApplied ? 'status="partial"' : ""} ${
-							validation?.wasFullyApplied ? 'status="success"' : 'status="warning"'
-						} similarity="${validation?.similarityScore.toFixed(3) ?? 0}">
-		SEARCH
-		${block.searchContent.substring(0, 100)}${
-							block.searchContent.length > 100 ? "... the rest of the block from your input" : ""
-						}
-		=======
-		${block.replaceContent.substring(0, 100)}${
-							block.replaceContent.length > 100 ? "... the rest of the block from your input" : ""
-						}
-		</updated_block>`.trim()
-					})
-					.join("\n")}
-				</updated_blocks>
+				<post_save_diff>${diffData}</post_save_diff>
 				${commitXmlInfo}
 			  </file>`,
 				undefined,
@@ -472,9 +441,10 @@ export class FileEditorTool extends BaseAgentTool {
 		return this.toolResponse(
 			"success",
 			`
-		<file>
-		<information>${approvedMsg}
+		<update_file_payload>
+		<information>
 		CRITICAL the file content has been updated to <updated_file_content> content below, you should remember this as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.
+		Remember there is no extra need to edit the file unless you forgot to add or remove something or you have linting errors, over editing is a source of looping and getting stuck without thinking through the problem / task.
 		</information>
 		<path>${path}</path>
 		<updated_file_content>
@@ -482,7 +452,7 @@ export class FileEditorTool extends BaseAgentTool {
 		</updated_file_content>
 		<validation>${validationMsg}</validation>
 		${commitXmlInfo}
-		</file>
+		</update_file_payload>
 		`,
 			undefined,
 			commitResult
@@ -626,7 +596,6 @@ export class FileEditorTool extends BaseAgentTool {
 			// wait for the queue to be idle
 			await this.pQueue.onIdle()
 
-			let result: ToolResponseV2
 			if (diff) {
 				return await this.finalizeInlineEdit(relPath, diff)
 			} else if (content) {
@@ -684,52 +653,5 @@ export class FileEditorTool extends BaseAgentTool {
 			await this.diffViewProvider.update(content, true)
 		})
 		await this.pQueue.onIdle()
-	}
-
-	private validateAppliedContent(finalContent: string, successBlocks: any[]): BlockValidationResult[] {
-		const validationResults: BlockValidationResult[] = []
-
-		for (const block of successBlocks) {
-			// Check if the replace content exists in the final content
-			const similarityScore = stringSimilarity(block.replaceContent.trim(), finalContent)
-
-			// Consider a block partially applied if similarity is between 0.7 and 0.95
-			const partiallyApplied = similarityScore >= 0.7 && similarityScore < 0.95
-			// Consider a block fully applied if similarity is >= 0.95
-			const wasFullyApplied = similarityScore >= 0.95
-
-			validationResults.push({
-				block,
-				wasFullyApplied,
-				similarityScore,
-				partiallyApplied,
-			})
-		}
-
-		return validationResults
-	}
-
-	private generateValidationMessage(validationResults: BlockValidationResult[]): string {
-		const issues = validationResults.filter((result) => !result.wasFullyApplied || result.partiallyApplied)
-
-		if (issues.length === 0) {
-			return ""
-		}
-
-		return `
-	  WARNING: Some content blocks may not have been properly applied, it might be due to the user changing the content or the search content not being correct, here are the blocks that were not fully applied:
-	  ${issues
-			.map(
-				(result) => `
-	  <validation_issue>
-		${result.partiallyApplied ? "PARTIALLY APPLIED" : "NOT FULLY APPLIED"}
-		Similarity Score: ${(result.similarityScore * 100).toFixed(1)}%
-		Block Content (first 100 chars):
-		${result.block.replaceContent.substring(0, 100)}${result.block.replaceContent.length > 100 ? "..." : ""}
-	  </validation_issue>`
-			)
-			.join("\n")}
-	  It's recommended to verify these blocks, and if necessary, reapply the changes, key note is that the user might have corrected the content or the search content you provided is not correct.
-	  `
 	}
 }

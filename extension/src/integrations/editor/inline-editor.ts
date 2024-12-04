@@ -316,7 +316,8 @@ export class InlineEditHandler {
 
 		const document = await this.getDocument()
 		if (!document) {
-			throw new Error("No active document to refresh editor.")
+			this.logger("No active document to refresh editor.", "error")
+			return
 		}
 
 		const editor = vscode.window.visibleTextEditors.find(
@@ -324,35 +325,18 @@ export class InlineEditHandler {
 		)
 
 		if (editor) {
-			// Get the latest block that was modified
-			const latestBlock = this.getLatestEditBlock()
-			if (latestBlock && this.isAutoScrollEnabled) {
-				const searchIndex = document.getText().indexOf(latestBlock.currentContent)
+			const lastBlock = this.getLatestEditBlock()
+			if (lastBlock) {
+				// find the last REPLACE marker
+				const lastChars = `>>>>>>> REPLACE`
+				const searchIndex = document.getText().lastIndexOf(lastChars)
+
 				if (searchIndex !== -1) {
-					const startPos = document.positionAt(searchIndex)
-					const endPos = document.positionAt(searchIndex + latestBlock.currentContent.length)
-
-					// Calculate visible range for centering
-					const visibleRanges = editor.visibleRanges
-					if (visibleRanges.length === 0) {
-						return
-					}
-
-					const visibleLines = visibleRanges[0].end.line - visibleRanges[0].start.line
-					const contentLines = latestBlock.currentContent.split("\n")
-
-					// Adjusted proportions for more stability
-					const contextLinesAbove = Math.min(Math.floor(visibleLines * 0.45), contentLines.length)
-					const contextLinesBelow = Math.floor(visibleLines * 0.25) // Reduced bottom margin slightly
-
-					const focusRange = new vscode.Range(
-						Math.max(0, endPos.line - contextLinesAbove),
-						0,
-						Math.min(document.lineCount - 1, endPos.line + contextLinesBelow),
-						0
-					)
-
-					await editor.revealRange(focusRange, vscode.TextEditorRevealType.InCenter)
+					// Add the offset to get to the start of our matching section
+					const start = document.positionAt(searchIndex - lastChars.length)
+					const end = document.positionAt(searchIndex)
+					const range = new vscode.Range(start, end)
+					await this.scrollToRange(editor, range)
 				}
 			}
 		}
@@ -681,7 +665,6 @@ export class InlineEditHandler {
 			})
 
 			for (const block of sortedBlocks) {
-				// const formattedGitDiff = `<<<<<<< SEARCH\n${block.searchContent}\n=======\n${block.currentContent}\n>>>>>>> REPLACE`
 				const matchResult = this.findAndReplace(newContent, block.searchContent, block.currentContent)
 
 				if (matchResult.success && matchResult.newContent) {
@@ -704,24 +687,27 @@ export class InlineEditHandler {
 					this.logger(`Failed to apply block ${block.id}: ${matchResult.failureReason}`, "warn")
 				}
 			}
-			if (newContent === this.currentDocumentState.currentContent) {
-				this.logger("No changes to apply", "info")
-				return
-			}
 
 			// Store results for save changes
 			this.currentDocumentState.lastUpdateResults = results
 
+			if (newContent === this.currentDocumentState.currentContent) {
+				this.logger("No changes to apply", "info")
+				await this.refreshEditor()
+				return
+			}
 			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
 
 			const workspaceEdit = new vscode.WorkspaceEdit()
 			workspaceEdit.replace(document.uri, entireRange, newContent)
 			const success = await vscode.workspace.applyEdit(workspaceEdit)
-
+			// wait for next tick
 			if (success) {
 				this.logger("File content updated", "info")
 				this.currentDocumentState.currentContent = newContent
-				await this.refreshEditor()
+				setTimeout(() => {
+					this.refreshEditor()
+				}, 0)
 			}
 			return
 		} catch (error) {
@@ -733,6 +719,56 @@ export class InlineEditHandler {
 	/**
 	 * Enhanced saveChanges with block status reporting
 	 */
+	/**
+	 * Cleans up any leftover or corrupted git merge conflict markers
+	 * This is a safety net in case the main regex replacement fails
+	 */
+	private cleanupLeftoverMarkers(content: string): string {
+		// Remove any incomplete/corrupted SEARCH markers
+		content = content.replace(/<<<<<<< SEARCH\r?\n[\s\S]*?(?=<<<<<<< SEARCH|$)/g, "")
+
+		// Remove any incomplete/corrupted REPLACE markers
+		content = content.replace(/>>>>>>> REPLACE\r?\n?/g, "")
+
+		// Remove any leftover separator markers
+		content = content.replace(/=======\r?\n?/g, "")
+
+		// Remove any empty lines that might have been left
+		content = content.replace(/\n\s*\n\s*\n/g, "\n\n")
+
+		return content.trim()
+	}
+
+	/**
+	 * Validates that the git diff format is correctly applied
+	 * Returns true if the format is valid, false otherwise
+	 */
+	private validateGitDiffFormat(content: string): boolean {
+		const diffMarkers = content.match(/<<<<<<< SEARCH[\s\S]*?>>>>>>> REPLACE/g) || []
+
+		for (const marker of diffMarkers) {
+			// Check if the marker has all required parts
+			const hasSearch = marker.includes("<<<<<<< SEARCH")
+			const hasSeparator = marker.includes("=======")
+			const hasReplace = marker.includes(">>>>>>> REPLACE")
+
+			if (!hasSearch || !hasSeparator || !hasReplace) {
+				return false
+			}
+
+			// Check correct order of markers
+			const searchIndex = marker.indexOf("<<<<<<< SEARCH")
+			const separatorIndex = marker.indexOf("=======")
+			const replaceIndex = marker.indexOf(">>>>>>> REPLACE")
+
+			if (!(searchIndex < separatorIndex && separatorIndex < replaceIndex)) {
+				return false
+			}
+		}
+
+		return true
+	}
+
 	public async saveChanges(): Promise<{ finalContent: string; results: BlockResult[] }> {
 		this.logger("Saving changes", "debug")
 		this.validateDocumentState()
@@ -746,7 +782,13 @@ export class InlineEditHandler {
 			// Get the current content with merge markers
 			let content = document.getText()
 
-			// Clean up merge markers and keep only the replacement content
+			// Validate git diff format before proceeding
+			if (!this.validateGitDiffFormat(content)) {
+				this.logger("Invalid git diff format detected", "warn")
+				// Still proceed but log the warning
+			}
+
+			// First pass: Clean up merge markers using the main regex
 			content = content.replace(
 				/<<<<<<< SEARCH\r?\n[\s\S]*?\r?\n=======\r?\n([\s\S]*?)\r?\n>>>>>>> REPLACE/g,
 				(_, replacement) => {
@@ -754,6 +796,9 @@ export class InlineEditHandler {
 					return replacement.replace(/^\r?\n|\r?\n$/g, "")
 				}
 			)
+
+			// Second pass: Clean up any leftover markers that might have been corrupted
+			content = this.cleanupLeftoverMarkers(content)
 
 			// Apply the cleaned content back to the document
 			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))

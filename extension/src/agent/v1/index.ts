@@ -49,9 +49,6 @@ export class KoduDev {
 	) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
 		this.stateManager = new StateManager(options)
-
-		console.error(`>>> historyItem`, historyItem)
-
 		this.stateManager.setState({
 			taskId: historyItem ? historyItem.id : Date.now().toString(),
 			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",

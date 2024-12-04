@@ -1,4 +1,4 @@
-import { exec } from "child_process"
+import { execa, ExecaError } from "execa"
 import { promises as fs } from "fs"
 import { GitBranchItem, GitLogItem } from "../../../shared/ExtensionMessage"
 
@@ -9,8 +9,8 @@ export type GitCommitResult = {
 
 export class GitHandler {
 	private repoPath: string | undefined
-	private DEFAULT_USER_NAME = "kodu-ai"
-	private DEFAULT_USER_EMAIL = "bot@kodu.ai"
+	private readonly DEFAULT_USER_NAME = "kodu-ai"
+	private readonly DEFAULT_USER_EMAIL = "bot@kodu.ai"
 
 	constructor(repoPath: string) {
 		this.repoPath = repoPath
@@ -20,8 +20,7 @@ export class GitHandler {
 		if (!this.repoPath) {
 			return false
 		}
-
-		return await this.setupRepository()
+		return this.setupRepository()
 	}
 
 	private async setupRepository(): Promise<boolean> {
@@ -40,10 +39,11 @@ export class GitHandler {
 			if (!isInitSuccess) {
 				return false
 			}
+
+			// Using default values directly as commented in original code
 			const userName = this.DEFAULT_USER_NAME
 			const userEmail = this.DEFAULT_USER_EMAIL
-			// const userName = (await this.getGlobalConfigValue("user.name")) ?? this.DEFAULT_USER_NAME
-			// const userEmail = (await this.getGlobalConfigValue("user.email")) ?? this.DEFAULT_USER_EMAIL
+
 			await this.setGitConfig("user.name", userName)
 			await this.setGitConfig("user.email", userEmail)
 
@@ -57,9 +57,7 @@ export class GitHandler {
 	async commitEverything(message: string): Promise<GitCommitResult> {
 		try {
 			await this.prepareForCommit()
-			const gitPathForCommingEverything = "."
-
-			return await this.commitWithMessage(gitPathForCommingEverything, message)
+			return this.commitWithMessage(".", message)
 		} catch (error) {
 			throw new Error(`Error committing changes: ${error}`)
 		}
@@ -78,7 +76,7 @@ export class GitHandler {
 				throw new Error("Failed to generate commit message")
 			}
 
-			return await this.commitWithMessage(path, message)
+			return this.commitWithMessage(path, message)
 		} catch (error) {
 			throw new Error(`Error committing changes: ${error}`)
 		}
@@ -91,7 +89,6 @@ export class GitHandler {
 
 		if (!(await this.isRepositorySetup())) {
 			const isSetup = await this.setupRepository()
-
 			if (!isSetup) {
 				throw new Error("Failed to setup repository")
 			}
@@ -99,56 +96,38 @@ export class GitHandler {
 	}
 
 	private async commitWithMessage(path: string, message: string): Promise<GitCommitResult> {
-		return new Promise((resolve) => {
-			exec(
-				`git add ${path} && git commit -m "${message}"`,
-				{ cwd: this.repoPath, timeout: 15_000 },
-				(error, stdout, stderr) => {
-					if (error) {
-						throw new Error(`Error committing changes: ${error} \n ${stderr}`)
-					} else {
-						resolve(this.getCommittedHash(stdout.trim()))
-					}
-				}
-			)
-		})
+		try {
+			// Separate add and commit for better error handling
+			await execa("git", ["add", path], { cwd: this.repoPath })
+			const { stdout } = await execa("git", ["commit", "-m", message], { cwd: this.repoPath })
+			return this.getCommittedHash(stdout.trim())
+		} catch (error) {
+			if (error instanceof ExecaError) {
+				console.error(`Error committing changes: ${error.stderr || error.message}`)
+				throw new Error(`Error committing changes: ${error.stderr || error.message}`)
+			}
+			throw new Error(`Error committing changes: ${error}`)
+		}
 	}
 
 	private async getCommitMessage(path: string): Promise<string> {
-		const gitStatusText = await this.getGitStatusText()
-		const statusLines = gitStatusText.split("\n")
+		const { stdout } = await execa("git", ["status", "-s"], { cwd: this.repoPath })
+		const statusLines = stdout.split("\n")
 		const statusLine = statusLines.find((line) => line.includes(path))
 
-		if (statusLine?.startsWith("M")) {
-			return `Updated ${path}`
-		}
-
-		return `Added ${path}`
-	}
-
-	private async getGitStatusText(): Promise<string> {
-		return new Promise((resolve) => {
-			exec("git status -s", { cwd: this.repoPath }, (error, stdout, stderr) => {
-				if (error) {
-					console.error(`Error getting git status: ${error} \n ${stderr}`)
-					resolve("")
-				} else {
-					resolve(stdout.trim())
-				}
-			})
-		})
+		return statusLine?.startsWith("M") ? `Updated ${path}` : `Added ${path}`
 	}
 
 	private getCommittedHash(gitCommitStdOut: string): GitCommitResult {
 		const firstLine = gitCommitStdOut.split("\n")[0]
-
-		// example line: [master 812f9b0] Added cpp-poem.txt
-		const branch = firstLine.trim().split(" ")[0].slice(1)
-		const commitHash = firstLine.trim().split(" ")[1].slice(0, -1)
+		const match = firstLine.match(/\[(.*?)\s+(.*?)\]/)
+		if (!match) {
+			throw new Error("Unable to parse commit output")
+		}
 
 		return {
-			branch,
-			commitHash,
+			branch: match[1],
+			commitHash: match[2],
 		}
 	}
 
@@ -158,21 +137,13 @@ export class GitHandler {
 		}
 
 		try {
-			return (
-				new Promise((resolve) => {
-					exec(
-						`git log --pretty=format:"%h%x09%ad%x09%s" --date=format:"%Y-%m-%d %H:%M"`,
-						{ cwd: repoAbsolutePath },
-						(error, stdout, stderr) => {
-							if (error) {
-								resolve([])
-							}
-
-							resolve(this.parseGitLogs(stdout))
-						}
-					)
-				}) ?? []
+			const { stdout } = await execa(
+				"git",
+				["log", "--pretty=format:%h%x09%ad%x09%s", "--date=format:%Y-%m-%d %H:%M"],
+				{ cwd: repoAbsolutePath }
 			)
+
+			return this.parseGitLogs(stdout)
 		} catch (error) {
 			console.error(`Error getting log: ${error}`)
 			return []
@@ -199,7 +170,7 @@ export class GitHandler {
 					message: messageParts.join(" "),
 				}
 			})
-			.filter((x) => !!x)
+			.filter((x): x is GitLogItem => x !== null)
 	}
 
 	static async getBranches(repoAbsolutePath: string): Promise<GitBranchItem[]> {
@@ -207,26 +178,26 @@ export class GitHandler {
 			return []
 		}
 
-		return new Promise((resolve, reject) => {
-			exec(
-				// Updated git command to include lastCommitMessage
-				"git for-each-ref --sort=-committerdate refs/heads/ --format='%(if)%(HEAD)%(then)*%(end)|%(refname:short)|%(committerdate:relative)|%(contents:subject)'",
-				{ cwd: repoAbsolutePath, maxBuffer: 1024 * 1024 },
-				(error, stdout, stderr) => {
-					if (error) {
-						console.error(`Error getting branches: ${error}`)
-						resolve([])
-					} else {
-						try {
-							resolve(this.parseGitBranches(stdout))
-						} catch (parseError) {
-							console.error(`Error parsing branches: ${parseError}`)
-							resolve([])
-						}
-					}
+		try {
+			const { stdout } = await execa(
+				"git",
+				[
+					"for-each-ref",
+					"--sort=-committerdate",
+					"refs/heads/",
+					"--format=%(if)%(HEAD)%(then)*%(end)|%(refname:short)|%(committerdate:relative)|%(contents:subject)",
+				],
+				{
+					cwd: repoAbsolutePath,
+					maxBuffer: 1024 * 1024,
 				}
 			)
-		})
+
+			return this.parseGitBranches(stdout)
+		} catch (error) {
+			console.error(`Error getting branches: ${error}`)
+			return []
+		}
 	}
 
 	static parseGitBranches(stdout: string): GitBranchItem[] {
@@ -235,30 +206,19 @@ export class GitHandler {
 		}
 
 		const lines = stdout.trim().split("\n")
-		const branches: GitBranchItem[] = []
+		return lines
+			.map((line) => {
+				const parts = line.split("|")
+				if (parts.length < 4) return null
 
-		for (let line of lines) {
-			const parts = line.split("|")
-			if (parts.length < 4) {
-				continue
-			}
-
-			const isCheckedOutIndicator = parts[0]
-			const name = parts[1]
-			const lastCommitRelativeTime = parts[2]
-			const lastCommitMessage = parts.slice(3).join("|")
-
-			const isCheckedOut = isCheckedOutIndicator === "*"
-
-			branches.push({
-				name,
-				lastCommitRelativeTime,
-				isCheckedOut,
-				lastCommitMessage,
+				return {
+					name: parts[1],
+					lastCommitRelativeTime: parts[2],
+					isCheckedOut: parts[0] === "*",
+					lastCommitMessage: parts.slice(3).join("|"),
+				}
 			})
-		}
-
-		return branches
+			.filter((x): x is GitBranchItem => x !== null)
 	}
 
 	async checkoutTo(identifier: string): Promise<boolean> {
@@ -266,16 +226,12 @@ export class GitHandler {
 			return false
 		}
 
-		return new Promise((resolve) => {
-			const command = `git checkout ${identifier}`
-			exec(command, { cwd: this.repoPath }, (error) => {
-				if (error) {
-					resolve(false)
-				} else {
-					resolve(true)
-				}
-			})
-		})
+		try {
+			await execa("git", ["checkout", identifier], { cwd: this.repoPath })
+			return true
+		} catch {
+			return false
+		}
 	}
 
 	async getCurrentBranch(): Promise<string | null> {
@@ -283,16 +239,13 @@ export class GitHandler {
 			return null
 		}
 
-		return new Promise((resolve) => {
-			exec("git rev-parse --abbrev-ref HEAD", { cwd: this.repoPath }, (error, stdout) => {
-				if (error) {
-					console.error(`Error getting current branch: ${error}`)
-					resolve(null)
-				} else {
-					resolve(stdout.trim())
-				}
-			})
-		})
+		try {
+			const { stdout } = await execa("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: this.repoPath })
+			return stdout.trim()
+		} catch (error) {
+			console.error(`Error getting current branch: ${error}`)
+			return null
+		}
 	}
 
 	async getCurrentCommit(): Promise<string | null> {
@@ -300,16 +253,13 @@ export class GitHandler {
 			return null
 		}
 
-		return new Promise((resolve) => {
-			exec("git rev-parse HEAD", { cwd: this.repoPath }, (error, stdout) => {
-				if (error) {
-					console.error(`Error getting current commit: ${error}`)
-					resolve(null)
-				} else {
-					resolve(stdout.trim())
-				}
-			})
-		})
+		try {
+			const { stdout } = await execa("git", ["rev-parse", "HEAD"], { cwd: this.repoPath })
+			return stdout.trim()
+		} catch (error) {
+			console.error(`Error getting current commit: ${error}`)
+			return null
+		}
 	}
 
 	async createBranchAtCommit(branchName: string, commitHash: string): Promise<boolean> {
@@ -317,16 +267,13 @@ export class GitHandler {
 			return false
 		}
 
-		return new Promise((resolve) => {
-			exec(`git branch ${branchName} ${commitHash}`, { cwd: this.repoPath }, (error) => {
-				if (error) {
-					console.error(`Error creating branch at commit: ${error}`)
-					resolve(false)
-				} else {
-					resolve(true)
-				}
-			})
-		})
+		try {
+			await execa("git", ["branch", branchName, commitHash], { cwd: this.repoPath })
+			return true
+		} catch (error) {
+			console.error(`Error creating branch at commit: ${error}`)
+			return false
+		}
 	}
 
 	async resetHardTo(commitHash: string): Promise<boolean> {
@@ -334,16 +281,13 @@ export class GitHandler {
 			return false
 		}
 
-		return new Promise((resolve) => {
-			exec(`git reset --hard ${commitHash}`, { cwd: this.repoPath }, (error) => {
-				if (error) {
-					console.error(`Error resetting to commit: ${error}`)
-					resolve(false)
-				} else {
-					resolve(true)
-				}
-			})
-		})
+		try {
+			await execa("git", ["reset", "--hard", commitHash], { cwd: this.repoPath })
+			return true
+		} catch (error) {
+			console.error(`Error resetting to commit: ${error}`)
+			return false
+		}
 	}
 
 	async deleteBranch(branchName: string): Promise<boolean> {
@@ -351,28 +295,22 @@ export class GitHandler {
 			return false
 		}
 
-		return new Promise((resolve) => {
-			exec(`git branch -D ${branchName}`, { cwd: this.repoPath }, (error) => {
-				if (error) {
-					console.error(`Error deleting branch: ${error}`)
-					resolve(false)
-				} else {
-					resolve(true)
-				}
-			})
-		})
+		try {
+			await execa("git", ["branch", "-D", branchName], { cwd: this.repoPath })
+			return true
+		} catch (error) {
+			console.error(`Error deleting branch: ${error}`)
+			return false
+		}
 	}
 
-	private isGitInstalled(): Promise<boolean> {
-		return new Promise((resolve) => {
-			exec("git --version", (error, stdout) => {
-				if (error || !stdout.startsWith("git version")) {
-					resolve(false)
-				} else {
-					resolve(true)
-				}
-			})
-		})
+	private async isGitInstalled(): Promise<boolean> {
+		try {
+			const { stdout } = await execa("git", ["--version"])
+			return stdout.startsWith("git version")
+		} catch {
+			return false
+		}
 	}
 
 	private async ensureDirectoryExists(path: string): Promise<void> {
@@ -384,101 +322,69 @@ export class GitHandler {
 	}
 
 	private async initializeRepository(): Promise<boolean> {
-		return new Promise<boolean>((resolve) => {
-			exec("git init", { cwd: this.repoPath, shell: process.env.SHELL }, (error, stdout, stderr) => {
-				if (error) {
-					console.error(error)
-					console.log(`Error initializing git repository: ${stderr}`)
-					resolve(false)
-				} else {
-					console.log(stdout.trim())
-					resolve(true)
-				}
+		try {
+			await execa("git", ["init"], {
+				cwd: this.repoPath,
+				shell: process.env.SHELL,
 			})
-		})
-	}
-
-	private async getGlobalConfigValue(key: string): Promise<string | null> {
-		return new Promise((resolve) => {
-			exec(`git config --global ${key}`, (error, stdout) => {
-				if (error) {
-					console.error(`Error getting git config ${key}: ${error}`)
-					console.log(`Error: ${key}: ${stdout}`)
-					resolve(null)
-				} else {
-					resolve(stdout.trim())
-				}
-			})
-		})
+			return true
+		} catch (error) {
+			console.error(`Error initializing git repository: ${error}`)
+			return false
+		}
 	}
 
 	private async setGitConfig(key: string, value: string): Promise<boolean> {
-		return new Promise((resolve) => {
-			exec(`git config ${key} "${value}"`, { cwd: this.repoPath }, (error, stdout, stderr) => {
-				if (error) {
-					console.error(`Error setting git config ${key}: ${error} \n ${stderr}`)
-					resolve(false)
-				} else {
-					console.log(`Git config ${key} set to ${value}`)
-					resolve(true)
-				}
-			})
-		})
+		try {
+			await execa("git", ["config", key, value], { cwd: this.repoPath })
+			console.log(`Git config ${key} set to ${value}`)
+			return true
+		} catch (error) {
+			console.error(`Error setting git config ${key}: ${error}`)
+			return false
+		}
 	}
 
 	private async isRepositorySetup(): Promise<boolean> {
-		const initPromise = new Promise<boolean>((resolve, reject) => {
-			exec("git rev-parse --is-inside-work-tree", { cwd: this.repoPath }, (error, stdout, stderr) => {
-				if (error) {
-					resolve(false)
-				} else {
-					resolve(stdout.trim() === "true")
-				}
-			})
-		})
-		const userEmailConfigPromise = this.getLocalConfigValue("user.email")
-		const userNameConfigPromise = this.getLocalConfigValue("user.name")
+		try {
+			const [isInit, userEmail, userName] = await Promise.all([
+				this.checkIsGitRepository(),
+				this.getLocalConfigValue("user.email"),
+				this.getLocalConfigValue("user.name"),
+			])
 
-		const [isInit, userEmail, userName] = await Promise.all([
-			initPromise,
-			userEmailConfigPromise,
-			userNameConfigPromise,
-		])
+			return isInit && !!userEmail && !!userName
+		} catch {
+			return false
+		}
+	}
 
-		return isInit && !!userEmail && !!userName
+	private async checkIsGitRepository(): Promise<boolean> {
+		try {
+			const { stdout } = await execa("git", ["rev-parse", "--is-inside-work-tree"], { cwd: this.repoPath })
+			return stdout.trim() === "true"
+		} catch {
+			return false
+		}
 	}
 
 	private async getLocalConfigValue(key: string): Promise<string | null> {
-		return new Promise((resolve) => {
-			exec(`git config ${key}`, { cwd: this.repoPath }, (error, stdout) => {
-				if (error) {
-					console.error(`Error getting git config ${key}: ${error}`)
-					console.log(`Error: ${key}: ${stdout}`)
-					resolve(null)
-				} else {
-					resolve(stdout.trim())
-				}
-			})
-		})
+		try {
+			const { stdout } = await execa("git", ["config", key], { cwd: this.repoPath })
+			return stdout.trim()
+		} catch (error) {
+			console.error(`Error getting git config ${key}: ${error}`)
+			return null
+		}
 	}
 
-	/**
-	 * Gets the content of a file at a specific commit
-	 * @param repoPath The path to the git repository
-	 * @param filePath The path to the file relative to the repository root
-	 * @param commitHash The commit hash to get the file content from
-	 * @returns Promise resolving to the file content as a string, or null if there was an error
-	 */
 	static async getFileContent(repoPath: string, filePath: string, commitHash: string): Promise<string | null> {
-		return new Promise((resolve) => {
-			exec(`git show ${commitHash}:${filePath}`, { cwd: repoPath }, (error, stdout, stderr) => {
-				if (error) {
-					console.error(`Error getting file content: ${error} \n ${stderr}`)
-					resolve(null)
-				} else {
-					resolve(stdout)
-				}
-			})
-		})
+		try {
+			const { stdout } = await execa("git", ["show", `${commitHash}:${filePath}`], { cwd: repoPath })
+			return stdout
+		} catch (error) {
+			console.error(`Error getting file content: ${error}`)
+			return null
+		}
 	}
 }

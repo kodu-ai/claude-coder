@@ -1,184 +1,82 @@
-@echo off
-setlocal EnableDelayedExpansion
+"""
+Interactive script that demonstrates blocking input.
+Gets user's name and age along with other questions in a deterministic random order
+based on the file location. Successfully completing the interaction reveals a CTF token.
+"""
+import sys
+import hashlib
+import random
+import os
 
-:: Add pause on error
-set "ERROR_OCCURRED=0"
+def get_user_info():
+    # Get the absolute path of this script to use as seed
+    script_path = os.path.abspath(__file__)
+    
+    # Create a deterministic seed from the file path
+    path_hash = hashlib.md5(script_path.encode()).hexdigest()
+    seed = int(path_hash[:8], 16)  # Use first 8 chars of hash as seed
+    
+    # Set the random seed for deterministic ordering
+    random.seed(seed)
+    
+    print("Welcome to the Interactive Greeter!", flush=True)
+    print("Please answer a few questions:", flush=True)
+    sys.stdout.flush()
+    
+    # Initialize variables to store required info
+    name = None
+    age = None
+    
+    # Create list of questions
+    questions = [
+        ("What's your name? ", "name"),
+        ("How old are you? ", "age"),
+        ("What's your favorite color? ", "color"),
+        ("What's your favorite hobby? ", "hobby"),
+        ("Where are you from? ", "location")
+    ]
+    
+    # Shuffle questions once using our deterministic seed
+    random.shuffle(questions)
+    
+    # Ask all questions in our determined order
+    for question, q_type in questions:
+        # Ask the question
+        answer = input(question)
+        
+        # Process the answer based on type
+        if q_type == "name":
+            name = answer
+            print(f"Nice to meet you, {name}!", flush=True)
+        elif q_type == "age":
+            while True:
+                try:
+                    age = int(answer)
+                    # Provide age-specific response
+                    if age < 18:
+                        print("Hey, you're still young! Enjoy your youth!", flush=True)
+                    elif age < 30:
+                        print("Your twenties are a great time to learn and grow!", flush=True)
+                    elif age < 50:
+                        print("Hope you're enjoying life's adventures!", flush=True)
+                    else:
+                        print("Your wisdom and experience are valuable!", flush=True)
+                    break
+                except ValueError:
+                    print("Please enter a valid number for age.", flush=True)
+                    answer = input(question)
+        else:
+            # Generic response for other questions
+            print(f"Thanks for sharing that!", flush=True)
+        
+        sys.stdout.flush()
+    
+    # Generate a CTF token based on the interaction
+    token_data = f"{name}{age}secret_salt_2024".encode('utf-8')
+    token = f"CTF_{hashlib.sha256(token_data).hexdigest()[:12]}"
+    
+    print(f"\nCongratulations! Here's your token: {token}", flush=True)
+    sys.stdout.flush()
 
-:: Check if this is an update
-if "%1"=="update" (
-    echo 🔄 Updating KinOS...
-    :: Pull latest changes
-    git pull || (
-        echo Error: Git pull failed
-        set "ERROR_OCCURRED=1"
-        goto :error
-    )
-    :: Update submodules to latest
-    git submodule update --remote --merge || (
-        echo Error: Submodule update failed
-        set "ERROR_OCCURRED=1"
-        goto :error
-    )
-    echo ✓ Repository updated
-)
-
-:: Check Python availability and version
-echo Checking Python installation...
-python -c "import sys; print('.'.join(map(str, sys.version_info[:3])))" >nul 2>&1
-if errorlevel 1 (
-    echo Error: Python 3.9+ is required but not found
-    echo Please install Python 3.9 or later from https://www.python.org/downloads/
-    set "ERROR_OCCURRED=1"
-    goto :error
-)
-
-:: Get current Python version
-set MIN_PYTHON_VERSION=3.9.0
-echo Checking Python version...
-for /f %%i in ('python -c "import sys; print('.'.join(map(str, sys.version_info[:3])))"') do set CURRENT_VERSION=%%i
-echo Found Python version: %CURRENT_VERSION%
-
-python -c "import sys; from packaging import version; sys.exit(0 if version.parse('%CURRENT_VERSION%') >= version.parse('%MIN_PYTHON_VERSION%') else 1)"
-if errorlevel 1 (
-    echo Error: Python %MIN_PYTHON_VERSION% or later is required
-    echo Current version: %CURRENT_VERSION%
-    echo Please upgrade Python from https://www.python.org/downloads/
-    set "ERROR_OCCURRED=1"
-    goto :error
-)
-
-echo ✓ Python version verified: %CURRENT_VERSION%
-
-:: Check for .env file (skip check if updating)
-if not exist .env (
-    echo Error: .env file not found
-    echo Please copy .env.example to .env and configure your API keys
-    exit /b 1
-)
-
-:: Check for required API keys
-findstr /C:"OPENAI_API_KEY=sk-" .env >nul
-if errorlevel 1 (
-    echo Error: OpenAI API key not properly configured in .env
-    exit /b 1
-)
-findstr /C:"PERPLEXITY_API_KEY=pplx-" .env >nul
-if errorlevel 1 (
-    echo Error: Perplexity API key not properly configured in .env
-    exit /b 1
-)
-
-echo ✓ Environment configuration verified
-
-:: Check for required dependencies
-where git >nul 2>&1
-if errorlevel 1 (
-    echo Error: Git is required but not installed
-    echo Please install Git from https://git-scm.com/
-    exit /b 1
-)
-
-where node >nul 2>&1
-if errorlevel 1 (
-    echo Error: Node.js is required but not installed
-    echo Please install Node.js from https://nodejs.org/
-    exit /b 1
-)
-
-where python >nul 2>&1
-if errorlevel 1 (
-    echo Error: Python is required but not installed
-    echo Please install Python from https://python.org/
-    exit /b 1
-)
-
-:: Update submodules
-git submodule update --init --recursive
-if errorlevel 1 (
-    echo Error: Submodule update failed
-    exit /b 1
-)
-
-:: Install/Update Python dependencies
-echo Installing Python dependencies...
-set "PYTHONPATH=%CD%;%PYTHONPATH%"
-for /f %%i in ('python -c "import sys; sys.path.insert(0, r'%CD%'.replace('\\', '/')); from utils.fs_utils import FSUtils; print(FSUtils.get_python_command())"') do set PYTHON_CMD=%%i
-if errorlevel 1 (
-    echo Error: Could not determine Python command
-    echo Please ensure Python 3.9+ is installed and in your PATH
-    set "ERROR_OCCURRED=1"
-    goto :error
-)
-%PYTHON_CMD% -m pip install -r requirements.txt --user
-if errorlevel 1 (
-    echo Error: Python dependencies installation failed
-    set "ERROR_OCCURRED=1"
-    goto :error
-)
-
-%PYTHON_CMD% -m pip install -U aider-chat --user
-if errorlevel 1 (
-    echo Error: Aider update failed
-    set "ERROR_OCCURRED=1"
-    goto :error
-)
-
-echo ✓ Python dependencies and Aider installed/updated
-
-:: Check for Cairo installation
-echo Checking for Cairo installation...
-where gdk-pixbuf-query-loaders >nul 2>&1
-if errorlevel 1 (
-    echo Warning: Cairo graphics library not found
-    echo Please install GTK3 runtime from https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer
-)
-
-:: Install/Update and build repo-visualizer
-cd vendor\repo-visualizer
-call npm install --legacy-peer-deps
-if errorlevel 1 (
-    echo Error: repo-visualizer dependencies installation failed
-    exit /b 1
-)
-
-call npm install -g esbuild
-if errorlevel 1 (
-    echo Error: esbuild installation failed
-    exit /b 1
-)
-
-if not exist dist mkdir dist
-call npm run build
-if errorlevel 1 (
-    echo Error: repo-visualizer build failed
-    exit /b 1
-)
-cd ..\..
-
-:: Add to user PATH more safely
-echo Adding KinOS to user PATH...
-for /f "tokens=2*" %%a in ('reg query HKCU\Environment /v PATH') do set "userpath=%%b"
-setx PATH "%userpath%;%CD%" || (
-    echo Error: Failed to update PATH
-    set "ERROR_OCCURRED=1"
-    goto :error
-)
-
-echo ✓ Added to PATH: %CD%
-
-goto :end
-
-:error
-echo.
-echo Installation failed with errors
-set ERROR_LEVEL=%ERROR_OCCURRED%
-
-:end
-:: Display Python diagnostic info
-echo.
-echo Python Diagnostic Information:
-python -c "import sys; print('Python Path:', sys.executable)"
-python -c "import sys; print('Version:', sys.version)"
-echo.
-pause
-exit /b %ERROR_LEVEL%
+if __name__ == "__main__":
+    get_user_info()

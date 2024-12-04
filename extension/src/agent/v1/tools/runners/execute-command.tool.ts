@@ -295,16 +295,14 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					return this.toolResponse("success", "No output", undefined, commitResult)
 				}
 
-				toolRes +=
-					`
-				<output>
-				<content>
-				${this.output || "No output"}
-				</content>\n` + commitResult
-						? `<branch>${commitResult?.branch}</branch>\n` +
-						  `<pre_commit>${preCommandCommit}</pre_commit>\n` +
-						  `<commit>${commitResult?.commitHash}</commit>\n`
-						: "" + `</output>`
+				toolRes = `
+				<payload>
+				<information>The command has been executed you can check the output below in command_output field.</information>
+				<command_output>${this.output}</command_output>
+				<git_commit>${commitResult?.commitHash}</git_commit>
+				<git_branch>${commitResult?.branch}</git_branch>
+				</payload>
+				`
 
 				return await this.toolResponse("success", toolRes, userFeedback?.images, commitResult)
 			} else {

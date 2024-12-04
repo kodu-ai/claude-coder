@@ -1,34 +1,101 @@
 SEARCH
-:: Install/Update Python dependencies
-echo Installing Python dependencies...
-set "PYTHONPATH=%CD%;%PYTHONPATH%"
-for /f %%i in ('python -c "import sys; sys.path.insert(0, r'%CD%'.replace('\', '/')); from utils.fs_utils import FSUtils; print(FSUtils.get_python_command())"') do set PYTHON_CMD=%%i
-if errorlevel 1 (
-    echo Error: Could not determine Python command
-    echo Please ensure Python 3.9+ is installed and in your PATH
-    set "ERROR_OCCURRED=1"
-    goto :error
-)
-%PYTHON_CMD% -m pip install -r requirements.txt --user
-if errorlevel 1 (
-    echo Error: Python dependencies installation failed
-    set "ERROR_OCCURRED=1"
-    goto :error
-)
-
-%PYTHON_CMD% -m pip install -U aider-chat --user
+"""
+Interactive script that demonstrates blocking input.
+Gets user's name and age along with other questions in a deterministic random order
+based on the file location. Successfully completing the interaction reveals a CTF token.
+"""
+import sys
+import hashlib
+import random
+import os
 =======
 REPLACE
-:: Install/Update Python dependencies
-echo Installing Python dependencies...
+"""
+Interactive Personality Greeter (CTF Challenge)
 
-:: Install requirements
-python -m pip install -r requirements.txt --user
-if errorlevel 1 (
-    echo Error: Python dependencies installation failed
-    set "ERROR_OCCURRED=1"
-    goto :error
-)
+This script demonstrates secure interactive input handling with a personality-driven
+approach to user engagement. It implements a deterministic randomization system
+for question ordering based on the script's file location, making the interaction
+both unpredictable yet reproducible.
 
-:: Install/Update aider-chat
-python -m pip install -U aider-chat --user
+Security Features:
+- Deterministic randomization using file path as seed
+- Secure token generation using SHA-256
+- Input validation and sanitization
+- Flush-controlled output for reliable terminal interaction
+
+The script serves as both an educational tool for secure input handling and
+an engaging CTF (Capture The Flag) challenge where users must complete the
+interaction to receive a unique token.
+"""
+import sys
+import hashlib
+import random
+import os
+from typing import Tuple, List, Optional
+=======
+SEARCH
+def get_user_info():
+    # Get the absolute path of this script to use as seed
+    script_path = os.path.abspath(__file__)
+    
+    # Create a deterministic seed from the file path
+    path_hash = hashlib.md5(script_path.encode()).hexdigest()
+    seed = int(path_hash[:8], 16)  # Use first 8 chars of hash as seed
+=======
+REPLACE
+def get_user_info() -> None:
+    """
+    Conducts an interactive personality-driven questionnaire with secure token generation.
+    
+    The function implements a deterministic yet seemingly random question order by:
+    1. Using the script's absolute path as a seed source
+    2. Generating a reproducible MD5 hash from the path
+    3. Converting the first 8 characters of the hash to an integer seed
+    
+    This ensures that while the question order appears random to users,
+    it remains consistent for the same script location, aiding in testing
+    and verification.
+    
+    Returns:
+        None: Outputs are printed directly to stdout with flush control
+    """
+    # Get the absolute path of this script to use as seed
+    script_path = os.path.abspath(__file__)
+    
+    # Create a deterministic seed from the file path for reproducible randomization
+    path_hash = hashlib.md5(script_path.encode()).hexdigest()
+    seed = int(path_hash[:8], 16)  # Use first 8 chars of hash as seed
+=======
+SEARCH
+    # Create list of questions
+    questions = [
+        ("What's your name? ", "name"),
+        ("How old are you? ", "age"),
+        ("What's your favorite color? ", "color"),
+        ("What's your favorite hobby? ", "hobby"),
+        ("Where are you from? ", "location")
+    ]
+=======
+REPLACE
+    # Define our personality-driven questionnaire
+    questions: List[Tuple[str, str]] = [
+        ("Hey there! What's your name? 😊 ", "name"),
+        ("Awesome! And how many trips around the sun have you completed? (age) ", "age"),
+        ("If you could paint the world one color, what would it be? 🎨 ", "color"),
+        ("What activity makes time fly for you? 🌟 ", "hobby"),
+        ("Which corner of this beautiful world do you call home? 🌍 ", "location")
+    ]
+=======
+SEARCH
+            # Generic response for other questions
+            print(f"Thanks for sharing that!", flush=True)
+=======
+REPLACE
+            # Personalized responses based on question type
+            if q_type == "color":
+                print(f"Ooh, {answer}! That says a lot about your personality! 🎨", flush=True)
+            elif q_type == "hobby":
+                print(f"Wow! {answer} sounds like an amazing way to spend time! 🌟", flush=True)
+            elif q_type == "location":
+                print(f"Ah, {answer}! I've heard wonderful things about that place! 🌍", flush=True)

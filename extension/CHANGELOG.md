@@ -4,6 +4,21 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.15.0] - 2024-04-13
+
+### New
+
+-   File history control
+    -   Automatic checkpoint creation at file edits, Kodu now remembers old files and let you easily view previous version or do a full rollback.
+    -   You can now view old files from the history as long as you're on the related project workspace.
+    -   You can now rollback conversation to one of your task checkpoints, reverting the chat history and file changes.
+-   Automatic Git commit handling, Kodu will automatically commit any changes made making it easy to identify changes and remove if needed
+-   Automatic commit awareness, Kodu is now aware of each commit it made
+
+### Fixed
+
+-   Improved error handling for inline edits.
+
 ## [1.14.1] - 2024-12-03
 
 ### New

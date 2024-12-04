@@ -49,7 +49,7 @@ export default function AnnouncementBanner() {
 				<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
 						<p>📂 File history control with branch-specific file viewing</p>
-						<p>⏪ Rollback conversation to set file edit checkpoints</p>
+						<p>⏪ Rollback conversation task checkpoints</p>
 						<p>🔄 Automatic Git commit handling for easy change tracking</p>
 						<p>🎯 Improved error handling for inline edits</p>
 					</div>

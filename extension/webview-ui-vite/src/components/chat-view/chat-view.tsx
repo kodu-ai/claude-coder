@@ -23,7 +23,7 @@ import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
 import TaskHeader from "../TaskHeader/TaskHeader"
 import { Button } from "../ui/button"
 import { AlertCircle } from "lucide-react"
-import AnnouncementBanner from "../ announcement-banner"
+import AnnouncementBanner from "../announcement-banner"
 
 const ChatView: React.FC<ChatViewProps> = ({
 	isHidden,
