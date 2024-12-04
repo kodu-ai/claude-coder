@@ -185,6 +185,11 @@ export type setCommandTimeoutMessage = {
 	commandTimeout: number
 }
 
+export type toggleGitHandlerMessage = {
+	type: "toggleGitHandler"
+	enabled: boolean
+}
+
 export type viewFileMessage = {
 	type: "viewFile"
 	path: string
@@ -203,6 +208,7 @@ export type WebviewMessage =
 	| rollbackToCheckpointMessage
 	| viewFileMessage
 	| setCommandTimeoutMessage
+	| toggleGitHandlerMessage
 	| setInlineEditModeMessage
 	| pauseTemporayAutoModeMessage
 	| terminalCompressionThresholdMessage
