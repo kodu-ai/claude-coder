@@ -128,11 +128,39 @@ export class GitHandler {
 	}
 
 	private async getCommitMessage(path: string): Promise<string> {
-		const { stdout } = await execa("git", ["status", "-s"], { cwd: this.repoPath })
-		const statusLines = stdout.split("\n")
-		const statusLine = statusLines.find((line) => line.includes(path))
+		try {
+			const { stdout } = await execa("git", ["diff", "--cached", "--unified=0", path], { cwd: this.repoPath })
+			const prefix = "[Kodu] "
 
-		return statusLine?.startsWith("M") ? `Updated ${path}` : `Added ${path}`
+			// Check if file is being added or modified
+			if (!stdout.includes("--- a/")) {
+				// New file being added
+				return `${prefix}Added file: ${path}`
+			}
+
+			// File is being modified, extract change summary
+			const changes = this.extractChangesFromDiff(stdout)
+			return `${prefix}Updated ${path}: ${changes}`
+		} catch (error) {
+			// Fallback message if diff fails
+			console.error(`Error generating commit message: ${error}`)
+			return `[Kodu] Changes in ${path}`
+		}
+	}
+
+	private extractChangesFromDiff(diffOutput: string): string {
+		const addedLines = (diffOutput.match(/^\+(?!\+\+)/gm) || []).length
+		const deletedLines = (diffOutput.match(/^-(?!--)/gm) || []).length
+
+		if (addedLines > 0 && deletedLines > 0) {
+			return `Modified ${addedLines} line${addedLines !== 1 ? 's' : ''}, removed ${deletedLines} line${deletedLines !== 1 ? 's' : ''}`
+		} else if (addedLines > 0) {
+			return `Added ${addedLines} line${addedLines !== 1 ? 's' : ''}`
+		} else if (deletedLines > 0) {
+			return `Removed ${deletedLines} line${deletedLines !== 1 ? 's' : ''}`
+		}
+
+		return "Made changes"
 	}
 
 	private getCommittedHash(gitCommitStdOut: string): GitCommitResult {
