@@ -21,7 +21,6 @@ const AdvancedTab: React.FC = () => {
 		handleTerminalCompressionThresholdChange,
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
-		handleSetGitHandlerEnabled,
 		handleAutoSkipWriteChange,
 		handleCustomInstructionsChange,
 	} = useSettingsState()
