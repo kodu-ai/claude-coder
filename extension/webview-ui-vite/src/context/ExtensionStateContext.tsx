@@ -301,5 +301,6 @@ export const useExtensionState = () => {
 		setActiveSystemPromptVariantId,
 		setShowAnnouncement: setShouldShowAnnouncement,
 		setSystemPromptVariants,
+		setGitHandlerEnabled,
 	}
 }
