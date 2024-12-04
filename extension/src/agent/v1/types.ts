@@ -45,6 +45,10 @@ export interface KoduDevOptions {
 	 * If true, the task will start with debugging the project
 	 */
 	isDebug?: boolean
+	/**
+	 * If true, the git handler will be enabled
+	 */
+	gitHandlerEnabled?: boolean
 }
 
 export type ApiHistoryItem = Anthropic.MessageParam & {
@@ -64,6 +68,10 @@ export interface KoduDevState {
 	terminalCompressionThreshold?: number
 	isHistoryItem?: boolean
 	isHistoryItemResumed?: boolean
+	/**
+	 * If true, the git handler is enabled
+	 */
+	gitHandlerEnabled?: boolean
 	/**
 	 * the list of diagnostics errors for the current task
 	 */
