@@ -215,7 +215,10 @@ export class GitHandler {
 
 	private async isProtectedBranch(branchName: string): Promise<boolean> {
 		const protectedBranches = ["main", "master", "develop"];
-		return protectedBranches.includes(branchName);
+		if (protectedBranches.includes(branchName)) {
+			return true;
+		}
+		return false;
 	}
 
 	private async commitWithMessage(path: string, message: string): Promise<GitCommitResult> {
