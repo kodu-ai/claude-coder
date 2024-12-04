@@ -73,10 +73,16 @@ export type SetCommandTimeoutMessage = {
 	commandTimeout: number
 }
 
+export type ToggleGitHandlerMessage = {
+	type: "toggleGitHandler"
+	enabled: boolean
+}
+
 // webview will hold state
 export type ExtensionMessage =
 	| SetCommandTimeoutMessage
 	| SetInlineEditModeMessage
+	| ToggleGitHandlerMessage
 	| {
 			type: "action" | "state" | "selectedImages"
 			text?: string
@@ -107,6 +113,7 @@ export interface ExtensionState {
 	version: string
 	maxRequestsPerTask?: number
 	lastShownAnnouncementId?: string
+	gitHandlerEnabled?: boolean
 	currentContextTokens: number
 	currentContextWindow: number
 	terminalCompressionThreshold: number | undefined
