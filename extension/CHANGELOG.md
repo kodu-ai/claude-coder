@@ -4,6 +4,17 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [1.15.1] - 2024-04-13
+
+### Changed
+
+-   Git Handler can now be toggled on and off in the settings
+
+### Fixed
+
+-   Command execution Tool now properly gets the output
+-   Auto chat scrolling to only occur on first render of a task or if the user is in the bottom of the chat
+
 ## [1.15.0] - 2024-04-13
 
 ### New
