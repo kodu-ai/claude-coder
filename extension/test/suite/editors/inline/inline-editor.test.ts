@@ -37,7 +37,7 @@ async function simulateStreaming(diff: string, delayMs: number): Promise<AsyncGe
 			const nextChunk = diff.slice(streamedContent.length, streamedContent.length + chunkSize)
 			streamedContent += nextChunk
 			yield streamedContent
-			await delay(25)
+			await delay(0.2)
 		}
 	}
 
@@ -217,7 +217,7 @@ export function truncateHalfConversation(
 
 	return [firstMessage, ...renamedMsgs]
 }`
-	const diff1 = `SEARCH\n${search}\n=======\nREPLACE\n${replace}`
+	const diff1 = `SEARCH\n${search}\n\nREPLACE\n${replace}`
 	const search2 = `/**
  * Estimates total token count from an array of messages
  * @param messages Array of messages to estimate tokens for
@@ -242,9 +242,9 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 	// return the total token count
 	return messages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
 }`
-	const diff2 = `SEARCH\n${search2}\n=======\nREPLACE\n${replace2}`
+	const diff2 = `SEARCH\n${search2}\n\nREPLACE\n${replace2}`
 
-	const streamedContent = `${diff1}\n=======\n${diff2}`
+	const streamedContent = `${diff1}\n\n${diff2}`
 	let inlineEditHandler: InlineEditHandler
 
 	beforeEach(async () => {
@@ -731,6 +731,288 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		await testBlock(block6FilePath, block6FileContentPath, block6BlockContent)
 	})
 
+	// Helper function to simulate rapid streaming with potential race conditions
+	async function simulateRaceConditionStreaming(diff: string): Promise<AsyncGenerator<string, void, unknown>> {
+		const chunks: string[] = []
+		let streamedContent = ""
+
+		// Split content into very small chunks (3-10 chars)
+		while (streamedContent.length < diff.length) {
+			const chunkSize = Math.floor(Math.random() * 8) + 3
+			const nextChunk = diff.slice(streamedContent.length, streamedContent.length + chunkSize)
+			streamedContent += nextChunk
+			chunks.push(streamedContent)
+		}
+
+		async function* generator() {
+			// Introduce random delays and potentially out-of-order delivery
+			const promises = chunks.map((chunk, index) => {
+				return new Promise<{ content: string; index: number }>((resolve) => {
+					const delay = Math.random() * 2 // 0-2ms delay
+					setTimeout(() => resolve({ content: chunk, index }), delay)
+				})
+			})
+
+			// Simulate out-of-order delivery
+			const results = await Promise.all(promises)
+			results.sort((a, b) => {
+				// 20% chance to deliver out of order
+				if (Math.random() < 0.2) {
+					return Math.random() - 0.5
+				}
+				return a.index - b.index
+			})
+
+			for (const result of results) {
+				yield result.content
+			}
+		}
+
+		return generator()
+	}
+
+	it("should handle rapid partial updates with potential race conditions", async () => {
+		const search3 = `function processData(data) {
+	    // Process the input data
+	    const result = data.map(item => {
+	        return item * 2;
+	    });
+	    return result;
+	}`
+		const replace3 = `function processData(data) {
+	    // Add validation for input
+	    if (!Array.isArray(data)) {
+	        throw new Error('Input must be an array');
+	    }
+
+	    // Process the input data with additional logging
+	    console.log('Processing data:', data);
+	    const result = data.map(item => {
+	        return item * 2;
+	    });
+
+	    return result;
+	}`
+		const search4 = `function validateInput(input) {
+	    return typeof input === 'string';
+	}`
+		const replace4 = `function validateInput(input) {
+	    // Add more comprehensive validation
+	    if (typeof input !== 'string') {
+	        return false;
+	    }
+
+	    // Check for minimum length
+	    if (input.length < 3) {
+	        return false;
+	    }
+
+	    return true;
+	}`
+
+		const streamedContent = `${diff1}\n\n${diff2}\n\nSEARCH\n${search3}\n\nREPLACE\n${replace3}\n\nSEARCH\n${search4}\n\nREPLACE\n${replace4}`
+
+		const generator = await simulateRaceConditionStreaming(streamedContent)
+		const editBlocks: Array<{
+			id: string
+			replaceContent: string
+			searchContent: string
+			finalContent?: string
+		}> = []
+		let lastAppliedBlockId: string | undefined
+
+		// Track the order of updates for verification
+		const updateOrder: string[] = []
+
+		for await (const diff of generator) {
+			try {
+				const blocks = parseDiffBlocks(diff, testFilePath)
+				if (blocks.length > 0) {
+					const currentBlock = blocks.at(-1)
+					if (!currentBlock?.replaceContent) {
+						continue
+					}
+
+					if (!editBlocks.some((block) => block.id === currentBlock.id)) {
+						if (lastAppliedBlockId) {
+							const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
+							if (lastBlock) {
+								const lines = lastBlock.replaceContent.split("\n")
+								if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
+									lines.pop()
+									await inlineEditHandler.applyFinalContent(
+										lastBlock.id,
+										lastBlock.searchContent,
+										lines.join("\n")
+									)
+								} else {
+									await inlineEditHandler.applyFinalContent(
+										lastBlock.id,
+										lastBlock.searchContent,
+										lastBlock.replaceContent
+									)
+								}
+							}
+						}
+
+						await inlineEditHandler.open(currentBlock.id, testFilePath, currentBlock.searchContent)
+						editBlocks.push({
+							id: currentBlock.id,
+							replaceContent: currentBlock.replaceContent,
+							searchContent: currentBlock.searchContent,
+						})
+						lastAppliedBlockId = currentBlock.id
+						updateOrder.push(`open:${currentBlock.id}`)
+					}
+
+					const blockData = editBlocks.find((block) => block.id === currentBlock.id)
+					if (blockData) {
+						blockData.replaceContent = currentBlock.replaceContent
+						await inlineEditHandler.applyStreamContent(
+							currentBlock.id,
+							currentBlock.searchContent,
+							currentBlock.replaceContent
+						)
+						updateOrder.push(`update:${currentBlock.id}`)
+					}
+				}
+			} catch (err) {
+				console.warn(`Warning block not parsable yet`)
+			}
+		}
+
+		await inlineEditHandler.forceFinalizeAll(editBlocks)
+		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
+
+		// Verify the content was applied correctly despite race conditions
+		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
+		let expectedContent = Buffer.from(originalText).toString("utf-8")
+		expectedContent = expectedContent.replace(search, replace)
+		expectedContent = expectedContent.replace(search2, replace2)
+		expectedContent = expectedContent.replace(search3, replace3)
+		expectedContent = expectedContent.replace(search4, replace4)
+
+		assert.strictEqual(finalDocument, expectedContent)
+
+		// Verify update order maintains block sequence
+		const blockIds = editBlocks.map((block) => block.id)
+		for (let i = 0; i < blockIds.length; i++) {
+			const openIndex = updateOrder.findIndex((update) => update === `open:${blockIds[i]}`)
+			const nextOpenIndex =
+				i < blockIds.length - 1
+					? updateOrder.findIndex((update) => update === `open:${blockIds[i + 1]}`)
+					: updateOrder.length
+
+			// Verify all updates for current block happen between its open and next block's open
+			const updatesForBlock = updateOrder
+				.slice(openIndex, nextOpenIndex)
+				.filter((update) => update.startsWith("update:"))
+				.every((update) => update === `update:${blockIds[i]}`)
+
+			assert.strictEqual(updatesForBlock, true, `Updates for block ${blockIds[i]} were not sequential`)
+		}
+	})
+
+	it("should handle overlapping block updates correctly", async () => {
+		// Create overlapping search/replace blocks
+		const search1 = `function getData() {
+	    const data = fetchData();
+	    return data;
+	}`
+		const replace1 = `function getData() {
+	    const data = fetchData();
+	    processData(data);
+	    return data;
+	}`
+		// This block overlaps with the first one
+		const search2 = `const data = fetchData();
+	    return data;`
+		const replace2 = `const data = fetchData();
+	    validateData(data);
+	    return data;`
+
+		const streamedContent = `SEARCH\n${search1}\n\nREPLACE\n${replace1}\n\nSEARCH\n${search2}\n\nREPLACE\n${replace2}`
+
+		const generator = await simulateRaceConditionStreaming(streamedContent)
+		const editBlocks: Array<{
+			id: string
+			replaceContent: string
+			searchContent: string
+		}> = []
+
+		let lastAppliedBlockId: string | undefined
+		const appliedUpdates: Array<{ blockId: string; content: string }> = []
+
+		for await (const diff of generator) {
+			try {
+				const blocks = parseDiffBlocks(diff, testFilePath)
+				if (blocks.length > 0) {
+					const currentBlock = blocks.at(-1)
+					if (!currentBlock?.replaceContent) continue
+
+					if (!editBlocks.some((block) => block.id === currentBlock.id)) {
+						if (lastAppliedBlockId) {
+							const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
+							if (lastBlock) {
+								await inlineEditHandler.applyFinalContent(
+									lastBlock.id,
+									lastBlock.searchContent,
+									lastBlock.replaceContent
+								)
+							}
+						}
+
+						await inlineEditHandler.open(currentBlock.id, testFilePath, currentBlock.searchContent)
+						editBlocks.push({
+							id: currentBlock.id,
+							replaceContent: currentBlock.replaceContent,
+							searchContent: currentBlock.searchContent,
+						})
+						lastAppliedBlockId = currentBlock.id
+					}
+
+					const blockData = editBlocks.find((block) => block.id === currentBlock.id)
+					if (blockData) {
+						blockData.replaceContent = currentBlock.replaceContent
+						await inlineEditHandler.applyStreamContent(
+							currentBlock.id,
+							currentBlock.searchContent,
+							currentBlock.replaceContent
+						)
+						appliedUpdates.push({
+							blockId: currentBlock.id,
+							content: currentBlock.replaceContent,
+						})
+					}
+				}
+			} catch (err) {
+				console.warn(`Warning block not parsable yet`)
+			}
+		}
+
+		await inlineEditHandler.forceFinalizeAll(editBlocks)
+		const { finalContent } = await inlineEditHandler.saveChanges()
+
+		// Verify that overlapping blocks were handled correctly
+		// The second block should not have overwritten the changes from the first block
+		assert.ok(
+			finalContent.includes("processData(data)") && finalContent.includes("validateData(data)"),
+			"Both block changes should be preserved"
+		)
+
+		// Verify update order for overlapping blocks
+		for (const block of editBlocks) {
+			const updates = appliedUpdates.filter((update) => update.blockId === block.id)
+			// Verify updates for each block were applied in sequence
+			for (let i = 1; i < updates.length; i++) {
+				assert.ok(
+					updates[i].content.length >= updates[i - 1].content.length,
+					`Updates for block ${block.id} were not applied in sequence`
+				)
+			}
+		}
+	})
+
 	it("should handle CRLF vs LF line endings correctly", async () => {
 		const searchContent = "function test() {\n    console.log('test');\n}"
 		const replaceContent = "function test() {\r\n    console.log('updated');\r\n}"
@@ -739,7 +1021,7 @@ export const estimateTokenCountFromMessages = (messages: Anthropic.Messages.Mess
 		const testContent = "// Some content\r\n" + searchContent.replace(/\n/g, "\r\n") + "\r\n// More content"
 		fs.writeFileSync(testFilePath, testContent, "utf8")
 
-		const diff = `SEARCH\n${searchContent}\n=======\nREPLACE\n${replaceContent}`
+		const diff = `SEARCH\n${searchContent}\n\nREPLACE\n${replaceContent}`
 		const generator = await simulateStreaming(diff, 25)
 
 		let editBlocks: EditBlock[] = []
