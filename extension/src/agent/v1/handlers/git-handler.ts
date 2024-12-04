@@ -1,6 +1,7 @@
 import { execa, ExecaError } from "execa"
 import { promises as fs } from "fs"
 import { GitBranchItem, GitLogItem } from "../../../shared/ExtensionMessage"
+import { StateManager } from "../state-manager"
 
 export type GitCommitResult = {
 	branch: string
@@ -11,13 +12,23 @@ export class GitHandler {
 	private repoPath: string | undefined
 	private readonly DEFAULT_USER_NAME = "kodu-ai"
 	private readonly DEFAULT_USER_EMAIL = "bot@kodu.ai"
+	private stateManager: StateManager
 
-	constructor(repoPath: string) {
+	constructor(repoPath: string, stateManager: StateManager) {
 		this.repoPath = repoPath
+		this.stateManager = stateManager
+	}
+
+	private checkEnabled(): boolean {
+		if (!this.stateManager.gitHandlerEnabled) {
+			console.log("Git handler is disabled")
+			return false
+		}
+		return true
 	}
 
 	async init(): Promise<boolean> {
-		if (!this.repoPath) {
+		if (!this.repoPath || !this.checkEnabled()) {
 			return false
 		}
 		return this.setupRepository()
@@ -55,6 +66,9 @@ export class GitHandler {
 	}
 
 	async commitEverything(message: string): Promise<GitCommitResult> {
+		if (!this.checkEnabled()) {
+			throw new Error("Git handler is disabled")
+		}
 		try {
 			await this.prepareForCommit()
 			return this.commitWithMessage(".", message)
@@ -64,6 +78,9 @@ export class GitHandler {
 	}
 
 	async commitOnFileWrite(path: string): Promise<GitCommitResult> {
+		if (!this.checkEnabled()) {
+			throw new Error("Git handler is disabled")
+		}
 		try {
 			await this.prepareForCommit()
 
@@ -222,7 +239,7 @@ export class GitHandler {
 	}
 
 	async checkoutTo(identifier: string): Promise<boolean> {
-		if (!this.repoPath) {
+		if (!this.repoPath || !this.checkEnabled()) {
 			return false
 		}
 
@@ -235,7 +252,7 @@ export class GitHandler {
 	}
 
 	async getCurrentBranch(): Promise<string | null> {
-		if (!this.repoPath) {
+		if (!this.repoPath || !this.checkEnabled()) {
 			return null
 		}
 
@@ -249,7 +266,7 @@ export class GitHandler {
 	}
 
 	async getCurrentCommit(): Promise<string | null> {
-		if (!this.repoPath) {
+		if (!this.repoPath || !this.checkEnabled()) {
 			return null
 		}
 
@@ -263,7 +280,7 @@ export class GitHandler {
 	}
 
 	async createBranchAtCommit(branchName: string, commitHash: string): Promise<boolean> {
-		if (!this.repoPath) {
+		if (!this.repoPath || !this.checkEnabled()) {
 			return false
 		}
 
@@ -277,7 +294,7 @@ export class GitHandler {
 	}
 
 	async resetHardTo(commitHash: string): Promise<boolean> {
-		if (!this.repoPath) {
+		if (!this.repoPath || !this.checkEnabled()) {
 			return false
 		}
 
@@ -291,7 +308,7 @@ export class GitHandler {
 	}
 
 	async deleteBranch(branchName: string): Promise<boolean> {
-		if (!this.repoPath) {
+		if (!this.repoPath || !this.checkEnabled()) {
 			return false
 		}
 
