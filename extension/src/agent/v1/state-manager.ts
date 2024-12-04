@@ -28,6 +28,7 @@ export class StateManager {
 	private _autoSummarize?: boolean
 	private _temporayPauseAutomaticMode: boolean = false
 	private _inlineEditOutputType?: "full" | "diff" | "none" = "full"
+	private _gitHandlerEnabled: boolean = true
 
 	constructor(options: KoduDevOptions) {
 		const {
@@ -44,6 +45,7 @@ export class StateManager {
 			skipWriteAnimation,
 			autoSummarize,
 			terminalCompressionThreshold,
+			gitHandlerEnabled,
 		} = options
 		this._creativeMode = creativeMode ?? "normal"
 		this._autoSummarize = autoSummarize
@@ -154,6 +156,10 @@ export class StateManager {
 		return this._skipWriteAnimation
 	}
 
+	get gitHandlerEnabled(): boolean {
+		return this._gitHandlerEnabled
+	}
+
 	// Methods to modify the properties
 	public setState(newState: KoduDevState): void {
 		this._state = newState
@@ -161,6 +167,11 @@ export class StateManager {
 
 	public setSkipWriteAnimation(newValue: boolean | undefined) {
 		this._skipWriteAnimation = newValue
+	}
+
+	public setGitHandlerEnabled(newValue: boolean): void {
+		this._gitHandlerEnabled = newValue
+		this.state.gitHandlerEnabled = newValue
 	}
 
 	get historyErrors(): KoduDevState["historyErrors"] | undefined {
