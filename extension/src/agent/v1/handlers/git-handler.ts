@@ -130,22 +130,49 @@ export class GitHandler {
 	private async getCommitMessage(path: string): Promise<string> {
 		try {
 			const { stdout } = await execa("git", ["diff", "--cached", "--unified=0", path], { cwd: this.repoPath })
-			const prefix = "[Kodu] "
+			const prefix = this.getCommitPrefix(path, stdout)
+			const isNewFile = !stdout.includes("--- a/")
 
-			// Check if file is being added or modified
-			if (!stdout.includes("--- a/")) {
-				// New file being added
-				return `${prefix}Added file: ${path}`
+			if (isNewFile) {
+				return `${prefix}: add ${path}`
 			}
 
-			// File is being modified, extract change summary
 			const changes = this.extractChangesFromDiff(stdout)
-			return `${prefix}Updated ${path}: ${changes}`
+			return `${prefix}: ${changes} in ${path}`
 		} catch (error) {
-			// Fallback message if diff fails
 			console.error(`Error generating commit message: ${error}`)
-			return `[Kodu] Changes in ${path}`
+			return `chore: update ${path}`
 		}
+	}
+
+	private getCommitPrefix(path: string, diff: string): string {
+		// Check file path patterns first
+		if (path.includes('test/') || path.endsWith('.test.ts') || path.endsWith('.spec.ts')) {
+			return 'test'
+		}
+		if (path.endsWith('.md') || path.includes('/docs/')) {
+			return 'docs'
+		}
+
+		// If it's a new file, it's likely a feature
+		if (!diff.includes("--- a/")) {
+			return 'feat'
+		}
+
+		// Check diff content for type hints
+		const diffContent = diff.toLowerCase()
+		if (diffContent.includes('fix') || diffContent.includes('bug') || diffContent.includes('issue')) {
+			return 'fix'
+		}
+		if (diffContent.includes('refactor') || diffContent.includes('clean')) {
+			return 'refactor'
+		}
+		if (diffContent.includes('style') || diffContent.match(/^\+\s*[\t ]*$/m)) {
+			return 'style'
+		}
+
+		// Default to chore for maintenance tasks
+		return 'chore'
 	}
 
 	private extractChangesFromDiff(diffOutput: string): string {
@@ -153,14 +180,14 @@ export class GitHandler {
 		const deletedLines = (diffOutput.match(/^-(?!--)/gm) || []).length
 
 		if (addedLines > 0 && deletedLines > 0) {
-			return `Modified ${addedLines} line${addedLines !== 1 ? 's' : ''}, removed ${deletedLines} line${deletedLines !== 1 ? 's' : ''}`
+			return `update with ${addedLines} addition${addedLines !== 1 ? 's' : ''} and ${deletedLines} deletion${deletedLines !== 1 ? 's' : ''}`
 		} else if (addedLines > 0) {
-			return `Added ${addedLines} line${addedLines !== 1 ? 's' : ''}`
+			return `add ${addedLines} line${addedLines !== 1 ? 's' : ''}`
 		} else if (deletedLines > 0) {
-			return `Removed ${deletedLines} line${deletedLines !== 1 ? 's' : ''}`
+			return `remove ${deletedLines} line${deletedLines !== 1 ? 's' : ''}`
 		}
 
-		return "Made changes"
+		return 'update'
 	}
 
 	private getCommittedHash(gitCommitStdOut: string): GitCommitResult {
