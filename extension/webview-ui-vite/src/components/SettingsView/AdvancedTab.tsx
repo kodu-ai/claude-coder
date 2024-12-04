@@ -16,6 +16,7 @@ const AdvancedTab: React.FC = () => {
 		terminalCompressionThreshold,
 		commandTimeout,
 		gitHandlerEnabled,
+		handleSetGitHandlerEnabled,
 		handleCommandTimeout,
 		handleTerminalCompressionThresholdChange,
 		handleSetReadOnly,
@@ -45,7 +46,7 @@ const AdvancedTab: React.FC = () => {
 					feature={{
 						id: "gitHandlerEnabled",
 						label: "Git Handler",
-						description: "Enable or disable automatic git operations",
+						description: "Enable or disable automatic git operations and version control",
 					}}
 					checked={gitHandlerEnabled}
 					onCheckedChange={handleSetGitHandlerEnabled}
