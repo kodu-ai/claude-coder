@@ -17,9 +17,23 @@ const MAX_RETRIES = 3
 
 type EarlyExitState = "approved" | "rejected" | "pending"
 
-export const shellIntegrationErrorOutput = `Shell integration not available, to run commands in the terminal the user must enable shell integration.
-right now the command has been executed but the output cannot be read, unless the user enables shell integration.
-currently can only run commands without output, to run commands with output the user must enable shell integration tell the user to enable shell integration to run commands with output.
+export const shellIntegrationErrorOutput = `
+<command_execution_response>
+	<status>
+		<result>error</result>
+		<operation>command_execution</operation>
+		<timestamp>${new Date().toISOString()}</timestamp>
+		<error_type>shell_integration_unavailable</error_type>
+	</status>
+	<error_details>
+		<message>Shell integration is not available. The command was executed but output cannot be captured.</message>
+		<required_action>User must enable shell integration to capture command output</required_action>
+		<limitations>
+			<current>Can only run commands without capturing output</current>
+			<resolution>Enable shell integration to capture command output</resolution>
+		</limitations>
+	</error_details>
+</command_execution_response>
 `
 
 export class ExecuteCommandTool extends BaseAgentTool {
@@ -274,20 +288,49 @@ export class ExecuteCommandTool extends BaseAgentTool {
 							ts: this.ts,
 							earlyExit,
 							userFeedback: userFeedback.text,
-							isSubMsg: this.params.isSubMsg,
-						},
-					},
-					this.ts
-				)
-			}
-
-			if (completed) {
+			toolRes = `
+				<command_execution_response>
+					<status>
+						<result>success</result>
+						<operation>command_execution</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<execution_details>
+						<command_info>
+							<executed_command>${command}</executed_command>
+							<working_directory>${this.cwd}</working_directory>
+						</command_info>
+						<output>
+							<content>${this.output}</content>
+						</output>
+						<version_control>
+							<git_commit>${commitResult?.commitHash}</git_commit>
+							<git_branch>${commitResult?.branch}</git_branch>
+						</version_control>
+					</execution_details>
+				</command_execution_response>
+				`
 				let commitResult: GitCommitResult | undefined = undefined
 				try {
 					commitResult = await this.koduDev.gitHandler.commitEverything(
-						`State after executing command \`${command}\``
-					)
-				} catch (error) {
+				toolRes += `
+					<command_execution_response>
+						<status>
+							<result>partial</result>
+							<operation>command_execution</operation>
+							<timestamp>${new Date().toISOString()}</timestamp>
+						</status>
+						<execution_details>
+							<command_info>
+								<executed_command>${command}</executed_command>
+								<working_directory>${this.cwd}</working_directory>
+							</command_info>
+							<output>
+								<content>${this.output || "No output"}</content>
+								<note>This is a partial output as the command is still running</note>
+							</output>
+						</execution_details>
+					</command_execution_response>`
 					console.error("Failed to get post-command commit:", error)
 				}
 
