@@ -43,7 +43,7 @@ const AdvancedTab: React.FC = () => {
 			<div className="space-y-4">
 				<ExperimentalFeatureItem
 					feature={{
-						id: "gitHandler",
+						id: "gitHandlerEnabled",
 						label: "Git Handler",
 						description: "Enable or disable automatic git operations",
 					}}
