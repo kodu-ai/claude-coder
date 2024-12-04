@@ -20,14 +20,27 @@ export class AskFollowupQuestionTool extends BaseAgentTool {
 				"error",
 				"Claude tried to use ask_followup_question without value for required parameter 'question'. Retrying..."
 			)
-			const errorMsg = `Error: Missing value for required parameter 'question'. Please retry with complete response.
-			An example of a good askFollowupQuestion tool call is:
-			{
-				"tool": "ask_followup_question",
-				"question": "question to ask"
-			}
-			Please try again with the correct question, you are not allowed to ask followup questions without a question.
-			`
+			const errorMsg = `
+			<question_tool_response>
+				<status>
+					<result>error</result>
+					<operation>ask_followup_question</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<type>missing_parameter</type>
+					<message>Missing required parameter 'question'</message>
+					<help>
+						<example_usage>
+							<tool>ask_followup_question</tool>
+							<parameters>
+								<question>Your question here</question>
+							</parameters>
+						</example_usage>
+						<note>Follow-up questions require a valid question parameter to proceed</note>
+					</help>
+				</error_details>
+			</question_tool_response>`
 			return this.toolResponse("error", errorMsg)
 		}
 
@@ -45,6 +58,27 @@ export class AskFollowupQuestionTool extends BaseAgentTool {
 		)
 		await say("user_feedback", text ?? "", images)
 
-		return this.toolResponse("success", `<answer>\n${text}\n</answer>`, images)
+		return this.toolResponse(
+			"success",
+			`<question_tool_response>
+				<status>
+					<result>success</result>
+					<operation>ask_followup_question</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<interaction>
+					<question>${question}</question>
+					<response>
+						<text>${text || ""}</text>
+						${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
+					</response>
+					<metadata>
+						<response_type>${images ? "text_with_images" : "text_only"}</response_type>
+						<response_length>${text?.length || 0}</response_length>
+					</metadata>
+				</interaction>
+			</question_tool_response>`,
+			images
+		)
 	}
 }
