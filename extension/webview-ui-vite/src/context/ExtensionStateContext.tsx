@@ -222,6 +222,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setAlwaysAllowReadOnly(!!message.state.alwaysAllowReadOnly)
 			setCurrentContextWindow(message.state.currentContextWindow)
 			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
+			setActiveSystemPromptVariantId(message.state.activeSystemPromptVariantId)
 			setUser(message.state.user)
 			setExtensionName(message.state.extensionName)
 			setSkipWriteAnimation(!!message.state.skipWriteAnimation)
@@ -234,6 +235,8 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setUriScheme(message.state.uriScheme)
 			setCreativeMode(message.state.creativeMode ?? "normal")
 			setSystemPromptVariants(message.state.systemPromptVariants ?? [])
+			setApiConfiguration(message.state.apiConfiguration)
+			setIsContinueGenerationEnabled(!!message.state.isContinueGenerationEnabled)
 		}
 		if (message.type === "action" && message.action === "koduCreditsFetched") {
 			setUser(message.user)

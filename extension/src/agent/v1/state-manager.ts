@@ -56,6 +56,7 @@ export class StateManager {
 		this._customInstructions = customInstructions
 		this._terminalCompressionThreshold = terminalCompressionThreshold
 		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
+		this._gitHandlerEnabled = gitHandlerEnabled ?? true
 		this._experimentalTerminal = experimentalTerminal
 		this._inlineEditOutputType = options.inlineEditOutputType
 		this._autoCloseTerminal = autoCloseTerminal

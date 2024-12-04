@@ -508,6 +508,11 @@ export class WebviewManager {
 							.getTaskManager()
 							.handleAskResponse(message.askResponse!, message.text, message.images, message.attachements)
 						break
+					case "toggleGitHandler":
+						this.provider.koduDev?.getStateManager().setGitHandlerEnabled(message.enabled)
+						await this.provider.getStateManager().setGitHandlerEnabled(message.enabled)
+						await this.postStateToWebview()
+						break
 					case "clearTask":
 						await this.provider.getTaskManager().clearTask()
 						await this.postStateToWebview()

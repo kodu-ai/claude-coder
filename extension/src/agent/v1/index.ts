@@ -71,7 +71,7 @@ export class KoduDev {
 		this.browserManager = new BrowserManager(this.providerRef.deref()!.context)
 
 		this.setupTaskExecutor()
-		this.gitHandler = new GitHandler(getCwd())
+		this.gitHandler = new GitHandler(getCwd(), this.stateManager)
 
 		amplitudeTracker.updateUserSettings({
 			AlwaysAllowReads: this.stateManager.alwaysAllowReadOnly,

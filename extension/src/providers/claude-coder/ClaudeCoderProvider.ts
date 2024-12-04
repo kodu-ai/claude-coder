@@ -91,6 +91,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 		await this.taskManager.clearTask()
 		const state = await this.stateManager.getState()
 		this.koduDev = new KoduDev({
+			gitHandlerEnabled: state.gitHandlerEnabled,
 			provider: this,
 			apiConfiguration: { ...state.apiConfiguration, koduApiKey: state.apiConfiguration.koduApiKey },
 			maxRequestsPerTask: state.maxRequestsPerTask,
@@ -113,6 +114,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 		await this.taskManager.clearTask()
 		const state = await this.stateManager.getState()
 		this.koduDev = new KoduDev({
+			gitHandlerEnabled: state.gitHandlerEnabled,
 			provider: this,
 			apiConfiguration: { ...state.apiConfiguration, koduApiKey: state.apiConfiguration.koduApiKey },
 			maxRequestsPerTask: state.maxRequestsPerTask,
@@ -135,6 +137,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 		await this.taskManager.clearTask()
 		const state = await this.stateManager.getState()
 		this.koduDev = new KoduDev({
+			gitHandlerEnabled: state.gitHandlerEnabled,
 			provider: this,
 			apiConfiguration: { ...state.apiConfiguration, koduApiKey: state.apiConfiguration.koduApiKey },
 			maxRequestsPerTask: state.maxRequestsPerTask,
