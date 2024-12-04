@@ -89,9 +89,36 @@ export class ReadFileTool extends BaseAgentTool {
 				this.ts
 			)
 			if (content.trim().length === 0) {
-				return this.toolResponse("success", "The file is empty.")
+				return this.toolResponse(
+					"success",
+					`<file_read_response>
+						<status>
+							<result>success</result>
+							<operation>file_read</operation>
+							<timestamp>${new Date().toISOString()}</timestamp>
+						</status>
+						<file_info>
+							<path>${relPath}</path>
+							<state>empty</state>
+						</file_info>
+					</file_read_response>`
+				)
 			}
-			return this.toolResponse("success", content.length > 0 ? content : "The file is empty.")
+			return this.toolResponse(
+				"success",
+				`<file_read_response>
+					<status>
+						<result>success</result>
+						<operation>file_read</operation>
+						<timestamp>${new Date().toISOString()}</timestamp>
+					</status>
+					<file_info>
+						<path>${relPath}</path>
+						<content_length>${content.length}</content_length>
+					</file_info>
+					<content>${content}</content>
+				</file_read_response>`
+			)
 		} catch (error) {
 			this.params.updateAsk(
 				"tool",
@@ -107,13 +134,24 @@ export class ReadFileTool extends BaseAgentTool {
 				this.ts
 			)
 			const errorString = `
-			Error reading file: ${JSON.stringify(serializeError(error))}
-			An example of a good readFile tool call is:
-			{
-				"tool": "read_file",
-				"path": "path/to/file.txt"
-			}
-			Please try again with the correct path, you are not allowed to read files without a path.
+			<file_read_response>
+				<status>
+					<result>error</result>
+					<operation>file_read</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+				</status>
+				<error_details>
+					<message>Error reading file: ${JSON.stringify(serializeError(error))}</message>
+					<path>${relPath}</path>
+					<help>
+						<example_usage>
+							<tool>read_file</tool>
+							<path>path/to/file.txt</path>
+						</example_usage>
+						<note>Please provide a valid file path. File reading operations require a valid path parameter.</note>
+					</help>
+				</error_details>
+			</file_read_response>
 			`
 			await say(
 				"error",
