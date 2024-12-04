@@ -5,6 +5,21 @@ import { StateManager } from "../state-manager"
 import { ApiManager } from "../api-handler"
 import { ApiConfiguration } from "../../../api"
 
+// Custom error class for better error handling
+export class GitHandlerError extends Error {
+    constructor(message: string, public readonly command?: string) {
+        super(message);
+        this.name = 'GitHandlerError';
+    }
+}
+
+// Logger interface for consistent logging
+interface GitLogger {
+    info(message: string): void;
+    error(message: string, error?: unknown): void;
+    debug(message: string): void;
+}
+
 export type GitCommitResult = {
 	branch: string
 	commitHash: string
@@ -33,6 +48,7 @@ export class GitHandler {
 	private readonly DEFAULT_USER_NAME = "kodu-ai"
 	private readonly DEFAULT_USER_EMAIL = "bot@kodu.ai"
 	private stateManager: StateManager
+	private readonly logger: GitLogger = console;
 
 	constructor(repoPath: string, stateManager: StateManager) {
 		this.repoPath = repoPath
@@ -121,15 +137,85 @@ export class GitHandler {
 
 	private async prepareForCommit(): Promise<void> {
 		if (!(await this.isGitInstalled())) {
-			throw new Error("Git is not installed")
+			throw new GitHandlerError("Git is not installed")
 		}
 
 		if (!(await this.isRepositorySetup())) {
 			const isSetup = await this.setupRepository()
 			if (!isSetup) {
-				throw new Error("Failed to setup repository")
+				throw new GitHandlerError("Failed to setup repository")
 			}
 		}
+	}
+
+	private async withRetry<T>(operation: () => Promise<T>, retries = 3): Promise<T> {
+		let lastError;
+		for (let i = 0; i < retries; i++) {
+			try {
+				return await operation();
+			} catch (error) {
+				lastError = error;
+				this.logger.debug(`Retry ${i + 1}/${retries} failed: ${error}`);
+				await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+			}
+		}
+		throw lastError;
+	}
+
+	async getStatus(): Promise<{
+		isClean: boolean;
+		modified: string[];
+		untracked: string[];
+	}> {
+		if (!this.checkEnabled()) {
+			throw new GitHandlerError("Git handler is disabled");
+		}
+
+		const { stdout } = await this.withRetry(() =>
+			execa("git", ["status", "--porcelain"], { cwd: this.repoPath })
+		);
+
+		const modified: string[] = [];
+		const untracked: string[] = [];
+
+		stdout.split("\n").filter(Boolean).forEach(line => {
+			const status = line.substring(0, 2);
+			const file = line.substring(3);
+			if (status.includes("??")) {
+				untracked.push(file);
+			} else {
+				modified.push(file);
+			}
+		});
+
+		return {
+			isClean: stdout === "",
+			modified,
+			untracked
+		};
+	}
+
+	async stashChanges(message?: string): Promise<boolean> {
+		if (!this.checkEnabled()) {
+			throw new GitHandlerError("Git handler is disabled");
+		}
+
+		try {
+			const args = ["stash", "push"];
+			if (message) {
+				args.push("-m", message);
+			}
+			await this.withRetry(() => execa("git", args, { cwd: this.repoPath }));
+			return true;
+		} catch (error) {
+			this.logger.error("Error stashing changes:", error);
+			return false;
+		}
+	}
+
+	private async isProtectedBranch(branchName: string): Promise<boolean> {
+		const protectedBranches = ["main", "master", "develop"];
+		return protectedBranches.includes(branchName);
 	}
 
 	private async commitWithMessage(path: string, message: string): Promise<GitCommitResult> {
@@ -302,7 +388,7 @@ export class GitHandler {
 		}
 	}
 
-	static async getLog(repoAbsolutePath: string): Promise<GitLogItem[]> {
+	static async getLog(repoAbsolutePath: string, limit = 100): Promise<GitLogItem[]> {
 		if (!repoAbsolutePath) {
 			return []
 		}
@@ -310,8 +396,17 @@ export class GitHandler {
 		try {
 			const { stdout } = await execa(
 				"git",
-				["log", "--pretty=format:%h%x09%ad%x09%s", "--date=format:%Y-%m-%d %H:%M"],
-				{ cwd: repoAbsolutePath }
+				[
+					"log",
+					`-n ${limit}`,
+					"--pretty=format:%h%x09%ad%x09%s",
+					"--date=format:%Y-%m-%d %H:%M",
+					"--no-merges"
+				],
+				{
+					cwd: repoAbsolutePath,
+					maxBuffer: 1024 * 1024 // Increase buffer size for large repos
+				}
 			)
 
 			return this.parseGitLogs(stdout)
