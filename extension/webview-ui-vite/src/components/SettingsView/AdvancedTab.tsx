@@ -15,10 +15,12 @@ const AdvancedTab: React.FC = () => {
 		customInstructions,
 		terminalCompressionThreshold,
 		commandTimeout,
+		gitHandlerEnabled,
 		handleCommandTimeout,
 		handleTerminalCompressionThresholdChange,
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
+		handleSetGitHandlerEnabled,
 		handleAutoSkipWriteChange,
 		handleCustomInstructionsChange,
 	} = useSettingsState()
@@ -39,6 +41,15 @@ const AdvancedTab: React.FC = () => {
 	return (
 		<div className="space-y-6">
 			<div className="space-y-4">
+				<ExperimentalFeatureItem
+					feature={{
+						id: "gitHandler",
+						label: "Git Handler",
+						description: "Enable or disable automatic git operations",
+					}}
+					checked={gitHandlerEnabled}
+					onCheckedChange={handleSetGitHandlerEnabled}
+				/>
 				<ExperimentalFeatureItem
 					feature={{
 						id: "alwaysAllowReadOnly",
