@@ -197,10 +197,6 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setClaudeMessages(message.claudeMessages)
 		}
 
-		if (message.type === "toggleGitHandler") {
-			setGitHandlerEnabled(message.enabled)
-		}
-
 		if (message.type === "state" && message.state) {
 			setVersion(message.state.version)
 			setCurrentIdTask(message.state.currentTaskId)
