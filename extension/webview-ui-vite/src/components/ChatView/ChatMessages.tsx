@@ -109,25 +109,25 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, sy
 		const newMessageCount = visibleMessages.length
 		const messageAdded = newMessageCount > lastMessageCountRef.current
 
-		if (!isInitialMount.current && messageAdded) {
-			// More aggressive scroll behavior for new messages
-			if (!userScrolled || atBottom) {
+		if (messageAdded) {
+			// Only scroll if we're at the bottom when new content arrives
+			if (atBottom) {
 				scrollToBottom("smooth")
 			}
 		}
 
 		lastMessageCountRef.current = newMessageCount
-	}, [visibleMessages.length, atBottom, userScrolled, scrollToBottom])
+	}, [visibleMessages.length, atBottom, scrollToBottom])
 
-	// Reset state when task changes
+	// Reset state and scroll to bottom only on first render for new taskId
 	useEffect(() => {
 		isInitialMount.current = true
 		setUserScrolled(false)
 		setAtBottom(true)
 		lastMessageCountRef.current = visibleMessages.length
 		// Ensure we start at bottom for new tasks
-		setTimeout(() => scrollToBottom(), 0)
-	}, [taskId, visibleMessages.length, scrollToBottom])
+		scrollToBottom()
+	}, [taskId, scrollToBottom]) // Remove visibleMessages.length dependency
 
 	// Cleanup
 	useEffect(() => {
