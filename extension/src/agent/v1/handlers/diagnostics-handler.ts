@@ -41,7 +41,7 @@ export class DiagnosticsHandler {
 
 		// Start building XML structure
 		let result = "<diagnostics>\n"
-		result += `  <file path="${this.escapeXml(relativePath)}">\n`
+		result += `  <file path="${relativePath}">\n`
 
 		// Get the document to access its content
 		const document = vscode.workspace.textDocuments.find((doc) => doc.uri.fsPath === uri.fsPath)
@@ -56,18 +56,18 @@ export class DiagnosticsHandler {
 			let lineContent = "Unable to retrieve line content"
 			let errorPointer = ""
 
-			if (document) {
-				lineContent = document.lineAt(diagnostic.range.start.line).text
-				// Create a pointer to show exactly where the error is
-				errorPointer = " ".repeat(startChar) + "^".repeat(Math.max(1, endChar - startChar))
-			}
+			// if (document) {
+			// 	lineContent = document.lineAt(diagnostic.range.start.line).text
+			// 	// Create a pointer to show exactly where the error is
+			// 	errorPointer = " ".repeat(startChar) + "^".repeat(Math.max(1, endChar - startChar))
+			// }
 
 			// Add error information in XML format
 			result += "    <error>\n"
 			result += `      <line>${line}</line>\n`
-			result += `      <message>${this.escapeXml(message)}</message>\n`
-			result += `      <code>${this.escapeXml(lineContent)}</code>\n`
-			result += `      <pointer>${this.escapeXml(errorPointer)}</pointer>\n`
+			result += `      <message>${message}</message>\n`
+			// result += `      <code>${lineContent}</code>\n`
+			// result += `      <pointer>${errorPointer}</pointer>\n`
 			result += `      <position start="${startChar}" end="${endChar}" />\n`
 			result += "    </error>\n"
 		}

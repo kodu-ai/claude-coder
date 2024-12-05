@@ -53,6 +53,8 @@ When you apply surgent like edit blocks you reduce the risk of errors and uninte
 Using this requires you to provide prior context lines before the edit, this should help you figure out where are you editing and what are you editing.
 Finally A good example of using this tool is when you need to update specific functions, lines of code or configuration settings within a file without affecting the rest of the content.
 Another great example is when you want to create new functions or classes in a file without affecting the existing content.
+Try to priortize using edit_file_blocks tool over the write_to_file as much as possible only use write_to_file when you need to replace the entire content of a file or create a new file or when edit_file_blocks is failing to do the job.
+Always try to priortize bundling multiple changes in a single edit_file_blocks tool call, if you need apply multiple changes to a file, bundle them in a single edit_file_blocks using separate SEARCH/REPLACE blocks, if you only need to apply a single change, then use a single SEARCH/REPLACE block it's totally fine.
 Parameters:
 - path: (required) The path of the file to edit (relative to the current working directory ${cwd.toPosix()})
 - kodu_diff: (required) The 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file. Each 'SEARCH' block must match the existing content exactly, and each 'REPLACE' block should provide the intended changes.
@@ -547,6 +549,7 @@ class Job {
 
 # Tool Use Guidelines
 
+0. You can only call one tool per message as each tool requires user confirmation before proceeding to the next step.
 1. In <thinking> tags, assess what information you already have and what information you need to proceed with the task.
 2. Choose the most appropriate tool based on the task and the tool descriptions provided. Assess if you need additional information to proceed, and which of the available tools would be most effective for gathering this information. For example using the list_files tool is more effective than running a command like \`ls\` in the terminal. It's critical that you think about each available tool and use the one that best fits the current step in the task.
 3. Use one tool at a time per message to accomplish the task iteratively, with each tool use being informed by the result of the previous tool use. Do not assume the outcome of any tool use. Each step must be informed by the previous step's result.

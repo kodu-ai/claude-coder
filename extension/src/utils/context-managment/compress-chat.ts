@@ -222,7 +222,7 @@ const processContentBlock = async (
 	}
 
 	// Skip specific context blocks
-	const includedTextToRemove = ["</most_important_context>", "</environment_details>"]
+	const includedTextToRemove = ["</most_important_context>", "</environment_details>", "</automatic_reminders>"]
 	if (includedTextToRemove.some((text) => content.text.includes(text))) {
 		if (content.text.includes("<most_important_context>") || content.text.includes("<environment_details>")) {
 			logger(`Found and Removing either most_important_context or environment_details block`, "info")
