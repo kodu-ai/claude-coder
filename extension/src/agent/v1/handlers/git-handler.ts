@@ -51,13 +51,6 @@ export class GitHandler {
 				return false
 			}
 
-			// Using default values directly as commented in original code
-			const userName = this.DEFAULT_USER_NAME
-			const userEmail = this.DEFAULT_USER_EMAIL
-
-			await this.setGitConfig("user.name", userName)
-			await this.setGitConfig("user.email", userEmail)
-
 			return true
 		} catch (error) {
 			console.error(`Error initializing git repository: ${error}`)
@@ -116,7 +109,11 @@ export class GitHandler {
 		try {
 			// Separate add and commit for better error handling
 			await execa("git", ["add", path], { cwd: this.repoPath })
-			const { stdout } = await execa("git", ["commit", "-m", message], { cwd: this.repoPath })
+			const { stdout } = await execa(
+				"git",
+				["commit", "--author", `${this.DEFAULT_USER_NAME} <${this.DEFAULT_USER_EMAIL}>`, "-m", message],
+				{ cwd: this.repoPath }
+			)
 			return this.getCommittedHash(stdout.trim())
 		} catch (error) {
 			if (error instanceof ExecaError) {
