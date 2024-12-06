@@ -2,17 +2,53 @@ import { execa, ExecaError } from "execa"
 import { promises as fs } from "fs"
 import { GitBranchItem, GitLogItem } from "../../../shared/ExtensionMessage"
 import { StateManager } from "../state-manager"
+import { ApiManager } from "../api-handler"
+import { ApiConfiguration } from "../../../api"
+
+// Custom error class for better error handling
+export class GitHandlerError extends Error {
+    constructor(message: string, public readonly command?: string) {
+        super(message);
+        this.name = 'GitHandlerError';
+    }
+}
+
+// Logger interface for consistent logging
+interface GitLogger {
+    info(message: string): void;
+    error(message: string, error?: unknown): void;
+    debug(message: string): void;
+}
 
 export type GitCommitResult = {
 	branch: string
 	commitHash: string
 }
 
+const COMMIT_MESSAGE_PROMPT = `Generate a concise and descriptive commit message following the Conventional Commits specification (https://www.conventionalcommits.org/).
+The message should be in the format: <type>(<scope>): <description>
+
+Given the following git diff and file information, generate an appropriate commit message:
+
+File: {filePath}
+Diff:
+{diff}
+
+The commit message should:
+1. Use appropriate type (feat, fix, docs, style, refactor, perf, test, chore)
+2. Include scope when relevant
+3. Have a clear, concise description
+4. Focus on the "what" and "why" rather than the "how"
+5. Be written in imperative mood
+
+Respond with ONLY the commit message, nothing else.`
+
 export class GitHandler {
 	private repoPath: string | undefined
 	private readonly DEFAULT_USER_NAME = "kodu-ai"
 	private readonly DEFAULT_USER_EMAIL = "bot@kodu.ai"
 	private stateManager: StateManager
+	private readonly logger: GitLogger = console;
 
 	constructor(repoPath: string, stateManager: StateManager) {
 		this.repoPath = repoPath
@@ -101,15 +137,88 @@ export class GitHandler {
 
 	private async prepareForCommit(): Promise<void> {
 		if (!(await this.isGitInstalled())) {
-			throw new Error("Git is not installed")
+			throw new GitHandlerError("Git is not installed")
 		}
 
 		if (!(await this.isRepositorySetup())) {
 			const isSetup = await this.setupRepository()
 			if (!isSetup) {
-				throw new Error("Failed to setup repository")
+				throw new GitHandlerError("Failed to setup repository")
 			}
 		}
+	}
+
+	private async withRetry<T>(operation: () => Promise<T>, retries = 3): Promise<T> {
+		let lastError;
+		for (let i = 0; i < retries; i++) {
+			try {
+				return await operation();
+			} catch (error) {
+				lastError = error;
+				this.logger.debug(`Retry ${i + 1}/${retries} failed: ${error}`);
+				await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+			}
+		}
+		throw lastError;
+	}
+
+	async getStatus(): Promise<{
+		isClean: boolean;
+		modified: string[];
+		untracked: string[];
+	}> {
+		if (!this.checkEnabled()) {
+			throw new GitHandlerError("Git handler is disabled");
+		}
+
+		const { stdout } = await this.withRetry(() =>
+			execa("git", ["status", "--porcelain"], { cwd: this.repoPath })
+		);
+
+		const modified: string[] = [];
+		const untracked: string[] = [];
+
+		stdout.split("\n").filter(Boolean).forEach(line => {
+			const status = line.substring(0, 2);
+			const file = line.substring(3);
+			if (status.includes("??")) {
+				untracked.push(file);
+			} else {
+				modified.push(file);
+			}
+		});
+
+		return {
+			isClean: stdout === "",
+			modified,
+			untracked
+		};
+	}
+
+	async stashChanges(message?: string): Promise<boolean> {
+		if (!this.checkEnabled()) {
+			throw new GitHandlerError("Git handler is disabled");
+		}
+
+		try {
+			const args = ["stash", "push"];
+			if (message) {
+				args.push("-m", message);
+			}
+			await this.withRetry(() => execa("git", args, { cwd: this.repoPath }));
+			return true;
+		} catch (error) {
+			this.logger.error("Error stashing changes:", error);
+			return false;
+		}
+	}
+
+	private async isProtectedBranch(branchName: string): Promise<boolean> {
+		const protectedBranches = ["main", "master", "develop"];
+		if (protectedBranches.includes(branchName)) {
+			return true;
+		}
+		return false;
 	}
 
 	private async commitWithMessage(path: string, message: string): Promise<GitCommitResult> {
@@ -128,11 +237,145 @@ export class GitHandler {
 	}
 
 	private async getCommitMessage(path: string): Promise<string> {
-		const { stdout } = await execa("git", ["status", "-s"], { cwd: this.repoPath })
-		const statusLines = stdout.split("\n")
-		const statusLine = statusLines.find((line) => line.includes(path))
+		try {
+			const { stdout } = await execa("git", ["diff", "--cached", "--unified=0", path], { cwd: this.repoPath })
+			const prefix = this.getCommitPrefix(path, stdout)
+			const scope = this.getCommitScope(path)
+			const description = this.generateCommitDescription(path, stdout)
 
-		return statusLine?.startsWith("M") ? `Updated ${path}` : `Added ${path}`
+			// Format: <type>(<scope>): <description>
+			return scope ? `${prefix}(${scope}): ${description}` : `${prefix}: ${description}`
+		} catch (error) {
+			console.error(`Error generating commit message: ${error}`)
+			return `chore: update ${this.getFileNameFromPath(path)}`
+		}
+	}
+
+	private getCommitPrefix(path: string, diff: string): string {
+		// Configuration changes
+		if (path.match(/\.(json|yaml|yml|toml|ini)$/i)) {
+			return 'config'
+		}
+
+		// Test files
+		if (path.includes('test/') || path.match(/\.(test|spec)\.(ts|js|tsx|jsx)$/)) {
+			return 'test'
+		}
+
+		// Documentation
+		if (path.endsWith('.md') || path.includes('/docs/')) {
+			return 'docs'
+		}
+
+		// Dependencies
+		if (path.match(/package(-lock)?\.json$/) || path.match(/yarn\.lock$/)) {
+			return 'deps'
+		}
+
+		// Check diff content for semantic hints
+		const diffContent = diff.toLowerCase()
+		if (diffContent.includes('fix:') || diffContent.includes('bug:') || diffContent.includes('issue:')) {
+			return 'fix'
+		}
+		if (diffContent.includes('refactor:') || diffContent.includes('clean:')) {
+			return 'refactor'
+		}
+		if (diffContent.includes('perf:') || diffContent.includes('performance:')) {
+			return 'perf'
+		}
+		if (diffContent.includes('style:') || diffContent.match(/^\+\s*[\t ]*$/m)) {
+			return 'style'
+		}
+
+		// New files are features by default
+		if (!diff.includes("--- a/")) {
+			return 'feat'
+		}
+
+		// Default to chore for maintenance tasks
+		return 'chore'
+	}
+
+	private getCommitScope(path: string): string | null {
+		// Extract meaningful scope from file path
+		const parts = path.split('/')
+
+		// Handle special cases first
+		if (path.includes('test/')) {
+			return 'tests'
+		}
+		if (path.includes('docs/')) {
+			return 'docs'
+		}
+		if (path.match(/\.(test|spec)\.(ts|js|tsx|jsx)$/)) {
+			return 'tests'
+		}
+
+		// Extract scope from directory structure
+		if (parts.length > 1) {
+			// Use the first meaningful directory as scope
+			const scopeDirs = parts.filter(part => 
+				!part.match(/^(src|lib|app|dist|build|public)$/) && 
+				!part.match(/\.[a-z]+$/)
+			)
+			if (scopeDirs.length > 0) {
+				return scopeDirs[0]
+			}
+		}
+
+		return null
+	}
+
+	private generateCommitDescription(path: string, diff: string): string {
+		const fileName = this.getFileNameFromPath(path)
+		const isNewFile = !diff.includes("--- a/")
+
+		if (isNewFile) {
+			return `add ${fileName}`
+		}
+
+		// Analyze diff to generate meaningful description
+		const changes = this.analyzeChanges(diff)
+		if (changes.significant) {
+			return `${changes.action} ${fileName}`
+		}
+
+		return `update ${fileName}`
+	}
+
+	private getFileNameFromPath(path: string): string {
+		return path.split('/').pop() || path
+	}
+
+	private analyzeChanges(diff: string): { action: string; significant: boolean } {
+		const addedLines = (diff.match(/^\+(?!\+\+)/gm) || []).length
+		const deletedLines = (diff.match(/^-(?!--)/gm) || []).length
+		const totalChanges = addedLines + deletedLines
+
+		// Determine if changes are significant (more than just formatting)
+		const significant = totalChanges > 5 || diff.includes('class ') || diff.includes('function ')
+
+		if (addedLines > 0 && deletedLines > 0) {
+			return {
+				action: significant ? 'refactor' : 'modify',
+				significant
+			}
+		} else if (addedLines > deletedLines) {
+			return {
+				action: significant ? 'implement' : 'enhance',
+				significant
+			}
+		} else if (deletedLines > addedLines) {
+			return {
+				action: significant ? 'remove' : 'cleanup',
+				significant
+			}
+		}
+
+		return {
+			action: 'update',
+			significant: false
+		}
 	}
 
 	private getCommittedHash(gitCommitStdOut: string): GitCommitResult {
@@ -148,7 +391,7 @@ export class GitHandler {
 		}
 	}
 
-	static async getLog(repoAbsolutePath: string): Promise<GitLogItem[]> {
+	static async getLog(repoAbsolutePath: string, limit = 100): Promise<GitLogItem[]> {
 		if (!repoAbsolutePath) {
 			return []
 		}
@@ -156,8 +399,17 @@ export class GitHandler {
 		try {
 			const { stdout } = await execa(
 				"git",
-				["log", "--pretty=format:%h%x09%ad%x09%s", "--date=format:%Y-%m-%d %H:%M"],
-				{ cwd: repoAbsolutePath }
+				[
+					"log",
+					`-n ${limit}`,
+					"--pretty=format:%h%x09%ad%x09%s",
+					"--date=format:%Y-%m-%d %H:%M",
+					"--no-merges"
+				],
+				{
+					cwd: repoAbsolutePath,
+					maxBuffer: 1024 * 1024 // Increase buffer size for large repos
+				}
 			)
 
 			return this.parseGitLogs(stdout)
