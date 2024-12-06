@@ -49,10 +49,12 @@ export class GitHandler {
 	private readonly DEFAULT_USER_EMAIL = "bot@kodu.ai"
 	private stateManager: StateManager
 	private readonly logger: GitLogger = console;
+	private apiManager: ApiManager;
 
-	constructor(repoPath: string, stateManager: StateManager) {
+	constructor(repoPath: string, stateManager: StateManager, apiManager: ApiManager) {
 		this.repoPath = repoPath
 		this.stateManager = stateManager
+		this.apiManager = apiManager
 	}
 
 	private checkEnabled(): boolean {
@@ -239,12 +241,35 @@ export class GitHandler {
 	private async getCommitMessage(path: string): Promise<string> {
 		try {
 			const { stdout } = await execa("git", ["diff", "--cached", "--unified=0", path], { cwd: this.repoPath })
-			const prefix = this.getCommitPrefix(path, stdout)
-			const scope = this.getCommitScope(path)
-			const description = this.generateCommitDescription(path, stdout)
+			
+			// Create the prompt by replacing placeholders in COMMIT_MESSAGE_PROMPT
+			const prompt = COMMIT_MESSAGE_PROMPT
+				.replace("{filePath}", path)
+				.replace("{diff}", stdout)
 
-			// Format: <type>(<scope>): <description>
-			return scope ? `${prefix}(${scope}): ${description}` : `${prefix}: ${description}`
+			// Use ApiManager to generate commit message using LLM
+			const stream = await this.apiManager.createApiStreamRequest([{
+				role: "user",
+				content: prompt
+			}])
+
+			let commitMessage = ""
+			for await (const chunk of stream) {
+				if (chunk.code === 1 && chunk.body?.anthropic?.content[0]?.text) {
+					commitMessage = chunk.body.anthropic.content[0].text.trim()
+					break
+				}
+			}
+
+			// If LLM fails to generate a message, fall back to rule-based generation
+			if (!commitMessage) {
+				const prefix = this.getCommitPrefix(path, stdout)
+				const scope = this.getCommitScope(path)
+				const description = this.generateCommitDescription(path, stdout)
+				return scope ? `${prefix}(${scope}): ${description}` : `${prefix}: ${description}`
+			}
+
+			return commitMessage
 		} catch (error) {
 			console.error(`Error generating commit message: ${error}`)
 			return `chore: update ${this.getFileNameFromPath(path)}`
