@@ -586,7 +586,7 @@ export class KoduDev {
 				// don't want to immediately access desktop since it would show permission popup
 				details += "(Desktop files not shown automatically. Use list_files to explore if needed.)"
 			} else {
-				const [files, didHitLimit] = await listFiles(getCwd(), true, 200)
+				const [files, didHitLimit] = await listFiles(getCwd(), true, 500)
 				const result = formatFilesList(getCwd(), files, didHitLimit)
 
 				details += result
