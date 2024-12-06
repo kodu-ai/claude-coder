@@ -74,8 +74,11 @@ export class GitHandler {
 			const commitMessage = message || CommitMessageHandler.generateCommitMessage(changes)
 
 			return new Promise((resolve) => {
+				// Escape the commit message to prevent shell injection
+				const escapedMessage = commitMessage.replace(/"/g, '\\"')
+				
 				exec(
-					`git checkout -b ${branchName} && git add . && git commit -m "${message}"`,
+					`git checkout -b ${branchName} && git add . && git commit -m "${escapedMessage}"`,
 					{ cwd: this.repoPath },
 					(error, stdout, stderr) => {
 						if (error) {
