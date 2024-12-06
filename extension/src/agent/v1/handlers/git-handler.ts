@@ -4,6 +4,7 @@ import { promises as fs } from "fs"
 import { ClaudeMessage, GitBranchItem, GitLogItem } from "../../../shared/ExtensionMessage"
 import { ToolName } from "../types"
 import { has } from "lodash"
+import { CommitMessageHandler } from "./commit-message-handler"
 
 export class GitHandler {
 	private repoPath: string | undefined
@@ -50,7 +51,7 @@ export class GitHandler {
 		}
 	}
 
-	async commitChanges(branchName: string, message: string): Promise<boolean> {
+	async commitChanges(branchName: string, changes: Array<{ path: string, content: string }>, message?: string): Promise<boolean> {
 		try {
 			if (!(await this.isGitInstalled())) {
 				throw new Error("Git is not installed")
@@ -64,10 +65,13 @@ export class GitHandler {
 				}
 			}
 
-			if (!message || !branchName) {
-				throw new Error("Message and branch name are required")
+			if (!branchName) {
+				throw new Error("Branch name is required")
 			}
 			branchName = branchName.replace(/ /g, "-")
+
+			// Generate commit message if not provided
+			const commitMessage = message || CommitMessageHandler.generateCommitMessage(changes)
 
 			return new Promise((resolve) => {
 				exec(
