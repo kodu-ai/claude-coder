@@ -364,6 +364,148 @@ export class GitHandler {
 		return null
 	}
 
+	private extractFunctionChanges(diff: string): string[] {
+		const changes: string[] = []
+		const functionRegex = /^\+.*function\s+(\w+)|^\+.*(\w+)\s*=\s*(?:async\s*)?function|^\+.*(\w+)\s*:\s*(?:async\s*)?function/gm
+		const matches = diff.matchAll(functionRegex)
+		
+		for (const match of matches) {
+			const functionName = match[1] || match[2] || match[3]
+			if (functionName) {
+				changes.push(functionName)
+			}
+		}
+		
+		return changes
+	}
+
+	private extractImportChanges(diff: string): string[] {
+		const changes: string[] = []
+		const importRegex = /^\+.*import\s+{([^}]+)}/gm
+		const matches = diff.matchAll(importRegex)
+		
+		for (const match of matches) {
+			const imports = match[1].split(',').map(i => i.trim())
+			changes.push(...imports)
+		}
+		
+		return changes
+	}
+
+	private extractInterfaceChanges(diff: string): string[] {
+		const changes: string[] = []
+		const interfaceRegex = /^\+.*(?:interface|type|class)\s+(\w+)/gm
+		const matches = diff.matchAll(interfaceRegex)
+		
+		for (const match of matches) {
+			if (match[1]) {
+				changes.push(match[1])
+			}
+		}
+		
+		return changes
+	}
+
+	private extractVariableChanges(diff: string): string[] {
+		const changes: string[] = []
+		const varRegex = /^\+.*(?:const|let|var)\s+(\w+)\s*=/gm
+		const matches = diff.matchAll(varRegex)
+		
+		for (const match of matches) {
+			if (match[1]) {
+				changes.push(match[1])
+			}
+		}
+		
+		return changes
+	}
+
+	private buildChangeDescription(
+		functionChanges: string[],
+		importChanges: string[],
+		interfaceChanges: string[],
+		variableChanges: string[]
+	): string {
+		const changes: string[] = []
+
+		if (functionChanges.length) {
+			changes.push(`update functions: ${functionChanges.join(', ')}`)
+		}
+		if (interfaceChanges.length) {
+			changes.push(`modify types: ${interfaceChanges.join(', ')}`)
+		}
+		if (importChanges.length) {
+			changes.push(`add dependencies: ${importChanges.join(', ')}`)
+		}
+		if (variableChanges.length) {
+			changes.push(`update variables: ${variableChanges.join(', ')}`)
+		}
+
+		return changes.join('; ')
+	}
+
+	private analyzeDiffSemantics(diff: string): { 
+		functionChanges: string[], 
+		interfaceChanges: string[], 
+		importChanges: string[] 
+	} {
+		const functionChanges: string[] = []
+		const interfaceChanges: string[] = []
+		const importChanges: string[] = []
+
+		// Analyze function changes
+		if (diff.includes('function')) {
+			functionChanges.push(diff.includes('fix') ? 'fix' : 
+				diff.includes('refactor') ? 'refactor' : 
+				!diff.includes('--- a/') ? 'new' : 'update')
+		}
+
+		// Analyze interface/type changes
+		if (diff.match(/^\+.*(?:interface|type|class)/m)) {
+			interfaceChanges.push(
+				diff.includes('refactor') ? 'refactor' : 'update'
+			)
+		}
+
+		// Analyze import changes
+		const importMatches = diff.match(/^\+.*import\s+{[^}]+}/gm)
+		if (importMatches) {
+			importChanges.push(...importMatches.map(m => 
+				m.match(/import\s+{([^}]+)}/)?.[1].trim() ?? ''
+			))
+		}
+
+		return { functionChanges, interfaceChanges, importChanges }
+	}
+
+	private analyzeSemanticChanges(diff: string): { 
+		prefix: string, 
+		semanticChanges: string 
+	} {
+		const prefix = this.getCommitPrefix('', diff)
+		const changes: string[] = []
+
+		// Extract semantic changes
+		const { functionChanges, interfaceChanges, importChanges } = this.analyzeDiffSemantics(diff)
+
+		if (functionChanges.length) {
+			changes.push(functionChanges[0] === 'new' ? 
+				'adds new functionality' : 
+				'updates existing functionality')
+		}
+		if (interfaceChanges.length) {
+			changes.push('modifies type definitions')
+		}
+		if (importChanges.length) {
+			changes.push('updates dependencies')
+		}
+
+		return {
+			prefix,
+			semanticChanges: changes.join(', ')
+		}
+	}
+
 	private generateCommitDescription(path: string, diff: string): string {
 		const fileName = this.getFileNameFromPath(path)
 		const isNewFile = !diff.includes("--- a/")
