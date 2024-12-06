@@ -9,7 +9,12 @@ import { TerminalManager } from "./integrations/terminal/terminal-manager"
 import { getCwd } from "./agent/v1/utils"
 import { readFile } from "fs/promises"
 import { startNewTask } from "./utils/command"
-import { DIFF_VIEW_URI_SCHEME, MODIFIED_URI_SCHEME } from "./integrations/editor/decoration-controller"
+import {
+	DIFF_VIEW_URI_SCHEME,
+	INLINE_DIFF_VIEW_URI_SCHEME,
+	INLINE_MODIFIED_URI_SCHEME,
+	MODIFIED_URI_SCHEME,
+} from "./integrations/editor/decoration-controller"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -297,9 +302,33 @@ export function activate(context: vscode.ExtensionContext) {
 		private _onDidChange = new vscode.EventEmitter<vscode.Uri>()
 		onDidChange = this._onDidChange.event
 	})()
+
+	const inlineDiffContentProvider = new (class implements vscode.TextDocumentContentProvider {
+		provideTextDocumentContent(uri: vscode.Uri): string {
+			return Buffer.from(uri.query, "base64").toString("utf-8")
+		}
+	})()
+
+	const inlineModifiedContentProvider = new (class implements vscode.TextDocumentContentProvider {
+		private content = new Map<string, string>()
+
+		provideTextDocumentContent(uri: vscode.Uri): string {
+			return this.content.get(uri.toString()) || ""
+		}
+
+		// Method to update content
+		updateContent(uri: vscode.Uri, content: string) {
+			this.content.set(uri.toString(), content)
+			this._onDidChange.fire(uri)
+		}
+
+		private _onDidChange = new vscode.EventEmitter<vscode.Uri>()
+		onDidChange = this._onDidChange.event
+	})()
 	vscode.workspace.registerTextDocumentContentProvider(DIFF_VIEW_URI_SCHEME, diffContentProvider),
 		vscode.workspace.registerTextDocumentContentProvider(MODIFIED_URI_SCHEME, modifiedContentProvider)
-
+	vscode.workspace.registerTextDocumentContentProvider(INLINE_DIFF_VIEW_URI_SCHEME, inlineDiffContentProvider),
+		vscode.workspace.registerTextDocumentContentProvider(INLINE_MODIFIED_URI_SCHEME, inlineModifiedContentProvider)
 	// URI Handler
 	const handleUri = async (uri: vscode.Uri) => {
 		const query = new URLSearchParams(uri.query.replace(/\+/g, "%2B"))

@@ -43,6 +43,9 @@ export class DiagnosticsHandler {
 		let result = "<diagnostics>\n"
 		result += `  <file path="${relativePath}">\n`
 
+		// Get the document to access its content
+		const document = vscode.workspace.textDocuments.find((doc) => doc.uri.fsPath === uri.fsPath)
+
 		for (const diagnostic of diagnostics) {
 			if (diagnostic.severity !== vscode.DiagnosticSeverity.Error) {
 				continue
@@ -56,19 +59,10 @@ export class DiagnosticsHandler {
 			let lineContent = "Unable to retrieve line content for this error"
 			let errorPointer = ""
 
-			// try {
-			// 	const documentUri = vscode.Uri.file(uri.fsPath)
-			// 	// use vscode workspace fs path to get the line content
-			// 	const document = await vscode.workspace.openTextDocument(documentUri)
-			// 	if (!document || line > document.lineCount) {
-			// 		throw new Error("Document not found")
-			// 	}
-			// 	const lineText = document?.lineAt(line - 1).text
-			// 	lineContent = lineText
+			// if (document) {
+			// 	lineContent = document.lineAt(diagnostic.range.start.line).text
 			// 	// Create a pointer to show exactly where the error is
 			// 	errorPointer = " ".repeat(startChar) + "^".repeat(Math.max(1, endChar - startChar))
-			// } catch (err) {
-			// 	console.error(err)
 			// }
 
 			// Add error information in XML format
@@ -76,6 +70,7 @@ export class DiagnosticsHandler {
 			result += `      <line>${line}</line>\n`
 			result += `      <message>${message}</message>\n`
 			// result += `      <code>${lineContent}</code>\n`
+			// result += `      <pointer>${errorPointer}</pointer>\n`
 			result += `      <position start="${startChar}" end="${endChar}" />\n`
 			result += "    </error>\n"
 		}

@@ -311,7 +311,8 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 		if (!this.inlineEditor.isOpen() && editBlocks.length > 0) {
 			await this.inlineEditor.open(editBlocks[0]?.id, this.fileState?.absolutePath!, editBlocks[0].searchContent)
 		}
-		await this.inlineEditor.forceFinalizeAll(editBlocks!)
+		await this.inlineEditor.forceFinalize(editBlocks)
+
 		// now we are going to prompt the user to approve the changes
 		const { response, text, images } = await this.params.ask(
 			"tool",
@@ -673,11 +674,14 @@ ${commitXmlInfo}
 		}
 		this.isAbortingTool = true
 
+		// clear the queue
+		this.pQueue.clear()
 		if (this.params.input.kodu_diff) {
 			await this.inlineEditor.rejectChanges()
 			await this.inlineEditor.dispose()
 		} else {
 			await this.diffViewProvider.revertChanges()
+			this.diffViewProvider.reset()
 		}
 	}
 
