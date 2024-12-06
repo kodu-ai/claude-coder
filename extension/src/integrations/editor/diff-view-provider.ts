@@ -383,7 +383,7 @@ export class DiffViewProvider {
 		})
 	}
 
-	private async reset(): Promise<void> {
+	public async reset(): Promise<void> {
 		if (this.modifiedUri) {
 			try {
 				DiffViewProvider.modifiedContentProvider.delete(this.modifiedUri)

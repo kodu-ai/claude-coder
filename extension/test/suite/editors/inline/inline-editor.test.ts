@@ -37,7 +37,7 @@ async function simulateStreaming(diff: string, delayMs: number): Promise<AsyncGe
 			const nextChunk = diff.slice(streamedContent.length, streamedContent.length + chunkSize)
 			streamedContent += nextChunk
 			yield streamedContent
-			await delay(0.2)
+			await delay(50)
 		}
 	}
 
@@ -139,15 +139,13 @@ async function testBlock(
 	timeout?: number
 ) {
 	const inlineEditHandler = new InlineEditHandler()
-	const generator = await simulateStreaming(blockBlockContent, 20)
+	const generator = await simulateStreaming(blockBlockContent, 50)
 	let editBlocks: EditBlock[] = []
 	let lastAppliedBlockId: string | undefined
 	// Verify content
 	const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(blockFileContentPath))
 
 	await handleStreaming(generator, blockFilePath, inlineEditHandler)
-
-	await inlineEditHandler.forceFinalizeAll(editBlocks)
 
 	// await delay(10_000)
 	// Save with no tabs open
@@ -175,8 +173,16 @@ const [block6FilePath, block6FileContentPath, block6FileContent, block6BlockCont
 
 describe("InlineEditHandler End-to-End Test", () => {
 	let inlineEditHandler: InlineEditHandler
+	let activated = false
 
 	beforeEach(async () => {
+		// activate the extension
+
+		if (!activated) {
+			const extension = vscode.extensions.getExtension("kodu-ai.claude-dev-experimental")!
+			await extension.activate()
+			activated = true
+		}
 		const toEditFileContent = fs.readFileSync(toEditFilePath, "utf8")
 		// Create a dummy file for testing
 		fs.writeFileSync(testFilePath, toEditFileContent, "utf8")
@@ -307,8 +313,7 @@ describe("InlineEditHandler End-to-End Test", () => {
 	// 	await handleStreaming(generator, toEditFilePath, inlineEditHandler)
 
 	// 	clearInterval(interval)
-	// 	await inlineEditHandler.forceFinalizeAll(editBlocks)
-
+	//
 	// 	// Save with no tabs open
 	// 	const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
 
