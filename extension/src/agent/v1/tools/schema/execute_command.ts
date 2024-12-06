@@ -36,31 +36,39 @@ export const COMMAND_TYPE = [
  * </tool>
  * ```
  */
+// const schema = z.object({
+// 	id: z.string().optional().describe("The ID of the command to resume or terminate."),
+// 	type: z
+// 		.enum(COMMAND_TYPE)
+// 		.describe(
+// 			"The type of command to execute (execute_blocking_command, terminate_blocking_command, resume_blocking_command)."
+// 		),
+// 	command: z.string().optional().describe("The CLI command to execute."),
+// 	stdin: z.string().optional().describe("The standard input to provide to the command."),
+// 	timeout: z.coerce.number().optional().describe("The maximum time in milliseconds the command is allowed to run."),
+// 	softTimeout: z.coerce
+// 		.number()
+// 		.optional()
+// 		.describe("The time in milliseconds to wait before sending a termination signal."),
+// 	outputMaxLines: z.coerce
+// 		.number()
+// 		.default(1000)
+// 		.optional()
+// 		.describe("The maximum number of lines to return in the output. default: 1,000"),
+// 	outputMaxTokens: z.coerce
+// 		.number()
+// 		.default(10_000)
+// 		.optional()
+// 		.describe("The maximum number of tokens to return in the output. default: 10,000"),
+// })
 const schema = z.object({
-	id: z.string().optional().describe("The ID of the command to resume or terminate."),
-	type: z
-		.enum(COMMAND_TYPE)
+	command: z
+		.string()
 		.describe(
-			"The type of command to execute (execute_blocking_command, terminate_blocking_command, resume_blocking_command)."
+			"The CLI command to execute. This should be valid for the current operating system. Ensure the command is properly formatted and does not contain any harmful instructions."
 		),
-	command: z.string().optional().describe("The CLI command to execute."),
-	stdin: z.string().optional().describe("The standard input to provide to the command."),
-	timeout: z.coerce.number().optional().describe("The maximum time in milliseconds the command is allowed to run."),
-	softTimeout: z.coerce
-		.number()
-		.optional()
-		.describe("The time in milliseconds to wait before sending a termination signal."),
-	outputMaxLines: z.coerce
-		.number()
-		.default(1000)
-		.optional()
-		.describe("The maximum number of lines to return in the output. default: 1,000"),
-	outputMaxTokens: z.coerce
-		.number()
-		.default(10_000)
-		.optional()
-		.describe("The maximum number of tokens to return in the output. default: 10,000"),
 })
+
 export type ExecuteCommandToolParams = z.infer<typeof schema>
 
 const examples = [

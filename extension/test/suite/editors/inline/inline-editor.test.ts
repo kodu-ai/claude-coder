@@ -1,6 +1,6 @@
 import * as vscode from "vscode"
 import * as assert from "assert"
-import { InlineEditHandler } from "../../../../src/integrations/editor/inline-editor"
+import { InlineEditHandler } from "../../../../src/integrations/editor/inline-editor-v3"
 import * as fs from "fs"
 import * as path from "path"
 import { EditBlock, normalize, parseDiffBlocks } from "../../../../src/agent/v1/tools/runners/coders/utils"
@@ -37,7 +37,7 @@ async function simulateStreaming(diff: string, delayMs: number): Promise<AsyncGe
 			const nextChunk = diff.slice(streamedContent.length, streamedContent.length + chunkSize)
 			streamedContent += nextChunk
 			yield streamedContent
-			await delay(0.2)
+			await delay(25)
 		}
 	}
 
@@ -147,7 +147,7 @@ async function testBlock(
 
 	await handleStreaming(generator, blockFilePath, inlineEditHandler)
 
-	await inlineEditHandler.forceFinalizeAll(editBlocks)
+	// await inlineEditHandler.forceFinalizeAll(editBlocks)
 
 	// await delay(10_000)
 	// Save with no tabs open
@@ -175,8 +175,16 @@ const [block6FilePath, block6FileContentPath, block6FileContent, block6BlockCont
 
 describe("InlineEditHandler End-to-End Test", () => {
 	let inlineEditHandler: InlineEditHandler
+	let activated = false
 
 	beforeEach(async () => {
+		// activate the extension
+
+		if (!activated) {
+			const extension = vscode.extensions.getExtension("kodu-ai.claude-dev-experimental")!
+			await extension.activate()
+			activated = true
+		}
 		const toEditFileContent = fs.readFileSync(toEditFilePath, "utf8")
 		// Create a dummy file for testing
 		fs.writeFileSync(testFilePath, toEditFileContent, "utf8")
@@ -219,105 +227,6 @@ describe("InlineEditHandler End-to-End Test", () => {
 			removeBlock(block6FilePath),
 		])
 	})
-
-	// it("should handle long stream with tabs switches correctly", async () => {
-	// 	// Create a second file to switch between
-
-	// 	const generator = await simulateStreaming(, 30)
-
-	// 	try {
-	// 		// Open both files
-	// 		const secondDoc = await vscode.workspace.openTextDocument(secondFilePath)
-	// 		const interval = setInterval(() => {
-	// 			vscode.window.showTextDocument(secondDoc)
-	// 		}, 50)
-	// 		await vscode.window.showTextDocument(secondDoc)
-
-	// 		await handleStreaming(generator, secondFilePath, inlineEditHandler)
-
-	// 		// Save changes
-	// 		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
-	// 		clearInterval(interval)
-	// 		// Verify both changes were applied correctly
-	// 		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
-	// 		let expectedContent = Buffer.from(originalText).toString("utf-8")
-	// 		expectedContent = expectedContent.replace(search, replace)
-	// 		expectedContent = expectedContent.replace(search2, replace2)
-
-	// 		assert.strictEqual(finalDocument, expectedContent)
-	// 	} finally {
-	// 		// Cleanup second file
-	// 		if (fs.existsSync(secondFilePath)) {
-	// 			fs.unlinkSync(secondFilePath)
-	// 		}
-	// 	}
-	// })
-
-	// it("should handle saves while different tab is active", async () => {
-	// 	// Create a second file
-	// 	const secondFilePath = path.join(__dirname, "secondFile.ts")
-	// 	fs.writeFileSync(secondFilePath, "// Second file content", "utf8")
-
-	// 	const generator = await simulateStreaming(streamedContent, 10)
-	// 	const editBlocks: Array<{
-	// 		id: string
-	// 		replaceContent: string
-	// 		searchContent: string
-	// 		finalContent?: string
-	// 	}> = []
-	// 	let lastAppliedBlockId: string | undefined
-
-	// 	try {
-	// 		// Start with the main file
-	// 		const mainDoc = await vscode.workspace.openTextDocument(testFilePath)
-	// 		await vscode.window.showTextDocument(mainDoc)
-
-	// 		await handleStreaming(generator, secondFilePath, inlineEditHandler)
-	// 		await vscode.window.showTextDocument(mainDoc)
-
-	// 		// Save while different tab is active
-	// 		const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
-	// 		await vscode.window.showTextDocument(mainDoc)
-
-	// 		// Verify content
-	// 		const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
-	// 		let expectedContent = Buffer.from(originalText).toString("utf-8")
-	// 		expectedContent = expectedContent.replace(search, replace)
-	// 		expectedContent = expectedContent.replace(search2, replace2)
-
-	// 		assert.strictEqual(finalDocument, expectedContent)
-	// 	} finally {
-	// 		if (fs.existsSync(secondFilePath)) {
-	// 			fs.unlinkSync(secondFilePath)
-	// 		}
-	// 	}
-	// })
-
-	// it("should handle saves with no tabs open", async () => {
-	// 	const generator = await simulateStreaming(streamedContent, 25)
-	// 	let editBlocks: EditBlock[] = []
-	// 	// Verify content
-	// 	const originalText = await vscode.workspace.fs.readFile(vscode.Uri.file(toEditFilePath))
-
-	// 	const interval = setInterval(() => {
-	// 		// Close all editors after first block is initialized
-	// 		vscode.commands.executeCommand("workbench.action.closeAllEditors")
-	// 	}, 500)
-
-	// 	await handleStreaming(generator, toEditFilePath, inlineEditHandler)
-
-	// 	clearInterval(interval)
-	// 	await inlineEditHandler.forceFinalizeAll(editBlocks)
-
-	// 	// Save with no tabs open
-	// 	const { finalContent: finalDocument } = await inlineEditHandler.saveChanges()
-
-	// 	let expectedContent = Buffer.from(originalText).toString("utf-8")
-	// 	expectedContent = expectedContent.replace(search, replace)
-	// 	expectedContent = expectedContent.replace(search2, replace2)
-
-	// 	assert.strictEqual(finalDocument, expectedContent)
-	// })
 
 	it("should test that block 3 is parsed and apllied correctly", async () => {
 		await testBlock(block3FilePath, block3FileContentPath, block3BlockContent)

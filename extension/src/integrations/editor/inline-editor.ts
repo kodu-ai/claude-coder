@@ -774,7 +774,7 @@ export class InlineEditHandler {
 	}
 
 	public async saveChanges(): Promise<{ finalContent: string; results: BlockResult[] }> {
-		this.logger("Saving changes", "debug")
+		this.logger("Saving changes with robust cleanup", "debug")
 		this.validateDocumentState()
 
 		try {
@@ -783,30 +783,26 @@ export class InlineEditHandler {
 				throw new Error("No active document to save changes.")
 			}
 
-			// Get the current content with merge markers
 			let content = document.getText()
 
-			// Validate git diff format before proceeding
-			if (!this.validateGitDiffFormat(content)) {
-				this.logger("Invalid git diff format detected", "warn")
-				// Still proceed but log the warning
+			// Perform multiple cleanup passes if needed.
+			// Even though it's expected that one pass should fix everything,
+			// being extra cautious: max 3 passes.
+			let attempts = 0
+			while (this.containsAnyMarkers(content) && attempts < 3) {
+				this.logger(`Cleaning up merge markers (pass ${attempts + 1})`, "info")
+				content = this.cleanupAllMarkers(content)
+				attempts++
 			}
 
-			// First pass: Clean up merge markers using the main regex
-			content = content.replace(
-				/<<<<<<< SEARCH\r?\n[\s\S]*?\r?\n=======\r?\n([\s\S]*?)\r?\n>>>>>>> REPLACE/g,
-				(_, replacement) => {
-					// Trim any leading/trailing newlines from the replacement
-					return replacement.replace(/^\r?\n|\r?\n$/g, "")
-				}
-			)
+			if (this.containsAnyMarkers(content)) {
+				// If we still have markers after multiple attempts, forcibly remove all known markers.
+				this.logger("Markers still remain after multiple passes, forcibly removing them", "warn")
+				content = this.forceRemoveAllMarkers(content)
+			}
 
-			// Second pass: Clean up any leftover markers that might have been corrupted
-			content = this.cleanupLeftoverMarkers(content)
-
-			// Apply the cleaned content back to the document
+			// Apply final cleaned content
 			const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
-
 			const workspaceEdit = new vscode.WorkspaceEdit()
 			workspaceEdit.replace(document.uri, entireRange, content)
 			await vscode.workspace.applyEdit(workspaceEdit)
@@ -817,17 +813,113 @@ export class InlineEditHandler {
 
 			const results = this.currentDocumentState.lastUpdateResults || []
 
-			// Clean up
+			// Clean up after saving
 			setTimeout(() => {
 				this.dispose()
 			}, 1)
 
+			this.logger("Save changes completed successfully with robust cleanup", "info")
 			return { finalContent: content, results }
 		} catch (error) {
 			this.logger(`Failed to save changes: ${error}`, "error")
 			throw error
 		}
 	}
+
+	/**
+	 * Check if any known markers exist in the content.
+	 */
+	private containsAnyMarkers(content: string): boolean {
+		return content.includes("<<<<<<< SEARCH") || content.includes("=======") || content.includes(">>>>>>> REPLACE")
+	}
+
+	/**
+	 * Cleans up all well-formed blocks line-by-line, replacing them with their "replace" content.
+	 * For malformed or partial blocks, it removes all markers and attempts to revert to a stable state.
+	 */
+	private cleanupAllMarkers(content: string): string {
+		const lines = content.split(/\r?\n/)
+
+		const resultLines: string[] = []
+		let i = 0
+		const totalLines = lines.length
+
+		while (i < totalLines) {
+			const line = lines[i]
+
+			if (line.includes("<<<<<<< SEARCH")) {
+				// We have encountered the start of a block
+				const startIndex = i
+				i++
+				const originalSegment: string[] = []
+				const replaceSegment: string[] = []
+				let foundSeparator = false
+				let foundReplace = false
+
+				// Collect original lines until we find '======='
+				while (i < totalLines && !lines[i].includes("=======") && !lines[i].includes(">>>>>>> REPLACE")) {
+					originalSegment.push(lines[i])
+					i++
+				}
+
+				if (i < totalLines && lines[i].includes("=======")) {
+					// found separator
+					foundSeparator = true
+					i++
+					// Collect replace lines until '>>>>>>> REPLACE'
+					while (i < totalLines && !lines[i].includes(">>>>>>> REPLACE")) {
+						replaceSegment.push(lines[i])
+						i++
+					}
+
+					if (i < totalLines && lines[i].includes(">>>>>>> REPLACE")) {
+						foundReplace = true
+						// Move past the replace marker line
+						i++
+					}
+				}
+
+				if (foundSeparator && foundReplace) {
+					// Well-formed block: Use the replace segment
+					// Keep the replace segment as-is
+					resultLines.push(...replaceSegment)
+				} else {
+					// Malformed block: remove all markers and restore original lines if possible
+					// In a malformed scenario, we encountered 'SEARCH' but not a full set of markers.
+					// We just log a warning and revert to originalSegment or nothing.
+					this.logger(
+						"Malformed block detected. Removing markers and reverting to original lines if any.",
+						"warn"
+					)
+					// According to the requirement: If the block is malformed, we do not trust replace lines.
+					// The user requested to "keep replace as is if block exists."
+					// The block "exists" means all markers found. Otherwise, we can't trust replace.
+					// So we revert to original lines (if any).
+					resultLines.push(...originalSegment)
+				}
+			} else {
+				// Normal line, just pass through
+				resultLines.push(line)
+				i++
+			}
+		}
+
+		return resultLines.join("\n")
+	}
+
+	/**
+	 * If after cleanup attempts some markers still remain,
+	 * forcibly remove all known markers to ensure a stable final file.
+	 */
+	private forceRemoveAllMarkers(content: string): string {
+		// This is a last resort: remove all known markers blindly.
+		return content
+			.replace(/<<<<<<< SEARCH.*?(\r?\n|\n)/g, "")
+			.replace(/=======.*?(\r?\n|\n)/g, "")
+			.replace(/>>>>>>> REPLACE.*?(\r?\n|\n)/g, "")
+			.trim()
+	}
+
 	/**
 	 * Rejects all changes and restores original content
 	 * Used when edits need to be discarded

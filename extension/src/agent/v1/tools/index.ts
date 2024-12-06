@@ -1,6 +1,6 @@
 export * from "./runners/ask-followup-question.tool"
 export * from "./runners/attempt-completion.tool"
-export * from "./runners/execute-command/execute-command.tool"
+export * from "./runners/execute-command.tool"
 export * from "./runners/list-code-definition-names.tool"
 export * from "./runners/list-files.tool"
 export * from "./runners/read-file.tool"

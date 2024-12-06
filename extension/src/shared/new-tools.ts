@@ -51,6 +51,10 @@ export type WriteToFileTool = {
 	commitHash?: string
 }
 
+export type EditFileBlocks = {
+	tool: "edit_file_blocks"
+}
+
 export type AskFollowupQuestionTool = {
 	tool: "ask_followup_question"
 	question: string
@@ -118,6 +122,7 @@ export type ComputerUseTool = {
 }
 
 export type ChatTool = (
+	| EditFileBlocks
 	| ExecuteCommandTool
 	| ListFilesTool
 	| ListCodeDefinitionNamesTool

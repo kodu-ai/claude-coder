@@ -581,33 +581,44 @@ export class FileEditorTool extends BaseAgentTool<"write_to_file"> {
 			)
 			return this.toolResponse(
 				"success",
-				`The user made the following updates to your content:\n\nThe updated content has been successfully saved to ${relPath.toPosix()}
-					Here is the latest file content after the changes were applied:
-					\`\`\`
-					${finalContent}
-					\`\`\`
-					${commitXmlInfo}
-					`,
+				`<update_file_payload>
+<information>
+CRITICAL the file content has been updated to <updated_file_content> content below, you should remember this as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.
+Remember there is no extra need to edit the file unless you forgot to add or remove something or you have linting errors, over editing is a source of looping and getting stuck without thinking through the problem / task.
+</information>
+<path>${path}</path>
+<updated_file_content>
+${finalContent}
+</updated_file_content>
+${commitXmlInfo}
+</update_file_payload>
+				`,
 				undefined,
 				commitResult
 			)
 		}
 
-		let toolMsg = `The content was successfully saved to ${relPath.toPosix()}.
-			The latest content is the content inside of <kodu_content> the content you provided in the input has been applied to the file and saved. don't read the file again to get the latest content as it is already saved unless the user tells you otherwise.
-			${commitXmlInfo}
-			`
-		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
-			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
-			toolMsg = `The content was successfully saved to ${relPath.toPosix()},
-				but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.
-				Here is the latest file content:
-				\`\`\`
-				${finalContent}
-				\`\`\``
-		}
+		const detectedOmission = detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)
 
-		return this.toolResponse("success", toolMsg, undefined, commitResult)
+		return this.toolResponse(
+			"success",
+			`<update_file_payload>
+<information>
+CRITICAL the file content has been updated to <updated_file_content> content below, you should remember this as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.
+Remember there is no extra need to edit the file unless you forgot to add or remove something or you have linting errors, over editing is a source of looping and getting stuck without thinking through the problem / task.
+</information>
+<path>${path}</path>
+${
+	detectedOmission
+		? `<detected_omission>We have detected code omission in the content if you have wrote by acciddent something like the rest of the code goes here or // you implement goes here or // lines ... goes here or anything that is similar to that please fix it using edit file blocks and add the missing parts, you should never omit content and always write the full file content, in case there was no omission and this was a false positive you are free to continue</detected_omission>`
+		: ""
+}
+${commitXmlInfo}
+</update_file_payload>`,
+
+			undefined,
+			commitResult
+		)
 	}
 
 	private async processFileWrite() {

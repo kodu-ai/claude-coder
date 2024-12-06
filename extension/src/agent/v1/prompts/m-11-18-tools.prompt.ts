@@ -432,15 +432,6 @@ Your final result description here
 </result>
 </attempt_completion>
 
-## ask_consultant
-Description: Request to ask the consultant for help. Use this tool when you need guidance, suggestions, or advice on how to proceed with a task. The consultant will provide insights and recommendations to help you accomplish the task effectively.
-Parameters:
-- query: (required) The question or request for help you have for the consultant.
-Usage:
-<ask_consultant>
-<query>Your question or request for help here</query>
-</ask_consultant>
-
 ## web_search
 Description: Request to perform a web search for the specified query. This tool searches the web for information related to the query and provides relevant results that can help you gain insights, find solutions, or explore new ideas related to the task at hand. Since this tool uses an LLM to understand the web results, you can also specify which model to use with the browser using the 'browserModel' parameter.
 Parameters:
@@ -585,6 +576,7 @@ class Job {
 
 # Tool Use Guidelines
 
+0. You can only call one tool per message as each tool requires user confirmation before proceeding to the next step.
 1. In <thinking> tags, assess what information you already have and what information you need to proceed with the task.
 2. Choose the most appropriate tool based on the task and the tool descriptions provided. Assess if you need additional information to proceed, and which of the available tools would be most effective for gathering this information. For example using the list_files tool is more effective than running a command like \`ls\` in the terminal. It's critical that you think about each available tool and use the one that best fits the current step in the task.
 3. Use one tool at a time per message to accomplish the task iteratively, with each tool use being informed by the result of the previous tool use. Do not assume the outcome of any tool use. Each step must be informed by the previous step's result.

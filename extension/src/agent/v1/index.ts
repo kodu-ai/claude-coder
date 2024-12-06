@@ -474,7 +474,7 @@ export class KoduDev {
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {
 		let details = ""
 		const lastTwoMsgs = this.stateManager.state.apiConversationHistory.slice(-2)
-		const awaitRequierdTools: ToolName[] = ["execute_command", "write_to_file"]
+		const awaitRequierdTools: ToolName[] = ["execute_command", "write_to_file", "edit_file_blocks"]
 		const isLastMsgMutable = lastTwoMsgs.some((msg) => {
 			if (Array.isArray(msg.content)) {
 				return msg.content.some(
@@ -489,7 +489,7 @@ export class KoduDev {
 		})
 		if (isLastMsgMutable) {
 			// proper delay to make sure that the vscode diagnostics and server logs are updated
-			await delay(3000)
+			await delay(2000)
 		}
 		const devServers = TerminalRegistry.getAllDevServers()
 		const isDevServerRunning = devServers.length > 0
@@ -549,38 +549,38 @@ export class KoduDev {
 
 		// get the diagnostics errors for all files in the current task
 
-		const diagnosticsHandler = DiagnosticsHandler.getInstance()
-		const files = this.stateManager.historyErrors ? Object.keys(this.stateManager.historyErrors) : []
-		const diagnostics = diagnosticsHandler.getDiagnostics(files)
-		const newErrors = diagnostics.filter(
-			(diag) => diag.errorString !== null && diag.errorString !== undefined && diag.errorString !== ""
-		)
-		const taskErrorsRecord = newErrors.reduce((acc, curr) => {
-			acc[curr.key] = {
-				lastCheckedAt: Date.now(),
-				error: curr.errorString!,
-			}
-			return acc
-		}, {} as NonNullable<typeof this.stateManager.historyErrors>)
-		this.stateManager.historyErrors = taskErrorsRecord
-		if (newErrors.length === 0) {
-			console.log(`[ENVIRONMENT DETAILS] No errors found`)
-		} else {
-			console.log(`[ENVIRONMENT DETAILS] Errors found:`, newErrors.map((diag) => diag.errorString).join("\n"))
-		}
+		// const diagnosticsHandler = DiagnosticsHandler.getInstance()
+		// const files = this.stateManager.historyErrors ? Object.keys(this.stateManager.historyErrors) : []
+		// const diagnostics = await diagnosticsHandler.getDiagnostics(files)
+		// const newErrors = diagnostics.filter(
+		// 	(diag) => diag.errorString !== null && diag.errorString !== undefined && diag.errorString !== ""
+		// )
+		// const taskErrorsRecord = newErrors.reduce((acc, curr) => {
+		// 	acc[curr.key] = {
+		// 		lastCheckedAt: Date.now(),
+		// 		error: curr.errorString!,
+		// 	}
+		// 	return acc
+		// }, {} as NonNullable<typeof this.stateManager.historyErrors>)
+		// this.stateManager.historyErrors = taskErrorsRecord
+		// if (newErrors.length === 0) {
+		// 	console.log(`[ENVIRONMENT DETAILS] No errors found`)
+		// } else {
+		// 	console.log(`[ENVIRONMENT DETAILS] Errors found:`, newErrors.map((diag) => diag.errorString).join("\n"))
+		// }
 
-		// map the diagnostics to the original file path
-		details +=
-			"\n\n# CURRENT ERRORS (Linter Errors) this is the only errors that are present if you seen previous linting errors they have been resolved."
-		if (newErrors.length === 0) {
-			details += "\n(No diagnostics errors)"
-		} else {
-			console.log("[ENVIRONMENT DETAILS] New errors found", newErrors.map((diag) => diag.errorString).join("\n"))
-			details += `The following errors are present in the current task you have been working on. this is the only errors that are present if you seen previous linting errors they have been resolved.\n`
-			details += `<linter_errors>\n`
-			details += newErrors.map((diag) => diag.errorString).join("\n")
-			details += `</linter_errors>\n`
-		}
+		// // map the diagnostics to the original file path
+		// details +=
+		// 	"\n\n# CURRENT ERRORS (Linter Errors) this is the only errors that are present if you seen previous linting errors they have been resolved."
+		// if (newErrors.length === 0) {
+		// 	details += "\n(No diagnostics errors)"
+		// } else {
+		// 	console.log("[ENVIRONMENT DETAILS] New errors found", newErrors.map((diag) => diag.errorString).join("\n"))
+		// 	details += `The following errors are present in the current task you have been working on. this is the only errors that are present if you seen previous linting errors they have been resolved.\n`
+		// 	details += `<linter_errors>\n`
+		// 	details += newErrors.map((diag) => diag.errorString).join("\n")
+		// 	details += `</linter_errors>\n`
+		// }
 
 		if (includeFileDetails) {
 			details += `\n\n# Current Working Directory (${getCwd().toPosix()}) Files\n`

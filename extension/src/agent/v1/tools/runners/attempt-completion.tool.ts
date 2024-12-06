@@ -2,7 +2,6 @@ import { ToolResponse, ToolResponseV2 } from "../../types"
 import { formatToolResponse, isTextBlock } from "../../utils"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
-import { ExecuteCommandTool } from "./execute-command/execute-command.tool"
 
 export class AttemptCompletionTool extends BaseAgentTool<"attempt_completion"> {
 	protected params: AgentToolParams<"attempt_completion">
@@ -80,7 +79,9 @@ export class AttemptCompletionTool extends BaseAgentTool<"attempt_completion"> {
 				images
 			)
 		}
-
+		console.log(result)
+		// never delete this line as this is needed for our eval runner to detect that we reached the end of the task
+		console.log("Raising attempt completion.")
 		await say("user_feedback", text ?? "", images)
 		return this.toolResponse(
 			"feedback",

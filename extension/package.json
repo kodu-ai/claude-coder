@@ -167,7 +167,12 @@
 		"dev": "tsx esbuild.ts --watch",
 		"start:webview": "cd webview-ui-vite && pnpm run dev",
 		"build:webview": "cd webview-ui-vite && pnpm run build",
-		"test:webview": "cd webview-ui-vite && pnpm run test"
+		"test:webview": "cd webview-ui-vite && pnpm run test",
+		"compile:tests": "tsc -p ./tsconfig.test.json",
+		"compile:eval": "tsc -p ./tsconfig.eval.json",
+		"exec-test": "node ./out/test/src/test/runTest.js",
+		"exec-eval": "node ./out/eval/src/test/runTest.js",
+		"watch-tests": "tsc -p . -w --outDir out"
 	},
 	"devDependencies": {
 		"@jest/globals": "^29.7.0",
@@ -212,6 +217,7 @@
 		"diff-match-patch": "^1.0.5",
 		"dotenv": "^16.4.5",
 		"execa": "^9.5.1",
+		"glob": "^11.0.0",
 		"globby": "^14.0.2",
 		"image-size": "^1.1.1",
 		"isbinaryfile": "^5.0.4",
@@ -219,6 +225,7 @@
 		"jotai": "^2.10.3",
 		"lodash": "^4.17.21",
 		"mammoth": "^1.8.0",
+		"mocha": "^11.0.1",
 		"nanoid": "^5.0.8",
 		"openai": "^4.73.0",
 		"os-name": "^6.0.0",

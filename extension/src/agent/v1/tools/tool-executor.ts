@@ -10,7 +10,6 @@ import {
 	SearchFilesTool,
 	ListFilesTool,
 	ListCodeDefinitionNamesTool,
-	ExecuteCommandTool,
 	AttemptCompletionTool,
 	AskFollowupQuestionTool,
 	ReadFileTool,
@@ -18,6 +17,7 @@ import {
 	UrlScreenshotTool,
 	AskConsultantTool,
 } from "."
+import { ExecuteCommandTool } from "./runners/execute-command.tool"
 import { WebSearchTool } from "./runners/web-search-tool"
 import { BaseAgentTool } from "./base-agent.tool"
 import ToolParser from "./tool-parser/tool-parser"

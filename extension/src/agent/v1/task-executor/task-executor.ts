@@ -287,6 +287,15 @@ export class TaskExecutor extends TaskExecutorUtils {
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
+		console.log(`[TaskExecutor] makeClaudeRequest called with state: ${this.state}`)
+		console.log(
+			`[TaskExecutor] makeClaudeRequest called with state: ${JSON.stringify({
+				state: this.state,
+				isRequestCancelled: this.isRequestCancelled,
+				isAborting: this.isAborting,
+				pauseNext: this.pauseNext,
+			})}`
+		)
 		try {
 			if (this.pauseNext) {
 				await this.handleWaitingForUser()
@@ -380,6 +389,14 @@ export class TaskExecutor extends TaskExecutorUtils {
 				// @ts-expect-error
 				await this.handleApiError(new TaskError({ type: "NETWORK_ERROR", message: error.message }))
 			} else {
+				console.error(
+					"[TaskExecutor] MAKE Claude request try catch in catch found else case error (SHOULD NOT HAPPEN):",
+					error
+				)
+				console.log(
+					"[TaskExecutor] MAKE Claude request try catch in catch found else case error (SHOULD NOT HAPPEN):",
+					error
+				)
 				console.log("[TaskExecutor] Request was cancelled, ignoring error")
 			}
 		}
@@ -709,6 +726,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.stateManager.state.claudeMessages = await this.stateManager.getSavedClaudeMessages()
 
 		const { response } = await this.ask("api_req_failed", { question: error.message })
+		console.log(`[TaskExecutor] API Request Failed response:`, response)
 		if (response === "yesButtonTapped" || response === "messageResponse") {
 			await this.say("api_req_retried")
 			this.state = TaskState.WAITING_FOR_API

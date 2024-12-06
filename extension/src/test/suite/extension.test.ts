@@ -87,7 +87,7 @@ ${parsedTask["problem_statement"]}
 
 		await vscode.commands.executeCommand("kodu-claude-coder-main.startNewTask", task)
 
-		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 30))
+		await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 35))
 		console.log("Timeout hit from extension test!")
 	})
 })

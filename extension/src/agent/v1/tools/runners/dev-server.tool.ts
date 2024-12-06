@@ -6,7 +6,7 @@ import { TerminalManager, TerminalRegistry } from "../../../../integrations/term
 import pWaitFor from "p-wait-for"
 import delay from "delay"
 import { ChatTool, ServerRunnerTool } from "../../../../shared/new-tools"
-import { shellIntegrationErrorOutput } from "./execute-command/execute-command.tool"
+import { shellIntegrationErrorOutput } from "./execute-command.tool"
 
 interface UpdateAskParams {
 	tool: string

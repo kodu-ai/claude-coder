@@ -84,7 +84,6 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 			{
 				tool: {
 					tool: "execute_command",
-					type: "execute_blocking_command",
 					command,
 					approvalState: "pending",
 					ts: this.ts,
@@ -100,7 +99,6 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 				{
 					tool: {
 						tool: "execute_command",
-						type: "execute_blocking_command",
 						command,
 						approvalState: "rejected",
 						ts: this.ts,
@@ -116,7 +114,6 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 					{
 						tool: {
 							tool: "execute_command",
-							type: "execute_blocking_command",
 							command,
 							approvalState: "rejected",
 							ts: this.ts,
@@ -138,7 +135,6 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 			{
 				tool: {
 					tool: "execute_command",
-					type: "execute_blocking_command",
 					command,
 					approvalState: "loading",
 					ts: this.ts,
@@ -198,7 +194,6 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 						{
 							tool: {
 								tool: "execute_command",
-								type: "execute_blocking_command",
 								command,
 								output: this.output,
 								approvalState: "error",
@@ -226,7 +221,6 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 								{
 									tool: {
 										tool: "execute_command",
-										type: "execute_blocking_command",
 										command,
 										output: this.output,
 										approvalState: "loading",
@@ -269,7 +263,6 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 				{
 					tool: {
 						tool: "execute_command",
-						type: "execute_blocking_command",
 						command,
 						output: this.output,
 						approvalState: "approved",
@@ -291,7 +284,6 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 					{
 						tool: {
 							tool: "execute_command",
-							type: "execute_blocking_command",
 							command,
 							output: this.output,
 							approvalState: "approved",
@@ -371,7 +363,6 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 				{
 					tool: {
 						tool: "execute_command",
-						type: "execute_blocking_command",
 						command,
 						output: errorMessage,
 						approvalState: "error",
