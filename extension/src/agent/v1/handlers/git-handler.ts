@@ -237,7 +237,7 @@ export class GitHandler {
 
 	private async getCommitMessage(path: string): Promise<string> {
 		try {
-			const { stdout } = await execa("git", ["diff", "--cached", "--unified=0", path], { cwd: this.repoPath })
+			const { stdout } = await execa("git", ["diff", "--cached", "--unified=3", path], { cwd: this.repoPath })
 			
 			// Create the prompt by replacing placeholders in COMMIT_MESSAGE_PROMPT
 			const prompt = COMMIT_MESSAGE_PROMPT
@@ -264,12 +264,19 @@ export class GitHandler {
 				}
 			}
 
-			// If LLM fails to generate a message, fall back to rule-based generation
+			// If LLM fails to generate a message, use enhanced rule-based generation
 			if (!commitMessage) {
-				const prefix = this.getCommitPrefix(path, stdout)
+				const { prefix, semanticChanges } = this.analyzeSemanticChanges(stdout)
 				const scope = this.getCommitScope(path)
 				const description = this.generateCommitDescription(path, stdout)
-				return scope ? `${prefix}(${scope}): ${description}` : `${prefix}: ${description}`
+				
+				// Combine semantic analysis with generated description
+				const finalDescription = semanticChanges ? 
+					`${description} (${semanticChanges})` : description
+				
+				return scope ? 
+					`${prefix}(${scope}): ${finalDescription}` : 
+					`${prefix}: ${finalDescription}`
 			}
 
 			return commitMessage
@@ -300,27 +307,30 @@ export class GitHandler {
 			return 'deps'
 		}
 
-		// Check diff content for semantic hints
-		const diffContent = diff.toLowerCase()
-		if (diffContent.includes('fix:') || diffContent.includes('bug:') || diffContent.includes('issue:')) {
+		// Analyze semantic changes in the diff
+		const { functionChanges, interfaceChanges, importChanges } = this.analyzeDiffSemantics(diff)
+
+		if (functionChanges.includes('fix') || diff.toLowerCase().includes('fix:')) {
 			return 'fix'
 		}
-		if (diffContent.includes('refactor:') || diffContent.includes('clean:')) {
+		if (functionChanges.includes('refactor') || interfaceChanges.includes('refactor')) {
 			return 'refactor'
 		}
-		if (diffContent.includes('perf:') || diffContent.includes('performance:')) {
+		if (functionChanges.includes('perf') || diff.toLowerCase().includes('perf:')) {
 			return 'perf'
 		}
-		if (diffContent.includes('style:') || diffContent.match(/^\+\s*[\t ]*$/m)) {
+		if (importChanges.length > 0 && !functionChanges.length) {
+			return 'chore'
+		}
+		if (diff.match(/^\+\s*[\t ]*$/m)) {
 			return 'style'
 		}
 
-		// New files are features by default
-		if (!diff.includes("--- a/")) {
+		// New files or significant additions are features
+		if (!diff.includes("--- a/") || functionChanges.includes('new')) {
 			return 'feat'
 		}
 
-		// Default to chore for maintenance tasks
 		return 'chore'
 	}
 
@@ -364,45 +374,54 @@ export class GitHandler {
 
 		// Analyze diff to generate meaningful description
 		const changes = this.analyzeChanges(diff)
-		if (changes.significant) {
-			return `${changes.action} ${fileName}`
+		if (changes.details) {
+			return changes.details
 		}
 
-		return `update ${fileName}`
+		if (changes.significant) {
+			return `${changes.action} ${fileName} with significant changes`
+		}
+
+		return `update ${fileName} with minor changes`
 	}
 
 	private getFileNameFromPath(path: string): string {
 		return path.split('/').pop() || path
 	}
 
-	private analyzeChanges(diff: string): { action: string; significant: boolean } {
+	private analyzeChanges(diff: string): { action: string; significant: boolean; details: string } {
 		const addedLines = (diff.match(/^\+(?!\+\+)/gm) || []).length
 		const deletedLines = (diff.match(/^-(?!--)/gm) || []).length
 		const totalChanges = addedLines + deletedLines
 
-		// Determine if changes are significant (more than just formatting)
-		const significant = totalChanges > 5 || diff.includes('class ') || diff.includes('function ')
+		// Extract meaningful changes from diff
+		const functionChanges = this.extractFunctionChanges(diff)
+		const importChanges = this.extractImportChanges(diff)
+		const interfaceChanges = this.extractInterfaceChanges(diff)
+		const variableChanges = this.extractVariableChanges(diff)
 
+		// Build detailed change description
+		const details = this.buildChangeDescription(functionChanges, importChanges, interfaceChanges, variableChanges)
+
+		// Determine if changes are significant
+		const significant = totalChanges > 5 || 
+			functionChanges.length > 0 || 
+			interfaceChanges.length > 0 ||
+			importChanges.length > 0
+
+		let action = 'update'
 		if (addedLines > 0 && deletedLines > 0) {
-			return {
-				action: significant ? 'refactor' : 'modify',
-				significant
-			}
+			action = significant ? 'refactor' : 'modify'
 		} else if (addedLines > deletedLines) {
-			return {
-				action: significant ? 'implement' : 'enhance',
-				significant
-			}
+			action = significant ? 'implement' : 'enhance'
 		} else if (deletedLines > addedLines) {
-			return {
-				action: significant ? 'remove' : 'cleanup',
-				significant
-			}
+			action = significant ? 'remove' : 'cleanup'
 		}
 
 		return {
-			action: 'update',
-			significant: false
+			action,
+			significant,
+			details
 		}
 	}
 
