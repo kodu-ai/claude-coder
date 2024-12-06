@@ -250,14 +250,20 @@ export class GitHandler {
 			// Use ApiManager to generate commit message using LLM
 			const stream = await this.apiManager.createApiStreamRequest([{
 				role: "user",
-				content: prompt
+				content: [{
+					type: "text",
+					text: prompt
+				}]
 			}])
 
 			let commitMessage = ""
 			for await (const chunk of stream) {
-				if (chunk.code === 1 && chunk.body?.anthropic?.content[0]?.text) {
-					commitMessage = chunk.body.anthropic.content[0].text.trim()
-					break
+				if (chunk.code === 1 && chunk.body?.anthropic?.content?.[0]) {
+					const content = chunk.body.anthropic.content[0]
+					if ('type' in content && content.type === 'text') {
+						commitMessage = content.text.trim()
+						break
+					}
 				}
 			}
 
