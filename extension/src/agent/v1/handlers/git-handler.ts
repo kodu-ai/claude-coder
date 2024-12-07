@@ -125,11 +125,33 @@ export class GitHandler {
 	}
 
 	private async getCommitMessage(path: string): Promise<string> {
-		const { stdout } = await execa("git", ["status", "-s"], { cwd: this.repoPath })
-		const statusLines = stdout.split("\n")
-		const statusLine = statusLines.find((line) => line.includes(path))
+		try {
+			// Get the diff for staged changes
+			const { stdout: diffOutput } = await execa("git", ["diff", "--cached", path], { cwd: this.repoPath })
+			
+			// Get file status
+			const { stdout: statusOutput } = await execa("git", ["status", "-s", path], { cwd: this.repoPath })
+			const isNewFile = statusOutput.startsWith("A") || statusOutput.startsWith("??")
 
-		return statusLine?.startsWith("M") ? `Updated ${path}` : `Added ${path}`
+			// Ask LLM to generate commit message
+			const prompt = `Generate a concise git commit message for the following changes:
+File: ${path}
+Type: ${isNewFile ? 'New file' : 'Modified file'}
+Changes:
+${diffOutput}
+
+The commit message should:
+- Be clear and descriptive
+- Start with a verb in present tense
+- Not exceed 72 characters
+- Focus on the what and why of the change`
+
+			const message = await this.stateManager.apiManager.getResponse(prompt)
+			return message?.trim() || `Update ${path}`
+		} catch (error) {
+			console.error(`Error generating commit message: ${error}`)
+			return `Update ${path}`
+		}
 	}
 
 	private getCommittedHash(gitCommitStdOut: string): GitCommitResult {
