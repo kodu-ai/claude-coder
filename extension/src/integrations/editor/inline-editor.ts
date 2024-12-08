@@ -1,4 +1,5 @@
 import * as vscode from "vscode"
+import * as path from "path"
 import * as DMP from "diff-match-patch"
 import delay from "delay"
 
@@ -50,19 +51,24 @@ interface DocumentState {
 }
 
 /**
- * This class now uses a diff editor to display changes:
- * - The left side is the original file.
- * - The right side is a virtual doc managed by ModifiedContentProvider.
+ * This class uses a diff editor to display changes:
+ * - Left side: original file (read-only)
+ * - Right side: a virtual doc managed by ModifiedContentProvider (updated in-memory)
  *
- * After applying edits, we always scroll to the last inserted edit block (the one with the highest insertion index),
- * ensuring that regardless of where it edits the file, we end up showing its changes on screen.
+ * After applying edits, we always scroll to the last inserted edit block, ensuring the most recently added block is visible.
+ *
+ * Changes:
+ * - Added `forceFinalize()` method.
+ * - Normalized line endings to handle Windows environments better.
+ * - Removed usage of `vscode.workspace.asRelativePath` for the diff title to reduce path issues on Windows.
+ * - Added small delays to help ensure updates propagate in environments where timing is an issue.
  */
 export class InlineEditHandler {
 	private isAutoScrollEnabled: boolean = true
 	protected currentDocumentState: DocumentState | undefined
 	private modifiedUri?: vscode.Uri
 	private originalUri?: vscode.Uri
-	private static modifiedContentProvider: ModifiedContentProvider = new ModifiedContentProvider()
+	private static modifiedContentProvider: ModifiedContentProvider | undefined
 
 	constructor() {
 		this.logger("InlineEditHandler initialized", "debug")
@@ -70,7 +76,14 @@ export class InlineEditHandler {
 			throw new Error("FileSystemProvider not supported in this environment.")
 		}
 		try {
-			vscode.workspace.registerFileSystemProvider(MODIFIED_URI_SCHEME, InlineEditHandler.modifiedContentProvider)
+			// Register provider if not already registered
+			if (!InlineEditHandler.modifiedContentProvider) {
+				InlineEditHandler.modifiedContentProvider = new ModifiedContentProvider()
+				vscode.workspace.registerFileSystemProvider(
+					MODIFIED_URI_SCHEME,
+					InlineEditHandler.modifiedContentProvider
+				)
+			}
 		} catch (e) {
 			this.logger(`Failed to register file system provider: ${e}`, "error")
 		}
@@ -84,8 +97,11 @@ export class InlineEditHandler {
 				return
 			}
 			const uri = vscode.Uri.file(filePath)
-			const documentBuffer = await vscode.workspace.fs.readFile(uri)
-			const documentContent = Buffer.from(documentBuffer).toString("utf8")
+			let documentBuffer = await vscode.workspace.fs.readFile(uri)
+			let documentContent = Buffer.from(documentBuffer).toString("utf8")
+
+			// Normalize line endings to LF to ensure consistency across OS
+			documentContent = documentContent.replace(/\r\n/g, "\n")
 
 			this.currentDocumentState = {
 				uri: uri,
@@ -116,16 +132,16 @@ export class InlineEditHandler {
 
 	/**
 	 * Open a diff editor: left side = original (virtual), right side = modified (virtual).
-	 * This shows the original file content on the left and we will update the right side as we go.
+	 * Use path.basename for display name to avoid path issues on Windows.
 	 */
 	private async openDiffEditor(filePath: string, originalContent: string): Promise<void> {
-		const fileName = vscode.workspace.asRelativePath(filePath)
+		const fileName = path.basename(filePath)
 		this.originalUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${fileName}`).with({
 			query: Buffer.from(originalContent).toString("base64"),
 		})
 
 		this.modifiedUri = vscode.Uri.parse(`${MODIFIED_URI_SCHEME}:/${fileName}`)
-		await InlineEditHandler.modifiedContentProvider.writeFile(
+		await InlineEditHandler.modifiedContentProvider!.writeFile(
 			this.modifiedUri,
 			new TextEncoder().encode(originalContent),
 			{ create: true, overwrite: true }
@@ -142,6 +158,9 @@ export class InlineEditHandler {
 				viewColumn: vscode.ViewColumn.Active,
 			}
 		)
+
+		// Small delay to ensure editor is visible and stable on all OS
+		await delay(50)
 	}
 
 	public async applyStreamContent(id: string, searchContent: string, content: string): Promise<void> {
@@ -164,6 +183,9 @@ export class InlineEditHandler {
 			this.currentDocumentState.lastInsertionIndex++
 			this.currentDocumentState.editBlocksInsertionIndex.set(id, this.currentDocumentState.lastInsertionIndex)
 		}
+
+		// Normalize content to LF
+		content = content.replace(/\r\n/g, "\n")
 
 		block.currentContent = content
 		block.status = "streaming"
@@ -192,6 +214,10 @@ export class InlineEditHandler {
 				this.currentDocumentState.editBlocksInsertionIndex.set(id, this.currentDocumentState.lastInsertionIndex)
 			}
 		}
+
+		// Normalize content to LF
+		content = content.replace(/\r\n/g, "\n")
+
 		block.currentContent = content
 		block.finalContent = content
 		block.status = "final"
@@ -210,18 +236,12 @@ export class InlineEditHandler {
 		return !!this.currentDocumentState
 	}
 
-	private async getDocument(): Promise<vscode.TextDocument | undefined> {
-		this.validateDocumentState()
-		try {
-			const { uri } = this.currentDocumentState
-			return vscode.workspace.openTextDocument(uri)
-		} catch (error) {
-			this.logger(`Failed to get document: ${error}`, "error")
-			return undefined
-		}
-	}
-
 	private findAndReplace(content: string, searchContent: string, replaceContent: string): MatchResult {
+		// Ensure all strings use LF
+		content = content.replace(/\r\n/g, "\n")
+		searchContent = searchContent.replace(/\r\n/g, "\n")
+		replaceContent = replaceContent.replace(/\r\n/g, "\n")
+
 		const perfectMatch = this.findPerfectMatch(content, searchContent)
 		if (perfectMatch.success) {
 			return this.performReplace(content, perfectMatch.lineStart!, perfectMatch.lineEnd!, replaceContent)
@@ -355,13 +375,10 @@ export class InlineEditHandler {
 
 		let newContent = this.currentDocumentState.originalContent
 		const results: BlockResult[] = []
-		// We'll keep track of the match info for each successfully applied block
-		// along with its insertion index, so we can find the "latest" block.
 		let latestAppliedBlockIndex = -1
 		let latestAppliedBlockLineEnd: number | undefined
 
-		// Sort blocks by their insertion order, not by location
-		// Because we must scroll to the "last inserted" block, let's process them in insertion order
+		// Process blocks in insertion order
 		const blocksInInsertionOrder = [...this.currentDocumentState.editBlocks.entries()]
 			.sort((a, b) => {
 				const indexA = this.currentDocumentState.editBlocksInsertionIndex.get(a[0]) ?? -1
@@ -381,7 +398,6 @@ export class InlineEditHandler {
 					replaceContent: block.currentContent,
 					wasApplied: true,
 				})
-				// Update latest applied block if this one has a higher insertion index
 				const insertionIndex = this.currentDocumentState.editBlocksInsertionIndex.get(block.id) ?? -1
 				if (insertionIndex > latestAppliedBlockIndex) {
 					latestAppliedBlockIndex = insertionIndex
@@ -405,26 +421,24 @@ export class InlineEditHandler {
 			return
 		}
 
-		// Update the modified virtual document to show changes in the diff editor
 		if (this.modifiedUri) {
-			await InlineEditHandler.modifiedContentProvider.writeFile(
+			await InlineEditHandler.modifiedContentProvider!.writeFile(
 				this.modifiedUri,
 				new TextEncoder().encode(newContent),
 				{ create: false, overwrite: true }
 			)
+
+			// small delay to ensure doc updates in the editor
+			await delay(50)
 		}
 
 		this.currentDocumentState.currentContent = newContent
 
-		// After applying all blocks, scroll to the block with the highest insertion index that was applied
 		if (this.isAutoScrollEnabled && latestAppliedBlockIndex !== -1 && latestAppliedBlockLineEnd !== undefined) {
 			await this.scrollToLine(latestAppliedBlockLineEnd)
 		}
 	}
 
-	/**
-	 * Scrolls the modified side of the diff editor to a specific line.
-	 */
 	private async scrollToLine(line: number): Promise<void> {
 		if (!this.modifiedUri) return
 
@@ -445,17 +459,22 @@ export class InlineEditHandler {
 		const results = this.currentDocumentState.lastUpdateResults || []
 		const finalContent = this.currentDocumentState.currentContent
 
-		// Write finalContent to the file
 		const uri = this.currentDocumentState.uri
 		const workspaceEdit = new vscode.WorkspaceEdit()
 		const document = await vscode.workspace.openTextDocument(uri)
+		if (document.isDirty) {
+			await document.save()
+		}
+
+		// Close the active editor
 		const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
 		workspaceEdit.replace(uri, entireRange, finalContent)
 		await vscode.workspace.applyEdit(workspaceEdit)
 		await document.save()
-
-		// Close the diff editor if needed
+		await vscode.commands.executeCommand("workbench.action.closeActiveEditor")
 		await this.closeDiffEditors()
+		// open the file itself in a new editor
+		await vscode.window.showTextDocument(uri, { preview: false, viewColumn: vscode.ViewColumn.Active })
 
 		this.dispose()
 		return { finalContent, results }
@@ -492,6 +511,43 @@ export class InlineEditHandler {
 
 		await this.closeDiffEditors()
 		this.dispose()
+	}
+
+	/**
+	 * Force finalize all given blocks by applying their final content and marking them as final,
+	 * then re-applying changes to ensure everything is updated.
+	 */
+	public async forceFinalize(blocks: { id: string; searchContent: string; replaceContent: string }[]): Promise<void> {
+		this.logger("Forcing finalization of given blocks", "debug")
+		this.validateDocumentState()
+
+		for (const blk of blocks) {
+			let block = this.currentDocumentState.editBlocks.get(blk.id)
+			if (!block) {
+				block = {
+					id: blk.id,
+					searchContent: blk.searchContent,
+					currentContent: blk.replaceContent.replace(/\r\n/g, "\n"),
+					finalContent: blk.replaceContent.replace(/\r\n/g, "\n"),
+					status: "final",
+				}
+				this.currentDocumentState.editBlocks.set(blk.id, block)
+				if (!this.currentDocumentState.editBlocksInsertionIndex.has(blk.id)) {
+					this.currentDocumentState.lastInsertionIndex++
+					this.currentDocumentState.editBlocksInsertionIndex.set(
+						blk.id,
+						this.currentDocumentState.lastInsertionIndex
+					)
+				}
+			} else {
+				block.currentContent = blk.replaceContent.replace(/\r\n/g, "\n")
+				block.finalContent = blk.replaceContent.replace(/\r\n/g, "\n")
+				block.status = "final"
+			}
+		}
+
+		// Re-apply changes now that all blocks are final
+		await this.updateFileContent()
 	}
 
 	public setAutoScroll(enabled: boolean) {

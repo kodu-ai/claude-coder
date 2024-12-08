@@ -46,6 +46,7 @@ import { ScrollArea, ScrollBar } from "../ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { EnhancedWebSearchBlock } from "./Tools/WebSearchTool"
 import { FileEditorTool } from "./Tools/file-editor-tool"
+import MarkdownRenderer from "./MarkdownRenderer"
 
 type ApprovalState = ToolStatus
 export type ToolAddons = {
@@ -544,7 +545,9 @@ export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons
 			</div>
 		)} */}
 		<div className="bg-success/20 text-success-foreground p-2 rounded text-xs w-full flex">
-			<pre className="whitespace-pre text-wrap">{result?.trim()}</pre>
+			<pre className="whitespace-pre text-wrap">
+				<MarkdownRenderer markdown={result?.trim()} syntaxHighlighterStyle={{}} />
+			</pre>
 		</div>
 	</ToolBlock>
 )

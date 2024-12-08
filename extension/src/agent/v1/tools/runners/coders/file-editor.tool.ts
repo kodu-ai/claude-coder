@@ -311,6 +311,7 @@ export class FileEditorTool extends BaseAgentTool {
 		if (!this.inlineEditor.isOpen() && editBlocks.length > 0) {
 			await this.inlineEditor.open(editBlocks[0]?.id, this.fileState?.absolutePath!, editBlocks[0].searchContent)
 		}
+		await this.inlineEditor.forceFinalize(editBlocks)
 		// now we are going to prompt the user to approve the changes
 		const { response, text, images } = await this.params.ask(
 			"tool",
