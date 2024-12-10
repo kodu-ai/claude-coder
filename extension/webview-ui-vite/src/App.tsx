@@ -15,7 +15,7 @@ import { useAtom, useAtomValue } from "jotai"
 const queryClient = new QueryClient()
 
 const AppContent = () => {
-	const { apiConfiguration, user } = useExtensionState()
+	const { apiConfiguration, user, currentTaskId } = useExtensionState()
 	const [showSettings, setShowSettings] = useAtom(showSettingsAtom)
 	const [showHistory, setShowHistory] = useState(false)
 

@@ -1,9 +1,9 @@
-import { ClaudeAsk, V1ClaudeMessage } from "../../../shared/extension-message"
+import { ClaudeAsk, ClaudeMessage, V1ClaudeMessage } from "../../../shared/extension-message"
 import { ClaudeAskResponse } from "../../../shared/webview-message"
 import { AskDetails, AskResponse } from "./utils"
 import { StateManager } from "../state-manager"
 import { ChatTool } from "../../../shared/new-tools"
-
+import { WebviewManager } from "../../../providers/claude-coder/webview/webview-manager"
 interface PendingAsk {
 	resolve: (value: AskResponse) => void
 	reject: (error: Error) => void
@@ -29,6 +29,7 @@ const safeJsonStringify = (data: any): string => {
 
 export class AskManager {
 	private readonly stateManager: StateManager
+	private readonly webViewManager: WebviewManager
 	private currentAsk: PendingAsk | null = null
 	private currentAskId: number | null = null
 	private pendingToolAsks: Map<string, number> = new Map()
@@ -54,6 +55,7 @@ export class AskManager {
 
 	constructor(stateManager: StateManager) {
 		this.stateManager = stateManager
+		this.webViewManager = stateManager.providerRef.deref()!.getWebviewManager()
 	}
 
 	public async abortPendingAsks(): Promise<void> {
@@ -215,17 +217,14 @@ export class AskManager {
 			status: status === "approved" ? "approved" : tool?.approvalState,
 			autoApproved: status === "approved",
 		}
-
 		try {
 			if (this.stateManager.getMessageById(id)) {
 				// we can void the promise here as we don't need to wait for the state to be updated
-				void this.stateManager.updateClaudeMessage(id, message)
+				await this.stateManager.updateClaudeMessage(id, message)
 			} else {
 				await this.stateManager.addToClaudeMessages(message)
 			}
-
-			// we can void the promise here as we don't need to wait for the state to be updated
-			void this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+			await this.webViewManager.postClaudeMessageToWebview(message)
 		} catch (error) {
 			console.error("Error in updateState:", error)
 			throw error

@@ -390,7 +390,6 @@ export class StateManager {
 					(m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task")
 				)
 			]
-
 		await this.providerRef
 			.deref()
 			?.getStateManager()
@@ -404,6 +403,8 @@ export class StateManager {
 				cacheReads: apiMetrics.totalCacheReads,
 				totalCost: apiMetrics.totalCost,
 			})
+
+		return this.state.claudeMessages
 	}
 
 	async removeEverythingAfterMessage(messageId: number) {
@@ -417,6 +418,7 @@ export class StateManager {
 		)
 		this.state.claudeMessages = this.state.claudeMessages.slice(0, index + 1)
 		await this.saveClaudeMessages()
+		return this.state.claudeMessages
 	}
 
 	async updateClaudeMessage(messageId: number, message: ClaudeMessage) {
@@ -427,6 +429,7 @@ export class StateManager {
 		}
 		this.state.claudeMessages[index] = message
 		await this.saveClaudeMessages()
+		return this.state.claudeMessages[index]
 	}
 
 	async appendToClaudeMessage(messageId: number, text: string) {
@@ -434,7 +437,9 @@ export class StateManager {
 		if (lastMessage && lastMessage.type === "say") {
 			lastMessage.text += text
 			await this.saveClaudeMessages()
+			return lastMessage
 		}
+		return undefined
 	}
 
 	async addToClaudeAfterMessage(messageId: number, message: ClaudeMessage) {
@@ -445,21 +450,19 @@ export class StateManager {
 		}
 		this.state.claudeMessages.splice(index + 1, 0, message)
 		await this.saveClaudeMessages()
+		return message
 	}
 
 	async addToClaudeMessages(message: ClaudeMessage) {
 		this.state.claudeMessages.push(message)
 		await this.saveClaudeMessages()
+		return message
 	}
 
 	async overwriteClaudeMessages(newMessages: ClaudeMessage[]) {
 		this.state.claudeMessages = newMessages
 		await this.saveClaudeMessages()
-	}
-
-	// Force an immediate save
-	public async forceSaveClaudeMessages(): Promise<void> {
-		await this.saveClaudeMessages()
+		return newMessages
 	}
 
 	public async setTemporaryPauseAutomaticMode(newValue: boolean): Promise<void> {

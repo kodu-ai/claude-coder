@@ -47,7 +47,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const [attachments, setAttachments] = useAtom(attachmentsAtom)
 	const [syntaxHighlighterStyle, setSyntaxHighlighterStyle] = useAtom(syntaxHighlighterAtom)
 
-	const { claudeMessages: messages, themeName: vscodeThemeName, uriScheme, user } = useExtensionState()
+	const { claudeMessages: messages, themeName: vscodeThemeName, uriScheme, user, currentTask } = useExtensionState()
 
 	const [isPending, startTransition] = useTransition()
 
@@ -106,12 +106,12 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	const { shouldDisableImages, handlePaste } = useImageHandling(selectedModelSupportsImages, state, updateState)
 
+	const firstTaskMsg = useMemo(() => messages.at(0), [messages])
+
 	const isMessageRunning = useMessageRunning(messages)
 
-	const task = useMemo(() => (messages.length > 0 ? messages[0] : undefined), [messages])
-
 	useEffect(() => {
-		if (!task?.ts) {
+		if (!currentTask?.ts) {
 			updateState({
 				inputValue: "",
 				textAreaDisabled: false,
@@ -122,12 +122,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 				secondaryButtonText: undefined,
 			})
 		}
-	}, [task?.ts])
+	}, [currentTask?.ts])
 
 	const modifiedMessages = useMemo(() => combineApiRequests(combineCommandSequences(messages.slice(1))), [messages])
 	useChatMessageHandling(messages, handleButtonStateUpdate, setAttachments)
-
-	const apiMetrics = useMemo(() => getApiMetrics(modifiedMessages), [modifiedMessages])
 
 	const visibleMessages = useMemo(() => {
 		return modifiedMessages.filter((message) => {
@@ -186,7 +184,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 			}
 
 			if (text || state.selectedImages.length > 0) {
-				if (messages.length === 0) {
+				if (!currentTask) {
 					vscode.postMessage({
 						type: "newTask",
 						text,
@@ -305,25 +303,25 @@ const ChatView: React.FC<ChatViewProps> = ({
 					overflowY: "auto",
 				}}>
 				<AnnouncementBanner />
-				{task ? (
+				{!!currentTask && firstTaskMsg ? (
 					<>
 						<TaskHeader
-							key={`header-${task.ts}`}
-							task={task}
-							tokensIn={apiMetrics.totalTokensIn}
-							tokensOut={apiMetrics.totalTokensOut}
+							key={`header-${firstTaskMsg.ts}`}
+							firstMsg={firstTaskMsg}
+							tokensIn={currentTask.tokensIn}
+							tokensOut={currentTask.tokensOut}
 							doesModelSupportPromptCache={selectedModelSupportsPromptCache}
-							cacheWrites={apiMetrics.totalCacheWrites}
-							cacheReads={apiMetrics.totalCacheReads}
-							totalCost={apiMetrics.totalCost}
+							cacheWrites={currentTask.cacheWrites}
+							cacheReads={currentTask.cacheReads}
+							totalCost={currentTask.totalCost}
 							onClose={() => vscode.postMessage({ type: "clearTask" })}
 							isHidden={isHidden}
 							koduCredits={user?.credits ?? 0}
 							vscodeUriScheme={uriScheme}
 						/>
 						<ChatMessages
-							key={`messages-${task.ts}`}
-							taskId={task.ts}
+							key={`messages-${firstTaskMsg.ts}`}
+							taskId={firstTaskMsg.ts}
 							visibleMessages={visibleMessages}
 							syntaxHighlighterStyle={syntaxHighlighterStyle}
 						/>
@@ -339,7 +337,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 			</div>
 			{!isMaxContextReached && (
 				<div className="mb-0 mt-auto">
-					{!!task && (
+					{!!currentTask && (
 						<ButtonSection
 							primaryButtonText={state.primaryButtonText}
 							secondaryButtonText={state.secondaryButtonText}
@@ -357,7 +355,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 						shouldDisableImages={shouldDisableImages}
 						handlePaste={handlePaste}
 						isRequestRunning={isMessageRunning}
-						isInTask={!!task}
+						isInTask={!!currentTask}
 						isHidden={isHidden}
 					/>
 				</div>

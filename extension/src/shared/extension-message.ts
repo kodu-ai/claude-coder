@@ -33,6 +33,13 @@ type PostGitCheckoutSuccess = {
 type PostClaudeMessages = {
 	type: "claudeMessages"
 	claudeMessages: ExtensionState["claudeMessages"]
+	taskId: string
+}
+
+type PostClaudeMessage = {
+	type: "claudeMessage"
+	claudeMessage: ExtensionState["claudeMessages"][number] | undefined
+	taskId: string
 }
 
 type PostTaskHistory = {
@@ -94,7 +101,7 @@ export type ExtensionMessage =
 				| "koduAuthenticated"
 				| "koduCreditsFetched"
 
-			state?: ExtensionState
+			state?: BaseExtensionState
 			images?: string[]
 	  }
 	| PostFoldersAndItems
@@ -107,8 +114,9 @@ export type ExtensionMessage =
 	| EnableTextAreasMessage
 	| HideCommandBlockMessage
 	| RequestStatus
+	| PostClaudeMessage
 
-export interface ExtensionState {
+export interface BaseExtensionState {
 	version: string
 	maxRequestsPerTask?: number
 	lastShownAnnouncementId?: string
@@ -130,11 +138,14 @@ export interface ExtensionState {
 	uriScheme?: string
 	extensionName?: string
 	currentTaskId?: string
-	claudeMessages: ClaudeMessage[]
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean
 	autoCloseTerminal: boolean
 	fingerprint?: string
+}
+
+export interface ExtensionState extends BaseExtensionState {
+	claudeMessages: ClaudeMessage[]
 }
 
 type V0ClaudeMessage = {
@@ -224,12 +235,6 @@ export type ClaudeSay =
 	| "abort_automode"
 	| "shell_integration_warning"
 	| "show_terminal"
-
-type WebSearchTool = {
-	tool: "web_search"
-	query: string
-	baseLink: string
-}
 
 export type UrlScreenshotTool = {
 	tool: "url_screenshot"

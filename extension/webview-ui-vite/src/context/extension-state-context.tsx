@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from "react"
 import { useEvent } from "react-use"
-import { atom, useAtom, useSetAtom } from "jotai"
+import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
 import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/extension-message"
 import { vscode } from "../utils/vscode"
 import { ApiConfiguration } from "../../../src/api/index"
 import { HistoryItem } from "../../../src/shared/history-item"
 import type { GlobalState } from "../../../src/providers/claude-coder/state/global-state-manager"
+import { useState } from "react"
 
 // Define atoms for each piece of state
 
@@ -34,31 +35,22 @@ const themeNameAtom = atom<string | undefined>(undefined)
 themeNameAtom.debugLabel = "themeName"
 const extensionNameAtom = atom<string | undefined>(undefined)
 extensionNameAtom.debugLabel = "extensionName"
-
 const fingerprintAtom = atom<string | undefined>(undefined)
 fingerprintAtom.debugLabel = "fingerprint"
-
 const fpjsKeyAtom = atom<string | undefined>(undefined)
 fpjsKeyAtom.debugLabel = "fpjsKey"
-
 const currentTaskIdAtom = atom<string | undefined>(undefined)
 currentTaskIdAtom.debugLabel = "currentTask"
-
 const autoCloseTerminalAtom = atom(false)
 autoCloseTerminalAtom.debugLabel = "autoCloseTerminal"
-
 const gitHandlerEnabledAtom = atom(true)
 gitHandlerEnabledAtom.debugLabel = "gitHandlerEnabled"
-
 const skipWriteAnimationAtom = atom(false)
 skipWriteAnimationAtom.debugLabel = "skipWriteAnimation"
-
 const lastShownAnnouncementIdAtom = atom<string | undefined>(undefined)
 lastShownAnnouncementIdAtom.debugLabel = "lastShownAnnouncementId"
-
 const inlineEditModeTypeAtom = atom<"full" | "diff">("full")
 inlineEditModeTypeAtom.debugLabel = "inlineEditModeType"
-
 const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	const currentTaskId = get(currentTaskIdAtom)
 	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
@@ -115,7 +107,47 @@ autoSummarizeAtom.debugLabel = "autoSummarize"
 const terminalCompressionThresholdAtom = atom<number | undefined>(undefined)
 terminalCompressionThresholdAtom.debugLabel = "terminalCompressionThreshold"
 
+const useHandleClaudeMessages = () => {
+	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
+
+	const handleMessage = (event: MessageEvent) => {
+		const message: ExtensionMessage = event.data
+
+		if (message.type === "claudeMessages") {
+			if (!message.taskId) {
+				// return empty array if message is undefined
+				setClaudeMessages([])
+				return
+			}
+			setClaudeMessages(message.claudeMessages)
+		}
+
+		if (message.type === "claudeMessage") {
+			console.log(`Got Message: ${JSON.stringify(message)}`)
+			// find the message in the current state and update it if not found add it
+			setClaudeMessages((currentMessages) => {
+				if (!message.claudeMessage || !message.taskId) {
+					// return empty array if message is undefined
+					return []
+				}
+				const index = currentMessages.findIndex((m) => m.ts === message.claudeMessage!.ts)
+				if (index !== -1) {
+					console.log(`Updating message at index ${index}, data: ${JSON.stringify(message.claudeMessage)}`)
+					const messages = [...currentMessages]
+					messages[index] = message.claudeMessage
+					return messages
+				}
+				console.log(`Adding new message: ${JSON.stringify(message.claudeMessage)}`)
+				return [...currentMessages, message.claudeMessage]
+			})
+		}
+	}
+
+	useEvent("message", handleMessage)
+}
+
 export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+	useHandleClaudeMessages()
 	const setVersion = useSetAtom(versionAtom)
 	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
 	const setCommandTimeout = useSetAtom(commandTimeoutAtom)
@@ -146,16 +178,15 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
-		if (message.type === "claudeMessages") {
-			setClaudeMessages(message.claudeMessages)
-		}
 
 		if (message.type === "state" && message.state) {
 			setVersion(message.state.version)
 			setCurrentIdTask(message.state.currentTaskId)
+			if (!message.state.currentTaskId) {
+				setClaudeMessages([])
+			}
 			setCommandTimeout(message.state.commandTimeout)
 			setTerminalCompressionThreshold(message.state.terminalCompressionThreshold)
-			setClaudeMessages(message.state.claudeMessages)
 
 			setAutoSummarize(!!message.state.autoSummarize)
 			setInlineEditModeType(message.state.inlineEditOutputType ?? "full")

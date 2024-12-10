@@ -91,7 +91,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		)
 
 		if (response !== "yesButtonTapped") {
-			updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -127,7 +127,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 		}
 
 		// Set loading state
-		updateAsk(
+		await this.params.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -180,7 +180,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				})
 				process.once("no_shell_integration", async () => {
 					await say("shell_integration_warning")
-					await updateAsk(
+					await this.params.updateAsk(
 						"tool",
 						{
 							tool: {
@@ -208,7 +208,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 					this.output += cleanedLine + "\n"
 					if (!didContinue || this.isApprovedState(earlyExit)) {
 						try {
-							await updateAsk(
+							await this.params.updateAsk(
 								"tool",
 								{
 									tool: {
@@ -251,7 +251,7 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				return this.toolResponse("error", shellIntegrationErrorOutput)
 			}
 
-			await updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {

@@ -3,7 +3,7 @@ import path from "path"
 import * as vscode from "vscode"
 import { extensionName } from "../../../shared/constants"
 import { GitHandler } from "../../../agent/v1/handlers/git-handler"
-import { ExtensionMessage, ExtensionState } from "../../../shared/extension-message"
+import { BaseExtensionState, ClaudeMessage, ExtensionMessage, ExtensionState } from "../../../shared/extension-message"
 import { WebviewMessage } from "../../../shared/webview-message"
 import { getNonce, getUri } from "../../../utils"
 import { AmplitudeWebviewManager } from "../../../utils/amplitude/manager"
@@ -53,13 +53,6 @@ const excludedDirectories = [
 export class WebviewManager {
 	/** ID of the latest announcement to show to users */
 	private static readonly latestAnnouncementId = "sep-13-2024"
-	private static readonly UPDATE_INTERVAL = 20 // 20ms debounce for webview updates
-	private static readonly MAX_POST_INTERVAL = 60 // max time to wait before forcing a post
-
-	private lastPostTimeAt = 0
-	private debounceTimer: NodeJS.Timeout | null = null
-	private maxIntervalTimer: NodeJS.Timeout | null = null
-	private pendingMessage: ExtensionMessage | null = null
 
 	/**
 	 * Creates a new WebviewManager instance
@@ -119,100 +112,66 @@ export class WebviewManager {
 	 * @param message The message to send to the webview
 	 */
 	async postMessageToWebview(message: ExtensionMessage) {
-		if (
-			message.type === "taskHistory" ||
-			message.type === "requestStatus" ||
-			message.type === "claudeMessages" ||
-			message.type === "enableTextAreas"
-		) {
-			// prioritize these messages
-			this.sendMessageToWebview(message)
-			return
-		}
-		const now = Date.now()
-		this.lastPostTimeAt = now
-		this.pendingMessage = message
-
-		// Clear existing timers
-		if (this.debounceTimer) {
-			clearTimeout(this.debounceTimer)
-		}
-		if (this.maxIntervalTimer) {
-			clearTimeout(this.maxIntervalTimer)
-		}
-
-		// Set up max interval timer to ensure message is sent within MAX_POST_INTERVAL
-		this.maxIntervalTimer = setTimeout(() => {
-			if (this.pendingMessage) {
-				this.sendMessageToWebview(this.pendingMessage)
-				this.pendingMessage = null
-				this.clearTimers()
-			}
-		}, WebviewManager.MAX_POST_INTERVAL)
-
-		// Set up debounce timer
-		this.debounceTimer = setTimeout(() => {
-			if (this.pendingMessage) {
-				this.sendMessageToWebview(this.pendingMessage)
-				this.pendingMessage = null
-				this.clearTimers()
-			}
-		}, WebviewManager.UPDATE_INTERVAL)
+		return await this.provider["view"]?.webview.postMessage(message)
 	}
 
-	/**
-	 * Actually sends the message to the webview
-	 * @param message The message to send
-	 */
-	private sendMessageToWebview(message: ExtensionMessage) {
-		this.provider["view"]?.webview.postMessage(message)
-	}
-
-	/**
-	 * Cleans up any existing timers
-	 */
-	private clearTimers() {
-		if (this.debounceTimer) {
-			clearTimeout(this.debounceTimer)
-			this.debounceTimer = null
-		}
-		if (this.maxIntervalTimer) {
-			clearTimeout(this.maxIntervalTimer)
-			this.maxIntervalTimer = null
-		}
-	}
 	/**
 	 * only post claude messages to webview
 	 */
-	async postClaudeMessagesToWebview() {
+	async postClaudeMessagesToWebview(msgs?: ClaudeMessage[] | null) {
 		const claudeMessages = this.provider.getKoduDev()?.getStateManager().state.claudeMessages ?? []
-
-		return this.postMessageToWebview({
+		const taskId = this.provider.getKoduDev()?.getStateManager().state.taskId
+		if (!taskId) {
+			// reset
+			return await this.postMessageToWebview({
+				type: "claudeMessages",
+				claudeMessages: [],
+				taskId: "",
+			})
+		}
+		return await this.postMessageToWebview({
 			type: "claudeMessages",
-			claudeMessages,
+			claudeMessages: msgs ?? claudeMessages,
+			taskId,
 		})
 	}
 
-	async postStateToWebview() {
-		const state = await this.getStateToPostToWebview()
+	async postClaudeMessageToWebview(msg: ClaudeMessage) {
+		const taskId = this.provider.getKoduDev()?.getStateManager().state.taskId
+		if (!taskId) {
+			// reset
+			return await this.postMessageToWebview({
+				type: "claudeMessage",
+				claudeMessage: undefined,
+				taskId: "",
+			})
+		}
+		return await this.postMessageToWebview({
+			type: "claudeMessage",
+			claudeMessage: msg,
+			taskId,
+		})
+	}
+
+	async postBaseStateToWebview() {
+		const state = await this.getBaseStateToPostToWebview()
 		await this.postMessageToWebview({ type: "state", state })
 	}
 
-	private async getStateToPostToWebview() {
+	private async getBaseStateToPostToWebview() {
 		const state = await this.provider.getStateManager().getState()
-		const koduDevState = this.provider.getKoduDev()?.getStateManager().state
 		const extensionName = this.provider.getContext().extension?.packageJSON?.name
+		const { claudeMessages, ...rest } = state
 
 		return {
-			...state,
+			...rest,
 			version: this.provider.getContext().extension?.packageJSON?.version ?? "",
 			themeName: vscode.workspace.getConfiguration("workbench").get<string>("colorTheme"),
 			uriScheme: vscode.env.uriScheme,
 			extensionName,
-			claudeMessages: koduDevState?.claudeMessages ?? [],
 			taskHistory: (state.taskHistory || []).filter((item) => item.ts && item.task).sort((a, b) => b.ts - a.ts),
 			shouldShowAnnouncement: false,
-		} satisfies ExtensionState
+		} satisfies BaseExtensionState
 	}
 
 	private getHtmlContent(webview: vscode.Webview): string {
@@ -351,11 +310,11 @@ export class WebviewManager {
 						break
 					case "terminalCompressionThreshold":
 						await this.provider.getStateManager().setTerminalCompressionThreshold(message.value)
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "skipWriteAnimation":
 						await this.provider.getStateManager().setSkipWriteAnimation(!!message.bool)
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "updateGlobalState":
 						for (const [key, value] of Object.entries(message.state)) {
@@ -367,7 +326,7 @@ export class WebviewManager {
 					case "clearHistory":
 						await this.provider.getStateManager().clearHistory()
 						await this.provider.getTaskManager().clearAllTasks()
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "fileTree":
 						const workspaceFolders = vscode.workspace.workspaceFolders
@@ -406,10 +365,10 @@ export class WebviewManager {
 						if (this.provider.koduDev) {
 							this.provider.koduDev.getStateManager().setAutoSummarize(message.bool)
 						}
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "webviewDidLaunch":
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "newTask":
 						await this.provider
@@ -419,28 +378,27 @@ export class WebviewManager {
 					case "apiConfiguration":
 						if (message.apiConfiguration) {
 							await this.provider.getApiManager().updateApiConfiguration(message.apiConfiguration)
-							await this.postStateToWebview()
+							await this.postBaseStateToWebview()
 						}
 						break
 
 					case "autoCloseTerminal":
 						await this.provider.getStateManager().setAutoCloseTerminal(message.bool)
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "customInstructions":
 						await this.provider.getStateManager().setCustomInstructions(message.text || undefined)
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "alwaysAllowReadOnly":
 						await this.provider.getStateManager().setAlwaysAllowReadOnly(message.bool ?? false)
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "alwaysAllowWriteOnly":
 						await this.provider.getStateManager().setAlwaysAllowWriteOnly(message.bool ?? false)
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "askResponse":
-						console.log("askResponse", message)
 						await this.provider
 							.getTaskManager()
 							.handleAskResponse(message.askResponse!, message.text, message.images, message.attachements)
@@ -448,11 +406,12 @@ export class WebviewManager {
 					case "toggleGitHandler":
 						this.provider.koduDev?.getStateManager().setGitHandlerEnabled(message.enabled)
 						await this.provider.getStateManager().setGitHandlerEnabled(message.enabled)
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "clearTask":
 						await this.provider.getTaskManager().clearTask()
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
+						await this.postClaudeMessagesToWebview(undefined)
 						break
 					case "setApiKeyDialog":
 						// trigger vscode.commands.registerCommand(`${extensionName}.setApiKey`
@@ -469,7 +428,7 @@ export class WebviewManager {
 						await this.provider
 							.getGlobalStateManager()
 							.updateGlobalState("lastShownAnnouncementId", packageJSON?.version)
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "selectImages":
 						const images = await this.provider.getTaskManager().selectImages()
@@ -492,21 +451,21 @@ export class WebviewManager {
 						break
 					case "didClickKoduSignOut":
 						await this.provider.getApiManager().signOutKodu()
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "commandTimeout":
 						await GlobalStateManager.getInstance().updateGlobalState(
 							"commandTimeout",
 							message.commandTimeout
 						)
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "fetchKoduCredits":
 						await this.provider.getApiManager().fetchKoduCredits()
 						await this.postMessageToWebview({
 							type: "action",
 							action: "koduCreditsFetched",
-							state: await this.getStateToPostToWebview(),
+							state: await this.getBaseStateToPostToWebview(),
 						})
 						break
 
@@ -521,7 +480,7 @@ export class WebviewManager {
 					case "resetState":
 						await this.provider.getGlobalStateManager().resetState()
 						await this.provider.getSecretStateManager().resetState()
-						await this.postStateToWebview()
+						await this.postBaseStateToWebview()
 						break
 					case "debug":
 						await this.handleDebugInstruction()
@@ -643,7 +602,5 @@ export class WebviewManager {
 	/**
 	 * Cleanup method to be called when the webview manager is disposed
 	 */
-	dispose() {
-		this.clearTimers()
-	}
+	dispose() {}
 }

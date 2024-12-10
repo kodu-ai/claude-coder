@@ -85,10 +85,6 @@ export class ApiManager {
 		this.customInstructions = customInstructions
 	}
 
-	public async fixUdiff(udiff: string, fileContent: string, relPath: string) {
-		return this.api.fixUdiff(udiff, fileContent, relPath)
-	}
-
 	/**
 	 * Formats custom instructions with proper sectioning
 	 * @returns Formatted custom instructions string

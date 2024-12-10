@@ -92,10 +92,13 @@ export class TaskExecutor extends TaskExecutorUtils {
 				isSubMessage: true,
 			})
 		} else {
-			void Promise.all([
+			const res = await Promise.all([
 				this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush),
-				this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview(),
+				this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview(),
 			])
+			if (res[0]) {
+				await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(res[0])
+			}
 		}
 	}
 
@@ -283,7 +286,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				this.state = TaskState.COMPLETED
 			}
 		})
-		await this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+		await this.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview()
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
@@ -420,7 +423,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 					if (chunk.code === 1) {
 						const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
 							chunk.body.internal
-						this.stateManager.updateClaudeMessage(startedReqId, {
+						const msg = await this.stateManager.updateClaudeMessage(startedReqId, {
 							...this.stateManager.getMessageById(startedReqId)!,
 							apiMetrics: {
 								cost: chunk.body.internal.cost,
@@ -432,18 +435,24 @@ export class TaskExecutor extends TaskExecutorUtils {
 							isDone: true,
 							isFetching: false,
 						})
-						this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview()
+						if (msg) {
+							await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(msg)
+						}
 					}
 
 					if (chunk.code === -1) {
-						this.stateManager.updateClaudeMessage(startedReqId, {
+						const msg = await this.stateManager.updateClaudeMessage(startedReqId, {
 							...this.stateManager.getMessageById(startedReqId)!,
 							isDone: true,
 							isFetching: false,
 							errorText: chunk.body.msg ?? "Internal Server Error",
 							isError: true,
 						})
-						this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview()
+						if (msg) {
+							await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(msg)
+						}
 						throw new KoduError({ code: chunk.body.status ?? 500 })
 					}
 				},
@@ -705,8 +714,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 			}
 		})
 		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessages)
-		this.stateManager.state.claudeMessages = await this.stateManager.getSavedClaudeMessages()
-
+		await this.stateManager.getSavedClaudeMessages()
+		await this.stateManager.providerRef.deref()?.getWebviewManager().postClaudeMessagesToWebview()
 		const { response } = await this.ask("api_req_failed", { question: error.message })
 		if (response === "yesButtonTapped" || response === "messageResponse") {
 			await this.say("api_req_retried")

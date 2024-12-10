@@ -18,6 +18,7 @@ export class TaskManager {
 	async clearTask() {
 		const now = new Date()
 		const koduDev = this.provider.getKoduDev()
+
 		this.provider.koduDev = undefined
 
 		if (koduDev) {
@@ -40,8 +41,6 @@ export class TaskManager {
 	}
 
 	async handleAskResponse(askResponse: any, text?: string, images?: string[], attachements?: Resource[]) {
-		console.log("Handling ask response:", { askResponse, text, images })
-
 		const koduDev = this.provider.getKoduDev()
 		if (!koduDev) {
 			console.error("No KoduDev instance found when handling ask response")
@@ -105,7 +104,7 @@ export class TaskManager {
 
 		taskData.historyItem.name = newTaskName
 		await this.provider.getStateManager().updateTaskHistory(taskData.historyItem)
-		await this.provider.getWebviewManager().postStateToWebview()
+		await this.provider.getWebviewManager().postBaseStateToWebview()
 		vscode.window.showInformationMessage(`Task renamed to ${newTaskName}`)
 	}
 
@@ -235,6 +234,6 @@ export class TaskManager {
 		const updatedTaskHistory = taskHistory.filter((task) => task.id !== id)
 		await this.provider.getGlobalStateManager().updateGlobalState("taskHistory", updatedTaskHistory)
 
-		await this.provider.getWebviewManager().postStateToWebview()
+		await this.provider.getWebviewManager().postBaseStateToWebview()
 	}
 }

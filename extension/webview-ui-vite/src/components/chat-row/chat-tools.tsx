@@ -313,16 +313,6 @@ export const ExecuteCommandBlock: React.FC<
 			<div className="bg-muted p-2 rounded font-mono text-xs overflow-x-auto">
 				<span className="text-success">$</span> {command}
 			</div>
-
-			{/* {approvalState === "loading" && earlyExit === "pending" && (
-				<>
-					<div className="flex justify-end space-x-1 mt-2">
-						<Button variant="outline" size="sm" onClick={onApprove}>
-							Continue while running
-						</Button>
-					</div>
-				</>
-			)} */}
 			{output && (
 				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
 					<CollapsibleTrigger asChild>
@@ -574,7 +564,6 @@ export const ToolRenderer: React.FC<{
 			return <EnhancedWebSearchBlock {...tool} />
 		case "url_screenshot":
 			return <UrlScreenshotBlock {...tool} />
-
 		case "server_runner_tool":
 			return <DevServerToolBlock {...tool} />
 		default:

@@ -5,16 +5,6 @@ import { ChatTool } from "../../../src/shared/new-tools"
 import { Resource } from "../../../src/shared/webview-message"
 import { useEvent } from "react-use"
 
-const isToolPendingApproval = (message: ClaudeMessage) => {
-	try {
-		if (!isV1ClaudeMessage(message)) return false
-		const tool = JSON.parse(message.text || "{}") as ChatTool
-		return tool.approvalState === "pending"
-	} catch (err) {
-		return false
-	}
-}
-
 export const useChatMessageHandling = (
 	messages: ClaudeMessage[],
 	updateState: (updates: Partial<ChatState>) => void,

@@ -63,8 +63,6 @@ export interface ApiHandler {
 
 	abortRequest(): void
 
-	fixUdiff(udiff: string, fileContent: string, relPath: string): Promise<string>
-
 	sendWebSearchRequest?(
 		searchQuery: string,
 		baseLink?: string,
@@ -72,12 +70,6 @@ export interface ApiHandler {
 		browserMode?: string,
 		abortSignal?: AbortSignal
 	): AsyncIterable<WebSearchResponseDto>
-
-	sendUrlScreenshotRequest?(url: string): Promise<Blob>
-
-	sendAskConsultantRequest?(query: string): Promise<AskConsultantResponseDto>
-
-	sendSummarizeRequest?(text: string, command: string): Promise<SummaryResponseDto>
 }
 
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {

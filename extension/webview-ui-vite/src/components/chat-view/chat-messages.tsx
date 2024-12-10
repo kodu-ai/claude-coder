@@ -212,11 +212,4 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, sy
 	)
 }
 
-// Memoize the entire component
-export default React.memo(ChatMessages, (prevProps, nextProps) => {
-	return (
-		prevProps.taskId === nextProps.taskId &&
-		prevProps.visibleMessages === nextProps.visibleMessages &&
-		prevProps.syntaxHighlighterStyle === nextProps.syntaxHighlighterStyle
-	)
-})
+export default ChatMessages

@@ -89,8 +89,10 @@ export class KoduDev {
 			this.stateManager.state.isHistoryItem = true
 			this.resumeTaskFromHistory()
 			this.gitHandler.init()
+			this.providerRef.deref()?.getWebviewManager().postBaseStateToWebview()
 		} else if (task || images) {
 			this.startTask(task, images)
+			this.providerRef.deref()?.getWebviewManager().postBaseStateToWebview()
 		} else {
 			throw new Error("Either historyItem or task/images must be provided")
 		}
@@ -154,7 +156,6 @@ export class KoduDev {
 		}
 		this.stateManager.state.claudeMessages = []
 		this.stateManager.state.apiConversationHistory = []
-		await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
 
 		let textBlock: Anthropic.TextBlockParam = {
 			type: "text",
@@ -162,7 +163,6 @@ export class KoduDev {
 		}
 		let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
 		amplitudeTracker.taskStart(this.stateManager.state.taskId)
-
 		await this.taskExecutor.say("text", task, images)
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
 	}
@@ -246,7 +246,11 @@ export class KoduDev {
 				lastClaudeMessage.ask === "tool" &&
 				(JSON.parse(lastClaudeMessage.text ?? "{}") as ChatTool).tool === "attempt_completion")
 
-		await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
+		await this.providerRef
+			.deref()
+			?.getWebviewManager()
+			.postClaudeMessagesToWebview(this.stateManager.state.claudeMessages)
+		await this.providerRef.deref()?.getWebviewManager().postBaseStateToWebview()
 		const ts = Date.now()
 		let { response, text, images } = await this.taskExecutor.askWithId(
 			isCompleted ? "resume_completed_task" : "resume_task",
@@ -261,6 +265,10 @@ export class KoduDev {
 			modifiedClaudeMessagesAfterResume.splice(lastAskIndex, 1)
 		}
 		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessagesAfterResume)
+		await this.providerRef
+			.deref()
+			?.getWebviewManager()
+			.postClaudeMessagesToWebview(modifiedClaudeMessagesAfterResume)
 
 		let newUserContent: UserContent = []
 		if (response === "messageResponse") {
@@ -333,7 +341,7 @@ export class KoduDev {
 		amplitudeTracker.taskResume(this.stateManager.state.taskId, pastRequestsCount)
 
 		this.stateManager.state.isHistoryItemResumed = true
-		await this.taskExecutor.startTask(newUserContent)
+		void this.taskExecutor.startTask(newUserContent)
 	}
 
 	async abortTask() {
@@ -439,7 +447,8 @@ export class KoduDev {
 				fromBranch: currentBranch,
 			})
 			// we must update the webview to reflect the changes
-			await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
+			await this.providerRef.deref()?.getWebviewManager().postBaseStateToWebview()
+			await this.providerRef.deref()?.getWebviewManager().postClaudeMessagesToWebview(updatedClaudeMessages)
 			vscode.window.showInformationMessage(`Successfully rolled back to checkpoint at commit ${commitHash}`)
 			return true
 		} catch (error) {

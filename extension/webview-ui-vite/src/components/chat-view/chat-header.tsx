@@ -26,7 +26,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
 	return (
 		<TaskHeader
-			task={task}
+			firstMsg={task}
 			tokensIn={apiMetrics?.inputTokens ?? 0}
 			tokensOut={apiMetrics?.outputTokens ?? 0}
 			doesModelSupportPromptCache={selectedModelSupportsPromptCache}

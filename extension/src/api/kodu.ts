@@ -1,6 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import axios, { CancelTokenSource } from "axios"
-import { z } from "zod"
 import { ApiHandler, withoutImageData } from "."
 import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduModels } from "../shared/api"
 import {
@@ -11,15 +10,12 @@ import {
 	getKoduInferenceUrl,
 	getKoduScreenshotUrl,
 	getKoduSummarizeUrl,
-	getKoduVisitorUrl,
 	getKoduWebSearchUrl,
 	koduErrorMessages,
 	koduSSEResponse,
 } from "../shared/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { ApiHistoryItem } from "../agent/v1"
-import { GlobalStateManager } from "../providers/claude-coder/state/global-state-manager"
-import { getCwd } from "../agent/v1/utils"
 
 export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 	const response = await axios.get(getKoduCurrentUser(), {
@@ -54,147 +50,6 @@ export class KoduHandler implements ApiHandler {
 			this.cancelTokenSource.cancel("Request aborted by user")
 			this.cancelTokenSource = null
 		}
-	}
-
-	async fixUdiff(udiff: string, fileContent: string, relPath: string): Promise<string> {
-		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
-			model: "claude-3-5-sonnet-20240620",
-			max_tokens: 8000,
-			temperature: 0.1,
-			top_p: 0.9,
-			system: [
-				{
-					type: "text",
-					text: `You're an expert software coder, who specializes in fixing code especially udiffs. You're tasked with fixing a udiff for a file.
-				The user will provide you with the original file content and the udiff to fix. Your job is to fix the udiff and provide the fixed udiff content.
-				You must only return the fixed udiff content. no other information is needed.
-				**PAY attention to the comment and the spacing between the comment and what it's commenting of the file.**
-				**ALWAYS** put the comments on top of desired change.
-				**ALWAYS** include preexisting comments with correct changes.
-				**ALWAYS** Make sure when doing applypatch of the changes with the original file, it will keep correct position.
-				**ALWAYS** Include header.
-				**REMEMBER** Header lines looks like this --- a/filename for the original state and +++ b/filename for the new state.
-				**RETURN** Only the fixed udiff content.
-				**NEVER** Add more content to the response more then the fixed udiff content
-			
-
-				#Example:
-				Original file content:
-				public class a {
-					def a() {}
-				}
-				Udiff:
-				@ -0,3 +1,4 @@ public class a {
-					// Added a new method
-					def b() {}
-				
-
-				Fixed udiff Response:
-				@ -0,3 +0,3 @@ public class a {
-					// Added a new method
-					def b() {}
-				
-				`,
-				},
-			],
-			messages: [
-				{
-					role: "user",
-					content: [
-						{
-							type: "text",
-							text: `Here is the original file content: <file>
-							<relPath>${relPath}</relPath>
-							<content>${fileContent}</content>
-							</file>`,
-						},
-						{
-							type: "text",
-							text: `here is the udiff to check and fix: <udiff>${udiff}</udiff>`,
-						},
-						{
-							type: "text",
-							text: "Please check the udiff and output the fixed udiff content make sure to have the correct line numbers and content",
-						},
-					],
-				},
-			],
-		}
-		const response = await axios.post(
-			getKoduInferenceUrl(),
-			{
-				...requestBody,
-				temperature: 0.1,
-				top_p: 0.9,
-			},
-			{
-				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
-				},
-				responseType: "stream",
-				timeout: 60_000,
-			}
-		)
-
-		if (response.status !== 200) {
-			if (response.status in koduErrorMessages) {
-				throw new KoduError({
-					code: response.status as keyof typeof koduErrorMessages,
-				})
-			}
-			throw new KoduError({
-				code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT,
-			})
-		}
-
-		let finalContent = ""
-		if (response.data) {
-			const reader = response.data
-			const decoder = new TextDecoder("utf-8")
-			let finalResponse: Extract<koduSSEResponse, { code: 1 }> | null = null
-			let partialResponse: Extract<koduSSEResponse, { code: 2 }> | null = null
-			let buffer = ""
-
-			for await (const chunk of reader) {
-				buffer += decoder.decode(chunk, { stream: true })
-				const lines = buffer.split("\n\n")
-				buffer = lines.pop() || ""
-				for (const line of lines) {
-					if (line.startsWith("data: ")) {
-						const eventData = JSON.parse(line.slice(6)) as koduSSEResponse
-						if (eventData.code === 2) {
-							// -> Happens to the current message
-							// We have a partial response, so we need to add it to the message shown to the user and refresh the UI
-						}
-						if (eventData.code === 0) {
-						} else if (eventData.code === 1) {
-							finalContent =
-								eventData.body.anthropic.content[0].type === "text"
-									? eventData.body.anthropic.content[0].text
-									: ""
-							finalResponse = eventData
-						} else if (eventData.code === -1) {
-							console.error("Network / API ERROR")
-							// we should yield the error and not throw it
-						}
-						console.log("eventData", eventData.body)
-					}
-				}
-
-				if (finalResponse) {
-					break
-				}
-			}
-
-			if (!finalResponse) {
-				throw new KoduError({
-					code: KODU_ERROR_CODES.NETWORK_REFUSED_TO_CONNECT,
-				})
-			}
-		}
-
-		return finalContent
 	}
 
 	async *createBaseMessageStream(
@@ -489,10 +344,6 @@ export class KoduHandler implements ApiHandler {
 			| Anthropic.ToolResultBlockParam
 		>
 	): any {
-		// if use udf
-		// randomMaxTokens between 2200 and 3000
-		// const rnd = Math.floor(Math.random() * 800) + 2200
-
 		return {
 			model: this.getModel().id,
 			max_tokens: this.getModel().info.maxTokens,
@@ -556,70 +407,5 @@ export class KoduHandler implements ApiHandler {
 				}
 			}
 		}
-	}
-
-	async sendUrlScreenshotRequest(url: string): Promise<Blob> {
-		this.cancelTokenSource = axios.CancelToken.source()
-
-		const response = await axios.post(
-			getKoduScreenshotUrl(),
-			{
-				url,
-			},
-			{
-				responseType: "arraybuffer",
-				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
-				},
-				timeout: 60_000,
-				cancelToken: this.cancelTokenSource?.token,
-			}
-		)
-
-		return new Blob([response.data], { type: "image/jpeg" })
-	}
-
-	async sendAskConsultantRequest(query: string): Promise<AskConsultantResponseDto> {
-		this.cancelTokenSource = axios.CancelToken.source()
-
-		const response = await axios.post(
-			getKoduConsultantUrl(),
-			{
-				query,
-			},
-			{
-				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
-				},
-				timeout: 60_000,
-				cancelToken: this.cancelTokenSource?.token,
-			}
-		)
-
-		return response.data
-	}
-
-	async sendSummarizeRequest(output: string, command: string): Promise<SummaryResponseDto> {
-		this.cancelTokenSource = axios.CancelToken.source()
-
-		const response = await axios.post(
-			getKoduSummarizeUrl(),
-			{
-				output,
-				command,
-			},
-			{
-				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
-				},
-				timeout: 60_000,
-				cancelToken: this.cancelTokenSource?.token,
-			}
-		)
-
-		return response.data
 	}
 }

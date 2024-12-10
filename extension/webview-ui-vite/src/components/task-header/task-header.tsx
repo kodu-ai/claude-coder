@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
 
 interface TaskHeaderProps {
-	task: ClaudeMessage
+	firstMsg?: ClaudeMessage
 	tokensIn: number
 	tokensOut: number
 	doesModelSupportPromptCache: boolean
@@ -30,7 +30,7 @@ interface TaskHeaderProps {
 }
 
 export default function TaskHeader({
-	task,
+	firstMsg: task,
 	tokensIn,
 	tokensOut,
 	doesModelSupportPromptCache,
@@ -80,8 +80,8 @@ export default function TaskHeader({
 						</TooltipContent>
 					</Tooltip>
 					<div className="basis-full flex">
-						<div key={currentTask?.name ?? currentTask?.task ?? task.text} className="w-full">
-							<TaskText text={currentTask?.name ?? currentTask?.task ?? task.text} />
+						<div key={currentTask?.name ?? currentTask?.task ?? task?.text} className="w-full">
+							<TaskText text={currentTask?.name ?? currentTask?.task ?? task?.text} />
 						</div>
 					</div>
 				</div>
@@ -89,8 +89,8 @@ export default function TaskHeader({
 				<CollapsibleContent className="flex flex-col pt-1 gap-2">
 					<div
 						className="flex flex-col pt-1 gap-2 w-full"
-						key={currentTask?.name ?? currentTask?.task ?? task.text}>
-						{task.images && task.images.length > 0 && <Thumbnails images={task.images} />}
+						key={currentTask?.name ?? currentTask?.task ?? task?.text}>
+						{task?.images && task.images.length > 0 && <Thumbnails images={task.images} />}
 						<TokenInfo
 							tokensIn={tokensIn}
 							tokensOut={tokensOut}

@@ -75,7 +75,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 			(e) => {
 				if (e && e.affectsConfiguration("workbench.colorTheme")) {
 					// Sends latest theme name to webview
-					this.webviewManager.postStateToWebview()
+					this.webviewManager.postBaseStateToWebview()
 				}
 			},
 			null,

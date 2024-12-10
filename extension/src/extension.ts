@@ -207,7 +207,8 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand(`${extensionName}.plusButtonTapped`, async () => {
 			outputChannel.appendLine("Plus button tapped")
 			await sidebarProvider?.getTaskManager().clearTask()
-			await sidebarProvider?.getWebviewManager().postStateToWebview()
+			await sidebarProvider?.getWebviewManager().postBaseStateToWebview()
+			await sidebarProvider?.getWebviewManager().postClaudeMessagesToWebview([])
 			await sidebarProvider
 				?.getWebviewManager()
 				.postMessageToWebview({ type: "action", action: "chatButtonTapped" })

@@ -26,7 +26,6 @@ import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
 import { ChatTool } from "../../../shared/new-tools"
 import { DevServerTool } from "./runners/dev-server.tool"
-import delay from "delay"
 
 /**
  * Represents the context and state of a tool during its lifecycle
@@ -327,7 +326,7 @@ export class ToolExecutor {
 		context.tool.updateIsFinal(true)
 
 		this.queue.add(() => this.processTool(context!))
-		await this.updateToolStatus(context, params, context.tool.ts)
+		// await this.updateToolStatus(context, params, context.tool.ts)
 	}
 
 	/**
