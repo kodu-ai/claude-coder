@@ -48,18 +48,6 @@ export const experimentalFeatures: ExperimentalFeature[] = [
 	// 	description: "Claude will generate more reasoning tokens before answering",
 	// },
 	{
-		id: "isInlineEditingEnabled",
-		label: "Inline Editing",
-		description: "Generate inline edits instead of writing the whole file",
-	},
-	{
-		id: "isContinueGenerationEnabled",
-		label: "Continue Generation",
-		dangerous: `This feature can lead to unexpected results and increased cost, use with caution`,
-		description:
-			"Claude will automatically continue generating text if max tokens is reached, useful when working with large files",
-	},
-	{
 		id: "autoSummarize",
 		label: "AutoSummarize Chat",
 		description:

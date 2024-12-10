@@ -7,43 +7,10 @@ import { ModelDetails } from "./model-details"
 import { models } from "./constants"
 
 const PreferencesTab: React.FC = () => {
-	const {
-		model,
-		technicalLevel,
-		handleModelChange,
-		handleTechnicalLevelChange,
-		browserModel,
-		handleBrowserModelChange,
-	} = useSettingsState()
+	const { model, handleModelChange, browserModel, handleBrowserModelChange } = useSettingsState()
 
 	return (
 		<div className="space-y-4">
-			<div className="space-y-2">
-				<Label className="text-sm">Technical Level</Label>
-				<RadioGroup
-					value={technicalLevel}
-					onValueChange={(v) => handleTechnicalLevelChange(v as typeof technicalLevel)}
-					className="space-y-1">
-					<div className="flex items-center space-x-2">
-						<RadioGroupItem value="no-technical" id="no-technical" />
-						<Label htmlFor="no-technical" className="text-xs">
-							Non Technical
-						</Label>
-					</div>
-					<div className="flex items-center space-x-2">
-						<RadioGroupItem value="technical" id="technical" />
-						<Label htmlFor="technical" className="text-xs">
-							Coding Beginner
-						</Label>
-					</div>
-					<div className="flex items-center space-x-2">
-						<RadioGroupItem value="developer" id="developer" />
-						<Label htmlFor="developer" className="text-xs">
-							Experienced Developer
-						</Label>
-					</div>
-				</RadioGroup>
-			</div>
 			<div className="space-y-2">
 				<Label htmlFor="model-select" className="text-sm">
 					AI Model

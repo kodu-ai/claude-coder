@@ -311,7 +311,31 @@ export class FileEditorTool extends BaseAgentTool {
 		if (!this.inlineEditor.isOpen() && editBlocks.length > 0) {
 			await this.inlineEditor.open(editBlocks[0]?.id, this.fileState?.absolutePath!, editBlocks[0].searchContent)
 		}
-		await this.inlineEditor.forceFinalize(editBlocks)
+		const { failedCount, isAllFailed } = await this.inlineEditor.forceFinalize(editBlocks)
+		this.logger(`Failed count: ${failedCount}, isAllFailed: ${isAllFailed}`, "debug")
+		if (isAllFailed) {
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "write_to_file",
+						content,
+						mode: "inline",
+						approvalState: "error",
+						path,
+						ts: this.ts,
+						notAppliedCount: failedCount,
+					},
+				},
+				this.ts
+			)
+			return this.toolResponse(
+				"error",
+				`
+				<error_message>Failed to apply changes to the file, please make sure that the search content is correct and that the file content is correct, if you are not sure, please re-read the file and provide the correct search content. make sure to always provide at least 3 lines of context prior to the search so, always write in search 3 lines before the actually content to replace</error_message>
+				`
+			)
+		}
 		// now we are going to prompt the user to approve the changes
 		const { response, text, images } = await this.params.ask(
 			"tool",
@@ -411,7 +435,6 @@ export class FileEditorTool extends BaseAgentTool {
 
 		if (currentOutputMode === "diff") {
 			// generate a diff between the file original content and the final content
-			const diffData = createPatch(path, this.fileState?.orignalContent ?? "", finalContent)
 			return this.toolResponse(
 				"success",
 				`<file_editor_response>
@@ -422,44 +445,13 @@ export class FileEditorTool extends BaseAgentTool {
 					</status>
 					<file_info>
 						<path>${path}</path>
-						<operation_details>
-							<message>${approvedMsg}</message>
-							<diff_data>
-								<description>Diff data for tracking changes between versions</description>
-								<content>${diffData}</content>
-							</diff_data>
-						</operation_details>
+						<information>The Updated file content blocks are the updated sections of the file you should remember this blocks as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.</information>
+						<updated_file_content_blocks>
+							${results.map((res) => res.formattedSavedArea).join("\n-------\n")}
+						</updated_file_content_blocks>
 					</file_info>
 					${commitXmlInfo}
 				</file_editor_response>`,
-				undefined,
-				commitResult
-			)
-		}
-
-		if (currentOutputMode === "none") {
-			return this.toolResponse(
-				"success",
-				`
-		<file_editor_response>
-			<status>
-				<result>success</result>
-				<operation>file_edit</operation>
-				<timestamp>${new Date().toISOString()}</timestamp>
-			</status>
-			<file_info>
-				<path>${path}</path>
-				<operation_details>
-					<message>${approvedMsg}</message>
-					<critical_note>THE CONTENT YOU PROVIDED IN THE REPLACE HAS REPLACED THE SEARCH CONTENT. REMEMBER THIS NEW CONTENT AS THE CURRENT STATE UNTIL FURTHER MODIFICATIONS.</critical_note>
-				</operation_details>
-				<validation>
-					<message>${validationMsg}</message>
-				</validation>
-			</file_info>
-			${commitXmlInfo}
-		</file_editor_response>
-		`,
 				undefined,
 				commitResult
 			)

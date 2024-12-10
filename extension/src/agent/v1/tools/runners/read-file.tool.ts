@@ -104,6 +104,17 @@ export class ReadFileTool extends BaseAgentTool {
 					</file_read_response>`
 				)
 			}
+			/**
+			 *
+			 * @param content the file content
+			 * @returns LINE NUNMBER CONTENT
+			 */
+			const formatFileToLines = (content: string) => {
+				const lines = content.split("\n")
+				const lineNumbers = lines.map((line, index) => `${index + 1}`.padStart(4, " "))
+				return lines.map((line, index) => `${lineNumbers[index]} ${line}`).join("\n")
+			}
+			const lines = formatFileToLines(content)
 			return this.toolResponse(
 				"success",
 				`<file_read_response>
@@ -115,8 +126,9 @@ export class ReadFileTool extends BaseAgentTool {
 					<file_info>
 						<path>${relPath}</path>
 						<content_length>${content.length}</content_length>
+						<count_lines>${lines.split("\n").length}</count_lines>
 					</file_info>
-					<content>${content}</content>
+					<content>${lines}</content>
 				</file_read_response>`
 			)
 		} catch (error) {

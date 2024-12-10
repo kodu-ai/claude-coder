@@ -11,7 +11,6 @@ export function useSettingsState() {
 	const [browserModel, setBrowserModel] = useState(
 		extensionState.apiConfiguration?.browserModelId || "claude-3-haiku-20240307"
 	)
-	const [technicalLevel, setTechnicalLevel] = useState(extensionState.technicalBackground)
 	const [readOnly, setReadOnly] = useState(extensionState.alwaysAllowReadOnly || false)
 	const [autoCloseTerminal, setAutoCloseTerminal] = useState(extensionState.autoCloseTerminal || false)
 	const [gitHandlerEnabled, setGitHandlerEnabled] = useState(extensionState.gitHandlerEnabled ?? true)
@@ -19,22 +18,12 @@ export function useSettingsState() {
 		alwaysAllowWriteOnly: extensionState.alwaysAllowWriteOnly || false,
 		autoSummarize: extensionState.autoSummarize || false,
 		"one-click-deployment": false,
-		isContinueGenerationEnabled: extensionState.isContinueGenerationEnabled || false,
-		isInlineEditingEnabled: extensionState.inlineEditMode || false,
-		isAdvanceThinkingEnabled: extensionState.advanceThinkingMode || false,
 	})
 	const [commandTimeout, setCommandTimeout] = useState(extensionState.commandTimeout)
-
-	// 		inlineEditingType: extensionState.inlineEditModeType || "full",
 	const [inlineEditingType, setInlineEditingType] = useState(extensionState.inlineEditModeType || "full")
 	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
 	const [autoSkipWrite, setAutoSkipWrite] = useState(extensionState.skipWriteAnimation || false)
-	const [systemPromptVariants, setSystemPromptVariants] = useState<SystemPromptVariant[]>(
-		extensionState.systemPromptVariants || []
-	)
-	const [activeVariantId, setActiveVariantId] = useState<string | null>(
-		extensionState.activeSystemPromptVariantId || (systemPromptVariants[0]?.id ?? null)
-	)
+
 	const [terminalCompressionThreshold, setTerminalCompressionThreshold] = useState<number | undefined>(
 		extensionState.terminalCompressionThreshold
 	)
@@ -56,18 +45,7 @@ export function useSettingsState() {
 					extensionState.setAutoSummarize(checked)
 					vscode.postMessage({ type: "autoSummarize", bool: checked })
 				}
-				if (featureId === "isContinueGenerationEnabled") {
-					extensionState.setIsContinueGenerationEnabled(checked)
-					vscode.postMessage({ type: "isContinueGenerationEnabled", bool: checked })
-				}
-				if (featureId === "isInlineEditingEnabled") {
-					extensionState.setInlineEditMode(checked)
-					vscode.postMessage({ type: "setInlinedMode", bool: checked })
-				}
-				if (featureId === "isAdvanceThinkingEnabled") {
-					extensionState.setAdvanceThinkingMode(checked)
-					vscode.postMessage({ type: "setAdvanceThinkingMode", bool: checked })
-				}
+
 				return newState
 			})
 		},
@@ -82,12 +60,6 @@ export function useSettingsState() {
 	const handleInlineEditingTypeChange = useCallback((type: "full" | "diff" | "none") => {
 		setInlineEditingType(type)
 		vscode.postMessage({ type: "setInlineEditMode", inlineEditOutputType: type })
-	}, [])
-
-	const handleTechnicalLevelChange = useCallback((setLevel: typeof technicalLevel) => {
-		console.log(`Setting technical level to: ${setLevel}`)
-		setTechnicalLevel(setLevel!)
-		vscode.postMessage({ type: "technicalBackground", value: setLevel! })
 	}, [])
 
 	const handleModelChange = useCallback((newModel: typeof model) => {
@@ -115,39 +87,6 @@ export function useSettingsState() {
 		vscode.postMessage({ type: "toggleGitHandler", enabled: checked })
 	}, [])
 
-	const handleSaveSystemPrompt = useCallback((variant: SystemPromptVariant) => {
-		setSystemPromptVariants((prev) => {
-			const updatedVariants = prev.map((v) => (v.id === variant.id ? variant : v))
-			if (!prev.find((v) => v.id === variant.id)) {
-				updatedVariants.push(variant)
-			}
-			vscode.postMessage({ type: "systemPromptVariants", variants: updatedVariants })
-			return updatedVariants
-		})
-	}, [])
-
-	const handleDeleteSystemPrompt = useCallback(
-		(id: string) => {
-			setSystemPromptVariants((prev) => {
-				const newVariants = prev.filter((v) => v.id !== id)
-				vscode.postMessage({ type: "systemPromptVariants", variants: newVariants })
-				// If we're deleting the active variant, set the first available one as active
-				if (id === activeVariantId) {
-					const newActiveId = newVariants[0]?.id ?? null
-					setActiveVariantId(newActiveId)
-					vscode.postMessage({ type: "activeSystemPromptVariant", variantId: newActiveId })
-				}
-				return newVariants
-			})
-		},
-		[activeVariantId]
-	)
-
-	const handleSetActiveVariant = useCallback((variantId: string) => {
-		setActiveVariantId(variantId)
-		vscode.postMessage({ type: "activeSystemPromptVariant", variantId })
-	}, [])
-
 	const handleCustomInstructionsChange = useCallback(
 		(val: string) => {
 			if (val === extensionState.customInstructions) return
@@ -166,15 +105,12 @@ export function useSettingsState() {
 	return {
 		model,
 		browserModel,
-		technicalLevel,
 		readOnly,
 		autoCloseTerminal,
 		gitHandlerEnabled,
 		experimentalFeatureStates,
 		customInstructions,
 		autoSkipWrite,
-		systemPromptVariants,
-		activeVariantId,
 		terminalCompressionThreshold,
 		inlineEditingType,
 		commandTimeout,
@@ -183,15 +119,11 @@ export function useSettingsState() {
 		handleTerminalCompressionThresholdChange,
 		handleAutoSkipWriteChange,
 		handleExperimentalFeatureChange,
-		handleTechnicalLevelChange,
 		handleModelChange,
 		handleBrowserModelChange,
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
 		handleSetGitHandlerEnabled,
-		handleSaveSystemPrompt,
-		handleDeleteSystemPrompt,
-		handleSetActiveVariant,
 		handleCustomInstructionsChange,
 	}
 }

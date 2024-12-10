@@ -188,8 +188,6 @@ const AdvancedTab: React.FC = () => {
 				/>
 				<p className="text-xs text-muted-foreground mt-1">These instructions will be included in every task</p>
 			</div>
-
-			<SystemPromptVariants />
 		</div>
 	)
 }

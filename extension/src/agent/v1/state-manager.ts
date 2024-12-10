@@ -27,7 +27,7 @@ export class StateManager {
 	private _skipWriteAnimation?: boolean
 	private _autoSummarize?: boolean
 	private _temporayPauseAutomaticMode: boolean = false
-	private _inlineEditOutputType?: "full" | "diff" | "none" = "full"
+	private _inlineEditOutputType?: "full" | "diff" = "full"
 	private _gitHandlerEnabled: boolean = true
 
 	constructor(options: KoduDevOptions) {
@@ -58,7 +58,13 @@ export class StateManager {
 		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
 		this._gitHandlerEnabled = gitHandlerEnabled ?? true
 		this._experimentalTerminal = experimentalTerminal
-		this._inlineEditOutputType = options.inlineEditOutputType
+		if (["full", "diff"].includes(options.inlineEditOutputType ?? "")) {
+			this._inlineEditOutputType = options.inlineEditOutputType
+		} else {
+			this._inlineEditOutputType = "full"
+			// update the global state
+			provider.getGlobalStateManager().updateGlobalState("inlineEditOutputType", "full")
+		}
 		this._autoCloseTerminal = autoCloseTerminal
 		this._skipWriteAnimation = skipWriteAnimation
 		this._state = {
@@ -149,7 +155,7 @@ export class StateManager {
 		return this._alwaysAllowWriteOnly
 	}
 
-	get inlineEditOutputType(): "full" | "diff" | "none" | undefined {
+	get inlineEditOutputType(): "full" | "diff" | undefined {
 		return this._inlineEditOutputType
 	}
 
@@ -227,7 +233,7 @@ export class StateManager {
 		this.updateAmplitudeSettings()
 	}
 
-	public setInlineEditOutputType(newValue?: "full" | "diff" | "none"): void {
+	public setInlineEditOutputType(newValue?: "full" | "diff"): void {
 		this._inlineEditOutputType = newValue
 	}
 

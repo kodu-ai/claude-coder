@@ -34,7 +34,6 @@ const ExperimentalTab: React.FC = () => {
 					<SelectContent>
 						<SelectItem value="full">Full</SelectItem>
 						<SelectItem value="diff">Diff</SelectItem>
-						<SelectItem value="none">None</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>
