@@ -8,19 +8,14 @@ import Anthropic from "@anthropic-ai/sdk"
 import { AxiosError } from "axios"
 import { findLast } from "lodash"
 import { ApiConfiguration, ApiHandler, buildApiHandler } from "../../api"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { koduModels } from "../../shared/api"
-import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/ExtensionMessage"
+import { ExtensionProvider } from "../../providers/claude-coder/claude-coder-provider"
+import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/extension-message"
 import { KoduError, koduSSEResponse } from "../../shared/kodu"
 import { amplitudeTracker } from "../../utils/amplitude"
 import { estimateTokenCount, smartTruncation, truncateHalfConversation } from "../../utils/context-managment"
-import { BASE_SYSTEM_PROMPT, criticalMsg } from "./prompts/base-system"
-import { ClaudeMessage, UserContent } from "./types"
+import { ApiHistoryItem, ClaudeMessage, UserContent } from "./types"
 import { getCwd, isTextBlock } from "./utils"
-import { writeFile } from "fs/promises"
-import path from "path"
-
-import { GlobalStateManager } from "../../providers/claude-coder/state/GlobalStateManager"
+import m11182024Prompt from "./prompts/main.prompt"
 
 /**
  * Interface for tracking API usage metrics
@@ -152,30 +147,13 @@ ${this.customInstructions.trim()}
 	 * @returns AsyncGenerator yielding SSE responses
 	 */
 	async *createApiStreamRequest(
-		apiConversationHistory: Anthropic.MessageParam[],
-		abortSignal?: AbortSignal | null,
-		abortController?: AbortController
+		apiConversationHistory: ApiHistoryItem[],
+		abortController: AbortController
 	): AsyncGenerator<koduSSEResponse> {
 		const provider = this.providerRef.deref()
 		if (!provider) {
 			throw new Error("Provider reference has been garbage collected")
 		}
-		const state = await provider.getStateManager()?.getState()
-		const creativeMode = state?.creativeMode ?? "normal"
-		const technicalBackground = state?.technicalBackground ?? "no-technical"
-		const isImageSupported = koduModels[this.getModelId()].supportsImages
-		const systemPromptVariants = state?.systemPromptVariants || []
-		const activeVariantId = state?.activeSystemPromptVariantId
-		const activeVariant = systemPromptVariants.find((variant) => variant.id === activeVariantId)
-		const customInstructions = this.formatCustomInstructions()
-		let systemPrompt = ""
-
-		if (activeVariant) {
-			systemPrompt = activeVariant.content
-		} else {
-			systemPrompt = await BASE_SYSTEM_PROMPT(getCwd(), isImageSupported, technicalBackground)
-		}
-		this.currentSystemPrompt = systemPrompt
 
 		const executeRequest = async () => {
 			const conversationHistory =
@@ -188,62 +166,42 @@ ${this.customInstructions.trim()}
 			if (apiConversationHistoryCopy[apiConversationHistoryCopy.length - 1].role === "assistant") {
 				apiConversationHistoryCopy = apiConversationHistoryCopy.slice(0, apiConversationHistoryCopy.length - 1)
 			}
-
+			// check if the last message text is EMPTY STRING and no other content is so we are going to pop it.
+			const lastMessage = apiConversationHistoryCopy[apiConversationHistoryCopy.length - 1]
+			if (
+				Array.isArray(lastMessage.content) &&
+				lastMessage.content.length === 1 &&
+				lastMessage.content[0].type === "text" &&
+				lastMessage.content[0].text.trim() === ""
+			) {
+				this.log(
+					"error",
+					`Last Message is empty string, removing it from the history | ROLE: ${lastMessage.role}`
+				)
+				apiConversationHistoryCopy = apiConversationHistoryCopy.slice(0, apiConversationHistoryCopy.length - 1)
+			}
 			// log the last 2 messages
 			this.log("info", `Last 2 messages:`, apiConversationHistoryCopy.slice(-2))
-			const RUN_MULTIPLE_LOGS = false
-
-			if (RUN_MULTIPLE_LOGS) {
-				const extraRuns = 0
-				// we will only log to disk the results of the run and make it all in the background we will not yield the results
-				const backgroundJob = async () => {
-					const promises = Array.from({ length: extraRuns }, async (_, i) => {
-						console.log(`Running background job ${i}`)
-						const stream = await this.api.createMessageStream(
-							systemPrompt.trim(),
-							apiConversationHistoryCopy,
-							creativeMode,
-							abortSignal,
-							customInstructions
-						)
-						for await (const chunk of stream) {
-							if (chunk.code === 1) {
-								// write to disk the output content
-								// @ts-expect-error
-								const content = chunk.body.anthropic?.content[0].text as string
-								const fileName = `output-${Date.now()}-${i}.txt`
-								// write it to the current directory at logs/output-<timestamp>.txt
-								const absolutePath = path.join(__dirname, "logs", "continue-generation", fileName)
-								console.log(`Writing to disk: ${absolutePath}`)
-								await writeFile(absolutePath, content, "utf-8")
-								return
-							}
-						}
-					})
-					await Promise.all(promises)
-				}
-				backgroundJob()
-					.then(() => {
-						console.log("Background job finished")
-					})
-					.catch((error) => {
-						console.error("Background job failed", error)
-					})
+			const supportImages = this.api.getModel().info.supportsImages
+			const supportComputerUse = supportImages && this.getModelId().includes("sonnet")
+			const baseSystem = m11182024Prompt.prompt(getCwd(), supportImages, supportComputerUse)
+			const systemPrompt = [baseSystem]
+			const customInstructions = this.formatCustomInstructions()
+			if (customInstructions) {
+				systemPrompt.push(customInstructions)
 			}
-
-			const stream = await this.api.createMessageStream(
-				systemPrompt.trim(),
-				apiConversationHistoryCopy,
-				creativeMode,
-				abortSignal,
-				customInstructions
-			)
+			const stream = await this.api.createMessageStream({
+				systemPrompt,
+				messages: apiConversationHistoryCopy,
+				modelId: this.getModelId(),
+				abortSignal: abortController.signal,
+			})
 
 			return stream
 		}
 
 		let lastMessageAt = 0
-		const TIMEOUT_MS = 5000 // 5 seconds
+		const TIMEOUT_MS = 10_000 // 10 seconds
 		const checkInactivity = setInterval(() => {
 			const timeSinceLastMessage = Date.now() - lastMessageAt
 			if (lastMessageAt > 0 && timeSinceLastMessage > TIMEOUT_MS) {
@@ -260,7 +218,7 @@ ${this.customInstructions.trim()}
 			})
 
 			let retryAttempt = 0
-			const MAX_RETRIES = 3
+			const MAX_RETRIES = 5
 
 			while (retryAttempt <= MAX_RETRIES) {
 				try {
@@ -364,28 +322,11 @@ ${this.customInstructions.trim()}
 
 		const lastMessage = history[history.length - 2]
 
-		const shouldAppendCriticalMsg =
-			(await this.providerRef.deref()?.getState())?.activeSystemPromptVariantId === "m-11-1-2024"
-
-		if (
-			shouldAddCriticalMsg &&
-			isLastMessageFromUser &&
-			Array.isArray(lastMessage.content) &&
-			shouldAppendCriticalMsg
-		) {
-			const isInlineEditMode = await GlobalStateManager.getInstance().getGlobalState("isInlineEditingEnabled")
-			if (isInlineEditMode) {
-				const newCriticalMsg = (await import("./prompts/m-11-18-2024.prompt")).criticalMsg
-				lastMessage.content.push({
-					type: "text",
-					text: newCriticalMsg,
-				})
-			} else {
-				lastMessage.content.push({
-					type: "text",
-					text: criticalMsg,
-				})
-			}
+		if (shouldAddCriticalMsg && isLastMessageFromUser && Array.isArray(lastMessage.content)) {
+			lastMessage.content.push({
+				type: "text",
+				text: m11182024Prompt.criticalMsg,
+			})
 		}
 
 		const isFirstRequest = history.length < 2

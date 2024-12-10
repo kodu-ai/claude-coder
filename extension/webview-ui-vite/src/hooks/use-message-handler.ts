@@ -1,8 +1,8 @@
 import { ChatState } from "@/components/chat-view/chat"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ClaudeMessage, ExtensionMessage, isV1ClaudeMessage } from "../../../src/shared/ExtensionMessage"
+import { ClaudeMessage, ExtensionMessage, isV1ClaudeMessage } from "../../../src/shared/extension-message"
 import { ChatTool } from "../../../src/shared/new-tools"
-import { Resource } from "../../../src/shared/WebviewMessage"
+import { Resource } from "../../../src/shared/webview-message"
 import { useEvent } from "react-use"
 
 const isToolPendingApproval = (message: ClaudeMessage) => {
@@ -199,11 +199,6 @@ export const useChatMessageHandling = (
 					web_search: {
 						...baseState,
 						primaryButtonText: "Search",
-						secondaryButtonText: "Cancel",
-					},
-					ask_consultant: {
-						...baseState,
-						primaryButtonText: "Ask Consultant",
 						secondaryButtonText: "Cancel",
 					},
 					list_code_definition_names: {

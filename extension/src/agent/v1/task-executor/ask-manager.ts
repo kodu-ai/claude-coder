@@ -1,5 +1,5 @@
-import { ClaudeAsk, V1ClaudeMessage } from "../../../shared/ExtensionMessage"
-import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
+import { ClaudeAsk, V1ClaudeMessage } from "../../../shared/extension-message"
+import { ClaudeAskResponse } from "../../../shared/webview-message"
 import { AskDetails, AskResponse } from "./utils"
 import { StateManager } from "../state-manager"
 import { ChatTool } from "../../../shared/new-tools"

@@ -17,7 +17,6 @@ import {
 	ReadFileTool,
 	FileEditorTool,
 	UrlScreenshotTool,
-	AskConsultantTool,
 } from "."
 import { WebSearchTool } from "./runners/web-search-tool"
 import { BaseAgentTool } from "./base-agent.tool"
@@ -134,7 +133,6 @@ export class ToolExecutor {
 			attempt_completion: AttemptCompletionTool,
 			web_search: WebSearchTool,
 			url_screenshot: UrlScreenshotTool,
-			ask_consultant: AskConsultantTool,
 			server_runner_tool: DevServerTool,
 		}
 

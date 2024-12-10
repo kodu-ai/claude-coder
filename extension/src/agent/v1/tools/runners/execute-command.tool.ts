@@ -5,10 +5,9 @@ import { AdvancedTerminalManager } from "../../../../integrations/terminal"
 import { getCwd } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../types"
-import { ExecaTerminalManager } from "../../../../integrations/terminal/execa-terminal-manager"
 import { TerminalProcessResultPromise } from "../../../../integrations/terminal/terminal-manager"
 
-import { GlobalStateManager } from "../../../../providers/claude-coder/state/GlobalStateManager"
+import { GlobalStateManager } from "../../../../providers/claude-coder/state/global-state-manager"
 import { ToolResponseV2 } from "../../types"
 import { GitCommitResult } from "../../handlers"
 
@@ -38,13 +37,11 @@ export const shellIntegrationErrorOutput = `
 
 export class ExecuteCommandTool extends BaseAgentTool {
 	protected params: AgentToolParams
-	private execaTerminalManager: ExecaTerminalManager
 	private output: string = ""
 
 	constructor(params: AgentToolParams, options: AgentToolOptions) {
 		super(options)
 		this.params = params
-		this.execaTerminalManager = new ExecaTerminalManager()
 	}
 
 	override async execute() {

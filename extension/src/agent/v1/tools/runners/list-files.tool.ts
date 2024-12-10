@@ -1,7 +1,7 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
 import { LIST_FILES_LIMIT, listFiles } from "../../../../parse-source-code"
-import { ClaudeAsk } from "../../../../shared/ExtensionMessage"
+import { ClaudeAsk } from "../../../../shared/extension-message"
 import { ToolResponse } from "../../types"
 import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
 import { AgentToolOptions, AgentToolParams } from "../types"

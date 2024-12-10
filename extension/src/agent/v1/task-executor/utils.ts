@@ -1,7 +1,7 @@
-import { ClaudeAsk, ClaudeSay, ClaudeMessage, ToolStatus, V1ClaudeMessage } from "../../../shared/ExtensionMessage"
-import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
+import { ClaudeAsk, ClaudeSay, ClaudeMessage, ToolStatus, V1ClaudeMessage } from "../../../shared/extension-message"
+import { ClaudeAskResponse } from "../../../shared/webview-message"
 import { StateManager } from "../state-manager"
-import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
+import { ExtensionProvider } from "../../../providers/claude-coder/claude-coder-provider"
 import { ChatTool } from "../../../shared/new-tools"
 
 export enum TaskState {

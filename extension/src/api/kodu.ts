@@ -18,23 +18,8 @@ import {
 } from "../shared/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { ApiHistoryItem } from "../agent/v1"
-import { GlobalStateManager } from "../providers/claude-coder/state/GlobalStateManager"
+import { GlobalStateManager } from "../providers/claude-coder/state/global-state-manager"
 import { getCwd } from "../agent/v1/utils"
-
-const temperatures = {
-	creative: {
-		top_p: 0.9,
-		tempature: 0.3,
-	},
-	normal: {
-		top_p: 0.8,
-		tempature: 0.2,
-	},
-	deterministic: {
-		top_p: 0.9,
-		tempature: 0.1,
-	},
-} as const
 
 export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 	const response = await axios.get(getKoduCurrentUser(), {
@@ -53,35 +38,6 @@ export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 	}
 	return null
 }
-
-export async function initVisitor({ visitorId: vistorId }: { visitorId: string }) {
-	const inputSchema = z.object({
-		visitorId: z.string(),
-	})
-	const outputSchema = z.object({
-		apiKey: z.string(),
-		id: z.string(),
-		balance: z.number(),
-		credits: z.number(),
-	})
-	const response = await axios.post(getKoduVisitorUrl(), {
-		vistorId: vistorId,
-	})
-	if (response.data) {
-		console.log("response.data", response.data)
-		const result = outputSchema.parse(response.data)
-		return result
-	}
-	return null
-}
-
-const bugReportSchema = z.object({
-	description: z.string(),
-	reproduction: z.string(),
-	apiHistory: z.string(),
-	claudeMessage: z.string(),
-})
-let previousSystemPrompt = ""
 
 // const findLastMessageTextMsg
 
@@ -375,70 +331,27 @@ export class KoduHandler implements ApiHandler {
 		}
 	}
 
-	async *createMessageStream(
-		systemPrompt: string,
-		messages: ApiHistoryItem[],
-		creativeMode?: "normal" | "creative" | "deterministic",
-		abortSignal?: AbortSignal | null,
-		customInstructions?: string,
-		userMemory?: string,
-		environmentDetails?: string
-	): AsyncIterableIterator<koduSSEResponse> {
-		const modelId = this.getModel().id
-		const isAdvanceThinkingMode = GlobalStateManager.getInstance().getGlobalState("isAdvanceThinkingEnabled")
-		const isInlineEditingMode = GlobalStateManager.getInstance().getGlobalState("isInlineEditingEnabled")
-		const technicalBackground = GlobalStateManager.getInstance().getGlobalState("technicalBackground")
-
+	async *createMessageStream({
+		messages,
+		systemPrompt,
+		top_p,
+		tempature,
+		abortSignal,
+		modelId,
+	}: Parameters<ApiHandler["createMessageStream"]>[0]): AsyncIterableIterator<koduSSEResponse> {
 		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = []
 
-		// Add system prompt
-		system.push({
-			text: systemPrompt.trim(),
-			type: "text",
-		})
-
-		// if it's inline edit we import different prompt
-		if (isInlineEditingMode) {
-			system.pop()
-			const { BASE_SYSTEM_PROMPT } = await import("../agent/v1/prompts/m-11-18-2024.prompt")
-			const prompt = await BASE_SYSTEM_PROMPT(
-				getCwd(),
-				this.getModel().info.supportsImages,
-				technicalBackground ?? "developer"
-			)
+		let index = 0
+		for (const systemMsg of systemPrompt) {
+			const shouldCache = index === systemPrompt.length - 1 || index === systemPrompt.length - 2
 			system.push({
-				text: prompt,
 				type: "text",
+				text: systemMsg.trim(),
+				// if it's the last or before last message, make it ephemeral
+				...(shouldCache ? { cache_control: { type: "ephemeral" } } : {}),
 			})
+			index++
 		}
-
-		// Add custom instructions
-		if (customInstructions && customInstructions.trim()) {
-			system.push({
-				text: customInstructions,
-				type: "text",
-			})
-		}
-		if (isAdvanceThinkingMode) {
-			const { advanceThinkingPrompt } = await import("../agent/v1/prompts/advance-thinking.prompt")
-			system.push({
-				text: advanceThinkingPrompt,
-				type: "text",
-			})
-		}
-
-		// Mark the last block with cache_control (First Breakpoint)
-		system[system.length - 1].cache_control = { type: "ephemeral" }
-
-		// Add environment details
-		if (environmentDetails && environmentDetails.trim()) {
-			system.push({
-				text: environmentDetails,
-				type: "text",
-				cache_control: { type: "ephemeral" }, // Second Breakpoint
-			})
-		}
-
 		const userMsgIndices = messages.reduce(
 			(acc, msg, index) => (msg.role === "user" ? [...acc, index] : acc),
 			[] as number[]
@@ -481,13 +394,10 @@ export class KoduHandler implements ApiHandler {
 			max_tokens: this.getModel().info.maxTokens,
 			system,
 			messages: messagesToCache,
-			temperature: 0.1,
-			top_p: 0.9,
+			temperature: tempature ?? 0,
+			top_p: top_p ?? undefined,
 		}
 		this.cancelTokenSource = axios.CancelToken.source()
-
-		const isContinueGenerationEnabled =
-			!!GlobalStateManager.getInstance().getGlobalState("isContinueGenerationEnabled")
 
 		const response = await axios.post(
 			getKoduInferenceUrl(),
@@ -498,7 +408,7 @@ export class KoduHandler implements ApiHandler {
 				headers: {
 					"Content-Type": "application/json",
 					"x-api-key": this.options.koduApiKey || "",
-					"continue-generation": isContinueGenerationEnabled ? "true" : "false",
+					"continue-generation": "true",
 				},
 				responseType: "stream",
 				signal: abortSignal ?? undefined,

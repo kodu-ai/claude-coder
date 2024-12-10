@@ -7,7 +7,7 @@ import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "
 import { extractTextFromFile } from "../../../../utils/extract-text"
 import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
-import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ClaudeSayTool } from "../../../../shared/extension-message"
 
 export class ReadFileTool extends BaseAgentTool {
 	protected params: AgentToolParams

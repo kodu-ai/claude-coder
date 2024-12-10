@@ -1,4 +1,4 @@
-import { ToolStatus } from "./ExtensionMessage"
+import { ToolStatus } from "./extension-message"
 
 /**
  * This is the input and output for execute_command tool
@@ -98,12 +98,6 @@ export type UrlScreenshotTool = {
 	base64Image?: string
 }
 
-export type AskConsultantTool = {
-	tool: "ask_consultant"
-	query: string
-	result?: string
-}
-
 export type UpsertMemoryTool = {
 	tool: "upsert_memory"
 	milestoneName?: string
@@ -128,7 +122,6 @@ export type ChatTool = (
 	| AttemptCompletionTool
 	| WebSearchTool
 	| UrlScreenshotTool
-	| AskConsultantTool
 	| ServerRunnerTool
 ) & {
 	ts: number

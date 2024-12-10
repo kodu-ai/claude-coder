@@ -1,5 +1,10 @@
 import { useCallback, useMemo, useState } from "react"
-import { ClaudeMessage, ExtensionMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../../../src/shared/ExtensionMessage"
+import {
+	ClaudeMessage,
+	ExtensionMessage,
+	isV1ClaudeMessage,
+	V1ClaudeMessage,
+} from "../../../src/shared/extension-message"
 import { useEvent } from "react-use"
 
 export const useMessageRunning = (messages: ClaudeMessage[]) => {

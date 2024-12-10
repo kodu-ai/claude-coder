@@ -4,6 +4,7 @@ import { KoduHandler } from "./kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { z } from "zod"
 import { koduSSEResponse } from "../shared/kodu"
+import { ApiHistoryItem } from "../agent/v1"
 
 export interface ApiHandlerMessageResponse {
 	message: Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage
@@ -24,15 +25,21 @@ export const bugReportSchema = z.object({
 	claudeMessage: z.string(),
 })
 export interface ApiHandler {
-	createMessageStream(
-		systemPrompt: string,
-		messages: Anthropic.Messages.MessageParam[],
-		creativeMode?: "normal" | "creative" | "deterministic",
-		abortSignal?: AbortSignal | null,
-		customInstructions?: string,
-		userMemory?: string,
-		EnvironmentDetails?: string
-	): AsyncIterableIterator<koduSSEResponse>
+	createMessageStream({
+		systemPrompt,
+		messages,
+		abortSignal,
+		top_p,
+		tempature,
+		modelId,
+	}: {
+		systemPrompt: string[]
+		messages: ApiHistoryItem[]
+		abortSignal: AbortSignal | null
+		top_p?: number
+		tempature?: number
+		modelId: KoduModelId
+	}): AsyncIterableIterator<koduSSEResponse>
 
 	createBaseMessageStream(
 		systemPrompt: string,

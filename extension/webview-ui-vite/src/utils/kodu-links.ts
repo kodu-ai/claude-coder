@@ -13,10 +13,3 @@ export const loginKodu = (props: { uriScheme: string; extensionName: string; isP
 		url,
 	})
 }
-
-export const freeTrial = (fp: string) => {
-	vscode.postMessage({
-		type: "freeTrial",
-		fp,
-	})
-}

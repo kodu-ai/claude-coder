@@ -1,6 +1,6 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
-import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ClaudeSayTool } from "../../../../shared/extension-message"
 import { ToolResponse } from "../../types"
 import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
 import { regexSearchFiles } from "../../../../utils/ripgrep"

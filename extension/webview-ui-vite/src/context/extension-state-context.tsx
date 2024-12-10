@@ -1,0 +1,238 @@
+import React, { useEffect, useRef } from "react"
+import { useEvent } from "react-use"
+import { atom, useAtom, useSetAtom } from "jotai"
+import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/extension-message"
+import { vscode } from "../utils/vscode"
+import { ApiConfiguration } from "../../../src/api/index"
+import { HistoryItem } from "../../../src/shared/history-item"
+import type { GlobalState } from "../../../src/providers/claude-coder/state/global-state-manager"
+
+// Define atoms for each piece of state
+
+const commandTimeoutAtom = atom<number | undefined>(undefined)
+commandTimeoutAtom.debugLabel = "commandTimeout"
+
+const versionAtom = atom("")
+versionAtom.debugLabel = "version"
+const claudeMessagesAtom = atom<ClaudeMessage[]>([])
+claudeMessagesAtom.debugLabel = "claudeMessages"
+const taskHistoryAtom = atom<HistoryItem[]>([])
+taskHistoryAtom.debugLabel = "taskHistory"
+const apiConfigurationAtom = atom<ApiConfiguration | undefined>(undefined)
+apiConfigurationAtom.debugLabel = "apiConfiguration"
+const customInstructionsAtom = atom<string | undefined>(undefined)
+customInstructionsAtom.debugLabel = "customInstructions"
+const alwaysAllowReadOnlyAtom = atom(false)
+alwaysAllowReadOnlyAtom.debugLabel = "alwaysAllowReadOnly"
+const alwaysAllowApproveOnlyAtom = atom(false)
+alwaysAllowApproveOnlyAtom.debugLabel = "alwaysAllowApproveOnly"
+const userAtom = atom<GlobalState["user"]>(undefined)
+userAtom.debugLabel = "user"
+const uriSchemeAtom = atom<string | undefined>(undefined)
+uriSchemeAtom.debugLabel = "uriScheme"
+const themeNameAtom = atom<string | undefined>(undefined)
+themeNameAtom.debugLabel = "themeName"
+const extensionNameAtom = atom<string | undefined>(undefined)
+extensionNameAtom.debugLabel = "extensionName"
+
+const fingerprintAtom = atom<string | undefined>(undefined)
+fingerprintAtom.debugLabel = "fingerprint"
+
+const fpjsKeyAtom = atom<string | undefined>(undefined)
+fpjsKeyAtom.debugLabel = "fpjsKey"
+
+const currentTaskIdAtom = atom<string | undefined>(undefined)
+currentTaskIdAtom.debugLabel = "currentTask"
+
+const autoCloseTerminalAtom = atom(false)
+autoCloseTerminalAtom.debugLabel = "autoCloseTerminal"
+
+const gitHandlerEnabledAtom = atom(true)
+gitHandlerEnabledAtom.debugLabel = "gitHandlerEnabled"
+
+const skipWriteAnimationAtom = atom(false)
+skipWriteAnimationAtom.debugLabel = "skipWriteAnimation"
+
+const lastShownAnnouncementIdAtom = atom<string | undefined>(undefined)
+lastShownAnnouncementIdAtom.debugLabel = "lastShownAnnouncementId"
+
+const inlineEditModeTypeAtom = atom<"full" | "diff">("full")
+inlineEditModeTypeAtom.debugLabel = "inlineEditModeType"
+
+const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
+	const currentTaskId = get(currentTaskIdAtom)
+	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
+})
+
+// Derived atom for the entire state
+export const extensionStateAtom = atom((get) => ({
+	version: get(versionAtom),
+	gitHandlerEnabled: get(gitHandlerEnabledAtom),
+	commandTimeout: get(commandTimeoutAtom),
+	terminalCompressionThreshold: get(terminalCompressionThresholdAtom),
+	claudeMessages: get(claudeMessagesAtom),
+	lastShownAnnouncementId: get(lastShownAnnouncementIdAtom),
+	taskHistory: get(taskHistoryAtom),
+	currentContextWindow: get(currentContextWindowAtom),
+	autoSummarize: get(autoSummarizeAtom),
+	currentContextTokens: get(currentContextTokensAtom),
+	currentTask: get(currentTaskAtom),
+	currentTaskId: get(currentTaskIdAtom),
+	inlineEditModeType: get(inlineEditModeTypeAtom),
+
+	apiConfiguration: get(apiConfigurationAtom),
+
+	uriScheme: get(uriSchemeAtom),
+	customInstructions: get(customInstructionsAtom),
+	fingerprint: get(fingerprintAtom),
+	skipWriteAnimation: get(skipWriteAnimationAtom),
+	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
+	autoCloseTerminal: get(autoCloseTerminalAtom),
+	fpjsKey: get(fpjsKeyAtom),
+	extensionName: get(extensionNameAtom),
+	themeName: get(themeNameAtom),
+	user: get(userAtom),
+	alwaysAllowWriteOnly: get(alwaysAllowApproveOnlyAtom),
+}))
+extensionStateAtom.debugLabel = "extensionState"
+
+// Atom to track if state has been hydrated
+const didHydrateStateAtom = atom(false)
+didHydrateStateAtom.debugLabel = "didHydrateState"
+
+export const showSettingsAtom = atom(false)
+showSettingsAtom.debugLabel = "showSettings"
+
+const currentContextTokensAtom = atom(0)
+currentContextTokensAtom.debugLabel = "currentContextTokens"
+
+const currentContextWindowAtom = atom(0)
+currentContextWindowAtom.debugLabel = "currentContextWindow"
+
+const autoSummarizeAtom = atom(false)
+autoSummarizeAtom.debugLabel = "autoSummarize"
+
+const terminalCompressionThresholdAtom = atom<number | undefined>(undefined)
+terminalCompressionThresholdAtom.debugLabel = "terminalCompressionThreshold"
+
+export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+	const setVersion = useSetAtom(versionAtom)
+	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
+	const setCommandTimeout = useSetAtom(commandTimeoutAtom)
+	const setTaskHistory = useSetAtom(taskHistoryAtom)
+	const setGitHandlerEnabled = useSetAtom(gitHandlerEnabledAtom)
+
+	const setApiConfiguration = useSetAtom(apiConfigurationAtom)
+
+	const setCustomInstructions = useSetAtom(customInstructionsAtom)
+	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
+	const setAutoSummarize = useSetAtom(autoSummarizeAtom)
+	const setUser = useSetAtom(userAtom)
+	const setLastShownAnnouncementId = useSetAtom(lastShownAnnouncementIdAtom)
+	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
+	const setThemeName = useSetAtom(themeNameAtom)
+	const setCurrentIdTask = useSetAtom(currentTaskIdAtom)
+	const setFingerprint = useSetAtom(fingerprintAtom)
+	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
+	const setUriScheme = useSetAtom(uriSchemeAtom)
+	const setCurrentContextWindow = useSetAtom(currentContextWindowAtom)
+	const setDidHydrateState = useSetAtom(didHydrateStateAtom)
+	const setCurrentContextTokens = useSetAtom(currentContextTokensAtom)
+	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
+	const setExtensionName = useSetAtom(extensionNameAtom)
+	const setFpjsKey = useSetAtom(fpjsKeyAtom)
+	const setTerminalCompressionThreshold = useSetAtom(terminalCompressionThresholdAtom)
+	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
+
+	const handleMessage = (event: MessageEvent) => {
+		const message: ExtensionMessage = event.data
+		if (message.type === "claudeMessages") {
+			setClaudeMessages(message.claudeMessages)
+		}
+
+		if (message.type === "state" && message.state) {
+			setVersion(message.state.version)
+			setCurrentIdTask(message.state.currentTaskId)
+			setCommandTimeout(message.state.commandTimeout)
+			setTerminalCompressionThreshold(message.state.terminalCompressionThreshold)
+			setClaudeMessages(message.state.claudeMessages)
+
+			setAutoSummarize(!!message.state.autoSummarize)
+			setInlineEditModeType(message.state.inlineEditOutputType ?? "full")
+			setLastShownAnnouncementId(message.state.lastShownAnnouncementId)
+			setTaskHistory(message.state.taskHistory)
+			setCurrentContextTokens(message.state.currentContextTokens)
+			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
+			setGitHandlerEnabled(message.state.gitHandlerEnabled ?? true)
+			setUser(message.state.user)
+			setExtensionName(message.state.extensionName)
+			setCustomInstructions(message.state.customInstructions)
+			setAlwaysAllowReadOnly(!!message.state.alwaysAllowReadOnly)
+			setCurrentContextWindow(message.state.currentContextWindow)
+			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
+			setUser(message.state.user)
+			setExtensionName(message.state.extensionName)
+			setSkipWriteAnimation(!!message.state.skipWriteAnimation)
+			setAlwaysAllowWriteOnly(!!message.state.alwaysAllowWriteOnly)
+			setDidHydrateState(true)
+			setThemeName(message.state.themeName)
+			setFpjsKey(message.state.fpjsKey)
+			setFingerprint(message.state.fingerprint)
+			setUriScheme(message.state.uriScheme)
+			setApiConfiguration(message.state.apiConfiguration)
+		}
+		if (message.type === "action" && message.action === "koduCreditsFetched") {
+			setUser(message.user)
+		}
+	}
+
+	useEvent("message", handleMessage)
+
+	useEffect(() => {
+		vscode.postMessage({ type: "webviewDidLaunch" })
+	}, [])
+
+	const [didHydrateState] = useAtom(didHydrateStateAtom)
+
+	if (!didHydrateState) {
+		return null
+	}
+
+	return <>{children}</>
+}
+
+export const useExtensionState = () => {
+	const [state] = useAtom(extensionStateAtom)
+	const setApiConfiguration = useSetAtom(apiConfigurationAtom)
+	const setCustomInstructions = useSetAtom(customInstructionsAtom)
+	const setLastShownAnnouncementId = useSetAtom(lastShownAnnouncementIdAtom)
+	const setTerminalCompressionThreshold = useSetAtom(terminalCompressionThresholdAtom)
+	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
+	const setCommandTimeout = useSetAtom(commandTimeoutAtom)
+	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
+	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
+
+	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
+	const setAutoSummarize = useSetAtom(autoSummarizeAtom)
+	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
+	const setGitHandlerEnabled = useSetAtom(gitHandlerEnabledAtom)
+
+	return {
+		...state,
+		setApiConfiguration,
+		setLastShownAnnouncementId,
+		setTerminalCompressionThreshold,
+
+		setSkipWriteAnimation,
+		setCommandTimeout,
+		setAutoCloseTerminal,
+		setCustomInstructions,
+		setAlwaysAllowWriteOnly,
+		setInlineEditModeType,
+		setAutoSummarize,
+
+		setAlwaysAllowReadOnly,
+
+		setGitHandlerEnabled,
+	}
+}

@@ -1,5 +1,8 @@
-export const toolsPrompt = (cwd: string, supportsImages: boolean) => `
+import { writeToFileTool } from "../tools/schema"
+
+export const toolsPrompt = (cwd: string, supportsImages: boolean, id?: string) => `
 # Tools
+
 ## server_runner_tool
 Description: start a server / development server. This tool is used to run web applications locally, backend server, or anytype of server. this is tool allow you to start, stop, restart, or get logs from a server instance and keep it in memory.
 THIS IS THE ONLY TOOL THAT IS CAPABLE OF STARTING A SERVER, DO NOT USE THE execute_command TOOL TO START A SERVER, I REPEAT, DO NOT USE THE execute_command TOOL TO START A SERVER.
@@ -44,17 +47,275 @@ Usage:
 <path>File path here</path>
 </read_file>
 
+## edit_file_blocks
+Description: Request to edit specific blocks of content within a file. This tool is used to modify existing files by precisely replacing or removing sections of content. It is particularly useful for updating code, configuration files, or structured documents without rewriting the entire file.
+
+**Key Principles**:
+- Always gather all changes first, then apply them in one comprehensive transaction.
+- Before calling this tool, reason about your changes inside <thinking></thinking> tags:
+  - Identify the exact lines to modify.
+  - Provide at least 3 lines of context before and after your target lines.
+  - Plan multiple related edits together if possible.
+- Each SEARCH block must match the existing content exactly, including whitespace and punctuation.
+- Each REPLACE block should contain the final, full updated version of that section, without placeholders or incomplete code.
+- Use multiple SEARCH/REPLACE pairs in the same call if you need to make multiple related changes to the same file.
+- If unsure about what to replace, read the file first using the read_file tool and confirm the exact content.
+
+Parameters:
+- path: (required) The path of the file to edit (relative to ${cwd.toPosix()})
+- kodu_diff: (required) A series of 'SEARCH' and 'REPLACE' blocks. Format:
+  - SEARCH
+    (At least 3 lines of context before the target content, followed by the exact code to replace)
+  - =======
+  - REPLACE
+    (The updated code block that replaces the matched SEARCH content block)
+  - =======
+  (Repeat SEARCH/REPLACE pairs as needed)
+
+**Think Out Loud Before Executing**:
+Inside <thinking></thinking> tags, articulate your plan:
+- What lines are you changing?
+- Why are you changing them?
+- Show a small snippet of the before/after changes if helpful.
+- Confirm that you have all the context and that the SEARCH block matches exactly.
+
+**CRITICAL GUIDANCE FOR USING SEARCH/REPLACE**:
+1. **Read the File if Needed**: Ensure you have the most recent file content.
+2. **Match Exactly**: The SEARCH section must be character-for-character identical to the file's current content, including spacing and indentation.
+3. **No Placeholders**: Provide fully updated content in the REPLACE section.
+4. **Multiple Blocks**: If you have several related changes, bundle them in one call with multiple SEARCH/REPLACE pairs.
+5. **Context Lines**: Include at least 3 lines of context before your target line to ensure a robust match. Add a few lines after as well if possible.
+
+**Enhanced Examples**:
+
+### Improved Example 1: Changing a Variable and Adding a Comment
+**Thinking Process**:
+In <thinking></thinking>:
+"I need to update the variable \`x\` from 42 to 100, and also add a comment above it explaining why. The code currently looks like this:
+
+\`\`\`js
+const a = 10;
+const b = 20;
+const c = 30;
+const x = 42;
+const y = 50;
+\`\`\`
+
+I will replace \`x = 42;\` with \`// Adjusting x for test\nconst x = 100;\`. I have at least 3 lines of context before \`x\`. This ensures I match correctly and provide the full updated snippet."
+
+**Tool Use**:
+<edit_file_blocks>
+<path>src/example.js</path>
+<kodu_diff>
+SEARCH
+// Some preceding lines for context
+const a = 10;
+const b = 20;
+const c = 30;
+const x = 42;
+const y = 50;
+=======
+REPLACE
+// Some preceding lines for context
+const a = 10;
+const b = 20;
+const c = 30;
+// Adjusting x for test
+const x = 100;
+const y = 50;
+</kodu_diff>
+</edit_file_blocks>
+
+### Improved Example 2: Adding Imports and Removing a Function
+**Thinking Process**:
+"I need to add an import statement and remove an outdated function \`factorial\`. The file currently imports Flask only, but I need to import \`math\` as well. Also, I want to remove the \`factorial\` function entirely. I have at least 3 lines of context around these changes. I'll do both changes in one edit_file_blocks call."
+
+**Tool Use**:
+<edit_file_blocks>
+<path>mathweb/flask/app.py</path>
+<kodu_diff>
+SEARCH
+from flask import Flask
+# Additional context lines for matching
+def my_function():
+    pass
+
+class Example:
+    def __init__(self):
+        pass
+=======
+REPLACE
+import math
+from flask import Flask
+# Additional context lines for matching
+def my_function():
+    pass
+
+class Example:
+    def __init__(self):
+        pass
+======= 
+SEARCH
+def factorial(n):
+    "compute factorial"
+
+    if n == 0:
+        return 1
+    else:
+        return n * factorial(n-1)
+
+# Context lines for better match
+def another_function():
+    print("This is a test")
+=======
+REPLACE
+# Context lines for better match
+def another_function():
+    print("This is a test")
+</kodu_diff>
+</edit_file_blocks>
+
+### Improved Example 3: Multiple Related Changes in One Go
+**Thinking Process**:
+"I need to do multiple edits in a single file. First, I must update a function call from \`return str(factorial(n))\` to \`return str(math.factorial(n))\`. Also, I must add a new logging line inside another function. I have the full content and I ensure I pick a large enough context around each change. Both changes can be bundled into one edit_file_blocks call."
+
+**Tool Use**:
+<edit_file_blocks>
+<path>mathweb/flask/app.py</path>
+<kodu_diff>
+SEARCH
+# Contextual code for better matching
+def process_number(n):
+    result = n * 2
+    return str(factorial(n))
+
+# More context if necessary
+def another_function_call():
+    pass
+=======
+REPLACE
+# Contextual code for better matching
+def process_number(n):
+    result = n * 2
+    return str(math.factorial(n))
+
+# More context if necessary
+def another_function_call():
+    # Adding a debug log line
+    print("another_function_call invoked")
+    pass
+</kodu_diff>
+</edit_file_blocks>
+
+### Improved Example 4: Complex Multi-Hunk Update
+**Thinking Process**:
+"I have a file where I need to add a new import, update an existing export, and add a new property to a component's state. I will perform all these changes at once. I'll carefully choose unique context lines and ensure each SEARCH block matches exactly what's in the file currently. This reduces the risk of mismatching."
+
+**Tool Use**:
+<edit_file_blocks>
+<path>main.py</path>
+<kodu_diff>
+SEARCH
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '~/components/ui/dialog';
+======= 
+REPLACE
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '~/components/ui/dialog';
+import { useAuth } from '~/hooks/useAuth';
+=======
+SEARCH
+export function AddSubscriptionModal({
+  isOpen,
+  onClose,
+}: AddSubscriptionModalProps) {
+  const addSubscription = useSubscriptionStore(
+    (state) => state.addSubscription
+  );
+=======
+REPLACE
+export function AddSubscriptionModal({
+  isOpen,
+  onClose,
+}: AddSubscriptionModalProps) {
+  const addSubscription = useSubscriptionStore(
+    (state) => state.addSubscription
+  );
+  const auth = useAuth(); // new line added
+
+  // Also adding a new property to the component's internal state
+  const [extraInfo, setExtraInfo] = useState(null);
+</kodu_diff>
+</edit_file_blocks>
+
+### Improved Example 5: Removing a Class Entirely
+**Thinking Process**:
+"I need to remove an entire class from a TypeScript file. I'll provide several lines of context before and after the class so that the removal matches cleanly. After removal, I'll leave the rest of the file intact."
+
+**Tool Use**:
+<edit_file_blocks>
+<path>src/services/user-service.ts</path>
+<kodu_diff>
+SEARCH
+// User authentication service implementation
+export class UserAuthService {
+    private userCache: Map<string, User> = new Map();
+    
+    constructor(private config: AuthConfig) {
+        this.initialize();
+    }
+    
+    private async initialize() {
+        // Initialize authentication service
+        await this.loadUserCache();
+    }
+    
+    public async authenticate(username: string, password: string): Promise<boolean> {
+        const user = this.userCache.get(username);
+        if (!user) return false;
+        return await this.validateCredentials(user, password);
+    }
+    
+    private async loadUserCache() {
+        // Load user data into cache
+        const users = await this.config.getUserList();
+        users.forEach(user => this.userCache.set(user.name, user));
+    }
+}
+
+// Keep services registry for reference
+export const services = {
+=======
+REPLACE
+// Keep services registry for reference
+export const services = {
+</kodu_diff>
+</edit_file_blocks>
+
 ## write_to_file
-Description: Request to write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. Always provide the full intended content of the file, without any truncation. This tool will automatically create any directories needed to write the file.
+Description: Request to write content to a file at the specified path. write_to_file creates or replace the entire file content. you must provide the full intended content of the file in the 'content' parameter, without any truncation. This tool will automatically create any directories needed to write the file, and it will overwrite the file if it already exists. If you only want to modify an existing file blocks, you should use edit_file_blocks tool with 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file.
+This tool is powerful and should be used for creating new files or replacing the entire content of existing files when necessary. Always provide the complete content of the file in the 'content' parameter, without any truncation.
+A good example of replacing the entire content of a file is when dealing with complex refactoring that requries a complete rewrite of the file content or a large amount of deletions and additions.
 Parameters:
 - path: (required) The path of the file to write to (relative to the current working directory ${cwd.toPosix()})
-- kodu_content: (required) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN.
-Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...' if you are writing code to a file, you must provide the complete code, no placeholders, no partial updates, you must write all the code!
+- kodu_content: (required when creating a new file) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN. Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...'. If you are writing code to a new file, you must provide the complete code, no placeholders, no partial updates; you must write all the code!
 Usage:
 <write_to_file>
 <path>File path here</path>
 <kodu_content>
-Complete file content here
+Your complete file content here without any code omissions or truncations (e.g., no placeholders like '// your code here')
 </kodu_content>
 </write_to_file>
 
@@ -129,15 +390,6 @@ Your final result description here
 </result>
 </attempt_completion>
 
-## ask_consultant
-Description: Request to ask the consultant for help. Use this tool when you need guidance, suggestions, or advice on how to proceed with a task. The consultant will provide insights and recommendations to help you accomplish the task effectively.
-Parameters:
-- query: (required) The question or request for help you have for the consultant.
-Usage:
-<ask_consultant>
-<query>Your question or request for help here</query>
-</ask_consultant>
-
 ## web_search
 Description: Request to perform a web search for the specified query. This tool searches the web for information related to the query and provides relevant results that can help you gain insights, find solutions, or explore new ideas related to the task at hand. Since this tool uses an LLM to understand the web results, you can also specify which model to use with the browser using the 'browserModel' parameter.
 Parameters:
@@ -150,6 +402,42 @@ Usage:
 <browserMode>api_docs or generic</browserMode>
 <baseLink>Base link for search (optional)</baseLink>
 </web_search>
+
+## computer_use
+Description: Request to interact with a Puppeteer-controlled browser or take a screenshot of the current desktop. Every action, except \`close\`, will be responded to with a screenshot of the browser's current state, along with any new console logs. You may only perform one browser action per message, and wait for the user's response including a screenshot and logs to determine the next action.
+- The sequence of actions except the \`system_screenshot\` action **must always start with** launching the browser at a URL, and **must always end with** closing the browser. If you need to visit a new URL that is not possible to navigate to from the current webpage, you must first close the browser, then launch again at the new URL.
+- While the browser is active, only the \`computer_use\` tool can be used. No other tools should be called during this time. You may proceed to use other tools only after closing the browser. For example if you run into an error and need to fix a file, you must close the browser, then use other tools to make the necessary changes, then re-launch the browser to verify the result.
+- The browser window has a resolution of **900x600** pixels. When performing any click actions, ensure the coordinates are within this resolution range.
+- Before clicking on any elements such as icons, links, or buttons, you must consult the provided screenshot of the page to determine the coordinates of the element. The click should be targeted at the **center of the element**, not on its edges.
+Parameters:
+- action: (required) The action to perform. The available actions are:
+    * system_screenshot: Take a screenshot of the current desktop.
+    * launch: Launch a new Puppeteer-controlled browser instance at the specified URL. This **must always be the first action**.
+        - Use with the \`url\` parameter to provide the URL.
+        - Ensure the URL is valid and includes the appropriate protocol (e.g. http://localhost:3000/page, file:///path/to/file.html, etc.)
+    * click: Click at a specific x,y coordinate.
+        - Use with the \`coordinate\` parameter to specify the location.
+        - Always click in the center of an element (icon, button, link, etc.) based on coordinates derived from a screenshot.
+    * type: Type a string of text on the keyboard. You might use this after clicking on a text field to input text.
+        - Use with the \`text\` parameter to provide the string to type.
+    * scroll_down: Scroll down the page by one page height.
+    * scroll_up: Scroll up the page by one page height.
+    * close: Close the Puppeteer-controlled browser instance. This **must always be the final browser action**.
+        - Example: \`<action>close</action>\`
+- url: (optional) Use this for providing the URL for the \`launch\` action.
+    * Example: <url>https://example.com</url>
+- coordinate: (optional) The X and Y coordinates for the \`click\` action. Coordinates should be within the **900x600** resolution.
+    * Example: <coordinate>450,300</coordinate>
+- text: (optional) Use this for providing the text for the \`type\` action.
+    * Example: <text>Hello, world!</text>
+Usage:
+<computer_use>
+<action>Action to perform (e.g., system_screenshot, launch, click, type, scroll_down, scroll_up, close)</action>
+<url>URL to launch the browser at (optional)</url>
+<coordinate>x,y coordinates (optional)</coordinate>
+<text>Text to type (optional)</text>
+</computer_use>
+
 
 # Tool Use Examples
 
@@ -206,8 +494,47 @@ Explanation: In this example we finished creating a node.js server file, and now
 <serverName>node-server</serverName>
 </server_runner_tool>
 
+## Example 4: Editing a file block with edit_file_blocks
+Explanation: In this example, we need to update a specific block of code in a file. We will use the edit_file_blocks tool to replace the existing block with the new block.
+<edit_file_blocks>
+<path>src/example.js</path>
+<kodu_diff>
+SEARCH
+class Job {
+    private title: string;
+    private company: string;
+    private location: string;
+    private salary: number;
+    
+    constructor(title: string, company: string, location: string, salary: number) {
+        this.title = title;
+        this.company = company;
+        this.location = location;
+        this.salary = salary;
+    }
+=======
+REPLACE
+class Job {
+    private title: string;
+    private company: string;
+    private location: string;
+    private salary: number;
+    private description: string;
+
+    constructor(title: string, company: string, location: string, salary: number, description: string) {
+        this.title = title;
+        this.company = company;
+        this.location = location;
+        this.salary = salary;
+        this.description = description;
+    }
+</kodu_diff>
+</edit_file_blocks>
+
+
 # Tool Use Guidelines
 
+0. CRITICAL: ALWAYS ENSURE TO END YOU RESPONSE AFTER CALLING A TOOL, YOU CANNO'T CALL TWO TOOLS IN ONE RESPONSE, EACH TOOL CALL MUST BE IN A SEPARATE RESPONSE, THIS IS TO ENSURE THAT THE TOOL USE WAS SUCCESSFUL AND TO PREVENT ANY ISSUES THAT MAY ARISE FROM INCORRECT ASSUMPTIONS, SO YOUR OUTPUT MUST ONLY CONTAIN ONE TOOL CALL AT ALL TIME, NO EXCEPTIONS, NO BUNDLING OF TOOL CALLS, ONLY ONE TOOL CALL PER RESPONSE.
 1. In <thinking> tags, assess what information you already have and what information you need to proceed with the task.
 2. Choose the most appropriate tool based on the task and the tool descriptions provided. Assess if you need additional information to proceed, and which of the available tools would be most effective for gathering this information. For example using the list_files tool is more effective than running a command like \`ls\` in the terminal. It's critical that you think about each available tool and use the one that best fits the current step in the task.
 3. Use one tool at a time per message to accomplish the task iteratively, with each tool use being informed by the result of the previous tool use. Do not assume the outcome of any tool use. Each step must be informed by the previous step's result.
@@ -227,5 +554,4 @@ It is crucial to proceed step-by-step, waiting for the user's message after each
 4. Ensure that each action builds correctly on the previous ones.
 
 By waiting for and carefully considering the user's response after each tool use, you can react accordingly and make informed decisions about how to proceed with the task. This iterative process helps ensure the overall success and accuracy of your work.
-
 ====`

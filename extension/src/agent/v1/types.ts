@@ -2,10 +2,10 @@ import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ResultPromise } from "execa"
 import { ApiConfiguration } from "../../api"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { ClaudeAskResponse } from "../../shared/WebviewMessage"
-import { HistoryItem } from "../../shared/HistoryItem"
-import { ClaudeMessage } from "../../shared/ExtensionMessage"
+import { ExtensionProvider } from "../../providers/claude-coder/claude-coder-provider"
+import { ClaudeAskResponse } from "../../shared/webview-message"
+import { HistoryItem } from "../../shared/history-item"
+import { ClaudeMessage } from "../../shared/extension-message"
 
 export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>
 
@@ -95,7 +95,7 @@ export interface KoduDevState {
 }
 
 // Re-export types from other files to centralize type definitions
-export type { ClaudeMessage } from "../../shared/ExtensionMessage"
-export type { ToolName } from "../../shared/Tool"
+export type { ClaudeMessage } from "../../shared/extension-message"
+export type { ToolName } from "../../shared/tool"
 
 export type VsCodeDiagnostics = [vscode.Uri, vscode.Diagnostic[]][]

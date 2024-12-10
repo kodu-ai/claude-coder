@@ -1,5 +1,4 @@
 import * as vscode from "vscode"
-import { ExecaTerminalManager } from "./execa-terminal-manager"
 import { TerminalManager as AdvancedTerminalManager } from "./terminal-manager"
 
 export interface ITerminalManager {
@@ -29,11 +28,7 @@ export interface TerminalProcessResultPromise extends Promise<void> {
 }
 
 export function createTerminalManager(useAdvanced: boolean, context: vscode.ExtensionContext) {
-	if (useAdvanced) {
-		return new AdvancedTerminalManager()
-	} else {
-		return new ExecaTerminalManager()
-	}
+	return new AdvancedTerminalManager()
 }
 
 // Export other necessary types and interfaces

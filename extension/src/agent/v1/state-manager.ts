@@ -1,10 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk"
 import fs from "fs/promises"
 import path from "path"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { combineApiRequests } from "../../shared/combineApiRequests"
-import { combineCommandSequences } from "../../shared/combineCommandSequences"
-import { getApiMetrics } from "../../shared/getApiMetrics"
+import { ExtensionProvider } from "../../providers/claude-coder/claude-coder-provider"
+import { combineApiRequests } from "../../shared/combine-api-requests"
+import { combineCommandSequences } from "../../shared/combine-command-sequences"
+import { getApiMetrics } from "../../shared/get-api-metrics"
 import { findLastIndex } from "../../utils"
 import { ApiManager } from "./api-handler"
 import { DEFAULT_MAX_REQUESTS_PER_TASK } from "./constants"
@@ -15,13 +15,10 @@ import { amplitudeTracker } from "../../utils/amplitude"
 export class StateManager {
 	private _state: KoduDevState
 	private _apiManager: ApiManager
-	private _maxRequestsPerTask: number
 	private _providerRef: WeakRef<ExtensionProvider>
 	private _alwaysAllowReadOnly: boolean
-	private _creativeMode: "creative" | "normal" | "deterministic"
 	private _customInstructions?: string
 	private _alwaysAllowWriteOnly: boolean
-	private _experimentalTerminal?: boolean
 	private _terminalCompressionThreshold?: number
 	private _autoCloseTerminal?: boolean
 	private _skipWriteAnimation?: boolean
@@ -34,20 +31,16 @@ export class StateManager {
 		const {
 			provider,
 			apiConfiguration,
-			maxRequestsPerTask,
 			customInstructions,
 			alwaysAllowReadOnly,
 			alwaysAllowWriteOnly,
 			historyItem,
-			creativeMode,
-			experimentalTerminal,
 			autoCloseTerminal,
 			skipWriteAnimation,
 			autoSummarize,
 			terminalCompressionThreshold,
 			gitHandlerEnabled,
 		} = options
-		this._creativeMode = creativeMode ?? "normal"
 		this._autoSummarize = autoSummarize
 		this._providerRef = new WeakRef(provider)
 		this._apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
@@ -55,9 +48,7 @@ export class StateManager {
 		this._alwaysAllowWriteOnly = alwaysAllowWriteOnly ?? false
 		this._customInstructions = customInstructions
 		this._terminalCompressionThreshold = terminalCompressionThreshold
-		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
 		this._gitHandlerEnabled = gitHandlerEnabled ?? true
-		this._experimentalTerminal = experimentalTerminal
 		if (["full", "diff"].includes(options.inlineEditOutputType ?? "")) {
 			this._inlineEditOutputType = options.inlineEditOutputType
 		} else {
@@ -120,19 +111,11 @@ export class StateManager {
 		return this._apiManager
 	}
 
-	get experimentalTerminal(): boolean | undefined {
-		return this._experimentalTerminal
-	}
-
 	get terminalCompressionThreshold(): number | undefined {
 		return this._terminalCompressionThreshold
 	}
 	set terminalCompressionThreshold(newValue: number | undefined) {
 		this._terminalCompressionThreshold = newValue
-	}
-
-	get maxRequestsPerTask(): number {
-		return this._maxRequestsPerTask
 	}
 
 	get autoSummarize(): boolean | undefined {
@@ -145,10 +128,6 @@ export class StateManager {
 
 	get alwaysAllowReadOnly(): boolean {
 		return this._alwaysAllowReadOnly
-	}
-
-	get creativeMode(): "creative" | "normal" | "deterministic" {
-		return this._creativeMode
 	}
 
 	get alwaysAllowWriteOnly(): boolean {
@@ -208,16 +187,8 @@ export class StateManager {
 		this._terminalCompressionThreshold = newValue
 	}
 
-	public setExperimentalTerminal(newValue: boolean): void {
-		this._experimentalTerminal = newValue
-	}
-
 	public setApiManager(newApiManager: ApiManager): void {
 		this._apiManager = newApiManager
-	}
-
-	public setMaxRequestsPerTask(newMax?: number): void {
-		this._maxRequestsPerTask = newMax ?? DEFAULT_MAX_REQUESTS_PER_TASK
 	}
 
 	public setProviderRef(newProviderRef: WeakRef<ExtensionProvider>): void {
@@ -243,10 +214,6 @@ export class StateManager {
 			AutomaticMode: this.alwaysAllowWriteOnly,
 			AutoSummarize: this.autoSummarize,
 		})
-	}
-
-	public setCreativeMode(newMode: "creative" | "normal" | "deterministic"): void {
-		this._creativeMode = newMode
 	}
 
 	public setAlwaysAllowWriteOnly(newValue: boolean): void {

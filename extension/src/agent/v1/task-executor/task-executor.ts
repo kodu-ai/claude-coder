@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
-import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
-import { ClaudeAsk, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
-import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
+import { ExtensionProvider } from "../../../providers/claude-coder/claude-coder-provider"
+import { ClaudeAsk, isV1ClaudeMessage } from "../../../shared/extension-message"
+import { ClaudeAskResponse } from "../../../shared/webview-message"
 import { toolResponseToAIState } from "../../../shared/format-tools"
 import { KODU_ERROR_CODES, KoduError, koduSSEResponse } from "../../../shared/kodu"
 import { ChatTool } from "../../../shared/new-tools"
@@ -350,7 +350,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 			const stream = this.stateManager.apiManager.createApiStreamRequest(
 				this.stateManager.state.apiConversationHistory,
-				this.abortController?.signal,
 				this.abortController
 			)
 

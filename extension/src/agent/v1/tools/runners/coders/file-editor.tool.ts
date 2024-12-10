@@ -3,7 +3,7 @@
  */
 import * as path from "path"
 import { DiffViewProvider } from "../../../../../integrations/editor/diff-view-provider"
-import { ClaudeSayTool } from "../../../../../shared/ExtensionMessage"
+import { ClaudeSayTool } from "../../../../../shared/extension-message"
 import { getCwd, getReadablePath } from "../../../utils"
 import { BaseAgentTool } from "../../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../../types"

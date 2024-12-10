@@ -1,4 +1,4 @@
-import { DEFAULT_MAX_REQUESTS_PER_TASK } from "../../shared/Constants"
+import { DEFAULT_MAX_REQUESTS_PER_TASK } from "../../shared/constants"
 
 export { DEFAULT_MAX_REQUESTS_PER_TASK }
 

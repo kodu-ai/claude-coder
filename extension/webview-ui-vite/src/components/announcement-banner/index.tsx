@@ -3,7 +3,7 @@ import { AlertCircle, ChevronDown, ChevronRight, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { useExtensionState } from "@/context/ExtensionStateContext"
+import { useExtensionState } from "@/context/extension-state-context"
 import { vscode } from "@/utils/vscode"
 
 const isNewMajorOrMinorVersion = (currentVersion: string, lastVersion: string) => {

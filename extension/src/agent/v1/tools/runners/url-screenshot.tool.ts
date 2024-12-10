@@ -1,7 +1,7 @@
 import * as path from "path"
 import * as vscode from "vscode"
 import fs from "fs/promises"
-import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
+import { ClaudeSayTool } from "../../../../shared/extension-message"
 import { ToolResponse, ToolResponseV2 } from "../../types"
 import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"

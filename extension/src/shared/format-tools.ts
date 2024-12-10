@@ -3,7 +3,7 @@ import type { ToolResponseV2 } from "../agent/v1/types"
 import { ToolName } from "./new-tools"
 import { base64StringToImageBlock } from "./format-images"
 // import { GlobalStateManager } from "@/providers/claude-coder/state/GlobalStateManager"
-import { GlobalStateManager } from "../providers/claude-coder/state/GlobalStateManager"
+import { GlobalStateManager } from "../providers/claude-coder/state/global-state-manager"
 import { ApiHandler } from "../api"
 
 export type ContentBlock = TextBlock | ImageBlockParam | TextBlockParam

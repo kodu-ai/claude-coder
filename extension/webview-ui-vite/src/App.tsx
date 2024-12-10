@@ -1,20 +1,17 @@
 import { useCallback, useMemo, useState } from "react"
 import { useEvent } from "react-use"
-import { ExtensionMessage } from "../../src/shared/ExtensionMessage"
-import { ExtensionStateProvider, showSettingsAtom, useExtensionState } from "./context/ExtensionStateContext"
+import { ExtensionMessage } from "../../src/shared/extension-message"
+import { ExtensionStateProvider, showSettingsAtom, useExtensionState } from "./context/extension-state-context"
 import { vscode } from "./utils/vscode"
-import { normalizeApiConfiguration } from "./components/ApiOptions/utils"
+import { normalizeApiConfiguration } from "./components/settings-view/utils"
 import ChatView from "./components/chat-view/chat-view"
-import HistoryView from "./components/HistoryView/HistoryView"
+import HistoryView from "./components/history-view/history-view"
 import "./App.css"
-import EndOfTrialAlertDialog from "./components/EndOfTrialAlertDialog/end-of-trial-alert-dialog"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import OnboardingDialog from "./components/onboarding"
 import OutOfCreditDialog from "./components/dialogs/out-of-credit-dialog"
-import SettingsPage from "./components/SettingsView/settings-tabs"
+import SettingsPage from "./components/settings-view/settings-tabs"
 import { useAtom, useAtomValue } from "jotai"
-import AnnouncementBanner from "./components/announcement-banner"
 const queryClient = new QueryClient()
 
 const AppContent = () => {
@@ -83,11 +80,9 @@ const App = () => {
 				<QueryClientProvider client={queryClient}>
 					<TooltipProvider>
 						<AppContent />
-						<OnboardingDialog />
 					</TooltipProvider>
 				</QueryClientProvider>
 				<OutOfCreditDialog />
-				<EndOfTrialAlertDialog />
 				{/* </Popover> */}
 			</ExtensionStateProvider>
 		</>

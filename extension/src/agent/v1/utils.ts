@@ -2,7 +2,7 @@ import * as path from "path"
 import * as os from "os"
 import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ClaudeMessage, ClaudeSayTool } from "../../shared/ExtensionMessage"
+import { ClaudeMessage, ClaudeSayTool } from "../../shared/extension-message"
 
 declare global {
 	interface String {
