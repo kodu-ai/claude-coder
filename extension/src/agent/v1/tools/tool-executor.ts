@@ -27,6 +27,9 @@ import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
 import { ChatTool } from "../../../shared/new-tools"
 import { DevServerTool } from "./runners/dev-server.tool"
+import { ReflectionTool } from "./runners/reflection.tool"
+import { ReflectionParams, ReflectionResult } from "../types/reflection"
+import { ClaudeAsk, ClaudeSay } from "../../../shared/ExtensionMessage"
 import delay from "delay"
 
 /**
@@ -66,6 +69,8 @@ export class ToolExecutor {
 	private toolResults: { name: string; result: ToolResponseV2 }[] = []
 	/** Flag indicating if tool execution is being aborted */
 	private isAborting: boolean = false
+	/** Reflection tool instance */
+	private reflectionTool: ReflectionTool | null = null
 
 	/**
 	 * Creates a new ToolExecutor instance
@@ -78,7 +83,10 @@ export class ToolExecutor {
 
 		this.toolParser = new ToolParser(
 			tools
-				.map((tool) => tool.schema)
+				.map((tool) => ({
+					name: tool.name,
+					schema: "schema" in tool.schema ? tool.schema.schema : tool.schema,
+				}))
 				.concat([
 					{
 						name: "edit_file_blocks",
@@ -463,5 +471,80 @@ export class ToolExecutor {
 	public async resetToolState() {
 		await this.abortTask()
 		this.toolResults = []
+	}
+
+	/**
+	 * Execute a reflection operation using the reflection tool
+	 * @param params Reflection parameters
+	 * @returns Reflection result or null if reflection fails
+	 */
+	public async executeReflection(params: ReflectionParams): Promise<ReflectionResult | null> {
+		try {
+			if (!this.reflectionTool) {
+				this.reflectionTool = new ReflectionTool(
+					{
+						name: "reflection",
+						input: params,
+						id: Date.now().toString(),
+						ts: Date.now(),
+						isFinal: true,
+						isLastWriteToFile: false,
+						ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
+						say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
+						updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.koduDev.taskExecutor),
+					},
+					this.options
+				)
+			} else {
+				this.reflectionTool.updateParams(params)
+			}
+
+			const response = await this.reflectionTool.execute({
+				name: "reflection",
+				input: params,
+				id: Date.now().toString(),
+				ts: Date.now(),
+				isFinal: true,
+				isLastWriteToFile: false,
+				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
+				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
+				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.koduDev.taskExecutor),
+			})
+
+			if (response.status === "success" && typeof response.text === "string") {
+				// Parse the reflection result from the XML response
+				const match = response.text.match(/<reflection_result>(.*?)<\/reflection_result>/s)
+				if (match) {
+					const result: ReflectionResult = {
+						patterns:
+							match[1]
+								.match(/<patterns>(.*?)<\/patterns>/s)?.[1]
+								.split("\n")
+								.filter(Boolean) ?? [],
+						successes:
+							match[1]
+								.match(/<successes>(.*?)<\/successes>/s)?.[1]
+								.split("\n")
+								.filter(Boolean) ?? [],
+						improvements:
+							match[1]
+								.match(/<improvements>(.*?)<\/improvements>/s)?.[1]
+								.split("\n")
+								.filter(Boolean) ?? [],
+						adjustments:
+							match[1]
+								.match(/<adjustments>(.*?)<\/adjustments>/s)?.[1]
+								.split("\n")
+								.filter(Boolean) ?? [],
+						summary: match[1].match(/<summary>(.*?)<\/summary>/s)?.[1] ?? "No summary provided",
+					}
+					return result
+				}
+			}
+			return null
+		} catch (error) {
+			console.error("Error executing reflection:", error)
+			return null
+		}
 	}
 }

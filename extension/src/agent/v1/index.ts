@@ -10,7 +10,6 @@ import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails, formatFi
 import { StateManager } from "./state-manager"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
-import { ToolInput } from "./tools/types"
 import { AdvancedTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
 import { DiagnosticsHandler, GitHandler } from "./handlers"

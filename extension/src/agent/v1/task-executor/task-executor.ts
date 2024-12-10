@@ -8,11 +8,13 @@ import { ChatTool } from "../../../shared/new-tools"
 import { ChunkProcessor } from "../chunk-proccess"
 import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
-import { ApiHistoryItem, ToolResponseV2, UserContent } from "../types"
+import { ApiHistoryItem, ToolName, ToolResponseV2, UserContent } from "../types"
 import { formatImagesIntoBlocks, isTextBlock } from "../utils"
 import { AskManager } from "./ask-manager"
 import { AskDetails, AskResponse, TaskError, TaskExecutorUtils, TaskState } from "./utils"
 import { CommitInfo } from "../tools/types"
+import { ReflectionParams, ReflectionResult } from "../types/reflection"
+import { ActionTracker } from "./action-tracker"
 
 // Constants for buffer management - modified for instant output
 const BUFFER_SIZE_THRESHOLD = 5 // Reduced to 1 character for near-instant output
@@ -31,11 +33,22 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private currentReplyId: number | null = null
 	private pauseNext: boolean = false
 	private lastResultWithCommit: ToolResponseV2 | undefined = undefined
+	private actionTracker: ActionTracker
+
+	/**
+	 * Execute a reflection operation using the tool executor
+	 * @param params Reflection parameters
+	 * @returns Reflection result or null if reflection fails
+	 */
+	public async executeReflection(params: ReflectionParams): Promise<ReflectionResult | null> {
+		return this.toolExecutor.executeReflection(params)
+	}
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
 		this.toolExecutor = toolExecutor
 		this.askManager = new AskManager(stateManager)
+		this.actionTracker = new ActionTracker(this)
 	}
 
 	protected getState(): TaskState {
@@ -553,6 +566,17 @@ export class TaskExecutor extends TaskExecutorUtils {
 			return
 		}
 
+		// Track tool results for reflection
+		const toolResults = await this.toolExecutor.getToolResults()
+		for (const result of toolResults) {
+			await this.actionTracker.trackAction(
+				result.name as ToolName,
+				"Tool execution from task",
+				result.result,
+				result.result.status === "error" ? "error" : "success"
+			)
+		}
+
 		// Ensure no empty content in API history
 		if (
 			!assistantResponses.content.length ||
@@ -566,6 +590,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			}
 		}
 
+		// Process tool results
 		const currentToolResults = await this.toolExecutor.getToolResults()
 
 		if (currentToolResults.length > 0) {
