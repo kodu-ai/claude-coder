@@ -225,7 +225,7 @@ export class AskManager {
 			}
 
 			// we can void the promise here as we don't need to wait for the state to be updated
-			void this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+			void this.stateManager.providerRef.deref()?.getWebviewManager()?.postMessageStateToWebview()
 		} catch (error) {
 			console.error("Error in updateState:", error)
 			throw error

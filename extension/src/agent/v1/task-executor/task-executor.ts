@@ -94,7 +94,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		} else {
 			void Promise.all([
 				this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush),
-				this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview(),
+				this.stateManager.providerRef.deref()?.getWebviewManager()?.postMessageStateToWebview(),
 			])
 		}
 	}
@@ -283,7 +283,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				this.state = TaskState.COMPLETED
 			}
 		})
-		await this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+		await this.providerRef.deref()?.getWebviewManager()?.postMessageStateToWebview()
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
@@ -433,7 +433,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 							isDone: true,
 							isFetching: false,
 						})
-						this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						this.stateManager.providerRef.deref()?.getWebviewManager()?.postMessageStateToWebview()
 					}
 
 					if (chunk.code === -1) {
@@ -444,7 +444,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 							errorText: chunk.body.msg ?? "Internal Server Error",
 							isError: true,
 						})
-						this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						this.stateManager.providerRef.deref()?.getWebviewManager()?.postMessageStateToWebview()
 						throw new KoduError({ code: chunk.body.status ?? 500 })
 					}
 				},

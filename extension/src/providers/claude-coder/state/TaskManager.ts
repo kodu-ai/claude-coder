@@ -105,7 +105,10 @@ export class TaskManager {
 
 		taskData.historyItem.name = newTaskName
 		await this.provider.getStateManager().updateTaskHistory(taskData.historyItem)
-		await this.provider.getWebviewManager().postStateToWebview()
+		await this.provider
+			.getWebviewManager()
+			.postPropertyToWebview("taskHistory", (await this.provider.getStateManager().getState()).taskHistory)
+
 		vscode.window.showInformationMessage(`Task renamed to ${newTaskName}`)
 	}
 
@@ -235,6 +238,6 @@ export class TaskManager {
 		const updatedTaskHistory = taskHistory.filter((task) => task.id !== id)
 		await this.provider.getGlobalStateManager().updateGlobalState("taskHistory", updatedTaskHistory)
 
-		await this.provider.getWebviewManager().postStateToWebview()
+		await this.provider.getWebviewManager().postPropertyToWebview("taskHistory", updatedTaskHistory)
 	}
 }

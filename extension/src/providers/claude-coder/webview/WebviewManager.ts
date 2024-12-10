@@ -61,6 +61,7 @@ export class WebviewManager {
 	private debounceTimer: NodeJS.Timeout | null = null
 	private maxIntervalTimer: NodeJS.Timeout | null = null
 	private pendingMessage: ExtensionMessage | null = null
+	private lastSentMessage: ExtensionMessage | null = null
 
 	/**
 	 * Creates a new WebviewManager instance
@@ -194,9 +195,20 @@ export class WebviewManager {
 		})
 	}
 
-	async postStateToWebview() {
+	async postCompleteStateToWebview() {
 		const state = await this.getStateToPostToWebview()
+
 		await this.postMessageToWebview({ type: "state", state })
+	}
+
+	async postMessageStateToWebview() {
+		const state = await this.getStateToPostToWebview()
+
+		await this.postMessageToWebview({ type: "state", state })
+	}
+
+	async postPropertyToWebview(property: keyof ExtensionState, value: any) {
+		await this.postMessageToWebview({ type: "state", [property]: value })
 	}
 
 	private async getStateToPostToWebview() {
@@ -351,18 +363,18 @@ export class WebviewManager {
 						await this.provider
 							.getStateManager()
 							.setInlineEditModeType(message.inlineEditOutputType ?? "full")
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("inlineEditOutputType", message.inlineEditOutputType ?? "full")
 						break
 					case "pauseTemporayAutoMode":
 						this.provider.getKoduDev()?.getStateManager()?.setTemporaryPauseAutomaticMode(message.mode)
 						break
 					case "terminalCompressionThreshold":
 						await this.provider.getStateManager().setTerminalCompressionThreshold(message.value)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("terminalCompressionThreshold", message.value)
 						break
 					case "skipWriteAnimation":
 						await this.provider.getStateManager().setSkipWriteAnimation(!!message.bool)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("skipWriteAnimation", !!message.bool)
 						break
 					case "updateGlobalState":
 						for (const [key, value] of Object.entries(message.state)) {
@@ -384,16 +396,16 @@ export class WebviewManager {
 						break
 					case "technicalBackground":
 						await this.provider.getStateManager().setTechnicalBackground(message.value)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("technicalBackground", message.value)
 						break
 					case "experimentalTerminal":
 						await this.provider.getStateManager().setExperimentalTerminal(message.bool)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("experimentalTerminal", message.bool)
 						break
 					case "clearHistory":
 						await this.provider.getStateManager().clearHistory()
 						await this.provider.getTaskManager().clearAllTasks()
-						await this.postStateToWebview()
+						await this.postCompleteStateToWebview()
 						break
 					case "fileTree":
 						const workspaceFolders = vscode.workspace.workspaceFolders
@@ -428,8 +440,7 @@ export class WebviewManager {
 						break
 					case "useUdiff":
 						await this.provider.getStateManager().setUseUdiff(message.bool)
-						console.log(`useUdiff: ${message.bool}`)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("useUdiff", message.bool)
 						break
 					case "freeTrial":
 						await this.provider.getApiManager().initFreeTrialUser(message.fp)
@@ -439,7 +450,7 @@ export class WebviewManager {
 						break
 					case "isContinueGenerationEnabled":
 						await this.provider.getStateManager().setIsContinueGenerationEnabled(message.bool)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("isContinueGenerationEnabled", message.bool)
 						break
 					case "amplitude":
 						AmplitudeWebviewManager.handleMessage(message)
@@ -452,14 +463,14 @@ export class WebviewManager {
 						if (this.provider.koduDev) {
 							this.provider.koduDev.getStateManager().setAutoSummarize(message.bool)
 						}
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("autoSummarize", message.bool)
 						break
 					case "abortAutomode":
 						await this.provider.getTaskManager().clearTask()
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("autoSummarize", message.bool)
 						break
 					case "webviewDidLaunch":
-						await this.postStateToWebview()
+						await this.postCompleteStateToWebview()
 						break
 					case "newTask":
 						await this.provider
@@ -469,38 +480,40 @@ export class WebviewManager {
 					case "apiConfiguration":
 						if (message.apiConfiguration) {
 							await this.provider.getApiManager().updateApiConfiguration(message.apiConfiguration)
-							await this.postStateToWebview()
+
+							// TODO: test
+							const apiConfiguration = (await this.provider.getStateManager().getState()).apiConfiguration
+							await this.postPropertyToWebview("apiConfiguration", apiConfiguration)
 						}
 						break
 					case "activeSystemPromptVariant":
 						await this.provider.getStateManager().setActiveSystemPromptVariantId(message.variantId)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("activeSystemPromptVariantId", message.variantId)
 						break
 					case "autoCloseTerminal":
 						await this.provider.getStateManager().setAutoCloseTerminal(message.bool)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("autoCloseTerminal", message.bool)
 						break
 					case "systemPromptVariants":
 						await this.provider.getStateManager().setSystemPromptVariants(message.variants)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("systemPromptVariants", message.variants)
 						break
 					case "maxRequestsPerTask":
-						await this.provider
-							.getStateManager()
-							.setMaxRequestsPerTask(message.text ? Number(message.text) : undefined)
-						await this.postStateToWebview()
+						const maxRequestsPerTask = message.text ? Number(message.text) : undefined
+						await this.provider.getStateManager().setMaxRequestsPerTask(maxRequestsPerTask)
+						await this.postPropertyToWebview("maxRequestsPerTask", maxRequestsPerTask)
 						break
 					case "customInstructions":
 						await this.provider.getStateManager().setCustomInstructions(message.text || undefined)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("customInstructions", message.text || undefined)
 						break
 					case "alwaysAllowReadOnly":
 						await this.provider.getStateManager().setAlwaysAllowReadOnly(message.bool ?? false)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("alwaysAllowReadOnly", message.bool ?? false)
 						break
 					case "alwaysAllowWriteOnly":
 						await this.provider.getStateManager().setAlwaysAllowWriteOnly(message.bool ?? false)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("alwaysAllowWriteOnly", message.bool ?? false)
 						break
 					case "askResponse":
 						console.log("askResponse", message)
@@ -511,11 +524,11 @@ export class WebviewManager {
 					case "toggleGitHandler":
 						this.provider.koduDev?.getStateManager().setGitHandlerEnabled(message.enabled)
 						await this.provider.getStateManager().setGitHandlerEnabled(message.enabled)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("gitHandlerEnabled", message.enabled)
 						break
 					case "clearTask":
 						await this.provider.getTaskManager().clearTask()
-						await this.postStateToWebview()
+						await this.postCompleteStateToWebview()
 						break
 					case "setApiKeyDialog":
 						// trigger vscode.commands.registerCommand(`${extensionName}.setApiKey`
@@ -529,10 +542,11 @@ export class WebviewManager {
 						break
 					case "didCloseAnnouncement":
 						const packageJSON = this.provider.getContext().extension?.packageJSON
+
 						await this.provider
 							.getGlobalStateManager()
 							.updateGlobalState("lastShownAnnouncementId", packageJSON?.version)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("lastShownAnnouncementId", packageJSON?.version)
 						break
 					case "setAdvanceThinkingMode":
 						GlobalStateManager.getInstance().updateGlobalState("isAdvanceThinkingEnabled", message.bool)
@@ -557,24 +571,23 @@ export class WebviewManager {
 						await this.provider.getTaskManager().deleteTaskWithId(message.text!)
 						break
 					case "setCreativeMode":
-						await this.provider
-							.getStateManager()
-							.setCreativeMode(message.text as "creative" | "normal" | "deterministic")
-						await this.postStateToWebview()
+						const creativeMode = message.text as "creative" | "normal" | "deterministic"
+						await this.provider.getStateManager().setCreativeMode(creativeMode)
+						await this.postPropertyToWebview("creativeMode", creativeMode)
 						break
 					case "exportTaskWithId":
 						await this.provider.getTaskManager().exportTaskWithId(message.text!)
 						break
 					case "didClickKoduSignOut":
 						await this.provider.getApiManager().signOutKodu()
-						await this.postStateToWebview()
+						await this.postCompleteStateToWebview()
 						break
 					case "commandTimeout":
 						await GlobalStateManager.getInstance().updateGlobalState(
 							"commandTimeout",
 							message.commandTimeout
 						)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("commandTimeout", message.commandTimeout)
 						break
 					case "fetchKoduCredits":
 						await this.provider.getApiManager().fetchKoduCredits()
@@ -586,7 +599,7 @@ export class WebviewManager {
 						break
 					case "didDismissKoduPromo":
 						await this.provider.getGlobalStateManager().updateGlobalState("shouldShowKoduPromo", false)
-						await this.postStateToWebview()
+						await this.postPropertyToWebview("shouldShowKoduPromo", false)
 						break
 					case "viewFile":
 						await this.handleViewFile(message.path, message.branch, message.commitHash)
@@ -599,7 +612,7 @@ export class WebviewManager {
 					case "resetState":
 						await this.provider.getGlobalStateManager().resetState()
 						await this.provider.getSecretStateManager().resetState()
-						await this.postStateToWebview()
+						await this.postCompleteStateToWebview()
 						break
 					case "debug":
 						await this.handleDebugInstruction()

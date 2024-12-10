@@ -69,7 +69,8 @@ export class ApiManager {
 			})
 		const user = await this.fetchKoduUser(apiKey)
 		await this.context.getGlobalStateManager().updateGlobalState("user", user)
-		await this.context.getWebviewManager().postStateToWebview()
+		await this.context.getWebviewManager().postCompleteStateToWebview()
+
 		console.log("Posted state to webview after saving Kodu API key")
 		await this.context.getWebviewManager().postMessageToWebview({ type: "action", action: "koduAuthenticated" })
 		console.log("Posted message to action: koduAuthenticated")

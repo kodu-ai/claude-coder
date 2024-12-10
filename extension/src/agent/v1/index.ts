@@ -154,7 +154,7 @@ export class KoduDev {
 		}
 		this.stateManager.state.claudeMessages = []
 		this.stateManager.state.apiConversationHistory = []
-		await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
+		await this.providerRef.deref()?.getWebviewManager().postCompleteStateToWebview()
 
 		let textBlock: Anthropic.TextBlockParam = {
 			type: "text",
@@ -246,7 +246,7 @@ export class KoduDev {
 				lastClaudeMessage.ask === "tool" &&
 				(JSON.parse(lastClaudeMessage.text ?? "{}") as ChatTool).tool === "attempt_completion")
 
-		await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
+		await this.providerRef.deref()?.getWebviewManager().postCompleteStateToWebview()
 		const ts = Date.now()
 		let { response, text, images } = await this.taskExecutor.askWithId(
 			isCompleted ? "resume_completed_task" : "resume_task",
@@ -439,7 +439,7 @@ export class KoduDev {
 				fromBranch: currentBranch,
 			})
 			// we must update the webview to reflect the changes
-			await this.providerRef.deref()?.getWebviewManager().postStateToWebview()
+			await this.providerRef.deref()?.getWebviewManager().postCompleteStateToWebview()
 			vscode.window.showInformationMessage(`Successfully rolled back to checkpoint at commit ${commitHash}`)
 			return true
 		} catch (error) {

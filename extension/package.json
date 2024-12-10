@@ -231,5 +231,6 @@
 		"tsx": "^4.19.2",
 		"web-tree-sitter": "^0.22.6",
 		"zod": "^3.23.8"
-	}
+	},
+	"packageManager": "pnpm@8.15.0+sha1.97e9ea18c26f67eaa5b0b394f1cfbcdc65b1b02d"
 }

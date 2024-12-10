@@ -75,7 +75,7 @@ export abstract class TaskExecutorUtils {
 			}
 
 			await this.stateManager.addToClaudeMessages(askMessage)
-			await this.updateWebview()
+			await this.onMessageAdded()
 			return
 		}
 		const askMessage: V1ClaudeMessage = {
@@ -89,7 +89,7 @@ export abstract class TaskExecutorUtils {
 		}
 
 		await this.stateManager?.updateClaudeMessage(askTs, askMessage)
-		await this.updateWebview()
+		await this.onMessageUpdated()
 	}
 
 	public async sayWithId(sayTs: number, type: ClaudeSay, text?: string, images?: string[]): Promise<number> {
@@ -104,10 +104,11 @@ export abstract class TaskExecutorUtils {
 		}
 		if (this.stateManager.getMessageById(sayTs)) {
 			await this.stateManager.updateClaudeMessage(sayTs, sayMessage)
+			await this.onMessageUpdated()
 		} else {
 			await this.stateManager.addToClaudeMessages(sayMessage)
+			await this.onMessageAdded()
 		}
-		await this.updateWebview()
 		return sayTs
 	}
 
@@ -130,23 +131,8 @@ export abstract class TaskExecutorUtils {
 		}
 
 		await this.stateManager.addToClaudeMessages(sayMessage)
-		await this.updateWebview()
+		await this.onMessageAdded()
 		return sayTs
-	}
-
-	public async sayAfter(type: ClaudeSay, target: number, text?: string, images?: string[]): Promise<void> {
-		console.log(`Saying after: ${type} ${text}`)
-		const sayMessage: ClaudeMessage = {
-			ts: Date.now(),
-			type: "say",
-			say: type,
-			text: text,
-			images,
-			v: 1,
-		}
-
-		await this.stateManager.addToClaudeAfterMessage(target, sayMessage)
-		await this.updateWebview()
 	}
 
 	protected logState(message: string): void {
@@ -159,7 +145,11 @@ export abstract class TaskExecutorUtils {
 
 	protected abstract getState(): TaskState
 
-	private async updateWebview(): Promise<void> {
-		await this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+	private async onMessageAdded(): Promise<void> {
+		await this.providerRef.deref()?.getWebviewManager()?.postMessageStateToWebview()
+	}
+
+	private async onMessageUpdated(): Promise<void> {
+		await this.providerRef.deref()?.getWebviewManager()?.postMessageStateToWebview()
 	}
 }
