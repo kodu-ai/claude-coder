@@ -13,6 +13,8 @@ export type ToolName =
 	| "url_screenshot"
 	| "update_file"
 	| "edit_file_blocks"
+	| "search_symbols"
+	| "add_interested_file"
 
 export type Tool = Omit<Anthropic.Tool, "name"> & {
 	name: ToolName

@@ -5,16 +5,13 @@ import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduMode
 import {
 	KODU_ERROR_CODES,
 	KoduError,
-	getKoduConsultantUrl,
 	getKoduCurrentUser,
 	getKoduInferenceUrl,
-	getKoduScreenshotUrl,
-	getKoduSummarizeUrl,
 	getKoduWebSearchUrl,
 	koduErrorMessages,
 	koduSSEResponse,
 } from "../shared/kodu"
-import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
+import { WebSearchResponseDto } from "./interfaces"
 import { ApiHistoryItem } from "../agent/v1"
 
 export async function fetchKoduUser({ apiKey }: { apiKey: string }) {

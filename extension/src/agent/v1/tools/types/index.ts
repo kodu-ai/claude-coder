@@ -24,6 +24,8 @@ export type ToolInput = {
 	diff?: string
 	filePattern?: string
 	recursive?: string
+	symbolName?: string
+	why?: string
 	command?: string
 	question?: string
 	result?: string

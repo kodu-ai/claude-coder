@@ -123,7 +123,6 @@ const useHandleClaudeMessages = () => {
 		}
 
 		if (message.type === "claudeMessage") {
-			console.log(`Got Message: ${JSON.stringify(message)}`)
 			// find the message in the current state and update it if not found add it
 			setClaudeMessages((currentMessages) => {
 				if (!message.claudeMessage || !message.taskId) {
@@ -132,12 +131,10 @@ const useHandleClaudeMessages = () => {
 				}
 				const index = currentMessages.findIndex((m) => m.ts === message.claudeMessage!.ts)
 				if (index !== -1) {
-					console.log(`Updating message at index ${index}, data: ${JSON.stringify(message.claudeMessage)}`)
 					const messages = [...currentMessages]
 					messages[index] = message.claudeMessage
 					return messages
 				}
-				console.log(`Adding new message: ${JSON.stringify(message.claudeMessage)}`)
 				return [...currentMessages, message.claudeMessage]
 			})
 		}

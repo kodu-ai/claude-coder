@@ -105,6 +105,18 @@ export type UpsertMemoryTool = {
 	content?: string
 }
 
+export type SearchSymbolsTool = {
+	tool: "search_symbols"
+	symbolName: string
+	content?: string
+}
+
+export type AddInterestedFileTool = {
+	tool: "add_interested_file"
+	path: string
+	why: string
+}
+
 export type SummarizeChatTool = {
 	tool: "summarize"
 	cost?: number
@@ -123,6 +135,8 @@ export type ChatTool = (
 	| WebSearchTool
 	| UrlScreenshotTool
 	| ServerRunnerTool
+	| SearchSymbolsTool
+	| AddInterestedFileTool
 ) & {
 	ts: number
 	approvalState?: ToolStatus
@@ -134,4 +148,4 @@ export type ChatTool = (
 	userFeedback?: string
 }
 
-export type ToolName = ChatTool["tool"]
+export type ToolName = ChatTool["tool"] | "edit_file_blocks"

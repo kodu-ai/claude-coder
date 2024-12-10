@@ -557,7 +557,7 @@ export class KoduDev {
 
 		const diagnosticsHandler = DiagnosticsHandler.getInstance()
 		const files = this.stateManager.historyErrors ? Object.keys(this.stateManager.historyErrors) : []
-		const diagnostics = diagnosticsHandler.getDiagnostics(files)
+		const diagnostics = await diagnosticsHandler.getDiagnostics(files)
 		const newErrors = diagnostics.filter(
 			(diag) => diag.errorString !== null && diag.errorString !== undefined && diag.errorString !== ""
 		)

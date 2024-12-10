@@ -3,6 +3,40 @@ import { writeToFileTool } from "../tools/schema"
 export const toolsPrompt = (cwd: string, supportsImages: boolean, id?: string) => `
 # Tools
 
+## searchSymbols
+Description: Request to find and understand code symbols (functions, classes, methods) in source files. This tool helps navigate and understand code structure by finding symbol definitions and their context. It's particularly useful for:
+- Understanding function implementations
+- Finding class definitions
+- Tracing method usage
+- Building mental models of code
+
+Parameters:
+- symbolName: (required) The name of the symbol to search for (e.g., function name, class name)
+- path: (required) The path to search in (relative to ${cwd.toPosix()})
+
+Usage:
+<searchSymbols>
+<symbolName>YourSymbolName</symbolName>
+<path>path/to/search</path>
+</searchSymbols>
+
+## addInterestedFile
+Description: Track files that are relevant to the current task. This tool helps maintain context by:
+- Building a systematic understanding of the codebase
+- Tracking file dependencies
+- Documenting why files are important
+- Supporting better decision making
+
+Parameters:
+- path: (required) The path of the file to track (relative to ${cwd.toPosix()})
+- why: (required) Explanation of why this file is relevant to the current task
+
+Usage:
+<addInterestedFile>
+<path>path/to/file</path>
+<why>Explanation of file's relevance</why>
+</addInterestedFile>
+
 ## server_runner_tool
 Description: start a server / development server. This tool is used to run web applications locally, backend server, or anytype of server. this is tool allow you to start, stop, restart, or get logs from a server instance and keep it in memory.
 THIS IS THE ONLY TOOL THAT IS CAPABLE OF STARTING A SERVER, DO NOT USE THE execute_command TOOL TO START A SERVER, I REPEAT, DO NOT USE THE execute_command TOOL TO START A SERVER.
@@ -494,7 +528,23 @@ Explanation: In this example we finished creating a node.js server file, and now
 <serverName>node-server</serverName>
 </server_runner_tool>
 
-## Example 4: Editing a file block with edit_file_blocks
+## Example 4: Using searchSymbols to understand code
+Explanation: In this example, we want to understand how a specific function is implemented in the codebase.
+
+<searchSymbols>
+<symbolName>handleUserAuth</symbolName>
+<path>src/auth</path>
+</searchSymbols>
+
+## Example 5: Tracking relevant files with addInterestedFile
+Explanation: In this example, we're working on an authentication feature and want to track relevant files.
+
+<addInterestedFile>
+<path>src/auth/auth-service.ts</path>
+<why>Contains core authentication logic that we need to modify for the new feature</why>
+</addInterestedFile>
+
+## Example 6: Editing a file block with edit_file_blocks
 Explanation: In this example, we need to update a specific block of code in a file. We will use the edit_file_blocks tool to replace the existing block with the new block.
 <edit_file_blocks>
 <path>src/example.js</path>

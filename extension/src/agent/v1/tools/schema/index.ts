@@ -11,6 +11,8 @@ import { webSearchTool } from "./web_search"
 import { urlScreenshotTool } from "./url_screenshot"
 import { upsertMemoryTool } from "./upsert_memory"
 import { devServerTool } from "./dev_server"
+import { searchSymbolsTool } from "./search_symbols"
+import { addInterestedFileTool } from "./add_interested_file"
 
 export const tools = [
 	executeCommandTool,
@@ -25,6 +27,8 @@ export const tools = [
 	urlScreenshotTool,
 	upsertMemoryTool,
 	devServerTool,
+	searchSymbolsTool,
+	addInterestedFileTool,
 ] as const
 
 export type Tool = (typeof tools)[number]
@@ -40,4 +44,6 @@ export {
 	webSearchTool,
 	urlScreenshotTool,
 	upsertMemoryTool,
+	searchSymbolsTool,
+	addInterestedFileTool,
 }

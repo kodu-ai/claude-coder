@@ -12,6 +12,9 @@ import { isToolResponseV2, parseToolResponse } from "../../shared/format-tools"
 import { ApiHandler } from "../../api"
 import { ToolName } from "../../shared/new-tools"
 
+const KODU_DIFF = "kodu_diff" as const
+const KODU_CONTENT = "kodu_content" as const
+
 const logger = (msg: string, level: "info" | "warn" | "error" | "debug") => {
 	console[level](`[CompressToolFromMsg] ${msg}`)
 }
@@ -20,6 +23,49 @@ type CommandListItem = {
 	id: string
 	command: string
 	output: string
+}
+
+/**
+ * Compresses a long string to a maximum length of 200,000 characters by keeping parts
+ * from the beginning, middle, and end of the string. The compression adds markers
+ * to indicate which sections were removed.
+ *
+ * The function preserves:
+ * - 40% of the target length from the start
+ * - 20% of the target length from the middle
+ * - 40% of the target length from the end
+ *
+ * @param input The input string to compress
+ * @param maxLength The maximum length of the output string (defaults to 200000)
+ * @returns The compressed string with compression markers
+ */
+function compressLongString(input: string, maxLength: number = 200000): string {
+	// If the string is already under the limit, return it unchanged
+	if (input.length <= maxLength) {
+		return input
+	}
+
+	// Calculate the lengths for each section
+	const startLength = Math.floor(maxLength * 0.4)
+	const middleLength = Math.floor(maxLength * 0.2)
+	const endLength = maxLength - startLength - middleLength
+
+	// Extract the start section
+	const startSection = input.slice(0, startLength)
+
+	// Calculate middle section position
+	const middleStartPos = Math.floor((input.length - middleLength) / 2)
+	const middleSection = input.slice(middleStartPos, middleStartPos + middleLength)
+
+	// Extract the end section
+	const endSection = input.slice(-endLength)
+
+	// Create compression markers
+	const startCompressionMarker = `[...Compressed ${startLength} to ${middleStartPos}...]`
+	const endCompressionMarker = `[...Compressed ${middleStartPos + middleLength} to ${input.length - endLength}...]`
+
+	// Combine all sections with compression markers
+	return `${startSection}${startCompressionMarker}${middleSection}${endCompressionMarker}${endSection}`
 }
 
 export class CompressToolExecution {
@@ -48,7 +94,7 @@ export class CompressToolExecution {
 		return await this.compressExecution(command, output)
 	}
 
-	private compressExecution = async (command: string, output: string): Promise<string> => {
+	private compressExecution = async (command: string, output: string, isError = -1): Promise<string> => {
 		const SYSTEM_PROMPT = `
 		You are an assistant tasked with analyzing and summarizing the output of commands run on a user's computer. Your goals are to:
 		
@@ -163,27 +209,43 @@ export class CompressToolExecution {
 			return output
 		}
 		logger(`Compressing output for command: ${command}`, "info")
-		const resultStream = this.apiHandler.createBaseMessageStream(
-			SYSTEM_PROMPT,
-			[
-				{
-					role: "user",
-					content: [
-						{
-							type: "text",
-							text: `The output for the "${command}" command was:\n\n${output}`,
-						},
-					],
-				},
-			],
-			"claude-3-5-haiku-20241022"
-		)
-		for await (const message of resultStream) {
-			if (message.code === 1 && isTextBlock(message.body.anthropic.content[0])) {
-				return message.body.anthropic.content[0].text
+		try {
+			const resultStream = this.apiHandler.createBaseMessageStream(
+				SYSTEM_PROMPT,
+				[
+					{
+						role: "user",
+						content: [
+							{
+								type: "text",
+								text: `The output for the "${command}" command was:\n\n${output}`,
+							},
+						],
+					},
+				],
+				"claude-3-5-haiku-20241022"
+			)
+			for await (const message of resultStream) {
+				if (message.code === 1 && isTextBlock(message.body.anthropic.content[0])) {
+					return message.body.anthropic.content[0].text
+				}
+				if (message.code === -1) {
+					throw new Error("Failed to compress output")
+				}
 			}
+			return output
+		} catch (err) {
+			logger(`Error compressing output for command: ${command}`, "error")
+			if (isError === 3) {
+				// try to compress the output again but with a compressed version of the output
+				return this.compressExecution(command, compressLongString(output), isError + 1)
+			}
+			// if the error is not resolved after 3 tries, return the output (should be already compressed using compressLongString)
+			if (isError > 3) {
+				return output
+			}
+			return this.compressExecution(command, output, isError + 1)
 		}
-		return output
 	}
 }
 
@@ -209,9 +271,13 @@ const processContentBlock = async (
 	if (!isTextBlock(content)) {
 		return content
 	}
+	const shouldNotBeCompressed = compressedTools.every(
+		(tool) => !content.text.includes(`<toolName>${tool}</toolName>`)
+	)
+	const isToolResponse = content.text.includes("<toolResponse>") && content.text.includes("</toolResponse>")
 
 	// Handle execute_command blocks
-	if (content.text.includes("<command>") && content.text.includes("</command>")) {
+	if (!isToolResponse && content.text.includes("<command>") && content.text.includes("</command>")) {
 		const indexOfStartTag = content.text.indexOf("<command>")
 		const indexOfEndTag = content.text.indexOf("</command>")
 		if (indexOfStartTag !== -1 && indexOfEndTag !== -1) {
@@ -222,17 +288,26 @@ const processContentBlock = async (
 	}
 
 	// Skip specific context blocks
-	const includedTextToRemove = ["</most_important_context>", "</environment_details>", "</automatic_reminders>"]
+	const includedTextToRemove = [
+		"</most_important_context>",
+		"</environment_details>",
+		"</automatic_reminders>",
+		"</compression_additional_context>",
+	]
 	if (includedTextToRemove.some((text) => content.text.includes(text))) {
-		if (content.text.includes("<most_important_context>") || content.text.includes("<environment_details>")) {
+		if (
+			content.text.includes("<most_important_context>") ||
+			content.text.includes("<environment_details>") ||
+			content.text.includes("<automatic_reminders>")
+		) {
 			logger(`Found and Removing either most_important_context or environment_details block`, "info")
 			return undefined
 		}
 	}
 
 	// Handle write_to_file compression
-	if (content.text.includes("</write_to_file>")) {
-		const koduContentType = content.text.includes("</kodu_content>") ? "kodu_content" : "content"
+	if (content.text.includes("</write_to_file>") && !isToolResponse) {
+		const koduContentType = content.text.includes(`</${KODU_CONTENT}>`) ? KODU_CONTENT : "content"
 		const contentStart = content.text.indexOf(`<${koduContentType}>`)
 		const contentEnd = content.text.indexOf(`</${koduContentType}>`)
 
@@ -265,25 +340,25 @@ const processContentBlock = async (
 	}
 
 	// Handle edit_file_blocks compression
-	if (content.text.includes("<kodu_diff>") && content.text.includes("</kodu_diff>")) {
-		const koduDiffStart = content.text.indexOf("<kodu_diff>")
-		const koduDiffEnd = content.text.indexOf("</kodu_diff>")
+	if (content.text.includes(`<${KODU_DIFF}>`) && content.text.includes(`</${KODU_DIFF}>`) && !isToolResponse) {
+		const koduDiffStart = content.text.indexOf(`<${KODU_DIFF}>`)
+		const koduDiffEnd = content.text.indexOf(`</${KODU_DIFF}>`)
 
 		if (koduDiffStart !== -1 && koduDiffEnd !== -1) {
 			const textBeforeContent = content.text.slice(0, koduDiffStart)
-			const textAfterContent = content.text.slice(koduDiffEnd + "</kodu_diff>".length)
-			const fullContent = content.text.slice(koduDiffStart + "<kodu_diff>".length, koduDiffEnd)
+			const textAfterContent = content.text.slice(koduDiffEnd + `</${KODU_DIFF}>`.length)
+			const fullContent = content.text.slice(koduDiffStart + `<${KODU_DIFF}>`.length, koduDiffEnd)
 
 			// Log extracted content for debugging
-			logger(`Extracted kodu_diff content: "${fullContent}"`, "debug")
+			logger(`Extracted ${KODU_DIFF} content: "${fullContent}"`, "debug")
 
 			// Count SEARCH and REPLACE blocks
 			const searchCount = (fullContent.match(/SEARCH/g) || []).length
 			const replaceCount = (fullContent.match(/REPLACE/g) || []).length
 
-			const truncatedContent = `<kodu_diff>Compressed diff with ${searchCount} SEARCH/REPLACE blocks</kodu_diff>`
+			const truncatedContent = `<${KODU_DIFF}>Compressed diff with ${searchCount} SEARCH/REPLACE blocks</${KODU_DIFF}>`
 			logger(
-				`Compressed kodu_diff: original length: ${fullContent.length}, SEARCH: ${searchCount}, REPLACE: ${replaceCount}`,
+				`Compressed ${KODU_DIFF}: original length: ${fullContent.length}, SEARCH: ${searchCount}, REPLACE: ${replaceCount}`,
 				"info"
 			)
 
@@ -292,15 +367,15 @@ const processContentBlock = async (
 				text: textBeforeContent + truncatedContent + textAfterContent,
 			}
 		} else {
-			logger("Failed to detect kodu_diff boundaries, skipping compression", "warn")
+			logger(`Failed to detect ${KODU_DIFF} boundaries, skipping compression`, "warn")
 		}
 	}
 
 	// Handle tool response compression
-	if (content.text.includes("<toolResponse>")) {
+	if (isToolResponse) {
 		try {
 			const toolResponse = parseToolResponse(content.text)
-			if (!compressedTools.includes(toolResponse.toolName as ToolName)) {
+			if (!compressedTools.includes(toolResponse.toolName as ToolName) && shouldNotBeCompressed) {
 				return content
 			}
 
@@ -331,7 +406,7 @@ const processContentBlock = async (
 			}
 
 			const textLength = toolResponse.toolResult.length
-			toolResponse.toolResult = `The output for the "${toolResponse.toolName}" command was compressed for readability`
+			toolResponse.toolResult = `The output for tool "${toolResponse.toolName}" was compressed for readability if the context was needed please re read the file.`
 			logger(`Compressed tool ${toolResponse.toolName} output`, "info")
 
 			return {
@@ -350,7 +425,7 @@ const processContentBlock = async (
 	return content
 }
 
-export const compressedTools: ToolName[] = ["read_file", "execute_command", "write_to_file"]
+export const compressedTools: ToolName[] = ["read_file", "execute_command", "write_to_file", "edit_file_blocks"]
 
 /**
  * Main function to compress tool outputs in a message array
@@ -391,10 +466,14 @@ export const compressToolFromMsg = async (
 			)
 			processedContent.push(processedBlock ?? null)
 		}
-
+		const content = processedContent.filter((block) => block !== null) as ContentBlockType[]
+		if (content.length === 0) {
+			// put the original content back
+			return msg
+		}
 		return {
 			...msg,
-			content: processedContent.filter((block) => block !== null) as ContentBlockType[],
+			content,
 		}
 	}
 	// const processedMsgs: MessageParam[] = []

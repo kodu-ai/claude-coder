@@ -164,18 +164,19 @@ ${this.customInstructions.trim()}
 			}
 			// check if the last message text is EMPTY STRING and no other content is so we are going to pop it.
 			const lastMessage = apiConversationHistoryCopy[apiConversationHistoryCopy.length - 1]
-			if (
-				Array.isArray(lastMessage.content) &&
-				lastMessage.content.length === 1 &&
-				lastMessage.content[0].type === "text" &&
-				lastMessage.content[0].text.trim() === ""
-			) {
-				this.log(
-					"error",
-					`Last Message is empty string, removing it from the history | ROLE: ${lastMessage.role}`
-				)
-				apiConversationHistoryCopy = apiConversationHistoryCopy.slice(0, apiConversationHistoryCopy.length - 1)
+			const cleanedLastMessage = this.cleanUpMsg(lastMessage)
+			if (cleanedLastMessage === null) {
+				lastMessage.content = [
+					{
+						type: "text",
+						text: "Please continue the conversation.",
+					},
+				]
+				apiConversationHistoryCopy[apiConversationHistoryCopy.length - 1] = lastMessage
+			} else {
+				apiConversationHistoryCopy[apiConversationHistoryCopy.length - 1] = cleanedLastMessage
 			}
+
 			// log the last 2 messages
 			this.log("info", `Last 2 messages:`, apiConversationHistoryCopy.slice(-2))
 			const supportImages = this.api.getModel().info.supportsImages
@@ -270,6 +271,30 @@ ${this.customInstructions.trim()}
 			})
 			clearInterval(checkInactivity)
 		}
+	}
+
+	/**
+	 *
+	 * @param msg anthropic message
+	 * @returns cleaned up anthropic message, it removes any empty content blocks
+	 */
+	private cleanUpMsg(msg: Anthropic.MessageParam): Anthropic.MessageParam | null {
+		if (typeof msg.content === "string" && msg.content.trim() === "") {
+			return null
+		}
+		if (Array.isArray(msg.content)) {
+			const newContent = msg.content.filter((block) => {
+				if (isTextBlock(block)) {
+					return block.text.trim() !== ""
+				}
+				return true
+			})
+			if (newContent.length === 0) {
+				return null
+			}
+			return { ...msg, content: newContent }
+		}
+		return msg
 	}
 
 	/**

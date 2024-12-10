@@ -468,10 +468,14 @@ export class InlineEditHandler {
 		const uri = this.currentDocumentState.uri
 		const workspaceEdit = new vscode.WorkspaceEdit()
 		const document = await vscode.workspace.openTextDocument(uri)
+		const diffDocument = await vscode.workspace.openTextDocument(this.modifiedUri!)
 		if (document.isDirty) {
 			await document.save()
 		}
-		const finalContent = document.getText()
+		if (diffDocument.isDirty) {
+			await diffDocument.save()
+		}
+		const finalContent = diffDocument.getText()
 
 		// Close the active editor
 		const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))

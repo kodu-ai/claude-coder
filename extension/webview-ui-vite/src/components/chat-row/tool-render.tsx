@@ -34,6 +34,8 @@ import {
 	SearchFilesTool,
 	ServerRunnerTool,
 	UrlScreenshotTool,
+	SearchSymbolsTool,
+	AddInterestedFileTool,
 } from "../../../../src/shared/new-tools"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
@@ -545,6 +547,79 @@ export const UrlScreenshotBlock: React.FC<UrlScreenshotTool & ToolAddons> = ({
 	</ToolBlock>
 )
 
+export const SearchSymbolsBlock: React.FC<SearchSymbolsTool & ToolAddons> = ({
+	symbolName,
+	path,
+	content,
+	approvalState,
+	tool,
+	ts,
+	...rest
+}) => {
+	const [isOpen, setIsOpen] = React.useState(false)
+
+	return (
+		<ToolBlock
+			{...rest}
+			ts={ts}
+			tool={tool}
+			icon={Search}
+			title="Search Symbols"
+			variant="accent"
+			approvalState={approvalState}>
+			<p className="text-xs">
+				<span className="font-semibold">Symbol:</span> {symbolName}
+			</p>
+			<p className="text-xs">
+				<span className="font-semibold">Search in:</span> {path}
+			</p>
+			{content && (
+				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
+					<CollapsibleTrigger asChild>
+						<Button variant="ghost" size="sm" className="flex items-center w-full justify-between">
+							<span>View Results</span>
+							{isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+						</Button>
+					</CollapsibleTrigger>
+					<CollapsibleContent className="mt-2">
+						<ScrollArea className="h-[200px] w-full rounded-md border">
+							<div className="bg-secondary/20 p-3 rounded-md text-sm">
+								<pre className="whitespace-pre-wrap">{content}</pre>
+							</div>
+							<ScrollBar orientation="vertical" />
+						</ScrollArea>
+					</CollapsibleContent>
+				</Collapsible>
+			)}
+		</ToolBlock>
+	)
+}
+
+export const AddInterestedFileBlock: React.FC<AddInterestedFileTool & ToolAddons> = ({
+	path,
+	why,
+	approvalState,
+	tool,
+	ts,
+	...rest
+}) => (
+	<ToolBlock
+		{...rest}
+		ts={ts}
+		tool={tool}
+		icon={FileText}
+		title="Track File"
+		variant="info"
+		approvalState={approvalState}>
+		<p className="text-xs">
+			<span className="font-semibold">File:</span> {path}
+		</p>
+		<p className="text-xs">
+			<span className="font-semibold">Reason:</span> {why}
+		</p>
+	</ToolBlock>
+)
+
 export const ToolContentBlock: React.FC<{
 	tool: ChatTool
 	hasNextMessage?: boolean
@@ -572,6 +647,10 @@ export const ToolContentBlock: React.FC<{
 			return <UrlScreenshotBlock {...tool} />
 		case "server_runner_tool":
 			return <DevServerToolBlock {...tool} />
+		case "search_symbols":
+			return <SearchSymbolsBlock {...tool} />
+		case "add_interested_file":
+			return <AddInterestedFileBlock {...tool} />
 		default:
 			return null
 	}

@@ -246,13 +246,16 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 		// Update API request if exists and not done
 		if (lastApiRequest && isV1ClaudeMessage(lastApiRequest) && !lastApiRequest.isDone) {
-			await this.stateManager.updateClaudeMessage(lastApiRequest.ts, {
+			const msg = await this.stateManager.updateClaudeMessage(lastApiRequest.ts, {
 				...lastApiRequest,
 				isDone: true,
 				isFetching: false,
 				errorText: "Request cancelled by user",
 				isError: true,
 			})
+			if (msg) {
+				await this.stateManager.providerRef.deref()?.getWebviewManager()?.postClaudeMessageToWebview(msg)
+			}
 		}
 
 		this.ask("resume_task", {

@@ -19,6 +19,8 @@ import {
 	UrlScreenshotTool,
 } from "."
 import { WebSearchTool } from "./runners/web-search-tool"
+import { SearchSymbolsTool } from "./runners/search-symbols.tool"
+import { AddInterestedFileTool } from "./runners/add-interested-file.tool"
 import { BaseAgentTool } from "./base-agent.tool"
 import ToolParser from "./tool-parser/tool-parser"
 import { tools, writeToFileTool } from "./schema"
@@ -133,13 +135,17 @@ export class ToolExecutor {
 			web_search: WebSearchTool,
 			url_screenshot: UrlScreenshotTool,
 			server_runner_tool: DevServerTool,
-		}
+			search_symbols: SearchSymbolsTool,
+			add_interested_file: AddInterestedFileTool,
+		} as const
 
 		const ToolClass = toolMap[params.name as keyof typeof toolMap]
 		if (!ToolClass) {
 			throw new Error(`Unknown tool: ${params.name}`)
 		}
 
+		// Cast params to any to bypass type checking since we know the tool implementations
+		// handle their own type validation
 		return new ToolClass(params, this.options)
 	}
 
