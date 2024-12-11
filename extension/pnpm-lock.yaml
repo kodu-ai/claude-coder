@@ -44,6 +44,9 @@ importers:
       clone-deep:
         specifier: ^4.0.1
         version: 4.0.1
+      dedent:
+        specifier: ^1.5.3
+        version: 1.5.3
       default-shell:
         specifier: ^2.2.0
         version: 2.2.0

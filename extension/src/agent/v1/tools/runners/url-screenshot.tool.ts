@@ -20,9 +20,16 @@ export class UrlScreenshotTool extends BaseAgentTool {
 		this.abortController = new AbortController()
 	}
 
-	override async abortToolExecution(): Promise<void> {
-		this.isAborting = true
-		this.abortController.abort()
+	override async abortToolExecution() {
+		const { didAbort } = await super.abortToolExecution()
+		if (didAbort) {
+			this.isAborting = true
+			this.abortController.abort()
+			// Cleanup browser if it was launched
+			await this.cleanup()
+			return { didAbort: true }
+		}
+		return { didAbort }
 	}
 
 	async execute() {

@@ -11,8 +11,7 @@ import {
 	UserFeedbackMessage,
 	UserFeedbackDiffMessage,
 } from "./chat-row-utils"
-import { ChatMaxWindowBlock, ChatTruncatedBlock } from "./tool-render"
-import { ToolRenderer } from "./chat-tools"
+import { ToolRenderer, ChatMaxWindowBlock, ChatTruncatedBlock } from "./chat-tools"
 import { ChatTool } from "../../../../src/shared/new-tools"
 
 interface ChatRowProps {

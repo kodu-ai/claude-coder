@@ -246,7 +246,7 @@ export class KoduHandler implements ApiHandler {
 			max_tokens: this.getModel().info.maxTokens,
 			system,
 			messages: messagesToCache,
-			temperature: tempature ?? 0,
+			temperature: tempature ?? 0.1,
 			top_p: top_p ?? undefined,
 		}
 		this.cancelTokenSource = axios.CancelToken.source()

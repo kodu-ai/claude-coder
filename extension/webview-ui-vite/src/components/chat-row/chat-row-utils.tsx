@@ -99,7 +99,7 @@ export const APIRequestMessage: React.FC<{
 export const TextMessage: React.FC<{ message: V1ClaudeMessage; syntaxHighlighterStyle: SyntaxHighlighterStyle }> =
 	React.memo(({ message, syntaxHighlighterStyle }) => (
 		<div className="flex text-wrap flex-wrap gap-2">
-			<MarkdownRenderer markdown={message.text || ""} syntaxHighlighterStyle={syntaxHighlighterStyle} />
+			<MarkdownRenderer markdown={message.text || ""} />
 		</div>
 	))
 

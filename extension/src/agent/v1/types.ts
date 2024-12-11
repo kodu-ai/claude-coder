@@ -58,12 +58,27 @@ export type ApiHistoryItem = Anthropic.MessageParam & {
 	preCommitHash?: string
 }
 
+export type InterestedFile = {
+	/**
+	 * the absolute path of the file
+	 */
+	path: string
+	/**
+	 * why Kodu is interested in this file
+	 */
+	why: string
+	/**
+	 * the timestamp when the file was added to the list
+	 */
+	createdAt: number
+}
 export interface KoduDevState {
 	taskId: string
 	requestCount: number
 	apiConversationHistory: ApiHistoryItem[]
 	claudeMessages: ClaudeMessage[]
 	askResponse?: ClaudeAskResponse
+
 	askResponseText?: string
 	terminalCompressionThreshold?: number
 	isHistoryItem?: boolean
@@ -85,6 +100,10 @@ export interface KoduDevState {
 			error: string
 		}
 	>
+	/**
+	 * the list of interested files
+	 */
+	interestedFiles?: InterestedFile[]
 	askResponseImages?: string[]
 	lastMessageTs?: number
 	executeCommandRunningProcess?: ResultPromise

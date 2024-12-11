@@ -453,6 +453,22 @@ export class StateManager {
 		return message
 	}
 
+	/**
+	 *
+	 * @param why Why Kodu choose is intrested in this file
+	 * @param path the absolute path of the file
+	 */
+	async addinterestedFileToTask(why: string, path: string) {
+		if (!this.state.interestedFiles) {
+			this.state.interestedFiles = []
+		}
+		this.state.interestedFiles.push({ path, why, createdAt: Date.now() })
+		await this.providerRef.deref()?.getStateManager().updateTaskHistory({
+			id: this.state.taskId,
+			interestedFiles: this.state.interestedFiles,
+		})
+	}
+
 	async addToClaudeMessages(message: ClaudeMessage) {
 		this.state.claudeMessages.push(message)
 		await this.saveClaudeMessages()

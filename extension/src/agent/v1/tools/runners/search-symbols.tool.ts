@@ -20,14 +20,14 @@ export class SearchSymbolsTool extends BaseAgentTool {
 		if (!symbolName) {
 			await say(
 				"error",
-				"Claude tried to use search_symbols without value for required parameter 'symbolName'. Retrying..."
+				"Claude tried to use search_symbol without value for required parameter 'symbolName'. Retrying..."
 			)
 
 			const errorMsg = `
-            <search_symbols_response>
+            <search_symbol_response>
                 <status>
                     <result>error</result>
-                    <operation>search_symbols</operation>
+                    <operation>search_symbol</operation>
                     <timestamp>${new Date().toISOString()}</timestamp>
                 </status>
                 <error_details>
@@ -35,7 +35,7 @@ export class SearchSymbolsTool extends BaseAgentTool {
                     <message>Missing required parameter 'symbolName'</message>
                     <help>
                         <example_usage>
-                            <tool>search_symbols</tool>
+                            <tool>search_symbol</tool>
                             <parameters>
                                 <symbolName>function or class name</symbolName>
                             </parameters>
@@ -43,7 +43,7 @@ export class SearchSymbolsTool extends BaseAgentTool {
                         <note>The symbolName parameter is required for symbol searching</note>
                     </help>
                 </error_details>
-            </search_symbols_response>`
+            </search_symbol_response>`
 			return this.toolResponse("error", errorMsg)
 		}
 
@@ -131,7 +131,7 @@ export class SearchSymbolsTool extends BaseAgentTool {
 				"tool",
 				{
 					tool: {
-						tool: "search_symbols",
+						tool: "search_symbol",
 						symbolName,
 						approvalState: "pending",
 						content: formattedResults.join("\n"),
@@ -146,7 +146,7 @@ export class SearchSymbolsTool extends BaseAgentTool {
 					"tool",
 					{
 						tool: {
-							tool: "search_symbols",
+							tool: "search_symbol",
 							symbolName,
 							approvalState: "rejected",
 							content: formattedResults.join("\n"),
@@ -161,7 +161,7 @@ export class SearchSymbolsTool extends BaseAgentTool {
 						"tool",
 						{
 							tool: {
-								tool: "search_symbols",
+								tool: "search_symbol",
 								userFeedback: text,
 								approvalState: "rejected",
 								ts: this.ts,
@@ -173,10 +173,10 @@ export class SearchSymbolsTool extends BaseAgentTool {
 					await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 					return this.toolResponse(
 						"feedback",
-						`<search_symbols_response>
+						`<search_symbol_response>
                             <status>
                                 <result>feedback</result>
-                                <operation>search_symbols</operation>
+                                <operation>search_symbol</operation>
                                 <timestamp>${new Date().toISOString()}</timestamp>
                             </status>
                             <feedback_details>
@@ -184,24 +184,24 @@ export class SearchSymbolsTool extends BaseAgentTool {
                                 <user_feedback>${text || "No feedback provided"}</user_feedback>
                                 ${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
                             </feedback_details>
-                        </search_symbols_response>`,
+                        </search_symbol_response>`,
 						images
 					)
 				}
 
 				return this.toolResponse(
 					"rejected",
-					`<search_symbols_response>
+					`<search_symbol_response>
                         <status>
                             <result>rejected</result>
-                            <operation>search_symbols</operation>
+                            <operation>search_symbol</operation>
                             <timestamp>${new Date().toISOString()}</timestamp>
                         </status>
                         <rejection_details>
                             <symbol_name>${symbolName}</symbol_name>
                             <message>Symbol search operation was rejected by the user</message>
                         </rejection_details>
-                    </search_symbols_response>`
+                    </search_symbol_response>`
 				)
 			}
 
@@ -209,7 +209,7 @@ export class SearchSymbolsTool extends BaseAgentTool {
 				"tool",
 				{
 					tool: {
-						tool: "search_symbols",
+						tool: "search_symbol",
 						symbolName,
 						approvalState: "approved",
 						content: formattedResults.join("\n"),
@@ -221,10 +221,10 @@ export class SearchSymbolsTool extends BaseAgentTool {
 
 			return this.toolResponse(
 				"success",
-				`<search_symbols_response>
+				`<search_symbol_response>
                     <status>
                         <result>success</result>
-                        <operation>search_symbols</operation>
+                        <operation>search_symbol</operation>
                         <timestamp>${new Date().toISOString()}</timestamp>
                     </status>
                     <search_info>
@@ -234,14 +234,14 @@ export class SearchSymbolsTool extends BaseAgentTool {
                     <results>
                         ${formattedResults.join("\n")}
                     </results>
-                </search_symbols_response>`
+                </search_symbol_response>`
 			)
 		} catch (error) {
 			const errorString = `
-            <search_symbols_response>
+            <search_symbol_response>
                 <status>
                     <result>error</result>
-                    <operation>search_symbols</operation>
+                    <operation>search_symbol</operation>
                     <timestamp>${new Date().toISOString()}</timestamp>
                 </status>
                 <error_details>
@@ -253,14 +253,14 @@ export class SearchSymbolsTool extends BaseAgentTool {
                     </context>
                     <help>
                         <example_usage>
-                            <tool>search_symbols</tool>
+                            <tool>search_symbol</tool>
                             <parameters>
                                 <symbolName>function or class name</symbolName>
                             </parameters>
                         </example_usage>
                     </help>
                 </error_details>
-            </search_symbols_response>`
+            </search_symbol_response>`
 			await say(
 				"error",
 				`Error searching symbols:\n${

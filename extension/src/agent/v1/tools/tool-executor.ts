@@ -17,6 +17,7 @@ import {
 	ReadFileTool,
 	FileEditorTool,
 	UrlScreenshotTool,
+	FileChangePlanTool,
 } from "."
 import { WebSearchTool } from "./runners/web-search-tool"
 import { SearchSymbolsTool } from "./runners/search-symbols.tool"
@@ -137,6 +138,7 @@ export class ToolExecutor {
 			server_runner_tool: DevServerTool,
 			search_symbols: SearchSymbolsTool,
 			add_interested_file: AddInterestedFileTool,
+			file_changes_plan: FileChangePlanTool,
 		} as const
 
 		const ToolClass = toolMap[params.name as keyof typeof toolMap]

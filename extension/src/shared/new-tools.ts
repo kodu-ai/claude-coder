@@ -106,7 +106,7 @@ export type UpsertMemoryTool = {
 }
 
 export type SearchSymbolsTool = {
-	tool: "search_symbols"
+	tool: "search_symbol"
 	symbolName: string
 	content?: string
 }
@@ -115,6 +115,15 @@ export type AddInterestedFileTool = {
 	tool: "add_interested_file"
 	path: string
 	why: string
+}
+
+export type FileChangePlanTool = {
+	tool: "file_changes_plan"
+	path: string
+	what_to_accomplish: string
+	innerThoughts?: string
+	innerSelfCritique?: string
+	rejectedString?: string
 }
 
 export type SummarizeChatTool = {
@@ -137,6 +146,7 @@ export type ChatTool = (
 	| ServerRunnerTool
 	| SearchSymbolsTool
 	| AddInterestedFileTool
+	| FileChangePlanTool
 ) & {
 	ts: number
 	approvalState?: ToolStatus

@@ -302,9 +302,11 @@ export class WebSearchTool extends BaseAgentTool {
 		return this.toolResponse("error", errorMsg)
 	}
 
-	public override abortToolExecution(): Promise<void> {
-		// super.abortToolExecution()
-		this.abortController.abort()
-		return Promise.resolve()
+	public override async abortToolExecution() {
+		const { didAbort } = await super.abortToolExecution()
+		if (didAbort) {
+			this.abortController.abort()
+		}
+		return { didAbort }
 	}
 }

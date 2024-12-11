@@ -93,7 +93,7 @@ export class FileEditorTool extends BaseAgentTool {
 `
 	}
 
-	public async _handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
+	private async _handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
 		if (!this.fileState) {
 			this.params.updateAsk(
 				"tool",
@@ -648,21 +648,23 @@ export class FileEditorTool extends BaseAgentTool {
 		}
 	}
 
-	public override async abortToolExecution(): Promise<void> {
-		if (this.isAbortingTool) {
-			return
-		}
-		this.isAbortingTool = true
+	public override async abortToolExecution(): Promise<{ didAbort: boolean }> {
+		const { didAbort } = await super.abortToolExecution()
 
-		// clear the queue
-		this.pQueue.clear()
-		if (this.params.input.kodu_diff) {
-			await this.inlineEditor.rejectChanges()
-			await this.inlineEditor.dispose()
-		} else {
-			await this.diffViewProvider.revertChanges()
-			this.diffViewProvider.reset()
+		// Only run the subclass-specific cleanup if this call triggered a new abort
+		if (didAbort) {
+			this.pQueue.clear()
+			if (this.params.input.kodu_diff) {
+				await this.inlineEditor.rejectChanges()
+				await this.inlineEditor.dispose()
+			} else {
+				await this.diffViewProvider.revertChanges()
+				this.diffViewProvider.reset()
+			}
 		}
+
+		// Return the same didAbort status from the parent
+		return { didAbort }
 	}
 
 	private async showChangesInDiffView(relPath: string, content: string): Promise<void> {

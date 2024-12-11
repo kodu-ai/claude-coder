@@ -12,6 +12,7 @@ export abstract class BaseAgentTool {
 	protected koduDev: KoduDev
 	protected isAbortingTool: boolean = false
 	protected setRunningProcessId: (pid: number | undefined) => void
+	protected AbortController: AbortController
 
 	protected abstract params: AgentToolParams
 
@@ -21,6 +22,7 @@ export abstract class BaseAgentTool {
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
 		this.koduDev = options.koduDev
 		this.setRunningProcessId = options.setRunningProcessId!
+		this.AbortController = new AbortController()
 	}
 
 	get name(): string {
@@ -86,12 +88,14 @@ export abstract class BaseAgentTool {
 	}
 
 	public async abortToolExecution() {
+		this.AbortController.abort()
 		if (this.isAbortingTool) {
-			return
+			return { didAbort: false }
 		}
 		this.isAbortingTool = true
 		this.setRunningProcessId(undefined)
 		console.log(`Aborted tool execution for ${this.name} with id ${this.id}`)
+		return { didAbort: true }
 	}
 
 	protected toolResponse(

@@ -25,14 +25,17 @@ import {
 } from "lucide-react"
 import React, { useState } from "react"
 import {
+	AddInterestedFileTool,
 	AskFollowupQuestionTool,
 	AttemptCompletionTool,
 	ChatTool,
 	ExecuteCommandTool,
+	FileChangePlanTool,
 	ListCodeDefinitionNamesTool,
 	ListFilesTool,
 	ReadFileTool,
 	SearchFilesTool,
+	SearchSymbolsTool,
 	ServerRunnerTool,
 	UrlScreenshotTool,
 } from "../../../../src/shared/new-tools"
@@ -504,9 +507,7 @@ export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons
 			</div>
 		)} */}
 		<div className="bg-success/20 text-success-foreground p-2 rounded text-xs w-full flex">
-			<pre className="whitespace-pre text-wrap">
-				<MarkdownRenderer markdown={result?.trim()} syntaxHighlighterStyle={{}} />
-			</pre>
+			<MarkdownRenderer markdown={result?.trim()} />
 		</div>
 	</ToolBlock>
 )
@@ -538,6 +539,176 @@ export const UrlScreenshotBlock: React.FC<UrlScreenshotTool & ToolAddons> = ({
 		)}
 	</ToolBlock>
 )
+export const SearchSymbolBlock: React.FC<SearchSymbolsTool & ToolAddons> = ({
+	symbolName,
+	content,
+	approvalState,
+	tool,
+	ts,
+	...rest
+}) => {
+	const [isOpen, setIsOpen] = React.useState(false)
+
+	return (
+		<ToolBlock
+			{...rest}
+			ts={ts}
+			tool={tool}
+			icon={Search}
+			title="Search Symbols"
+			variant="accent"
+			approvalState={approvalState}>
+			<p className="text-xs">
+				<span className="font-semibold">Symbol:</span> {symbolName}
+			</p>
+			{content && (
+				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
+					<CollapsibleTrigger asChild>
+						<Button variant="ghost" size="sm" className="flex items-center w-full justify-between">
+							<span>View Results</span>
+							{isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+						</Button>
+					</CollapsibleTrigger>
+					<CollapsibleContent className="mt-2">
+						<ScrollArea className="h-[200px] w-full rounded-md border">
+							<div className="bg-secondary/20 p-3 rounded-md text-sm">
+								<pre className="whitespace-pre-wrap">{content}</pre>
+							</div>
+							<ScrollBar orientation="vertical" />
+						</ScrollArea>
+					</CollapsibleContent>
+				</Collapsible>
+			)}
+		</ToolBlock>
+	)
+}
+
+export const AddInterestedFileBlock: React.FC<AddInterestedFileTool & ToolAddons> = ({
+	path,
+	why,
+	approvalState,
+	tool,
+	ts,
+	...rest
+}) => (
+	<ToolBlock
+		{...rest}
+		ts={ts}
+		tool={tool}
+		icon={FileText}
+		title="Track File"
+		variant="info"
+		approvalState={approvalState}>
+		<p className="text-xs">
+			<span className="font-semibold">File:</span> {path}
+		</p>
+		<p className="text-xs">
+			<span className="font-semibold">Reason:</span> {why}
+		</p>
+	</ToolBlock>
+)
+
+export const FileChangesPlanBlock: React.FC<
+	FileChangePlanTool &
+		ToolAddons & {
+			innerThoughts?: string
+			innerSelfCritique?: string
+			rejectedString?: string
+		}
+> = ({
+	path,
+	what_to_accomplish,
+	approvalState,
+	tool,
+	ts,
+	innerThoughts = "",
+	innerSelfCritique = "",
+	rejectedString,
+	...rest
+}) => {
+	const [isReasoningOpen, setIsReasoningOpen] = React.useState(false)
+
+	return (
+		<ToolBlock
+			{...rest}
+			ts={ts}
+			tool={tool}
+			icon={FileText}
+			title="File Changes Plan"
+			variant="info"
+			approvalState={approvalState}>
+			<div className="text-xs space-y-3">
+				<div className="space-y-1">
+					<p>
+						<span className="font-semibold">File:</span> {path}
+					</p>
+					<div>
+						<span className="font-semibold">What to accomplish:</span>
+						<div className="mt-1 bg-muted p-2 rounded-md">
+							<MarkdownRenderer markdown={what_to_accomplish?.trim() ?? ""} />
+						</div>
+					</div>
+				</div>
+
+				{(innerThoughts.trim() || innerSelfCritique.trim()) && (
+					<Collapsible
+						open={isReasoningOpen}
+						onOpenChange={setIsReasoningOpen}
+						className="border-t pt-3 mt-3">
+						<CollapsibleTrigger asChild>
+							<Button variant="ghost" size="sm" className="flex items-center w-full justify-between px-0">
+								<div className="flex items-center space-x-2">
+									<MessageCircle className="h-4 w-4 text-info" />
+									<span className="font-medium">View Kodu Reasoning Steps</span>
+								</div>
+								{isReasoningOpen ? (
+									<ChevronUp className="h-4 w-4" />
+								) : (
+									<ChevronDown className="h-4 w-4" />
+								)}
+							</Button>
+						</CollapsibleTrigger>
+						<CollapsibleContent className="mt-2 space-y-3">
+							{innerThoughts.trim() && (
+								<div className="bg-secondary/20 p-2 rounded-md">
+									<h4 className="font-semibold flex items-center space-x-2 mb-1 text-xs uppercase tracking-wide text-secondary-foreground">
+										<HelpCircle className="h-3 w-3" />
+										<span>Inner Thoughts</span>
+									</h4>
+									<MarkdownRenderer markdown={innerThoughts.trim()} />
+								</div>
+							)}
+							{innerSelfCritique.trim() && (
+								<div className="bg-secondary/20 p-2 rounded-md">
+									<h4 className="font-semibold flex items-center space-x-2 mb-1 text-xs uppercase tracking-wide text-secondary-foreground">
+										<AlertCircle className="h-3 w-3" />
+										<span>Inner Self-Critique</span>
+									</h4>
+									<MarkdownRenderer markdown={innerSelfCritique.trim()} />
+								</div>
+							)}
+						</CollapsibleContent>
+					</Collapsible>
+				)}
+
+				{rejectedString?.trim() && (
+					<div className="bg-destructive/10 border border-destructive rounded-md p-3 mt-3">
+						<div className="flex items-center space-x-2 mb-2 text-destructive">
+							<AlertCircle className="h-4 w-4" />
+							<span className="font-semibold text-sm">Plan Rejected</span>
+						</div>
+						<p className="text-sm text-destructive-foreground">
+							Kodu decided to reject the change plan because of:
+						</p>
+						<div className="bg-destructive/20 p-2 rounded-md mt-2">
+							<MarkdownRenderer markdown={rejectedString.trim()} />
+						</div>
+					</div>
+				)}
+			</div>
+		</ToolBlock>
+	)
+}
 
 export const ToolRenderer: React.FC<{
 	tool: ChatTool
@@ -566,6 +737,12 @@ export const ToolRenderer: React.FC<{
 			return <UrlScreenshotBlock {...tool} />
 		case "server_runner_tool":
 			return <DevServerToolBlock {...tool} />
+		case "search_symbol":
+			return <SearchSymbolBlock {...tool} />
+		case "add_interested_file":
+			return <AddInterestedFileBlock {...tool} />
+		case "file_changes_plan":
+			return <FileChangesPlanBlock {...tool} />
 		default:
 			return null
 	}

@@ -4,6 +4,25 @@ import pdf from "pdf-parse/lib/pdf-parse"
 import mammoth from "mammoth"
 import fs from "fs/promises"
 
+/**
+ *
+ * @param filePath file path
+ * @returns formatted file content with line numbers
+ */
+export const readFileAndFormat = async (filePath: string) => {
+	const content = await extractTextFromFile(filePath)
+	return formatFileToLines(content)
+}
+
+/**
+ * Convert file content to line-numbered text
+ */
+export const formatFileToLines = (content: string) => {
+	const lines = content.split("\n")
+	const lineNumbers = lines.map((_, index) => `${index + 1}`.padStart(4, " "))
+	return lines.map((line, index) => `${lineNumbers[index]} ${line}`).join("\n")
+}
+
 export async function extractTextFromFile(filePath: string): Promise<string> {
 	try {
 		await fs.access(filePath)

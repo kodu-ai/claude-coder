@@ -45,9 +45,9 @@ const examples = [
 </tool>`,
 ]
 
-export const searchSymbolsTool = {
+export const searchSymbolTool = {
 	schema: {
-		name: "search_symbols",
+		name: "search_symbol",
 		schema,
 	},
 	examples,

@@ -196,6 +196,21 @@ export const useChatMessageHandling = (
 						primaryButtonText: "List Definitions",
 						secondaryButtonText: "Cancel",
 					},
+					add_interested_file: {
+						...baseState,
+						primaryButtonText: "Add File",
+						secondaryButtonText: "Cancel",
+					},
+					search_symbol: {
+						...baseState,
+						primaryButtonText: "Search Symbols",
+						secondaryButtonText: "Cancel",
+					},
+					file_changes_plan: {
+						...baseState,
+						primaryButtonText: "Proceed with Plan",
+						secondaryButtonText: "Cancel",
+					},
 				}
 
 				const updates = toolButtonMap[tool.tool] || {

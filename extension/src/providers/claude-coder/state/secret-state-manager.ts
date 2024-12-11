@@ -1,5 +1,4 @@
 import * as vscode from "vscode"
-import { HistoryItem } from "../../../shared/history-item"
 
 const secretKeys = ["koduApiKey"] as const
 

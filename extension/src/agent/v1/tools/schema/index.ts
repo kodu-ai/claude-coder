@@ -11,8 +11,9 @@ import { webSearchTool } from "./web_search"
 import { urlScreenshotTool } from "./url_screenshot"
 import { upsertMemoryTool } from "./upsert_memory"
 import { devServerTool } from "./dev_server"
-import { searchSymbolsTool } from "./search_symbols"
+import { searchSymbolTool } from "./search_symbols"
 import { addInterestedFileTool } from "./add_interested_file"
+import { fileChangePlanTool } from "./file-change-plan"
 
 export const tools = [
 	executeCommandTool,
@@ -27,8 +28,9 @@ export const tools = [
 	urlScreenshotTool,
 	upsertMemoryTool,
 	devServerTool,
-	searchSymbolsTool,
+	searchSymbolTool,
 	addInterestedFileTool,
+	fileChangePlanTool,
 ] as const
 
 export type Tool = (typeof tools)[number]
@@ -44,6 +46,7 @@ export {
 	webSearchTool,
 	urlScreenshotTool,
 	upsertMemoryTool,
-	searchSymbolsTool,
+	searchSymbolTool as searchSymbolsTool,
 	addInterestedFileTool,
+	fileChangePlanTool,
 }

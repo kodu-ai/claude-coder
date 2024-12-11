@@ -3,8 +3,28 @@ import { writeToFileTool } from "../tools/schema"
 export const toolsPrompt = (cwd: string, supportsImages: boolean, id?: string) => `
 # Tools
 
-## searchSymbols
-Description: Request to find and understand code symbols (functions, classes, methods) in source files. This tool helps navigate and understand code structure by finding symbol definitions and their context. It's particularly useful for:
+## file_changes_plan
+Description: Request to propose a plan of changes to files in the codebase. This tool helps outline the modifications needed to achieve a specific task, providing a structured approach to code changes.
+It off load the burden of writing the changes code to a developer who only have the context you provide him, file_changes_plan automatically send all the interested files as context in addition to the targeted file you want to change or create.
+You must provide a highly detailed plan of changes that is concise and to the point, you need to provide context about why you are making the change, what you want to accomplish and any major points or relevant information that the developer should know.
+All of this information together will be sent to the developer how will review the changes critique them, think about them and implement or reject them in case they are not suitable.
+
+Parameters:
+- path: (required) The path of the file you want to change (relative to ${cwd.toPosix()})
+- what_to_accomplish: (required) What you want to accomplish with this file change. This should be a clear and concise statement of the intended outcome, it should include any relevant information that the developer should know and any major points that should be considered.
+
+what_to_accomplish must be plain english short and to the point, it must be direct to the point with all the spec the developer needs to know about.
+It can only only include high level pseudo code or symbols but not actual code or partial / full code snippets, just plain english with mixtures of symbols and pseudo code.
+
+Usage:
+<file_changes_plan>
+<path>path/to/file</path>
+<what_to_accomplish>What you want to accomplish with this file change at least a few lines with zero ambigouty must be direct to the point with all the spec the developer needs to know about.</what_to_accomplish>
+</file_changes_plan>
+
+## search_symbol
+*NOTE: This tool is highly important, this can speed up your search significantly, and can help you understand the codebase better, try to use it gather understanding of the codebase if needed.*
+Description: Request to find and understand code symbol (function, classe, method) in source files. This tool helps navigate and understand code structure by finding symbol definitions and their context. It's particularly useful for:
 - Understanding function implementations
 - Finding class definitions
 - Tracing method usage
@@ -15,27 +35,31 @@ Parameters:
 - path: (required) The path to search in (relative to ${cwd.toPosix()})
 
 Usage:
-<searchSymbols>
-<symbolName>YourSymbolName</symbolName>
+<search_symbol>
+<symbolName>Your desired symbol name to search</symbolName>
 <path>path/to/search</path>
-</searchSymbols>
+</search_symbol>
 
-## addInterestedFile
-Description: Track files that are relevant to the current task. This tool helps maintain context by:
+## add_interested_file
+*NOTE: This is highly important tool, everytime you read a file that has a direct relationship to the code changes or the task please call this tool to track the file*
+Description: Track files that are relevant to the current task, you must ensure the file exists before adding it to the list of interested files. This tool helps maintain context by:
 - Building a systematic understanding of the codebase
 - Tracking file dependencies
-- Documenting why files are important
+- Documenting why files are important, what lines to focus on, and their impact on the task
 - Supporting better decision making
+- Directly increase the context of the file_changes_plan tool but giving it visibility of the file context and why it's meaningful to the task and the proposed changes.
+
+CRITICAL: Ensure the file exists before adding it, you cannot add a file that does not exist.
 
 Parameters:
-- path: (required) The path of the file to track (relative to ${cwd.toPosix()})
-- why: (required) Explanation of why this file is relevant to the current task
+- path: (required) The path of the file to track (relative to ${cwd.toPosix()}). Ensure the file exists before adding it, you cannot add a file that does not exist.
+- why: (required) Explanation of why this file is relevant to the current task, the potential lines that we should put extra attention to, and the impact it may have on the task.
 
 Usage:
-<addInterestedFile>
+<add_interested_file>
 <path>path/to/file</path>
-<why>Explanation of file's relevance</why>
-</addInterestedFile>
+<why>Explanation of file's relevance to the task and potential impact when proposing file changes with file_changes_plan tool</why>
+</add_interested_file>
 
 ## server_runner_tool
 Description: start a server / development server. This tool is used to run web applications locally, backend server, or anytype of server. this is tool allow you to start, stop, restart, or get logs from a server instance and keep it in memory.
@@ -73,285 +97,13 @@ Usage:
 
 ## read_file
 Description: Request to read the contents of a file at the specified path. Use this when you need to examine the contents of an existing file you do not know the contents of, for example to analyze code, review text files, or extract information from configuration files. Automatically extracts raw text from PDF and DOCX files. May not be suitable for other types of binary files, as it returns the raw content as a string.
-- This tool content does not contain any linter errors, and this tool content does not change unless you change the file content using the write_to_file tool.
+- This tool content does not contain any linter errors, and this tool content does not change unless you change the file content using the file_changes_plan tool.
 Parameters:
 - path: (required) The path of the file to read (relative to the current working directory ${cwd.toPosix()})
 Usage:
 <read_file>
 <path>File path here</path>
 </read_file>
-
-## edit_file_blocks
-Description: Request to edit specific blocks of content within a file. This tool is used to modify existing files by precisely replacing or removing sections of content. It is particularly useful for updating code, configuration files, or structured documents without rewriting the entire file.
-
-**Key Principles**:
-- Always gather all changes first, then apply them in one comprehensive transaction.
-- Before calling this tool, reason about your changes inside <thinking></thinking> tags:
-  - Identify the exact lines to modify.
-  - Provide at least 3 lines of context before and after your target lines.
-  - Plan multiple related edits together if possible.
-- Each SEARCH block must match the existing content exactly, including whitespace and punctuation.
-- Each REPLACE block should contain the final, full updated version of that section, without placeholders or incomplete code.
-- Use multiple SEARCH/REPLACE pairs in the same call if you need to make multiple related changes to the same file.
-- If unsure about what to replace, read the file first using the read_file tool and confirm the exact content.
-
-Parameters:
-- path: (required) The path of the file to edit (relative to ${cwd.toPosix()})
-- kodu_diff: (required) A series of 'SEARCH' and 'REPLACE' blocks. Format:
-  - SEARCH
-    (At least 3 lines of context before the target content, followed by the exact code to replace)
-  - =======
-  - REPLACE
-    (The updated code block that replaces the matched SEARCH content block)
-  - =======
-  (Repeat SEARCH/REPLACE pairs as needed)
-
-**Think Out Loud Before Executing**:
-Inside <thinking></thinking> tags, articulate your plan:
-- What lines are you changing?
-- Why are you changing them?
-- Show a small snippet of the before/after changes if helpful.
-- Confirm that you have all the context and that the SEARCH block matches exactly.
-
-**CRITICAL GUIDANCE FOR USING SEARCH/REPLACE**:
-1. **Read the File if Needed**: Ensure you have the most recent file content.
-2. **Match Exactly**: The SEARCH section must be character-for-character identical to the file's current content, including spacing and indentation.
-3. **No Placeholders**: Provide fully updated content in the REPLACE section.
-4. **Multiple Blocks**: If you have several related changes, bundle them in one call with multiple SEARCH/REPLACE pairs.
-5. **Context Lines**: Include at least 3 lines of context before your target line to ensure a robust match. Add a few lines after as well if possible.
-
-**Enhanced Examples**:
-
-### Improved Example 1: Changing a Variable and Adding a Comment
-**Thinking Process**:
-In <thinking></thinking>:
-"I need to update the variable \`x\` from 42 to 100, and also add a comment above it explaining why. The code currently looks like this:
-
-\`\`\`js
-const a = 10;
-const b = 20;
-const c = 30;
-const x = 42;
-const y = 50;
-\`\`\`
-
-I will replace \`x = 42;\` with \`// Adjusting x for test\nconst x = 100;\`. I have at least 3 lines of context before \`x\`. This ensures I match correctly and provide the full updated snippet."
-
-**Tool Use**:
-<edit_file_blocks>
-<path>src/example.js</path>
-<kodu_diff>
-SEARCH
-// Some preceding lines for context
-const a = 10;
-const b = 20;
-const c = 30;
-const x = 42;
-const y = 50;
-=======
-REPLACE
-// Some preceding lines for context
-const a = 10;
-const b = 20;
-const c = 30;
-// Adjusting x for test
-const x = 100;
-const y = 50;
-</kodu_diff>
-</edit_file_blocks>
-
-### Improved Example 2: Adding Imports and Removing a Function
-**Thinking Process**:
-"I need to add an import statement and remove an outdated function \`factorial\`. The file currently imports Flask only, but I need to import \`math\` as well. Also, I want to remove the \`factorial\` function entirely. I have at least 3 lines of context around these changes. I'll do both changes in one edit_file_blocks call."
-
-**Tool Use**:
-<edit_file_blocks>
-<path>mathweb/flask/app.py</path>
-<kodu_diff>
-SEARCH
-from flask import Flask
-# Additional context lines for matching
-def my_function():
-    pass
-
-class Example:
-    def __init__(self):
-        pass
-=======
-REPLACE
-import math
-from flask import Flask
-# Additional context lines for matching
-def my_function():
-    pass
-
-class Example:
-    def __init__(self):
-        pass
-======= 
-SEARCH
-def factorial(n):
-    "compute factorial"
-
-    if n == 0:
-        return 1
-    else:
-        return n * factorial(n-1)
-
-# Context lines for better match
-def another_function():
-    print("This is a test")
-=======
-REPLACE
-# Context lines for better match
-def another_function():
-    print("This is a test")
-</kodu_diff>
-</edit_file_blocks>
-
-### Improved Example 3: Multiple Related Changes in One Go
-**Thinking Process**:
-"I need to do multiple edits in a single file. First, I must update a function call from \`return str(factorial(n))\` to \`return str(math.factorial(n))\`. Also, I must add a new logging line inside another function. I have the full content and I ensure I pick a large enough context around each change. Both changes can be bundled into one edit_file_blocks call."
-
-**Tool Use**:
-<edit_file_blocks>
-<path>mathweb/flask/app.py</path>
-<kodu_diff>
-SEARCH
-# Contextual code for better matching
-def process_number(n):
-    result = n * 2
-    return str(factorial(n))
-
-# More context if necessary
-def another_function_call():
-    pass
-=======
-REPLACE
-# Contextual code for better matching
-def process_number(n):
-    result = n * 2
-    return str(math.factorial(n))
-
-# More context if necessary
-def another_function_call():
-    # Adding a debug log line
-    print("another_function_call invoked")
-    pass
-</kodu_diff>
-</edit_file_blocks>
-
-### Improved Example 4: Complex Multi-Hunk Update
-**Thinking Process**:
-"I have a file where I need to add a new import, update an existing export, and add a new property to a component's state. I will perform all these changes at once. I'll carefully choose unique context lines and ensure each SEARCH block matches exactly what's in the file currently. This reduces the risk of mismatching."
-
-**Tool Use**:
-<edit_file_blocks>
-<path>main.py</path>
-<kodu_diff>
-SEARCH
-import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '~/components/ui/dialog';
-======= 
-REPLACE
-import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '~/components/ui/dialog';
-import { useAuth } from '~/hooks/useAuth';
-=======
-SEARCH
-export function AddSubscriptionModal({
-  isOpen,
-  onClose,
-}: AddSubscriptionModalProps) {
-  const addSubscription = useSubscriptionStore(
-    (state) => state.addSubscription
-  );
-=======
-REPLACE
-export function AddSubscriptionModal({
-  isOpen,
-  onClose,
-}: AddSubscriptionModalProps) {
-  const addSubscription = useSubscriptionStore(
-    (state) => state.addSubscription
-  );
-  const auth = useAuth(); // new line added
-
-  // Also adding a new property to the component's internal state
-  const [extraInfo, setExtraInfo] = useState(null);
-</kodu_diff>
-</edit_file_blocks>
-
-### Improved Example 5: Removing a Class Entirely
-**Thinking Process**:
-"I need to remove an entire class from a TypeScript file. I'll provide several lines of context before and after the class so that the removal matches cleanly. After removal, I'll leave the rest of the file intact."
-
-**Tool Use**:
-<edit_file_blocks>
-<path>src/services/user-service.ts</path>
-<kodu_diff>
-SEARCH
-// User authentication service implementation
-export class UserAuthService {
-    private userCache: Map<string, User> = new Map();
-    
-    constructor(private config: AuthConfig) {
-        this.initialize();
-    }
-    
-    private async initialize() {
-        // Initialize authentication service
-        await this.loadUserCache();
-    }
-    
-    public async authenticate(username: string, password: string): Promise<boolean> {
-        const user = this.userCache.get(username);
-        if (!user) return false;
-        return await this.validateCredentials(user, password);
-    }
-    
-    private async loadUserCache() {
-        // Load user data into cache
-        const users = await this.config.getUserList();
-        users.forEach(user => this.userCache.set(user.name, user));
-    }
-}
-
-// Keep services registry for reference
-export const services = {
-=======
-REPLACE
-// Keep services registry for reference
-export const services = {
-</kodu_diff>
-</edit_file_blocks>
-
-## write_to_file
-Description: Request to write content to a file at the specified path. write_to_file creates or replace the entire file content. you must provide the full intended content of the file in the 'content' parameter, without any truncation. This tool will automatically create any directories needed to write the file, and it will overwrite the file if it already exists. If you only want to modify an existing file blocks, you should use edit_file_blocks tool with 'SEARCH/REPLACE' blocks representing the changes to be made to the existing file.
-This tool is powerful and should be used for creating new files or replacing the entire content of existing files when necessary. Always provide the complete content of the file in the 'content' parameter, without any truncation.
-A good example of replacing the entire content of a file is when dealing with complex refactoring that requries a complete rewrite of the file content or a large amount of deletions and additions.
-Parameters:
-- path: (required) The path of the file to write to (relative to the current working directory ${cwd.toPosix()})
-- kodu_content: (required when creating a new file) The COMPLETE intended content to write to the file. ALWAYS provide the COMPLETE file content in your response, without any truncation. This is NON-NEGOTIABLE, as partial updates or placeholders are STRICTLY FORBIDDEN. Example of forbidden content: '// rest of code unchanged' | '// your implementation here' | '// code here ...'. If you are writing code to a new file, you must provide the complete code, no placeholders, no partial updates; you must write all the code!
-Usage:
-<write_to_file>
-<path>File path here</path>
-<kodu_content>
-Your complete file content here without any code omissions or truncations (e.g., no placeholders like '// your code here')
-</kodu_content>
-</write_to_file>
 
 ## search_files
 Description: Request to perform a regex search across files in a specified directory, providing context-rich results. This tool searches for patterns or specific content across multiple files, displaying each match with encapsulating context.
@@ -424,55 +176,6 @@ Your final result description here
 </result>
 </attempt_completion>
 
-## web_search
-Description: Request to perform a web search for the specified query. This tool searches the web for information related to the query and provides relevant results that can help you gain insights, find solutions, or explore new ideas related to the task at hand. Since this tool uses an LLM to understand the web results, you can also specify which model to use with the browser using the 'browserModel' parameter.
-Parameters:
-- searchQuery: (required) The query to search the web for. This should be a clear and concise search query.
-- browserMode: (required) The browser mode to use for the search. Use 'api_docs' when you want to search API docs. Use 'generic' to search for everything else.
-- baseLink: (optional) The base link to use for the search. If provided, the search will be performed using the specified base link.
-Usage:
-<web_search>
-<searchQuery>Your search query here</searchQuery>
-<browserMode>api_docs or generic</browserMode>
-<baseLink>Base link for search (optional)</baseLink>
-</web_search>
-
-## computer_use
-Description: Request to interact with a Puppeteer-controlled browser or take a screenshot of the current desktop. Every action, except \`close\`, will be responded to with a screenshot of the browser's current state, along with any new console logs. You may only perform one browser action per message, and wait for the user's response including a screenshot and logs to determine the next action.
-- The sequence of actions except the \`system_screenshot\` action **must always start with** launching the browser at a URL, and **must always end with** closing the browser. If you need to visit a new URL that is not possible to navigate to from the current webpage, you must first close the browser, then launch again at the new URL.
-- While the browser is active, only the \`computer_use\` tool can be used. No other tools should be called during this time. You may proceed to use other tools only after closing the browser. For example if you run into an error and need to fix a file, you must close the browser, then use other tools to make the necessary changes, then re-launch the browser to verify the result.
-- The browser window has a resolution of **900x600** pixels. When performing any click actions, ensure the coordinates are within this resolution range.
-- Before clicking on any elements such as icons, links, or buttons, you must consult the provided screenshot of the page to determine the coordinates of the element. The click should be targeted at the **center of the element**, not on its edges.
-Parameters:
-- action: (required) The action to perform. The available actions are:
-    * system_screenshot: Take a screenshot of the current desktop.
-    * launch: Launch a new Puppeteer-controlled browser instance at the specified URL. This **must always be the first action**.
-        - Use with the \`url\` parameter to provide the URL.
-        - Ensure the URL is valid and includes the appropriate protocol (e.g. http://localhost:3000/page, file:///path/to/file.html, etc.)
-    * click: Click at a specific x,y coordinate.
-        - Use with the \`coordinate\` parameter to specify the location.
-        - Always click in the center of an element (icon, button, link, etc.) based on coordinates derived from a screenshot.
-    * type: Type a string of text on the keyboard. You might use this after clicking on a text field to input text.
-        - Use with the \`text\` parameter to provide the string to type.
-    * scroll_down: Scroll down the page by one page height.
-    * scroll_up: Scroll up the page by one page height.
-    * close: Close the Puppeteer-controlled browser instance. This **must always be the final browser action**.
-        - Example: \`<action>close</action>\`
-- url: (optional) Use this for providing the URL for the \`launch\` action.
-    * Example: <url>https://example.com</url>
-- coordinate: (optional) The X and Y coordinates for the \`click\` action. Coordinates should be within the **900x600** resolution.
-    * Example: <coordinate>450,300</coordinate>
-- text: (optional) Use this for providing the text for the \`type\` action.
-    * Example: <text>Hello, world!</text>
-Usage:
-<computer_use>
-<action>Action to perform (e.g., system_screenshot, launch, click, type, scroll_down, scroll_up, close)</action>
-<url>URL to launch the browser at (optional)</url>
-<coordinate>x,y coordinates (optional)</coordinate>
-<text>Text to type (optional)</text>
-</computer_use>
-
-
 # Tool Use Examples
 
 ## Example 0: start a development server using server_runner_tool
@@ -498,89 +201,23 @@ Explanation: In this example, the user requests to install the 'express' package
 <command>npm install express</command>
 </execute_command>
 
-## Example 2: Requesting to write to a file
-
-<write_to_file>
-<path>frontend-config.json</path>
-<kodu_content>
-{
-  "apiEndpoint": "https://api.example.com",
-  "theme": {
-    "primaryColor": "#007bff",
-    "secondaryColor": "#6c757d",
-    "fontFamily": "Arial, sans-serif"
-  },
-  "features": {
-    "darkMode": true,
-    "notifications": true,
-    "analytics": false
-  },
-  "version": "1.0.0"
-}
-</kodu_content>
-</write_to_file>
-
-## Example 3: start a server with server_runner_tool
-Explanation: In this example we finished creating a node.js server file, and now we need to start the server. We will use the server_runner_tool to start the server with the command 'node server.js'.
-<server_runner_tool>
-<commandType>start</commandType>
-<commandToRun>node server.js</commandToRun>
-<serverName>node-server</serverName>
-</server_runner_tool>
-
-## Example 4: Using searchSymbols to understand code
+## Example 2: Using search_symbol to understand code
 Explanation: In this example, we want to understand how a specific function is implemented in the codebase.
 
-<searchSymbols>
+<search_symbol>
 <symbolName>handleUserAuth</symbolName>
 <path>src/auth</path>
-</searchSymbols>
+</search_symbol>
 
-## Example 5: Tracking relevant files with addInterestedFile
-Explanation: In this example, we're working on an authentication feature and want to track relevant files.
+## Example 3: Tracking files that Kodu thinks are relevant and have high impact on the Task with add_interested_file
+Explanation: 
+Example User Task: hey i have a bug in my auth page where users are able to sign up but not able to login, i need to fix this bug, can you help me with this?
+Example Kodu Reasoning: In my previous message i have read auth-service.ts and found that the content relates to the user task about fixing the authentication flow, i found a few lines that are crucial to the task, so i will track this file for future reference and that when i call file_changes_plan tool, it will have visibility of this file context and why i think it's meaningful to the task, it will help the file_changes_plan tool to better understand the whole flow and will improve the file change plan and execution thus resulting in a better outcome.
 
-<addInterestedFile>
+<add_interested_file>
 <path>src/auth/auth-service.ts</path>
-<why>Contains core authentication logic that we need to modify for the new feature</why>
-</addInterestedFile>
-
-## Example 6: Editing a file block with edit_file_blocks
-Explanation: In this example, we need to update a specific block of code in a file. We will use the edit_file_blocks tool to replace the existing block with the new block.
-<edit_file_blocks>
-<path>src/example.js</path>
-<kodu_diff>
-SEARCH
-class Job {
-    private title: string;
-    private company: string;
-    private location: string;
-    private salary: number;
-    
-    constructor(title: string, company: string, location: string, salary: number) {
-        this.title = title;
-        this.company = company;
-        this.location = location;
-        this.salary = salary;
-    }
-=======
-REPLACE
-class Job {
-    private title: string;
-    private company: string;
-    private location: string;
-    private salary: number;
-    private description: string;
-
-    constructor(title: string, company: string, location: string, salary: number, description: string) {
-        this.title = title;
-        this.company = company;
-        this.location = location;
-        this.salary = salary;
-        this.description = description;
-    }
-</kodu_diff>
-</edit_file_blocks>
-
+<why>Contains core authentication logic about the user auth, it is critical to understand how it's relation may impact our task. (... you should write 2-3 lines why you choose it ...)</why>
+</add_interested_file>
 
 # Tool Use Guidelines
 

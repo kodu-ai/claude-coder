@@ -1,5 +1,5 @@
 import { GlobalStateManager } from "./global-state-manager"
-import { HistoryItem } from "../../../shared/history-item"
+import { HistoryItem, isSatifiesHistoryItem } from "../../../shared/history-item"
 import { SecretStateManager } from "./secret-state-manager"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
 import { ExtensionProvider } from "../claude-coder-provider"
@@ -124,7 +124,7 @@ export class StateManager {
 		return this.globalStateManager.updateGlobalState("inlineEditOutputType", value)
 	}
 
-	async updateTaskHistory(item: HistoryItem): Promise<HistoryItem[]> {
+	async updateTaskHistory(item: Partial<HistoryItem> & { id: string }): Promise<HistoryItem[]> {
 		const history = (await this.globalStateManager.getGlobalState("taskHistory")) ?? []
 		const existingItemIndex = history.findIndex((h) => h.id === item.id)
 		if (existingItemIndex !== -1) {
@@ -133,7 +133,9 @@ export class StateManager {
 				...item,
 			}
 		} else {
-			history.push(item)
+			if (isSatifiesHistoryItem(item)) {
+				history.push(item)
+			}
 		}
 		await this.globalStateManager.updateGlobalState("taskHistory", history)
 		return history

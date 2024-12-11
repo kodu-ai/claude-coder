@@ -1,11 +1,11 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
 
-import { ToolResponse } from "../../types"
-import { getReadablePath } from "../../utils"
-import { extractTextFromFile } from "../../../../utils/extract-text"
-import { AgentToolOptions, AgentToolParams } from "../types"
-import { BaseAgentTool } from "../base-agent.tool"
+import { ToolResponse } from "../../../types"
+import { getReadablePath } from "../../../utils"
+import { AgentToolOptions, AgentToolParams } from "../../types"
+import { BaseAgentTool } from "../../base-agent.tool"
+import { extractTextFromFile, formatFileToLines } from "./utils"
 
 export class ReadFileTool extends BaseAgentTool {
 	protected params: AgentToolParams
@@ -105,14 +105,6 @@ export class ReadFileTool extends BaseAgentTool {
 				)
 			}
 
-			/**
-			 * Convert file content to line-numbered text
-			 */
-			const formatFileToLines = (content: string) => {
-				const lines = content.split("\n")
-				const lineNumbers = lines.map((_, index) => `${index + 1}`.padStart(4, " "))
-				return lines.map((line, index) => `${lineNumbers[index]} ${line}`).join("\n")
-			}
 			const lines = formatFileToLines(content)
 
 			// const symbolExplorer = new SymbolExplorer(absolutePath.toPosix())

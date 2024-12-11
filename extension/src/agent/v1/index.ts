@@ -589,13 +589,14 @@ export class KoduDev {
 		}
 
 		if (includeFileDetails) {
+			console.log(`[ENVIRONMENT DETAILS] Getting file details`)
 			details += `\n\n# Current Working Directory (${getCwd().toPosix()}) Files\n`
 			const isDesktop = arePathsEqual(getCwd(), path.join(os.homedir(), "Desktop"))
 			if (isDesktop) {
 				// don't want to immediately access desktop since it would show permission popup
 				details += "(Desktop files not shown automatically. Use list_files to explore if needed.)"
 			} else {
-				const [files, didHitLimit] = await listFiles(getCwd(), true, 500)
+				const [files, didHitLimit] = await listFiles(getCwd(), true, 600)
 				const result = formatFilesList(getCwd(), files, didHitLimit)
 
 				details += result

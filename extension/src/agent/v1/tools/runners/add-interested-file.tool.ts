@@ -175,7 +175,7 @@ export class AddInterestedFileTool extends BaseAgentTool {
 				},
 				this.ts
 			)
-
+			await this.koduDev.getStateManager().addinterestedFileToTask(why, absolutePath)
 			return this.toolResponse(
 				"success",
 				`<add_interested_file_response>

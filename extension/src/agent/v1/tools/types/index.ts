@@ -18,6 +18,7 @@ export type ToolInput = {
 	content?: string
 	kodu_content?: string
 	kodu_diff?: string
+	what_to_accomplish?: string
 	isFinal?: boolean
 	regex?: string
 	udiff?: string
@@ -26,6 +27,7 @@ export type ToolInput = {
 	recursive?: string
 	symbolName?: string
 	why?: string
+	whatToAccomplish?: string
 	command?: string
 	question?: string
 	result?: string
