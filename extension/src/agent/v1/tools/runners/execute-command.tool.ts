@@ -43,7 +43,7 @@ export class ExecuteCommandTool extends BaseAgentTool<ExecuteCommandToolParams> 
 		if (!command?.trim()) {
 			await say(
 				"error",
-				"Claude tried to use execute_command without value for required parameter 'command'. Retrying..."
+				"Kodu tried to use execute_command without value for required parameter 'command'. Retrying..."
 			)
 			return this.toolResponse(
 				"error",

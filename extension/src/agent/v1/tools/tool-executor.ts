@@ -4,13 +4,13 @@
  */
 
 import treeKill from "tree-kill"
-import { ToolName, ToolResponse, ToolResponseV2, UserContent } from "../types"
+import { ToolResponseV2 } from "../types"
 import { KoduDev } from ".."
-import { AgentToolOptions, AgentToolParams } from "./types"
+import { AgentToolOptions, ToolName } from "./types"
 import {
 	SearchFilesTool,
 	ListFilesTool,
-	ListCodeDefinitionNamesTool,
+	ExploreRepoFolderTool,
 	ExecuteCommandTool,
 	AttemptCompletionTool,
 	AskFollowupQuestionTool,
@@ -22,12 +22,11 @@ import {
 import { WebSearchTool } from "./runners/web-search-tool"
 import { SearchSymbolsTool } from "./runners/search-symbols.tool"
 import { AddInterestedFileTool } from "./runners/add-interested-file.tool"
-import { BaseAgentTool } from "./base-agent.tool"
+import { BaseAgentTool, FullToolParams } from "./base-agent.tool"
 import ToolParser from "./tool-parser/tool-parser"
 import { tools, writeToFileTool } from "./schema"
 import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
-import { ChatTool } from "../../../shared/new-tools"
 import { DevServerTool } from "./runners/dev-server.tool"
 
 /**
@@ -38,7 +37,7 @@ interface ToolContext {
 	/** Unique identifier for the tool context */
 	id: string
 	/** Instance of the tool being executed */
-	tool: BaseAgentTool
+	tool: BaseAgentTool<any>
 	/** Current execution status of the tool */
 	status: "pending" | "processing" | "completed" | "error"
 	/** Error object if the tool execution failed */
@@ -78,14 +77,7 @@ export class ToolExecutor {
 		this.queue = new PQueue({ concurrency: 1 })
 
 		this.toolParser = new ToolParser(
-			tools
-				.map((tool) => tool.schema)
-				.concat([
-					{
-						name: "edit_file_blocks",
-						schema: writeToFileTool.schema.schema,
-					},
-				]),
+			tools.map((tool) => tool.schema),
 			{
 				onToolUpdate: this.handleToolUpdate.bind(this),
 				onToolEnd: this.handleToolEnd.bind(this),
@@ -122,23 +114,21 @@ export class ToolExecutor {
 	 * @returns New instance of the specified tool
 	 * @throws Error if the tool type is unknown
 	 */
-	private createTool(params: AgentToolParams): BaseAgentTool {
+	private createTool(params: FullToolParams<any>) {
 		const toolMap = {
 			read_file: ReadFileTool,
 			list_files: ListFilesTool,
 			search_files: SearchFilesTool,
-			write_to_file: FileEditorTool,
-			edit_file_blocks: FileEditorTool,
-			list_code_definition_names: ListCodeDefinitionNamesTool,
+			explore_repo_folder: ExploreRepoFolderTool,
 			execute_command: ExecuteCommandTool,
 			ask_followup_question: AskFollowupQuestionTool,
 			attempt_completion: AttemptCompletionTool,
 			web_search: WebSearchTool,
 			url_screenshot: UrlScreenshotTool,
 			server_runner_tool: DevServerTool,
-			search_symbols: SearchSymbolsTool,
+			search_symbol: SearchSymbolsTool,
+			file_editor: FileEditorTool,
 			add_interested_file: AddInterestedFileTool,
-			file_changes_plan: FileChangePlanTool,
 		} as const
 
 		const ToolClass = toolMap[params.name as keyof typeof toolMap]
@@ -334,7 +324,7 @@ export class ToolExecutor {
 		context.tool.updateIsFinal(true)
 
 		this.queue.add(() => this.processTool(context!))
-		// await this.updateToolStatus(context, params, context.tool.ts)
+		await this.updateToolStatus(context, params, context.tool.ts)
 	}
 
 	/**
@@ -361,9 +351,8 @@ export class ToolExecutor {
 		await this.koduDev.taskExecutor.updateAsk(
 			"tool",
 			{
-				// @ts-expect-error - not typedd correctly
 				tool: {
-					tool: toolName as ChatTool["tool"],
+					tool: toolName as any,
 					ts,
 					approvalState: "error",
 					...context?.tool.paramsInput!,

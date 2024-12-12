@@ -58,6 +58,25 @@ export type ApiHistoryItem = Anthropic.MessageParam & {
 	preCommitHash?: string
 }
 
+export type FileVersion = {
+	/**
+	 * the absolute path of the file
+	 */
+	path: string
+	/**
+	 * the version of the file
+	 */
+	version: number
+	/**
+	 * the timestamp when the file was added to the list
+	 */
+	createdAt: number
+	/**
+	 * the content of the file at the specified version
+	 */
+	content: string
+}
+
 export type InterestedFile = {
 	/**
 	 * the absolute path of the file
@@ -115,6 +134,5 @@ export interface KoduDevState {
 
 // Re-export types from other files to centralize type definitions
 export type { ClaudeMessage } from "../../shared/extension-message"
-export type { ToolName } from "../../shared/tool"
 
 export type VsCodeDiagnostics = [vscode.Uri, vscode.Diagnostic[]][]

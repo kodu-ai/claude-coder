@@ -14,7 +14,7 @@ export class AddInterestedFileTool extends BaseAgentTool<AddInterestedFileToolPa
 		if (!relPath) {
 			await say(
 				"error",
-				"Claude tried to use add_interested_file without value for required parameter 'path'. Retrying..."
+				"Kodu tried to use add_interested_file without value for required parameter 'path'. Retrying..."
 			)
 
 			return this.toolResponse(
@@ -47,7 +47,7 @@ export class AddInterestedFileTool extends BaseAgentTool<AddInterestedFileToolPa
 		if (!why) {
 			await say(
 				"error",
-				"Claude tried to use add_interested_file without value for required parameter 'why'. Retrying..."
+				"Kodu tried to use add_interested_file without value for required parameter 'why'. Retrying..."
 			)
 
 			return this.toolResponse(

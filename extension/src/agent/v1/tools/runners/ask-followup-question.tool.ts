@@ -9,7 +9,7 @@ export class AskFollowupQuestionTool extends BaseAgentTool<AskFollowupQuestionTo
 		if (question === undefined) {
 			await say(
 				"error",
-				"Claude tried to use ask_followup_question without value for required parameter 'question'. Retrying..."
+				"Kodu tried to use ask_followup_question without value for required parameter 'question'. Retrying..."
 			)
 			const errorMsg = `
 			<question_tool_response>

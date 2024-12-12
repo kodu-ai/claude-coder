@@ -470,12 +470,12 @@ export class WebviewManager {
 						break
 
 					case "viewFile":
-						await this.handleViewFile(message.path, message.branch, message.commitHash)
+						await this.provider.getKoduDev()?.viewFileInDiff(message.path, message.version)
 						break
 					case "rollbackToCheckpoint":
 						await this.provider
 							.getKoduDev()
-							?.rollbackToCheckpoint(message.ts, message.commitHash, message.branch)
+							?.rollbackToCheckpoint(message.path, message.version, message.ts)
 						break
 					case "resetState":
 						await this.provider.getGlobalStateManager().resetState()
@@ -536,67 +536,6 @@ export class WebviewManager {
 		}
 		// flag this is legacy it should actually be handled by the task executor
 		return await agent.handleWebviewAskResponse("messageResponse", problemsString)
-	}
-	/**
-	 * Handles viewing a file from a specific git commit
-	 * @param filePath The path to the file
-	 * @param branch The git branch name
-	 * @param commitHash The git commit hash
-	 */
-	private async handleViewFile(filePath: string, branch: string, commitHash: string): Promise<void> {
-		const workspaceFolders = vscode.workspace.workspaceFolders
-		if (!workspaceFolders || workspaceFolders.length === 0) {
-			vscode.window.showErrorMessage("No workspace folder is open")
-			return
-		}
-
-		const repoPath = workspaceFolders[0].uri.fsPath
-		const content = await GitHandler.getFileContent(repoPath, filePath, commitHash)
-
-		if (!content) {
-			vscode.window.showErrorMessage(`Failed to get content for ${filePath} at commit ${commitHash}`)
-			return
-		}
-
-		const shortHash = commitHash.slice(0, 7)
-		const parsedPath = path.parse(filePath)
-		const language = parsedPath.ext.slice(1) // Remove the dot from extension
-
-		try {
-			// Add header comment with file info
-			const headerComment = `// ${filePath} @ ${shortHash}\n\n`
-			const documentContent = headerComment + content
-
-			// First create the document with content and language
-			const document = await vscode.workspace.openTextDocument({
-				content: documentContent,
-				language,
-			})
-
-			// Show the document in a new editor
-			const editor = await vscode.window.showTextDocument(document, {
-				preview: false,
-				viewColumn: vscode.ViewColumn.Beside,
-			})
-
-			// Create the title by encoding it in the URI
-			const fileName = `${parsedPath.base} @ ${shortHash}`
-			// Note: We use untitled scheme to indicate this is a temporary document
-			const targetUri = vscode.Uri.parse(`untitled:${fileName}`).with({
-				query: JSON.stringify({
-					commitHash,
-					branch,
-					originalPath: filePath,
-				}),
-			})
-
-			// Use a workspace edit to give the document its final name
-			const edit = new vscode.WorkspaceEdit()
-			edit.renameFile(document.uri, targetUri)
-			await vscode.workspace.applyEdit(edit)
-		} catch (error) {
-			vscode.window.showErrorMessage(`Failed to open file: ${error}`)
-		}
 	}
 
 	/**

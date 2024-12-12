@@ -12,7 +12,7 @@ export class AttemptCompletionTool extends BaseAgentTool<AttemptCompletionToolPa
 		if (result === undefined) {
 			await say(
 				"error",
-				"Claude tried to use attempt_completion without value for required parameter 'result'. Retrying..."
+				"Kodu tried to use attempt_completion without value for required parameter 'result'. Retrying..."
 			)
 			const errorMsg = `
 			<completion_tool_response>

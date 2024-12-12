@@ -29,8 +29,8 @@ import { z } from "zod"
  */
 const schema = z.object({
 	path: z.string().describe("The path of the file to read (relative to the current working directory)."),
-	pageNumber: z.number().optional().describe("The page number to read from a file"),
-	readAllPages: z.boolean().optional().describe("Read all pages of a file"),
+	pageNumber: z.coerce.number().optional().describe("The page number to read from a file"),
+	readAllPages: z.coerce.boolean().optional().describe("Read all pages of a file"),
 })
 
 const examples = [

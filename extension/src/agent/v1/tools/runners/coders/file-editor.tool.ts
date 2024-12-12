@@ -1,12 +1,9 @@
-/**
- * Imports for file system operations, diff viewing, and utility functions
- */
 import * as path from "path"
 import { DiffViewProvider } from "../../../../../integrations/editor/diff-view-provider"
 import { ClaudeSayTool } from "../../../../../shared/extension-message"
 import { getCwd, getReadablePath } from "../../../utils"
 import { BaseAgentTool, FullToolParams } from "../../base-agent.tool"
-import { AgentToolOptions, AgentToolParams } from "../../types"
+import { AgentToolOptions } from "../../types"
 import fs from "fs"
 import { detectCodeOmission } from "./detect-code-omission"
 import { parseDiffBlocks, checkFileExists, preprocessContent, EditBlock } from "./utils"
@@ -16,50 +13,24 @@ import PQueue from "p-queue"
 
 import { GitCommitResult } from "../../../handlers/git-handler"
 import { createPatch } from "diff"
-import { WriteToFileToolParams } from "../../schema/write_to_file"
+import { FileEditorToolParams } from "../../schema/file_editor_tool"
+import { FileVersion } from "../../../types"
 
-/**
- * FileEditorTool handles file editing operations in the VSCode extension.
- * It provides functionality for:
- * - Showing diffs between file versions
- * - Handling partial updates during file editing
- * - Managing inline edits with search/replace blocks
- * - Processing user approvals for file changes
- *
- * The tool supports both complete file rewrites and partial edits through diff blocks.
- * It includes features for animation control and update throttling to ensure smooth performance.
- */
-export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
-	/** Provider for showing file diffs in VSCode */
+export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 	public diffViewProvider: DiffViewProvider
-	/** Handler for inline file editing operations */
 	public inlineEditor: InlineEditHandler
-	/** Flag indicating if final content is being processed */
 	private isProcessingFinalContent: boolean = false
-	/** Queue for processing partial updates sequentially */
 	private pQueue: PQueue = new PQueue({ concurrency: 1 })
-	/** Flag to control write animation display */
 	private skipWriteAnimation: boolean = false
-	/** Array of edit blocks being processed */
 	private editBlocks: EditBlock[] = []
-	/** Current file state including path and content */
 	private fileState?: {
 		absolutePath: string
 		orignalContent: string
 		isExistingFile: boolean
 	}
-	/** ID of the last applied edit block */
 	private lastAppliedEditBlockId: string = ""
 
-	/**
-	 * Initializes the FileEditorTool with required parameters and options.
-	 * Sets up diff view provider and inline editor handler.
-	 * Configures animation settings based on state manager.
-	 *
-	 * @param params - Tool parameters including callbacks and input
-	 * @param options - Configuration options for the tool
-	 */
-	constructor(params: FullToolParams<WriteToFileToolParams>, options: AgentToolOptions) {
+	constructor(params: FullToolParams<FileEditorToolParams>, options: AgentToolOptions) {
 		super(params, options)
 		this.diffViewProvider = new DiffViewProvider(getCwd())
 		this.inlineEditor = new InlineEditHandler()
@@ -69,8 +40,24 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 	}
 
 	override async execute() {
-		const result = await this.processFileWrite()
-		return result
+		const mode = this.params.input.mode
+		const relPath = this.params.input.path
+
+		if (!relPath) {
+			throw new Error("Missing required parameter 'path'")
+		}
+
+		switch (mode) {
+			case "rollback":
+				return this.handleRollback(relPath)
+			case "list_versions":
+				return this.handleListVersions(relPath)
+			case "edit":
+			case "whole_write":
+				return this.processFileWrite() // existing behavior
+			default:
+				throw new Error(`Unsupported mode: ${mode}`)
+		}
 	}
 
 	private commitXMLGenerator(commitResult: GitCommitResult): string {
@@ -89,19 +76,24 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 `
 	}
 
+	public async handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
+		await this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
+	}
+
 	private async _handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
+		const mode = "edit" // partial updates always mean editing the file
+
 		if (!this.fileState) {
 			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
-						tool: "write_to_file",
-						diff,
+						tool: "file_editor",
 						path: relPath,
-						content: diff,
-						mode: "inline",
-						ts: this.ts,
+						mode,
+						kodu_diff: diff,
 						approvalState: "loading",
+						ts: this.ts,
 					},
 				},
 				this.ts
@@ -124,8 +116,20 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 				isExistingFile,
 			}
 		}
-
-		// this might happen because the diff view are not instant.
+		this.params.updateAsk(
+			"tool",
+			{
+				tool: {
+					tool: "file_editor",
+					path: relPath,
+					mode,
+					kodu_diff: diff,
+					approvalState: "loading",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
 		if (this.isProcessingFinalContent) {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
 			return
@@ -135,7 +139,7 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 			this.logger("Skipping partial update because the diff does not contain REPLACE keyword.", "warn")
 			return
 		}
-		// if the user has skipped the write animation, we don't need to show the diff view until we reach the final state
+
 		if (this.skipWriteAnimation) {
 			return
 		}
@@ -159,21 +163,18 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 				return
 			}
 		}
-		// now we are going to start applying the diff blocks
+
 		if (editBlocks.length > 0) {
 			const currentBlock = editBlocks.at(-1)
 			if (!currentBlock?.replaceContent) {
 				return
 			}
 
-			// If this block hasn't been tracked yet, initialize it
 			if (!editBlocks.some((block) => block.id === currentBlock.id)) {
-				// Clean up any SEARCH text from the last block before starting new one
 				if (this.lastAppliedEditBlockId) {
 					const lastBlock = editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
 					if (lastBlock) {
 						const lines = lastBlock.replaceContent.split("\n")
-						// Only remove the last line if it ONLY contains a partial SEARCH
 						if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
 							lines.pop()
 							await this.inlineEditor.applyFinalContent(
@@ -212,7 +213,6 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 			}
 		}
 
-		// Finalize the last block
 		if (this.lastAppliedEditBlockId) {
 			const lastBlock = editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
 			if (lastBlock) {
@@ -225,17 +225,8 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 		}
 	}
 
-	public async handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
-		await this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
-	}
-
-	/**
-	 *
-	 * @param relPath - relative path of the file
-	 * @param acculmatedContent - the accumulated content to be written to the file
-	 * @returns
-	 */
 	public async handlePartialUpdate(relPath: string, acculmatedContent: string): Promise<void> {
+		const mode = "edit" // partial updates are edits
 		if (!this.fileState) {
 			const absolutePath = path.resolve(getCwd(), relPath)
 			const isExistingFile = await checkFileExists(relPath)
@@ -255,22 +246,22 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 				}
 			}
 		}
-		// this might happen because the diff view are not instant.
+
 		if (this.isProcessingFinalContent) {
 			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
 			return
 		}
 
-		// if the user has skipped the write animation, we don't need to show the diff view until we reach the final state
 		await this.params.updateAsk(
 			"tool",
 			{
 				tool: {
-					tool: "write_to_file",
-					content: acculmatedContent,
+					tool: "file_editor",
 					path: relPath,
-					ts: this.ts,
+					mode,
+					kodu_content: acculmatedContent,
 					approvalState: "loading",
+					ts: this.ts,
 				},
 			},
 			this.ts
@@ -293,7 +284,7 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 	}
 
 	private async finalizeInlineEdit(path: string, content: string): Promise<ToolResponseV2> {
-		// we are going to parse the content and apply the changes to the file
+		const mode = "edit"
 		this.isProcessingFinalContent = true
 		let editBlocks: EditBlock[] = []
 		try {
@@ -313,11 +304,11 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 				"tool",
 				{
 					tool: {
-						tool: "write_to_file",
-						content,
-						mode: "inline",
-						approvalState: "error",
+						tool: "file_editor",
 						path,
+						mode,
+						kodu_diff: content,
+						approvalState: "error",
 						ts: this.ts,
 						notAppliedCount: failedCount,
 					},
@@ -327,20 +318,19 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 			return this.toolResponse(
 				"error",
 				`
-				<error_message>Failed to apply changes to the file, please make sure that the search content is correct and that the file content is correct, if you are not sure, please re-read the file and provide the correct search content. make sure to always provide at least 3 lines of context prior to the search so, always write in search 3 lines before the actually content to replace</error_message>
+				<error_message>Failed to apply changes to the file. Please ensure correct search content and file consistency.</error_message>
 				`
 			)
 		}
-		// now we are going to prompt the user to approve the changes
 		const { response, text, images } = await this.params.ask(
 			"tool",
 			{
 				tool: {
-					tool: "write_to_file",
-					content,
-					mode: "inline",
-					approvalState: "pending",
+					tool: "file_editor",
 					path,
+					mode,
+					kodu_diff: content,
+					approvalState: "pending",
 					ts: this.ts,
 				},
 			},
@@ -351,28 +341,26 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 				"tool",
 				{
 					tool: {
-						tool: "write_to_file",
-						content,
-						mode: "inline",
-						approvalState: "rejected",
+						tool: "file_editor",
 						path,
+						mode,
+						kodu_diff: content,
+						approvalState: "rejected",
 						ts: this.ts,
 						userFeedback: text,
 					},
 				},
 				this.ts
 			)
-			// revert the changes
 			await this.inlineEditor.rejectChanges()
 			if (response === "noButtonTapped") {
 				return this.toolResponse("rejected", "Write operation cancelled by user.")
 			}
-			// If not a yes or no, the user provided feedback (wrote in the input)
 			await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
 			return this.toolResponse(
 				"feedback",
-				`The user denied this operation with the following feedback:\n<user_feedback>${
-					text ?? "No text feedback provided. check the images for more details."
+				`The user denied this operation:\n<user_feedback>${
+					text ?? "No text feedback provided."
 				}</user_feedback>`,
 				images
 			)
@@ -380,26 +368,12 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 		const { finalContent, results } = await this.inlineEditor.saveChanges()
 
 		this.koduDev.getStateManager().addErrorPath(path)
-		// count how many of the changes were not applied
+
 		const notAppliedCount = results.filter((result) => !result.wasApplied).length
 		const validationMsg =
 			notAppliedCount === 0
-				? `The user might have changed the content of the file, we detected that your changes were initially applied to the file, but the user might have changed the content of the file, please review the file content to make sure that the changes were applied correctly.`
-				: `You have failed to apply ${notAppliedCount} changes, this is most likely related to you and the search content you provided, you must provide at least 3 lines of context for the search content to make sure that the changes are applied correctly.`
-
-		const approvedMsg = `
-		The user approved the changes and the content was successfully saved to ${path.toPosix()}.
-		Make sure to remember the updated content (REPLACE BLOCK + Original FILE) file content unless you change the file again or the user tells you otherwise.
-		${validationMsg}
-		${
-			notAppliedCount > 0
-				? `here are are the search blocks that were not applied on this tool execution, if you want to apply them make sure to provide the correct search content, it might be good to refresh your memory with the latest content of the file if you want to re try applying the changes.
-		${results.map((result) => `<search_block>${result.searchContent}</search_block>`).join("\n")}`
-				: ""
-		}
-		`
-
-		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
+				? `Your changes were applied, but always double-check correctness.`
+				: `Failed to apply ${notAppliedCount} changes. Verify the search content and ensure correct context.`
 
 		let commitXmlInfo = ""
 		let commitResult: GitCommitResult | undefined
@@ -409,17 +383,19 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 		} catch (error) {
 			this.logger(`Error committing changes: ${error}`, "error")
 		}
-
+		// Save a new file version
+		const newVersion = await this.saveNewFileVersion(path, finalContent)
 		await this.params.updateAsk(
 			"tool",
 			{
 				tool: {
-					tool: "write_to_file",
-					content,
-					mode: "inline",
-					approvalState: "approved",
+					tool: "file_editor",
 					path,
+					mode,
+					kodu_diff: content,
+					approvalState: "approved",
 					ts: this.ts,
+					saved_version: newVersion.version.toString(),
 					notAppliedCount,
 					commitHash: commitResult?.commitHash,
 					branch: commitResult?.branch,
@@ -428,8 +404,8 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 			this.ts
 		)
 
+		const currentOutputMode = this.koduDev.getStateManager().inlineEditOutputType
 		if (currentOutputMode === "diff") {
-			// generate a diff between the file original content and the final content
 			return this.toolResponse(
 				"success",
 				`<file_editor_response>
@@ -440,10 +416,11 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 					</status>
 					<file_info>
 						<path>${path}</path>
-						<information>The Updated file content blocks are the updated sections of the file you should remember this blocks as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.</information>
 						<updated_file_content_blocks>
 							${results.map((res) => res.formattedSavedArea).join("\n-------\n")}
 						</updated_file_content_blocks>
+						<file_version>${newVersion.version}</file_version>
+						<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
 					</file_info>
 					${commitXmlInfo}
 				</file_editor_response>`,
@@ -457,14 +434,15 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 			`
 		<update_file_payload>
 		<information>
-		CRITICAL the file content has been updated to <updated_file_content> content below, you should remember this as the current state of the file unless you change the file again or the user tells you otherwise, if in doubt, re-read the file to get the latest content, but remember that the content below is the latest content and was saved successfully.
-		Remember there is no extra need to edit the file unless you forgot to add or remove something or you have linting errors, over editing is a source of looping and getting stuck without thinking through the problem / task.
+		File content updated successfully.
 		</information>
 		<path>${path}</path>
 		<updated_file_content>
 		${finalContent}
 		</updated_file_content>
 		<validation>${validationMsg}</validation>
+		<file_version>${newVersion.version}</file_version>
+		<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
 		${commitXmlInfo}
 		</update_file_payload>
 		`,
@@ -474,19 +452,38 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 	}
 
 	private async finalizeFileEdit(relPath: string, content: string): Promise<ToolResponseV2> {
-		// Show changes in diff view
-		await this.showChangesInDiffView(relPath, content)
-		this.logger(`Changes shown in diff view`, "debug")
+		// determine mode based on whether content is entire or partial
+		// If kodu_content is provided from input, it likely means whole content replacement. If kodu_diff, it's edit.
+		// If we got here without diff, that means it's a "whole" operation.
+		const mode = "whole_write"
 
+		await this.showChangesInDiffView(relPath, content)
 		this.logger(`Asking for approval to write to file: ${relPath}`, "info")
+
+		await this.params.updateAsk(
+			"tool",
+			{
+				tool: {
+					tool: "file_editor",
+					path: relPath,
+					mode,
+					kodu_content: content,
+					approvalState: "pending",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
+
 		const { response, text, images } = await this.params.ask(
 			"tool",
 			{
 				tool: {
-					tool: "write_to_file",
-					content: content,
-					approvalState: "pending",
+					tool: "file_editor",
 					path: relPath,
+					mode,
+					kodu_content: content,
+					approvalState: "pending",
 					ts: this.ts,
 				},
 			},
@@ -498,10 +495,11 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 				"tool",
 				{
 					tool: {
-						tool: "write_to_file",
-						content: content,
-						approvalState: "rejected",
+						tool: "file_editor",
 						path: relPath,
+						mode,
+						kodu_content: content,
+						approvalState: "rejected",
 						ts: this.ts,
 						userFeedback: text,
 					},
@@ -511,27 +509,16 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 			await this.diffViewProvider.revertChanges()
 
 			if (response === "noButtonTapped") {
-				// return formatToolResponse("Write operation cancelled by user.")
-				// return this.toolResponse("rejected", "Write operation cancelled by user.")
 				return this.toolResponse("rejected", "Write operation cancelled by user.")
 			}
-			// If not a yes or no, the user provided feedback (wrote in the input)
 			await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
-			// return formatToolResponse(
-			// 	`The user denied the write operation and provided the following feedback: ${text}`
-			// )
 			return this.toolResponse("feedback", text ?? "The user denied this operation.", images)
 		}
 
 		this.logger(`User approved to write to file: ${relPath}`, "info")
-
-		this.logger(`Saving changes to file: ${relPath}`, "info")
-		// Save changes and handle user edits
 		const { userEdits, finalContent } = await this.diffViewProvider.saveChanges()
 		this.logger(`Changes saved to file: ${relPath}`, "info")
 		this.koduDev.getStateManager().addErrorPath(relPath)
-
-		this.logger(`Final approval state set for file: ${relPath}`, "info")
 
 		let commitXmlInfo = ""
 		let commitResult: GitCommitResult | undefined
@@ -541,15 +528,18 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 		} catch (error) {
 			this.logger(`Error committing changes: ${error}`, "error")
 		}
-		// Final approval state
+		const newVersion = await this.saveNewFileVersion(relPath, finalContent)
+
 		await this.params.updateAsk(
 			"tool",
 			{
 				tool: {
-					tool: "write_to_file",
-					content: content,
-					approvalState: "approved",
+					tool: "file_editor",
 					path: relPath,
+					mode,
+					kodu_content: content,
+					saved_version: newVersion.version.toString(),
+					approvalState: "approved",
 					ts: this.ts,
 					commitHash: commitResult?.commitHash,
 					branch: commitResult?.branch,
@@ -557,6 +547,21 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 			},
 			this.ts
 		)
+
+		let toolMsg = `The content was successfully saved to ${relPath.toPosix()}.
+			<file_version>${newVersion.version}</file_version>
+			<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
+			${commitXmlInfo}
+		`
+		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
+			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
+			toolMsg = `The content was successfully saved to ${relPath.toPosix()},
+				but some code may have been omitted. Please ensure the full content is correct.
+				<file_version>${newVersion.version}</file_version>
+				<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
+				${commitXmlInfo}`
+		}
+
 		if (userEdits) {
 			await this.params.say(
 				"user_feedback_diff",
@@ -566,32 +571,7 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 					diff: userEdits,
 				} as ClaudeSayTool)
 			)
-			return this.toolResponse(
-				"success",
-				`The user made the following updates to your content:\n\nThe updated content has been successfully saved to ${relPath.toPosix()}
-					Here is the latest file content after the changes were applied:
-					\`\`\`
-					${finalContent}
-					\`\`\`
-					${commitXmlInfo}
-					`,
-				undefined,
-				commitResult
-			)
-		}
-
-		let toolMsg = `The content was successfully saved to ${relPath.toPosix()}.
-			The latest content is the content inside of <kodu_content> the content you provided in the input has been applied to the file and saved. don't read the file again to get the latest content as it is already saved unless the user tells you otherwise.
-			${commitXmlInfo}
-			`
-		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
-			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
-			toolMsg = `The content was successfully saved to ${relPath.toPosix()},
-				but it appears that some code may have been omitted. In caee you didn't write the entire content and included some placeholders or omitted critical parts, please try again with the full output of the code without any omissions / truncations anything similar to "remain", "remains", "unchanged", "rest", "previous", "existing", "..." should be avoided.
-				Here is the latest file content:
-				\`\`\`
-				${finalContent}
-				\`\`\``
+			return this.toolResponse("success", toolMsg, undefined, commitResult)
 		}
 
 		return this.toolResponse("success", toolMsg, undefined, commitResult)
@@ -599,15 +579,13 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 
 	private async processFileWrite() {
 		try {
-			const { path: relPath, kodu_content: content, kodu_diff: diff } = this.params.input
+			const { path: relPath, kodu_content: content, kodu_diff: diff, mode } = this.params.input
 			if (!relPath) {
 				throw new Error("Missing required parameter 'path'")
 			}
 			this.logger(`Writing to file: ${relPath}`, "info")
 
-			// Switch to final state ASAP
 			this.isProcessingFinalContent = true
-			// wait for the queue to be idle
 			await this.pQueue.onIdle()
 
 			if (diff) {
@@ -619,14 +597,17 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 			}
 		} catch (error) {
 			this.logger(`Error in processFileWrite: ${error}`, "error")
-			this.params.updateAsk(
+			const mode = this.params.input.mode
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
-						tool: "write_to_file",
-						content: this.params.input.kodu_content ?? this.params.input.kodu_diff ?? "",
-						approvalState: "error",
+						tool: "file_editor",
 						path: this.params.input.path ?? "",
+						mode,
+						kodu_content: this.params.input.kodu_content ?? undefined,
+						kodu_diff: this.params.input.kodu_diff ?? undefined,
+						approvalState: "error",
 						ts: this.ts,
 						error: `Failed to write to file`,
 					},
@@ -636,7 +617,7 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 
 			return this.toolResponse(
 				"error",
-				`Write to File Error With:${error instanceof Error ? error.message : String(error)}`
+				`Write to File Error: ${error instanceof Error ? error.message : String(error)}`
 			)
 		} finally {
 			this.isProcessingFinalContent = false
@@ -646,7 +627,6 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 	public override async abortToolExecution(): Promise<{ didAbort: boolean }> {
 		const { didAbort } = await super.abortToolExecution()
 
-		// Only run the subclass-specific cleanup if this call triggered a new abort
 		if (didAbort) {
 			this.pQueue.clear()
 			if (this.params.input.kodu_diff) {
@@ -658,7 +638,6 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 			}
 		}
 
-		// Return the same didAbort status from the parent
 		return { didAbort }
 	}
 
@@ -672,5 +651,200 @@ export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 			await this.diffViewProvider.update(content, true)
 		})
 		await this.pQueue.onIdle()
+	}
+
+	/**
+	 * Saves a new file version after changes are made to the file.
+	 */
+	private async saveNewFileVersion(relPath: string, content: string): Promise<FileVersion> {
+		const versions = await this.koduDev.getStateManager().getFileVersions(relPath)
+		const nextVersion = versions.length > 0 ? Math.max(...versions.map((v) => v.version)) + 1 : 1
+		const newVersion: FileVersion = {
+			path: relPath,
+			version: nextVersion,
+			createdAt: Date.now(),
+			content,
+		}
+		await this.koduDev.getStateManager().saveFileVersion(newVersion)
+		return newVersion
+	}
+
+	private async handleRollback(relPath: string): Promise<ToolResponseV2> {
+		const mode = "rollback"
+		const rollbackVersionStr = this.params.input.rollback_version
+		if (!rollbackVersionStr) {
+			return this.toolResponse("error", "Missing rollback_version parameter.")
+		}
+		const rollbackVersion = parseInt(rollbackVersionStr, 10)
+		if (isNaN(rollbackVersion)) {
+			return this.toolResponse("error", "rollback_version must be a number.")
+		}
+
+		const versions = await this.koduDev.getStateManager().getFileVersions(relPath)
+		const versionToRollback = versions.find((v) => v.version === rollbackVersion)
+		if (!versionToRollback) {
+			return this.toolResponse("error", `Version ${rollbackVersion} not found for file ${relPath}`)
+		}
+
+		// Show using the native diff view:
+		const absolutePath = path.resolve(getCwd(), relPath)
+		const isExistingFile = await checkFileExists(relPath)
+		let originalContent = ""
+		if (isExistingFile) {
+			originalContent = fs.readFileSync(absolutePath, "utf8")
+		}
+
+		await this.diffViewProvider.open(relPath)
+		await this.diffViewProvider.update(versionToRollback.content, true)
+
+		// Ask for approval (pending)
+		await this.params.updateAsk(
+			"tool",
+			{
+				tool: {
+					tool: "file_editor",
+					path: relPath,
+					mode,
+					kodu_content: versionToRollback.content,
+					rollback_version: rollbackVersionStr,
+					approvalState: "pending",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
+
+		const { response, text, images } = await this.params.ask(
+			"tool",
+			{
+				tool: {
+					tool: "file_editor",
+					path: relPath,
+					mode,
+					kodu_content: versionToRollback.content,
+					rollback_version: rollbackVersionStr,
+					approvalState: "pending",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
+
+		if (response !== "yesButtonTapped") {
+			await this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "file_editor",
+						path: relPath,
+						mode,
+						kodu_content: versionToRollback.content,
+						rollback_version: rollbackVersionStr,
+						approvalState: "rejected",
+						userFeedback: text,
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
+			await this.diffViewProvider.revertChanges()
+			return this.toolResponse("rejected", "Rollback operation cancelled by user.")
+		}
+
+		// Approved
+		await this.diffViewProvider.saveChanges()
+		this.koduDev.getStateManager().addErrorPath(relPath)
+		let commitXmlInfo = ""
+		let commitResult: GitCommitResult | undefined
+		try {
+			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(relPath)
+			commitXmlInfo = this.commitXMLGenerator(commitResult)
+		} catch {}
+
+		const newVersion = await this.saveNewFileVersion(relPath, versionToRollback.content)
+
+		await this.params.updateAsk(
+			"tool",
+			{
+				tool: {
+					tool: "file_editor",
+					path: relPath,
+					mode,
+					kodu_content: versionToRollback.content,
+					rollback_version: rollbackVersionStr,
+					approvalState: "approved",
+					ts: this.ts,
+					commitHash: commitResult?.commitHash,
+					branch: commitResult?.branch,
+				},
+			},
+			this.ts
+		)
+
+		return this.toolResponse(
+			"success",
+			`
+	<rollback_response>
+		<status>success</status>
+		<operation>rollback</operation>
+		<rolled_back_version>${rollbackVersion}</rolled_back_version>
+		<new_version>${newVersion.version}</new_version>
+		<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
+		${commitXmlInfo}
+	</rollback_response>
+	`
+		)
+	}
+
+	private async handleListVersions(relPath: string): Promise<ToolResponseV2> {
+		const mode = "list_versions"
+		const versions = await this.koduDev.getStateManager().getFileVersions(relPath)
+		if (versions.length === 0) {
+			const noVersionsMsg = `No versions found.`
+			await this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "file_editor",
+						path: relPath,
+						mode,
+						list_versions_output: noVersionsMsg,
+						approvalState: "approved",
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
+			return this.toolResponse(
+				"success",
+				`<list_versions><file>${relPath}</file><versions>${noVersionsMsg}</versions></list_versions>`
+			)
+		}
+
+		const versionsXml = versions
+			.map(
+				(v) =>
+					`<version><number>${v.version}</number><timestamp>${new Date(
+						v.createdAt
+					).toISOString()}</timestamp></version>`
+			)
+			.join("\n")
+
+		const msg = `<list_versions><file>${relPath}</file><versions>${versionsXml}</versions></list_versions>`
+		await this.params.updateAsk(
+			"tool",
+			{
+				tool: {
+					tool: "file_editor",
+					path: relPath,
+					mode,
+					list_versions_output: msg,
+					approvalState: "approved",
+					ts: this.ts,
+				},
+			},
+			this.ts
+		)
+		return this.toolResponse("success", msg)
 	}
 }

@@ -1,8 +1,8 @@
-// schema/search_symbols.ts
+// schema/search_symbol.ts
 import { z } from "zod"
 
 /**
- * @tool search_symbols
+ * @tool search_symbol
  * @description Request to find and understand code symbols (functions, classes, methods) across the entire codebase. This tool helps navigate and understand code structure by finding symbol definitions and their context, including all usages and definitions.
  * @schema
  * {
@@ -10,19 +10,19 @@ import { z } from "zod"
  * }
  * @example
  * ```xml
- * <tool name="search_symbols">
+ * <tool name="search_symbol">
  *   <symbolName>handleRequest</symbolName>
  * </tool>
  * ```
  * @example
  * ```xml
- * <tool name="search_symbols">
+ * <tool name="search_symbol">
  *   <symbolName>UserService</symbolName>
  * </tool>
  * ```
  * @example
  * ```xml
- * <tool name="search_symbols">
+ * <tool name="search_symbol">
  *   <symbolName>processData</symbolName>
  * </tool>
  * ```
@@ -32,28 +32,28 @@ const schema = z.object({
 })
 
 const examples = [
-	`<tool name="search_symbols">
+	`<tool name="search_symbol">
   <symbolName>handleRequest</symbolName>
 </tool>`,
 
-	`<tool name="search_symbols">
+	`<tool name="search_symbol">
   <symbolName>UserService</symbolName>
 </tool>`,
 
-	`<tool name="search_symbols">
+	`<tool name="search_symbol">
   <symbolName>processData</symbolName>
 </tool>`,
 ]
 
 export const searchSymbolTool = {
 	schema: {
-		name: "search_symbols",
+		name: "search_symbol",
 		schema,
 	},
 	examples,
 }
 
 export type SearchSymbolsToolParams = {
-	name: "search_symbols"
+	name: "search_symbol"
 	input: z.infer<typeof schema>
 }

@@ -13,7 +13,7 @@ export class SearchFilesTool extends BaseAgentTool<SearchFilesToolParams> {
 		if (relDirPath === undefined) {
 			await say(
 				"error",
-				"Claude tried to use search_files without value for required parameter 'path'. Retrying..."
+				"Kodu tried to use search_files without value for required parameter 'path'. Retrying..."
 			)
 
 			const errorMsg = `
@@ -45,7 +45,7 @@ export class SearchFilesTool extends BaseAgentTool<SearchFilesToolParams> {
 		if (regex === undefined) {
 			await say(
 				"error",
-				"Claude tried to use search_files without value for required parameter 'regex'. Retrying..."
+				"Kodu tried to use search_files without value for required parameter 'regex'. Retrying..."
 			)
 
 			const errorMsg = `

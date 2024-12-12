@@ -9,7 +9,7 @@ import { DiagnosticsHandler } from "../../../handlers"
 import { ApiHistoryItem } from "../../../types"
 import ToolParser from "../../tool-parser/tool-parser"
 import { rejectFileChangesTool } from "../../schema/reject-file-changes"
-import { writeToFileTool, fileChangePlanTool } from "../../schema"
+import { writeToFileTool } from "../../schema"
 import { z } from "zod"
 import { FileEditorTool } from "./file-editor.tool"
 import { access } from "fs/promises"
@@ -24,7 +24,7 @@ export class FileChangePlanTool extends BaseAgentTool<FileChangePlanParams> {
 		if (!relPath) {
 			await say(
 				"error",
-				"Claude tried to use file_changes_plan without value for required parameter 'path'. Retrying..."
+				"Kodu tried to use file_changes_plan without value for required parameter 'path'. Retrying..."
 			)
 
 			const errorMsg = `
@@ -55,7 +55,7 @@ export class FileChangePlanTool extends BaseAgentTool<FileChangePlanParams> {
 		if (!what_to_accomplish) {
 			await say(
 				"error",
-				"Claude tried to use file_changes_plan without value for required parameter 'why'. Retrying..."
+				"Kodu tried to use file_changes_plan without value for required parameter 'why'. Retrying..."
 			)
 
 			const errorMsg = `

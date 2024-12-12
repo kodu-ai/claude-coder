@@ -8,7 +8,7 @@ import { ApiHandler } from "../../../../src/api"
 import type { MessageParam, TextBlockParam, ImageBlockParam } from "@anthropic-ai/sdk/resources/messages.mjs"
 import apiHistory from "./api_conversation_history.json"
 import apiHistory2 from "./api_conversation_history_2.json"
-import { ToolName } from "@/shared/new-tools"
+import { ToolName } from "../../../../src/agent/v1/tools/types"
 // XML tag constants that help us maintain consistency in our test cases
 const TOOL_RESPONSE = "toolResponse" as const
 const TOOL_NAME = "toolName" as const

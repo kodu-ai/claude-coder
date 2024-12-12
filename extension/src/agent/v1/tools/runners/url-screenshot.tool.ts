@@ -182,7 +182,7 @@ export class UrlScreenshotTool extends BaseAgentTool<UrlScreenshotToolParams> {
 	private async onBadInputReceived() {
 		await this.params.say(
 			"error",
-			"Claude tried to use `url_screenshot` without required parameter `url`. Retrying..."
+			"Kodu tried to use `url_screenshot` without required parameter `url`. Retrying..."
 		)
 
 		const errMsg = `

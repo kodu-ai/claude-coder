@@ -1,26 +1,235 @@
+import dedent from "dedent"
 import { writeToFileTool } from "../tools/schema"
 
-export const toolsPrompt = (cwd: string, supportsImages: boolean, id?: string) => `
+export const toolsPrompt = (cwd: string, supportsImages: boolean, id?: string) => dedent`
 # Tools
 
-## file_changes_plan
-Description: Request to propose a plan of changes to files in the codebase. This tool helps outline the modifications needed to achieve a specific task, providing a structured approach to code changes.
-It off load the burden of writing the changes code to a developer who only have the context you provide him, file_changes_plan automatically send all the interested files as context in addition to the targeted file you want to change or create.
-You must provide a highly detailed plan of changes that is concise and to the point, you need to provide context about why you are making the change, what you want to accomplish and any major points or relevant information that the developer should know.
-All of this information together will be sent to the developer how will review the changes critique them, think about them and implement or reject them in case they are not suitable.
-
+## file_editor
+Description: Requests to create, edit, rollback and list file versions. This tool is your one stop shop for interacting with files, from doing partial edits to a file or creating a completely new file or rewritting the complete file content to a new one, this tool can do it all. It also allows you to rollback to a previous version of the file that you have created in the past and view all the versions of the file that you have created with a summary of the changes made in each version.
 Parameters:
-- path: (required) The path of the file you want to change (relative to ${cwd.toPosix()})
-- what_to_accomplish: (required) What you want to accomplish with this file change. This should be a clear and concise statement of the intended outcome, it should include any relevant information that the developer should know and any major points that should be considered.
+- mode: (required) The mode of operation for the file_editor tool. Use 'whole_write' to create a new file or rewrite an existing file, 'edit' to edit an existing file content, 'rollback' to revert to a previous version of the file, or 'list_versions' to view all versions of the file.
+- path: (required) The path of the file to edit (relative to ${cwd.toPosix()})
+- kodu_diff: (required for 'edit' mode) kodu_diff is a specially formatted string that uses SEARCH and REPLACE blocks to define the changes to be made in the file. The SEARCH block should match the existing content exactly letter by letter, space by space and each punctuation mark and exact match is required. The REPLACE block should contain the final, full updated version of that section, without placeholders or incomplete code.
+- kodu_content: (required for 'whole_write' mode) The full content of the file to be created or rewritten. This should be the complete content of the file, not just the changes, this will replace the whole file content with the content provided, and if this is a new file it will create the file with the content provided and create the needed directories if they don't exist. kodu_content must be the complete implemention without any single truncation or omitted content, it must be the full content of the file.
+- rollback_version: (required for 'rollback' mode) The version number to rollback to. This should be a number that corresponds to a specific version of the file, everytime you preform a write operation a new version of the file is created and you can rollback to any of the previous versions, if you want to understand all the available versions of the file you can use the 'list_versions' mode to get all the versions of the file.
 
-what_to_accomplish must be plain english short and to the point, it must be direct to the point with all the spec the developer needs to know about.
-It can only only include high level pseudo code or symbols but not actual code or partial / full code snippets, just plain english with mixtures of symbols and pseudo code.
+### Key Principles when using file_editor tool:
+- Always gather all changes first, then apply them in one comprehensive transaction, you want to minimize the number of file writes to avoid conflicts and ensure consistency.
+- Always before calling file_editor tool, spend time reasoning about your changes inside <thinking></thinking> tags this is mandatory to ensure you have a clear plan and you have thought about all the changes you want to make.
 
-Usage:
-<file_changes_plan>
-<path>path/to/file</path>
-<what_to_accomplish>What you want to accomplish with this file change at least a few lines with zero ambigouty must be direct to the point with all the spec the developer needs to know about.</what_to_accomplish>
-</file_changes_plan>
+### Key Principles for each mode:
+#### Key Principles for 'whole_write' mode:
+- Always provide the full content of the file to be created or rewritten in the kodu_content parameter.
+- Never omit any part of the content, always provide the full content.
+- Never use placeholders or incomplete code, always provide the full content.
+
+#### Key Principles for 'edit' mode:
+- Always provide the full required updates in the kodu_diff parameter, you should write as many necessary SEARCH/REPLACE blocks in one transaction, you should understand your previous changes and the new changes you want to make and make sure it progresses the file content in the right direction to complete the user task.
+- kodu_diff SEARCH and REPLACE must follow a strict FORMAT OF SEARCH\nexact match letter by letter, line by line of the desired content to replace\n=======\nREPLACE\nexact match letter by letter, line by line of the new content\n, this is mandatory to ensure the tool can make the correct changes to the file content.
+- You must first identify the exact lines and their content that you want to replace for every change you want to make (every block).
+- You must provide at least 3 lines of context before and after your search block to ensure a robust match (this provides the tool with enough context to make the correct changes).
+- You must plan as many related edits together and execute one tool call with all the changes to ensure consistency and avoid conflicts.
+- Each SEARCH block must match the existing content exactly, including whitespace and punctuation.
+- Each REPLACE block should contain the final, full updated version of that section, without placeholders or incomplete code, it should be the content based on you prior thinking and reasoning.
+- You must use multiple SEARCH/REPLACE pairs in the same call if you need to make multiple related changes to the same file, this is the preferred way to make changes to a file instead of calling file_editor tool many times.
+- If unsure about what to replace, read the file first using the read_file tool and confirm the exact content, if you are failing to match the content exactly, you should re-read the file content and try again before falling back to whole_write mode.
+- You must think out loud before calling file_editor tool this means inside <thinking></thinking> tags, articulate your changeset plan with helpful questions like: What lines are you changing? Why are you changing them? Show a small snippet of the before/after changes if helpful. Confirm that you have all the context and that the SEARCH block matches exactly.
+
+#### CRITICAL RULES WHEN USING file_editor WITH EDIT MODE. (WHEN USING SEARCH/REPLACE BLOCKS):
+1. Read the File if Needed: Ensure you have the most recent file content.
+2. Match Exactly: The SEARCH section must be character-for-character identical to the file's current content, including spacing and indentation.
+3. No Placeholders: Provide fully updated content in the REPLACE section.
+4. Multiple Blocks: If you have several related changes, bundle them in one call with multiple SEARCH/REPLACE pairs.
+5. Context Lines: Include at least 3 lines of context before your target line to ensure a robust match. Add a few lines after as well if possible.
+
+### File Editor Tool Examples:
+
+#### Example 1: Adding Imports and Removing a Function
+> Kodu Output
+<thinking>
+....
+"I need to add an import statement and remove an outdated function \`factorial\`. The file currently imports Flask only, but I need to import \`math\` as well. Also, I want to remove the \`factorial\` function entirely. I have at least 3 lines of context around these changes. I'll do both changes in one file_editor_call call using edit mode."
+....
+</thinking>
+
+<file_editor>
+<path>mathweb/flask/app.py</path>
+<mode>edit</mode>
+<kodu_diff>
+SEARCH
+from flask import Flask
+# Additional context lines for matching
+def my_function():
+    pass
+
+class Example:
+    def __init__(self):
+        pass
+=======
+REPLACE
+import math
+from flask import Flask
+# Additional context lines for matching
+def my_function():
+    pass
+
+class Example:
+    def __init__(self):
+        pass
+======= 
+SEARCH
+def factorial(n):
+    "compute factorial"
+
+    if n == 0:
+        return 1
+    else:
+        return n * factorial(n-1)
+
+# Context lines for better match
+def another_function():
+    print("This is a test")
+=======
+REPLACE
+# Context lines for better match
+def another_function():
+    print("This is a test")
+</kodu_diff>
+</file_editor>
+
+### Example 2: Multiple Related Changes in One Go
+> Kodu Output
+<thinking>
+....
+"I need to do multiple edits in a single file. First, I must update a function call from \`return str(factorial(n))\` to \`return str(math.factorial(n))\`. Also, I must add a new logging line inside another function. I have the full content and I ensure I pick a large enough context around each change. Both changes can be bundled into one file_editor tool call using edit mode."
+....
+</thinking>
+
+<file_editor>
+<path>mathweb/flask/app.py</path>
+<mode>edit</mode>
+<kodu_diff>
+SEARCH
+# Contextual code for better matching
+def process_number(n):
+    result = n * 2
+    return str(factorial(n))
+
+# More context if necessary
+def another_function_call():
+    pass
+=======
+REPLACE
+# Contextual code for better matching
+def process_number(n):
+    result = n * 2
+    return str(math.factorial(n))
+
+# More context if necessary
+def another_function_call():
+    # Adding a debug log line
+    print("another_function_call invoked")
+    pass
+</kodu_diff>
+</file_editor>
+
+### Example 3: Complex Multi-Hunk Update
+> Kodu Output
+<thinking>
+....
+"I have a file where I need to add a new import, update an existing export, and add a new property to a component's state. I will perform all these changes at once. I'll carefully choose unique context lines and ensure each SEARCH block matches exactly what's in the file currently. This reduces the risk of mismatching. let me call the file_editor tool with all the changes bundled together using edit mode."
+....
+</thinking>
+
+<file_editor>
+<path>main.py</path>
+<mode>edit</mode>
+<kodu_diff>
+SEARCH
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '~/components/ui/dialog';
+======= 
+REPLACE
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '~/components/ui/dialog';
+import { useAuth } from '~/hooks/useAuth';
+=======
+SEARCH
+export function AddSubscriptionModal({
+  isOpen,
+  onClose,
+}: AddSubscriptionModalProps) {
+  const addSubscription = useSubscriptionStore(
+    (state) => state.addSubscription
+  );
+=======
+REPLACE
+export function AddSubscriptionModal({
+  isOpen,
+  onClose,
+}: AddSubscriptionModalProps) {
+  const addSubscription = useSubscriptionStore(
+    (state) => state.addSubscription
+  );
+  const auth = useAuth(); // new line added
+
+  // Also adding a new property to the component's internal state
+  const [extraInfo, setExtraInfo] = useState(null);
+</kodu_diff>
+</file_editor>
+
+### Example 4: Creating a New File or Rewriting an Existing File
+> Kodu Output
+<thinking>
+....
+"I need to create a new react component for showing a user profile. I will create a new file called \`UserProfile.tsx\` and write the full content of the component in it. I will use the file_editor tool in the whole_write mode to create the file with the full content without any truncation."
+....
+</thinking>
+
+<file_editor>
+<path>src/components/UserProfile.tsx</path>
+<mode>whole_write</mode>
+<kodu_content>... full content of the UserProfile component ...</kodu_content>
+</file_editor>
+
+### Example 5: Listing All Versions of a File
+> Kodu Output
+<thinking>
+....
+"I've been thinking to myself we made a lot of progress but i realized that the vast majority of the progress caused a regression, i want to understand what were the previous changes i made and what potential version i can rollback to, i will use the file_editor tool in the list_versions mode to get all the versions of the file and understand the changes made in each version."
+....
+</thinking>
+
+<file_editor>
+<path>src/components/UserProfile.tsx</path>
+<mode>list_versions</mode>
+</file_editor>
+
+### Example 6: Rolling Back to a Previous Version of a File
+> Kodu Output
+<thinking>
+....
+"I have identified that the last changes i made to the file caused a regression, i want to rollback to the previous version of the file, i will use the file_editor tool in the rollback mode to rollback to the previous version of the file."
+....
+</thinking>
+
+<file_editor>
+<path>src/components/UserProfile.tsx</path>
+<mode>rollback</mode>
+<rollback_version>1</rollback_version>
+</file_editor>
 
 ## search_symbol
 *NOTE: This tool is highly important, this can speed up your search significantly, and can help you understand the codebase better, try to use it gather understanding of the codebase if needed.*
@@ -47,7 +256,7 @@ Description: Track files that are relevant to the current task, you must ensure 
 - Tracking file dependencies
 - Documenting why files are important, what lines to focus on, and their impact on the task
 - Supporting better decision making
-- Directly increase the context of the file_changes_plan tool but giving it visibility of the file context and why it's meaningful to the task and the proposed changes.
+- Directly increase the context of the file_editor tool but giving it visibility of the file context and why it's meaningful to the task and the proposed changes.
 
 CRITICAL: Ensure the file exists before adding it, you cannot add a file that does not exist.
 
@@ -58,7 +267,7 @@ Parameters:
 Usage:
 <add_interested_file>
 <path>path/to/file</path>
-<why>Explanation of file's relevance to the task and potential impact when proposing file changes with file_changes_plan tool</why>
+<why>Explanation of file's relevance to the task and potential impact when proposing file changes with file_editor tool</why>
 </add_interested_file>
 
 ## server_runner_tool
@@ -97,9 +306,12 @@ Usage:
 
 ## read_file
 Description: Request to read the contents of a file at the specified path. Use this when you need to examine the contents of an existing file you do not know the contents of, for example to analyze code, review text files, or extract information from configuration files. Automatically extracts raw text from PDF and DOCX files. May not be suitable for other types of binary files, as it returns the raw content as a string.
-- This tool content does not contain any linter errors, and this tool content does not change unless you change the file content using the file_changes_plan tool.
+- This tool content does not contain any linter errors, and this tool content does not change unless you change the file content using the file_editor tool.
+- You should first read only the first page and then decide if you need to read next page or all pages or not, this will help you reduce over reading meaningless content.
 Parameters:
 - path: (required) The path of the file to read (relative to the current working directory ${cwd.toPosix()})
+- pageNumber: (optional) The page number to read from a file
+- readAllPages: (optional) Read all pages of a file
 Usage:
 <read_file>
 <path>File path here</path>
@@ -129,16 +341,16 @@ Usage:
 <recursive>true or false (optional)</recursive>
 </list_files>
 
-## list_code_definition_names
+## explore_repo_folder
 Description: Request to list definition names (classes, functions, methods, etc.) used in source code files at the top level of the specified directory. This tool provides insights into the codebase structure and important constructs, encapsulating high-level concepts and relationships that are crucial for understanding the overall architecture.
 - this tool is useful when using external libraries or frameworks, as it helps you understand the available functions and classes.
-- example trying to install anthropic sdk, but you keep getting errors, you can use this tool to list the code definitions in the directory where you are trying to install the sdk to understand the available functions and classes.
+- In addition this tool can be used to understand the codebase structure and relationships between different files, combining this tool with search_symbol can help you understand the codebase better quickly.
 Parameters:
 - path: (required) The path of the directory (relative to the current working directory ${cwd.toPosix()}) to list top level source code definitions for.
 Usage:
-<list_code_definition_names>
-<path>Directory path here</path>
-</list_code_definition_names>${
+<explore_repo_folder>
+<path>Directory path here for example agent/tools</path>
+</explore_repo_folder>${
 	supportsImages
 		? `
 
@@ -212,7 +424,7 @@ Explanation: In this example, we want to understand how a specific function is i
 ## Example 3: Tracking files that Kodu thinks are relevant and have high impact on the Task with add_interested_file
 Explanation: 
 Example User Task: hey i have a bug in my auth page where users are able to sign up but not able to login, i need to fix this bug, can you help me with this?
-Example Kodu Reasoning: In my previous message i have read auth-service.ts and found that the content relates to the user task about fixing the authentication flow, i found a few lines that are crucial to the task, so i will track this file for future reference and that when i call file_changes_plan tool, it will have visibility of this file context and why i think it's meaningful to the task, it will help the file_changes_plan tool to better understand the whole flow and will improve the file change plan and execution thus resulting in a better outcome.
+Example Kodu Reasoning: In my previous message i have read auth-service.ts and found that the content relates to the user task about fixing the authentication flow, i found a few lines that are crucial to the task, so i will track this file for future reference and that when i call file_editor tool, it will have visibility of this file context and why i think it's meaningful to the task, it will help the file_editor tool to better understand the whole flow and will improve the file change plan and execution thus resulting in a better outcome.
 
 <add_interested_file>
 <path>src/auth/auth-service.ts</path>

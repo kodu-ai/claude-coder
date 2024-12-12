@@ -136,6 +136,11 @@ export const useChatMessageHandling = (
 				}
 
 				const toolButtonMap: Record<ChatTool["tool"], Partial<ChatState>> = {
+					file_editor: {
+						...baseState,
+						primaryButtonText: "Approve",
+						secondaryButtonText: "Reject",
+					},
 					attempt_completion: {
 						...baseState,
 						claudeAsk: "completion_result",
@@ -191,7 +196,7 @@ export const useChatMessageHandling = (
 						primaryButtonText: "Search",
 						secondaryButtonText: "Cancel",
 					},
-					list_code_definition_names: {
+					explore_repo_folder: {
 						...baseState,
 						primaryButtonText: "List Definitions",
 						secondaryButtonText: "Cancel",

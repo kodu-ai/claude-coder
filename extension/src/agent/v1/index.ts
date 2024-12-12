@@ -1,7 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ExtensionProvider } from "../../providers/claude-coder/claude-coder-provider"
 import { isV1ClaudeMessage } from "../../shared/extension-message"
-import { ToolName } from "../../shared/tool"
 import { ClaudeAskResponse } from "../../shared/webview-message"
 import { ApiManager } from "./api-handler"
 import { ToolExecutor } from "./tools/tool-executor"
@@ -10,7 +9,6 @@ import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails, formatFi
 import { StateManager } from "./state-manager"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
-import { ToolInput } from "./tools/types"
 import { AdvancedTerminalManager } from "../../integrations/terminal"
 import { BrowserManager } from "./browser-manager"
 import { DiagnosticsHandler, GitHandler } from "./handlers"
@@ -24,6 +22,8 @@ import { TaskExecutor } from "./task-executor/task-executor"
 import { TaskState } from "./task-executor/utils"
 import { ChatTool } from "../../shared/new-tools"
 import delay from "delay"
+import { ToolName } from "./tools/types"
+import { DIFF_VIEW_URI_SCHEME } from "../../integrations/editor/decoration-controller"
 
 // new KoduDev
 export class KoduDev {
@@ -367,120 +367,123 @@ export class KoduDev {
 		}
 	}
 
-	async rollbackToCheckpoint(ts: number, commitHash: string, branch: string) {
-		// we first need to check if this ts exists in the history
-		const message = this.stateManager.state.claudeMessages.find((m) => m.ts === ts)
-		const apiConversationHistory = await this.stateManager.getSavedApiConversationHistory()
-		const apiCommitHash = apiConversationHistory.find((m) => m.commitHash === commitHash)
-		if (!message || !apiCommitHash) {
-			throw new Error("Message not found, cannot rollback")
+	/**
+	 * checks if the file exists in the task history
+	 * if it exists it check if the original file exists
+	 * if task history file exists and the original file exists it opens a diff view between them
+	 * if the task history file exists and the original file does not exist it still opens the file in a diff view
+	 * if the task history file does not exist it shows an error message
+	 */
+	async viewFileInDiff(filePath: string, version: string) {
+		const verNum = parseInt(version, 10)
+		if (isNaN(verNum)) {
+			vscode.window.showErrorMessage(`Invalid version number: ${version}`)
+			return
 		}
 
-		console.log(`[ROLLBACK] Attempting rollback to checkpoint`, { ts, commitHash, branch })
-
-		// Get current branch name for safety
-		const currentBranch = await this.gitHandler.getCurrentBranch()
-		if (!currentBranch) {
-			throw new Error("Failed to get current branch name")
+		const versions = await this.stateManager.getFileVersions(filePath)
+		const targetVersion = versions.find((v) => v.version === verNum)
+		if (!targetVersion) {
+			vscode.window.showErrorMessage(`Version ${version} not found for file ${filePath}`)
+			return
 		}
 
-		// Create a temporary branch name for safety
-		const tempBranchName = `temp-rollback-${Date.now()}`
-
+		const absolutePath = path.resolve(this.stateManager.dirAbsolutePath ?? "", filePath)
+		let originalContent = ""
 		try {
-			// First create a temporary branch at the target commit
-			const createTempBranchSuccess = await this.gitHandler.createBranchAtCommit(tempBranchName, commitHash)
-			if (!createTempBranchSuccess) {
-				throw new Error(`Failed to create temporary branch at commit ${commitHash}`)
-			}
+			const fileUri = vscode.Uri.file(absolutePath)
+			const doc = await vscode.workspace.openTextDocument(fileUri)
+			originalContent = doc.getText()
+		} catch {
+			// file doesn't exist locally, originalContent stays empty
+		}
 
-			// Checkout to our temporary branch
-			const checkoutSuccess = await this.gitHandler.checkoutTo(tempBranchName)
-			if (!checkoutSuccess) {
-				throw new Error(`Failed to checkout to temporary branch ${tempBranchName}`)
-			}
+		const leftData = Buffer.from(originalContent, "utf-8").toString("base64")
+		const rightData = Buffer.from(targetVersion.content, "utf-8").toString("base64")
 
-			// Verify we're at the correct commit
-			const currentCommit = await this.gitHandler.getCurrentCommit()
-			// the commit hash is a short hash, so we need to check if the current commit starts with the commit hash
-			if (!currentCommit || !currentCommit.startsWith(commitHash)) {
-				throw new Error(`Failed to checkout to correct commit. Expected ${commitHash}, got ${currentCommit}`)
-			}
+		const leftUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${path.basename(filePath)}?${leftData}`)
+		const rightUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${path.basename(filePath)}_v${version}?${rightData}`)
 
-			// Find the index of the message we're rolling back to
-			const messageIndex = this.stateManager.state.claudeMessages.findIndex((m) => m.ts === ts)
-			if (messageIndex === -1) {
-				throw new Error("Failed to find message index")
-			}
-			// checkout to the target branch first before we start deleting messages
-			const finalCheckoutSuccess = await this.gitHandler.checkoutTo(branch)
-			if (!finalCheckoutSuccess) {
-				throw new Error(`Failed to checkout to target branch ${branch}`)
-			}
+		await vscode.commands.executeCommand("vscode.diff", leftUri, rightUri, `${filePath} (local ↔ v${version})`)
+	}
 
-			// Keep only messages up to and including the rollback point
-			const updatedClaudeMessages = this.stateManager.state.claudeMessages.slice(0, messageIndex + 1)
-			await this.stateManager.overwriteClaudeMessages(updatedClaudeMessages)
+	/**
+	 * current impelementation isn't working as expected requires better data structure to store the file versions and context if the file existed before or not
+	 * Rollback to a specific checkpoint:
+	 *  - Validate version number and existence
+	 *  - Find the message by ts and remove all messages (Claude and API) after it
+	 *  - For each file in the task:
+	 *    - Find the highest version <= requested version
+	 *    - Revert file content to that version using vscode.workspace.applyEdit
+	 *  - Save updated conversation history
+	 *  - Show success message
+	 */
+	async rollbackToCheckpoint(filePath: string, version: string, ts: number) {
+		const verNum = parseInt(version, 10)
+		if (isNaN(verNum)) {
+			vscode.window.showErrorMessage(`Invalid version number: ${version}`)
+			return
+		}
+		const versions = await this.stateManager.getFileVersions(filePath)
+		const targetVersion = versions.find((v) => v.version === verNum)
+		if (!targetVersion) {
+			vscode.window.showErrorMessage(`Version ${version} not found for file ${filePath}`)
+			return
+		}
 
-			// Find index in API conversation history
-			const apiHistoryIndex = apiConversationHistory.findIndex((m) => m.commitHash === commitHash)
-			if (apiHistoryIndex === -1) {
-				throw new Error("Failed to find API history index")
-			}
+		// Remove all messages after the specified ts
+		const updatedClaudeMessages = await this.stateManager.removeEverythingAfterMessage(ts)
+		if (!updatedClaudeMessages) {
+			vscode.window.showErrorMessage(`Failed to rollback: could not find message with ts ${ts}`)
+			return
+		}
 
-			// Keep only API history up to and including the rollback point
-			const updatedApiHistory = apiConversationHistory.slice(0, apiHistoryIndex + 1)
+		const allApiHistory = await this.stateManager.getSavedApiConversationHistory()
+		const lastApiIndex = allApiHistory.findIndex((h) => h.ts === ts)
+		if (lastApiIndex !== -1) {
+			const updatedApiHistory = allApiHistory.slice(0, lastApiIndex + 1)
 			await this.stateManager.overwriteApiConversationHistory(updatedApiHistory)
+		}
 
-			// Reset the target branch to our verified commit state
-			const resetSuccess = await this.gitHandler.resetHardTo(commitHash)
-			if (!resetSuccess) {
-				throw new Error(`Failed to reset ${branch} to commit ${commitHash}`)
-			}
+		// Now revert all files in the task to the requested version (or nearest lower version)
+		const filesMap = await this.stateManager.getFilesInTaskDirectory()
+		const edit = new vscode.WorkspaceEdit()
 
-			console.log(`[ROLLBACK] Successfully rolled back to checkpoint`, {
-				ts,
-				commitHash,
-				branch,
-				messageCount: updatedClaudeMessages.length,
-				apiHistoryCount: updatedApiHistory.length,
-				fromBranch: currentBranch,
-			})
-			// we must update the webview to reflect the changes
-			await this.providerRef.deref()?.getWebviewManager().postBaseStateToWebview()
-			await this.providerRef.deref()?.getWebviewManager().postClaudeMessagesToWebview(updatedClaudeMessages)
-			vscode.window.showInformationMessage(`Successfully rolled back to checkpoint at commit ${commitHash}`)
-			return true
-		} catch (error) {
-			console.error(`[ROLLBACK] Failed to rollback:`, error)
-			// Attempt to restore to previous state
-			try {
-				vscode.window.showErrorMessage(
-					`Failed to rollback to checkpoint. Please manually checkout to branch ${currentBranch}`
-				)
-				console.log(`[ROLLBACK] Attempting to restore to original branch ${currentBranch}`)
-				await this.gitHandler.checkoutTo(currentBranch)
-			} catch (restoreError) {
-				vscode.window.showErrorMessage(
-					`Failed to rollback to checkpoint. Please manually checkout to branch ${currentBranch}`
-				)
-				console.error(`[ROLLBACK] Failed to restore to previous branch:`, restoreError)
-			}
-			throw error
-		} finally {
-			// Cleanup: try to delete temporary branch if it exists
-			try {
-				await this.gitHandler.deleteBranch(tempBranchName)
-			} catch (cleanupError) {
-				console.error(`[ROLLBACK] Failed to cleanup temporary branch:`, cleanupError)
+		for (const [fPath, fVersions] of Object.entries(filesMap)) {
+			// Find the version <= verNum
+			const revertVersion = [...fVersions].reverse().find((fv) => fv.version <= verNum)
+			if (!revertVersion) {
+				// no version <= verNum means file didn't exist at that time, revert to empty
+				const fileUri = vscode.Uri.file(path.resolve(this.stateManager.dirAbsolutePath ?? "", fPath))
+				edit.createFile(fileUri, { overwrite: true })
+			} else {
+				const fileUri = vscode.Uri.file(path.resolve(this.stateManager.dirAbsolutePath ?? "", fPath))
+				edit.createFile(fileUri, { overwrite: true })
+				edit.insert(fileUri, new vscode.Position(0, 0), revertVersion.content)
 			}
 		}
+
+		const applied = await vscode.workspace.applyEdit(edit)
+		if (!applied) {
+			vscode.window.showErrorMessage("Failed to apply rollback changes to files.")
+			return
+		}
+
+		// Reload the webview
+		await this.providerRef.deref()?.getWebviewManager().postBaseStateToWebview()
+		await this.providerRef.deref()?.getWebviewManager().postClaudeMessagesToWebview(updatedClaudeMessages)
+
+		vscode.window.showInformationMessage(`Successfully rolled back to version ${version} for ${filePath}.`)
 	}
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {
 		let details = ""
 		const lastTwoMsgs = this.stateManager.state.apiConversationHistory.slice(-2)
-		const awaitRequierdTools: ToolName[] = ["execute_command", "write_to_file", "edit_file_blocks"]
+		const awaitRequierdTools: (ToolName | "edit_file_blocks")[] = [
+			"execute_command",
+			"write_to_file",
+			"edit_file_blocks",
+		]
 		const isLastMsgMutable = lastTwoMsgs.some((msg) => {
 			if (Array.isArray(msg.content)) {
 				return msg.content.some(

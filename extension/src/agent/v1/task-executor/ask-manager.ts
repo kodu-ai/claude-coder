@@ -38,7 +38,7 @@ export class AskManager {
 		"read_file",
 		"list_files",
 		"search_files",
-		"list_code_definition_names",
+		"explore_repo_folder",
 		"web_search",
 		"url_screenshot",
 	] as const

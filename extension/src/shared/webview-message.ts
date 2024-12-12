@@ -107,14 +107,13 @@ export type toggleGitHandlerMessage = {
 export type viewFileMessage = {
 	type: "viewFile"
 	path: string
-	branch: string
-	commitHash: string
+	version: string
 }
 
 export type rollbackToCheckpointMessage = {
 	type: "rollbackToCheckpoint"
-	commitHash: string
-	branch: string
+	version: string
+	path: string
 	ts: number
 }
 

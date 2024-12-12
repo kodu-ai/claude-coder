@@ -13,7 +13,7 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 		if (!symbolName) {
 			await say(
 				"error",
-				"Claude tried to use search_symbol without value for required parameter 'symbolName'. Retrying..."
+				"Kodu tried to use search_symbol without value for required parameter 'symbolName'. Retrying..."
 			)
 
 			const errorMsg = `

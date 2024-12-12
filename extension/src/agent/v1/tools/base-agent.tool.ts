@@ -2,9 +2,7 @@ import Anthropic from "@anthropic-ai/sdk"
 import { KoduDev } from ".."
 import { ToolResponse, ToolResponseV2 } from "../types"
 import { AgentToolOptions, AgentToolParams, CommitInfo, ToolParams } from "./types"
-import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "../utils"
-import { GitCommitResult } from "../handlers"
-import { ToolName } from "../../../shared/tool"
+import { formatImagesIntoBlocks } from "../utils"
 
 export type FullToolParams<T extends ToolParams> = T & {
 	id: string
@@ -12,9 +10,9 @@ export type FullToolParams<T extends ToolParams> = T & {
 	isSubMsg?: boolean
 	isLastWriteToFile: boolean
 	isFinal?: boolean
-	ask: (type: string, content: any, ts: number) => Promise<{ response: any; text?: string; images?: string[] }>
-	say: (type: string, text: string, images?: string[]) => Promise<number>
-	updateAsk: (type: string, content: any, ts: number) => Promise<void>
+	ask: AgentToolParams["ask"]
+	say: AgentToolParams["say"]
+	updateAsk: AgentToolParams["updateAsk"]
 	returnEmptyStringOnSuccess?: boolean
 }
 
@@ -61,7 +59,7 @@ export abstract class BaseAgentTool<T extends ToolParams> {
 		return this.params.isFinal ?? false
 	}
 
-	abstract execute(): Promise<ToolResponseV2>
+	abstract execute(params: AgentToolParams): Promise<ToolResponseV2>
 
 	public updateParams(input: AgentToolParams["input"]) {
 		this.params.input = input

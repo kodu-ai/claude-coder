@@ -1,7 +1,7 @@
 // schema/index.ts
 import { executeCommandTool } from "./execute_command"
 import { listFilesTool } from "./list_files"
-import { listCodeDefinitionNamesTool } from "./list_code_definition_names"
+import { ExploreRepoFolderTool } from "./explore-repo-folder.schema"
 import { searchFilesTool } from "./search_files"
 import { readFileTool } from "./read_file"
 import { writeToFileTool } from "./write_to_file"
@@ -12,15 +12,14 @@ import { urlScreenshotTool } from "./url_screenshot"
 import { devServerTool } from "./dev_server"
 import { searchSymbolTool } from "./search_symbols"
 import { addInterestedFileTool } from "./add_interested_file"
-import { fileChangePlanTool } from "./file-change-plan"
+import { fileEditorTool } from "./file_editor_tool"
 
 export const tools = [
 	executeCommandTool,
 	listFilesTool,
-	listCodeDefinitionNamesTool,
+	ExploreRepoFolderTool,
 	searchFilesTool,
 	readFileTool,
-	writeToFileTool,
 	askFollowupQuestionTool,
 	attemptCompletionTool,
 	webSearchTool,
@@ -28,14 +27,14 @@ export const tools = [
 	devServerTool,
 	searchSymbolTool,
 	addInterestedFileTool,
-	fileChangePlanTool,
+	fileEditorTool,
 ] as const
 
 export type Tool = (typeof tools)[number]
 export {
 	executeCommandTool,
 	listFilesTool,
-	listCodeDefinitionNamesTool,
+	ExploreRepoFolderTool,
 	searchFilesTool,
 	readFileTool,
 	writeToFileTool,
@@ -45,5 +44,5 @@ export {
 	urlScreenshotTool,
 	searchSymbolTool as searchSymbolsTool,
 	addInterestedFileTool,
-	fileChangePlanTool,
+	fileEditorTool,
 }

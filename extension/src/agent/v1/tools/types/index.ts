@@ -1,5 +1,4 @@
 import { ClaudeAsk, ClaudeSay } from "../../../../shared/extension-message"
-import { ToolName } from "../../../../shared/tool"
 import { ClaudeAskResponse } from "../../../../shared/webview-message"
 import { KoduDev } from "../.."
 import { TaskExecutorUtils } from "../../task-executor/utils"
@@ -9,16 +8,17 @@ import { AskFollowupQuestionToolParams } from "../schema/ask_followup_question"
 import { AttemptCompletionToolParams } from "../schema/attempt_completion"
 import { ServerRunnerToolParams } from "../schema/dev_server"
 import { ExecuteCommandToolParams } from "../schema/execute_command"
-import { ListCodeDefinitionNamesToolParams } from "../schema/list_code_definition_names"
+import { ExploreRepoFolderToolParams } from "../schema/explore-repo-folder.schema"
 import { ListFilesToolParams } from "../schema/list_files"
 import { ReadFileToolParams } from "../schema/read_file"
 import { SearchFilesToolParams } from "../schema/search_files"
 import { SearchSymbolsToolParams } from "../schema/search_symbols"
 import { UrlScreenshotToolParams } from "../schema/url_screenshot"
 import { WebSearchToolParams } from "../schema/web_search"
-import { WriteToFileToolParams } from "../schema/write_to_file"
+import { EditFileBlocksToolParams, WriteToFileToolParams } from "../schema/write_to_file"
 import { FileChangePlanParams } from "../schema/file-change-plan"
 import { RejectFileChangesParams } from "../schema/reject-file-changes"
+import { FileEditorToolParams } from "../schema/file_editor_tool"
 
 export type UpsertMemoryInput = {
 	milestoneName: string
@@ -32,7 +32,7 @@ export type ToolParams =
 	| AttemptCompletionToolParams
 	| ServerRunnerToolParams
 	| ExecuteCommandToolParams
-	| ListCodeDefinitionNamesToolParams
+	| ExploreRepoFolderToolParams
 	| ListFilesToolParams
 	| ReadFileToolParams
 	| SearchFilesToolParams
@@ -42,6 +42,10 @@ export type ToolParams =
 	| FileChangePlanParams
 	| RejectFileChangesParams
 	| WriteToFileToolParams
+	| EditFileBlocksToolParams
+	| FileEditorToolParams
+
+export type ToolName = ToolParams["name"]
 
 export type AgentToolParams = {
 	name: ToolParams["name"]

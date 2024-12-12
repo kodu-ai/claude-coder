@@ -2,10 +2,10 @@ import * as path from "path"
 import { serializeError } from "serialize-error"
 import { parseSourceCodeForDefinitionsTopLevel } from "../../../../parse-source-code"
 import { BaseAgentTool } from "../base-agent.tool"
-import { ListCodeDefinitionNamesToolParams } from "../schema/list_code_definition_names"
+import { ExploreRepoFolderToolParams } from "../schema/explore-repo-folder.schema"
 import { getReadablePath } from "../../utils"
 
-export class ListCodeDefinitionNamesTool extends BaseAgentTool<ListCodeDefinitionNamesToolParams> {
+export class ExploreRepoFolderTool extends BaseAgentTool<ExploreRepoFolderToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
 		const relDirPath = input.path
@@ -13,7 +13,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool<ListCodeDefinitio
 		if (relDirPath === undefined) {
 			await say(
 				"error",
-				"Claude tried to use list_code_definition_names without value for required parameter 'path'. Retrying..."
+				"Kodu tried to use explore_repo_folder without value for required parameter 'path'. Retrying..."
 			)
 
 			return this.toolResponse(
@@ -22,7 +22,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool<ListCodeDefinitio
 				<code_definitions_response>
 					<status>
 						<result>error</result>
-						<operation>list_code_definitions</operation>
+						<operation>explore_repo_folder</operation>
 						<timestamp>${new Date().toISOString()}</timestamp>
 					</status>
 					<error_details>
@@ -30,7 +30,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool<ListCodeDefinitio
 						<message>Missing required parameter 'path'</message>
 						<help>
 							<example_usage>
-								<tool>list_code_definition_names</tool>
+								<tool>explore_repo_folder</tool>
 								<parameters>
 									<path>path/to/directory</path>
 								</parameters>
@@ -50,7 +50,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool<ListCodeDefinitio
 				"tool",
 				{
 					tool: {
-						tool: "list_code_definition_names",
+						tool: "explore_repo_folder",
 						path: getReadablePath(relDirPath, this.cwd),
 						approvalState: "pending",
 						content: result,
@@ -65,7 +65,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool<ListCodeDefinitio
 					"tool",
 					{
 						tool: {
-							tool: "list_code_definition_names",
+							tool: "explore_repo_folder",
 							path: getReadablePath(relDirPath, this.cwd),
 							approvalState: "rejected",
 							content: result,
@@ -88,7 +88,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool<ListCodeDefinitio
 				"tool",
 				{
 					tool: {
-						tool: "list_code_definition_names",
+						tool: "explore_repo_folder",
 						path: getReadablePath(relDirPath, this.cwd),
 						approvalState: "approved",
 						content: result,
@@ -103,7 +103,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool<ListCodeDefinitio
 				`<code_definitions_response>
 					<status>
 						<result>success</result>
-						<operation>list_code_definitions</operation>
+						<operation>explore_repo_folder</operation>
 						<timestamp>${new Date().toISOString()}</timestamp>
 					</status>
 					<analysis_info>
@@ -128,7 +128,7 @@ export class ListCodeDefinitionNamesTool extends BaseAgentTool<ListCodeDefinitio
 				`<code_definitions_response>
 					<status>
 						<result>error</result>
-						<operation>list_code_definitions</operation>
+						<operation>explore_repo_folder</operation>
 						<timestamp>${new Date().toISOString()}</timestamp>
 					</status>
 					<error_details>

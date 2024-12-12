@@ -260,7 +260,7 @@ export class WebSearchTool extends BaseAgentTool<WebSearchToolParams> {
 		const { searchQuery, browserMode } = this.params.input
 		await this.params.say(
 			"error",
-			"Claude tried to use `web_search` without required parameter `searchQuery` or `browserMode`. Retrying..."
+			"Kodu tried to use `web_search` without required parameter `searchQuery` or `browserMode`. Retrying..."
 		)
 
 		const errorMsg = `

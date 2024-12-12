@@ -29,8 +29,8 @@ export type ListFilesTool = {
 	content?: string
 }
 
-export type ListCodeDefinitionNamesTool = {
-	tool: "list_code_definition_names"
+export type ExploreRepoFolderTool = {
+	tool: "explore_repo_folder"
 	path: string
 	content?: string
 }
@@ -47,6 +47,8 @@ export type ReadFileTool = {
 	tool: "read_file"
 	path: string
 	content: string
+	pageNumber?: number
+	readAllPages?: boolean
 }
 
 export type WriteToFileTool = {
@@ -126,16 +128,25 @@ export type FileChangePlanTool = {
 	rejectedString?: string
 }
 
-export type SummarizeChatTool = {
-	tool: "summarize"
-	cost?: number
-	output?: string
+export type FileEditorTool = {
+	tool: "file_editor"
+	path: string
+	mode: "edit" | "whole_write" | "rollback" | "list_versions"
+	kodu_content?: string
+	kodu_diff?: string
+	list_versions?: boolean
+	rollback_version?: string
+	list_versions_output?: string
+	saved_version?: string
+	notAppliedCount?: number
+	commitHash?: string
+	branch?: string
 }
 
 export type ChatTool = (
 	| ExecuteCommandTool
 	| ListFilesTool
-	| ListCodeDefinitionNamesTool
+	| ExploreRepoFolderTool
 	| SearchFilesTool
 	| ReadFileTool
 	| WriteToFileTool
@@ -145,6 +156,7 @@ export type ChatTool = (
 	| UrlScreenshotTool
 	| ServerRunnerTool
 	| SearchSymbolsTool
+	| FileEditorTool
 	| AddInterestedFileTool
 	| FileChangePlanTool
 ) & {
@@ -157,5 +169,3 @@ export type ChatTool = (
 	error?: string
 	userFeedback?: string
 }
-
-export type ToolName = ChatTool["tool"] | "edit_file_blocks"

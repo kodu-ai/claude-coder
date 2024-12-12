@@ -11,10 +11,7 @@ export class ListFilesTool extends BaseAgentTool<ListFilesToolParams> {
 		const { path: relDirPath, recursive: recursiveRaw } = input
 
 		if (relDirPath === undefined) {
-			await say(
-				"error",
-				"Claude tried to use list_files without value for required parameter 'path'. Retrying..."
-			)
+			await say("error", "Kodu tried to use list_files without value for required parameter 'path'. Retrying...")
 			const errorMsg = `
 			<file_list_response>
 				<status>

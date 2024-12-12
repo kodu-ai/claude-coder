@@ -8,10 +8,24 @@ import { getApiMetrics } from "../../shared/get-api-metrics"
 import { findLastIndex } from "../../utils"
 import { ApiManager } from "./api-handler"
 import { DEFAULT_MAX_REQUESTS_PER_TASK } from "./constants"
-import { ApiHistoryItem, ClaudeMessage, KoduDevOptions, KoduDevState } from "./types"
+import { ApiHistoryItem, ClaudeMessage, FileVersion, KoduDevOptions, KoduDevState } from "./types"
 import { createWriteStream } from "fs"
 // import { amplitudeTracker } from "@/utils/amplitude"
 import { amplitudeTracker } from "../../utils/amplitude"
+
+// Helper function to safely encode file paths to directory names
+// For example, we can base64 encode. Alternatively, replace '/' with '__' or something similar.
+function encodeFilePath(filePath: string): string {
+	// Simple encoding: replace path separators with a triple underscore
+	const replaced = filePath.replace(/[/\\]/g, "___")
+	return Buffer.from(replaced).toString("base64") // encode to base64 for uniqueness
+}
+
+function decodeFilePath(encoded: string): string {
+	const decoded = Buffer.from(encoded, "base64").toString("utf-8")
+	return decoded.replace(/___/g, path.sep)
+}
+
 export class StateManager {
 	private _state: KoduDevState
 	private _apiManager: ApiManager
@@ -229,6 +243,89 @@ export class StateManager {
 		const taskDir = path.join(globalStoragePath, "tasks", this.state.taskId)
 		await fs.mkdir(taskDir, { recursive: true })
 		return taskDir
+	}
+
+	private async getFileVersionsDir(): Promise<string> {
+		const taskDir = await this.ensureTaskDirectoryExists()
+		const versionsDir = path.join(taskDir, "file_versions")
+		await fs.mkdir(versionsDir, { recursive: true })
+		return versionsDir
+	}
+
+	/**
+	 * Save a new file version. Each file has its own directory under file_versions.
+	 * We store each version in `version_<number>.json`.
+	 * The file format: { "content": "file content", "createdAt": number }
+	 */
+	public async saveFileVersion(file: FileVersion): Promise<void> {
+		const versionsDir = await this.getFileVersionsDir()
+		const encodedPath = encodeFilePath(file.path)
+		const fileDir = path.join(versionsDir, encodedPath)
+		await fs.mkdir(fileDir, { recursive: true })
+
+		const versionFilePath = path.join(fileDir, `version_${file.version}.json`)
+		const data = {
+			content: file.content,
+			createdAt: file.createdAt,
+		}
+		await fs.writeFile(versionFilePath, JSON.stringify(data, null, 2))
+	}
+
+	/**
+	 * Get all versions of a file by enumerating all `version_*.json` files in its directory.
+	 */
+	public async getFileVersions(relPath: string): Promise<FileVersion[]> {
+		const versionsDir = await this.getFileVersionsDir()
+		const encodedPath = encodeFilePath(relPath)
+		const fileDir = path.join(versionsDir, encodedPath)
+
+		try {
+			const entries = await fs.readdir(fileDir)
+			const versionFiles = entries.filter((e) => e.startsWith("version_") && e.endsWith(".json"))
+			const versions: FileVersion[] = []
+			for (const vf of versionFiles) {
+				const versionMatch = vf.match(/version_(\d+)\.json$/)
+				if (!versionMatch) continue
+				const verNum = parseInt(versionMatch[1], 10)
+				const fullPath = path.join(fileDir, vf)
+				const contentStr = await fs.readFile(fullPath, "utf8")
+				const json = JSON.parse(contentStr)
+				versions.push({
+					path: relPath,
+					version: verNum,
+					createdAt: json.createdAt,
+					content: json.content,
+				})
+			}
+			versions.sort((a, b) => a.version - b.version)
+			return versions
+		} catch (err) {
+			// If directory doesn't exist or no versions found
+			return []
+		}
+	}
+
+	/**
+	 * List all files and their versions in the task directory.
+	 */
+	public async getFilesInTaskDirectory(): Promise<Record<string, FileVersion[]>> {
+		const versionsDir = await this.getFileVersionsDir()
+		const result: Record<string, FileVersion[]> = {}
+		try {
+			const fileDirs = await fs.readdir(versionsDir)
+			for (const fd of fileDirs) {
+				const fileDir = path.join(versionsDir, fd)
+				const stat = await fs.lstat(fileDir)
+				if (stat.isDirectory()) {
+					const relPath = decodeFilePath(fd)
+					const versions = await this.getFileVersions(relPath)
+					result[relPath] = versions
+				}
+			}
+		} catch (err) {
+			// no files
+		}
+		return result
 	}
 
 	async getSavedApiConversationHistory(): Promise<ApiHistoryItem[]> {

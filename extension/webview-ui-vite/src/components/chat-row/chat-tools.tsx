@@ -30,8 +30,8 @@ import {
 	AttemptCompletionTool,
 	ChatTool,
 	ExecuteCommandTool,
+	ExploreRepoFolderTool,
 	FileChangePlanTool,
-	ListCodeDefinitionNamesTool,
 	ListFilesTool,
 	ReadFileTool,
 	SearchFilesTool,
@@ -364,10 +364,9 @@ export const ListFilesBlock: React.FC<ListFilesTool & ToolAddons> = ({
 	</ToolBlock>
 )
 
-export const ListCodeDefinitionNamesBlock: React.FC<ListCodeDefinitionNamesTool & ToolAddons> = ({
+export const ExploreRepoFolderBlock: React.FC<ExploreRepoFolderTool & ToolAddons> = ({
 	path,
 	approvalState,
-
 	tool,
 	ts,
 	...rest
@@ -377,7 +376,7 @@ export const ListCodeDefinitionNamesBlock: React.FC<ListCodeDefinitionNamesTool 
 		ts={ts}
 		tool={tool}
 		icon={Code}
-		title="List Code Definitions"
+		title="Explore Repository Folder"
 		variant="accent"
 		approvalState={approvalState}>
 		<p className="text-xs">
@@ -424,6 +423,8 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 	content,
 	tool,
 	ts,
+	pageNumber,
+	readAllPages,
 	...rest
 }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
@@ -440,11 +441,22 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 			<p className="text-xs">
 				<span className="font-semibold">File:</span> {path}
 			</p>
+			{typeof pageNumber === "number" && (
+				<p className="text-xs">
+					<span className="font-semibold">Page Number:</span> {pageNumber}
+				</p>
+			)}
+			{typeof readAllPages === "boolean" && (
+				<p className="text-xs">
+					<span className="font-semibold">Read All Pages:</span> {readAllPages ? "Yes" : "No"}
+				</p>
+			)}
+
 			{content && content.length > 0 && (
 				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
 					<CollapsibleTrigger asChild>
 						<Button variant="ghost" size="sm" className="flex items-center w-full justify-between">
-							<span>View Output</span>
+							<span>View Content</span>
 							{isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
 						</Button>
 					</CollapsibleTrigger>
@@ -719,13 +731,13 @@ export const ToolRenderer: React.FC<{
 			return <ExecuteCommandBlock hasNextMessage {...tool} />
 		case "list_files":
 			return <ListFilesBlock {...tool} />
-		case "list_code_definition_names":
-			return <ListCodeDefinitionNamesBlock {...tool} />
+		case "explore_repo_folder":
+			return <ExploreRepoFolderBlock {...tool} />
 		case "search_files":
 			return <SearchFilesBlock {...tool} />
 		case "read_file":
 			return <ReadFileBlock {...tool} />
-		case "write_to_file":
+		case "file_editor":
 			return <FileEditorTool {...tool} />
 		case "ask_followup_question":
 			return <AskFollowupQuestionBlock {...tool} approvalState="pending" />
@@ -741,8 +753,6 @@ export const ToolRenderer: React.FC<{
 			return <SearchSymbolBlock {...tool} />
 		case "add_interested_file":
 			return <AddInterestedFileBlock {...tool} />
-		case "file_changes_plan":
-			return <FileChangesPlanBlock {...tool} />
 		default:
 			return null
 	}

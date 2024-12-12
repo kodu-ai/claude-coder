@@ -10,7 +10,7 @@ import type {
 // import { parseToolResponse } from "@/shared/format-tools"
 import { isToolResponseV2, parseToolResponse } from "../../shared/format-tools"
 import { ApiHandler } from "../../api"
-import { ToolName } from "../../shared/new-tools"
+import { ToolName } from "../../agent/v1/tools/types"
 
 const KODU_DIFF = "kodu_diff" as const
 const KODU_CONTENT = "kodu_content" as const
