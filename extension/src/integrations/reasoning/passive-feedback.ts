@@ -1,4 +1,5 @@
 import { ApiHistoryItem, KoduDev } from "@/agent/v1"
+import { cloneDeep } from "lodash"
 
 /**
  * This function:
@@ -22,21 +23,13 @@ export async function generatePassiveFeedback(
 	}
 }> {
 	// Retrieve the existing conversation (agent <-> user)
-	const messages = await koduDev.getStateManager().getSavedApiConversationHistory()
-
-	// Add a user message that describes the scenario:
-	// We clarify that the conversation the LLM sees is between an agent named Kodu and a user.
-	// The LLM is a third-party observer now asked to provide a short, critical feedback.
-	messages.push({
-		role: "user",
-		content: `You are now observing a conversation that took place between an AI agent named Kodu and a user. Kodu had access to various tools (like file editing, searching, etc.) and it has been trying to solve the user's request step-by-step. Now I want you, as a neutral and external observer, to provide a very short and concise critical feedback about Kodu's overall current direction and behavior based on the conversation so far. 
-
-Points to consider in your feedback:
-- Is Kodu on the right track or off track?
-- Is Kodu looping or stuck?
-- Does Kodu need more context or should it change approach?
-- Your feedback should be brutally honest, no pleasantries, no fluff. Just a few sentences of sharp critique that helps Kodu self-correct if needed.`,
-	} as ApiHistoryItem)
+	const ogMessages = await koduDev.getStateManager().getSavedApiConversationHistory()
+	const messages = cloneDeep(ogMessages)
+	const lastMessage = messages[messages.length - 1]
+	// check if the last message if from the user if not we reject the request or message content is not array
+	if (!lastMessage || !Array.isArray(lastMessage.content) || lastMessage.role !== "user") {
+		throw new Error("No user message found in the conversation history.")
+	}
 
 	// The system prompt: instructions for how the LLM should understand and respond
 	const systemPrompt = [
@@ -73,6 +66,17 @@ Kodu has access to a variety of tools including:
 		systemPrompt,
 		messages,
 		abortSignal,
+		appendAfterCacheToLastMessage(lastMessage) {
+			lastMessage.content.push({
+				type: "text",
+				text: `You are now observing a conversation that took place between an AI agent named Kodu and a user. Kodu had access to various tools (like file editing, searching, etc.) and it has been trying to solve the user's request step-by-step. Now I want you, as a neutral and external observer, to provide a very short and concise critical feedback about Kodu's overall current direction and behavior based on the conversation so far. 
+		Points to consider in your feedback:
+		- Is Kodu on the right track or off track?
+		- Is Kodu looping or stuck?
+		- Does Kodu need more context or should it change approach?
+		- Your feedback should be brutally honest, no pleasantries, no fluff. Just a few sentences of sharp critique that helps Kodu self-correct if needed.`,
+			})
+		},
 	})
 
 	let finalContent = ""

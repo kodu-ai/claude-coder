@@ -343,7 +343,11 @@ export class TaskExecutor extends TaskExecutorUtils {
 				}
 				this.lastResultWithCommit = undefined
 			}
-
+			await this.stateManager.addToApiConversationHistory({
+				role: "user",
+				content: this.currentUserContent,
+				...attributesToAdd,
+			})
 			const startedReqId = await this.say(
 				"api_req_started",
 				JSON.stringify({
@@ -374,14 +378,13 @@ export class TaskExecutor extends TaskExecutorUtils {
 							`,
 						},
 					]
+					// update the api history with the new content
+					await this.stateManager.updateApiHistoryItem(startedReqId, {
+						role: "user",
+						content: this.currentUserContent,
+					})
 				}
 			}
-
-			await this.stateManager.addToApiConversationHistory({
-				role: "user",
-				content: this.currentUserContent,
-				...attributesToAdd,
-			})
 
 			const stream = this.stateManager.apiManager.createApiStreamRequest(
 				this.stateManager.state.apiConversationHistory,

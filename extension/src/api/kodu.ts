@@ -13,6 +13,7 @@ import {
 } from "../shared/kodu"
 import { WebSearchResponseDto } from "./interfaces"
 import { ApiHistoryItem } from "../agent/v1"
+import { cloneDeep } from "lodash"
 
 export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 	const response = await axios.get(getKoduCurrentUser(), {
@@ -190,6 +191,7 @@ export class KoduHandler implements ApiHandler {
 		tempature,
 		abortSignal,
 		modelId,
+		appendAfterCacheToLastMessage,
 	}: Parameters<ApiHandler["createMessageStream"]>[0]): AsyncIterableIterator<koduSSEResponse> {
 		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = []
 
@@ -210,8 +212,10 @@ export class KoduHandler implements ApiHandler {
 		)
 		const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
 		const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
+
+		const cleanMsgs = cloneDeep(messages)
 		// Prepare messages up to the last user message
-		const messagesToCache: ApiHistoryItem[] = messages.map((msg, index) => {
+		const messagesToCache: ApiHistoryItem[] = cleanMsgs.map((msg, index) => {
 			const { ts, commitHash, branch, preCommitHash, ...message } = msg
 
 			if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
@@ -235,6 +239,10 @@ export class KoduHandler implements ApiHandler {
 			}
 			return message
 		})
+
+		if (appendAfterCacheToLastMessage && messagesToCache.at(-1) && messagesToCache.at(-1)?.content) {
+			appendAfterCacheToLastMessage(messagesToCache.at(-1) as Anthropic.Messages.Message)
+		}
 
 		// randomMaxTokens between 2200 and 3000
 		// const rnd = Math.floor(Math.random() * 800) + 2200

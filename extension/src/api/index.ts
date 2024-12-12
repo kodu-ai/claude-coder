@@ -32,6 +32,7 @@ export interface ApiHandler {
 		top_p,
 		tempature,
 		modelId,
+		appendAfterCacheToLastMessage,
 	}: {
 		systemPrompt: string[]
 		messages: ApiHistoryItem[]
@@ -39,6 +40,7 @@ export interface ApiHandler {
 		top_p?: number
 		tempature?: number
 		modelId: KoduModelId
+		appendAfterCacheToLastMessage?: (lastMessage: Anthropic.Messages.Message) => void
 	}): AsyncIterableIterator<koduSSEResponse>
 
 	createBaseMessageStream(
