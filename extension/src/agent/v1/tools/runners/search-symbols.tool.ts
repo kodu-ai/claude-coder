@@ -1,21 +1,14 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
 import { BaseAgentTool } from "../base-agent.tool"
-import { AgentToolOptions, AgentToolParams } from "../types"
 import { getReadablePath } from "../../utils"
 import * as vscode from "vscode"
+import { SearchSymbolsToolParams } from "../schema/search_symbols"
 
-export class SearchSymbolsTool extends BaseAgentTool {
-	protected params: AgentToolParams
-
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
-
+export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
-		const { symbolName } = input
+		const symbolName = input.symbolName
 
 		if (!symbolName) {
 			await say(

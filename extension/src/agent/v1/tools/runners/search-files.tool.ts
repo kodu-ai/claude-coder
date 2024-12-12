@@ -1,20 +1,11 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
-import { ClaudeSayTool } from "../../../../shared/extension-message"
-import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
+import { getReadablePath } from "../../utils"
 import { regexSearchFiles } from "../../../../utils/ripgrep"
-import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
+import { SearchFilesToolParams } from "../schema/search_files"
 
-export class SearchFilesTool extends BaseAgentTool {
-	protected params: AgentToolParams
-
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
-
+export class SearchFilesTool extends BaseAgentTool<SearchFilesToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
 		const { path: relDirPath, regex, filePattern } = input

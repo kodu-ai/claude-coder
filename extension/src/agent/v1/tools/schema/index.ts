@@ -9,7 +9,6 @@ import { askFollowupQuestionTool } from "./ask_followup_question"
 import { attemptCompletionTool } from "./attempt_completion"
 import { webSearchTool } from "./web_search"
 import { urlScreenshotTool } from "./url_screenshot"
-import { upsertMemoryTool } from "./upsert_memory"
 import { devServerTool } from "./dev_server"
 import { searchSymbolTool } from "./search_symbols"
 import { addInterestedFileTool } from "./add_interested_file"
@@ -26,7 +25,6 @@ export const tools = [
 	attemptCompletionTool,
 	webSearchTool,
 	urlScreenshotTool,
-	upsertMemoryTool,
 	devServerTool,
 	searchSymbolTool,
 	addInterestedFileTool,
@@ -45,7 +43,6 @@ export {
 	attemptCompletionTool,
 	webSearchTool,
 	urlScreenshotTool,
-	upsertMemoryTool,
 	searchSymbolTool as searchSymbolsTool,
 	addInterestedFileTool,
 	fileChangePlanTool,

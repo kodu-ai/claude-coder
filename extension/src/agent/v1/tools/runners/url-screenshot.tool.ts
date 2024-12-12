@@ -1,24 +1,14 @@
 import * as path from "path"
-import * as vscode from "vscode"
 import fs from "fs/promises"
-import { ClaudeSayTool } from "../../../../shared/extension-message"
-import { ToolResponse, ToolResponseV2 } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
+import { ToolResponseV2 } from "../../types"
 import { BaseAgentTool } from "../base-agent.tool"
-import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "../types"
-import Anthropic from "@anthropic-ai/sdk"
+import type { AskConfirmationResponse } from "../types"
 import { ChatTool } from "../../../../shared/new-tools"
+import { UrlScreenshotToolParams } from "../schema/url_screenshot"
 
-export class UrlScreenshotTool extends BaseAgentTool {
-	protected params: AgentToolParams
-	private abortController: AbortController
+export class UrlScreenshotTool extends BaseAgentTool<UrlScreenshotToolParams> {
+	private abortController: AbortController = new AbortController()
 	private isAborting: boolean = false
-
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-		this.abortController = new AbortController()
-	}
 
 	override async abortToolExecution() {
 		const { didAbort } = await super.abortToolExecution()
@@ -33,7 +23,7 @@ export class UrlScreenshotTool extends BaseAgentTool {
 	}
 
 	async execute() {
-		const { url } = this.params.input
+		const url = this.params.input.url
 		if (!url) {
 			return await this.onBadInputReceived()
 		}

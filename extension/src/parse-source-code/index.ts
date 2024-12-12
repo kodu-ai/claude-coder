@@ -26,29 +26,28 @@ export async function parseSourceCodeForDefinitionsTopLevel(dirPath: string): Pr
 	const languageParsers = await loadRequiredLanguageParsers(filesToParse)
 
 	// Parse specific files we have language parsers for
-	// const filesWithoutDefinitions: string[] = []
+	const filesWithoutDefinitions: string[] = []
 	for (const file of filesToParse) {
 		const definitions = await parseFile(file, languageParsers)
 		if (definitions) {
 			result += `${path.relative(dirPath, file).toPosix()}\n${definitions}\n`
+		} else {
+			filesWithoutDefinitions.push(file)
 		}
-		// else {
-		// 	filesWithoutDefinitions.push(file)
-		// }
 	}
 
 	// List remaining files' paths
-	// let didFindUnparsedFiles = false
-	// filesWithoutDefinitions
-	// 	.concat(remainingFiles)
-	// 	.sort()
-	// 	.forEach((file) => {
-	// 		if (!didFindUnparsedFiles) {
-	// 			result += "# Unparsed Files\n\n"
-	// 			didFindUnparsedFiles = true
-	// 		}
-	// 		result += `${path.relative(dirPath, file)}\n`
-	// 	})
+	let didFindUnparsedFiles = false
+	filesWithoutDefinitions
+		.concat(remainingFiles)
+		.sort()
+		.forEach((file) => {
+			if (!didFindUnparsedFiles) {
+				result += "# Unparsed Files\n\n"
+				didFindUnparsedFiles = true
+			}
+			result += `${path.relative(dirPath, file)}\n`
+		})
 
 	return result ? result : "No source code definitions found."
 }

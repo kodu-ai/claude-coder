@@ -1,19 +1,10 @@
-import { ToolResponse } from "../../types"
-import { formatToolResponse } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
+import { AskFollowupQuestionToolParams } from "../schema/ask_followup_question"
 
-export class AskFollowupQuestionTool extends BaseAgentTool {
-	protected params: AgentToolParams
-
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
-
+export class AskFollowupQuestionTool extends BaseAgentTool<AskFollowupQuestionToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
-		const { question } = input
+		const question = input.question
 
 		if (question === undefined) {
 			await say(

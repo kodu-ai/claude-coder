@@ -56,3 +56,8 @@ export const askFollowupQuestionTool = {
 	},
 	examples,
 }
+
+export type AskFollowupQuestionToolParams = {
+	name: "ask_followup_question"
+	input: z.infer<typeof schema>
+}

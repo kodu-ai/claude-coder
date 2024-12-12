@@ -1,21 +1,14 @@
-import assert from "assert"
-import { ToolName, ToolResponse } from "../../types"
+import { ToolResponse } from "../../types"
 import { BaseAgentTool } from "../base-agent.tool"
-import type { AgentToolOptions, AgentToolParams } from "../types"
+import { WebSearchToolParams } from "../schema/web_search"
 
-export class WebSearchTool extends BaseAgentTool {
-	protected params: AgentToolParams
-	private abortController: AbortController
-
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-		this.abortController = new AbortController()
-	}
+export class WebSearchTool extends BaseAgentTool<WebSearchToolParams> {
+	private abortController: AbortController = new AbortController()
 
 	async execute() {
 		const { say, ask, updateAsk, input } = this.params
-		const { searchQuery, baseLink } = input
+		const searchQuery = input.searchQuery || ""
+		const baseLink = input.baseLink || ""
 		const browserMode = input.browserMode ?? "generic"
 
 		if (!searchQuery || !browserMode || !["api_docs", "generic"].includes(browserMode)) {
@@ -27,9 +20,9 @@ export class WebSearchTool extends BaseAgentTool {
 			{
 				tool: {
 					tool: "web_search",
-					searchQuery,
-					baseLink,
-					browserMode,
+					searchQuery: searchQuery || "",
+					baseLink: baseLink || "",
+					browserMode: browserMode || "generic",
 					approvalState: "pending",
 					ts: this.ts,
 				},
@@ -43,9 +36,9 @@ export class WebSearchTool extends BaseAgentTool {
 				{
 					tool: {
 						tool: "web_search",
-						searchQuery,
-						baseLink,
-						browserMode,
+						searchQuery: searchQuery || "",
+						baseLink: baseLink || "",
+						browserMode: browserMode || "generic",
 						approvalState: "rejected",
 						ts: this.ts,
 						userFeedback: text,
@@ -54,8 +47,7 @@ export class WebSearchTool extends BaseAgentTool {
 				this.ts
 			)
 			if (response === "messageResponse") {
-				await say("user_feedback", text, images)
-				// return this.formatToolResponseWithImages(await this.formatGenericToolFeedback(text), images)
+				await say("user_feedback", text ?? "", images)
 				return this.toolResponse(
 					"feedback",
 					`<web_search_response>
@@ -115,10 +107,10 @@ export class WebSearchTool extends BaseAgentTool {
 				.getGlobalState("browserModelId")
 			const api = this.koduDev.getApiManager().getApi()
 			const result = await api?.sendWebSearchRequest?.(
-				searchQuery,
-				baseLink,
-				browserModel,
-				browserMode,
+				searchQuery || "",
+				baseLink || "",
+				browserModel || "",
+				browserMode || "generic",
 				this.abortController.signal
 			)
 

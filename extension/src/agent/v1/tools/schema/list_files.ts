@@ -63,3 +63,8 @@ export const listFilesTool = {
 	},
 	examples,
 }
+
+export type ListFilesToolParams = {
+	name: "list_files"
+	input: z.infer<typeof schema>
+}

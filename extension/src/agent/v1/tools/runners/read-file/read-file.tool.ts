@@ -3,18 +3,12 @@ import { serializeError } from "serialize-error"
 
 import { ToolResponse } from "../../../types"
 import { getReadablePath } from "../../../utils"
-import { AgentToolOptions, AgentToolParams } from "../../types"
+import { AgentToolOptions } from "../../types"
 import { BaseAgentTool } from "../../base-agent.tool"
 import { extractTextFromFile, formatFileToLines } from "./utils"
+import { ReadFileToolParams } from "../../schema/read_file"
 
-export class ReadFileTool extends BaseAgentTool {
-	protected params: AgentToolParams
-
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
-
+export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
 		const { path: relPath } = input

@@ -1,11 +1,24 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { KoduDev } from ".."
 import { ToolResponse, ToolResponseV2 } from "../types"
-import { AgentToolOptions, AgentToolParams, CommitInfo } from "./types"
+import { AgentToolOptions, AgentToolParams, CommitInfo, ToolParams } from "./types"
 import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "../utils"
 import { GitCommitResult } from "../handlers"
+import { ToolName } from "../../../shared/tool"
 
-export abstract class BaseAgentTool {
+export type FullToolParams<T extends ToolParams> = T & {
+	id: string
+	ts: number
+	isSubMsg?: boolean
+	isLastWriteToFile: boolean
+	isFinal?: boolean
+	ask: (type: string, content: any, ts: number) => Promise<{ response: any; text?: string; images?: string[] }>
+	say: (type: string, text: string, images?: string[]) => Promise<number>
+	updateAsk: (type: string, content: any, ts: number) => Promise<void>
+	returnEmptyStringOnSuccess?: boolean
+}
+
+export abstract class BaseAgentTool<T extends ToolParams> {
 	protected cwd: string
 	protected alwaysAllowReadOnly: boolean
 	protected alwaysAllowWriteOnly: boolean
@@ -14,15 +27,16 @@ export abstract class BaseAgentTool {
 	protected setRunningProcessId: (pid: number | undefined) => void
 	protected AbortController: AbortController
 
-	protected abstract params: AgentToolParams
+	protected params: FullToolParams<T>
 
-	constructor(options: AgentToolOptions) {
+	constructor(params: FullToolParams<T>, options: AgentToolOptions) {
 		this.cwd = options.cwd
 		this.alwaysAllowReadOnly = options.alwaysAllowReadOnly
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
 		this.koduDev = options.koduDev
 		this.setRunningProcessId = options.setRunningProcessId!
 		this.AbortController = new AbortController()
+		this.params = params
 	}
 
 	get name(): string {
@@ -47,7 +61,7 @@ export abstract class BaseAgentTool {
 		return this.params.isFinal ?? false
 	}
 
-	abstract execute(params: AgentToolParams): Promise<ToolResponseV2>
+	abstract execute(): Promise<ToolResponseV2>
 
 	public updateParams(input: AgentToolParams["input"]) {
 		this.params.input = input

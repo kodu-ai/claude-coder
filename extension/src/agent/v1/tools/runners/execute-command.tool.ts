@@ -1,15 +1,13 @@
-import Anthropic from "@anthropic-ai/sdk"
 import delay from "delay"
 import { serializeError } from "serialize-error"
 import { AdvancedTerminalManager } from "../../../../integrations/terminal"
 import { getCwd } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
-import { AgentToolOptions, AgentToolParams } from "../types"
 import { TerminalProcessResultPromise } from "../../../../integrations/terminal/terminal-manager"
-
 import { GlobalStateManager } from "../../../../providers/claude-coder/state/global-state-manager"
 import { ToolResponseV2 } from "../../types"
 import { GitCommitResult } from "../../handlers"
+import { ExecuteCommandToolParams } from "../schema/execute_command"
 
 const COMMAND_TIMEOUT = 90 // 90 seconds
 const MAX_RETRIES = 3
@@ -35,18 +33,12 @@ export const shellIntegrationErrorOutput = `
 </command_execution_response>
 `
 
-export class ExecuteCommandTool extends BaseAgentTool {
-	protected params: AgentToolParams
+export class ExecuteCommandTool extends BaseAgentTool<ExecuteCommandToolParams> {
 	private output: string = ""
 
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
-
-	override async execute() {
+	async execute() {
 		const { input, say } = this.params
-		const { command } = input as { command?: string }
+		const command = input.command
 
 		if (!command?.trim()) {
 			await say(
@@ -176,10 +168,10 @@ export class ExecuteCommandTool extends BaseAgentTool {
 				process!.once("completed", () => {
 					earlyExit = "approved"
 					completed = true
-					resolve()
+					setTimeout(resolve, 0, undefined)
 				})
 				process.once("no_shell_integration", async () => {
-					await say("shell_integration_warning")
+					await say("shell_integration_warning", shellIntegrationErrorOutput)
 					await this.params.updateAsk(
 						"tool",
 						{

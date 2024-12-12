@@ -56,3 +56,8 @@ export const executeCommandTool = {
 	},
 	examples,
 }
+
+export type ExecuteCommandToolParams = {
+	name: "execute_command"
+	input: z.infer<typeof schema>
+}

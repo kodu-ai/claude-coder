@@ -5,7 +5,7 @@ import * as path from "path"
 import { DiffViewProvider } from "../../../../../integrations/editor/diff-view-provider"
 import { ClaudeSayTool } from "../../../../../shared/extension-message"
 import { getCwd, getReadablePath } from "../../../utils"
-import { BaseAgentTool } from "../../base-agent.tool"
+import { BaseAgentTool, FullToolParams } from "../../base-agent.tool"
 import { AgentToolOptions, AgentToolParams } from "../../types"
 import fs from "fs"
 import { detectCodeOmission } from "./detect-code-omission"
@@ -16,6 +16,7 @@ import PQueue from "p-queue"
 
 import { GitCommitResult } from "../../../handlers/git-handler"
 import { createPatch } from "diff"
+import { WriteToFileToolParams } from "../../schema/write_to_file"
 
 /**
  * FileEditorTool handles file editing operations in the VSCode extension.
@@ -28,9 +29,7 @@ import { createPatch } from "diff"
  * The tool supports both complete file rewrites and partial edits through diff blocks.
  * It includes features for animation control and update throttling to ensure smooth performance.
  */
-export class FileEditorTool extends BaseAgentTool {
-	/** Tool parameters including update callbacks and input */
-	protected params: AgentToolParams
+export class FileEditorTool extends BaseAgentTool<WriteToFileToolParams> {
 	/** Provider for showing file diffs in VSCode */
 	public diffViewProvider: DiffViewProvider
 	/** Handler for inline file editing operations */
@@ -41,8 +40,6 @@ export class FileEditorTool extends BaseAgentTool {
 	private pQueue: PQueue = new PQueue({ concurrency: 1 })
 	/** Flag to control write animation display */
 	private skipWriteAnimation: boolean = false
-	/** Counter for tracking update sequence */
-	private updateNumber: number = 0
 	/** Array of edit blocks being processed */
 	private editBlocks: EditBlock[] = []
 	/** Current file state including path and content */
@@ -62,9 +59,8 @@ export class FileEditorTool extends BaseAgentTool {
 	 * @param params - Tool parameters including callbacks and input
 	 * @param options - Configuration options for the tool
 	 */
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
-		super(options)
-		this.params = params
+	constructor(params: FullToolParams<WriteToFileToolParams>, options: AgentToolOptions) {
+		super(params, options)
 		this.diffViewProvider = new DiffViewProvider(getCwd())
 		this.inlineEditor = new InlineEditHandler()
 		if (!!this.koduDev.getStateManager().skipWriteAnimation) {
@@ -265,7 +261,6 @@ export class FileEditorTool extends BaseAgentTool {
 			return
 		}
 
-		this.updateNumber++
 		// if the user has skipped the write animation, we don't need to show the diff view until we reach the final state
 		await this.params.updateAsk(
 			"tool",

@@ -83,3 +83,8 @@ export const webSearchTool = {
 	},
 	examples,
 }
+
+export type WebSearchToolParams = {
+	name: "web_search"
+	input: z.infer<typeof schema>
+}

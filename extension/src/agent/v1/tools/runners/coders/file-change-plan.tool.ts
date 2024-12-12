@@ -1,7 +1,6 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
 import { BaseAgentTool } from "../../base-agent.tool"
-import { AgentToolOptions, AgentToolParams } from "../../types"
 import { getCwd, getReadablePath, isTextBlock } from "../../../utils"
 import * as vscode from "vscode"
 import { readFileAndFormat } from "../read-file/utils"
@@ -10,19 +9,14 @@ import { DiagnosticsHandler } from "../../../handlers"
 import { ApiHistoryItem } from "../../../types"
 import ToolParser from "../../tool-parser/tool-parser"
 import { rejectFileChangesTool } from "../../schema/reject-file-changes"
-import { writeToFileTool } from "../../schema"
+import { writeToFileTool, fileChangePlanTool } from "../../schema"
 import { z } from "zod"
 import { FileEditorTool } from "./file-editor.tool"
 import { access } from "fs/promises"
+import { AgentToolParams } from "../../types"
+import { FileChangePlanParams } from "../../schema/file-change-plan"
 
-export class FileChangePlanTool extends BaseAgentTool {
-	protected params: AgentToolParams
-
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
-
+export class FileChangePlanTool extends BaseAgentTool<FileChangePlanParams> {
 	async execute() {
 		const { input, ask, say, updateAsk } = this.params
 		const { path: relPath, what_to_accomplish } = input

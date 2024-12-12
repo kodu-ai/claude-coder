@@ -26,3 +26,8 @@ export const rejectFileChangesTool = {
 	},
 	examples,
 }
+
+export type RejectFileChangesParams = {
+	name: "reject_file_changes"
+	input: z.infer<typeof schema>
+}

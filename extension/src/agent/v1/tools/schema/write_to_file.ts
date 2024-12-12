@@ -183,3 +183,8 @@ export const writeToFileTool = {
 	},
 	examples,
 }
+
+export type WriteToFileToolParams = {
+	name: "write_to_file"
+	input: z.infer<typeof schema>
+}

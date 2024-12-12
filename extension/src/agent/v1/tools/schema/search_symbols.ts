@@ -47,8 +47,13 @@ const examples = [
 
 export const searchSymbolTool = {
 	schema: {
-		name: "search_symbol",
+		name: "search_symbols",
 		schema,
 	},
 	examples,
+}
+
+export type SearchSymbolsToolParams = {
+	name: "search_symbols"
+	input: z.infer<typeof schema>
 }

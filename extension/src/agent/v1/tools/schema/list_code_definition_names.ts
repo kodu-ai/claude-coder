@@ -56,3 +56,8 @@ export const listCodeDefinitionNamesTool = {
 	},
 	examples,
 }
+
+export type ListCodeDefinitionNamesToolParams = {
+	name: "list_code_definition_names"
+	input: z.infer<typeof schema>
+}

@@ -1,20 +1,13 @@
-import { ToolResponse, ToolResponseV2 } from "../../types"
-import { formatToolResponse, isTextBlock } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
+import { ToolResponseV2 } from "../../types"
 import { BaseAgentTool } from "../base-agent.tool"
+import { AttemptCompletionToolParams } from "../schema/attempt_completion"
 import { ExecuteCommandTool } from "./execute-command.tool"
+import { AgentToolParams } from "../types"
 
-export class AttemptCompletionTool extends BaseAgentTool {
-	protected params: AgentToolParams
-
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
-
+export class AttemptCompletionTool extends BaseAgentTool<AttemptCompletionToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
-		const { result, command } = input
+		const { result } = input
 
 		if (result === undefined) {
 			await say(
@@ -46,17 +39,6 @@ export class AttemptCompletionTool extends BaseAgentTool {
 		}
 
 		let resultToSend = result
-		let commandOutput: ToolResponseV2 | undefined
-		if (command) {
-			const executeCommandParams: AgentToolParams = {
-				...this.params,
-				returnEmptyStringOnSuccess: true,
-				isSubMsg: true,
-				ts: Date.now(), // add a timestamp to the command to ensure it is unique and goes to next msg
-			}
-
-			commandOutput = await new ExecuteCommandTool(executeCommandParams, this.options).execute()
-		}
 
 		const { response, text, images } = await ask(
 			"tool",
@@ -102,13 +84,6 @@ export class AttemptCompletionTool extends BaseAgentTool {
 					<state>needs_improvement</state>
 					<message>The user is not pleased with the results</message>
 					<action_required>Use the feedback provided to complete the task and attempt completion again</action_required>
-					${
-						commandOutput?.text
-							? `<command_output>
-							<content>${commandOutput.text}</content>
-						</command_output>`
-							: ""
-					}
 					<user_feedback>${text || "No specific feedback provided"}</user_feedback>
 					${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
 				</feedback_details>

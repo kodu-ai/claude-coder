@@ -90,3 +90,8 @@ export const devServerTool = {
 	},
 	examples,
 }
+
+export type ServerRunnerToolParams = {
+	name: "server_runner_tool"
+	input: z.infer<typeof schema>
+}

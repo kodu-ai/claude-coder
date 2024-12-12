@@ -27,3 +27,8 @@ export const fileChangePlanTool = {
 	},
 	examples,
 }
+
+export type FileChangePlanParams = {
+	name: "file_changes_plan"
+	input: z.infer<typeof schema>
+}

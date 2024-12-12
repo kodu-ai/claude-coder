@@ -1,7 +1,8 @@
 {
 	"extends": "../tsconfig.json",
 	"compilerOptions": {
-		"module": "ESNext", // Use ES modules
+		"types": ["mocha", "node"],
+		"module": "ESNext",
 		"target": "es2020",
 		"moduleResolution": "node",
 		"outDir": "../out/test",

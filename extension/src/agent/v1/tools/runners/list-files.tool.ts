@@ -1,21 +1,11 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
 import { LIST_FILES_LIMIT, listFiles } from "../../../../parse-source-code"
-import { ClaudeAsk } from "../../../../shared/extension-message"
-import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
+import { getReadablePath } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
-import { AskDetails } from "../../task-executor/utils"
+import { ListFilesToolParams } from "../schema/list_files"
 
-export class ListFilesTool extends BaseAgentTool {
-	protected params: AgentToolParams
-
-	constructor(params: AgentToolParams, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
-
+export class ListFilesTool extends BaseAgentTool<ListFilesToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
 		const { path: relDirPath, recursive: recursiveRaw } = input
