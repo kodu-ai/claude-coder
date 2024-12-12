@@ -476,6 +476,8 @@ export class KoduDev {
 		vscode.window.showInformationMessage(`Successfully rolled back to version ${version} for ${filePath}.`)
 	}
 
+	async get3rdPartyCritisim() {}
+
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {
 		let details = ""
 		const lastTwoMsgs = this.stateManager.state.apiConversationHistory.slice(-2)
