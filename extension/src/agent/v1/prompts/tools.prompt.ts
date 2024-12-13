@@ -9,6 +9,7 @@ Description: Requests to create, edit, rollback and list file versions. This too
 Parameters:
 - mode: (required) The mode of operation for the file_editor tool. Use 'whole_write' to create a new file or rewrite an existing file, 'edit' to edit an existing file content, 'rollback' to revert to a previous version of the file, or 'list_versions' to view all versions of the file.
 - path: (required) The path of the file to edit (relative to ${cwd.toPosix()})
+- commit_message: (required for 'whole_write' or 'edit' mode) A short and concise commit message that describes the changes made to the file. This is mandatory to ensure that the changes are well documented and can be tracked in the version control system, it should follow conventional commits standards.
 - kodu_diff: (required for 'edit' mode) kodu_diff is a specially formatted string that uses SEARCH and REPLACE blocks to define the changes to be made in the file. The SEARCH block should match the existing content exactly letter by letter, space by space and each punctuation mark and exact match is required. The REPLACE block should contain the final, full updated version of that section, without placeholders or incomplete code.
 - kodu_content: (required for 'whole_write' mode) The full content of the file to be created or rewritten. This should be the complete content of the file, not just the changes, this will replace the whole file content with the content provided, and if this is a new file it will create the file with the content provided and create the needed directories if they don't exist. kodu_content must be the complete implemention without any single truncation or omitted content, it must be the full content of the file.
 - rollback_version: (required for 'rollback' mode) The version number to rollback to. This should be a number that corresponds to a specific version of the file, everytime you preform a write operation a new version of the file is created and you can rollback to any of the previous versions, if you want to understand all the available versions of the file you can use the 'list_versions' mode to get all the versions of the file.
@@ -55,6 +56,7 @@ Parameters:
 <file_editor>
 <path>mathweb/flask/app.py</path>
 <mode>edit</mode>
+<commit_message>refactor(math): add math import and remove factorial function</commit_message>
 <kodu_diff>
 SEARCH
 from flask import Flask
@@ -108,6 +110,7 @@ def another_function():
 <file_editor>
 <path>mathweb/flask/app.py</path>
 <mode>edit</mode>
+<commit_message>fix(math): update factorial call to use math library and add debug log</commit_message>
 <kodu_diff>
 SEARCH
 # Contextual code for better matching
@@ -144,6 +147,7 @@ def another_function_call():
 <file_editor>
 <path>main.py</path>
 <mode>edit</mode>
+<commit_message>feat(ui): add auth import, update export, and add extraInfo state property</commit_message>
 <kodu_diff>
 SEARCH
 import { useState } from 'react';
@@ -201,6 +205,7 @@ export function AddSubscriptionModal({
 <file_editor>
 <path>src/components/UserProfile.tsx</path>
 <mode>whole_write</mode>
+<commit_message>feat(components): create UserProfile component ...</commit_message>
 <kodu_content>... full content of the UserProfile component ...</kodu_content>
 </file_editor>
 

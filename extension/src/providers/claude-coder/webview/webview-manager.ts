@@ -468,7 +468,12 @@ export class WebviewManager {
 							state: await this.getBaseStateToPostToWebview(),
 						})
 						break
-
+					case "setInlineEditMode":
+						await this.provider
+							.getStateManager()
+							.setInlineEditModeType(message.inlineEditOutputType ?? "full")
+						await this.postBaseStateToWebview()
+						break
 					case "viewFile":
 						await this.provider.getKoduDev()?.viewFileInDiff(message.path, message.version)
 						break

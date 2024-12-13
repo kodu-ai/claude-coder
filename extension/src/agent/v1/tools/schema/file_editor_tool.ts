@@ -12,6 +12,7 @@ const schema = z.object({
 		}
 		return undefined // This will fail the enum check if not a string
 	}, z.enum(FileEditorModes).describe("The mode of the file editor tool.")),
+	commit_message: z.string().optional().describe("The commit message to use when committing changes to the file."),
 	kodu_content: z
 		.string()
 		.describe(

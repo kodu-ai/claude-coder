@@ -3,6 +3,7 @@ import defaultShell from "default-shell"
 import os from "os"
 
 import { toolsPrompt } from "./tools.prompt"
+import dedent from "dedent"
 
 export const BASE_SYSTEM_PROMPT = (cwd: string, supportsImages: boolean, supportsComputerUse = true) => `
 You are Kodu.AI, a Principle Software Engineer with 15 years of experience you love to follows the ReAct (Reasoning-Acting-Observing) patterns to accomplish user tasks.
@@ -145,7 +146,7 @@ This is output format is mandatory and must be followed at all times, it will he
 Be sure to always prioritize the user's task and provide clear, concise, and accurate responses to help them achieve their goals effectively, don't go one side quests or try to doing random or some what related tasks, you should only focus on the user's task and provide the best possible solution idealy by making minimal changes to the codebase that relate to the user's task and accomplish it in the most accurate way..
 `
 
-export const criticalMsg = `
+export const criticalMsg = dedent`
 <automatic_reminders>
 CRITICAL: ALWAYS ENSURE TO END YOU RESPONSE AFTER CALLING A TOOL, YOU CANNO'T CALL TWO TOOLS IN ONE RESPONSE, EACH TOOL CALL MUST BE IN A SEPARATE RESPONSE, THIS IS TO ENSURE THAT THE TOOL USE WAS SUCCESSFUL AND TO PREVENT ANY ISSUES THAT MAY ARISE FROM INCORRECT ASSUMPTIONS, SO YOUR OUTPUT MUST ONLY CONTAIN ONE TOOL CALL AT ALL TIME, NO EXCEPTIONS, NO BUNDLING OF TOOL CALLS, ONLY ONE TOOL CALL PER RESPONSE.
 
@@ -214,7 +215,7 @@ Key notes:
 # COMPLETION:
 - When confident the solution is correct, use \`attempt_completion\` to finalize.
 </automatic_reminders>
-`
+`.trim()
 
 export default {
 	prompt: BASE_SYSTEM_PROMPT,

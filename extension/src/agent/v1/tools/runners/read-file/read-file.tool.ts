@@ -99,7 +99,7 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 			const linesArray = lines.split("\n")
 
 			// Pagination logic
-			const LINES_PER_PAGE = 700
+			const LINES_PER_PAGE = 800
 			const totalLines = linesArray.length
 			const totalPages = Math.ceil(totalLines / LINES_PER_PAGE)
 

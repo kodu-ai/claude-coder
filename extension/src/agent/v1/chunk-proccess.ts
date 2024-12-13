@@ -6,6 +6,10 @@ interface ChunkProcessorCallbacks {
 	onImmediateEndOfStream: ChunkCallback
 	onChunk: ChunkCallback
 	onFinalEndOfStream: ChunkCallback
+	/**
+	 * Optional callback invoked before the first chunk is read.
+	 */
+	onStreamStart?: () => Promise<void>
 }
 
 export class ChunkProcessor {
@@ -13,13 +17,20 @@ export class ChunkProcessor {
 	private chunkQueue: koduSSEResponse[] = []
 	private isProcessing = false
 	private endOfStreamReceived = false
+	private isFirstChunkReceived = false
 
 	constructor(callbacks: ChunkProcessorCallbacks) {
 		this.callbacks = callbacks
 	}
 
 	async processStream(stream: AsyncGenerator<koduSSEResponse, any, unknown>) {
+		// Call onStreamStart if provided
+
 		for await (const chunk of stream) {
+			if (this.callbacks.onStreamStart && !this.isFirstChunkReceived) {
+				await this.callbacks.onStreamStart()
+				this.isFirstChunkReceived = true
+			}
 			if (chunk.code === 1 || chunk.code === -1) {
 				this.endOfStreamReceived = true
 				await this.callbacks.onImmediateEndOfStream(chunk)

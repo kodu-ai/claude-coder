@@ -6,7 +6,7 @@ import { combineApiRequests } from "../../shared/combine-api-requests"
 import { combineCommandSequences } from "../../shared/combine-command-sequences"
 import { getApiMetrics } from "../../shared/get-api-metrics"
 import { findLastIndex } from "../../utils"
-import { ApiManager } from "./api-handler"
+import { ApiManager } from "../../api/api-handler"
 import { DEFAULT_MAX_REQUESTS_PER_TASK } from "./constants"
 import { ApiHistoryItem, ClaudeMessage, FileVersion, KoduDevOptions, KoduDevState } from "./types"
 import { createWriteStream } from "fs"
@@ -190,7 +190,7 @@ export class StateManager {
 	}
 
 	public getMessageById(messageId: number): ClaudeMessage | undefined {
-		return this.state.claudeMessages.find((msg) => msg.ts === messageId)
+		return this.state.claudeMessages.find((msg) => msg?.ts === messageId)
 	}
 
 	public setAutoCloseTerminal(newValue: boolean): void {
@@ -406,18 +406,25 @@ export class StateManager {
 	}
 
 	async updateApiHistoryItem(messageId: number, message: ApiHistoryItem) {
-		const index = this.state.apiConversationHistory.findIndex((msg) => msg.ts === messageId)
+		const index = this.state.apiConversationHistory.findIndex((msg) => msg?.ts === messageId)
 		if (index === -1) {
 			console.error(`[StateManager] updateApiConversationHistory: Message with id ${messageId} not found`)
 			return
 		}
-		this.state.apiConversationHistory[index] = message
+		this.state.apiConversationHistory[index] = {
+			...this.state.apiConversationHistory[index],
+			...message,
+		}
 		await this.saveApiConversationHistory()
 	}
 
 	async addToApiConversationHistory(message: ApiHistoryItem) {
+		if (message?.ts === undefined) {
+			message.ts = Date.now()
+		}
 		this.state.apiConversationHistory.push(message)
 		await this.saveApiConversationHistory()
+		return message?.ts!
 	}
 
 	async overwriteApiConversationHistory(newHistory: ApiHistoryItem[]) {
@@ -492,7 +499,7 @@ export class StateManager {
 			?.getStateManager()
 			.updateTaskHistory({
 				id: this.state.taskId,
-				ts: lastRelevantMessage.ts,
+				ts: lastRelevantMessage?.ts,
 				task: taskMessage.text ?? "",
 				tokensIn: apiMetrics.totalTokensIn,
 				tokensOut: apiMetrics.totalTokensOut,
@@ -505,7 +512,7 @@ export class StateManager {
 	}
 
 	async removeEverythingAfterMessage(messageId: number) {
-		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
+		const index = this.state.claudeMessages.findIndex((msg) => msg?.ts === messageId)
 		if (index === -1) {
 			console.error(`[StateManager] removeEverythingAfterMessage: Message with id ${messageId} not found`)
 			return
@@ -519,7 +526,7 @@ export class StateManager {
 	}
 
 	async updateClaudeMessage(messageId: number, message: ClaudeMessage) {
-		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
+		const index = this.state.claudeMessages.findIndex((msg) => msg?.ts === messageId)
 		if (index === -1) {
 			console.error(`[StateManager] updateClaudeMessage: Message with id ${messageId} not found`)
 			return
@@ -530,7 +537,7 @@ export class StateManager {
 	}
 
 	async appendToClaudeMessage(messageId: number, text: string) {
-		const lastMessage = this.state.claudeMessages.find((msg) => msg.ts === messageId)
+		const lastMessage = this.state.claudeMessages.find((msg) => msg?.ts === messageId)
 		if (lastMessage && lastMessage.type === "say") {
 			lastMessage.text += text
 			await this.saveClaudeMessages()
@@ -540,7 +547,7 @@ export class StateManager {
 	}
 
 	async addToClaudeAfterMessage(messageId: number, message: ClaudeMessage) {
-		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
+		const index = this.state.claudeMessages.findIndex((msg) => msg?.ts === messageId)
 		if (index === -1) {
 			console.error(`[StateManager] addToClaudeAfterMessage: Message with id ${messageId} not found`)
 			return

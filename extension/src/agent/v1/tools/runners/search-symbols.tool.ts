@@ -4,6 +4,7 @@ import { BaseAgentTool } from "../base-agent.tool"
 import { getReadablePath } from "../../utils"
 import * as vscode from "vscode"
 import { SearchSymbolsToolParams } from "../schema/search_symbols"
+import dedent from "dedent"
 
 export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 	async execute() {
@@ -91,7 +92,7 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 			// Format the results
 			const formattedResults = symbolsWithDefinitions.map((symbolData) => {
 				const { symbol, context, definitions } = symbolData
-				return `
+				return dedent`
                     <symbol>
                         <name>${symbol.name}</name>
                         <kind>${symbol.kind}</kind>
@@ -101,7 +102,7 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
                             <line>${symbol.location.range.start.line + 1}</line>
                         </location>
                         <usage_context>
-                            <![CDATA[${context}]]>
+                            ${context}
                         </usage_context>
                         <definitions>
                             ${definitions
@@ -110,14 +111,14 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
                             <definition>
                                 <file>${getReadablePath(def.uri, this.cwd)}</file>
                                 <context>
-                                    <![CDATA[${def.context}]]>
+                                    ${def.context}
                                 </context>
                             </definition>
                             `
 								)
 								.join("\n")}
                         </definitions>
-                    </symbol>`
+                    </symbol>`.trim()
 			})
 
 			const { response, text, images } = await ask!(

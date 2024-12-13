@@ -1,6 +1,6 @@
 import * as vscode from "vscode"
 import { ApiModelId, koduDefaultModelId, KoduModelId, koduModels } from "../../../shared/api"
-import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
+import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/providers/kodu"
 import { ExtensionProvider } from "../claude-coder-provider"
 
 type SecretKey = "koduApiKey"

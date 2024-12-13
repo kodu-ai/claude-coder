@@ -1,7 +1,7 @@
 import { GlobalStateManager } from "./global-state-manager"
 import { HistoryItem, isSatifiesHistoryItem } from "../../../shared/history-item"
 import { SecretStateManager } from "./secret-state-manager"
-import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/kodu"
+import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/providers/kodu"
 import { ExtensionProvider } from "../claude-coder-provider"
 import { ExtensionState, isV1ClaudeMessage, V1ClaudeMessage } from "../../../shared/extension-message"
 

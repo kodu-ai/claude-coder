@@ -6,6 +6,7 @@ import { StateManager } from "../state-manager"
 export type GitCommitResult = {
 	branch: string
 	commitHash: string
+	commitMessage?: string
 }
 
 export class GitHandler {
@@ -70,7 +71,7 @@ export class GitHandler {
 		}
 	}
 
-	async commitOnFileWrite(path: string): Promise<GitCommitResult> {
+	async commitOnFileWrite(path: string, commitMessage?: string): Promise<GitCommitResult> {
 		if (!this.checkEnabled()) {
 			throw new Error("Git handler is disabled")
 		}
@@ -80,10 +81,12 @@ export class GitHandler {
 			if (!path) {
 				throw new Error("Path is required")
 			}
-
-			const message = await this.getCommitMessage(path)
+			let message = commitMessage
 			if (!message) {
-				throw new Error("Failed to generate commit message")
+				message = await this.getCommitMessage(path)
+				if (!message) {
+					throw new Error("Failed to generate commit message")
+				}
 			}
 
 			return this.commitWithMessage(path, message)
@@ -223,7 +226,9 @@ export class GitHandler {
 		return lines
 			.map((line) => {
 				const parts = line.split("|")
-				if (parts.length < 4) return null
+				if (parts.length < 4) {
+					return null
+				}
 
 				return {
 					name: parts[1],

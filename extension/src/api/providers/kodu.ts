@@ -1,7 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import axios, { CancelTokenSource } from "axios"
-import { ApiHandler, withoutImageData } from "."
-import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduModels } from "../shared/api"
+import { ApiHandler, withoutImageData } from ".."
+import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduModels } from "../../shared/api"
 import {
 	KODU_ERROR_CODES,
 	KoduError,
@@ -10,9 +10,9 @@ import {
 	getKoduWebSearchUrl,
 	koduErrorMessages,
 	koduSSEResponse,
-} from "../shared/kodu"
-import { WebSearchResponseDto } from "./interfaces"
-import { ApiHistoryItem } from "../agent/v1"
+} from "../../shared/kodu"
+import { WebSearchResponseDto } from "../interfaces"
+import { ApiHistoryItem } from "../../agent/v1"
 import { cloneDeep } from "lodash"
 
 export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
@@ -192,12 +192,13 @@ export class KoduHandler implements ApiHandler {
 		abortSignal,
 		modelId,
 		appendAfterCacheToLastMessage,
+		updateAfterCacheInserts,
 	}: Parameters<ApiHandler["createMessageStream"]>[0]): AsyncIterableIterator<koduSSEResponse> {
-		const system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = []
+		let system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = []
 
 		let index = 0
 		for (const systemMsg of systemPrompt) {
-			const shouldCache = index === systemPrompt.length - 1 || index === systemPrompt.length - 2
+			const shouldCache = index === systemPrompt.length - 1
 			system.push({
 				type: "text",
 				text: systemMsg.trim(),
@@ -212,13 +213,13 @@ export class KoduHandler implements ApiHandler {
 		)
 		const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
 		const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
-
+		const firstUserMsgIndex = userMsgIndices[0] ?? -1
 		const cleanMsgs = cloneDeep(messages)
 		// Prepare messages up to the last user message
-		const messagesToCache: ApiHistoryItem[] = cleanMsgs.map((msg, index) => {
+		let messagesToCache: ApiHistoryItem[] = cleanMsgs.map((msg, index) => {
 			const { ts, commitHash, branch, preCommitHash, ...message } = msg
 
-			if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
+			if (index === lastUserMsgIndex || index === secondLastMsgUserIndex || index === firstUserMsgIndex) {
 				return {
 					...message,
 					content:
@@ -242,6 +243,9 @@ export class KoduHandler implements ApiHandler {
 
 		if (appendAfterCacheToLastMessage && messagesToCache.at(-1) && messagesToCache.at(-1)?.content) {
 			appendAfterCacheToLastMessage(messagesToCache.at(-1) as Anthropic.Messages.Message)
+		}
+		if (updateAfterCacheInserts) {
+			;[messagesToCache, system] = await updateAfterCacheInserts(messagesToCache, system)
 		}
 
 		// randomMaxTokens between 2200 and 3000

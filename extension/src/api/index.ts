@@ -1,6 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiModelId, KoduModelId, ModelInfo } from "../shared/api"
-import { KoduHandler } from "./kodu"
+import { KoduHandler } from "./providers/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { z } from "zod"
 import { koduSSEResponse } from "../shared/kodu"
@@ -41,6 +41,10 @@ export interface ApiHandler {
 		tempature?: number
 		modelId: KoduModelId
 		appendAfterCacheToLastMessage?: (lastMessage: Anthropic.Messages.Message) => void
+		updateAfterCacheInserts?: (
+			messages: ApiHistoryItem[],
+			systemMessages: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[]
+		) => Promise<[ApiHistoryItem[], Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[]]>
 	}): AsyncIterableIterator<koduSSEResponse>
 
 	createBaseMessageStream(

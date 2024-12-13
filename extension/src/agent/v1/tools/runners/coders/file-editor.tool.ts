@@ -66,6 +66,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
     <metadata>
         <branch>${commitResult.branch}</branch>
         <commit_hash>${commitResult.commitHash}</commit_hash>
+		<commit_message>${commitResult.commitMessage ?? "No message provided"}</commit_message>
         <timestamp>${new Date().toISOString()}</timestamp>
     </metadata>
     <description>
@@ -378,7 +379,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		let commitXmlInfo = ""
 		let commitResult: GitCommitResult | undefined
 		try {
-			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(path)
+			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(path, this.params.input.commit_message)
 			commitXmlInfo = this.commitXMLGenerator(commitResult)
 		} catch (error) {
 			this.logger(`Error committing changes: ${error}`, "error")
@@ -523,7 +524,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		let commitXmlInfo = ""
 		let commitResult: GitCommitResult | undefined
 		try {
-			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(relPath)
+			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(relPath, this.params.input.commit_message)
 			commitXmlInfo = this.commitXMLGenerator(commitResult)
 		} catch (error) {
 			this.logger(`Error committing changes: ${error}`, "error")
@@ -757,7 +758,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		let commitXmlInfo = ""
 		let commitResult: GitCommitResult | undefined
 		try {
-			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(relPath)
+			commitResult = await this.koduDev.gitHandler.commitOnFileWrite(relPath, this.params.input.commit_message)
 			commitXmlInfo = this.commitXMLGenerator(commitResult)
 		} catch {}
 

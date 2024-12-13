@@ -51,7 +51,7 @@ export interface KoduDevOptions {
 	gitHandlerEnabled?: boolean
 }
 
-export type ApiHistoryItem = Anthropic.MessageParam & {
+export type ApiHistoryItem = Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessageParam & {
 	ts?: number
 	commitHash?: string
 	branch?: string

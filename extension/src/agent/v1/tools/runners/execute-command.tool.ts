@@ -139,14 +139,14 @@ export class ExecuteCommandTool extends BaseAgentTool<ExecuteCommandToolParams> 
 		terminalInfo.terminal.show()
 
 		let preCommandCommit = ""
-		try {
-			const commitResult = await this.koduDev.gitHandler.commitEverything(
-				`State before executing command \`${command}\``
-			)
-			preCommandCommit = commitResult.commitHash
-		} catch (error) {
-			console.error("Failed to get pre-command commit:", error)
-		}
+		// try {
+		// 	const commitResult = await this.koduDev.gitHandler.commitEverything(
+		// 		`State before executing command \`${command}\``
+		// 	)
+		// 	preCommandCommit = commitResult.commitHash
+		// } catch (error) {
+		// 	console.error("Failed to get pre-command commit:", error)
+		// }
 
 		process = terminalManager.runCommand(terminalInfo, command, {
 			autoClose: this.koduDev.getStateManager().autoCloseTerminal ?? false,
@@ -282,14 +282,13 @@ export class ExecuteCommandTool extends BaseAgentTool<ExecuteCommandToolParams> 
 					this.ts
 				)
 
-				let commitResult: GitCommitResult | undefined
-				try {
-					commitResult = await this.koduDev.gitHandler.commitEverything(
-						`State after executing command \`${command}\``
-					)
-				} catch (error) {
-					console.error("Failed to get post-command commit:", error)
-				}
+				// try {
+				// 	commitResult = await this.koduDev.gitHandler.commitEverything(
+				// 		`State after executing command \`${command}\``
+				// 	)
+				// } catch (error) {
+				// 	console.error("Failed to get post-command commit:", error)
+				// }
 
 				const toolRes = `
 					<command_execution_response>
@@ -306,10 +305,6 @@ export class ExecuteCommandTool extends BaseAgentTool<ExecuteCommandToolParams> 
 							<output>
 								<content>${this.output}</content>
 							</output>
-							<version_control>
-								<git_commit>${commitResult?.commitHash}</git_commit>
-								<git_branch>${commitResult?.branch}</git_branch>
-							</version_control>
 							<user_feedback>
 								<message>${userFeedback?.text || ""}</message>
 							</user_feedback>
@@ -317,10 +312,10 @@ export class ExecuteCommandTool extends BaseAgentTool<ExecuteCommandToolParams> 
 					</command_execution_response>`
 
 				if (returnEmptyStringOnSuccess) {
-					return this.toolResponse("success", "No output", undefined, commitResult)
+					return this.toolResponse("success", "No output", undefined)
 				}
 
-				return this.toolResponse("success", toolRes, userFeedback?.images, commitResult)
+				return this.toolResponse("success", toolRes, userFeedback?.images)
 			} else {
 				const toolRes = `
 			<command_execution_response>
