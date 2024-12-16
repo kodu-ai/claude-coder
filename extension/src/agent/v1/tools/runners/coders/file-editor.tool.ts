@@ -86,7 +86,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		const mode = "edit" // partial updates always mean editing the file
 
 		if (!this.fileState) {
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -118,7 +118,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 				isExistingFile,
 			}
 		}
-		this.params.updateAsk(
+		await this.params.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -304,7 +304,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		)
 		this.logger(`Failed count: ${failedCount}, isAllFailed: ${isAllFailed}`, "debug")
 		if (isAnyFailed) {
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {

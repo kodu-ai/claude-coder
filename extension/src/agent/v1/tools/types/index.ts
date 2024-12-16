@@ -58,7 +58,7 @@ export type AgentToolParams = {
 	isSubMsg?: boolean
 	isLastWriteToFile: boolean
 	isFinal?: boolean
-	ask: TaskExecutorUtils["askWithId"]
+	ask: TaskExecutorUtils["ask"]
 	say: TaskExecutorUtils["say"]
 	updateAsk: TaskExecutorUtils["updateAsk"]
 	returnEmptyStringOnSuccess?: boolean

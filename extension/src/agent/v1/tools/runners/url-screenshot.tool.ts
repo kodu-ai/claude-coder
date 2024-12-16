@@ -213,7 +213,7 @@ export class UrlScreenshotTool extends BaseAgentTool<UrlScreenshotToolParams> {
 		if (this.abortController.signal.aborted) {
 			throw new Error("Tool execution was aborted")
 		}
-		return await this.params.ask!(
+		return await this.params.ask(
 			"tool",
 			{
 				tool: {

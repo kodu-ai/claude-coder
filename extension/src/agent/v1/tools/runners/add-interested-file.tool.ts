@@ -95,7 +95,7 @@ export class AddInterestedFileTool extends BaseAgentTool<AddInterestedFileToolPa
 			)
 
 			if (response !== "yesButtonTapped") {
-				this.params.updateAsk(
+				await this.params.updateAsk(
 					"tool",
 					{
 						tool: {
@@ -163,7 +163,7 @@ export class AddInterestedFileTool extends BaseAgentTool<AddInterestedFileToolPa
 				)
 			}
 
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {

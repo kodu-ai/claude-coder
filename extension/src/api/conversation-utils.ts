@@ -166,21 +166,21 @@ export async function manageContextWindow(
 
 	if (newMemorySize >= maxPostTruncationTokens) {
 		// reached the end
-		provider?.taskExecutor.say(
-			"chat_finished",
-			`The chat has reached the maximum token limit. Please create a new task to continue.`
-		)
-		provider.taskExecutor.blockTask()
+		// provider?.taskExecutor.say(
+		// 	"chat_finished",
+		// 	`The chat has reached the maximum token limit. Please create a new task to continue.`
+		// )
+		// provider.taskExecutor.blockTask()
 		return "chat_finished"
 	}
 
-	await provider.taskExecutor.say(
-		"chat_truncated",
-		JSON.stringify({
-			before: totalTokens,
-			after: newMemorySize,
-		})
-	)
+	// await provider.taskExecutor.say(
+	// 	"chat_truncated",
+	// 	JSON.stringify({
+	// 		before: totalTokens,
+	// 		after: newMemorySize,
+	// 	})
+	// )
 	return "compressed"
 }
 

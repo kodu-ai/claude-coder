@@ -101,7 +101,7 @@ export class FileChangePlanTool extends BaseAgentTool<FileChangePlanParams> {
 			)
 
 			if (response !== "yesButtonTapped") {
-				updateAsk(
+				await updateAsk(
 					"tool",
 					{
 						tool: {
@@ -167,7 +167,7 @@ export class FileChangePlanTool extends BaseAgentTool<FileChangePlanParams> {
 				)
 			}
 
-			updateAsk(
+			await updateAsk(
 				"tool",
 				{
 					tool: {
@@ -394,7 +394,7 @@ export class FileChangePlanTool extends BaseAgentTool<FileChangePlanParams> {
 					// Now we only update if we have at least found <thinking> (as that’s our first tag)
 					// If <self_critique> isn't found yet, innerSelfCritiqueContent will remain empty.
 					if (thinkingIndex !== -1) {
-						updateAsk(
+						await updateAsk(
 							"tool",
 							{
 								tool: {
@@ -413,7 +413,7 @@ export class FileChangePlanTool extends BaseAgentTool<FileChangePlanParams> {
 					} else {
 						// If we haven't reached the thinking tag yet, just do the default update
 						// (Though this may not be necessary, it's here to maintain original behavior.)
-						updateAsk(
+						await updateAsk(
 							"tool",
 							{
 								tool: {

@@ -43,12 +43,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 		return this.state
 	}
 
-	public async ask(type: ClaudeAsk, data?: AskDetails): Promise<AskResponse> {
-		return this.askManager.ask(type, data)
-	}
-
-	public async askWithId(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
-		return this.askManager.ask(type, data, askTs)
+	public async ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
+		return await this.askManager.ask(type, data, askTs)
 	}
 
 	public handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void {
@@ -93,13 +89,11 @@ export class TaskExecutor extends TaskExecutorUtils {
 				isSubMessage: true,
 			})
 		} else {
-			const res = await Promise.all([
-				this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush),
+			// fire and forget
+			await Promise.all([
+				this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush, true),
 				this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview(),
 			])
-			if (res[0]) {
-				await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(res[0])
-			}
 		}
 	}
 
@@ -262,7 +256,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.ask("resume_task", {
 			question:
 				"Task was interrupted before the last response could be generated. Would you like to resume the task?",
-		}).then((res) => {
+		}).then(async (res) => {
 			if (res.response === "yesButtonTapped") {
 				this.state = TaskState.WAITING_FOR_API
 				this.isAborting = false
@@ -280,7 +274,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 					const formattedImages = formatImagesIntoBlocks(res.images)
 					newContent.push(...formattedImages)
 				}
-				this.say("user_feedback", res.text, res.images)
+				await this.say("user_feedback", res.text, res.images)
 				this.currentUserContent = newContent
 				this.state = TaskState.WAITING_FOR_API
 				this.isAborting = false

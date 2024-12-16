@@ -43,7 +43,7 @@ export class ListFilesTool extends BaseAgentTool<ListFilesToolParams> {
 			const files = await listFiles(absolutePath, recursive, 200)
 			const result = this.formatFilesList(absolutePath, files[0])
 
-			const { response, text, images } = await ask!(
+			const { response, text, images } = await ask(
 				"tool",
 				{
 					tool: {
@@ -59,7 +59,7 @@ export class ListFilesTool extends BaseAgentTool<ListFilesToolParams> {
 			)
 
 			if (response !== "yesButtonTapped") {
-				this.params.updateAsk(
+				await this.params.updateAsk(
 					"tool",
 					{
 						tool: {
@@ -125,7 +125,7 @@ export class ListFilesTool extends BaseAgentTool<ListFilesToolParams> {
 				)
 			}
 
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -158,7 +158,7 @@ export class ListFilesTool extends BaseAgentTool<ListFilesToolParams> {
 				</file_list_response>`
 			)
 		} catch (error) {
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {

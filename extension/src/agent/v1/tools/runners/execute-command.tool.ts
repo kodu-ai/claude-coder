@@ -340,7 +340,7 @@ export class ExecuteCommandTool extends BaseAgentTool<ExecuteCommandToolParams> 
 			}
 		} catch (error) {
 			const errorMessage = (error as Error)?.message || JSON.stringify(serializeError(error), null, 2)
-			updateAsk(
+			await updateAsk(
 				"tool",
 				{
 					tool: {

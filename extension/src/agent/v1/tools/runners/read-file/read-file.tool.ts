@@ -18,7 +18,7 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 			const absolutePath = path.resolve(this.cwd, relPath)
 			const content = await extractTextFromFile(absolutePath)
 
-			const { response, text, images } = await ask!(
+			const { response, text, images } = await ask(
 				"tool",
 				{
 					tool: {
@@ -35,7 +35,7 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 			)
 
 			if (response !== "yesButtonTapped") {
-				this.params.updateAsk(
+				await this.params.updateAsk(
 					"tool",
 					{
 						tool: {
@@ -60,7 +60,7 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 				return this.toolResponse("error", "Read operation cancelled by user.")
 			}
 
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -148,7 +148,7 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 					</file_read_response>`
 			)
 		} catch (error) {
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {

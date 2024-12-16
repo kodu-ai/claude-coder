@@ -61,7 +61,7 @@ export class ExploreRepoFolderTool extends BaseAgentTool<ExploreRepoFolderToolPa
 			)
 
 			if (response !== "yesButtonTapped") {
-				this.params.updateAsk(
+				await this.params.updateAsk(
 					"tool",
 					{
 						tool: {
@@ -84,7 +84,7 @@ export class ExploreRepoFolderTool extends BaseAgentTool<ExploreRepoFolderToolPa
 				return this.toolResponse("error", "Operation cancelled by user.")
 			}
 
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {

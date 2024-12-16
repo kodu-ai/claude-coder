@@ -252,7 +252,7 @@ export class KoduDev {
 			.postClaudeMessagesToWebview(this.stateManager.state.claudeMessages)
 		await this.providerRef.deref()?.getWebviewManager().postBaseStateToWebview()
 		const ts = Date.now()
-		let { response, text, images } = await this.taskExecutor.askWithId(
+		let { response, text, images } = await this.taskExecutor.ask(
 			isCompleted ? "resume_completed_task" : "resume_task",
 			undefined,
 			ts

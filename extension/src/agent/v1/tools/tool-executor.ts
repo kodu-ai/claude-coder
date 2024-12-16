@@ -261,7 +261,7 @@ export class ToolExecutor {
 				ts,
 				isFinal: false,
 				isLastWriteToFile: false,
-				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
+				ask: this.koduDev.taskExecutor.ask.bind(this.koduDev.taskExecutor),
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
 				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.koduDev.taskExecutor),
 			})
@@ -311,7 +311,7 @@ export class ToolExecutor {
 				ts: Date.now(),
 				isFinal: true,
 				isLastWriteToFile: false,
-				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
+				ask: this.koduDev.taskExecutor.ask.bind(this.koduDev.taskExecutor),
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
 				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.koduDev.taskExecutor),
 			})
@@ -369,8 +369,8 @@ export class ToolExecutor {
 	 * @param params Parameters for the update
 	 * @param ts Timestamp of the update
 	 */
-	private updateToolStatus(context: ToolContext, params: any, ts: number) {
-		this.koduDev.taskExecutor.updateAsk(
+	private async updateToolStatus(context: ToolContext, params: any, ts: number) {
+		await this.koduDev.taskExecutor.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -413,7 +413,7 @@ export class ToolExecutor {
 				ts: context.tool.ts,
 				isFinal: true,
 				isLastWriteToFile: false,
-				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
+				ask: this.koduDev.taskExecutor.ask.bind(this.koduDev.taskExecutor),
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
 				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.koduDev.taskExecutor),
 			})

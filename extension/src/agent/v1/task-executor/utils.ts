@@ -56,8 +56,7 @@ export abstract class TaskExecutorUtils {
 	}
 
 	// Abstract methods that must be implemented by derived classes
-	public abstract ask(type: ClaudeAsk, data?: AskDetails): Promise<AskResponse>
-	public abstract askWithId(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse>
+	public abstract ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse>
 	public abstract handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void
 
 	public async updateAsk(type: ClaudeAsk, data: AskDetails, askTs: number): Promise<void> {
@@ -78,8 +77,11 @@ export abstract class TaskExecutorUtils {
 			return
 		}
 
-		await this.stateManager?.updateClaudeMessage(askTs, askMessage)
-		await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(askMessage)
+		const askMessageLatest = await this.stateManager?.updateClaudeMessage(askTs, askMessage)
+		await this.providerRef
+			.deref()
+			?.getWebviewManager()
+			.postClaudeMessageToWebview(askMessageLatest ?? askMessage)
 	}
 
 	public async sayWithId(sayTs: number, type: ClaudeSay, text?: string, images?: string[]): Promise<number> {

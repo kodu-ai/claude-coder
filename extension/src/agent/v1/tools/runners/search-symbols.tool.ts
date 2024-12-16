@@ -121,7 +121,7 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
                     </symbol>`.trim()
 			})
 
-			const { response, text, images } = await ask!(
+			const { response, text, images } = await ask(
 				"tool",
 				{
 					tool: {
@@ -136,7 +136,7 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 			)
 
 			if (response !== "yesButtonTapped") {
-				this.params.updateAsk(
+				await this.params.updateAsk(
 					"tool",
 					{
 						tool: {
@@ -199,7 +199,7 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 				)
 			}
 
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
