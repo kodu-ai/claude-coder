@@ -1,9 +1,9 @@
-import { ApiHistoryItem, KoduDev } from "@/agent/v1"
-import mainPrompt, { criticalMsg } from "@/agent/v1/prompts/main.prompt"
-import { getCwd } from "@/agent/v1/utils"
-import { processConversationHistory } from "@/api/conversation-utils"
 import dedent from "dedent"
 import { cloneDeep } from "lodash"
+import { KoduDev, ApiHistoryItem } from "../../agent/v1"
+import mainPrompt, { criticalMsg } from "../../agent/v1/prompts/main.prompt"
+import { getCwd } from "../../agent/v1/utils"
+import { processConversationHistory } from "../../api/conversation-utils"
 
 /**
  * This function:

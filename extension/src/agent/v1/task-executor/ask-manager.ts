@@ -67,9 +67,12 @@ export class AskManager {
 			if (askData) {
 				try {
 					const tool = (askData.ask === "tool" ? safeParseJSON(askData.text ?? "{}") : undefined) as ChatTool
-
-					tool.approvalState = "error"
-					tool.error = "Tool was aborted"
+					if (typeof tool === "object") {
+						tool.approvalState = "error"
+						tool.error = "Tool was aborted"
+					} else {
+						console.error("Error in abortPendingAsks: tool is not an object")
+					}
 					await this.updateState(this.currentAskId!, "tool", tool, "error")
 				} catch (err) {
 					console.error("Error in abortPendingAsks:", err)

@@ -15,6 +15,7 @@ import { GitCommitResult } from "../../../handlers/git-handler"
 import { createPatch } from "diff"
 import { FileEditorToolParams } from "../../schema/file_editor_tool"
 import { FileVersion } from "../../../types"
+import dedent from "dedent"
 
 export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 	public diffViewProvider: DiffViewProvider
@@ -298,9 +299,11 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		if (!this.inlineEditor.isOpen() && editBlocks.length > 0) {
 			await this.inlineEditor.open(editBlocks[0]?.id, this.fileState?.absolutePath!, editBlocks[0].searchContent)
 		}
-		const { failedCount, isAllFailed } = await this.inlineEditor.forceFinalize(editBlocks)
+		const { failedCount, isAllFailed, isAnyFailed, failedBlocks } = await this.inlineEditor.forceFinalize(
+			editBlocks
+		)
 		this.logger(`Failed count: ${failedCount}, isAllFailed: ${isAllFailed}`, "debug")
-		if (isAllFailed) {
+		if (isAnyFailed) {
 			this.params.updateAsk(
 				"tool",
 				{
@@ -318,8 +321,20 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			)
 			return this.toolResponse(
 				"error",
+				dedent`
+				<error_message>Failed to apply changes to the file. Please ensure correct search content, if you have a miss match with file content re-read the file.</error_message>
+				<not_applied_count>${failedCount}</not_applied_count>
+				<failed_to_match_blocks>
+				${failedBlocks?.map(
+					(block) =>
+						dedent`
+				<failed_block>
+					<search_content>${block.searchContent}</search_content>
+					<replace_content>${block.replaceContent}</replace_content>
+				</failed_block>
 				`
-				<error_message>Failed to apply changes to the file. Please ensure correct search content and file consistency.</error_message>
+				)}
+				</failed_to_match_blocks>
 				`
 			)
 		}
@@ -384,6 +399,9 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		} catch (error) {
 			this.logger(`Error committing changes: ${error}`, "error")
 		}
+		const fileChangesetMessage = commitResult?.commitMessage
+			? `<file_changeset_message>${commitResult.commitMessage}</file_changeset_message>`
+			: ""
 		// Save a new file version
 		const newVersion = await this.saveNewFileVersion(path, finalContent)
 		await this.params.updateAsk(
@@ -409,21 +427,26 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		if (currentOutputMode === "diff") {
 			return this.toolResponse(
 				"success",
-				`<file_editor_response>
+				dedent`<file_editor_response>
 					<status>
 						<result>success</result>
 						<operation>file_edit_with_diff</operation>
 						<timestamp>${new Date().toISOString()}</timestamp>
-					</status>
-					<file_info>
+						<validation>${validationMsg}</validation>
+						${commitXmlInfo}
+						</status>
+						<file_info>
 						<path>${path}</path>
+						<file_version>${newVersion.version}</file_version>
+						${fileChangesetMessage}
+						<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
+						<information>The updated file content is shown below. This reflects the change that were applied and their current position in the file.
+						This should act as a source of truth for the changes that were made unless further modifications were made after this point.
+						</information>
 						<updated_file_content_blocks>
 							${results.map((res) => res.formattedSavedArea).join("\n-------\n")}
 						</updated_file_content_blocks>
-						<file_version>${newVersion.version}</file_version>
-						<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
 					</file_info>
-					${commitXmlInfo}
 				</file_editor_response>`,
 				undefined,
 				commitResult
@@ -432,20 +455,29 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 
 		return this.toolResponse(
 			"success",
-			`
-		<update_file_payload>
-		<information>
-		File content updated successfully.
-		</information>
-		<path>${path}</path>
-		<updated_file_content>
-		${finalContent}
-		</updated_file_content>
-		<validation>${validationMsg}</validation>
-		<file_version>${newVersion.version}</file_version>
-		<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
-		${commitXmlInfo}
-		</update_file_payload>
+			dedent`
+		<file_editor_response>
+		<status>
+			<result>success</result>
+			<operation>file_edit_with_diff</operation>
+			<timestamp>${new Date().toISOString()}</timestamp>
+			<validation>${validationMsg}</validation>
+			${commitXmlInfo}
+			</status>
+			<file_info>
+			<path>${path}</path>
+			<file_version>${newVersion.version}</file_version>
+			${fileChangesetMessage}
+			<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
+			<information>The updated file content is shown below at <update_file_content>. This reflects the change that were applied and their current position in the file.
+			This should act as a source of truth for the changes that were made unless further modifications were made after this point.
+			It includes the entire latest file content with the applied changes and the latest file line numbers and content.
+			</information>
+			<updated_file_content>
+				${finalContent}
+			</updated_file_content>
+		</file_info>
+		</file_editor_response>
 		`,
 			undefined,
 			commitResult

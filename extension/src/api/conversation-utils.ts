@@ -1,9 +1,10 @@
-import { isTextBlock } from "@/shared/format-tools"
-import { truncateHalfConversation, estimateTokenCount, smartTruncation } from "@/utils/context-managment"
 import Anthropic from "@anthropic-ai/sdk"
-import { ApiMetrics, cleanUpMsg } from "./api-utils"
-import { ClaudeMessage, KoduDev } from "@/agent/v1"
 import { ApiHandler } from "."
+import { KoduDev } from "../agent/v1"
+import { ClaudeMessage } from "../shared/extension-message"
+import { isTextBlock } from "../shared/format-tools"
+import { truncateHalfConversation, estimateTokenCount, smartTruncation } from "../utils/context-managment"
+import { cleanUpMsg, ApiMetrics } from "./api-utils"
 
 /**
  * @danger This function is mutating the history object

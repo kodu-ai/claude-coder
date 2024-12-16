@@ -146,6 +146,7 @@ export class WebviewManager {
 				taskId: "",
 			})
 		}
+		// return await this.postClaudeMessagesToWebview()
 		return await this.postMessageToWebview({
 			type: "claudeMessage",
 			claudeMessage: msg,

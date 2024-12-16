@@ -11,6 +11,7 @@ import {
 	INLINE_DIFF_VIEW_URI_SCHEME as DIFF_VIEW_URI_SCHEME,
 } from "./decoration-controller"
 import { createPatch } from "diff"
+import { formatFileToLines } from "../../agent/v1/tools/runners/read-file/utils"
 
 interface MatchResult {
 	success: boolean
@@ -446,19 +447,31 @@ export class InlineEditHandler {
 	}
 
 	private async scrollToLine(line: number): Promise<void> {
-		if (!this.modifiedUri) return
+		if (!this.modifiedUri) {
+			return
+		}
 
 		const editor = vscode.window.visibleTextEditors.find(
 			(e) => e.document.uri.toString() === this.modifiedUri!.toString()
 		)
-		if (!editor) return
+		if (!editor) {
+			return
+		}
 
 		const validLine = Math.max(0, Math.min(line, editor.document.lineCount - 1))
 		const range = new vscode.Range(validLine, 0, validLine, editor.document.lineAt(validLine).text.length)
 		editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport)
 	}
 
-	public async saveChanges(): Promise<{ finalContent: string; results: BlockResult[]; userEdits?: string }> {
+	public async saveChanges(): Promise<{
+		/**
+		 * The final content of the file after applying all changes.
+		 * Formatted with line numbers for each line.
+		 */
+		finalContent: string
+		results: BlockResult[]
+		userEdits?: string
+	}> {
 		this.logger("Saving changes", "debug")
 		this.validateDocumentState()
 
@@ -475,7 +488,10 @@ export class InlineEditHandler {
 		if (diffDocument.isDirty) {
 			await diffDocument.save()
 		}
-		const finalContent = diffDocument.getText()
+		/**
+		 * fianlContent is formatted with line numbers for each line at the end of the function
+		 */
+		let finalContent = diffDocument.getText()
 
 		// Close the active editor
 		const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
@@ -511,6 +527,8 @@ export class InlineEditHandler {
 		// Compare contents and create patch if needed
 		const normalizedEditedContent = finalContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
 		const normalizedStreamedContent = finalStreamedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+		finalContent = formatFileToLines(finalContent)
+
 		if (normalizedEditedContent !== normalizedStreamedContent) {
 			const filename = path.basename(uri.fsPath).replace(/\\/g, "/") // Ensure forward slashes for consistency
 			const patch = createPatch(filename, normalizedStreamedContent, normalizedEditedContent)
@@ -562,7 +580,7 @@ export class InlineEditHandler {
 	 */
 	public async forceFinalize(
 		blocks: { id: string; searchContent: string; replaceContent: string }[]
-	): Promise<{ failedCount: number; isAllFailed: boolean }> {
+	): Promise<{ failedCount: number; isAllFailed: boolean; isAnyFailed: boolean; failedBlocks?: BlockResult[] }> {
 		this.logger("Forcing finalization of given blocks", "debug")
 		this.validateDocumentState()
 
@@ -595,13 +613,14 @@ export class InlineEditHandler {
 		await this.updateFileContent()
 		const failedBlocks = this.currentDocumentState.lastUpdateResults?.filter((r) => !r.wasApplied) || []
 		const isAllFailed = failedBlocks.length === blocks.length
+		const isAnyFailed = failedBlocks.length > 0
 		if (isAllFailed) {
 			this.logger("All blocks failed to apply", "warn")
 			// close the editor if all blocks failed
 			await this.closeDiffEditors()
 			this.dispose()
 		}
-		return { failedCount: failedBlocks.length, isAllFailed }
+		return { failedCount: failedBlocks.length, isAllFailed, isAnyFailed, failedBlocks }
 	}
 
 	public setAutoScroll(enabled: boolean) {
