@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
-import { ExtensionProvider } from "../../../providers/claude-coder/ClaudeCoderProvider"
-import { ClaudeAsk, isV1ClaudeMessage } from "../../../shared/ExtensionMessage"
-import { ClaudeAskResponse } from "../../../shared/WebviewMessage"
+import { ExtensionProvider } from "../../../providers/claude-coder/claude-coder-provider"
+import { ClaudeAsk, isV1ClaudeMessage } from "../../../shared/extension-message"
+import { ClaudeAskResponse } from "../../../shared/webview-message"
 import { toolResponseToAIState } from "../../../shared/format-tools"
 import { KODU_ERROR_CODES, KoduError, koduSSEResponse } from "../../../shared/kodu"
 import { ChatTool } from "../../../shared/new-tools"
@@ -13,6 +13,7 @@ import { formatImagesIntoBlocks, isTextBlock } from "../utils"
 import { AskManager } from "./ask-manager"
 import { AskDetails, AskResponse, TaskError, TaskExecutorUtils, TaskState } from "./utils"
 import { CommitInfo } from "../tools/types"
+import dedent from "dedent"
 
 // Constants for buffer management - modified for instant output
 const BUFFER_SIZE_THRESHOLD = 5 // Reduced to 1 character for near-instant output
@@ -42,12 +43,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 		return this.state
 	}
 
-	public async ask(type: ClaudeAsk, data?: AskDetails): Promise<AskResponse> {
-		return this.askManager.ask(type, data)
-	}
-
-	public async askWithId(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
-		return this.askManager.ask(type, data, askTs)
+	public async ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
+		return await this.askManager.ask(type, data, askTs)
 	}
 
 	public handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void {
@@ -92,9 +89,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 				isSubMessage: true,
 			})
 		} else {
-			void Promise.all([
-				this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush),
-				this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview(),
+			// fire and forget
+			await Promise.all([
+				this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush, true),
+				this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview(),
 			])
 		}
 	}
@@ -243,19 +241,22 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 		// Update API request if exists and not done
 		if (lastApiRequest && isV1ClaudeMessage(lastApiRequest) && !lastApiRequest.isDone) {
-			await this.stateManager.updateClaudeMessage(lastApiRequest.ts, {
+			const msg = await this.stateManager.updateClaudeMessage(lastApiRequest.ts, {
 				...lastApiRequest,
 				isDone: true,
 				isFetching: false,
 				errorText: "Request cancelled by user",
 				isError: true,
 			})
+			if (msg) {
+				await this.stateManager.providerRef.deref()?.getWebviewManager()?.postClaudeMessageToWebview(msg)
+			}
 		}
 
 		this.ask("resume_task", {
 			question:
 				"Task was interrupted before the last response could be generated. Would you like to resume the task?",
-		}).then((res) => {
+		}).then(async (res) => {
 			if (res.response === "yesButtonTapped") {
 				this.state = TaskState.WAITING_FOR_API
 				this.isAborting = false
@@ -273,7 +274,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 					const formattedImages = formatImagesIntoBlocks(res.images)
 					newContent.push(...formattedImages)
 				}
-				this.say("user_feedback", res.text, res.images)
+				await this.say("user_feedback", res.text, res.images)
 				this.currentUserContent = newContent
 				this.state = TaskState.WAITING_FOR_API
 				this.isAborting = false
@@ -283,7 +284,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				this.state = TaskState.COMPLETED
 			}
 		})
-		await this.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+		await this.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview()
 	}
 
 	public async makeClaudeRequest(): Promise<void> {
@@ -344,12 +345,12 @@ export class TaskExecutor extends TaskExecutorUtils {
 				}
 				this.lastResultWithCommit = undefined
 			}
-			await this.stateManager.addToApiConversationHistory({
+			const apiMessageId = await this.stateManager.addToApiConversationHistory({
 				role: "user",
 				content: this.currentUserContent,
+				ts: Date.now(),
 				...attributesToAdd,
 			})
-
 			const startedReqId = await this.say(
 				"api_req_started",
 				JSON.stringify({
@@ -357,10 +358,43 @@ export class TaskExecutor extends TaskExecutorUtils {
 				})
 			)
 
-			const stream = this.stateManager.apiManager.createApiStreamRequest(
+			const apiHistoryCopy = this.stateManager.state.apiConversationHistory.slice()
+			let feedbackText: string | undefined
+			// if (apiHistoryCopy.length > 3) {
+			// 	console.log(`Generating passive feedback for task`)
+			// 	const userMessageNumber = apiHistoryCopy.filter((msg) => msg.role === "user").length
+			// 	const is4thMessage = userMessageNumber % 4 === 0
+			// 	if (is4thMessage) {
+			// 		const feedback = await generatePassiveFeedback(
+			// 			this.providerRef.deref()?.koduDev!,
+			// 			this.abortController.signal!
+			// 		)
+
+			// 		if (feedback.content.length > 0) {
+			// 			console.log(`Feedback generated:`, feedback.content)
+			// 			feedbackText = dedent`
+			// 			Hey there this is automatic feedback generated by a third party observer, you should consider this feedback and use it to improve on your progress in the task.
+			// 			<third_party_observer_feedback>
+			// 			${feedback.content}
+			// 			`
+			// 		}
+			// 	}
+			// }
+
+			const stream = await this.stateManager.apiManager.createApiStreamRequest(
 				this.stateManager.state.apiConversationHistory,
-				this.abortController?.signal,
-				this.abortController
+				this.abortController,
+				// we need to add the feedback to the conversation history
+				async (apiConversationHistory) => {
+					if (!feedbackText) {
+						return
+					}
+					const lastMsg = apiConversationHistory[apiConversationHistory.length - 1]
+					if (lastMsg.role === "user" && Array.isArray(lastMsg.content) && lastMsg.ts) {
+						lastMsg.content.push({ type: "text", text: feedbackText })
+						await this.stateManager.updateApiHistoryItem(lastMsg.ts, lastMsg)
+					}
+				}
 			)
 
 			if (this.isRequestCancelled || this.isAborting) {
@@ -414,10 +448,11 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.logState("Processing API response")
 			const currentReplyId = await this.say("text", "", undefined, Date.now(), { isSubMessage: true })
 			this.currentReplyId = currentReplyId
+			const ts = Date.now()
 
 			const apiHistoryItem: ApiHistoryItem = {
 				role: "assistant",
-				ts: startedReqId,
+				ts,
 				content: [
 					{
 						type: "text",
@@ -425,20 +460,23 @@ export class TaskExecutor extends TaskExecutorUtils {
 					},
 				],
 			}
-			await this.stateManager.addToApiConversationHistory(apiHistoryItem)
 
 			let accumulatedText = ""
 
 			const processor = new ChunkProcessor({
+				onStreamStart: async () => {
+					await this.stateManager.addToApiConversationHistory(apiHistoryItem)
+				},
 				onImmediateEndOfStream: async (chunk) => {
 					if (this.isRequestCancelled || this.isAborting) {
 						return
 					}
 
 					if (chunk.code === 1) {
+						// console.log(`Updating chunk for API history item on chunk code 1`)
 						const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
 							chunk.body.internal
-						this.stateManager.updateClaudeMessage(startedReqId, {
+						const msg = await this.stateManager.updateClaudeMessage(startedReqId, {
 							...this.stateManager.getMessageById(startedReqId)!,
 							apiMetrics: {
 								cost: chunk.body.internal.cost,
@@ -450,18 +488,25 @@ export class TaskExecutor extends TaskExecutorUtils {
 							isDone: true,
 							isFetching: false,
 						})
-						this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						// apiHistoryItem.content = chunk.body.anthropic.content
+						this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview()
+						if (msg) {
+							await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(msg)
+						}
 					}
 
 					if (chunk.code === -1) {
-						this.stateManager.updateClaudeMessage(startedReqId, {
+						const msg = await this.stateManager.updateClaudeMessage(startedReqId, {
 							...this.stateManager.getMessageById(startedReqId)!,
 							isDone: true,
 							isFetching: false,
 							errorText: chunk.body.msg ?? "Internal Server Error",
 							isError: true,
 						})
-						this.stateManager.providerRef.deref()?.getWebviewManager()?.postStateToWebview()
+						this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview()
+						if (msg) {
+							await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(msg)
+						}
 						throw new KoduError({ code: chunk.body.status ?? 500 })
 					}
 				},
@@ -479,7 +524,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 								"the response was interrupted in the middle of processing"
 									? chunk.body.text
 									: apiHistoryItem.content[0].text + chunk.body.text
-							await this.stateManager.updateApiHistoryItem(startedReqId, apiHistoryItem)
+							await this.stateManager.updateApiHistoryItem(ts, apiHistoryItem)
 						}
 
 						// Process chunk only if stream is not paused
@@ -723,8 +768,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 			}
 		})
 		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessages)
-		this.stateManager.state.claudeMessages = await this.stateManager.getSavedClaudeMessages()
-
+		await this.stateManager.getSavedClaudeMessages()
+		await this.stateManager.providerRef.deref()?.getWebviewManager().postClaudeMessagesToWebview()
 		const { response } = await this.ask("api_req_failed", { question: error.message })
 		console.log(`[TaskExecutor] API Request Failed response:`, response)
 		if (response === "yesButtonTapped" || response === "messageResponse") {

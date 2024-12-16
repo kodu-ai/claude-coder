@@ -1,16 +1,10 @@
-import { ToolResponse, ToolResponseV2 } from "../../types"
-import { formatToolResponse, isTextBlock } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
+import { ToolResponseV2 } from "../../types"
 import { BaseAgentTool } from "../base-agent.tool"
+import { AttemptCompletionToolParams } from "../schema/attempt_completion"
+import { ExecuteCommandTool } from "./execute-command.tool"
+import { AgentToolParams } from "../types"
 
-export class AttemptCompletionTool extends BaseAgentTool<"attempt_completion"> {
-	protected params: AgentToolParams<"attempt_completion">
-
-	constructor(params: AgentToolParams<"attempt_completion">, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
-
+export class AttemptCompletionTool extends BaseAgentTool<AttemptCompletionToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
 		const { result } = input
@@ -18,7 +12,7 @@ export class AttemptCompletionTool extends BaseAgentTool<"attempt_completion"> {
 		if (result === undefined) {
 			await say(
 				"error",
-				"Claude tried to use attempt_completion without value for required parameter 'result'. Retrying..."
+				"Kodu tried to use attempt_completion without value for required parameter 'result'. Retrying..."
 			)
 			const errorMsg = `
 			<completion_tool_response>
@@ -45,7 +39,6 @@ export class AttemptCompletionTool extends BaseAgentTool<"attempt_completion"> {
 		}
 
 		let resultToSend = result
-		let commandOutput: ToolResponseV2 | undefined
 
 		console.log(result)
 		console.log("Raising attempt completion.")
@@ -95,13 +88,6 @@ export class AttemptCompletionTool extends BaseAgentTool<"attempt_completion"> {
 					<state>needs_improvement</state>
 					<message>The user is not pleased with the results</message>
 					<action_required>Use the feedback provided to complete the task and attempt completion again</action_required>
-					${
-						commandOutput?.text
-							? `<command_output>
-							<content>${commandOutput.text}</content>
-						</command_output>`
-							: ""
-					}
 					<user_feedback>${text || "No specific feedback provided"}</user_feedback>
 					${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
 				</feedback_details>

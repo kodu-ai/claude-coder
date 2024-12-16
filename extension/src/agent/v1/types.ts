@@ -2,10 +2,10 @@ import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ResultPromise } from "execa"
 import { ApiConfiguration } from "../../api"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { ClaudeAskResponse } from "../../shared/WebviewMessage"
-import { HistoryItem } from "../../shared/HistoryItem"
-import { ClaudeMessage } from "../../shared/ExtensionMessage"
+import { ExtensionProvider } from "../../providers/claude-coder/claude-coder-provider"
+import { ClaudeAskResponse } from "../../shared/webview-message"
+import { HistoryItem } from "../../shared/history-item"
+import { ClaudeMessage } from "../../shared/extension-message"
 
 export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>
 
@@ -33,7 +33,7 @@ export interface KoduDevOptions {
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
 	experimentalTerminal?: boolean
-	inlineEditOutputType?: "full" | "diff" | "none"
+	inlineEditOutputType?: "full" | "diff"
 	alwaysAllowWriteOnly?: boolean
 	skipWriteAnimation?: boolean
 	autoCloseTerminal?: boolean
@@ -51,19 +51,53 @@ export interface KoduDevOptions {
 	gitHandlerEnabled?: boolean
 }
 
-export type ApiHistoryItem = Anthropic.MessageParam & {
+export type ApiHistoryItem = Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessageParam & {
 	ts?: number
 	commitHash?: string
 	branch?: string
 	preCommitHash?: string
 }
 
+export type FileVersion = {
+	/**
+	 * the absolute path of the file
+	 */
+	path: string
+	/**
+	 * the version of the file
+	 */
+	version: number
+	/**
+	 * the timestamp when the file was added to the list
+	 */
+	createdAt: number
+	/**
+	 * the content of the file at the specified version
+	 */
+	content: string
+}
+
+export type InterestedFile = {
+	/**
+	 * the absolute path of the file
+	 */
+	path: string
+	/**
+	 * why Kodu is interested in this file
+	 */
+	why: string
+	/**
+	 * the timestamp when the file was added to the list
+	 */
+	createdAt: number
+}
 export interface KoduDevState {
 	taskId: string
 	requestCount: number
 	apiConversationHistory: ApiHistoryItem[]
 	claudeMessages: ClaudeMessage[]
 	askResponse?: ClaudeAskResponse
+
 	askResponseText?: string
 	terminalCompressionThreshold?: number
 	isHistoryItem?: boolean
@@ -85,6 +119,10 @@ export interface KoduDevState {
 			error: string
 		}
 	>
+	/**
+	 * the list of interested files
+	 */
+	interestedFiles?: InterestedFile[]
 	askResponseImages?: string[]
 	lastMessageTs?: number
 	executeCommandRunningProcess?: ResultPromise
@@ -95,6 +133,6 @@ export interface KoduDevState {
 }
 
 // Re-export types from other files to centralize type definitions
-export type { ClaudeMessage } from "../../shared/ExtensionMessage"
-export type { ToolName } from "../../shared/new-tools"
+export type { ClaudeMessage } from "../../shared/extension-message"
+
 export type VsCodeDiagnostics = [vscode.Uri, vscode.Diagnostic[]][]

@@ -8,7 +8,7 @@ import { ApiHandler } from "../../../../src/api"
 import type { MessageParam, TextBlockParam, ImageBlockParam } from "@anthropic-ai/sdk/resources/messages.mjs"
 import apiHistory from "./api_conversation_history.json"
 import apiHistory2 from "./api_conversation_history_2.json"
-import { ToolName } from "@/shared/new-tools"
+import { ToolName } from "../../../../src/agent/v1/tools/types"
 // XML tag constants that help us maintain consistency in our test cases
 const TOOL_RESPONSE = "toolResponse" as const
 const TOOL_NAME = "toolName" as const
@@ -101,10 +101,10 @@ describe("compressToolFromMsg", () => {
 	})
 
 	it("should compress a compressed conversation correctly", async () => {
-		const results = await compressToolFromMsg(apiHistory2 as MessageParam[], mockApiHandler, 30_000)
+		const results = await compressToolFromMsg(apiHistory as MessageParam[], mockApiHandler, 30_000)
 
 		// First verify we haven't lost any messages
-		assert.strictEqual(results.length, apiHistory2.length)
+		assert.strictEqual(results.length, apiHistory.length)
 
 		// Helper functions to verify different compression formats
 		const verifyWriteToFileCompression = (text: string): boolean => {
@@ -160,9 +160,10 @@ describe("compressToolFromMsg", () => {
 				if (typeof block !== "object" || !("text" in block)) return
 
 				const text = block.text
+				const isToolResponse = text.includes(`<${TOOL_RESPONSE}>`) && text.includes(`</${TOOL_RESPONSE}>`)
 
 				// Check write_to_file compression
-				if (text.includes("<write_to_file>")) {
+				if (text.includes("<write_to_file>") && !isToolResponse) {
 					stats.writeToFile.total++
 					if (verifyWriteToFileCompression(text)) {
 						stats.writeToFile.compressed++
@@ -174,7 +175,7 @@ describe("compressToolFromMsg", () => {
 				}
 
 				// Check edit_file_blocks compression
-				if (text.includes("<toolName>edit_file_blocks</toolName>")) {
+				if (text.includes("<toolName>edit_file_blocks</toolName>") && isToolResponse) {
 					stats.editFileBlocks.total++
 					if (verifyEditFileBlocksCompression(text)) {
 						stats.editFileBlocks.compressed++
@@ -186,7 +187,7 @@ describe("compressToolFromMsg", () => {
 				}
 
 				// Check execute_command compression
-				if (text.includes("<toolName>execute_command</toolName>")) {
+				if (text.includes("<toolName>execute_command</toolName>") && isToolResponse) {
 					stats.executeCommand.total++
 					if (verifyExecuteCommandCompression(text)) {
 						stats.executeCommand.compressed++
@@ -198,7 +199,7 @@ describe("compressToolFromMsg", () => {
 				}
 
 				// Check read_file compression
-				if (text.includes("<toolName>read_file</toolName>")) {
+				if (text.includes("<toolName>read_file</toolName>") && isToolResponse) {
 					stats.readFile.total++
 					if (text.includes('The output for the "read_file" command was compressed for readability')) {
 						stats.readFile.compressed++

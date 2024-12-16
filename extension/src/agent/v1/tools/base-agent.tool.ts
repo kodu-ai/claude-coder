@@ -1,38 +1,40 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { KoduDev } from ".."
-import { ToolName, ToolResponse, ToolResponseV2 } from "../types"
-import { AgentToolOptions, AgentToolParams, ToolInput, ToolNames, CommitInfo } from "./types"
-import { formatImagesIntoBlocks, getPotentiallyRelevantDetails } from "../utils"
+import { ToolResponse, ToolResponseV2 } from "../types"
+import { AgentToolOptions, AgentToolParams, CommitInfo, ToolParams } from "./types"
+import { formatImagesIntoBlocks } from "../utils"
 
-// Make the class generic with ToolInputForName type parameter
+export type FullToolParams<T extends ToolParams> = T & {
+	id: string
+	ts: number
+	isSubMsg?: boolean
+	isLastWriteToFile: boolean
+	isFinal?: boolean
+	ask: AgentToolParams["ask"]
+	say: AgentToolParams["say"]
+	updateAsk: AgentToolParams["updateAsk"]
+	returnEmptyStringOnSuccess?: boolean
+}
 
-type ToolInputForName<T extends ToolNames> = Extract<ToolInput, { name: T }>
-
-export abstract class BaseAgentTool<TName extends ToolNames> {
+export abstract class BaseAgentTool<T extends ToolParams> {
 	protected cwd: string
 	protected alwaysAllowReadOnly: boolean
 	protected alwaysAllowWriteOnly: boolean
 	protected koduDev: KoduDev
 	protected isAbortingTool: boolean = false
 	protected setRunningProcessId: (pid: number | undefined) => void
+	protected AbortController: AbortController
 
-	// Update params to use the generic type
-	protected abstract params: {
-		name: string
-		id: string
-		input: ToolInputForName<TName>
-		ts: number
-		isSubMsg?: boolean
-		isLastWriteToFile: boolean
-		isFinal?: boolean
-	}
+	protected params: FullToolParams<T>
 
-	constructor(options: AgentToolOptions) {
+	constructor(params: FullToolParams<T>, options: AgentToolOptions) {
 		this.cwd = options.cwd
 		this.alwaysAllowReadOnly = options.alwaysAllowReadOnly
 		this.alwaysAllowWriteOnly = options.alwaysAllowWriteOnly
 		this.koduDev = options.koduDev
 		this.setRunningProcessId = options.setRunningProcessId!
+		this.AbortController = new AbortController()
+		this.params = params
 	}
 
 	get name(): string {
@@ -110,12 +112,14 @@ export abstract class BaseAgentTool<TName extends ToolNames> {
 	}
 
 	public async abortToolExecution() {
+		this.AbortController.abort()
 		if (this.isAbortingTool) {
-			return
+			return { didAbort: false }
 		}
 		this.isAbortingTool = true
 		this.setRunningProcessId(undefined)
 		console.log(`Aborted tool execution for ${this.name} with id ${this.id}`)
+		return { didAbort: true }
 	}
 
 	protected toolResponse(

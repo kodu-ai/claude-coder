@@ -1,30 +1,17 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
 import { LIST_FILES_LIMIT, listFiles } from "../../../../parse-source-code"
-import { ClaudeAsk } from "../../../../shared/ExtensionMessage"
-import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
+import { getReadablePath } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
-import { AskDetails } from "../../task-executor/utils"
+import { ListFilesToolParams } from "../schema/list_files"
 
-export class ListFilesTool extends BaseAgentTool<"list_files"> {
-	protected params: AgentToolParams<"list_files">
-
-	constructor(params: AgentToolParams<"list_files">, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
-
+export class ListFilesTool extends BaseAgentTool<ListFilesToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
 		const { path: relDirPath, recursive: recursiveRaw } = input
 
 		if (relDirPath === undefined) {
-			await say(
-				"error",
-				"Claude tried to use list_files without value for required parameter 'path'. Retrying..."
-			)
+			await say("error", "Kodu tried to use list_files without value for required parameter 'path'. Retrying...")
 			const errorMsg = `
 			<file_list_response>
 				<status>
@@ -56,7 +43,7 @@ export class ListFilesTool extends BaseAgentTool<"list_files"> {
 			const files = await listFiles(absolutePath, recursive, 200)
 			const result = this.formatFilesList(absolutePath, files[0])
 
-			const { response, text, images } = await ask!(
+			const { response, text, images } = await ask(
 				"tool",
 				{
 					tool: {
@@ -72,7 +59,7 @@ export class ListFilesTool extends BaseAgentTool<"list_files"> {
 			)
 
 			if (response !== "yesButtonTapped") {
-				this.params.updateAsk(
+				await this.params.updateAsk(
 					"tool",
 					{
 						tool: {
@@ -138,7 +125,7 @@ export class ListFilesTool extends BaseAgentTool<"list_files"> {
 				)
 			}
 
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -171,7 +158,7 @@ export class ListFilesTool extends BaseAgentTool<"list_files"> {
 				</file_list_response>`
 			)
 		} catch (error) {
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {

@@ -10,6 +10,8 @@ import {
 	INLINE_MODIFIED_URI_SCHEME as MODIFIED_URI_SCHEME,
 	INLINE_DIFF_VIEW_URI_SCHEME as DIFF_VIEW_URI_SCHEME,
 } from "./decoration-controller"
+import { createPatch } from "diff"
+import { formatFileToLines } from "../../agent/v1/tools/runners/read-file/utils"
 
 interface MatchResult {
 	success: boolean
@@ -38,6 +40,9 @@ interface BlockResult {
 	replaceContent: string
 	wasApplied: boolean
 	failureReason?: string
+	lineStart?: number
+	lineEnd?: number
+	formattedSavedArea?: string
 }
 
 interface DocumentState {
@@ -397,6 +402,8 @@ export class InlineEditHandler {
 					searchContent: block.searchContent,
 					replaceContent: block.currentContent,
 					wasApplied: true,
+					lineStart: matchResult.lineStart,
+					lineEnd: matchResult.lineEnd,
 				})
 				const insertionIndex = this.currentDocumentState.editBlocksInsertionIndex.get(block.id) ?? -1
 				if (insertionIndex > latestAppliedBlockIndex) {
@@ -440,31 +447,51 @@ export class InlineEditHandler {
 	}
 
 	private async scrollToLine(line: number): Promise<void> {
-		if (!this.modifiedUri) return
+		if (!this.modifiedUri) {
+			return
+		}
 
 		const editor = vscode.window.visibleTextEditors.find(
 			(e) => e.document.uri.toString() === this.modifiedUri!.toString()
 		)
-		if (!editor) return
+		if (!editor) {
+			return
+		}
 
 		const validLine = Math.max(0, Math.min(line, editor.document.lineCount - 1))
 		const range = new vscode.Range(validLine, 0, validLine, editor.document.lineAt(validLine).text.length)
 		editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport)
 	}
 
-	public async saveChanges(): Promise<{ finalContent: string; results: BlockResult[] }> {
+	public async saveChanges(): Promise<{
+		/**
+		 * The final content of the file after applying all changes.
+		 * Formatted with line numbers for each line.
+		 */
+		finalContent: string
+		results: BlockResult[]
+		userEdits?: string
+	}> {
 		this.logger("Saving changes", "debug")
 		this.validateDocumentState()
 
 		const results = this.currentDocumentState.lastUpdateResults || []
-		const finalContent = this.currentDocumentState.currentContent
+		const finalStreamedContent = this.currentDocumentState.currentContent
 
 		const uri = this.currentDocumentState.uri
 		const workspaceEdit = new vscode.WorkspaceEdit()
 		const document = await vscode.workspace.openTextDocument(uri)
+		const diffDocument = await vscode.workspace.openTextDocument(this.modifiedUri!)
 		if (document.isDirty) {
 			await document.save()
 		}
+		if (diffDocument.isDirty) {
+			await diffDocument.save()
+		}
+		/**
+		 * fianlContent is formatted with line numbers for each line at the end of the function
+		 */
+		let finalContent = diffDocument.getText()
 
 		// Close the active editor
 		const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
@@ -475,6 +502,40 @@ export class InlineEditHandler {
 		await this.closeDiffEditors()
 		// open the file itself in a new editor
 		await vscode.window.showTextDocument(uri, { preview: false, viewColumn: vscode.ViewColumn.Active })
+
+		// Now compute formattedSavedArea for each applied result
+		const finalLines = finalContent.split("\n")
+		for (const result of results) {
+			if (result.wasApplied && typeof result.lineStart === "number" && typeof result.lineEnd === "number") {
+				// Determine the range of lines to extract: 5 above and 5 below
+				const startContext = Math.max(0, result.lineStart - 5)
+				const endContext = Math.min(finalLines.length - 1, result.lineEnd + 5)
+
+				const extractedLines = finalLines.slice(startContext, endContext + 1)
+				// Format as "LINE_NUMBER  LINE_CONTENT"
+				const formatted = extractedLines
+					.map((line, index) => {
+						const actualLineNumber = startContext + index + 1 // +1 to make line numbers 1-based
+						return `${actualLineNumber} ${line}`
+					})
+					.join("\n")
+
+				result.formattedSavedArea = formatted
+			}
+		}
+
+		// Compare contents and create patch if needed
+		const normalizedEditedContent = finalContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+		const normalizedStreamedContent = finalStreamedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+		finalContent = formatFileToLines(finalContent)
+
+		if (normalizedEditedContent !== normalizedStreamedContent) {
+			const filename = path.basename(uri.fsPath).replace(/\\/g, "/") // Ensure forward slashes for consistency
+			const patch = createPatch(filename, normalizedStreamedContent, normalizedEditedContent)
+
+			this.dispose()
+			return { userEdits: patch, finalContent: normalizedEditedContent, results }
+		}
 
 		this.dispose()
 		return { finalContent, results }
@@ -517,7 +578,9 @@ export class InlineEditHandler {
 	 * Force finalize all given blocks by applying their final content and marking them as final,
 	 * then re-applying changes to ensure everything is updated.
 	 */
-	public async forceFinalize(blocks: { id: string; searchContent: string; replaceContent: string }[]): Promise<void> {
+	public async forceFinalize(
+		blocks: { id: string; searchContent: string; replaceContent: string }[]
+	): Promise<{ failedCount: number; isAllFailed: boolean; isAnyFailed: boolean; failedBlocks?: BlockResult[] }> {
 		this.logger("Forcing finalization of given blocks", "debug")
 		this.validateDocumentState()
 
@@ -548,6 +611,16 @@ export class InlineEditHandler {
 
 		// Re-apply changes now that all blocks are final
 		await this.updateFileContent()
+		const failedBlocks = this.currentDocumentState.lastUpdateResults?.filter((r) => !r.wasApplied) || []
+		const isAllFailed = failedBlocks.length === blocks.length
+		const isAnyFailed = failedBlocks.length > 0
+		if (isAllFailed) {
+			this.logger("All blocks failed to apply", "warn")
+			// close the editor if all blocks failed
+			await this.closeDiffEditors()
+			this.dispose()
+		}
+		return { failedCount: failedBlocks.length, isAllFailed, isAnyFailed, failedBlocks }
 	}
 
 	public setAutoScroll(enabled: boolean) {

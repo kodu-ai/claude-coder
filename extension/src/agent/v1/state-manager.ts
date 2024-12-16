@@ -1,53 +1,60 @@
 import Anthropic from "@anthropic-ai/sdk"
 import fs from "fs/promises"
 import path from "path"
-import { ExtensionProvider } from "../../providers/claude-coder/ClaudeCoderProvider"
-import { combineApiRequests } from "../../shared/combineApiRequests"
-import { combineCommandSequences } from "../../shared/combineCommandSequences"
-import { getApiMetrics } from "../../shared/getApiMetrics"
+import { ExtensionProvider } from "../../providers/claude-coder/claude-coder-provider"
+import { combineApiRequests } from "../../shared/combine-api-requests"
+import { combineCommandSequences } from "../../shared/combine-command-sequences"
+import { getApiMetrics } from "../../shared/get-api-metrics"
 import { findLastIndex } from "../../utils"
-import { ApiManager } from "./api-handler"
+import { ApiManager } from "../../api/api-handler"
 import { DEFAULT_MAX_REQUESTS_PER_TASK } from "./constants"
-import { ApiHistoryItem, ClaudeMessage, KoduDevOptions, KoduDevState } from "./types"
+import { ApiHistoryItem, ClaudeMessage, FileVersion, KoduDevOptions, KoduDevState } from "./types"
 import { createWriteStream } from "fs"
 // import { amplitudeTracker } from "@/utils/amplitude"
 import { amplitudeTracker } from "../../utils/amplitude"
+
+// Helper function to safely encode file paths to directory names
+// For example, we can base64 encode. Alternatively, replace '/' with '__' or something similar.
+function encodeFilePath(filePath: string): string {
+	// Simple encoding: replace path separators with a triple underscore
+	const replaced = filePath.replace(/[/\\]/g, "___")
+	return Buffer.from(replaced).toString("base64") // encode to base64 for uniqueness
+}
+
+function decodeFilePath(encoded: string): string {
+	const decoded = Buffer.from(encoded, "base64").toString("utf-8")
+	return decoded.replace(/___/g, path.sep)
+}
+
 export class StateManager {
 	private _state: KoduDevState
 	private _apiManager: ApiManager
-	private _maxRequestsPerTask: number
 	private _providerRef: WeakRef<ExtensionProvider>
 	private _alwaysAllowReadOnly: boolean
-	private _creativeMode: "creative" | "normal" | "deterministic"
 	private _customInstructions?: string
 	private _alwaysAllowWriteOnly: boolean
-	private _experimentalTerminal?: boolean
 	private _terminalCompressionThreshold?: number
 	private _autoCloseTerminal?: boolean
 	private _skipWriteAnimation?: boolean
 	private _autoSummarize?: boolean
 	private _temporayPauseAutomaticMode: boolean = false
-	private _inlineEditOutputType?: "full" | "diff" | "none" = "full"
+	private _inlineEditOutputType?: "full" | "diff" = "full"
 	private _gitHandlerEnabled: boolean = true
 
 	constructor(options: KoduDevOptions) {
 		const {
 			provider,
 			apiConfiguration,
-			maxRequestsPerTask,
 			customInstructions,
 			alwaysAllowReadOnly,
 			alwaysAllowWriteOnly,
 			historyItem,
-			creativeMode,
-			experimentalTerminal,
 			autoCloseTerminal,
 			skipWriteAnimation,
 			autoSummarize,
 			terminalCompressionThreshold,
 			gitHandlerEnabled,
 		} = options
-		this._creativeMode = creativeMode ?? "normal"
 		this._autoSummarize = autoSummarize
 		this._providerRef = new WeakRef(provider)
 		this._apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
@@ -55,10 +62,14 @@ export class StateManager {
 		this._alwaysAllowWriteOnly = alwaysAllowWriteOnly ?? false
 		this._customInstructions = customInstructions
 		this._terminalCompressionThreshold = terminalCompressionThreshold
-		this._maxRequestsPerTask = maxRequestsPerTask ?? DEFAULT_MAX_REQUESTS_PER_TASK
 		this._gitHandlerEnabled = gitHandlerEnabled ?? true
-		this._experimentalTerminal = experimentalTerminal
-		this._inlineEditOutputType = options.inlineEditOutputType
+		if (["full", "diff"].includes(options.inlineEditOutputType ?? "")) {
+			this._inlineEditOutputType = options.inlineEditOutputType
+		} else {
+			this._inlineEditOutputType = "full"
+			// update the global state
+			provider.getGlobalStateManager().updateGlobalState("inlineEditOutputType", "full")
+		}
 		this._autoCloseTerminal = autoCloseTerminal
 		this._skipWriteAnimation = skipWriteAnimation
 		this._state = {
@@ -114,19 +125,11 @@ export class StateManager {
 		return this._apiManager
 	}
 
-	get experimentalTerminal(): boolean | undefined {
-		return this._experimentalTerminal
-	}
-
 	get terminalCompressionThreshold(): number | undefined {
 		return this._terminalCompressionThreshold
 	}
 	set terminalCompressionThreshold(newValue: number | undefined) {
 		this._terminalCompressionThreshold = newValue
-	}
-
-	get maxRequestsPerTask(): number {
-		return this._maxRequestsPerTask
 	}
 
 	get autoSummarize(): boolean | undefined {
@@ -141,15 +144,11 @@ export class StateManager {
 		return this._alwaysAllowReadOnly
 	}
 
-	get creativeMode(): "creative" | "normal" | "deterministic" {
-		return this._creativeMode
-	}
-
 	get alwaysAllowWriteOnly(): boolean {
 		return this._alwaysAllowWriteOnly
 	}
 
-	get inlineEditOutputType(): "full" | "diff" | "none" | undefined {
+	get inlineEditOutputType(): "full" | "diff" | undefined {
 		return this._inlineEditOutputType
 	}
 
@@ -191,7 +190,7 @@ export class StateManager {
 	}
 
 	public getMessageById(messageId: number): ClaudeMessage | undefined {
-		return this.state.claudeMessages.find((msg) => msg.ts === messageId)
+		return this.state.claudeMessages.find((msg) => msg?.ts === messageId)
 	}
 
 	public setAutoCloseTerminal(newValue: boolean): void {
@@ -202,16 +201,8 @@ export class StateManager {
 		this._terminalCompressionThreshold = newValue
 	}
 
-	public setExperimentalTerminal(newValue: boolean): void {
-		this._experimentalTerminal = newValue
-	}
-
 	public setApiManager(newApiManager: ApiManager): void {
 		this._apiManager = newApiManager
-	}
-
-	public setMaxRequestsPerTask(newMax?: number): void {
-		this._maxRequestsPerTask = newMax ?? DEFAULT_MAX_REQUESTS_PER_TASK
 	}
 
 	public setProviderRef(newProviderRef: WeakRef<ExtensionProvider>): void {
@@ -227,7 +218,7 @@ export class StateManager {
 		this.updateAmplitudeSettings()
 	}
 
-	public setInlineEditOutputType(newValue?: "full" | "diff" | "none"): void {
+	public setInlineEditOutputType(newValue?: "full" | "diff"): void {
 		this._inlineEditOutputType = newValue
 	}
 
@@ -237,10 +228,6 @@ export class StateManager {
 			AutomaticMode: this.alwaysAllowWriteOnly,
 			AutoSummarize: this.autoSummarize,
 		})
-	}
-
-	public setCreativeMode(newMode: "creative" | "normal" | "deterministic"): void {
-		this._creativeMode = newMode
 	}
 
 	public setAlwaysAllowWriteOnly(newValue: boolean): void {
@@ -256,6 +243,89 @@ export class StateManager {
 		const taskDir = path.join(globalStoragePath, "tasks", this.state.taskId)
 		await fs.mkdir(taskDir, { recursive: true })
 		return taskDir
+	}
+
+	private async getFileVersionsDir(): Promise<string> {
+		const taskDir = await this.ensureTaskDirectoryExists()
+		const versionsDir = path.join(taskDir, "file_versions")
+		await fs.mkdir(versionsDir, { recursive: true })
+		return versionsDir
+	}
+
+	/**
+	 * Save a new file version. Each file has its own directory under file_versions.
+	 * We store each version in `version_<number>.json`.
+	 * The file format: { "content": "file content", "createdAt": number }
+	 */
+	public async saveFileVersion(file: FileVersion): Promise<void> {
+		const versionsDir = await this.getFileVersionsDir()
+		const encodedPath = encodeFilePath(file.path)
+		const fileDir = path.join(versionsDir, encodedPath)
+		await fs.mkdir(fileDir, { recursive: true })
+
+		const versionFilePath = path.join(fileDir, `version_${file.version}.json`)
+		const data = {
+			content: file.content,
+			createdAt: file.createdAt,
+		}
+		await fs.writeFile(versionFilePath, JSON.stringify(data, null, 2))
+	}
+
+	/**
+	 * Get all versions of a file by enumerating all `version_*.json` files in its directory.
+	 */
+	public async getFileVersions(relPath: string): Promise<FileVersion[]> {
+		const versionsDir = await this.getFileVersionsDir()
+		const encodedPath = encodeFilePath(relPath)
+		const fileDir = path.join(versionsDir, encodedPath)
+
+		try {
+			const entries = await fs.readdir(fileDir)
+			const versionFiles = entries.filter((e) => e.startsWith("version_") && e.endsWith(".json"))
+			const versions: FileVersion[] = []
+			for (const vf of versionFiles) {
+				const versionMatch = vf.match(/version_(\d+)\.json$/)
+				if (!versionMatch) continue
+				const verNum = parseInt(versionMatch[1], 10)
+				const fullPath = path.join(fileDir, vf)
+				const contentStr = await fs.readFile(fullPath, "utf8")
+				const json = JSON.parse(contentStr)
+				versions.push({
+					path: relPath,
+					version: verNum,
+					createdAt: json.createdAt,
+					content: json.content,
+				})
+			}
+			versions.sort((a, b) => a.version - b.version)
+			return versions
+		} catch (err) {
+			// If directory doesn't exist or no versions found
+			return []
+		}
+	}
+
+	/**
+	 * List all files and their versions in the task directory.
+	 */
+	public async getFilesInTaskDirectory(): Promise<Record<string, FileVersion[]>> {
+		const versionsDir = await this.getFileVersionsDir()
+		const result: Record<string, FileVersion[]> = {}
+		try {
+			const fileDirs = await fs.readdir(versionsDir)
+			for (const fd of fileDirs) {
+				const fileDir = path.join(versionsDir, fd)
+				const stat = await fs.lstat(fileDir)
+				if (stat.isDirectory()) {
+					const relPath = decodeFilePath(fd)
+					const versions = await this.getFileVersions(relPath)
+					result[relPath] = versions
+				}
+			}
+		} catch (err) {
+			// no files
+		}
+		return result
 	}
 
 	async getSavedApiConversationHistory(): Promise<ApiHistoryItem[]> {
@@ -336,18 +406,25 @@ export class StateManager {
 	}
 
 	async updateApiHistoryItem(messageId: number, message: ApiHistoryItem) {
-		const index = this.state.apiConversationHistory.findIndex((msg) => msg.ts === messageId)
+		const index = this.state.apiConversationHistory.findIndex((msg) => msg?.ts === messageId)
 		if (index === -1) {
 			console.error(`[StateManager] updateApiConversationHistory: Message with id ${messageId} not found`)
 			return
 		}
-		this.state.apiConversationHistory[index] = message
+		this.state.apiConversationHistory[index] = {
+			...this.state.apiConversationHistory[index],
+			...message,
+		}
 		await this.saveApiConversationHistory()
 	}
 
 	async addToApiConversationHistory(message: ApiHistoryItem) {
+		if (message?.ts === undefined) {
+			message.ts = Date.now()
+		}
 		this.state.apiConversationHistory.push(message)
 		await this.saveApiConversationHistory()
+		return message?.ts!
 	}
 
 	async overwriteApiConversationHistory(newHistory: ApiHistoryItem[]) {
@@ -417,13 +494,12 @@ export class StateManager {
 					(m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task")
 				)
 			]
-
 		await this.providerRef
 			.deref()
 			?.getStateManager()
 			.updateTaskHistory({
 				id: this.state.taskId,
-				ts: lastRelevantMessage.ts,
+				ts: lastRelevantMessage?.ts,
 				task: taskMessage.text ?? "",
 				tokensIn: apiMetrics.totalTokensIn,
 				tokensOut: apiMetrics.totalTokensOut,
@@ -431,10 +507,12 @@ export class StateManager {
 				cacheReads: apiMetrics.totalCacheReads,
 				totalCost: apiMetrics.totalCost,
 			})
+
+		return this.state.claudeMessages
 	}
 
 	async removeEverythingAfterMessage(messageId: number) {
-		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
+		const index = this.state.claudeMessages.findIndex((msg) => msg?.ts === messageId)
 		if (index === -1) {
 			console.error(`[StateManager] removeEverythingAfterMessage: Message with id ${messageId} not found`)
 			return
@@ -444,49 +522,70 @@ export class StateManager {
 		)
 		this.state.claudeMessages = this.state.claudeMessages.slice(0, index + 1)
 		await this.saveClaudeMessages()
+		return this.state.claudeMessages
 	}
 
 	async updateClaudeMessage(messageId: number, message: ClaudeMessage) {
-		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
+		const index = this.state.claudeMessages.findIndex((msg) => msg?.ts === messageId)
 		if (index === -1) {
 			console.error(`[StateManager] updateClaudeMessage: Message with id ${messageId} not found`)
 			return
 		}
 		this.state.claudeMessages[index] = message
 		await this.saveClaudeMessages()
+		return this.state.claudeMessages[index]
 	}
 
-	async appendToClaudeMessage(messageId: number, text: string) {
-		const lastMessage = this.state.claudeMessages.find((msg) => msg.ts === messageId)
+	async appendToClaudeMessage(messageId: number, text: string, withFlush = false) {
+		const lastMessage = this.state.claudeMessages.find((msg) => msg?.ts === messageId)
 		if (lastMessage && lastMessage.type === "say") {
 			lastMessage.text += text
 			await this.saveClaudeMessages()
+			if (withFlush) {
+				await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(lastMessage)
+			}
+			return lastMessage
 		}
+		return undefined
 	}
 
 	async addToClaudeAfterMessage(messageId: number, message: ClaudeMessage) {
-		const index = this.state.claudeMessages.findIndex((msg) => msg.ts === messageId)
+		const index = this.state.claudeMessages.findIndex((msg) => msg?.ts === messageId)
 		if (index === -1) {
 			console.error(`[StateManager] addToClaudeAfterMessage: Message with id ${messageId} not found`)
 			return
 		}
 		this.state.claudeMessages.splice(index + 1, 0, message)
 		await this.saveClaudeMessages()
+		return message
+	}
+
+	/**
+	 *
+	 * @param why Why Kodu choose is intrested in this file
+	 * @param path the absolute path of the file
+	 */
+	async addinterestedFileToTask(why: string, path: string) {
+		if (!this.state.interestedFiles) {
+			this.state.interestedFiles = []
+		}
+		this.state.interestedFiles.push({ path, why, createdAt: Date.now() })
+		await this.providerRef.deref()?.getStateManager().updateTaskHistory({
+			id: this.state.taskId,
+			interestedFiles: this.state.interestedFiles,
+		})
 	}
 
 	async addToClaudeMessages(message: ClaudeMessage) {
 		this.state.claudeMessages.push(message)
 		await this.saveClaudeMessages()
+		return message
 	}
 
 	async overwriteClaudeMessages(newMessages: ClaudeMessage[]) {
 		this.state.claudeMessages = newMessages
 		await this.saveClaudeMessages()
-	}
-
-	// Force an immediate save
-	public async forceSaveClaudeMessages(): Promise<void> {
-		await this.saveClaudeMessages()
+		return newMessages
 	}
 
 	public async setTemporaryPauseAutomaticMode(newValue: boolean): Promise<void> {

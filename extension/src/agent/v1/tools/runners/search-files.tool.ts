@@ -1,20 +1,11 @@
 import * as path from "path"
 import { serializeError } from "serialize-error"
-import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
-import { ToolResponse } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse, getReadablePath } from "../../utils"
+import { getReadablePath } from "../../utils"
 import { regexSearchFiles } from "../../../../utils/ripgrep"
-import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
+import { SearchFilesToolParams } from "../schema/search_files"
 
-export class SearchFilesTool extends BaseAgentTool<"search_files"> {
-	protected params: AgentToolParams<"search_files">
-
-	constructor(params: AgentToolParams<"search_files">, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
-
+export class SearchFilesTool extends BaseAgentTool<SearchFilesToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
 		const { path: relDirPath, regex, filePattern } = input
@@ -22,7 +13,7 @@ export class SearchFilesTool extends BaseAgentTool<"search_files"> {
 		if (relDirPath === undefined) {
 			await say(
 				"error",
-				"Claude tried to use search_files without value for required parameter 'path'. Retrying..."
+				"Kodu tried to use search_files without value for required parameter 'path'. Retrying..."
 			)
 
 			const errorMsg = `
@@ -54,7 +45,7 @@ export class SearchFilesTool extends BaseAgentTool<"search_files"> {
 		if (regex === undefined) {
 			await say(
 				"error",
-				"Claude tried to use search_files without value for required parameter 'regex'. Retrying..."
+				"Kodu tried to use search_files without value for required parameter 'regex'. Retrying..."
 			)
 
 			const errorMsg = `
@@ -87,7 +78,7 @@ export class SearchFilesTool extends BaseAgentTool<"search_files"> {
 			const absolutePath = path.resolve(this.cwd, relDirPath)
 			const results = await regexSearchFiles(this.cwd, absolutePath, regex, filePattern)
 
-			const { response, text, images } = await ask!(
+			const { response, text, images } = await ask(
 				"tool",
 				{
 					tool: {
@@ -104,7 +95,7 @@ export class SearchFilesTool extends BaseAgentTool<"search_files"> {
 			)
 
 			if (response !== "yesButtonTapped") {
-				this.params.updateAsk(
+				await this.params.updateAsk(
 					"tool",
 					{
 						tool: {
@@ -175,7 +166,7 @@ export class SearchFilesTool extends BaseAgentTool<"search_files"> {
 				)
 			}
 
-			this.params.updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {

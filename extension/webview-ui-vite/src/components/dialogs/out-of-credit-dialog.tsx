@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Users, Gift, CreditCard, Zap, Coins, TrendingUp } from "lucide-react"
-import { useExtensionState } from "@/context/ExtensionStateContext"
+import { useExtensionState } from "@/context/extension-state-context"
 import { atom, useAtom, useSetAtom } from "jotai"
 import { vscode } from "@/utils/vscode"
 import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl } from "../../../../src/shared/kodu"

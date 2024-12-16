@@ -40,7 +40,7 @@ export class ToolParser {
 	private isInTag: boolean = false
 	private isInTool: boolean = false
 	private nonToolBuffer: string = ""
-	private readonly UPDATE_THRESHOLD = 50 // Send update every N characters
+	private readonly UPDATE_THRESHOLD = 33 // Send update every N characters
 	public onToolUpdate?: ToolUpdateCallback
 	public onToolEnd?: ToolEndCallback
 	public onToolError?: ToolErrorCallback

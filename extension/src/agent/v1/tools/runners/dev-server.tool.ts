@@ -1,12 +1,11 @@
-import { ToolResponse } from "../../types"
-import { formatToolResponse, getCwd } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
+import { getCwd } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
+import { ServerRunnerToolParams } from "../schema/dev_server"
 import { TerminalManager, TerminalRegistry } from "../../../../integrations/terminal/terminal-manager"
-import pWaitFor from "p-wait-for"
 import delay from "delay"
 import { ChatTool, ServerRunnerTool } from "../../../../shared/new-tools"
 import { shellIntegrationErrorOutput } from "./execute-command.tool"
+import { AgentToolOptions, AgentToolParams } from "../types"
 
 interface UpdateAskParams {
 	tool: string
@@ -18,8 +17,7 @@ interface UpdateAskParams {
 	output?: string
 }
 
-export class DevServerTool extends BaseAgentTool<"server_runner_tool"> {
-	protected params: AgentToolParams<"server_runner_tool">
+export class DevServerTool extends BaseAgentTool<ServerRunnerToolParams> {
 	private static readonly ERROR_PATTERNS = [
 		/error/i,
 		/EADDRINUSE/i,
@@ -59,11 +57,6 @@ export class DevServerTool extends BaseAgentTool<"server_runner_tool"> {
 		/esbuild/i,
 		/rollup/i,
 	]
-
-	constructor(params: AgentToolParams<"server_runner_tool">, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
 
 	private async updateToolState(
 		approvalState: NonNullable<ChatTool["approvalState"]>,
@@ -361,14 +354,14 @@ export class DevServerTool extends BaseAgentTool<"server_runner_tool"> {
 				// If server is ready, resolve
 				if (startData.serverReady) {
 					// give it a little time to ensure server is fully ready and logs are captured
-					setTimeout(() => resolve(), 1000)
+					setTimeout(resolve, 1000, undefined)
 				}
 			})
 
 			serverProcess.once("completed", () => {
 				if (!startData.hasError && !startData.serverReady) {
 					startData.serverReady = true
-					resolve()
+					setTimeout(resolve, 0, undefined)
 				}
 			})
 
@@ -378,9 +371,18 @@ export class DevServerTool extends BaseAgentTool<"server_runner_tool"> {
 				reject(error)
 			})
 			serverProcess.on("no_shell_integration", () => {
-				this.params.say("shell_integration_warning")
-				shellIntegrationWarningShown = true
-				reject(new Error(shellIntegrationErrorOutput))
+				setTimeout(
+					async () => {
+						await this.params.say(
+							"shell_integration_warning",
+							"Shell integration is not enabled for this command. Some features may not work as expected."
+						)
+						shellIntegrationWarningShown = true
+						reject(new Error(shellIntegrationErrorOutput))
+					},
+					0,
+					undefined
+				)
 			})
 		})
 
@@ -388,9 +390,15 @@ export class DevServerTool extends BaseAgentTool<"server_runner_tool"> {
 			// Wait for either completion or timeout
 			await Promise.race([
 				completionPromise,
-				delay(30000).then(() => {
-					startData.timeout = true
-					throw new Error("Server start timeout")
+				new Promise((_, reject) => {
+					setTimeout(
+						() => {
+							startData.timeout = true
+							reject(new Error("Server start timeout"))
+						},
+						30000,
+						undefined
+					)
 				}),
 			])
 			if (shellIntegrationWarningShown) {

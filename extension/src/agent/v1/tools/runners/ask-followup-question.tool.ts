@@ -1,24 +1,15 @@
-import { ToolResponse } from "../../types"
-import { formatToolResponse } from "../../utils"
-import { AgentToolOptions, AgentToolParams } from "../types"
 import { BaseAgentTool } from "../base-agent.tool"
+import { AskFollowupQuestionToolParams } from "../schema/ask_followup_question"
 
-export class AskFollowupQuestionTool extends BaseAgentTool<"ask_followup_question"> {
-	protected params: AgentToolParams<"ask_followup_question">
-
-	constructor(params: AgentToolParams<"ask_followup_question">, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-	}
-
+export class AskFollowupQuestionTool extends BaseAgentTool<AskFollowupQuestionToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
-		const { question } = input
+		const question = input.question
 
 		if (question === undefined) {
 			await say(
 				"error",
-				"Claude tried to use ask_followup_question without value for required parameter 'question'. Retrying..."
+				"Kodu tried to use ask_followup_question without value for required parameter 'question'. Retrying..."
 			)
 			const errorMsg = `
 			<question_tool_response>
@@ -51,7 +42,7 @@ export class AskFollowupQuestionTool extends BaseAgentTool<"ask_followup_questio
 			},
 			this.ts
 		)
-		this.params.updateAsk(
+		await this.params.updateAsk(
 			"tool",
 			{ tool: { tool: "ask_followup_question", question, approvalState: "approved", ts: this.ts } },
 			this.ts

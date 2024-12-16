@@ -1,6 +1,4 @@
-import { ComputerUseAction } from "../agent/v1/tools/schema/computer_use"
-import { ToolStatus } from "./ExtensionMessage"
-import { ExecuteCommandToolParams } from "../agent/v1/tools/schema/execute_command"
+import { ToolStatus } from "./extension-message"
 
 /**
  * This is the input and output for execute_command tool
@@ -20,8 +18,8 @@ export type ListFilesTool = {
 	content?: string
 }
 
-export type ListCodeDefinitionNamesTool = {
-	tool: "list_code_definition_names"
+export type ExploreRepoFolderTool = {
+	tool: "explore_repo_folder"
 	path: string
 	content?: string
 }
@@ -38,6 +36,8 @@ export type ReadFileTool = {
 	tool: "read_file"
 	path: string
 	content: string
+	pageNumber?: number
+	readAllPages?: boolean
 }
 
 export type WriteToFileTool = {
@@ -93,12 +93,6 @@ export type UrlScreenshotTool = {
 	base64Image?: string
 }
 
-export type AskConsultantTool = {
-	tool: "ask_consultant"
-	query: string
-	result?: string
-}
-
 export type UpsertMemoryTool = {
 	tool: "upsert_memory"
 	milestoneName?: string
@@ -106,10 +100,40 @@ export type UpsertMemoryTool = {
 	content?: string
 }
 
-export type SummarizeChatTool = {
-	tool: "summarize"
-	cost?: number
-	output?: string
+export type SearchSymbolsTool = {
+	tool: "search_symbol"
+	symbolName: string
+	content?: string
+}
+
+export type AddInterestedFileTool = {
+	tool: "add_interested_file"
+	path: string
+	why: string
+}
+
+export type FileChangePlanTool = {
+	tool: "file_changes_plan"
+	path: string
+	what_to_accomplish: string
+	innerThoughts?: string
+	innerSelfCritique?: string
+	rejectedString?: string
+}
+
+export type FileEditorTool = {
+	tool: "file_editor"
+	path: string
+	mode: "edit" | "whole_write" | "rollback" | "list_versions"
+	kodu_content?: string
+	kodu_diff?: string
+	list_versions?: boolean
+	rollback_version?: string
+	list_versions_output?: string
+	saved_version?: string
+	notAppliedCount?: number
+	commitHash?: string
+	branch?: string
 }
 
 export type ComputerUseTool = {
@@ -125,7 +149,7 @@ export type ChatTool = (
 	| EditFileBlocks
 	| ExecuteCommandTool
 	| ListFilesTool
-	| ListCodeDefinitionNamesTool
+	| ExploreRepoFolderTool
 	| SearchFilesTool
 	| ReadFileTool
 	| WriteToFileTool
@@ -133,9 +157,11 @@ export type ChatTool = (
 	| AttemptCompletionTool
 	| WebSearchTool
 	| UrlScreenshotTool
-	| AskConsultantTool
 	| ServerRunnerTool
-	| ComputerUseTool
+	| SearchSymbolsTool
+	| FileEditorTool
+	| AddInterestedFileTool
+	| FileChangePlanTool
 ) & {
 	ts: number
 	approvalState?: ToolStatus
@@ -146,5 +172,3 @@ export type ChatTool = (
 	error?: string
 	userFeedback?: string
 }
-
-export type ToolName = ChatTool["tool"]

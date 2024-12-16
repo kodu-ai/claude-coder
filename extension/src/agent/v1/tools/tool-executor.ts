@@ -3,29 +3,31 @@
  * It handles tool creation, execution queuing, state management, and cleanup of running tools.
  */
 import treeKill from "tree-kill"
-import { ToolName, ToolResponseV2 } from "../types"
+import { ToolResponseV2 } from "../types"
 import { KoduDev } from ".."
-import { AgentToolOptions, AgentToolParams } from "./types"
+import { AgentToolOptions, ToolName } from "./types"
 import {
 	SearchFilesTool,
 	ListFilesTool,
-	ListCodeDefinitionNamesTool,
+	ExploreRepoFolderTool,
+	ExecuteCommandTool,
 	AttemptCompletionTool,
 	AskFollowupQuestionTool,
 	ReadFileTool,
 	FileEditorTool,
 	UrlScreenshotTool,
-	AskConsultantTool,
+	FileChangePlanTool,
 } from "."
 import { ExecuteCommandTool } from "./runners/execute-command.tool"
 import { WebSearchTool } from "./runners/web-search-tool"
-import { BaseAgentTool } from "./base-agent.tool"
+import { SearchSymbolsTool } from "./runners/search-symbols.tool"
+import { AddInterestedFileTool } from "./runners/add-interested-file.tool"
+import { BaseAgentTool, FullToolParams } from "./base-agent.tool"
 import ToolParser from "./tool-parser/tool-parser"
 import { tools, writeToFileTool } from "./schema"
 import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
 import { DevServerTool } from "./runners/dev-server.tool"
-import { ComputerUseTool } from "./runners/computer-use.tool"
 
 /**
  * Represents the context and state of a tool during its lifecycle
@@ -75,14 +77,7 @@ export class ToolExecutor {
 		this.queue = new PQueue({ concurrency: 1 })
 
 		this.toolParser = new ToolParser(
-			tools
-				.map((tool) => tool.schema)
-				.concat([
-					{
-						name: "edit_file_blocks",
-						schema: writeToFileTool.schema.schema,
-					},
-				]),
+			tools.map((tool) => tool.schema),
 			{
 				onToolUpdate: this.handleToolUpdate.bind(this),
 				onToolEnd: this.handleToolEnd.bind(this),
@@ -119,30 +114,31 @@ export class ToolExecutor {
 	 * @returns New instance of the specified tool
 	 * @throws Error if the tool type is unknown
 	 */
-	private createTool(params: AgentToolParams<any>): BaseAgentTool<any> {
+	private createTool(params: FullToolParams<any>) {
 		const toolMap = {
 			read_file: ReadFileTool,
 			list_files: ListFilesTool,
 			search_files: SearchFilesTool,
-			write_to_file: FileEditorTool,
-			edit_file_blocks: FileEditorTool,
-			list_code_definition_names: ListCodeDefinitionNamesTool,
+			explore_repo_folder: ExploreRepoFolderTool,
 			execute_command: ExecuteCommandTool,
 			ask_followup_question: AskFollowupQuestionTool,
 			attempt_completion: AttemptCompletionTool,
 			web_search: WebSearchTool,
 			url_screenshot: UrlScreenshotTool,
-			ask_consultant: AskConsultantTool,
 			server_runner_tool: DevServerTool,
-			computer_use: ComputerUseTool,
-		}
+			search_symbol: SearchSymbolsTool,
+			file_editor: FileEditorTool,
+			add_interested_file: AddInterestedFileTool,
+		} as const
 
 		const ToolClass = toolMap[params.name as keyof typeof toolMap]
 		if (!ToolClass) {
 			throw new Error(`Unknown tool: ${params.name}`)
 		}
 
-		return new ToolClass(params as any, this.options)
+		// Cast params to any to bypass type checking since we know the tool implementations
+		// handle their own type validation
+		return new ToolClass(params, this.options)
 	}
 
 	/**
@@ -265,7 +261,7 @@ export class ToolExecutor {
 				ts,
 				isFinal: false,
 				isLastWriteToFile: false,
-				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
+				ask: this.koduDev.taskExecutor.ask.bind(this.koduDev.taskExecutor),
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
 				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.koduDev.taskExecutor),
 			})
@@ -315,7 +311,7 @@ export class ToolExecutor {
 				ts: Date.now(),
 				isFinal: true,
 				isLastWriteToFile: false,
-				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
+				ask: this.koduDev.taskExecutor.ask.bind(this.koduDev.taskExecutor),
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
 				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.koduDev.taskExecutor),
 			})
@@ -373,8 +369,8 @@ export class ToolExecutor {
 	 * @param params Parameters for the update
 	 * @param ts Timestamp of the update
 	 */
-	private updateToolStatus(context: ToolContext, params: any, ts: number) {
-		this.koduDev.taskExecutor.updateAsk(
+	private async updateToolStatus(context: ToolContext, params: any, ts: number) {
+		await this.koduDev.taskExecutor.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -418,8 +414,7 @@ export class ToolExecutor {
 				ts: context.tool.ts,
 				isFinal: true,
 				isLastWriteToFile: false,
-				// @ts-expect-error - 'ask' is a function
-				ask: this.koduDev.taskExecutor.askWithId.bind(this.koduDev.taskExecutor),
+				ask: this.koduDev.taskExecutor.ask.bind(this.koduDev.taskExecutor),
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
 				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.koduDev.taskExecutor),
 			})

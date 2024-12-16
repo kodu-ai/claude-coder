@@ -1,32 +1,29 @@
 import * as path from "path"
-import * as vscode from "vscode"
 import fs from "fs/promises"
-import { ClaudeSayTool } from "../../../../shared/ExtensionMessage"
-import { ToolResponse, ToolResponseV2 } from "../../types"
-import { formatGenericToolFeedback, formatToolResponse } from "../../utils"
+import { ToolResponseV2 } from "../../types"
 import { BaseAgentTool } from "../base-agent.tool"
-import type { AgentToolOptions, AgentToolParams, AskConfirmationResponse } from "../types"
-import Anthropic from "@anthropic-ai/sdk"
+import type { AskConfirmationResponse } from "../types"
 import { ChatTool } from "../../../../shared/new-tools"
+import { UrlScreenshotToolParams } from "../schema/url_screenshot"
 
-export class UrlScreenshotTool extends BaseAgentTool<"url_screenshot"> {
-	protected params: AgentToolParams<"url_screenshot">
-	private abortController: AbortController
+export class UrlScreenshotTool extends BaseAgentTool<UrlScreenshotToolParams> {
+	private abortController: AbortController = new AbortController()
 	private isAborting: boolean = false
 
-	constructor(params: AgentToolParams<"url_screenshot">, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-		this.abortController = new AbortController()
-	}
-
-	override async abortToolExecution(): Promise<void> {
-		this.isAborting = true
-		this.abortController.abort()
+	override async abortToolExecution() {
+		const { didAbort } = await super.abortToolExecution()
+		if (didAbort) {
+			this.isAborting = true
+			this.abortController.abort()
+			// Cleanup browser if it was launched
+			await this.cleanup()
+			return { didAbort: true }
+		}
+		return { didAbort }
 	}
 
 	async execute() {
-		const { url } = this.params.input
+		const url = this.params.input.url
 		if (!url) {
 			return await this.onBadInputReceived()
 		}
@@ -185,7 +182,7 @@ export class UrlScreenshotTool extends BaseAgentTool<"url_screenshot"> {
 	private async onBadInputReceived() {
 		await this.params.say(
 			"error",
-			"Claude tried to use `url_screenshot` without required parameter `url`. Retrying..."
+			"Kodu tried to use `url_screenshot` without required parameter `url`. Retrying..."
 		)
 
 		const errMsg = `
@@ -216,7 +213,7 @@ export class UrlScreenshotTool extends BaseAgentTool<"url_screenshot"> {
 		if (this.abortController.signal.aborted) {
 			throw new Error("Tool execution was aborted")
 		}
-		return await this.params.ask!(
+		return await this.params.ask(
 			"tool",
 			{
 				tool: {

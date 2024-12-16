@@ -75,3 +75,8 @@ export const searchFilesTool = {
 	},
 	examples,
 }
+
+export type SearchFilesToolParams = {
+	name: "search_files"
+	input: z.infer<typeof schema>
+}

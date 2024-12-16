@@ -1,7 +1,7 @@
 // components/ChatHeader.tsx
 import React, { memo } from "react"
-import { ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/ExtensionMessage"
-import TaskHeader from "../TaskHeader/TaskHeader"
+import { ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/extension-message"
+import TaskHeader from "../task-header/task-header"
 
 interface ChatHeaderProps {
 	task?: ClaudeMessage
@@ -26,7 +26,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
 	return (
 		<TaskHeader
-			task={task}
+			firstMsg={task}
 			tokensIn={apiMetrics?.inputTokens ?? 0}
 			tokensOut={apiMetrics?.outputTokens ?? 0}
 			doesModelSupportPromptCache={selectedModelSupportsPromptCache}

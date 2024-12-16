@@ -53,3 +53,8 @@ export const urlScreenshotTool = {
 	},
 	examples,
 }
+
+export type UrlScreenshotToolParams = {
+	name: "url_screenshot"
+	input: z.infer<typeof schema>
+}

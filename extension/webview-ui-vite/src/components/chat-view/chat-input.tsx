@@ -1,6 +1,6 @@
 import { vscode } from "@/utils/vscode"
 import React, { memo, useCallback, useRef, useEffect, KeyboardEvent } from "react"
-import InputArea from "../ChatView/InputArea"
+import InputArea from "./input-area"
 import { ChatState } from "./chat"
 
 interface ChatInputProps {
@@ -48,7 +48,7 @@ export const ChatInput = memo(function ChatInput({
 
 	return (
 		<InputArea
-		inputRef={textAreaRef}
+			inputRef={textAreaRef}
 			inputValue={state.inputValue}
 			setInputValue={(value) => updateState({ inputValue: value })}
 			textAreaDisabled={state.textAreaDisabled}

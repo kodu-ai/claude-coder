@@ -10,7 +10,10 @@ import type {
 // import { parseToolResponse } from "@/shared/format-tools"
 import { isToolResponseV2, parseToolResponse } from "../../shared/format-tools"
 import { ApiHandler } from "../../api"
-import { ToolName } from "../../shared/new-tools"
+import { ToolName } from "../../agent/v1/tools/types"
+
+const KODU_DIFF = "kodu_diff" as const
+const KODU_CONTENT = "kodu_content" as const
 
 const KODU_DIFF = "kodu_diff" as const
 const KODU_CONTENT = "kodu_content" as const
@@ -271,9 +274,13 @@ const processContentBlock = async (
 	if (!isTextBlock(content)) {
 		return content
 	}
+	const shouldNotBeCompressed = compressedTools.every(
+		(tool) => !content.text.includes(`<toolName>${tool}</toolName>`)
+	)
+	const isToolResponse = content.text.includes("<toolResponse>") && content.text.includes("</toolResponse>")
 
 	// Handle execute_command blocks
-	if (content.text.includes("<command>") && content.text.includes("</command>")) {
+	if (!isToolResponse && content.text.includes("<command>") && content.text.includes("</command>")) {
 		const indexOfStartTag = content.text.indexOf("<command>")
 		const indexOfEndTag = content.text.indexOf("</command>")
 		if (indexOfStartTag !== -1 && indexOfEndTag !== -1) {
@@ -302,7 +309,7 @@ const processContentBlock = async (
 	}
 
 	// Handle write_to_file compression
-	if (content.text.includes("</write_to_file>")) {
+	if (content.text.includes("</write_to_file>") && !isToolResponse) {
 		const koduContentType = content.text.includes(`</${KODU_CONTENT}>`) ? KODU_CONTENT : "content"
 		const contentStart = content.text.indexOf(`<${koduContentType}>`)
 		const contentEnd = content.text.indexOf(`</${koduContentType}>`)
@@ -336,7 +343,7 @@ const processContentBlock = async (
 	}
 
 	// Handle edit_file_blocks compression
-	if (content.text.includes(`<${KODU_DIFF}>`) && content.text.includes(`</${KODU_DIFF}>`)) {
+	if (content.text.includes(`<${KODU_DIFF}>`) && content.text.includes(`</${KODU_DIFF}>`) && !isToolResponse) {
 		const koduDiffStart = content.text.indexOf(`<${KODU_DIFF}>`)
 		const koduDiffEnd = content.text.indexOf(`</${KODU_DIFF}>`)
 
@@ -368,10 +375,10 @@ const processContentBlock = async (
 	}
 
 	// Handle tool response compression
-	if (content.text.includes("<toolResponse>")) {
+	if (isToolResponse) {
 		try {
 			const toolResponse = parseToolResponse(content.text)
-			if (!compressedTools.includes(toolResponse.toolName as ToolName)) {
+			if (!compressedTools.includes(toolResponse.toolName as ToolName) && shouldNotBeCompressed) {
 				return content
 			}
 
@@ -421,7 +428,13 @@ const processContentBlock = async (
 	return content
 }
 
-export const compressedTools: ToolName[] = ["read_file", "execute_command", "write_to_file", "edit_file_blocks"]
+export const compressedTools: ToolName[] = [
+	"read_file",
+	"execute_command",
+	"write_to_file",
+	"edit_file_blocks",
+	"file_editor",
+]
 
 /**
  * Main function to compress tool outputs in a message array
@@ -463,12 +476,10 @@ export const compressToolFromMsg = async (
 			processedContent.push(processedBlock ?? null)
 		}
 		const content = processedContent.filter((block) => block !== null) as ContentBlockType[]
-
 		if (content.length === 0) {
 			// put the original content back
 			return msg
 		}
-
 		return {
 			...msg,
 			content,

@@ -1,16 +1,13 @@
-import Anthropic from "@anthropic-ai/sdk"
 import delay from "delay"
 import { serializeError } from "serialize-error"
 import { AdvancedTerminalManager } from "../../../../integrations/terminal"
 import { getCwd } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
-import { AgentToolOptions, AgentToolParams } from "../types"
-import { ExecaTerminalManager } from "../../../../integrations/terminal/execa-terminal-manager"
 import { TerminalProcessResultPromise } from "../../../../integrations/terminal/terminal-manager"
-
-import { GlobalStateManager } from "../../../../providers/claude-coder/state/GlobalStateManager"
+import { GlobalStateManager } from "../../../../providers/claude-coder/state/global-state-manager"
 import { ToolResponseV2 } from "../../types"
 import { GitCommitResult } from "../../handlers"
+import { ExecuteCommandToolParams } from "../schema/execute_command"
 
 export const COMMAND_TIMEOUT = 90 // 90 seconds
 export const MAX_RETRIES = 3
@@ -36,25 +33,17 @@ export const shellIntegrationErrorOutput: string = `
 </command_execution_response>
 `
 
-export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
-	protected params: AgentToolParams<"execute_command">
-	private execaTerminalManager: ExecaTerminalManager
+export class ExecuteCommandTool extends BaseAgentTool<ExecuteCommandToolParams> {
 	private output: string = ""
 
-	constructor(params: AgentToolParams<"execute_command">, options: AgentToolOptions) {
-		super(options)
-		this.params = params
-		this.execaTerminalManager = new ExecaTerminalManager()
-	}
-
-	override async execute() {
+	async execute() {
 		const { input, say } = this.params
-		const { command } = input as { command?: string }
+		const command = input.command
 
 		if (!command?.trim()) {
 			await say(
 				"error",
-				"Claude tried to use execute_command without value for required parameter 'command'. Retrying..."
+				"Kodu tried to use execute_command without value for required parameter 'command'. Retrying..."
 			)
 			return this.toolResponse(
 				"error",
@@ -94,7 +83,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 		)
 
 		if (response !== "yesButtonTapped") {
-			updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -130,7 +119,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 		}
 
 		// Set loading state
-		updateAsk(
+		await this.params.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -153,14 +142,14 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 		terminalInfo.terminal.show()
 
 		let preCommandCommit = ""
-		try {
-			const commitResult = await this.koduDev.gitHandler.commitEverything(
-				`State before executing command \`${command}\``
-			)
-			preCommandCommit = commitResult.commitHash
-		} catch (error) {
-			console.error("Failed to get pre-command commit:", error)
-		}
+		// try {
+		// 	const commitResult = await this.koduDev.gitHandler.commitEverything(
+		// 		`State before executing command \`${command}\``
+		// 	)
+		// 	preCommandCommit = commitResult.commitHash
+		// } catch (error) {
+		// 	console.error("Failed to get pre-command commit:", error)
+		// }
 
 		process = terminalManager.runCommand(terminalInfo, command, {
 			autoClose: this.koduDev.getStateManager().autoCloseTerminal ?? false,
@@ -185,11 +174,11 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 				process.once("completed", () => {
 					earlyExit = "approved"
 					completed = true
-					resolve()
+					setTimeout(resolve, 0, undefined)
 				})
 				process.once("no_shell_integration", async () => {
-					await say("shell_integration_warning")
-					await updateAsk(
+					await say("shell_integration_warning", shellIntegrationErrorOutput)
+					await this.params.updateAsk(
 						"tool",
 						{
 							tool: {
@@ -216,7 +205,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 					this.output += cleanedLine + "\n"
 					if (!didContinue || this.isApprovedState(earlyExit)) {
 						try {
-							await updateAsk(
+							await this.params.updateAsk(
 								"tool",
 								{
 									tool: {
@@ -260,7 +249,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 				return this.toolResponse("error", shellIntegrationErrorOutput)
 			}
 
-			await updateAsk(
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -297,14 +286,13 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 					this.ts
 				)
 
-				let commitResult: GitCommitResult | undefined
-				try {
-					commitResult = await this.koduDev.gitHandler.commitEverything(
-						`State after executing command \`${command}\``
-					)
-				} catch (error) {
-					console.error("Failed to get post-command commit:", error)
-				}
+				// try {
+				// 	commitResult = await this.koduDev.gitHandler.commitEverything(
+				// 		`State after executing command \`${command}\``
+				// 	)
+				// } catch (error) {
+				// 	console.error("Failed to get post-command commit:", error)
+				// }
 
 				const toolRes = `
 					<command_execution_response>
@@ -328,10 +316,6 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 							<output>
 								<content>${this.output}</content>
 							</output>
-							<version_control>
-								<git_commit>${commitResult?.commitHash}</git_commit>
-								<git_branch>${commitResult?.branch}</git_branch>
-							</version_control>
 							<user_feedback>
 								<message>${userFeedback?.text || ""}</message>
 							</user_feedback>
@@ -339,10 +323,10 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 					</command_execution_response>`
 
 				if (returnEmptyStringOnSuccess) {
-					return this.toolResponse("success", "No output", undefined, commitResult)
+					return this.toolResponse("success", "No output", undefined)
 				}
 
-				return this.toolResponse("success", toolRes, userFeedback?.images, commitResult)
+				return this.toolResponse("success", toolRes, userFeedback?.images)
 			} else {
 				const toolRes = `
 			<command_execution_response>
@@ -374,7 +358,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 			}
 		} catch (error) {
 			const errorMessage = (error as Error)?.message || JSON.stringify(serializeError(error), null, 2)
-			updateAsk(
+			await updateAsk(
 				"tool",
 				{
 					tool: {

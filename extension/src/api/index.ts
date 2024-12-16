@@ -1,9 +1,10 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiModelId, KoduModelId, ModelInfo } from "../shared/api"
-import { KoduHandler } from "./kodu"
+import { KoduHandler } from "./providers/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { z } from "zod"
 import { koduSSEResponse } from "../shared/kodu"
+import { ApiHistoryItem } from "../agent/v1"
 
 export interface ApiHandlerMessageResponse {
 	message: Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage
@@ -24,15 +25,27 @@ export const bugReportSchema = z.object({
 	claudeMessage: z.string(),
 })
 export interface ApiHandler {
-	createMessageStream(
-		systemPrompt: string,
-		messages: Anthropic.Messages.MessageParam[],
-		creativeMode?: "normal" | "creative" | "deterministic",
-		abortSignal?: AbortSignal | null,
-		customInstructions?: string,
-		userMemory?: string,
-		EnvironmentDetails?: string
-	): AsyncIterableIterator<koduSSEResponse>
+	createMessageStream({
+		systemPrompt,
+		messages,
+		abortSignal,
+		top_p,
+		tempature,
+		modelId,
+		appendAfterCacheToLastMessage,
+	}: {
+		systemPrompt: string[]
+		messages: ApiHistoryItem[]
+		abortSignal: AbortSignal | null
+		top_p?: number
+		tempature?: number
+		modelId: KoduModelId
+		appendAfterCacheToLastMessage?: (lastMessage: Anthropic.Messages.Message) => void
+		updateAfterCacheInserts?: (
+			messages: ApiHistoryItem[],
+			systemMessages: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[]
+		) => Promise<[ApiHistoryItem[], Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[]]>
+	}): AsyncIterableIterator<koduSSEResponse>
 
 	createBaseMessageStream(
 		systemPrompt: string,
@@ -56,8 +69,6 @@ export interface ApiHandler {
 
 	abortRequest(): void
 
-	fixUdiff(udiff: string, fileContent: string, relPath: string): Promise<string>
-
 	sendWebSearchRequest?(
 		searchQuery: string,
 		baseLink?: string,
@@ -65,12 +76,6 @@ export interface ApiHandler {
 		browserMode?: string,
 		abortSignal?: AbortSignal
 	): AsyncIterable<WebSearchResponseDto>
-
-	sendUrlScreenshotRequest?(url: string): Promise<Blob>
-
-	sendAskConsultantRequest?(query: string): Promise<AskConsultantResponseDto>
-
-	sendSummarizeRequest?(text: string, command: string): Promise<SummaryResponseDto>
 }
 
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
