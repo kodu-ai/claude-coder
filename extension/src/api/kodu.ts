@@ -461,6 +461,8 @@ export class KoduHandler implements ApiHandler {
 			return message
 		})
 
+		const totalMessageCount = messagesToCache.length
+
 		// randomMaxTokens between 2200 and 3000
 		// const rnd = Math.floor(Math.random() * 800) + 2200
 
@@ -471,8 +473,12 @@ export class KoduHandler implements ApiHandler {
 			max_tokens: this.getModel().info.maxTokens,
 			system,
 			messages: messagesToCache,
-			temperature: 0.1,
-			top_p: 0.9,
+			temperature: 0,
+		}
+		// after 70 messages we increase the model temperature to 0.3
+		// this is aimed to increase the model creativity and prevent it from getting stuck
+		if (messagesToCache.length > 70) {
+			requestBody.temperature = 0.3
 		}
 		this.cancelTokenSource = axios.CancelToken.source()
 

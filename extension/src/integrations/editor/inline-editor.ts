@@ -236,17 +236,6 @@ export class InlineEditHandler {
 		return !!this.currentDocumentState
 	}
 
-	private async getDocument(): Promise<vscode.TextDocument | undefined> {
-		this.validateDocumentState()
-		try {
-			const { uri } = this.currentDocumentState
-			return vscode.workspace.openTextDocument(uri)
-		} catch (error) {
-			this.logger(`Failed to get document: ${error}`, "error")
-			return undefined
-		}
-	}
-
 	private findAndReplace(content: string, searchContent: string, replaceContent: string): MatchResult {
 		// Ensure all strings use LF
 		content = content.replace(/\r\n/g, "\n")
@@ -473,12 +462,19 @@ export class InlineEditHandler {
 		const uri = this.currentDocumentState.uri
 		const workspaceEdit = new vscode.WorkspaceEdit()
 		const document = await vscode.workspace.openTextDocument(uri)
+		if (document.isDirty) {
+			await document.save()
+		}
+
+		// Close the active editor
 		const entireRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length))
 		workspaceEdit.replace(uri, entireRange, finalContent)
 		await vscode.workspace.applyEdit(workspaceEdit)
 		await document.save()
-
+		await vscode.commands.executeCommand("workbench.action.closeActiveEditor")
 		await this.closeDiffEditors()
+		// open the file itself in a new editor
+		await vscode.window.showTextDocument(uri, { preview: false, viewColumn: vscode.ViewColumn.Active })
 
 		this.dispose()
 		return { finalContent, results }

@@ -239,6 +239,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 			process.on("error", async (error) => {
 				console.log(`Error in process: ${error}`)
 			})
+			let isTimeout = false
 
 			const timeout = GlobalStateManager.getInstance().getGlobalState("commandTimeout")
 			const commandTimeout = (timeout ?? COMMAND_TIMEOUT) * 1000
@@ -247,6 +248,7 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 				completionPromise,
 				delay(commandTimeout).then(() => {
 					if (!completed) {
+						isTimeout = true
 						console.log("Command timed out after", commandTimeout, "ms")
 					}
 				}),
@@ -310,11 +312,18 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 							<result>success</result>
 							<operation>command_execution</operation>
 							<timestamp>${new Date().toISOString()}</timestamp>
+							<is_timeout>${isTimeout ? "The Command has timed out (longer than 3 minutes)" : "exited successfully"}</is_timeout>
 						</status>
 						<execution_details>
 							<command_info>
 								<executed_command>${command}</executed_command>
 								<working_directory>${this.cwd}</working_directory>
+								<timeout>${isTimeout ? "true" : "false"}</timeout>
+								<timeout_hint>${
+									isTimeout
+										? "The Command has timed out (longer than 3 minutes) you should consider finiding different way to run the command or avoid it, this will not self fix itself."
+										: ""
+								}</timeout_hint>
 							</command_info>
 							<output>
 								<content>${this.output}</content>
@@ -341,15 +350,22 @@ export class ExecuteCommandTool extends BaseAgentTool<"execute_command"> {
 					<result>partial</result>
 					<operation>command_execution</operation>
 					<timestamp>${new Date().toISOString()}</timestamp>
+					<is_timeout>${isTimeout ? "The Command has timed out (longer than 3 minutes)" : "exited successfully"}</is_timeout>
 				</status>
 				<execution_details>
 					<command_info>
 						<executed_command>${command}</executed_command>
 						<working_directory>${this.cwd}</working_directory>
+						<timeout_hint>${
+							isTimeout
+								? "The Command has timed out (longer than 3 minutes) you should consider finiding different way to run the command or avoid it, this will not self fix itself."
+								: ""
+						}</timeout_hint>
 					</command_info>
 					<output>
 						<content>${this.output || "No output"}</content>
 						<note>This is a partial output as the command is still running</note>
+						<timeout>${isTimeout ? "true" : "false"}</timeout>
 					</output>
 				</execution_details>
 			</command_execution_response>`

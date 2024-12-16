@@ -486,6 +486,36 @@ ${this.customInstructions.trim()}
 			}
 		}
 
+		if (isLastMessageFromUser && history.length > 50) {
+			// if we had 4 edit blocks out of 6 messages we should a notification about looping
+			const editBlocks = [...history]
+				.reverse()
+				.slice(0, 12)
+				.filter(
+					(m) =>
+						m.role === "user" &&
+						Array.isArray(m.content) &&
+						m.content.some((block) => block.type === "text" && block.text.includes("<edit_file_blocks>"))
+				)
+			if (editBlocks.length >= 4 && Array.isArray(lastMessage.content)) {
+				console.log(
+					`INSERTING ANTI LOOPING MESSAGE , DETECTED ${editBlocks.length} EDIT BLOCKS IN THE LAST 12 MESSAGES`
+				)
+				lastMessage.content.push({
+					type: "text",
+					text: `
+					CRITICAL: WE HAVE DIAGNOSED YOU IN A LOOPING STATE, YOU TRYING TO EDIT WITHOUT SUCCESS, YOU SHOULD STOP AND THINK ABOUT THE ROOT CAUSE OF THE PROBLEM AND TRY TO SOLVE IT.
+					WE DONT ACCEPT APLOGIZES WE WANT TO SEE YOU SOLVING THE PROBLEM, YOU SHOULD STOP AND THINK ABOUT THE ROOT CAUSE OF THE PROBLEM AND TRY TO SOLVE IT.
+					IT WILL BE BEST IF YOU REGROUP AND EVEN RESET SOME OF THE CHANGES RESTART FROM SCRATCH IF NEEDED.
+					YOU MUST LEAVE NOTE TO FUTURE SELF TO AVOID GETTING STUCK IN A LOOPING STATE.
+					THIS IS A WARNING IF THIS IS A FALSE POSITIVE PLEASE IGNORE THIS MESSAGE.
+					TAKE A MOMENT GATHER YOUR THOUGHTS AND GATHER YOUR CONTEXT AND THEN AFTER WRITING AT LEAST 6 LINES OF CONTEXT YOU CAN CONTINUE.
+					THIS IS NOT A STEP TO BE SKIPPED, THIS IS A CRITICAL STEP TO AVOID GETTING STUCK IN A LOOPING STATE.
+					`.trim(),
+				})
+			}
+		}
+
 		const isFirstRequest = history.length < 2
 		const environmentDetails = await provider.getKoduDev()?.getEnvironmentDetails(isFirstRequest)
 
@@ -542,9 +572,10 @@ ${this.customInstructions.trim()}
 			.getGlobalState("terminalCompressionThreshold")
 		const compressedMessages = await smartTruncation(history, this.api, terminalCompressionThreshold)
 		// we are going to inject to the last message some information regarding the conversation to mention that we compressed previous messages
-		for (const m of compressedMessages.slice(-2)) {
+		for (const m of compressedMessages.slice(-4)) {
 			if (m.role === "user") {
 				if (Array.isArray(m.content)) {
+					console.log(`Inserting reminder that the chat has been compressed and it should repick the context`)
 					m.content.push({
 						type: "text",
 						text: `
@@ -555,6 +586,7 @@ ${this.customInstructions.trim()}
 	Also it might be a good time to self reflect and check how is your progress so far, what you have learned.
 	remember to always follow the <task> information from the first message in the conversation.
 	Good luck and lets pick up the conversation from the current message.
+	CRITICAL YOU MUST TAKE A MOMENT TO REFLECT AND REGROUP YOUR CONTEXT BEFORE YOU CONTINUE THE CONVERSATION. IT'S NOT A STEP TO BE SKIPPED. IT'S MANDATORY TO REFLECT AND REGROUP YOUR CONTEXT.
 	</compression_additional_context>`.trim(),
 					})
 				}

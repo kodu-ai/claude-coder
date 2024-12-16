@@ -284,7 +284,12 @@ const processContentBlock = async (
 	}
 
 	// Skip specific context blocks
-	const includedTextToRemove = ["</most_important_context>", "</environment_details>", "</automatic_reminders>"]
+	const includedTextToRemove = [
+		"</most_important_context>",
+		"</environment_details>",
+		"</automatic_reminders>",
+		"</compression_additional_context>",
+	]
 	if (includedTextToRemove.some((text) => content.text.includes(text))) {
 		if (
 			content.text.includes("<most_important_context>") ||
@@ -397,7 +402,7 @@ const processContentBlock = async (
 			}
 
 			const textLength = toolResponse.toolResult.length
-			toolResponse.toolResult = `The output for the "${toolResponse.toolName}" command was compressed for readability`
+			toolResponse.toolResult = `The output for tool "${toolResponse.toolName}" was compressed for readability if the context was needed please re read the file.`
 			logger(`Compressed tool ${toolResponse.toolName} output`, "info")
 
 			return {
@@ -457,10 +462,16 @@ export const compressToolFromMsg = async (
 			)
 			processedContent.push(processedBlock ?? null)
 		}
+		const content = processedContent.filter((block) => block !== null) as ContentBlockType[]
+
+		if (content.length === 0) {
+			// put the original content back
+			return msg
+		}
 
 		return {
 			...msg,
-			content: processedContent.filter((block) => block !== null) as ContentBlockType[],
+			content,
 		}
 	}
 	// const processedMsgs: MessageParam[] = []

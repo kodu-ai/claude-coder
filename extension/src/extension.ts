@@ -105,17 +105,17 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.onDidChangeWindowState((windowState) => {
 			if (windowState.focused) {
 				console.log("Window is now focused")
-				startCreditFetch(sidebarProvider)
+				// startCreditFetch(sidebarProvider)
 			} else {
 				console.log("Window lost focus")
-				stopCreditFetch()
+				// stopCreditFetch()
 			}
 		})
 	)
 
 	// Start fetching if the window is already focused when the extension activates
 	if (vscode.window.state.focused) {
-		startCreditFetch(sidebarProvider)
+		// startCreditFetch(sidebarProvider)
 	}
 
 	// Make sure to stop fetching when the extension is deactivated
