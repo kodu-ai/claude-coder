@@ -275,7 +275,7 @@ Usage:
 <why>Explanation of file's relevance to the task and potential impact when proposing file changes with file_editor tool</why>
 </add_interested_file>
 
-## server_runner_tool
+## server_runner
 Description: start a server / development server. This tool is used to run web applications locally, backend server, or anytype of server. this is tool allow you to start, stop, restart, or get logs from a server instance and keep it in memory.
 THIS IS THE ONLY TOOL THAT IS CAPABLE OF STARTING A SERVER, DO NOT USE THE execute_command TOOL TO START A SERVER, I REPEAT, DO NOT USE THE execute_command TOOL TO START A SERVER.
 YOU MUST GIVE A NAME FOR EACH SERVER INSTANCE YOU START, SO YOU CAN KEEP TRACK OF THEM.
@@ -286,24 +286,24 @@ Parameters:
 - serverName: (required) The name of the terminal to use for the operation. This is used to identify the terminal instance where the server is running.
 - lines: (optional) The number of lines to retrieve from the server logs. This is only required when the commandType is 'getLogs'.
 Usage:
-<server_runner_tool>
+<server_runner>
 <commandType>start</commandType>
 <commandToRun>cd frontend && npm run dev</commandToRun>
 <serverName>frontend</serverName>
-</server_runner_tool>
+</server_runner>
 or to get logs
-<server_runner_tool>
+<server_runner>
 <commandType>getLogs</commandType>
 <serverName>frontend</serverName>
 <lines>50</lines>
-</server_runner_tool>
+</server_runner>
 
 ## execute_command
 Description: Request to execute a CLI command on the system. Use this when you need to perform system operations or run specific commands to accomplish any step in the user's task. You must tailor your command to the user's system and provide a clear explanation of what the command does. Prefer to execute complex CLI commands over creating executable scripts, as they are more flexible and easier to run. Commands will be executed in the current working directory: ${cwd.toPosix()}
-This is very primitive tool, it cant execute commands like "npm start", "yarn start", "python -m http.server", etc. (if you want to start a server, you must use the server_runner_tool tool.)
+This is very primitive tool, it cant execute commands like "npm start", "yarn start", "python -m http.server", etc. (if you want to start a server, you must use the server_runner tool.)
 Parameters:
 - command: (required) The CLI command to execute. This should be valid for the current operating system. Ensure the command is properly formatted and does not contain any harmful instructions.
-COMMAND CANNOT RUN SOMETHING like 'npm start', 'yarn start', 'python -m http.server', etc. (if you want to start a server, you must use the server_runner_tool tool.)
+COMMAND CANNOT RUN SOMETHING like 'npm start', 'yarn start', 'python -m http.server', etc. (if you want to start a server, you must use the server_runner tool.)
 Usage:
 <execute_command>
 <command>Your command here</command>
@@ -395,21 +395,21 @@ Your final result description here
 
 # Tool Use Examples
 
-## Example 0: start a development server using server_runner_tool
+## Example 0: start a development server using server_runner
 
-Explanation: In this we finished setting our react project, and now we need to start the development server to run the application, we will use the server_runner_tool to start the server with the command 'npm run dev'.
+Explanation: In this we finished setting our react project, and now we need to start the development server to run the application, we will use the server_runner to start the server with the command 'npm run dev'.
 **KEY NOTES:**
-if you want to start a server, you must use the server_runner_tool tool, do not use the execute_command tool to start a server.
+if you want to start a server, you must use the server_runner tool, do not use the execute_command tool to start a server.
 Ensure the commandToRun is valid for the user's system and the path is correct.
 Always wait for user confirmation after each tool use before proceeding.
-This output will be appended to the system prompt (<server_runner_tool_status> information) to keep track of the server status.
-Don't assume the server is running, you must only take the server_runner_tool_status> information as the source of truth (search for <server_runner_tool_status> tags in the system prompt).
+This output will be appended to the system prompt (<server_runner_status> information) to keep track of the server status.
+Don't assume the server is running, you must only take the server_runner_status> information as the source of truth (search for <server_runner_status> tags in the system prompt).
 YOU MUST PREPEND THE PATH TO THE DIRECTORY WHERE THE COMMAND SHOULD BASED ON ${cwd.toPosix()}.
-<server_runner_tool>
+<server_runner>
 <commandType>start</commandType>
 <commandToRun>npm run dev</commandToRun>
 <serverName>frontend</serverName>
-</server_runner_tool>
+</server_runner>
 
 ## Example 1: Requesting to execute a command
 Explanation: In this example, the user requests to install the 'express' package using npm. We choose the execute_command tool to run the npm install command for the 'express' package.

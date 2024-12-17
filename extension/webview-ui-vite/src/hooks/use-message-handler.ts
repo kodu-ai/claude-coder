@@ -186,7 +186,7 @@ export const useChatMessageHandling = (
 						primaryButtonText: "Search Files",
 						secondaryButtonText: "Cancel",
 					},
-					server_runner_tool: {
+					server_runner: {
 						...baseState,
 						primaryButtonText: "Run Server",
 						secondaryButtonText: "Cancel",

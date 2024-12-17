@@ -12,11 +12,12 @@ import { KoduError, koduSSEResponse } from "../shared/kodu"
 import { amplitudeTracker } from "../utils/amplitude"
 import { ApiHistoryItem, ClaudeMessage, UserContent } from "../agent/v1/types"
 import { getCwd, isTextBlock } from "../agent/v1/utils"
-import m11182024Prompt from "../agent/v1/prompts/main.prompt"
 
 // Imported utility functions
 import { calculateApiCost, cleanUpMsg, getApiMetrics } from "./api-utils"
 import { processConversationHistory, manageContextWindow } from "./conversation-utils"
+import mainPrompt from "../agent/v1/prompts/main.prompt"
+import { mainPrompts } from "../agent/v1/prompts/main-new.prompt"
 
 /**
  * Main API Manager class that handles all Claude API interactions
@@ -116,7 +117,7 @@ ${this.customInstructions.trim()}
 				(await provider.koduDev?.getStateManager().getSavedApiConversationHistory()) ?? apiConversationHistory
 
 			// Process conversation history using our external utility
-			await processConversationHistory(provider.koduDev!, conversationHistory, m11182024Prompt.criticalMsg, true)
+			await processConversationHistory(provider.koduDev!, conversationHistory, mainPrompts.criticalMsg, true)
 			if (postProcessConversationCallback) {
 				await postProcessConversationCallback?.(conversationHistory)
 			}
@@ -124,8 +125,7 @@ ${this.customInstructions.trim()}
 			this.log("info", `Last 2 messages:`, conversationHistory.slice(-2))
 
 			const supportImages = this.api.getModel().info.supportsImages
-			const supportComputerUse = supportImages && this.getModelId().includes("sonnet")
-			const baseSystem = m11182024Prompt.prompt(getCwd(), supportImages, supportComputerUse)
+			const baseSystem = mainPrompts.prompt(supportImages)
 			const systemPrompt = [baseSystem]
 			const customInstructions = this.formatCustomInstructions()
 			if (customInstructions) {

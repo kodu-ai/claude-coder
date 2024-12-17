@@ -85,7 +85,7 @@ export interface WebSearchTool {
 }
 
 export type ServerRunnerTool = {
-	tool: "server_runner_tool"
+	tool: "server_runner"
 	port?: number
 	serverName?: string
 	commandType?: "start" | "stop" | "restart" | "getLogs"

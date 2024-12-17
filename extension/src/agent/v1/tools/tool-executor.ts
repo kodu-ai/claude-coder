@@ -125,7 +125,7 @@ export class ToolExecutor {
 			attempt_completion: AttemptCompletionTool,
 			web_search: WebSearchTool,
 			url_screenshot: UrlScreenshotTool,
-			server_runner_tool: DevServerTool,
+			server_runner: DevServerTool,
 			search_symbol: SearchSymbolsTool,
 			file_editor: FileEditorTool,
 			add_interested_file: AddInterestedFileTool,

@@ -747,7 +747,7 @@ export const ToolRenderer: React.FC<{
 			return <EnhancedWebSearchBlock {...tool} />
 		case "url_screenshot":
 			return <UrlScreenshotBlock {...tool} />
-		case "server_runner_tool":
+		case "server_runner":
 			return <DevServerToolBlock {...tool} />
 		case "search_symbol":
 			return <SearchSymbolBlock {...tool} />
