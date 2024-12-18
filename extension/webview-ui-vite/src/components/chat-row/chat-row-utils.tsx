@@ -29,14 +29,14 @@ function StatusIcon({ message }: { message: V1ClaudeMessage }) {
 }
 
 export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => {
-	const { cost } = message.apiMetrics || {}
+	const { cost } = message?.apiMetrics || {}
 	const [icon, title] = IconAndTitle({
 		type: "api_req_started",
 		cost: message.apiMetrics?.cost,
 		isCommandExecuting: !!message.isExecutingCommand,
 		apiRequestFailedMessage: message.errorText || message.isError ? "Request Failed" : false,
 	})
-	if (message.agentName) {
+	if (message?.agentName) {
 		// @ts-expect-error - agentName is literal string
 		message.agentName = message.agentName
 			.split("_")
@@ -45,7 +45,7 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 	}
 
 	// Combine agent and model into one concise badge
-	const agentModelText = [message.agentName, message.modelId].filter(Boolean).join(" @ ")
+	const agentModelText = [message?.agentName, message?.modelId].filter(Boolean).join(" @ ")
 
 	return (
 		<div
@@ -64,34 +64,38 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 			{agentModelText && (
 				<Tooltip>
 					<TooltipContent className="bg-secondary text-secondary-foreground">
-						<div className="space-y-2">
-							<h4 className="font-medium text-md ">Model Info</h4>
-							<div className="flex justify-between">
-								<span className="text-secondary-foreground/80">Agent</span>
-								<span className="text-secondary-foreground">{message.agentName ?? "Kodu Main"}</span>
+						{cost && (
+							<div className="space-y-2">
+								<h4 className="font-medium text-md ">Model Info</h4>
+								<div className="flex justify-between">
+									<span className="text-secondary-foreground/80">Agent</span>
+									<span className="text-secondary-foreground">
+										{message.agentName ?? "Kodu Main"}
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-secondary-foreground/80 shrink-0 mr-2">Model</span>
+									<span className="text-secondary-foreground truncate">{message.modelId}</span>
+								</div>
+								<h4 className="font-medium text-md">Price Breakdown</h4>
+								{Object.entries(message.apiMetrics!)
+									.reverse()
+									.map(([key, value], index) => (
+										<div
+											key={key}
+											className={`flex justify-between ${
+												index === Object.entries(message.apiMetrics!).length - 1
+													? "pt-2 border-t border-foreground/80 font-medium"
+													: ""
+											}`}>
+											<span className="text-secondary-foreground/80">{key}</span>
+											<span className="text-secondary-foreground">{value?.toFixed(2)}</span>
+										</div>
+									))}
 							</div>
-							<div className="flex justify-between">
-								<span className="text-secondary-foreground/80 shrink-0 mr-2">Model</span>
-								<span className="text-secondary-foreground truncate">{message.modelId}</span>
-							</div>
-							<h4 className="font-medium text-md">Price Breakdown</h4>
-							{Object.entries(message.apiMetrics!)
-								.reverse()
-								.map(([key, value], index) => (
-									<div
-										key={key}
-										className={`flex justify-between ${
-											index === Object.entries(message.apiMetrics!).length - 1
-												? "pt-2 border-t border-foreground/80 font-medium"
-												: ""
-										}`}>
-										<span className="text-secondary-foreground/80">{key}</span>
-										<span className="text-secondary-foreground">{value?.toFixed(2)}</span>
-									</div>
-								))}
-						</div>
+						)}
 					</TooltipContent>
-					<TooltipTrigger className="flex w-full overflow-hidden">
+					<TooltipTrigger disabled={!cost} className="flex w-full overflow-hidden ml-auto justify-end">
 						<Badge
 							variant="secondary"
 							className="text-[11px] truncate" // w-32 or some fixed width class

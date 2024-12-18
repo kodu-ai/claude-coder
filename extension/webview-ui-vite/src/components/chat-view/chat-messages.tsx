@@ -173,7 +173,10 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, sy
 				key={`virtuoso-${taskId}`}
 				ref={virtuosoRef}
 				data={visibleMessages.filter((message) => {
-					message.text = message.text?.trim() ?? ""
+					if (message.text) {
+						message.text = message.text?.trim() ?? ""
+					}
+
 					if (
 						(message.say === "shell_integration_warning" ||
 							(message.text?.length ?? 0) > 0 ||
