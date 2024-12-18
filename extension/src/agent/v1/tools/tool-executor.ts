@@ -99,6 +99,7 @@ export class ToolExecutor {
 			alwaysAllowWriteOnly: this.koduDev.getStateManager().alwaysAllowWriteOnly,
 			koduDev: this.koduDev,
 			setRunningProcessId: this.setRunningProcessId.bind(this),
+			agentName: this.koduDev.getStateManager().subAgentManager.state?.name,
 		}
 	}
 
@@ -224,9 +225,7 @@ export class ToolExecutor {
 		if (this.isAborting) {
 			return { output: text }
 		}
-		const now = Date.now()
 		const res = this.toolParser.appendText(text)
-		console.log(`Tool use processed in ${Date.now() - now}ms`)
 		return res
 	}
 
@@ -382,6 +381,7 @@ export class ToolExecutor {
 			{
 				tool: {
 					tool: context.tool.name,
+					agentName: this.koduDev.getStateManager().subAgentManager.state?.name,
 					...params,
 					ts,
 					approvalState: "loading",

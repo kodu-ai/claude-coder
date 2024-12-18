@@ -10,26 +10,20 @@ import {
 	codeContainerStyle,
 	syntaxHighlighterCustomStyle,
 } from "./utils"
+import { useAtomValue } from "jotai"
+import { syntaxHighlighterAtom } from "../chat-view/atoms"
 
 interface CodeBlockProps {
 	code?: string
 	diff?: string
 	language?: string | undefined
 	path?: string
-	syntaxHighlighterStyle: SyntaxHighlighterStyle
 	isExpanded: boolean
 	onToggleExpand: () => void
 }
 
-const CodeBlock: React.FC<CodeBlockProps> = ({
-	code,
-	diff,
-	language,
-	path,
-	syntaxHighlighterStyle,
-	isExpanded,
-	onToggleExpand,
-}) => {
+const CodeBlock: React.FC<CodeBlockProps> = ({ code, diff, language, path, isExpanded, onToggleExpand }) => {
+	const syntaxHighlighterStyle = useAtomValue(syntaxHighlighterAtom)
 	const inferredLanguage = useMemo(
 		() => code && (language ?? (path ? getLanguageFromPath(path) : undefined)),
 		[path, language, code]

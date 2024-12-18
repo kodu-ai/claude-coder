@@ -1,6 +1,7 @@
 import { ImageBlockParam, TextBlock, TextBlockParam } from "@anthropic-ai/sdk/resources/messages.mjs"
 import type { ToolResponseV2 } from "../agent/v1/types"
 import { base64StringToImageBlock } from "./format-images"
+import dedent from "dedent"
 
 export type ContentBlock = TextBlock | ImageBlockParam | TextBlockParam
 
@@ -24,7 +25,7 @@ export const isToolResponseV2 = (result: any): result is ToolResponseV2 => {
 const rejectMsg = (msg: string) => `The Tool got rejected and returned the following message: ${msg}`
 const errorMsg = (msg: string) => `The Tool encountered an error and returned the following message: ${msg}`
 const feedbackMsg = (msg: string) => `The Tool returned the following feedback: ${msg}`
-const successMsg = (msg: string) => `The Tool was successful and returned the following message: ${msg}`
+const successMsg = (msg: string) => `${msg}`
 
 const toolFeedbackToMsg = (result: ToolResponseV2["status"]) => {
 	switch (result) {
@@ -52,19 +53,17 @@ export const toolResponseToAIState = (result: ToolResponseV2, isCompressed?: boo
 		}
 		blocks.push({
 			type: "text",
-			text: `
-            <toolResponse>
+			text: dedent`<toolResponse>
             <toolName>${result.toolName}</toolName>
             <toolStatus>${result.status}</toolStatus>
             <toolResult>${toolFeedbackToMsg(result.status)(result.text)}</toolResult>
 			${
 				result.images?.length
-					? `<images>there is ${result.images.length} image attached to the request, please check them.</images>`
+					? `<images>there is ${result.images.length} image attached to the request, please check them.</images>\n`
 					: ""
-			}
-			${
+			}${
 				isCompressed
-					? `<isToolCompressed description="true if the tool output / input been compressed">true</isToolCompressed>`
+					? `<isToolCompressed description="true if the tool output / input been compressed">true</isToolCompressed>\n`
 					: ""
 			}
             </toolResponse>

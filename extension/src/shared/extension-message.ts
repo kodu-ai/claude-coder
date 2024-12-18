@@ -1,3 +1,4 @@
+import { SpawnAgentOptions } from "../agent/v1/tools/schema/agents/agent-spawner"
 import type { GlobalState } from "../providers/claude-coder/state/global-state-manager"
 import { ApiConfiguration } from "./api"
 import { HistoryItem } from "./history-item"
@@ -176,6 +177,7 @@ export type V1ClaudeMessage = {
 	isAborted?: "user" | "timeout"
 	isError?: boolean
 	isFetching?: boolean
+	agentName?: SpawnAgentOptions
 	isExecutingCommand?: boolean
 	errorText?: string
 	/**

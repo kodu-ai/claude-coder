@@ -1,3 +1,4 @@
+import { SpawnAgentOptions } from "../tools/schema/agents/agent-spawner"
 import { SubAgentState } from "../types"
 import { IOManager } from "./io-manager"
 
@@ -29,6 +30,10 @@ export class SubAgentManager {
 		return this._state
 	}
 
+	get agentName(): SpawnAgentOptions | undefined {
+		return this._state?.name
+	}
+
 	get agentHash(): string | undefined {
 		return this._agentHash
 	}
@@ -41,11 +46,16 @@ export class SubAgentManager {
 		return this._currentSubAgentId !== undefined
 	}
 
-	public exitSubAgent(): void {
+	public async exitSubAgent(): Promise<void> {
+		// first save the state
+		if (this._state) {
+			await this._ioManager.saveSubAgentState(this._state)
+		}
+		// Clear state in correct order
 		this._currentSubAgentId = undefined
-		this._ioManager.agentHash = undefined
 		this._state = undefined
-		this.onExit()
+		this._ioManager.agentHash = undefined
+		await this.onExit()
 	}
 
 	public getHash(): string {

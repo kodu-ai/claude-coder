@@ -6,6 +6,8 @@ import { SyntaxHighlighterStyle } from "../../utils/get-syntax-highlighter-style
 import ChatRowV1 from "../chat-row/chat-row"
 import { Button } from "../ui/button"
 
+const isActionTag = (txt: string) => txt.trim().startsWith("<action>") || txt.trim().startsWith("</action>")
+
 interface ChatMessagesProps {
 	visibleMessages: ClaudeMessage[]
 	syntaxHighlighterStyle: SyntaxHighlighterStyle
@@ -22,7 +24,6 @@ const MessageRenderer = React.memo(
 		message,
 		index,
 		total,
-		syntaxHighlighterStyle,
 		nextMessage,
 	}: {
 		message: ClaudeMessage
@@ -35,8 +36,8 @@ const MessageRenderer = React.memo(
 
 		return isV1ClaudeMessage(message) ? (
 			<ChatRowV1
+				isFirst={index === 0}
 				message={message}
-				syntaxHighlighterStyle={syntaxHighlighterStyle}
 				isLast={isLast}
 				nextMessage={nextMessage as V1ClaudeMessage | undefined}
 			/>
@@ -172,10 +173,12 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, sy
 				key={`virtuoso-${taskId}`}
 				ref={virtuosoRef}
 				data={visibleMessages.filter((message) => {
+					message.text = message.text?.trim() ?? ""
 					if (
-						message.say === "shell_integration_warning" ||
-						(message.text?.length ?? 0) > 0 ||
-						(message.images?.length ?? 0) > 0
+						(message.say === "shell_integration_warning" ||
+							(message.text?.length ?? 0) > 0 ||
+							(message.images?.length ?? 0) > 0) &&
+						!isActionTag(message.text ?? "")
 					) {
 						return true
 					}

@@ -29,9 +29,14 @@ export const SpawnAgentBlock: React.FC<SpawnAgentTool & ToolAddons> = ({
 			<div className="flex flex-col space-y-2">
 				<div className="flex items-center gap-2">
 					<p className="text-xs">
-						<span className="font-semibold">Agent:</span> {agentName}
+						<span className="font-semibold">Agent:</span>
 					</p>
-					<Badge variant="outline">{agentName}</Badge>
+					<Badge variant="outline">
+						{agentName
+							?.split("_")
+							.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+							.join(" ")}
+					</Badge>
 				</div>
 
 				<div>
@@ -39,9 +44,7 @@ export const SpawnAgentBlock: React.FC<SpawnAgentTool & ToolAddons> = ({
 					<ScrollArea className="h-24 rounded border bg-background p-2">
 						<ScrollBar orientation="vertical" />
 						<ScrollBar orientation="horizontal" />
-						<pre className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
-							<MarkdownRenderer markdown={instructions?.trim()} />
-						</pre>
+						<MarkdownRenderer markdown={instructions?.trim()} />
 					</ScrollArea>
 				</div>
 
@@ -91,9 +94,7 @@ export const ExitAgentBlock: React.FC<ExitAgentTool & ToolAddons> = ({
 				<ScrollArea className="h-24 rounded border bg-background p-2">
 					<ScrollBar orientation="vertical" />
 					<ScrollBar orientation="horizontal" />
-					<pre className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
-						<MarkdownRenderer markdown={result?.trim()} />
-					</pre>
+					<MarkdownRenderer markdown={result?.trim()} />
 				</ScrollArea>
 			</div>
 		</div>

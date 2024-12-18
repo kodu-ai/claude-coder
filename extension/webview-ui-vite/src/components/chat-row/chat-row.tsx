@@ -16,9 +16,9 @@ import { ChatTool } from "../../../../src/shared/new-tools"
 
 interface ChatRowProps {
 	message: V1ClaudeMessage
-	syntaxHighlighterStyle: SyntaxHighlighterStyle
 	nextMessage?: V1ClaudeMessage
 	isLast: boolean
+	isFirst: boolean
 }
 
 /**
@@ -30,7 +30,7 @@ const removeThinking = (text?: string) => {
 	return text?.replace(/<thinking>|<\/thinking>/g, "")
 }
 
-const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, nextMessage }) => {
+const ChatRowV1: React.FC<ChatRowProps> = ({ message, isFirst, nextMessage }) => {
 	message.text = removeThinking(message.text!)
 	const renderTextContent = () => {
 		switch (message.type) {
@@ -48,25 +48,20 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, ne
 						return (
 							<APIRequestMessage
 								message={message}
-								nextMessage={nextMessage}
-								syntaxHighlighterStyle={syntaxHighlighterStyle}
+								// nextMessage={nextMessage}
+								//
 							/>
 						)
 					case "api_req_finished":
 						return null
 					case "text":
-						return <TextMessage message={message} syntaxHighlighterStyle={syntaxHighlighterStyle} />
+						return <TextMessage message={message} />
 					case "info":
 						return <InfoMessage message={message} />
 					case "user_feedback":
 						return <UserFeedbackMessage message={message} />
 					case "user_feedback_diff":
-						return (
-							<UserFeedbackDiffMessage
-								message={message}
-								syntaxHighlighterStyle={syntaxHighlighterStyle}
-							/>
-						)
+						return <UserFeedbackDiffMessage message={message} />
 					case "error":
 					case "completion_result": {
 						const [icon, title] = IconAndTitle({ type: message.say, isCommandExecuting: false })
@@ -77,7 +72,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, ne
 									{title}
 								</h3>
 								<div className={message.say === "error" ? "text-error" : "text-success"}>
-									<TextMessage message={message} syntaxHighlighterStyle={syntaxHighlighterStyle} />
+									<TextMessage message={message} />
 								</div>
 							</>
 						)
@@ -135,7 +130,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, ne
 										{defaultTitle}
 									</h3>
 								)}
-								<TextMessage message={message} syntaxHighlighterStyle={syntaxHighlighterStyle} />
+								<TextMessage message={message} />
 							</>
 						)
 					}
@@ -154,7 +149,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, ne
 									{title}
 								</h3>
 							)}
-							<TextMessage message={message} syntaxHighlighterStyle={syntaxHighlighterStyle} />
+							<TextMessage message={message} />
 						</>
 					)
 				}
@@ -179,18 +174,21 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, syntaxHighlighterStyle, ne
 	}
 
 	return (
-		<section
-			className={cn(
-				"!border-b-0 border-t-border border-t-2",
-				(message.text?.includes('"tool":"') || message.isSubMessage) && "!border-t-0 !py-1",
-				message.isSubMessage && "!py-0"
-			)}>
+		<section className={"border-none !py-0 !my-0"}>
+			<div
+				className={cn(
+					isFirst && "!border-none",
+					"!border-b-0 border-t-border border-t-2 my-2 !py-0",
+					(message.text?.includes('"tool":"') || message.isSubMessage) && "!hidden",
+					message.isSubMessage && "!py-0"
+				)}
+			/>
 			{/* Text content container */}
-			{textContent && <div>{textContent}</div>}
+			{textContent && <div className="mb-2">{textContent}</div>}
 
 			{/* Tool content container - always at the bottom */}
 			{toolContent && (
-				<div className={cn("tool-content", textContent ? "mt-4 pt-4 border-t border-border" : "mb-2")}>
+				<div className={cn("tool-content", textContent ? "mt-4 pt-4 border-t border-border" : "mb-2", "my-2")}>
 					{toolContent}
 				</div>
 			)}

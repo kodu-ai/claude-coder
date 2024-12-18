@@ -5,14 +5,18 @@ import { IOManager } from "./io-manager"
 import { combineApiRequests } from "../../../shared/combine-api-requests"
 import { combineCommandSequences } from "../../../shared/combine-command-sequences"
 import { getApiMetrics } from "../../../shared/get-api-metrics"
+import { isV1ClaudeMessage } from "../../../shared/extension-message"
+import { StateManager } from "."
 
 interface ClaudeMessagesManagerOptions {
 	state: KoduDevState
 	ioManager: IOManager
 	providerRef: WeakRef<ExtensionProvider>
+	stateManager: StateManager
 }
 
 export class ClaudeMessagesManager {
+	private stateManager: StateManager
 	private state: KoduDevState
 	private ioManager: IOManager
 	private providerRef: WeakRef<ExtensionProvider>
@@ -21,6 +25,7 @@ export class ClaudeMessagesManager {
 		this.state = options.state
 		this.ioManager = options.ioManager
 		this.providerRef = options.providerRef
+		this.stateManager = options.stateManager
 	}
 
 	public async getSavedClaudeMessages(): Promise<ClaudeMessage[]> {
@@ -71,6 +76,10 @@ export class ClaudeMessagesManager {
 	}
 
 	public async addToClaudeMessages(message: ClaudeMessage) {
+		if (isV1ClaudeMessage(message)) {
+			message.agentName = this.stateManager.subAgentManager.agentName
+			message.modelId = this.stateManager.apiManager.getModelId()
+		}
 		this.state.claudeMessages.push(message)
 		await this.saveClaudeMessages()
 		return message
@@ -135,6 +144,10 @@ export class ClaudeMessagesManager {
 		if (index === -1) {
 			console.error(`[ClaudeMessagesManager] addToClaudeAfterMessage: Message with id ${messageId} not found`)
 			return
+		}
+		if (isV1ClaudeMessage(message)) {
+			message.agentName = this.stateManager.subAgentManager.agentName
+			message.modelId = this.stateManager.apiManager.getModelId()
 		}
 		// In-place insertion using splice
 		this.state.claudeMessages.splice(index + 1, 0, message)

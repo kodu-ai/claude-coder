@@ -102,7 +102,7 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 	return (
 		<div
 			className={cn(
-				"border-l-4 p-3 bg-card text-card-foreground",
+				"border-l-4 p-3 bg-card text-card-foreground rounded-sm",
 				{
 					"border-primary": variant === "primary",
 					"border-secondary": variant === "info",

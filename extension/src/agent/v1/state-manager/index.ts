@@ -80,6 +80,7 @@ export class StateManager {
 			state: this._state,
 			ioManager: this._ioManager,
 			providerRef: this._providerRef,
+			stateManager: this,
 		})
 
 		this.apiHistoryManager = new ApiHistoryManager({
@@ -275,22 +276,23 @@ export class StateManager {
 	}
 
 	private async onEnterSuccesfulSubAgent(subAgentState: SubAgentState): Promise<void> {
+		// load apiConversationHistory from the subAgent
+		await this.apiHistoryManager.getSavedApiConversationHistory(true)
 		// replace the subAgentState with the new one
 		this.providerRef.deref()?.getStateManager().updateTaskHistory({
 			id: this._state.taskId,
 			currentSubAgentId: subAgentState.ts,
 		})
-		// load apiConversationHistory from the subAgent
-		await this.apiHistoryManager.getSavedApiConversationHistory(true)
 	}
 
 	private async onExitSubAgent(): Promise<void> {
+		// Now load the main agent's history
+		await this.apiHistoryManager.getSavedApiConversationHistory(true)
+
 		this.providerRef.deref()?.getStateManager().updateTaskHistory({
 			id: this._state.taskId,
 			currentSubAgentId: undefined,
 		})
-		// load apiConversationHistory from the main agent
-		await this.apiHistoryManager.getSavedApiConversationHistory(true)
 	}
 
 	public setAlwaysAllowWriteOnly(newValue: boolean): void {
