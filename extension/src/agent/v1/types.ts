@@ -6,12 +6,15 @@ import { ExtensionProvider } from "../../providers/claude-coder/claude-coder-pro
 import { ClaudeAskResponse } from "../../shared/webview-message"
 import { HistoryItem } from "../../shared/history-item"
 import { ClaudeMessage } from "../../shared/extension-message"
+import { KoduModelId } from "../../shared/api"
+import { SpawnAgentOptions } from "./tools/schema/agents/agent-spawner"
+import { ToolName } from "./tools/types"
 
 export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>
 
 export type ToolResponseV2 = {
 	status: "success" | "error" | "rejected" | "feedback"
-	toolName: string
+	toolName: ToolName
 	toolId: string
 	images?: string[]
 	text?: string
@@ -91,13 +94,38 @@ export type InterestedFile = {
 	 */
 	createdAt: number
 }
+
+export type SubAgentState = {
+	name: SpawnAgentOptions
+	systemPrompt: string
+	automaticReminders?: string
+	modelId?: KoduModelId
+	apiConversationHistory: ApiHistoryItem[]
+	interestedFiles: InterestedFile[]
+	/**
+	 * the list of diagnostics errors for the current task
+	 */
+	historyErrors: Record<
+		/**
+		 * the file path
+		 */
+		string,
+		{
+			lastCheckedAt: number
+			error: string
+		}
+	>
+	ts: number
+	state: "RUNNING" | "DONE" | "EXITED"
+}
+
 export interface KoduDevState {
 	taskId: string
 	requestCount: number
 	apiConversationHistory: ApiHistoryItem[]
 	claudeMessages: ClaudeMessage[]
 	askResponse?: ClaudeAskResponse
-
+	currentSubAgentId?: number
 	askResponseText?: string
 	terminalCompressionThreshold?: number
 	isHistoryItem?: boolean

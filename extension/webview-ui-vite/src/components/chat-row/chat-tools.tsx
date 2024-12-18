@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
 	AlertCircle,
+	Bot,
 	CheckCircle,
 	ChevronDown,
 	ChevronUp,
@@ -12,6 +13,7 @@ import {
 	HelpCircle,
 	Image,
 	LoaderPinwheel,
+	LogOut,
 	MessageCircle,
 	MessageCircleReply,
 	Play,
@@ -37,6 +39,8 @@ import {
 	SearchFilesTool,
 	SearchSymbolsTool,
 	ServerRunnerTool,
+	SpawnAgentTool,
+	ExitAgentTool,
 	UrlScreenshotTool,
 } from "../../../../src/shared/new-tools"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
@@ -44,6 +48,7 @@ import { ScrollArea, ScrollBar } from "../ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { EnhancedWebSearchBlock } from "./tools/web-search-tool"
 import { FileEditorTool } from "./tools/file-editor-tool"
+import { SpawnAgentBlock, ExitAgentBlock } from "./tools/agent-tools"
 import MarkdownRenderer from "./markdown-renderer"
 
 type ApprovalState = ToolStatus
@@ -753,6 +758,10 @@ export const ToolRenderer: React.FC<{
 			return <SearchSymbolBlock {...tool} />
 		case "add_interested_file":
 			return <AddInterestedFileBlock {...tool} />
+		case "spawn_agent":
+			return <SpawnAgentBlock {...tool} />
+		case "exit_agent":
+			return <ExitAgentBlock {...tool} />
 		default:
 			return null
 	}

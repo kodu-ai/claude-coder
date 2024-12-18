@@ -1,10 +1,11 @@
 import { ApiManager } from "../../../api/api-handler"
 import { ExtensionProvider } from "../../../providers/claude-coder/claude-coder-provider"
 import { amplitudeTracker } from "../../../utils/amplitude"
-import { KoduDevState, KoduDevOptions, FileVersion } from "../types"
+import { KoduDevState, KoduDevOptions, FileVersion, SubAgentState } from "../types"
 import { ApiHistoryManager } from "./api-history-manager"
 import { ClaudeMessagesManager } from "./claude-messages-manager"
 import { IOManager } from "./io-manager"
+import { SubAgentManager } from "./sub-agent-manager"
 
 export class StateManager {
 	private _state: KoduDevState
@@ -21,6 +22,7 @@ export class StateManager {
 	private _inlineEditOutputType?: "full" | "diff" = "full"
 	private _gitHandlerEnabled: boolean = true
 	private _ioManager: IOManager
+	private _subAgentManager: SubAgentManager
 
 	public claudeMessagesManager: ClaudeMessagesManager
 	public apiHistoryManager: ApiHistoryManager
@@ -84,10 +86,25 @@ export class StateManager {
 			state: this._state,
 			ioManager: this._ioManager,
 		})
+
+		this._subAgentManager = new SubAgentManager({
+			subAgentId: options.historyItem?.currentSubAgentId,
+			ioManager: this._ioManager,
+			onEnterSucessful: this.onEnterSuccesfulSubAgent.bind(this),
+			onExit: this.onExitSubAgent.bind(this),
+		})
 	}
 
 	get state(): KoduDevState {
 		return this._state
+	}
+
+	get ioManager(): IOManager {
+		return this._ioManager
+	}
+
+	get subAgentManager(): SubAgentManager {
+		return this._subAgentManager
 	}
 
 	get autoCloseTerminal(): boolean | undefined {
@@ -257,6 +274,25 @@ export class StateManager {
 		})
 	}
 
+	private async onEnterSuccesfulSubAgent(subAgentState: SubAgentState): Promise<void> {
+		// replace the subAgentState with the new one
+		this.providerRef.deref()?.getStateManager().updateTaskHistory({
+			id: this._state.taskId,
+			currentSubAgentId: subAgentState.ts,
+		})
+		// load apiConversationHistory from the subAgent
+		await this.apiHistoryManager.getSavedApiConversationHistory(true)
+	}
+
+	private async onExitSubAgent(): Promise<void> {
+		this.providerRef.deref()?.getStateManager().updateTaskHistory({
+			id: this._state.taskId,
+			currentSubAgentId: undefined,
+		})
+		// load apiConversationHistory from the main agent
+		await this.apiHistoryManager.getSavedApiConversationHistory(true)
+	}
+
 	public setAlwaysAllowWriteOnly(newValue: boolean): void {
 		this._alwaysAllowWriteOnly = newValue
 		this.updateAmplitudeSettings()
@@ -274,6 +310,14 @@ export class StateManager {
 	 * This mutates the existing array rather than reassigning it.
 	 */
 	async addinterestedFileToTask(why: string, filePath: string) {
+		// if (this.subAgentManager.isInSubAgent) {
+		// 	this.subAgentManager.currentSubAgentState?.interestedFiles.push({
+		// 		path: filePath,
+		// 		why,
+		// 		createdAt: Date.now(),
+		// 	})
+		// 	return
+		// }
 		this._state.interestedFiles.push({ path: filePath, why, createdAt: Date.now() })
 		await this._providerRef.deref()?.getStateManager().updateTaskHistory({
 			id: this._state.taskId,

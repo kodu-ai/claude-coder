@@ -42,6 +42,14 @@ const toolFeedbackToMsg = (result: ToolResponseV2["status"]) => {
 export const toolResponseToAIState = (result: ToolResponseV2, isCompressed?: boolean): ContentBlock[] => {
 	const blocks: ContentBlock[] = []
 	if (typeof result.text === "string") {
+		if (result.toolName === "spawn_agent") {
+			return [
+				{
+					type: "text",
+					text: result.text,
+				},
+			]
+		}
 		blocks.push({
 			type: "text",
 			text: `

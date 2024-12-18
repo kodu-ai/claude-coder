@@ -16,7 +16,7 @@ import { cleanUpMsg, ApiMetrics } from "./api-utils"
 export async function processConversationHistory(
 	provider: KoduDev,
 	history: Anthropic.MessageParam[],
-	criticalMsg: string,
+	criticalMsg?: string,
 	/**
 	 * Whether to save the conversation to state and disk after processing
 	 */
@@ -73,7 +73,7 @@ export async function enrichConversationHistory(
 	provider: KoduDev,
 	history: Anthropic.MessageParam[],
 	isLastMessageFromUser: boolean,
-	criticalMsg: string
+	criticalMsg?: string
 ): Promise<void> {
 	if (!provider) {
 		return
@@ -86,7 +86,12 @@ export async function enrichConversationHistory(
 	const lastMessage = history[history.length - 1]
 	const isFirstMessage = history.length === 1
 
-	if (isLastMessageFromUser && Array.isArray(lastMessage.content) && (shouldAddCriticalMsg || isFirstMessage)) {
+	if (
+		isLastMessageFromUser &&
+		Array.isArray(lastMessage.content) &&
+		(shouldAddCriticalMsg || isFirstMessage) &&
+		criticalMsg
+	) {
 		lastMessage.content.push({
 			type: "text",
 			text: criticalMsg,

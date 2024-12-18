@@ -358,9 +358,17 @@ export class TaskExecutor extends TaskExecutorUtils {
 				}
 			}
 
+			const systemPrompt = this.stateManager.subAgentManager.state?.systemPrompt
+				? {
+						systemPrompt: this.stateManager.subAgentManager.state?.systemPrompt,
+						automaticReminders: this.stateManager.subAgentManager.state?.automaticReminders,
+				  }
+				: undefined
+
 			const stream = await this.stateManager.apiManager.createApiStreamRequest(
 				this.stateManager.state.apiConversationHistory,
-				this.abortController
+				this.abortController,
+				systemPrompt
 			)
 
 			if (this.isRequestCancelled || this.isAborting) {
@@ -478,7 +486,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 					}
 
 					if (chunk.code === 2) {
-						console.log(`[TaskExecutor] chunked processing time: ${Date.now() - currentChunkTime}ms`)
 						// Update API history first
 						if (Array.isArray(apiHistoryItem.content) && isTextBlock(apiHistoryItem.content[0])) {
 							apiHistoryItem.content[0].text =

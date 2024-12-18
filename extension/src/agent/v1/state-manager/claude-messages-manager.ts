@@ -28,6 +28,7 @@ export class ClaudeMessagesManager {
 			return this.state.claudeMessages
 		}
 		const messages = await this.ioManager.loadClaudeMessages()
+		this.state.claudeMessages.length = 0
 		// Use in-place modification to update the existing array
 		this.state.claudeMessages.push(...messages)
 		return this.state.claudeMessages

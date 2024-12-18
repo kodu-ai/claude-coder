@@ -28,6 +28,8 @@ import { tools, writeToFileTool } from "./schema"
 import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
 import { DevServerTool } from "./runners/dev-server.tool"
+import { SpawnAgentTool } from "./runners/agents/spawn-agent.tool"
+import { ExitAgentTool } from "./runners/agents/exit-agent.tool"
 
 /**
  * Represents the context and state of a tool during its lifecycle
@@ -129,6 +131,8 @@ export class ToolExecutor {
 			search_symbol: SearchSymbolsTool,
 			file_editor: FileEditorTool,
 			add_interested_file: AddInterestedFileTool,
+			spawn_agent: SpawnAgentTool,
+			exit_agent: ExitAgentTool,
 		} as const
 
 		const ToolClass = toolMap[params.name as keyof typeof toolMap]

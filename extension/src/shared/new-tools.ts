@@ -1,3 +1,4 @@
+import { SpawnAgentOptions } from "../agent/v1/tools/schema/agents/agent-spawner"
 import { ToolStatus } from "./extension-message"
 
 /**
@@ -143,7 +144,22 @@ export type FileEditorTool = {
 	branch?: string
 }
 
+export type SpawnAgentTool = {
+	tool: "spawn_agent"
+	agentName: SpawnAgentOptions
+	instructions: string
+	files?: string | string[]
+}
+
+export type ExitAgentTool = {
+	tool: "exit_agent"
+	agentName: SpawnAgentOptions
+	result: string
+}
+
 export type ChatTool = (
+	| ExitAgentTool
+	| SpawnAgentTool
 	| ExecuteCommandTool
 	| ListFilesTool
 	| ExploreRepoFolderTool

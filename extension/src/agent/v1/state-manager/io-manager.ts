@@ -1,11 +1,12 @@
 // src/state-manager/io-manager.ts
 import fs from "fs/promises"
 import path from "path"
-import { ApiHistoryItem, ClaudeMessage, FileVersion } from "../types"
+import { ApiHistoryItem, ClaudeMessage, FileVersion, SubAgentState } from "../types"
 
 interface IOManagerOptions {
 	fsPath: string
 	taskId: string
+	agentHash?: string
 }
 
 /**
@@ -18,16 +19,55 @@ interface IOManagerOptions {
 export class IOManager {
 	private fsPath: string
 	private taskId: string
+	private _agentHash?: string
 
 	constructor(options: IOManagerOptions) {
 		this.fsPath = options.fsPath
 		this.taskId = options.taskId
+		this._agentHash = options.agentHash
+	}
+
+	public get agentHash(): string | undefined {
+		return this._agentHash
+	}
+
+	public set agentHash(value: string | undefined) {
+		this._agentHash = value
 	}
 
 	private async ensureTaskDirectoryExists(): Promise<string> {
 		const taskDir = path.join(this.fsPath, "tasks", this.taskId)
 		await fs.mkdir(taskDir, { recursive: true })
 		return taskDir
+	}
+
+	private async getSubAgentDirectory(): Promise<string> {
+		if (!this.agentHash) {
+			throw new Error("Agent hash is not set")
+		}
+		const taskDir = await this.ensureTaskDirectoryExists()
+		const agentDir = path.join(taskDir, this.agentHash ?? "")
+		await fs.mkdir(agentDir, { recursive: true })
+		return agentDir
+	}
+
+	public async saveSubAgentState(state: SubAgentState): Promise<void> {
+		const subAgentDir = await this.getSubAgentDirectory()
+		const stateFilePath = path.join(subAgentDir, "state.json")
+		await fs.writeFile(stateFilePath, JSON.stringify(state, null, 2))
+	}
+
+	public async loadSubAgentState(): Promise<SubAgentState | undefined> {
+		const subAgentDir = await this.getSubAgentDirectory()
+		const stateFilePath = path.join(subAgentDir, "state.json")
+
+		try {
+			const data = await fs.readFile(stateFilePath, "utf8")
+			const state: SubAgentState = JSON.parse(data)
+			return state
+		} catch {
+			return undefined
+		}
 	}
 
 	private async getClaudeMessagesFilePath(): Promise<string> {
@@ -37,7 +77,7 @@ export class IOManager {
 
 	private async getApiHistoryFilePath(): Promise<string> {
 		const taskDir = await this.ensureTaskDirectoryExists()
-		return path.join(taskDir, "api_conversation_history.json")
+		return path.join(taskDir, this.agentHash ?? "", "api_conversation_history.json")
 	}
 
 	// ---------- Claude Messages I/O ----------

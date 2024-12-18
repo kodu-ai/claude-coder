@@ -17,11 +17,12 @@ export class ApiHistoryManager {
 		this.ioManager = options.ioManager
 	}
 
-	public async getSavedApiConversationHistory(): Promise<ApiHistoryItem[]> {
-		if (this.state.apiConversationHistory.length > 0) {
+	public async getSavedApiConversationHistory(fromDisk = false): Promise<ApiHistoryItem[]> {
+		if (this.state.apiConversationHistory.length > 0 && !fromDisk) {
 			return this.state.apiConversationHistory
 		}
 		const history = await this.ioManager.loadApiHistory()
+		this.state.apiConversationHistory.length = 0
 		// In-place update to preserve reference
 		this.state.apiConversationHistory.push(...history)
 		return this.state.apiConversationHistory

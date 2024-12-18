@@ -16,8 +16,8 @@ import { getCwd, isTextBlock } from "../agent/v1/utils"
 // Imported utility functions
 import { calculateApiCost, cleanUpMsg, getApiMetrics } from "./api-utils"
 import { processConversationHistory, manageContextWindow } from "./conversation-utils"
-import mainPrompt from "../agent/v1/prompts/main.prompt"
-import { mainPrompts } from "../agent/v1/prompts/main-new.prompt"
+import { mainPrompts } from "../agent/v1/prompts/main.prompt"
+import dedent from "dedent"
 
 /**
  * Main API Manager class that handles all Claude API interactions
@@ -26,7 +26,6 @@ export class ApiManager {
 	private api: ApiHandler
 	private customInstructions?: string
 	private providerRef: WeakRef<ExtensionProvider>
-	private currentSystemPrompt = ""
 
 	constructor(provider: ExtensionProvider, apiConfiguration: ApiConfiguration, customInstructions?: string) {
 		this.api = buildApiHandler(apiConfiguration)
@@ -85,11 +84,8 @@ export class ApiManager {
 			return undefined
 		}
 
-		return `
-====
-
+		return dedent`====
 USER'S CUSTOM INSTRUCTIONS
-
 The following additional instructions are provided by the user. They should be followed and given precedence in case of conflicts with previous instructions.
 
 ${this.customInstructions.trim()}
@@ -105,6 +101,10 @@ ${this.customInstructions.trim()}
 	async *createApiStreamRequest(
 		apiConversationHistory: ApiHistoryItem[],
 		abortController: AbortController,
+		customSystemPrompt?: {
+			automaticReminders?: string
+			systemPrompt: string
+		},
 		postProcessConversationCallback?: (apiConversationHistory: ApiHistoryItem[]) => Promise<void>
 	): AsyncGenerator<koduSSEResponse> {
 		const provider = this.providerRef.deref()
@@ -116,17 +116,22 @@ ${this.customInstructions.trim()}
 			const conversationHistory =
 				(await provider.koduDev?.getStateManager().apiHistoryManager.getSavedApiConversationHistory()) ??
 				apiConversationHistory
+			const supportImages = this.api.getModel().info.supportsImages
+
+			const baseSystem = customSystemPrompt?.systemPrompt ?? mainPrompts.prompt(supportImages)
+			let criticalMsg: string | undefined = mainPrompts.criticalMsg
+			if (customSystemPrompt) {
+				criticalMsg = customSystemPrompt.automaticReminders
+			}
 
 			// Process conversation history using our external utility
-			await processConversationHistory(provider.koduDev!, conversationHistory, mainPrompts.criticalMsg, true)
+			await processConversationHistory(provider.koduDev!, conversationHistory, criticalMsg, true)
 			if (postProcessConversationCallback) {
 				await postProcessConversationCallback?.(conversationHistory)
 			}
 			// log the last 2 messages
 			this.log("info", `Last 2 messages:`, conversationHistory.slice(-2))
 
-			const supportImages = this.api.getModel().info.supportsImages
-			const baseSystem = mainPrompts.prompt(supportImages)
 			const systemPrompt = [baseSystem]
 			const customInstructions = this.formatCustomInstructions()
 			if (customInstructions) {

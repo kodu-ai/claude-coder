@@ -19,7 +19,8 @@ import { EditFileBlocksToolParams, WriteToFileToolParams } from "../schema/write
 import { FileChangePlanParams } from "../schema/file-change-plan"
 import { RejectFileChangesParams } from "../schema/reject-file-changes"
 import { FileEditorToolParams } from "../schema/file_editor_tool"
-import { SubAgentToolParams } from "../schema/sub_agent"
+import { SpawnAgentToolParams } from "../schema/agents/agent-spawner"
+import { ExitAgentToolParams } from "../schema/agents/agent-exit"
 
 export type UpsertMemoryInput = {
 	milestoneName: string
@@ -45,7 +46,8 @@ export type ToolParams =
 	| WriteToFileToolParams
 	| EditFileBlocksToolParams
 	| FileEditorToolParams
-	| SubAgentToolParams
+	| SpawnAgentToolParams
+	| ExitAgentToolParams
 
 export type ToolName = ToolParams["name"]
 

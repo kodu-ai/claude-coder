@@ -3,7 +3,7 @@ import { cloneDeep } from "lodash"
 import { KoduDev, ApiHistoryItem } from "../../agent/v1"
 import { getCwd } from "../../agent/v1/utils"
 import { processConversationHistory } from "../../api/conversation-utils"
-import { mainPrompts } from "../../agent/v1/prompts/main-new.prompt"
+import { mainPrompts } from "../../agent/v1/prompts/main.prompt"
 
 /**
  * This function:

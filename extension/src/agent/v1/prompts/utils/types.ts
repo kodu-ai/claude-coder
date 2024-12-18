@@ -1,3 +1,5 @@
+import { ToolName } from "../../tools/types"
+
 export const templatePlaceHolder = [
 	"agentName",
 	"osName",
@@ -43,7 +45,7 @@ export interface ToolExample {
 
 // Tool definition
 export interface ToolPromptSchema {
-	name: string
+	name: ToolName
 	description: string
 	parameters: Record<string, ToolParameter>
 	extraDescriptions?: string

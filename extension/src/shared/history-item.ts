@@ -15,6 +15,7 @@ export type HistoryItem = {
 	isRepoInitialized?: boolean
 	currentTokens?: number
 	interestedFiles?: InterestedFile[]
+	currentSubAgentId?: number
 }
 
 export const isSatifiesHistoryItem = (item: any): item is HistoryItem => {
