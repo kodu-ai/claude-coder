@@ -36,11 +36,15 @@ export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 // const findLastMessageTextMsg
 
 export class KoduHandler implements ApiHandler {
-	private options: ApiHandlerOptions
+	private _options: ApiHandlerOptions
 	private cancelTokenSource: CancelTokenSource | null = null
 
+	get options() {
+		return this._options
+	}
+
 	constructor(options: ApiHandlerOptions) {
-		this.options = options
+		this._options = options
 	}
 
 	async abortRequest(): Promise<void> {
@@ -123,7 +127,7 @@ export class KoduHandler implements ApiHandler {
 			{
 				headers: {
 					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
+					"x-api-key": this._options.koduApiKey || "",
 				},
 				responseType: "stream",
 				signal: abortSignal ?? undefined,
@@ -271,7 +275,7 @@ export class KoduHandler implements ApiHandler {
 			{
 				headers: {
 					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
+					"x-api-key": this._options.koduApiKey || "",
 					"continue-generation": "true",
 				},
 				responseType: "stream",
@@ -365,7 +369,7 @@ export class KoduHandler implements ApiHandler {
 	}
 
 	getModel(): { id: KoduModelId; info: ModelInfo } {
-		const modelId = this.options.apiModelId
+		const modelId = this._options.apiModelId
 		if (modelId && modelId in koduModels) {
 			const id = modelId as KoduModelId
 			return { id, info: koduModels[id] }
@@ -391,7 +395,7 @@ export class KoduHandler implements ApiHandler {
 			{
 				headers: {
 					"Content-Type": "application/json",
-					"x-api-key": this.options.koduApiKey || "",
+					"x-api-key": this._options.koduApiKey || "",
 				},
 				timeout: 60_000,
 				responseType: "stream",

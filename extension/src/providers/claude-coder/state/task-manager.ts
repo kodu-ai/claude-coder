@@ -105,7 +105,6 @@ export class TaskManager {
 
 		taskData.historyItem.name = newTaskName
 		await this.provider.getStateManager().updateTaskHistory(taskData.historyItem)
-		await this.provider.getWebviewManager().postBaseStateToWebview()
 		vscode.window.showInformationMessage(`Task renamed to ${newTaskName}`)
 	}
 

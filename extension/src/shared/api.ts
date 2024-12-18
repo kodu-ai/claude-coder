@@ -5,13 +5,6 @@ export interface ApiHandlerOptions {
 	koduEmail?: string
 	apiModelId?: KoduModelId
 	browserModelId?: string
-	apiKey?: string // anthropic
-	openRouterApiKey?: string
-	awsAccessKey?: string
-	awsSecretKey?: string
-	awsRegion?: string
-	vertexProjectId?: string
-	vertexRegion?: string
 }
 
 export type ApiConfiguration = ApiHandlerOptions & {

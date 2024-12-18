@@ -109,7 +109,7 @@ export interface KoduDevState {
 	/**
 	 * the list of diagnostics errors for the current task
 	 */
-	historyErrors?: Record<
+	historyErrors: Record<
 		/**
 		 * the file path
 		 */
@@ -122,7 +122,7 @@ export interface KoduDevState {
 	/**
 	 * the list of interested files
 	 */
-	interestedFiles?: InterestedFile[]
+	interestedFiles: InterestedFile[]
 	askResponseImages?: string[]
 	lastMessageTs?: number
 	executeCommandRunningProcess?: ResultPromise

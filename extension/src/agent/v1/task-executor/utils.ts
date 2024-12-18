@@ -67,8 +67,9 @@ export abstract class TaskExecutorUtils {
 
 	// Abstract methods that must be implemented by derived classes
 
-	public handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void {
-		const lastAskMessage = [...this.stateManager.state.claudeMessages].reverse().find((msg) => msg.type === "ask")
+	public async handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): Promise<void> {
+		const messages = await this.stateManager.claudeMessagesManager.getSavedClaudeMessages()
+		const lastAskMessage = [...messages].reverse().find((msg) => msg.type === "ask")
 		if (lastAskMessage) {
 			this.askManager.handleResponse(lastAskMessage.ts, response, text, images)
 		}
@@ -88,13 +89,13 @@ export abstract class TaskExecutorUtils {
 			status: tool?.approvalState,
 			autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
 		}
-		if (!this.stateManager.getMessageById(askTs)) {
-			await this.stateManager.addToClaudeMessages(askMessage)
+		if (!this.stateManager.claudeMessagesManager.getMessageById(askTs)) {
+			await this.stateManager.claudeMessagesManager.addToClaudeMessages(askMessage)
 			await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(askMessage)
 			return
 		}
 
-		const askMessageLatest = await this.stateManager?.updateClaudeMessage(askTs, askMessage)
+		const askMessageLatest = await this.stateManager.claudeMessagesManager.updateClaudeMessage(askTs, askMessage)
 		await this.providerRef
 			.deref()
 			?.getWebviewManager()
@@ -111,10 +112,10 @@ export abstract class TaskExecutorUtils {
 			isFetching: type === "api_req_started",
 			v: 1,
 		}
-		if (this.stateManager.getMessageById(sayTs)) {
-			await this.stateManager.updateClaudeMessage(sayTs, sayMessage)
+		if (this.stateManager.claudeMessagesManager.getMessageById(sayTs)) {
+			await this.stateManager.claudeMessagesManager.updateClaudeMessage(sayTs, sayMessage)
 		} else {
-			await this.stateManager.addToClaudeMessages(sayMessage)
+			await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage)
 		}
 		await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(sayMessage)
 		return sayTs
@@ -138,7 +139,7 @@ export abstract class TaskExecutorUtils {
 			...options,
 		}
 
-		await this.stateManager.addToClaudeMessages(sayMessage)
+		await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage)
 		await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(sayMessage)
 		return sayTs
 	}

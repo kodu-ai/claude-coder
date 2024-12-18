@@ -233,7 +233,7 @@ export class ToolExecutor {
 	public async waitForToolProcessing(): Promise<void> {
 		// use pwaitfor to wait for the queue to be idle
 		await pWaitFor(() => this.queue.size === 0 && this.queue.pending === 0, {
-			interval: 50,
+			interval: 10,
 			// after 6 minutes, give up
 			timeout: 6 * 60 * 1000,
 		})
@@ -405,7 +405,7 @@ export class ToolExecutor {
 			return
 		}
 
-		await pWaitFor(() => context.tool.isFinal, { interval: 50 })
+		await pWaitFor(() => context.tool.isFinal, { interval: 10 })
 
 		try {
 			context.status = "processing"

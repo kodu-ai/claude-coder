@@ -19,6 +19,7 @@ import { EditFileBlocksToolParams, WriteToFileToolParams } from "../schema/write
 import { FileChangePlanParams } from "../schema/file-change-plan"
 import { RejectFileChangesParams } from "../schema/reject-file-changes"
 import { FileEditorToolParams } from "../schema/file_editor_tool"
+import { SubAgentToolParams } from "../schema/sub_agent"
 
 export type UpsertMemoryInput = {
 	milestoneName: string
@@ -44,6 +45,7 @@ export type ToolParams =
 	| WriteToFileToolParams
 	| EditFileBlocksToolParams
 	| FileEditorToolParams
+	| SubAgentToolParams
 
 export type ToolName = ToolParams["name"]
 

@@ -1,7 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { ExtensionProvider } from "../../../providers/claude-coder/claude-coder-provider"
-import { ClaudeAsk, isV1ClaudeMessage } from "../../../shared/extension-message"
-import { ClaudeAskResponse } from "../../../shared/webview-message"
+import { isV1ClaudeMessage } from "../../../shared/extension-message"
 import { toolResponseToAIState } from "../../../shared/format-tools"
 import { KODU_ERROR_CODES, KoduError, koduSSEResponse } from "../../../shared/kodu"
 import { ChatTool } from "../../../shared/new-tools"
@@ -10,10 +9,7 @@ import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
 import { ApiHistoryItem, ToolResponseV2, UserContent } from "../types"
 import { formatImagesIntoBlocks, isTextBlock } from "../utils"
-import { AskManager } from "./ask-manager"
-import { AskDetails, AskResponse, TaskError, TaskExecutorUtils, TaskState } from "./utils"
-import { CommitInfo } from "../tools/types"
-import dedent from "dedent"
+import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -28,6 +24,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private currentReplyId: number | null = null
 	private pauseNext: boolean = false
 	private lastResultWithCommit: ToolResponseV2 | undefined = undefined
+	private lastUIUpdateAt: number = 0
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
@@ -68,7 +65,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		if (!this.textBuffer || !currentReplyId) {
 			return
 		}
-
+		let shouldWaitBeforeFlush = Date.now() - this.lastUIUpdateAt < 10
 		const contentToFlush = this.textBuffer
 		this.textBuffer = "" // Clear buffer immediately
 
@@ -77,23 +74,21 @@ export class TaskExecutor extends TaskExecutorUtils {
 			.slice()
 			.reverse()
 			.find((msg) => msg.type === "ask")?.ts
-
 		if (lastAskTs && lastAskTs > currentReplyId && contentToFlush.trim().length > 0) {
+			console.log(`New ask message detected, flushing buffer and pausing stream`)
 			// Create new message to maintain order
 			this.currentReplyId = await this.say("text", contentToFlush, undefined, Date.now(), {
 				isSubMessage: true,
 			})
 		} else {
-			// Process UI updates in parallel
-			await Promise.all([
-				this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush, true),
-				this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview(),
-			]).catch((err) => {
-				console.error("Error updating UI:", err)
-				// Even if UI update fails, we've already cleared the buffer
-				// so we can continue processing
-			})
+			// Process UI updates in parallel with fire-and-forget
+			void this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview()
+			void this.stateManager.claudeMessagesManager.appendToClaudeMessage(currentReplyId, contentToFlush, true)
+			if (shouldWaitBeforeFlush) {
+				await new Promise((resolve) => setTimeout(resolve, 10))
+			}
 		}
+		this.lastUIUpdateAt = Date.now()
 	}
 
 	public async newMessage(message: UserContent) {
@@ -240,7 +235,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 		// Update API request if exists and not done
 		if (lastApiRequest && isV1ClaudeMessage(lastApiRequest) && !lastApiRequest.isDone) {
-			const msg = await this.stateManager.updateClaudeMessage(lastApiRequest.ts, {
+			const msg = await this.stateManager.claudeMessagesManager.updateClaudeMessage(lastApiRequest.ts, {
 				...lastApiRequest,
 				isDone: true,
 				isFetching: false,
@@ -335,7 +330,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 				}
 				this.lastResultWithCommit = undefined
 			}
-			const apiMessageId = await this.stateManager.addToApiConversationHistory({
+			const apiMessageId = await this.stateManager.apiHistoryManager.addToApiConversationHistory({
 				role: "user",
 				content: this.currentUserContent,
 				ts: Date.now(),
@@ -347,6 +342,21 @@ export class TaskExecutor extends TaskExecutorUtils {
 					request: this.stateManager.apiManager.createUserReadableRequest(this.currentUserContent),
 				})
 			)
+
+			// Execute hooks before making the API request
+			const provider = this.providerRef.deref()
+			if (provider?.koduDev) {
+				const hookContent = await provider.koduDev.executeHooks()
+				if (hookContent) {
+					// Add hook content to the user content
+					if (Array.isArray(this.currentUserContent)) {
+						this.currentUserContent.push({
+							type: "text",
+							text: hookContent,
+						})
+					}
+				}
+			}
 
 			const stream = await this.stateManager.apiManager.createApiStreamRequest(
 				this.stateManager.state.apiConversationHistory,
@@ -416,7 +426,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 			const processor = new ChunkProcessor({
 				onStreamStart: async () => {
-					await this.stateManager.addToApiConversationHistory(apiHistoryItem)
+					await this.stateManager.apiHistoryManager.addToApiConversationHistory(apiHistoryItem)
 				},
 				onImmediateEndOfStream: async (chunk) => {
 					if (this.isRequestCancelled || this.isAborting) {
@@ -427,8 +437,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 						// console.log(`Updating chunk for API history item on chunk code 1`)
 						const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
 							chunk.body.internal
-						const msg = await this.stateManager.updateClaudeMessage(startedReqId, {
-							...this.stateManager.getMessageById(startedReqId)!,
+						const msg = await this.stateManager.claudeMessagesManager.updateClaudeMessage(startedReqId, {
+							...this.stateManager.claudeMessagesManager.getMessageById(startedReqId)!,
 							apiMetrics: {
 								cost: chunk.body.internal.cost,
 								inputTokens,
@@ -447,8 +457,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 					}
 
 					if (chunk.code === -1) {
-						const msg = await this.stateManager.updateClaudeMessage(startedReqId, {
-							...this.stateManager.getMessageById(startedReqId)!,
+						const msg = await this.stateManager.claudeMessagesManager.updateClaudeMessage(startedReqId, {
+							...this.stateManager.claudeMessagesManager.getMessageById(startedReqId)!,
 							isDone: true,
 							isFetching: false,
 							errorText: chunk.body.msg ?? "Internal Server Error",
@@ -476,7 +486,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 								"the response was interrupted in the middle of processing"
 									? chunk.body.text
 									: apiHistoryItem.content[0].text + chunk.body.text
-							await this.stateManager.updateApiHistoryItem(ts, apiHistoryItem)
+							await this.stateManager.apiHistoryManager.updateApiHistoryItem(ts, apiHistoryItem)
 						}
 
 						// Process chunk only if stream is not paused
@@ -564,7 +574,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			(isTextBlock(assistantResponses.content[0]) && !assistantResponses.content[0].text.trim())
 		) {
 			if (assistantResponses.ts) {
-				await this.stateManager.updateApiHistoryItem(assistantResponses.ts, {
+				await this.stateManager.apiHistoryManager.updateApiHistoryItem(assistantResponses.ts, {
 					role: "assistant",
 					content: [{ type: "text", text: "Failed to generate a response, please try again." }],
 				})
@@ -578,12 +588,12 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 			if (completionAttempted) {
 				const content = toolResponseToAIState(completionAttempted.result)
-				await this.stateManager.addToApiConversationHistory({
+				await this.stateManager.apiHistoryManager.addToApiConversationHistory({
 					role: "user",
 					content,
 				})
 				if (completionAttempted.result.status === "success") {
-					await this.stateManager.addToApiConversationHistory({
+					await this.stateManager.apiHistoryManager.addToApiConversationHistory({
 						role: "assistant",
 						content: [{ type: "text", text: "Task completed successfully." }],
 					})
@@ -651,7 +661,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 					lastAssistantMessage.content[0].text.trim() ||
 					"An error occurred in the generation of the response. Please try again."
 			}
-			await this.stateManager.updateApiHistoryItem(lastAssistantMessage.ts, lastAssistantMessage)
+			await this.stateManager.apiHistoryManager.updateApiHistoryItem(
+				lastAssistantMessage.ts,
+				lastAssistantMessage
+			)
 		}
 
 		this.consecutiveErrorCount++
@@ -712,7 +725,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		})
 		// Process state updates in parallel
 		await Promise.all([
-			this.stateManager.overwriteClaudeMessages(modifiedClaudeMessages),
+			this.stateManager.claudeMessagesManager.overwriteClaudeMessages(modifiedClaudeMessages),
 			this.stateManager.providerRef.deref()?.getWebviewManager().postClaudeMessagesToWebview(),
 		])
 

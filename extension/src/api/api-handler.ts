@@ -114,7 +114,8 @@ ${this.customInstructions.trim()}
 
 		const executeRequest = async () => {
 			const conversationHistory =
-				(await provider.koduDev?.getStateManager().getSavedApiConversationHistory()) ?? apiConversationHistory
+				(await provider.koduDev?.getStateManager().apiHistoryManager.getSavedApiConversationHistory()) ??
+				apiConversationHistory
 
 			// Process conversation history using our external utility
 			await processConversationHistory(provider.koduDev!, conversationHistory, mainPrompts.criticalMsg, true)
@@ -160,6 +161,7 @@ ${this.customInstructions.trim()}
 
 			let retryAttempt = 0
 			const MAX_RETRIES = 5
+			let shouldResetContext = false
 
 			while (retryAttempt <= MAX_RETRIES) {
 				try {
@@ -172,16 +174,15 @@ ${this.customInstructions.trim()}
 							return
 						}
 
-						if (chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) {
+						if (
+							(chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) ||
+							shouldResetContext
+						) {
 							// clear the interval
 							clearInterval(checkInactivity)
 							// Compress the context and retry
-							const result = await manageContextWindow(
-								provider.koduDev!,
-								this.api,
-								this.currentSystemPrompt,
-								(m) => getApiMetrics(m),
-								(s, msg, ...args) => this.log(s, msg, ...args)
+							const result = await manageContextWindow(provider.koduDev!, this.api, (s, msg, ...args) =>
+								this.log(s, msg, ...args)
 							)
 							if (result === "chat_finished") {
 								throw new KoduError({ code: 413 })

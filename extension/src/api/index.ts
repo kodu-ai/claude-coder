@@ -1,5 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ApiModelId, KoduModelId, ModelInfo } from "../shared/api"
+import { ApiHandlerOptions, ApiModelId, KoduModelId, ModelInfo } from "../shared/api"
 import { KoduHandler } from "./providers/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { z } from "zod"
@@ -64,6 +64,8 @@ export interface ApiHandler {
 			| Anthropic.ToolResultBlockParam
 		>
 	): any
+
+	get options(): ApiHandlerOptions
 
 	getModel(): { id: ApiModelId; info: ModelInfo }
 

@@ -13,6 +13,7 @@ import { devServerTool } from "./dev_server"
 import { searchSymbolTool } from "./search_symbols"
 import { addInterestedFileTool } from "./add_interested_file"
 import { fileEditorTool } from "./file_editor_tool"
+import { subAgentTool } from "./sub_agent"
 
 export const tools = [
 	executeCommandTool,
@@ -28,6 +29,7 @@ export const tools = [
 	searchSymbolTool,
 	addInterestedFileTool,
 	fileEditorTool,
+	subAgentTool,
 ] as const
 
 export type Tool = (typeof tools)[number]
@@ -45,4 +47,5 @@ export {
 	searchSymbolTool as searchSymbolsTool,
 	addInterestedFileTool,
 	fileEditorTool,
+	subAgentTool,
 }
