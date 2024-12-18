@@ -1,9 +1,11 @@
 import React from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import UserInfoSection from "./user-info-section"
 import PreferencesTab from "./preferences-tab"
 import ExperimentalTab from "./experimental-tab"
 import AdvancedTab from "./advanced-tab"
+import AgentsTab from "./agents-tab"
 import ClosePageButton from "./close-page-button"
 import { SettingsFooter } from "./settings-footer"
 
@@ -21,17 +23,23 @@ const SettingsPage: React.FC = () => {
 			</div>
 
 			<Tabs defaultValue="preferences" className="space-y-4">
-				<TabsList className="w-full grid grid-cols-3 gap-1 max-[280px]:grid-cols-1 h-fit">
-					<TabsTrigger value="preferences" className="text-xs py-1 px-2 h-auto">
-						Preferences
-					</TabsTrigger>
-					<TabsTrigger value="experimental" className="text-xs py-1 px-2 h-auto">
-						Experimental
-					</TabsTrigger>
-					<TabsTrigger value="advanced" className="text-xs py-1 px-2 h-auto">
-						Advanced
-					</TabsTrigger>
-				</TabsList>
+				<ScrollArea className="w-full whitespace-nowrap">
+					<TabsList className="w-full inline-flex h-fit">
+						<TabsTrigger value="preferences" className="text-xs py-1 px-4 h-auto">
+							Preferences
+						</TabsTrigger>
+						<TabsTrigger value="experimental" className="text-xs py-1 px-4 h-auto">
+							Experimental
+						</TabsTrigger>
+						<TabsTrigger value="advanced" className="text-xs py-1 px-4 h-auto">
+							Advanced
+						</TabsTrigger>
+						<TabsTrigger value="agents" className="text-xs py-1 px-4 h-auto">
+							Agents
+						</TabsTrigger>
+					</TabsList>
+					<ScrollBar orientation="horizontal" />
+				</ScrollArea>
 
 				<TabsContent value="preferences">
 					<PreferencesTab />
@@ -43,6 +51,9 @@ const SettingsPage: React.FC = () => {
 
 				<TabsContent value="advanced">
 					<AdvancedTab />
+				</TabsContent>
+				<TabsContent value="agents">
+					<AgentsTab />
 				</TabsContent>
 			</Tabs>
 

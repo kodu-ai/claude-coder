@@ -84,7 +84,6 @@ export type ToggleGitHandlerMessage = {
 	enabled: boolean
 }
 
-// webview will hold state
 export type ExtensionMessage =
 	| SetCommandTimeoutMessage
 	| SetInlineEditModeMessage

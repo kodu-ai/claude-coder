@@ -15,9 +15,6 @@ import { AskDetails, AskResponse, TaskError, TaskExecutorUtils, TaskState } from
 import { CommitInfo } from "../tools/types"
 import dedent from "dedent"
 
-// Constants for buffer management - modified for instant output
-const BUFFER_SIZE_THRESHOLD = 5 // Reduced to 1 character for near-instant output
-
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
 	private toolExecutor: ToolExecutor
@@ -28,7 +25,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private isAborting: boolean = false
 	private streamPaused: boolean = false
 	private textBuffer: string = ""
-	public askManager: AskManager
 	private currentReplyId: number | null = null
 	private pauseNext: boolean = false
 	private lastResultWithCommit: ToolResponseV2 | undefined = undefined
@@ -36,64 +32,67 @@ export class TaskExecutor extends TaskExecutorUtils {
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
 		this.toolExecutor = toolExecutor
-		this.askManager = new AskManager(stateManager)
 	}
 
 	protected getState(): TaskState {
 		return this.state
 	}
 
-	public async ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
-		return await this.askManager.ask(type, data, askTs)
-	}
-
-	public handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void {
-		const lastAskMessage = [...this.stateManager.state.claudeMessages].reverse().find((msg) => msg.type === "ask")
-		if (lastAskMessage) {
-			this.askManager.handleResponse(lastAskMessage.ts, response, text, images)
-		}
-	}
-
-	public pauseStream() {
+	public async pauseStream() {
 		if (!this.streamPaused) {
-			this.streamPaused = true
 			// Ensure any buffered content is flushed before pausing
-			if (this.currentReplyId !== null) {
-				this.flushTextBuffer(this.currentReplyId, true)
+			if (this.currentReplyId !== null && this.textBuffer) {
+				await this.flushTextBuffer(this.currentReplyId)
 			}
+			this.streamPaused = true
 		}
 	}
 
 	public async resumeStream() {
 		if (this.streamPaused) {
-			this.streamPaused = false
+			try {
+				// Ensure any pending operations are complete
+				if (this.textBuffer && this.currentReplyId) {
+					await this.flushTextBuffer(this.currentReplyId)
+				}
+				this.streamPaused = false
+			} catch (err) {
+				console.error("Error resuming stream:", err)
+				// Continue with resume even if flush fails
+				this.streamPaused = false
+			}
 		}
 	}
 
-	private async flushTextBuffer(currentReplyId?: number | null, force: boolean = false) {
-		if (!this.textBuffer.trim() || !currentReplyId) {
+	private async flushTextBuffer(currentReplyId?: number | null) {
+		if (!this.textBuffer || !currentReplyId) {
 			return
 		}
 
-		// If forced or buffer size threshold reached, flush immediately
 		const contentToFlush = this.textBuffer
-		this.textBuffer = "" // Clear buffer before async operations
-		// check if there is an ask that is ahead of the current reply if so then we need to create a new reply to have the text in proper order (TEXT > TOOL > TEXT)
+		this.textBuffer = "" // Clear buffer immediately
+
+		// Check for ask messages that need to be handled in order
 		const lastAskTs = this.stateManager.state.claudeMessages
 			.slice()
 			.reverse()
 			.find((msg) => msg.type === "ask")?.ts
-		const contentWithoutNewLines = contentToFlush.replace(/\n/g, "")
-		if (lastAskTs && lastAskTs > currentReplyId && contentWithoutNewLines.trim().length > 0) {
-			this.currentReplyId = await this.say("text", contentToFlush ?? "", undefined, Date.now(), {
+
+		if (lastAskTs && lastAskTs > currentReplyId && contentToFlush.trim().length > 0) {
+			// Create new message to maintain order
+			this.currentReplyId = await this.say("text", contentToFlush, undefined, Date.now(), {
 				isSubMessage: true,
 			})
 		} else {
-			// fire and forget
+			// Process UI updates in parallel
 			await Promise.all([
 				this.stateManager.appendToClaudeMessage(currentReplyId, contentToFlush, true),
 				this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview(),
-			])
+			]).catch((err) => {
+				console.error("Error updating UI:", err)
+				// Even if UI update fails, we've already cleared the buffer
+				// so we can continue processing
+			})
 		}
 	}
 
@@ -349,43 +348,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 				})
 			)
 
-			const apiHistoryCopy = this.stateManager.state.apiConversationHistory.slice()
-			let feedbackText: string | undefined
-			// if (apiHistoryCopy.length > 3) {
-			// 	console.log(`Generating passive feedback for task`)
-			// 	const userMessageNumber = apiHistoryCopy.filter((msg) => msg.role === "user").length
-			// 	const is4thMessage = userMessageNumber % 4 === 0
-			// 	if (is4thMessage) {
-			// 		const feedback = await generatePassiveFeedback(
-			// 			this.providerRef.deref()?.koduDev!,
-			// 			this.abortController.signal!
-			// 		)
-
-			// 		if (feedback.content.length > 0) {
-			// 			console.log(`Feedback generated:`, feedback.content)
-			// 			feedbackText = dedent`
-			// 			Hey there this is automatic feedback generated by a third party observer, you should consider this feedback and use it to improve on your progress in the task.
-			// 			<third_party_observer_feedback>
-			// 			${feedback.content}
-			// 			`
-			// 		}
-			// 	}
-			// }
-
 			const stream = await this.stateManager.apiManager.createApiStreamRequest(
 				this.stateManager.state.apiConversationHistory,
-				this.abortController,
-				// we need to add the feedback to the conversation history
-				async (apiConversationHistory) => {
-					if (!feedbackText) {
-						return
-					}
-					const lastMsg = apiConversationHistory[apiConversationHistory.length - 1]
-					if (lastMsg.role === "user" && Array.isArray(lastMsg.content) && lastMsg.ts) {
-						lastMsg.content.push({ type: "text", text: feedbackText })
-						await this.stateManager.updateApiHistoryItem(lastMsg.ts, lastMsg)
-					}
-				}
+				this.abortController
 			)
 
 			if (this.isRequestCancelled || this.isAborting) {
@@ -429,7 +394,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 		try {
 			this.logState("Processing API response")
+
 			const currentReplyId = await this.say("text", "", undefined, Date.now(), { isSubMessage: true })
+
 			this.currentReplyId = currentReplyId
 			const ts = Date.now()
 
@@ -445,6 +412,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			}
 
 			let accumulatedText = ""
+			let currentChunkTime = Date.now()
 
 			const processor = new ChunkProcessor({
 				onStreamStart: async () => {
@@ -500,6 +468,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 					}
 
 					if (chunk.code === 2) {
+						console.log(`[TaskExecutor] chunked processing time: ${Date.now() - currentChunkTime}ms`)
 						// Update API history first
 						if (Array.isArray(apiHistoryItem.content) && isTextBlock(apiHistoryItem.content[0])) {
 							apiHistoryItem.content[0].text =
@@ -550,15 +519,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 					if (this.isRequestCancelled || this.isAborting) {
 						return
 					}
-
-					// // Process any remaining accumulated text
-					// if (accumulatedText) {
-					// 	const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
-					// 	if (nonXMLText) {
-					// 		this.textBuffer += nonXMLText
-					// 	}
-					// }
-
 					// Ensure all tools are processed
 					await this.toolExecutor.waitForToolProcessing()
 					this.currentReplyId = null
@@ -750,14 +710,22 @@ export class TaskExecutor extends TaskExecutorUtils {
 				}
 			}
 		})
-		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessages)
-		await this.stateManager.getSavedClaudeMessages()
-		await this.stateManager.providerRef.deref()?.getWebviewManager().postClaudeMessagesToWebview()
+		// Process state updates in parallel
+		await Promise.all([
+			this.stateManager.overwriteClaudeMessages(modifiedClaudeMessages),
+			this.stateManager.providerRef.deref()?.getWebviewManager().postClaudeMessagesToWebview(),
+		])
+
+		// Handle user response
 		const { response } = await this.ask("api_req_failed", { question: error.message })
+
 		if (response === "yesButtonTapped" || response === "messageResponse") {
-			await this.say("api_req_retried")
 			this.state = TaskState.WAITING_FOR_API
-			await this.makeClaudeRequest()
+			// Fire and forget retried message
+			this.say("api_req_retried").catch((err) => console.error("Error sending retried message:", err))
+
+			// Start new request immediately
+			this.makeClaudeRequest()
 		} else {
 			this.state = TaskState.COMPLETED
 		}

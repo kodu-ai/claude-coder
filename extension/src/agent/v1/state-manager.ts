@@ -539,11 +539,11 @@ export class StateManager {
 	async appendToClaudeMessage(messageId: number, text: string, withFlush = false) {
 		const lastMessage = this.state.claudeMessages.find((msg) => msg?.ts === messageId)
 		if (lastMessage && lastMessage.type === "say") {
-			lastMessage.text += text
-			await this.saveClaudeMessages()
 			if (withFlush) {
 				await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(lastMessage)
 			}
+			lastMessage.text += text
+			await this.saveClaudeMessages()
 			return lastMessage
 		}
 		return undefined

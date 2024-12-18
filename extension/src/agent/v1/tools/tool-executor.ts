@@ -220,7 +220,10 @@ export class ToolExecutor {
 		if (this.isAborting) {
 			return { output: text }
 		}
-		return this.toolParser.appendText(text)
+		const now = Date.now()
+		const res = this.toolParser.appendText(text)
+		console.log(`Tool use processed in ${Date.now() - now}ms`)
+		return res
 	}
 
 	/**

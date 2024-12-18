@@ -3,6 +3,7 @@ import { ClaudeAskResponse } from "../../../shared/webview-message"
 import { StateManager } from "../state-manager"
 import { ExtensionProvider } from "../../../providers/claude-coder/claude-coder-provider"
 import { ChatTool } from "../../../shared/new-tools"
+import { AskManager } from "./ask-manager"
 
 export enum TaskState {
 	IDLE = "IDLE",
@@ -27,7 +28,14 @@ export class TaskError extends Error {
 		type,
 		message,
 	}: {
-		type: "API_ERROR" | "TOOL_ERROR" | "USER_ABORT" | "UNKNOWN_ERROR" | "UNAUTHORIZED" | "PAYMENT_REQUIRED"
+		type:
+			| "API_ERROR"
+			| "TOOL_ERROR"
+			| "USER_ABORT"
+			| "UNKNOWN_ERROR"
+			| "UNAUTHORIZED"
+			| "PAYMENT_REQUIRED"
+			| "NETWORK_ERROR"
 		message: string
 	}) {
 		super(message)
@@ -49,16 +57,25 @@ export type AskDetails = {
 export abstract class TaskExecutorUtils {
 	protected stateManager: StateManager
 	protected providerRef: WeakRef<ExtensionProvider>
+	public askManager: AskManager
 
 	constructor(stateManager: StateManager, providerRef: WeakRef<ExtensionProvider>) {
 		this.stateManager = stateManager
 		this.providerRef = providerRef
+		this.askManager = new AskManager(stateManager)
 	}
 
 	// Abstract methods that must be implemented by derived classes
-	public abstract ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse>
-	public abstract handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void
 
+	public handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void {
+		const lastAskMessage = [...this.stateManager.state.claudeMessages].reverse().find((msg) => msg.type === "ask")
+		if (lastAskMessage) {
+			this.askManager.handleResponse(lastAskMessage.ts, response, text, images)
+		}
+	}
+	public async ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
+		return await this.askManager.ask(type, data, askTs)
+	}
 	public async updateAsk(type: ClaudeAsk, data: AskDetails, askTs: number): Promise<void> {
 		const { question, tool } = data
 		// check if there is an existing ask message with the same ts if not create a new one
