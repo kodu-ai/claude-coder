@@ -7,6 +7,7 @@ import {
 	CheckCircle,
 	ChevronDown,
 	ChevronUp,
+	ClipboardCheck,
 	Code,
 	FileText,
 	FolderTree,
@@ -42,6 +43,7 @@ import {
 	SpawnAgentTool,
 	ExitAgentTool,
 	UrlScreenshotTool,
+	SubmitReviewTool,
 } from "../../../../src/shared/new-tools"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
@@ -727,6 +729,48 @@ export const FileChangesPlanBlock: React.FC<
 	)
 }
 
+export const SubmitReviewBlock: React.FC<SubmitReviewTool & ToolAddons> = ({
+	review,
+	approvalState,
+	tool,
+	ts,
+	...rest
+}) => {
+	const [isOpen, setIsOpen] = React.useState(false)
+
+	return (
+		<ToolBlock
+			{...rest}
+			ts={ts}
+			tool={tool}
+			icon={ClipboardCheck}
+			title="Submit Review"
+			variant="accent"
+			approvalState={approvalState}>
+			<div className="text-xs space-y-3">
+				{review && (
+					<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
+						<CollapsibleTrigger asChild>
+							<Button variant="ghost" size="sm" className="flex items-center w-full justify-between">
+								<span>View Review</span>
+								{isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+							</Button>
+						</CollapsibleTrigger>
+						<CollapsibleContent className="mt-2">
+							<ScrollArea className="h-[200px] w-full rounded-md border">
+								<div className="bg-secondary/20 p-3 rounded-md text-sm">
+									<MarkdownRenderer markdown={review} />
+								</div>
+								<ScrollBar orientation="vertical" />
+							</ScrollArea>
+						</CollapsibleContent>
+					</Collapsible>
+				)}
+			</div>
+		</ToolBlock>
+	)
+}
+
 export const ToolRenderer: React.FC<{
 	tool: ChatTool
 	hasNextMessage?: boolean
@@ -762,6 +806,8 @@ export const ToolRenderer: React.FC<{
 			return <SpawnAgentBlock {...tool} />
 		case "exit_agent":
 			return <ExitAgentBlock {...tool} />
+		case "submit_review":
+			return <SubmitReviewBlock {...tool} />
 		default:
 			return null
 	}

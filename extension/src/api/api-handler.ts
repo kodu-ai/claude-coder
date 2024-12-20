@@ -103,8 +103,11 @@ ${this.customInstructions.trim()}
 		abortController: AbortController,
 		customSystemPrompt?: {
 			automaticReminders?: string
-			systemPrompt: string
+			systemPrompt?: string | []
+			customInstructions?: string
+			useExistingSystemPrompt?: (systemPrompt: string[]) => string[]
 		},
+		skipProcessing = false,
 		postProcessConversationCallback?: (apiConversationHistory: ApiHistoryItem[]) => Promise<void>
 	): AsyncGenerator<koduSSEResponse> {
 		const provider = this.providerRef.deref()
@@ -114,28 +117,53 @@ ${this.customInstructions.trim()}
 
 		const executeRequest = async () => {
 			const conversationHistory =
-				(await provider.koduDev?.getStateManager().apiHistoryManager.getSavedApiConversationHistory()) ??
-				apiConversationHistory
+				apiConversationHistory ??
+				(await provider.koduDev?.getStateManager().apiHistoryManager.getSavedApiConversationHistory())
 			const supportImages = this.api.getModel().info.supportsImages
 
-			const baseSystem = customSystemPrompt?.systemPrompt ?? mainPrompts.prompt(supportImages)
+			let baseSystem = [mainPrompts.prompt(supportImages)]
+			if (customSystemPrompt?.systemPrompt) {
+				if (Array.isArray(customSystemPrompt.systemPrompt)) {
+					baseSystem = customSystemPrompt.systemPrompt
+				} else {
+					baseSystem = [customSystemPrompt.systemPrompt]
+				}
+			}
 			let criticalMsg: string | undefined = mainPrompts.criticalMsg
 			if (customSystemPrompt) {
 				criticalMsg = customSystemPrompt.automaticReminders
 			}
+			// we want to replace {{task}} with the current task if it exists in the critical message
+			if (criticalMsg) {
+				const firstRequest = conversationHistory.at(0)?.content
+				const firstRequestTextBlock = Array.isArray(firstRequest)
+					? firstRequest.find(isTextBlock)?.text
+					: firstRequest
+				if (firstRequestTextBlock && criticalMsg.includes("{{task}}")) {
+					criticalMsg = criticalMsg.replace("{{task}}", this.getTaskText(firstRequestTextBlock))
+				}
+			}
 
 			// Process conversation history using our external utility
-			await processConversationHistory(provider.koduDev!, conversationHistory, criticalMsg, true)
+			if (!skipProcessing) {
+				await processConversationHistory(provider.koduDev!, conversationHistory, criticalMsg, true)
+			}
 			if (postProcessConversationCallback) {
 				await postProcessConversationCallback?.(conversationHistory)
 			}
 			// log the last 2 messages
 			this.log("info", `Last 2 messages:`, conversationHistory.slice(-2))
 
-			const systemPrompt = [baseSystem]
+			let systemPrompt = [...baseSystem]
 			const customInstructions = this.formatCustomInstructions()
-			if (customInstructions) {
+			if (customInstructions && !customSystemPrompt?.customInstructions) {
 				systemPrompt.push(customInstructions)
+			}
+			if (customSystemPrompt?.customInstructions) {
+				systemPrompt.push(customSystemPrompt.customInstructions)
+			}
+			if (customSystemPrompt?.useExistingSystemPrompt) {
+				systemPrompt = customSystemPrompt.useExistingSystemPrompt(systemPrompt)
 			}
 			const stream = await this.api.createMessageStream({
 				systemPrompt,
@@ -311,6 +339,12 @@ ${this.customInstructions.trim()}
 	 */
 	public createUserReadableRequest(userContent: UserContent): string {
 		return this.api.createUserReadableRequest(userContent)
+	}
+
+	private getTaskText(str: string) {
+		const [taskStartTag, taskEndTag] = ["<task>", "</task>"]
+		const [start, end] = [str.indexOf(taskStartTag), str.indexOf(taskEndTag)]
+		return str.slice(start + taskStartTag.length, end)
 	}
 
 	private log(status: "info" | "debug" | "error", message: string, ...args: any[]) {

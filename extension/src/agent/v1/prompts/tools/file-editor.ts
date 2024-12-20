@@ -4,12 +4,12 @@ import { ToolPromptSchema } from "../utils/types"
 export const fileEditorPrompt: ToolPromptSchema = {
 	name: "file_editor",
 	description:
-		"Requests to create, edit, rollback and list file versions. This tool is your one stop shop for interacting with files, from doing precise edits to a file or creating a completely new file or rewritting the complete file content to a new one, this tool can do it all. It also allows you to rollback to a previous version of the file that you have created in the past and view all the versions of the file that you have created with a summary of the changes made in each version.",
+		"Requests to create, edit or rollback a specifc file. This tool is your one stop shop for interacting with files, from doing precise edits to a file or creating a completely new file or rewritting the complete file content to a new one, this tool can do it all. It also allows you to rollback to rollback the last edit you made to a file incase you made a bad edit and need to undo it quickly.",
 	parameters: {
 		mode: {
 			type: "string",
 			description:
-				"The mode of operation for the file_editor tool. Use 'whole_write' to create a new file or rewrite an existing file, 'edit' to edit an existing file content, 'rollback' to revert to a previous version of the file, or 'list_versions' to view all versions of the file.",
+				"The mode of operation for the file_editor tool. Use 'whole_write' to create a new file or rewrite an existing file, 'edit' to edit an existing file content or 'rollback' to revert the last changes you applied to a file, this will undo the last edit you made to the file.",
 			required: true,
 		},
 		path: {
@@ -35,16 +35,11 @@ export const fileEditorPrompt: ToolPromptSchema = {
 				"The full content of the file to be created or rewritten. This should be the complete content of the file, not just the changes, this will replace the whole file content with the content provided, and if this is a new file it will create the file with the content provided and create the needed directories if they don't exist. kodu_content must be the complete implemention without any single truncation or omitted content, it must be the full content of the file.",
 			required: "Required for 'whole_write' mode",
 		},
-		rollback_version: {
-			type: "string",
-			description:
-				"The version number to rollback to. This should be a number that corresponds to a specific version of the file, everytime you preform a write operation a new version of the file is created and you can rollback to any of the previous versions, if you want to understand all the available versions of the file you can use the 'list_versions' mode to get all the versions of the file.",
-			required: "Required for 'rollback' mode",
-		},
 	},
 	capabilities: [
 		"You can use the file_editor tool to make changes to files in the codebase, it's an extremely important piece of your toolset that let you update edit file, create new file, rewrite existing file from scratch, understand previous edits you made to a file and rollback to one of your prior edits in case you caused a regression or made a bad edit / write.",
 		"You can use the file_editor tool on 'edit' mode to make precise changes to a file, this is useful when you want to make specific updates to a file without rewriting the entire content you should provide the most accurate and exact changes you want to make to the file content and bundle them into one singular tool call with multiple SEARCH/REPLACE blocks.",
+		"You can use the file_editor tool on 'rollback' mode to rollback to a previous version of the file before the last edit was applied, this is useful when you want to undo the last changes you made to a file.",
 	],
 	extraDescriptions: dedent`
 		### Key Principles when using file_editor tool:
@@ -239,30 +234,15 @@ export function AddSubscriptionModal({
 </file_editor>`,
 		},
 		{
-			description: "Listing All Versions of a File",
+			description: "Rollback last changes you made to a file",
 			output: `<thinking>
 ....
-"I've been thinking to myself we made a lot of progress but i realized that the vast majority of the progress caused a regression, i want to understand what were the previous changes i made and what potential version i can rollback to, i will use the file_editor tool in the list_versions mode to get all the versions of the file and understand the changes made in each version."
+"I have identified that the last changes i made to the file caused a regression, i want to rollback to the previous version of the file, i will use the file_editor tool in the rollback mode to rollback to the previous version of the file before the edit was applied."
 ....
 </thinking>
-
-<file_editor>
-<path>src/components/UserProfile.tsx</path>
-<mode>list_versions</mode>
-</file_editor>`,
-		},
-		{
-			description: "Rolling Back to a Previous Version of a File",
-			output: `<thinking>
-....
-"I have identified that the last changes i made to the file caused a regression, i want to rollback to the previous version of the file, i will use the file_editor tool in the rollback mode to rollback to the previous version of the file."
-....
-</thinking>
-
 <file_editor>
 <path>src/components/UserProfile.tsx</path>
 <mode>rollback</mode>
-<rollback_version>1</rollback_version>
 </file_editor>`,
 		},
 	],

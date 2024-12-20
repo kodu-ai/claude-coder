@@ -30,6 +30,7 @@ import PQueue from "p-queue"
 import { DevServerTool } from "./runners/dev-server.tool"
 import { SpawnAgentTool } from "./runners/agents/spawn-agent.tool"
 import { ExitAgentTool } from "./runners/agents/exit-agent.tool"
+import { SubmitReviewTool } from "./runners/submit-review.tool"
 
 /**
  * Represents the context and state of a tool during its lifecycle
@@ -134,6 +135,7 @@ export class ToolExecutor {
 			add_interested_file: AddInterestedFileTool,
 			spawn_agent: SpawnAgentTool,
 			exit_agent: ExitAgentTool,
+			submit_review: SubmitReviewTool,
 		} as const
 
 		const ToolClass = toolMap[params.name as keyof typeof toolMap]
@@ -283,16 +285,16 @@ export class ToolExecutor {
 		if (context.tool instanceof FileEditorTool && params.path) {
 			if (params.kodu_content) {
 				if (params.kodu_content) {
-					await context.tool.handlePartialUpdate(params.path, params.kodu_content)
+					context.tool.handlePartialUpdate(params.path, params.kodu_content)
 				}
 			}
 			// enable after updating the animation
 			if (params.kodu_diff) {
-				// await this.updateToolStatus(context, params, ts)
-				await context.tool.handlePartialUpdateDiff(params.path, params.kodu_diff)
+				// this.updateToolStatus(context, params, ts)
+				context.tool.handlePartialUpdateDiff(params.path, params.kodu_diff)
 			}
 		} else {
-			await this.updateToolStatus(context, params, ts)
+			this.updateToolStatus(context, params, ts)
 		}
 	}
 
@@ -376,7 +378,7 @@ export class ToolExecutor {
 	 * @param ts Timestamp of the update
 	 */
 	private async updateToolStatus(context: ToolContext, params: any, ts: number) {
-		await this.koduDev.taskExecutor.updateAsk(
+		this.koduDev.taskExecutor.updateAsk(
 			"tool",
 			{
 				tool: {

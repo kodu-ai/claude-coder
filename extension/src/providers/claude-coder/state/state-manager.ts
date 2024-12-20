@@ -61,7 +61,7 @@ export class StateManager {
 
 		const clone = [...(currentClaudeMessage ?? [])]?.slice(-24).reverse()
 		const lastClaudeApiFinished = clone?.find(
-			(m) => isV1ClaudeMessage(m) && m.type === "say" && !!m.apiMetrics?.cost
+			(m) => isV1ClaudeMessage(m) && m.type === "say" && m.say === "api_req_started" && !!m.apiMetrics?.cost
 		) as V1ClaudeMessage | undefined
 		const tokens =
 			(lastClaudeApiFinished?.apiMetrics?.inputTokens ?? 0) +

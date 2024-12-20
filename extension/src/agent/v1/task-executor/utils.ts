@@ -121,6 +121,42 @@ export abstract class TaskExecutorUtils {
 		return sayTs
 	}
 
+	public async sayHook({
+		hookName,
+		state,
+		ts = Date.now(),
+		output,
+		input,
+		apiMetrics,
+	}: {
+		hookName: string
+		state: "pending" | "completed" | "error"
+		ts: number
+		output: string
+		input: string
+		apiMetrics?: V1ClaudeMessage["apiMetrics"]
+	}): Promise<number> {
+		const sayMessage: ClaudeMessage = {
+			ts,
+			type: "say",
+			say: "hook",
+			hook: {
+				name: hookName,
+				state,
+				output,
+				input,
+			},
+			v: 1,
+		}
+		if (this.stateManager.claudeMessagesManager.getMessageById(ts)) {
+			await this.stateManager.claudeMessagesManager.updateClaudeMessage(ts, sayMessage)
+		} else {
+			await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage)
+		}
+		await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(sayMessage)
+		return ts
+	}
+
 	public async say(
 		type: ClaudeSay,
 		text?: string,

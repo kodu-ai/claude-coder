@@ -1,11 +1,10 @@
 // Import values (classes)
 import { BaseHook } from "./base-hook"
 import { HookManager } from "./hook-manager"
-import { MemoryHook } from "./memory-hook"
 
 // Import types
 import type { HookOptions, HookState } from "./base-hook"
-import type { MemoryHookOptions } from "./memory-hook"
+import { KoduDev } from ".."
 
 /**
  * Base hook types and classes for implementing custom hooks
@@ -19,17 +18,8 @@ export type { HookState }
  */
 export { HookManager }
 
-/**
- * Built-in hooks:
- *
- * DiagnosticHook - Injects diagnostic information about the codebase
- * MemoryHook - Maintains and injects relevant context from previous interactions
- */
-export { MemoryHook }
-export type { MemoryHookOptions }
-
 // Hook type for type safety when registering hooks
-export type HookConstructor<T extends BaseHook> = new (options: HookOptions, koduDev: any) => T
+export type HookConstructor<T extends BaseHook> = new (options: HookOptions, koduDev: KoduDev) => T
 
 // Hook registration helper type
 export type RegisteredHook = {

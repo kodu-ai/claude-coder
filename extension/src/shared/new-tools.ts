@@ -157,6 +157,11 @@ export type ExitAgentTool = {
 	result: string
 }
 
+export type SubmitReviewTool = {
+	tool: "submit_review"
+	review: string
+}
+
 export type ChatTool = (
 	| ExitAgentTool
 	| SpawnAgentTool
@@ -175,6 +180,7 @@ export type ChatTool = (
 	| FileEditorTool
 	| AddInterestedFileTool
 	| FileChangePlanTool
+	| SubmitReviewTool
 ) & {
 	ts: number
 	approvalState?: ToolStatus

@@ -8,7 +8,7 @@ import fs from "fs"
 import { detectCodeOmission } from "./detect-code-omission"
 import { parseDiffBlocks, checkFileExists, preprocessContent, EditBlock } from "./utils"
 import { InlineEditHandler } from "../../../../../integrations/editor/inline-editor"
-import { ToolResponseV2 } from "../../../../../agent/v1/types"
+import { ToolResponseV2 } from "../../../types"
 import PQueue from "p-queue"
 
 import { GitCommitResult } from "../../../handlers/git-handler"
@@ -16,6 +16,7 @@ import { createPatch } from "diff"
 import { FileEditorToolParams } from "../../schema/file_editor_tool"
 import { FileVersion } from "../../../types"
 import dedent from "dedent"
+import { formatFileToLines } from "../read-file/utils"
 
 export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 	public diffViewProvider: DiffViewProvider
@@ -51,8 +52,6 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		switch (mode) {
 			case "rollback":
 				return this.handleRollback(relPath)
-			case "list_versions":
-				return this.handleListVersions(relPath)
 			case "edit":
 			case "whole_write":
 				return this.processFileWrite() // existing behavior
@@ -322,15 +321,22 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			return this.toolResponse(
 				"error",
 				dedent`
-				<error_message>Failed to apply changes to the file. Please ensure correct search content, if you have a miss match with file content re-read the file.</error_message>
+				<error_message>Failed to apply changes to the file. This is a fatal error than can be caused due to two reasons:
+				1. the search content was not found in the file, or the search content was not an exact letter by letter, space by space match with absolute accuracy.
+				2. the file content was modified or you don't have the latest file content in memory. Please retry the operation again with an absolute match of the search content.
+				In case of two errors in a row, please refresh the file content by calling the read_file tool on the same file path to get the latest file content.
+				</error_message>
 				<not_applied_count>${failedCount}</not_applied_count>
 				<failed_to_match_blocks>
 				${failedBlocks?.map(
 					(block) =>
 						dedent`
 				<failed_block>
-					<search_content>${block.searchContent}</search_content>
-					<replace_content>${block.replaceContent}</replace_content>
+				SEARCH
+				${block.searchContent}
+				=======
+				REPLACE
+				${block.replaceContent}
 				</failed_block>
 				`
 				)}
@@ -429,23 +435,23 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 				"success",
 				dedent`<file_editor_response>
 					<status>
-						<result>success</result>
-						<operation>file_edit_with_diff</operation>
-						<timestamp>${new Date().toISOString()}</timestamp>
-						<validation>${validationMsg}</validation>
-						${commitXmlInfo}
-						</status>
-						<file_info>
-						<path>${path}</path>
-						<file_version>${newVersion.version}</file_version>
-						${fileChangesetMessage}
-						<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
-						<information>The updated file content is shown below. This reflects the change that were applied and their current position in the file.
-						This should act as a source of truth for the changes that were made unless further modifications were made after this point.
-						</information>
-						<updated_file_content_blocks>
-							${results.map((res) => res.formattedSavedArea).join("\n-------\n")}
-						</updated_file_content_blocks>
+					<result>success</result>
+					<operation>file_edit_with_diff</operation>
+					<timestamp>${new Date().toISOString()}</timestamp>
+					<validation>${validationMsg}</validation>
+					${commitXmlInfo}
+					</status>
+					<file_info>
+					<path>${path}</path>
+					<file_version>${newVersion.version}</file_version>
+					${fileChangesetMessage}
+					<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
+					<information>The updated file content is shown below. This reflects the change that were applied and their current position in the file.
+					This should act as a source of truth for the changes that were made unless further modifications were made after this point.
+					</information>
+					<updated_file_content_blocks>
+					${results.map((res) => res.formattedSavedArea).join("\n-------\n")}
+					</updated_file_content_blocks>
 					</file_info>
 				</file_editor_response>`,
 				undefined,
@@ -455,27 +461,25 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 
 		return this.toolResponse(
 			"success",
-			dedent`
-		<file_editor_response>
-		<status>
-			<result>success</result>
-			<operation>file_edit_with_diff</operation>
-			<timestamp>${new Date().toISOString()}</timestamp>
-			<validation>${validationMsg}</validation>
-			${commitXmlInfo}
-			</status>
-			<file_info>
-			<path>${path}</path>
-			<file_version>${newVersion.version}</file_version>
-			${fileChangesetMessage}
-			<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
-			<information>The updated file content is shown below at <update_file_content>. This reflects the change that were applied and their current position in the file.
-			This should act as a source of truth for the changes that were made unless further modifications were made after this point.
-			It includes the entire latest file content with the applied changes and the latest file line numbers and content.
-			</information>
-			<updated_file_content>
-				${finalContent}
-			</updated_file_content>
+			dedent`<file_editor_response>
+		<file_info>
+		<path>${path}</path>
+		<file_version>${newVersion.version}</file_version>
+		${fileChangesetMessage}
+		<file_payload_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_payload_timestamp>
+		<critical_information>Congratulations! Your changes were successfully applied to the file.
+		from this moment onward you must reference and remember file version ${
+			newVersion.version
+		} as the latest content of the file.
+		This means from now on any further changes should be based on this version of the file, if you want to call edit on this file again you must use this as your base content for your search and replace blocks.
+		THIS MEANS THAT ANY FURTHER CHANGES WILL BE BASED ON THIS VERSION OF THE FILE, AND THIS VERSION OF THE FILE IS THE LATEST VERSION OF THE FILE, UNLESS YOU MAKE FURTHER CHANGES USING FILE_EDITOR TOOL.
+		</critical_information>
+		<updated_file_content>
+		Here is the latest file content for '${path}' at timestamp ${new Date(
+				newVersion.createdAt
+			).toISOString()} YOU MUST REMEMBER THIS VERSION OF THE FILE FOR FUTURE OPERATIONS UNLESS YOU HAVE A NEWER VERSION OF THE FILE (AFTER THIS TIMESTAMP).
+		${finalContent}
+		</updated_file_content>
 		</file_info>
 		</file_editor_response>
 		`,
@@ -704,19 +708,14 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 
 	private async handleRollback(relPath: string): Promise<ToolResponseV2> {
 		const mode = "rollback"
-		const rollbackVersionStr = this.params.input.rollback_version
-		if (!rollbackVersionStr) {
-			return this.toolResponse("error", "Missing rollback_version parameter.")
-		}
-		const rollbackVersion = parseInt(rollbackVersionStr, 10)
-		if (isNaN(rollbackVersion)) {
-			return this.toolResponse("error", "rollback_version must be a number.")
-		}
 
 		const versions = await this.koduDev.getStateManager().getFileVersions(relPath)
-		const versionToRollback = versions.find((v) => v.version === rollbackVersion)
+		const versionToRollback = versions.at(-1)
 		if (!versionToRollback) {
-			return this.toolResponse("error", `Version ${rollbackVersion} not found for file ${relPath}`)
+			return this.toolResponse(
+				"error",
+				`<rollback_response><status>error</status><message>No versions found.</message></rollback_response>`
+			)
 		}
 
 		// Show using the native diff view:
@@ -739,7 +738,6 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 					path: relPath,
 					mode,
 					kodu_content: versionToRollback.content,
-					rollback_version: rollbackVersionStr,
 					approvalState: "pending",
 					ts: this.ts,
 				},
@@ -755,7 +753,6 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 					path: relPath,
 					mode,
 					kodu_content: versionToRollback.content,
-					rollback_version: rollbackVersionStr,
 					approvalState: "pending",
 					ts: this.ts,
 				},
@@ -772,7 +769,6 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 						path: relPath,
 						mode,
 						kodu_content: versionToRollback.content,
-						rollback_version: rollbackVersionStr,
 						approvalState: "rejected",
 						userFeedback: text,
 						ts: this.ts,
@@ -785,7 +781,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		}
 
 		// Approved
-		await this.diffViewProvider.saveChanges()
+		const file = await this.diffViewProvider.saveChanges()
 		this.koduDev.getStateManager().addErrorPath(relPath)
 		let commitXmlInfo = ""
 		let commitResult: GitCommitResult | undefined
@@ -794,7 +790,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			commitXmlInfo = this.commitXMLGenerator(commitResult)
 		} catch {}
 
-		const newVersion = await this.saveNewFileVersion(relPath, versionToRollback.content)
+		const newVersion = await this.koduDev.getStateManager().deleteFileVersion(versionToRollback)
 
 		await this.params.updateAsk(
 			"tool",
@@ -804,7 +800,6 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 					path: relPath,
 					mode,
 					kodu_content: versionToRollback.content,
-					rollback_version: rollbackVersionStr,
 					approvalState: "approved",
 					ts: this.ts,
 					commitHash: commitResult?.commitHash,
@@ -816,68 +811,22 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 
 		return this.toolResponse(
 			"success",
-			`
+			dedent`
 	<rollback_response>
 		<status>success</status>
 		<operation>rollback</operation>
-		<rolled_back_version>${rollbackVersion}</rolled_back_version>
-		<new_version>${newVersion.version}</new_version>
-		<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
+		<current_available_versions>${versions.length - 1 > 0 ? versions.length - 1 : 0}</current_available_versions>
+		<file_version_timestamp>${new Date(versionToRollback.createdAt).toISOString()}</file_version_timestamp>
 		${commitXmlInfo}
+		<critical_information>From now on, the file will be reverted to the version that was rolled back to.
+		I'm providing you the latest file content below for reference, you should only remember this file version unless further modifications were made after this point.
+		From now on file '${relPath}' content will be the content shown in <updated_file_content> field. 
+		</critical_information>
+		<updated_file_content>Here is the latest file content after the rollback you should remember this content as the latest file content unless you make further modifications.
+		${formatFileToLines(file.finalContent)}
+		</updated_file_content>
 	</rollback_response>
 	`
 		)
-	}
-
-	private async handleListVersions(relPath: string): Promise<ToolResponseV2> {
-		const mode = "list_versions"
-		const versions = await this.koduDev.getStateManager().getFileVersions(relPath)
-		if (versions.length === 0) {
-			const noVersionsMsg = `No versions found.`
-			await this.params.updateAsk(
-				"tool",
-				{
-					tool: {
-						tool: "file_editor",
-						path: relPath,
-						mode,
-						list_versions_output: noVersionsMsg,
-						approvalState: "approved",
-						ts: this.ts,
-					},
-				},
-				this.ts
-			)
-			return this.toolResponse(
-				"success",
-				`<list_versions><file>${relPath}</file><versions>${noVersionsMsg}</versions></list_versions>`
-			)
-		}
-
-		const versionsXml = versions
-			.map(
-				(v) =>
-					`<version><number>${v.version}</number><timestamp>${new Date(
-						v.createdAt
-					).toISOString()}</timestamp></version>`
-			)
-			.join("\n")
-
-		const msg = `<list_versions><file>${relPath}</file><versions>${versionsXml}</versions></list_versions>`
-		await this.params.updateAsk(
-			"tool",
-			{
-				tool: {
-					tool: "file_editor",
-					path: relPath,
-					mode,
-					list_versions_output: msg,
-					approvalState: "approved",
-					ts: this.ts,
-				},
-			},
-			this.ts
-		)
-		return this.toolResponse("success", msg)
 	}
 }

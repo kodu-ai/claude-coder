@@ -179,6 +179,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, sy
 
 					if (
 						(message.say === "shell_integration_warning" ||
+							message.say === "api_req_started" ||
+							message.say === "hook" ||
 							(message.text?.length ?? 0) > 0 ||
 							(message.images?.length ?? 0) > 0) &&
 						!isActionTag(message.text ?? "")

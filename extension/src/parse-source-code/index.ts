@@ -16,7 +16,7 @@ export async function parseSourceCodeForDefinitionsTopLevel(dirPath: string): Pr
 	}
 
 	// Get top-level files (non-recursive)
-	const [allFiles, _] = await listFiles(dirPath, false, 200)
+	const [allFiles, _] = await listFiles(dirPath, false, LIST_FILES_LIMIT)
 	const { filesToParse, remainingFiles } = separateFiles(allFiles)
 
 	const languageParsers = await loadRequiredLanguageParsers(filesToParse)
@@ -26,9 +26,9 @@ export async function parseSourceCodeForDefinitionsTopLevel(dirPath: string): Pr
 
 	// Parse files that have language support
 	for (const file of filesToParse) {
-		const definitions = await parseFile(file, languageParsers)
+		const definitions = await parseFile(file, languageParsers, dirPath)
 		if (definitions) {
-			result += `${path.relative(dirPath, file)}\n${definitions}\n`
+			result += definitions
 		} else {
 			filesWithoutDefinitions.push(file)
 		}
@@ -47,7 +47,6 @@ export async function parseSourceCodeForDefinitionsTopLevel(dirPath: string): Pr
 		result = "No source code definitions found."
 	}
 
-	// Wrap everything in a single top-level tag
 	return `<repo_map>${result.trim()}</repo_map>`
 }
 
@@ -153,7 +152,11 @@ function separateFiles(allFiles: string[]): { filesToParse: string[]; remainingF
 	return { filesToParse, remainingFiles }
 }
 
-async function parseFile(filePath: string, languageParsers: LanguageParser): Promise<string | undefined> {
+async function parseFile(
+	filePath: string,
+	languageParsers: LanguageParser,
+	baseDir: string
+): Promise<string | undefined> {
 	const fileContent = await fs.readFile(filePath, "utf8")
 	const ext = path.extname(filePath).toLowerCase().slice(1)
 
@@ -162,33 +165,65 @@ async function parseFile(filePath: string, languageParsers: LanguageParser): Pro
 		return `|----\nUnsupported file type: ${filePath}\n|----`
 	}
 
-	let formattedOutput = ""
+	// Use sets to avoid duplicates
+	const imports = new Set<string>()
+	const classes = new Set<string>()
+	const functions = new Set<string>()
+	const functionCalls = new Set<string>()
+	const methodCalls = new Set<string>()
+
 	try {
 		const tree = parser.parse(fileContent)
 		const captures = query.captures(tree.rootNode)
-		captures.sort((a, b) => a.node.startPosition.row - b.node.startPosition.row)
-		const lines = fileContent.split("\n")
-		let lastLine = -1
-
-		captures.forEach((capture) => {
+		for (const capture of captures) {
 			const { node, name } = capture
-			const startLine = node.startPosition.row
-			const endLine = node.endPosition.row
-			if (lastLine !== -1 && startLine > lastLine + 1) {
-				formattedOutput += "|----\n"
+			const text = fileContent.substring(node.startIndex, node.endIndex)
+
+			if (name === "name.import.module") {
+				imports.add(text)
+			} else if (name === "name.definition.class") {
+				classes.add(text)
+			} else if (name === "name.definition.function") {
+				functions.add(text)
+			} else if (name === "name.call") {
+				functionCalls.add(text)
+			} else if (name === "name.method_call") {
+				methodCalls.add(text)
 			}
-			if (name.includes("name") && lines[startLine]) {
-				formattedOutput += `│${lines[startLine]}\n`
-			}
-			lastLine = endLine
-		})
+		}
 	} catch (error) {
 		console.log(`Error parsing file: ${error}\n`)
 	}
 
-	if (formattedOutput.length > 0) {
-		return `|----\n${formattedOutput}|----`
+	// If no results, return undefined
+	if (
+		imports.size === 0 &&
+		classes.size === 0 &&
+		functions.size === 0 &&
+		functionCalls.size === 0 &&
+		methodCalls.size === 0
+	) {
+		return undefined
 	}
 
-	return undefined
+	const relativePath = path.relative(baseDir, filePath)
+	let output = `${relativePath}\n`
+
+	// Print categories in a clean way, only if they have content.
+	const appendCategory = (title: string, items: Set<string>, prefix: string) => {
+		if (items.size > 0) {
+			output += "|----\n"
+			for (const item of items) {
+				output += `${prefix}${item}\n`
+			}
+		}
+	}
+
+	appendCategory("Imports", imports, "│Import Module: ")
+	appendCategory("Classes", classes, "│Class: ")
+	appendCategory("Functions", functions, "│Function: ")
+	appendCategory("Function Calls", functionCalls, "│Function Call: ")
+	appendCategory("Method Calls", methodCalls, "│Method Call: ")
+
+	return output
 }

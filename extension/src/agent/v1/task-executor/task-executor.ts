@@ -16,7 +16,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private toolExecutor: ToolExecutor
 	private currentUserContent: UserContent | null = null
 	private isRequestCancelled: boolean = false
-	private abortController: AbortController | null = null
+	private _abortController: AbortController | null = null
 	private consecutiveErrorCount: number = 0
 	private isAborting: boolean = false
 	private streamPaused: boolean = false
@@ -29,6 +29,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
 		this.toolExecutor = toolExecutor
+	}
+
+	get abortController(): AbortController | null {
+		return this._abortController
 	}
 
 	protected getState(): TaskState {
@@ -98,7 +102,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.logState("New message")
 		this.state = TaskState.WAITING_FOR_API
 		this.isRequestCancelled = false
-		this.abortController = new AbortController()
+		this._abortController = new AbortController()
 		this.currentUserContent = message
 		const images = message.filter((item) => item.type === "image").map((item) => item.source.data)
 
@@ -114,7 +118,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this.state = TaskState.WAITING_FOR_API
 		this.currentUserContent = this.normalizeUserContent(userContent)
 		this.isRequestCancelled = false
-		this.abortController = new AbortController()
+		this._abortController = new AbortController()
 		this.consecutiveErrorCount = 0
 		await this.makeClaudeRequest()
 	}
@@ -129,7 +133,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.currentUserContent = this.normalizeUserContent(userContent)
 			this.isRequestCancelled = false
 			this.consecutiveErrorCount = 0
-			this.abortController = new AbortController()
+			this._abortController = new AbortController()
 			await this.makeClaudeRequest()
 		} else {
 			this.logError(new Error("Cannot resume task: not in WAITING_FOR_USER state") as TaskError)
@@ -155,7 +159,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 			// first make the state to aborted
 			this.state = TaskState.ABORTED
-			this.abortController?.abort()
+			this._abortController?.abort()
 			this.isRequestCancelled = true
 
 			// First reject any pending asks to prevent tools from continuing
@@ -188,7 +192,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 		this.logState("Cancelling current request")
 		this.isRequestCancelled = true
-		this.abortController?.abort()
+		this._abortController?.abort()
 		this.state = TaskState.ABORTED
 
 		// Find the last api request and tool request
@@ -299,7 +303,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			// Reset states
 			await this.toolExecutor.resetToolState()
 			this.isRequestCancelled = false
-			this.abortController = new AbortController()
+			this._abortController = new AbortController()
 			this.streamPaused = false
 			this.textBuffer = ""
 			this.currentReplyId = null
@@ -317,33 +321,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 					this.consecutiveErrorCount = 0
 				}
 			}
-
 			this.logState("Making Claude API request")
-
-			// Add user content to history and start request
-			let attributesToAdd = {}
-			if (this.lastResultWithCommit) {
-				attributesToAdd = {
-					preCommitHash: this.lastResultWithCommit.preCommitHash,
-					commitHash: this.lastResultWithCommit.commitHash,
-					branch: this.lastResultWithCommit.branch,
-				}
-				this.lastResultWithCommit = undefined
-			}
-			const apiMessageId = await this.stateManager.apiHistoryManager.addToApiConversationHistory({
-				role: "user",
-				content: this.currentUserContent,
-				ts: Date.now(),
-				...attributesToAdd,
-			})
-			const startedReqId = await this.say(
-				"api_req_started",
-				JSON.stringify({
-					request: this.stateManager.apiManager.createUserReadableRequest(this.currentUserContent),
-				})
-			)
-
 			// Execute hooks before making the API request
+			const startedReqId = await this.say("api_req_started")
 			const provider = this.providerRef.deref()
 			if (provider?.koduDev) {
 				const hookContent = await provider.koduDev.executeHooks()
@@ -358,6 +338,24 @@ export class TaskExecutor extends TaskExecutorUtils {
 				}
 			}
 
+			// Add user content to history and start request
+			let attributesToAdd = {}
+			if (this.lastResultWithCommit) {
+				attributesToAdd = {
+					preCommitHash: this.lastResultWithCommit.preCommitHash,
+					commitHash: this.lastResultWithCommit.commitHash,
+					branch: this.lastResultWithCommit.branch,
+				}
+				this.lastResultWithCommit = undefined
+			}
+			await this.stateManager.apiHistoryManager.addToApiConversationHistory({
+				role: "user",
+				content: this.currentUserContent,
+				ts: Date.now(),
+				...attributesToAdd,
+			})
+
+			// handle prompts for agent or sub-agent
 			const systemPrompt = this.stateManager.subAgentManager.state?.systemPrompt
 				? {
 						systemPrompt: this.stateManager.subAgentManager.state?.systemPrompt,
@@ -367,12 +365,12 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 			const stream = await this.stateManager.apiManager.createApiStreamRequest(
 				this.stateManager.state.apiConversationHistory,
-				this.abortController,
+				this._abortController,
 				systemPrompt
 			)
 
 			if (this.isRequestCancelled || this.isAborting) {
-				this.abortController?.abort()
+				this._abortController?.abort()
 				this.logState("Request cancelled, ignoring response")
 				return
 			}
@@ -554,9 +552,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 	}
 
 	private async resetState() {
-		this.abortController?.abort()
+		this._abortController?.abort()
 		this.isRequestCancelled = false
-		this.abortController = null
+		this._abortController = null
 		this.consecutiveErrorCount = 0
 		this.state = TaskState.WAITING_FOR_USER
 		this.streamPaused = false
@@ -650,7 +648,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	public blockTask() {
 		this.state = TaskState.ABORTED
 		this.isRequestCancelled = true
-		this.abortController?.abort()
+		this._abortController?.abort()
 	}
 
 	private async handleApiError(error: TaskError): Promise<void> {

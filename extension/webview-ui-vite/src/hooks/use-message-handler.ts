@@ -216,6 +216,16 @@ export const useChatMessageHandling = (
 						primaryButtonText: "Proceed with Plan",
 						secondaryButtonText: "Cancel",
 					},
+					exit_agent: {
+						...baseState,
+						primaryButtonText: "Exit Agent",
+						secondaryButtonText: "Cancel",
+					},
+					spawn_agent: {
+						...baseState,
+						primaryButtonText: "Spawn Agent",
+						secondaryButtonText: "Cancel",
+					},
 				}
 
 				const updates = toolButtonMap[tool.tool] || {

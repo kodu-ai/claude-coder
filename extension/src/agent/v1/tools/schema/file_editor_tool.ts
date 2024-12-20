@@ -1,7 +1,7 @@
 // schema/file_editor_tool.ts
 import { z } from "zod"
 
-export const FileEditorModes = ["edit", "whole_write", "rollback", "list_versions"] as const
+export const FileEditorModes = ["edit", "whole_write", "rollback"] as const
 
 const schema = z.object({
 	path: z.string().describe("The path of the file to write to (relative to the current working directory)."),
@@ -25,8 +25,6 @@ const schema = z.object({
 			"The `SEARCH/REPLACE` blocks representing the changes to be made to an existing file. These blocks must be formatted correctly, matching exact existing content for `SEARCH` and precise modifications for `REPLACE`."
 		)
 		.optional(),
-	list_versions: z.coerce.boolean().optional().describe("List all versions of the file"),
-	rollback_version: z.string().optional().describe("Rollback to a specific version of the file"),
 })
 
 const examples = [""]

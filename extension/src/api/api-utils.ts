@@ -86,7 +86,7 @@ export function getApiMetrics(claudeMessages: ClaudeMessage[]): ApiMetrics {
 		cost: 0,
 	}
 
-	const lastApiReqFinished = claudeMessages.reverse().find((m) => m.say === "api_req_finished")
+	const lastApiReqFinished = [...claudeMessages].reverse().find((m) => m.say === "api_req_finished")
 	if (lastApiReqFinished?.text) {
 		const { tokensIn, tokensOut, cacheWrites, cacheReads } = JSON.parse(lastApiReqFinished.text)
 		return {

@@ -6,52 +6,26 @@ import { getCwd } from "../utils"
 
 export interface HookOptions {
 	/**
-	 * Name of the hook for identification
-	 */
-	hookName: string
-
-	/**
-	 * Custom prompt/instructions for this hook
-	 */
-	hookPrompt: string
-
-	/**
-	 * List of tools this hook has access to
-	 */
-	allowedTools?: Tool["schema"]["name"][]
-
-	/**
-	 * Optional memory/context to initialize the hook with
-	 */
-	initialMemory?: string
-
-	/**
 	 * Number of requests before triggering the hook
 	 */
 	triggerEvery?: number
 
 	/**
-	 * Additional options specific to each hook type
+	 * Hook name
 	 */
-	[key: string]: any
+	hookName: string
 }
 
 export interface HookState {
 	/**
 	 * Parent agent's task ID
 	 */
-	parentTaskId: string
+	taskId: string
 
 	/**
-	 * Hook specific memory/context
+	 * Hook name
 	 */
-	hookMemory?: string
-
-	/**
-	 * Tools this hook has access to
-	 */
-	allowedTools: Tool["schema"]["name"][]
-
+	hookName: string
 	/**
 	 * Counter for requests since last trigger
 	 */
@@ -63,8 +37,6 @@ export interface HookState {
  */
 export abstract class BaseHook {
 	protected hookState: HookState
-	protected stateManager: StateManager
-	protected toolExecutor: ToolExecutor
 	protected _hookOptions: HookOptions
 	protected koduDev: KoduDev
 
@@ -78,28 +50,10 @@ export abstract class BaseHook {
 
 		// Initialize hook state
 		this.hookState = {
-			parentTaskId: this.koduDev.getStateManager().state.taskId,
-			allowedTools: this._hookOptions.allowedTools || [],
-			hookMemory: this._hookOptions.initialMemory,
+			taskId: this.koduDev.getStateManager().state.taskId,
 			requestsSinceLastTrigger: 0,
+			hookName: options.hookName,
 		}
-
-		// Create state manager with limited scope
-		this.stateManager = new StateManager({
-			provider: this.koduDev.providerRef.deref()!,
-			customInstructions: this._hookOptions.hookPrompt,
-			alwaysAllowReadOnly: true,
-			alwaysAllowWriteOnly: false,
-			apiConfiguration: this.koduDev.getApiManager().getApi().options,
-		})
-
-		// Create tool executor with restricted access
-		this.toolExecutor = new ToolExecutor({
-			cwd: getCwd(),
-			alwaysAllowReadOnly: true,
-			alwaysAllowWriteOnly: false,
-			koduDev: this.koduDev,
-		})
 	}
 
 	/**
@@ -126,11 +80,6 @@ export abstract class BaseHook {
 		try {
 			// Execute hook specific logic
 			const result = await this.executeHook()
-
-			// Update memory if needed
-			if (result) {
-				this.hookState.hookMemory = result
-			}
 
 			return result
 		} catch (error) {

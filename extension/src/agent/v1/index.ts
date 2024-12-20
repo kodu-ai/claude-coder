@@ -24,7 +24,8 @@ import { ChatTool } from "../../shared/new-tools"
 import delay from "delay"
 import { ToolName } from "./tools/types"
 import { DIFF_VIEW_URI_SCHEME } from "../../integrations/editor/decoration-controller"
-import { HookManager, BaseHook, HookOptions, HookConstructor, MemoryHook } from "./hooks"
+import { HookManager, BaseHook, HookOptions, HookConstructor } from "./hooks"
+import { ObserverHook } from "./hooks/observer-hook"
 
 // new KoduDev
 export class KoduDev {
@@ -68,23 +69,13 @@ export class KoduDev {
 		this.hookManager = new HookManager(this)
 
 		// Initialize default hooks
-		if (!options.noTask) {
-			// Add diagnostic hook by default
-			// this.hookManager.registerHook(DiagnosticHook, {
-			// 	hookName: "diagnostics",
-			// 	hookPrompt: "Monitor and inject diagnostic information",
-			// 	triggerEvery: 5, // Trigger every 5 requests
-			// 	monitoredFiles: [], // Will be populated from interested files
-			// })
-			// // Add memory hook by default
-			// this.hookManager.registerHook(MemoryHook, {
-			// 	hookName: "memory",
-			// 	hookPrompt: "Maintain and inject relevant context",
-			// 	triggerEvery: 3, // Trigger every 3 requests
-			// 	maxMemories: 10,
-			// 	relevanceThreshold: 0.7,
-			// })
-		}
+		// if (!options.noTask) {
+		// 	// Add diagnostic hook by default
+		// 	this.hookManager.registerHook(ObserverHook, {
+		// 		hookName: "observer",
+		// 		triggerEvery: 1, // Trigger every 5 requests
+		// 	})
+		// }
 		this.toolExecutor = new ToolExecutor({
 			cwd: getCwd(),
 			alwaysAllowReadOnly: this.stateManager.alwaysAllowReadOnly,
@@ -659,7 +650,7 @@ export class KoduDev {
 				// don't want to immediately access desktop since it would show permission popup
 				details += "(Desktop files not shown automatically. Use list_files to explore if needed.)"
 			} else {
-				const [files, didHitLimit] = await listFiles(getCwd(), true, 600)
+				const [files, didHitLimit] = await listFiles(getCwd(), true, 300)
 				const result = formatFilesList(getCwd(), files, didHitLimit)
 
 				details += result

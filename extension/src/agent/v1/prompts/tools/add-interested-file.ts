@@ -1,4 +1,4 @@
-import { ToolPromptSchema } from "../utils/types"
+import { promptTemplate, ToolPromptSchema } from "../utils/types"
 
 export const addInterestedFilePrompt: ToolPromptSchema = {
 	name: "add_interested_file",

@@ -179,6 +179,12 @@ export type V1ClaudeMessage = {
 	isFetching?: boolean
 	agentName?: SpawnAgentOptions
 	isExecutingCommand?: boolean
+	hook?: {
+		name: string
+		state: "pending" | "completed" | "error"
+		output: string
+		input: string
+	}
 	errorText?: string
 	/**
 	 * should be rendered as a sub message or not
@@ -217,6 +223,7 @@ export type ClaudeAsk =
 
 export type ClaudeSay =
 	| "task"
+	| "hook"
 	| "error"
 	| "api_req_started"
 	| "api_req_finished"

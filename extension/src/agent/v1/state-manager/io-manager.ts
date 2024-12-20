@@ -150,6 +150,15 @@ export class IOManager {
 		await fs.writeFile(versionFilePath, JSON.stringify(data, null, 2))
 	}
 
+	public async deleteFileVersion(file: FileVersion): Promise<void> {
+		const versionsDir = await this.getFileVersionsDir()
+		const encodedPath = this.encodeFilePath(file.path)
+		const fileDir = path.join(versionsDir, encodedPath)
+
+		const versionFilePath = path.join(fileDir, `version_${file.version}.json`)
+		await fs.unlink(versionFilePath)
+	}
+
 	public async getFileVersions(relPath: string): Promise<FileVersion[]> {
 		const versionsDir = await this.getFileVersionsDir()
 		const encodedPath = this.encodeFilePath(relPath)
@@ -161,7 +170,9 @@ export class IOManager {
 			const versions: FileVersion[] = []
 			for (const vf of versionFiles) {
 				const versionMatch = vf.match(/version_(\d+)\.json$/)
-				if (!versionMatch) continue
+				if (!versionMatch) {
+					continue
+				}
 				const verNum = parseInt(versionMatch[1], 10)
 				const fullPath = path.join(fileDir, vf)
 				const contentStr = await fs.readFile(fullPath, "utf8")
@@ -199,6 +210,40 @@ export class IOManager {
 		}
 		return result
 	}
+
+	// ---------- Hooks ----------
+
+	private async getHookDirectory(): Promise<string> {
+		const taskDir = await this.ensureTaskDirectoryExists()
+		const hookDir = path.join(taskDir, "hooks")
+		await fs.mkdir(hookDir, { recursive: true })
+		return hookDir
+	}
+
+	public async saveHookData(
+		hookName: string,
+		data: {
+			requestsSinceLastTrigger: number
+		}
+	): Promise<void> {
+		const hookDir = await this.getHookDirectory()
+		const hookFilePath = path.join(hookDir, `${hookName}.json`)
+		await fs.writeFile(hookFilePath, JSON.stringify(data, null, 2))
+	}
+
+	public async loadHookData(hookName: string): Promise<{ requestsSinceLastTrigger: number } | undefined> {
+		const hookDir = await this.getHookDirectory()
+		const hookFilePath = path.join(hookDir, `${hookName}.json`)
+
+		try {
+			const data = await fs.readFile(hookFilePath, "utf8")
+			return JSON.parse(data)
+		} catch {
+			return undefined
+		}
+	}
+
+	// ---------- Utility ----------
 
 	private encodeFilePath(filePath: string): string {
 		const replaced = filePath.replace(/[/\\]/g, "___")

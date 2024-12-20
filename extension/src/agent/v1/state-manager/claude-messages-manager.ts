@@ -1,6 +1,6 @@
 import { findLastIndex } from "lodash"
 import { ExtensionProvider } from "../../../providers/claude-coder/claude-coder-provider"
-import { KoduDevState, ClaudeMessage } from "../types"
+import { KoduAgentState, ClaudeMessage } from "../types"
 import { IOManager } from "./io-manager"
 import { combineApiRequests } from "../../../shared/combine-api-requests"
 import { combineCommandSequences } from "../../../shared/combine-command-sequences"
@@ -9,7 +9,7 @@ import { isV1ClaudeMessage } from "../../../shared/extension-message"
 import { StateManager } from "."
 
 interface ClaudeMessagesManagerOptions {
-	state: KoduDevState
+	state: KoduAgentState
 	ioManager: IOManager
 	providerRef: WeakRef<ExtensionProvider>
 	stateManager: StateManager
@@ -17,7 +17,7 @@ interface ClaudeMessagesManagerOptions {
 
 export class ClaudeMessagesManager {
 	private stateManager: StateManager
-	private state: KoduDevState
+	private state: KoduAgentState
 	private ioManager: IOManager
 	private providerRef: WeakRef<ExtensionProvider>
 
@@ -43,9 +43,7 @@ export class ClaudeMessagesManager {
 		await this.ioManager.saveClaudeMessages(this.state.claudeMessages)
 
 		// Update task metrics and history
-		const apiMetrics = getApiMetrics(
-			combineApiRequests(combineCommandSequences(this.state.claudeMessages.slice(1)))
-		)
+		const apiMetrics = getApiMetrics(this.state.claudeMessages)
 		const taskMessage = this.state.claudeMessages[0]
 		const lastRelevantMessage =
 			this.state.claudeMessages[

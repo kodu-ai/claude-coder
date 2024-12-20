@@ -1,14 +1,14 @@
 import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ResultPromise } from "execa"
-import { ApiConfiguration } from "../../api"
-import { ExtensionProvider } from "../../providers/claude-coder/claude-coder-provider"
-import { ClaudeAskResponse } from "../../shared/webview-message"
-import { HistoryItem } from "../../shared/history-item"
-import { ClaudeMessage } from "../../shared/extension-message"
-import { KoduModelId } from "../../shared/api"
-import { SpawnAgentOptions } from "./tools/schema/agents/agent-spawner"
-import { ToolName } from "./tools/types"
+import { ApiConfiguration } from "../../../api"
+import { ExtensionProvider } from "../../../providers/claude-coder/claude-coder-provider"
+import { ClaudeAskResponse } from "../../../shared/webview-message"
+import { HistoryItem } from "../../../shared/history-item"
+import { ClaudeMessage } from "../../../shared/extension-message"
+import { KoduModelId } from "../../../shared/api"
+import { SpawnAgentOptions } from "../tools/schema/agents/agent-spawner"
+import { ToolName } from "../tools/types"
 
 export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>
 
@@ -119,7 +119,7 @@ export type SubAgentState = {
 	state: "RUNNING" | "DONE" | "EXITED"
 }
 
-export interface KoduDevState {
+export interface KoduAgentState {
 	taskId: string
 	requestCount: number
 	apiConversationHistory: ApiHistoryItem[]
@@ -161,6 +161,6 @@ export interface KoduDevState {
 }
 
 // Re-export types from other files to centralize type definitions
-export type { ClaudeMessage } from "../../shared/extension-message"
+export type { ClaudeMessage } from "../../../shared/extension-message"
 
 export type VsCodeDiagnostics = [vscode.Uri, vscode.Diagnostic[]][]
