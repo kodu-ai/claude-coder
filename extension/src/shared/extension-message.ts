@@ -1,3 +1,4 @@
+import { SpawnAgentOptions } from "../agent/v1/tools/schema/agents/agent-spawner"
 import type { GlobalState } from "../providers/claude-coder/state/global-state-manager"
 import { ApiConfiguration } from "./api"
 import { HistoryItem } from "./history-item"
@@ -84,7 +85,6 @@ export type ToggleGitHandlerMessage = {
 	enabled: boolean
 }
 
-// webview will hold state
 export type ExtensionMessage =
 	| SetCommandTimeoutMessage
 	| SetInlineEditModeMessage
@@ -177,7 +177,14 @@ export type V1ClaudeMessage = {
 	isAborted?: "user" | "timeout"
 	isError?: boolean
 	isFetching?: boolean
+	agentName?: SpawnAgentOptions
 	isExecutingCommand?: boolean
+	hook?: {
+		name: string
+		state: "pending" | "completed" | "error"
+		output: string
+		input: string
+	}
 	errorText?: string
 	/**
 	 * should be rendered as a sub message or not
@@ -216,6 +223,7 @@ export type ClaudeAsk =
 
 export type ClaudeSay =
 	| "task"
+	| "hook"
 	| "error"
 	| "api_req_started"
 	| "api_req_finished"

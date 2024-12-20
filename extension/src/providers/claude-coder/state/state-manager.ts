@@ -59,9 +59,9 @@ export class StateManager {
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
 		const currentClaudeMessage = this.context.getKoduDev()?.getStateManager()?.state.claudeMessages
 
-		const clone = currentClaudeMessage?.slice(-24).reverse()
+		const clone = [...(currentClaudeMessage ?? [])]?.slice(-24).reverse()
 		const lastClaudeApiFinished = clone?.find(
-			(m) => isV1ClaudeMessage(m) && m.type === "say" && !!m.apiMetrics?.cost
+			(m) => isV1ClaudeMessage(m) && m.type === "say" && m.say === "api_req_started" && !!m.apiMetrics?.cost
 		) as V1ClaudeMessage | undefined
 		const tokens =
 			(lastClaudeApiFinished?.apiMetrics?.inputTokens ?? 0) +
@@ -138,6 +138,7 @@ export class StateManager {
 			}
 		}
 		await this.globalStateManager.updateGlobalState("taskHistory", history)
+		await this.context.getWebviewManager().postBaseStateToWebview()
 		return history
 	}
 

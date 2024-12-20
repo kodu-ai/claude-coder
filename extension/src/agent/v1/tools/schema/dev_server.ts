@@ -87,13 +87,13 @@ const examples = [
 
 export const devServerTool = {
 	schema: {
-		name: "server_runner_tool",
+		name: "server_runner",
 		schema,
 	},
 	examples,
 }
 
 export type ServerRunnerToolParams = {
-	name: "server_runner_tool"
+	name: "server_runner"
 	input: z.infer<typeof schema>
 }

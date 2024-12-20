@@ -123,6 +123,7 @@ const useHandleClaudeMessages = () => {
 		}
 
 		if (message.type === "claudeMessage") {
+			console.log(`Received claudeMessage at ${Date.now()} with message:`, message.claudeMessage?.text)
 			// find the message in the current state and update it if not found add it
 			setClaudeMessages((currentMessages) => {
 				if (!message.claudeMessage || !message.taskId) {

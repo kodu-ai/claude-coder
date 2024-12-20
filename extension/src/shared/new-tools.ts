@@ -1,3 +1,4 @@
+import { SpawnAgentOptions } from "../agent/v1/tools/schema/agents/agent-spawner"
 import { ToolStatus } from "./extension-message"
 
 /**
@@ -85,7 +86,7 @@ export interface WebSearchTool {
 }
 
 export type ServerRunnerTool = {
-	tool: "server_runner_tool"
+	tool: "server_runner"
 	port?: number
 	serverName?: string
 	commandType?: "start" | "stop" | "restart" | "getLogs"
@@ -143,7 +144,27 @@ export type FileEditorTool = {
 	branch?: string
 }
 
+export type SpawnAgentTool = {
+	tool: "spawn_agent"
+	agentName: SpawnAgentOptions
+	instructions: string
+	files?: string | string[]
+}
+
+export type ExitAgentTool = {
+	tool: "exit_agent"
+	agentName: SpawnAgentOptions
+	result: string
+}
+
+export type SubmitReviewTool = {
+	tool: "submit_review"
+	review: string
+}
+
 export type ChatTool = (
+	| ExitAgentTool
+	| SpawnAgentTool
 	| ExecuteCommandTool
 	| ListFilesTool
 	| ExploreRepoFolderTool
@@ -159,6 +180,7 @@ export type ChatTool = (
 	| FileEditorTool
 	| AddInterestedFileTool
 	| FileChangePlanTool
+	| SubmitReviewTool
 ) & {
 	ts: number
 	approvalState?: ToolStatus

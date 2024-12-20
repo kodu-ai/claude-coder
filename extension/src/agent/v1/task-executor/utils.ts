@@ -3,6 +3,7 @@ import { ClaudeAskResponse } from "../../../shared/webview-message"
 import { StateManager } from "../state-manager"
 import { ExtensionProvider } from "../../../providers/claude-coder/claude-coder-provider"
 import { ChatTool } from "../../../shared/new-tools"
+import { AskManager } from "./ask-manager"
 
 export enum TaskState {
 	IDLE = "IDLE",
@@ -27,7 +28,14 @@ export class TaskError extends Error {
 		type,
 		message,
 	}: {
-		type: "API_ERROR" | "TOOL_ERROR" | "USER_ABORT" | "UNKNOWN_ERROR" | "UNAUTHORIZED" | "PAYMENT_REQUIRED"
+		type:
+			| "API_ERROR"
+			| "TOOL_ERROR"
+			| "USER_ABORT"
+			| "UNKNOWN_ERROR"
+			| "UNAUTHORIZED"
+			| "PAYMENT_REQUIRED"
+			| "NETWORK_ERROR"
 		message: string
 	}) {
 		super(message)
@@ -49,16 +57,26 @@ export type AskDetails = {
 export abstract class TaskExecutorUtils {
 	protected stateManager: StateManager
 	protected providerRef: WeakRef<ExtensionProvider>
+	public askManager: AskManager
 
 	constructor(stateManager: StateManager, providerRef: WeakRef<ExtensionProvider>) {
 		this.stateManager = stateManager
 		this.providerRef = providerRef
+		this.askManager = new AskManager(stateManager)
 	}
 
 	// Abstract methods that must be implemented by derived classes
-	public abstract ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse>
-	public abstract handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): void
 
+	public async handleAskResponse(response: ClaudeAskResponse, text?: string, images?: string[]): Promise<void> {
+		const messages = await this.stateManager.claudeMessagesManager.getSavedClaudeMessages()
+		const lastAskMessage = [...messages].reverse().find((msg) => msg.type === "ask")
+		if (lastAskMessage) {
+			this.askManager.handleResponse(lastAskMessage.ts, response, text, images)
+		}
+	}
+	public async ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
+		return await this.askManager.ask(type, data, askTs)
+	}
 	public async updateAsk(type: ClaudeAsk, data: AskDetails, askTs: number): Promise<void> {
 		const { question, tool } = data
 		// check if there is an existing ask message with the same ts if not create a new one
@@ -71,13 +89,13 @@ export abstract class TaskExecutorUtils {
 			status: tool?.approvalState,
 			autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
 		}
-		if (!this.stateManager.getMessageById(askTs)) {
-			await this.stateManager.addToClaudeMessages(askMessage)
+		if (!this.stateManager.claudeMessagesManager.getMessageById(askTs)) {
+			await this.stateManager.claudeMessagesManager.addToClaudeMessages(askMessage)
 			await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(askMessage)
 			return
 		}
 
-		const askMessageLatest = await this.stateManager?.updateClaudeMessage(askTs, askMessage)
+		const askMessageLatest = await this.stateManager.claudeMessagesManager.updateClaudeMessage(askTs, askMessage)
 		await this.providerRef
 			.deref()
 			?.getWebviewManager()
@@ -94,13 +112,49 @@ export abstract class TaskExecutorUtils {
 			isFetching: type === "api_req_started",
 			v: 1,
 		}
-		if (this.stateManager.getMessageById(sayTs)) {
-			await this.stateManager.updateClaudeMessage(sayTs, sayMessage)
+		if (this.stateManager.claudeMessagesManager.getMessageById(sayTs)) {
+			await this.stateManager.claudeMessagesManager.updateClaudeMessage(sayTs, sayMessage)
 		} else {
-			await this.stateManager.addToClaudeMessages(sayMessage)
+			await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage)
 		}
 		await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(sayMessage)
 		return sayTs
+	}
+
+	public async sayHook({
+		hookName,
+		state,
+		ts = Date.now(),
+		output,
+		input,
+		apiMetrics,
+	}: {
+		hookName: string
+		state: "pending" | "completed" | "error"
+		ts: number
+		output: string
+		input: string
+		apiMetrics?: V1ClaudeMessage["apiMetrics"]
+	}): Promise<number> {
+		const sayMessage: ClaudeMessage = {
+			ts,
+			type: "say",
+			say: "hook",
+			hook: {
+				name: hookName,
+				state,
+				output,
+				input,
+			},
+			v: 1,
+		}
+		if (this.stateManager.claudeMessagesManager.getMessageById(ts)) {
+			await this.stateManager.claudeMessagesManager.updateClaudeMessage(ts, sayMessage)
+		} else {
+			await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage)
+		}
+		await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(sayMessage)
+		return ts
 	}
 
 	public async say(
@@ -121,7 +175,7 @@ export abstract class TaskExecutorUtils {
 			...options,
 		}
 
-		await this.stateManager.addToClaudeMessages(sayMessage)
+		await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage)
 		await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(sayMessage)
 		return sayTs
 	}

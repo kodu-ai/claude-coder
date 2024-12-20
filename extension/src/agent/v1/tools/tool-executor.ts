@@ -28,6 +28,9 @@ import { tools, writeToFileTool } from "./schema"
 import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
 import { DevServerTool } from "./runners/dev-server.tool"
+import { SpawnAgentTool } from "./runners/agents/spawn-agent.tool"
+import { ExitAgentTool } from "./runners/agents/exit-agent.tool"
+import { SubmitReviewTool } from "./runners/submit-review.tool"
 
 /**
  * Represents the context and state of a tool during its lifecycle
@@ -97,6 +100,7 @@ export class ToolExecutor {
 			alwaysAllowWriteOnly: this.koduDev.getStateManager().alwaysAllowWriteOnly,
 			koduDev: this.koduDev,
 			setRunningProcessId: this.setRunningProcessId.bind(this),
+			agentName: this.koduDev.getStateManager().subAgentManager.state?.name,
 		}
 	}
 
@@ -125,10 +129,13 @@ export class ToolExecutor {
 			attempt_completion: AttemptCompletionTool,
 			web_search: WebSearchTool,
 			url_screenshot: UrlScreenshotTool,
-			server_runner_tool: DevServerTool,
+			server_runner: DevServerTool,
 			search_symbol: SearchSymbolsTool,
 			file_editor: FileEditorTool,
 			add_interested_file: AddInterestedFileTool,
+			spawn_agent: SpawnAgentTool,
+			exit_agent: ExitAgentTool,
+			submit_review: SubmitReviewTool,
 		} as const
 
 		const ToolClass = toolMap[params.name as keyof typeof toolMap]
@@ -220,7 +227,8 @@ export class ToolExecutor {
 		if (this.isAborting) {
 			return { output: text }
 		}
-		return this.toolParser.appendText(text)
+		const res = this.toolParser.appendText(text)
+		return res
 	}
 
 	/**
@@ -230,7 +238,7 @@ export class ToolExecutor {
 	public async waitForToolProcessing(): Promise<void> {
 		// use pwaitfor to wait for the queue to be idle
 		await pWaitFor(() => this.queue.size === 0 && this.queue.pending === 0, {
-			interval: 50,
+			interval: 10,
 			// after 6 minutes, give up
 			timeout: 6 * 60 * 1000,
 		})
@@ -277,16 +285,16 @@ export class ToolExecutor {
 		if (context.tool instanceof FileEditorTool && params.path) {
 			if (params.kodu_content) {
 				if (params.kodu_content) {
-					await context.tool.handlePartialUpdate(params.path, params.kodu_content)
+					context.tool.handlePartialUpdate(params.path, params.kodu_content)
 				}
 			}
 			// enable after updating the animation
 			if (params.kodu_diff) {
-				// await this.updateToolStatus(context, params, ts)
-				await context.tool.handlePartialUpdateDiff(params.path, params.kodu_diff)
+				// this.updateToolStatus(context, params, ts)
+				context.tool.handlePartialUpdateDiff(params.path, params.kodu_diff)
 			}
 		} else {
-			await this.updateToolStatus(context, params, ts)
+			this.updateToolStatus(context, params, ts)
 		}
 	}
 
@@ -370,11 +378,12 @@ export class ToolExecutor {
 	 * @param ts Timestamp of the update
 	 */
 	private async updateToolStatus(context: ToolContext, params: any, ts: number) {
-		await this.koduDev.taskExecutor.updateAsk(
+		this.koduDev.taskExecutor.updateAsk(
 			"tool",
 			{
 				tool: {
 					tool: context.tool.name,
+					agentName: this.koduDev.getStateManager().subAgentManager.state?.name,
 					...params,
 					ts,
 					approvalState: "loading",
@@ -402,7 +411,7 @@ export class ToolExecutor {
 			return
 		}
 
-		await pWaitFor(() => context.tool.isFinal, { interval: 50 })
+		await pWaitFor(() => context.tool.isFinal, { interval: 10 })
 
 		try {
 			context.status = "processing"

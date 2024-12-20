@@ -1,9 +1,9 @@
 import dedent from "dedent"
 import { cloneDeep } from "lodash"
 import { KoduDev, ApiHistoryItem } from "../../agent/v1"
-import mainPrompt, { criticalMsg } from "../../agent/v1/prompts/main.prompt"
 import { getCwd } from "../../agent/v1/utils"
 import { processConversationHistory } from "../../api/conversation-utils"
+import { mainPrompts } from "../../agent/v1/prompts/main.prompt"
 
 /**
  * This function:
@@ -37,7 +37,7 @@ export async function generatePassiveFeedback(
 	const api = koduDev.getApiManager()
 	const supportImages = api.getModelInfo().supportsImages
 	const supportComputerUse = supportImages && api.getModelId().includes("sonnet")
-	const baseSystem = mainPrompt.prompt(getCwd(), supportImages, supportComputerUse)
+	const baseSystem = mainPrompts.prompt(supportImages)
 	const customInstructions = api.formatCustomInstructions()
 	const systemPrompt: string[] = [baseSystem]
 	if (customInstructions) {
@@ -47,7 +47,7 @@ export async function generatePassiveFeedback(
 	const apiManager = koduDev.getApiManager().getApi()
 
 	// this method will process the conversation history and update the state
-	await processConversationHistory(koduDev, messages, criticalMsg)
+	await processConversationHistory(koduDev, messages, mainPrompts.criticalMsg)
 
 	const stream = await apiManager.createMessageStream({
 		modelId: koduDev.getApiManager().getModelId(),
@@ -159,7 +159,7 @@ export async function generatePassiveFeedback(
 	- file_editor: to create/edit/rollback files
 	- search_symbol: to find code symbols
 	- add_interested_file: to track important files
-	- server_runner_tool: to run servers
+	- server_runner: to run servers
 	- execute_command: to run CLI commands
 	- read_file: to read file contents
 	- search_files: to do regex searches

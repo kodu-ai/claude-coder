@@ -4,6 +4,24 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.0.1] - 2024-12-16
+
+### Changed
+
+-   Better obedience to prompt
+-   rewrite tools output to better guide Kodu
+-   rewrite system prompt to use ReAct prompting
+
+### New
+
+-   search symbol tool lets Kodu find where a symbol is called in the project
+-   read file tool now default to read page by page instead of the entire file at once and output lines correctly
+-   file editor tool with option to read file version, file change summary, rollback to file version
+-   search repo tool lets Kodu search repo folder for symbols and high level definitions in an entire folder and maps it to easy to digest output
+-   better diagnostic now show Kodu the hover hints, related intelligence and the actual line that the error has occurred on.
+-   interested files tool lets Kodu note interested files for further usage and remembers it in memory at all time
+-   3rd party observer LLM that auto correct Kodu when Kodu makes mistakes and guide Kodu to the path passively
+
 ## [1.16.0] - 2024-12-05
 
 ### Changed

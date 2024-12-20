@@ -1,10 +1,14 @@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import React from "react"
 import { useSettingsState } from "../../hooks/use-settings-state"
 import { Slider } from "../ui/slider"
 import { ExperimentalFeatureItem } from "./experimental-feature-item"
+import { vscode } from "@/utils/vscode"
 
 const AdvancedTab: React.FC = () => {
 	const {
@@ -170,22 +174,26 @@ const AdvancedTab: React.FC = () => {
 					</div>
 				</div>
 			</div>
-			<div className="space-y-2">
-				<Label htmlFor="custom-instructions" className="text-xs font-medium">
-					Custom Instructions
-				</Label>
-				<Textarea
-					id="custom-instructions"
-					placeholder="e.g. 'Run unit tests at the end', 'Use TypeScript with async/await'"
-					value={customInstructions}
-					onChange={handleTextAreaChange}
-					className="min-h-[120px] text-xs resize-y"
-					style={{
-						fontFamily: "var(--vscode-editor-font-family)",
-					}}
-					spellCheck={false}
-				/>
-				<p className="text-xs text-muted-foreground mt-1">These instructions will be included in every task</p>
+			<div className="space-y-4">
+				<div className="space-y-2">
+					<Label htmlFor="custom-instructions" className="text-xs font-medium">
+						Custom Instructions
+					</Label>
+					<Textarea
+						id="custom-instructions"
+						placeholder="e.g. 'Run unit tests at the end', 'Use TypeScript with async/await'"
+						value={customInstructions}
+						onChange={handleTextAreaChange}
+						className="min-h-[120px] text-xs resize-y"
+						style={{
+							fontFamily: "var(--vscode-editor-font-family)",
+						}}
+						spellCheck={false}
+					/>
+					<p className="text-xs text-muted-foreground mt-1">
+						These instructions will be included in every task
+					</p>
+				</div>
 			</div>
 		</div>
 	)

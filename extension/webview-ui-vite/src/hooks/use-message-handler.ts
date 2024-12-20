@@ -186,7 +186,7 @@ export const useChatMessageHandling = (
 						primaryButtonText: "Search Files",
 						secondaryButtonText: "Cancel",
 					},
-					server_runner_tool: {
+					server_runner: {
 						...baseState,
 						primaryButtonText: "Run Server",
 						secondaryButtonText: "Cancel",
@@ -214,6 +214,16 @@ export const useChatMessageHandling = (
 					file_changes_plan: {
 						...baseState,
 						primaryButtonText: "Proceed with Plan",
+						secondaryButtonText: "Cancel",
+					},
+					exit_agent: {
+						...baseState,
+						primaryButtonText: "Exit Agent",
+						secondaryButtonText: "Cancel",
+					},
+					spawn_agent: {
+						...baseState,
+						primaryButtonText: "Spawn Agent",
 						secondaryButtonText: "Cancel",
 					},
 				}

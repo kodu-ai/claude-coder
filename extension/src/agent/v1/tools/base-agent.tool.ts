@@ -37,7 +37,7 @@ export abstract class BaseAgentTool<T extends ToolParams> {
 		this.params = params
 	}
 
-	get name(): string {
+	get name() {
 		return this.params.name
 	}
 	get id(): string {

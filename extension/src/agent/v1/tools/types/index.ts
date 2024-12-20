@@ -19,6 +19,9 @@ import { EditFileBlocksToolParams, WriteToFileToolParams } from "../schema/write
 import { FileChangePlanParams } from "../schema/file-change-plan"
 import { RejectFileChangesParams } from "../schema/reject-file-changes"
 import { FileEditorToolParams } from "../schema/file_editor_tool"
+import { SpawnAgentOptions, SpawnAgentToolParams } from "../schema/agents/agent-spawner"
+import { ExitAgentToolParams } from "../schema/agents/agent-exit"
+import { SubmitReviewToolParams } from "../schema/submit_review"
 
 export type UpsertMemoryInput = {
 	milestoneName: string
@@ -44,6 +47,9 @@ export type ToolParams =
 	| WriteToFileToolParams
 	| EditFileBlocksToolParams
 	| FileEditorToolParams
+	| SpawnAgentToolParams
+	| ExitAgentToolParams
+	| SubmitReviewToolParams
 
 export type ToolName = ToolParams["name"]
 
@@ -76,6 +82,7 @@ export type AgentToolOptions = {
 	alwaysAllowWriteOnly: boolean
 	koduDev: KoduDev
 	setRunningProcessId?: (pid: number | undefined) => void
+	agentName?: SpawnAgentOptions
 }
 
 export type CommitInfo = {

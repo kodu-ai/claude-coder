@@ -76,9 +76,9 @@ suite("Extension Test Suite", () => {
 		const parsedTask = JSON.parse(problemStatement.toString())
 		console.log(`[DEBUG] Problem statement is the following: ${parsedTask["problem_statement"]}`)
 
-		let task = dedent`<pr_description>${parsedTask["problem_statement"]}</pr_description>
-${taskPrompt.toString()}
-`
+		let task = dedent`You're tasked at solving a github pull request issue. here is the pull request issue details:\n<pr_description>${
+			parsedTask["problem_statement"]
+		}</pr_description>\n${taskPrompt.toString()}`
 
 		console.log(`[DEBUG] Task is the following: ${task}`)
 		console.log("Task started")

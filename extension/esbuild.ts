@@ -85,12 +85,14 @@ const extensionConfig = {
 	sourcemap: !production,
 	logLevel: "silent",
 	plugins: [copyAssetsPlugin, esbuildProblemMatcherPlugin],
-	entryPoints: ["src/extension.ts"],
+	entryPoints: ["src/extension.ts", "src/**/*.worker.ts"],
 	format: "cjs",
 	sourcesContent: false,
 	keepNames: true,
 	platform: "node",
-	outfile: "dist/extension.js",
+	// outfile: "dist/extension.js",
+	outdir: "dist",
+	entryNames: "[name]",
 	external: ["vscode", "chromium-bidi"],
 } satisfies BuildOptions
 

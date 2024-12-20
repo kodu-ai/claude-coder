@@ -24,11 +24,15 @@ import { ChatTool } from "../../shared/new-tools"
 import delay from "delay"
 import { ToolName } from "./tools/types"
 import { DIFF_VIEW_URI_SCHEME } from "../../integrations/editor/decoration-controller"
+import { HookManager, BaseHook, HookOptions, HookConstructor } from "./hooks"
+import { ObserverHook } from "./hooks/observer-hook"
+import dedent from "dedent"
 
 // new KoduDev
 export class KoduDev {
 	private stateManager: StateManager
 	private apiManager: ApiManager
+	private hookManager: HookManager
 	public toolExecutor: ToolExecutor
 	public taskExecutor: TaskExecutor
 	/**
@@ -56,10 +60,23 @@ export class KoduDev {
 			requestCount: 0,
 			apiConversationHistory: [],
 			claudeMessages: [],
+			interestedFiles: [],
+			historyErrors: {},
 			abort: false,
 		})
 		this.providerRef = new WeakRef(provider)
 		this.apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
+		// Initialize hook manager
+		this.hookManager = new HookManager(this)
+
+		// Initialize default hooks
+		if (!options.noTask) {
+			// Add diagnostic hook by default
+			this.hookManager.registerHook(ObserverHook, {
+				hookName: "observer",
+				triggerEvery: 1, // Trigger every 5 requests
+			})
+		}
 		this.toolExecutor = new ToolExecutor({
 			cwd: getCwd(),
 			alwaysAllowReadOnly: this.stateManager.alwaysAllowReadOnly,
@@ -104,6 +121,38 @@ export class KoduDev {
 
 	public getApiManager() {
 		return this.apiManager
+	}
+
+	public getHookManager() {
+		return this.hookManager
+	}
+
+	/**
+	 * Execute hooks and get injected content
+	 */
+	public async executeHooks(): Promise<string | null> {
+		return this.hookManager.checkAndExecuteHooks()
+	}
+
+	/**
+	 * Register a new hook
+	 */
+	public registerHook<T extends BaseHook>(HookClass: HookConstructor<T>, options: HookOptions): T {
+		return this.hookManager.registerHook(HookClass, options)
+	}
+
+	/**
+	 * Remove a hook by name
+	 */
+	public removeHook(hookName: string): void {
+		this.hookManager.removeHook(hookName)
+	}
+
+	/**
+	 * Get a hook by name
+	 */
+	public getHook(hookName: string): BaseHook | undefined {
+		return this.hookManager.getHook(hookName)
 	}
 
 	private setupTaskExecutor() {
@@ -159,7 +208,8 @@ export class KoduDev {
 
 		let textBlock: Anthropic.TextBlockParam = {
 			type: "text",
-			text: `<task>\n${task}\n</task>\n\n${getPotentiallyRelevantDetails()}`,
+			text: dedent`Here is the user task you must remember it all times from now your working autonomously to solve this task.\
+			<task>${task}</task>`,
 		}
 		let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
 		amplitudeTracker.taskStart(this.stateManager.state.taskId)
@@ -171,7 +221,7 @@ export class KoduDev {
 		if (this.isAborting) {
 			throw new Error("Cannot resume task while aborting")
 		}
-		const modifiedClaudeMessages = await this.stateManager.getSavedClaudeMessages()
+		const modifiedClaudeMessages = await this.stateManager.claudeMessagesManager.getSavedClaudeMessages()
 
 		const lastRelevantMessageIndex = findLastIndex(
 			modifiedClaudeMessages,
@@ -231,8 +281,8 @@ export class KoduDev {
 				}
 			}
 		})
-		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessages)
-		this.stateManager.state.claudeMessages = await this.stateManager.getSavedClaudeMessages()
+		await this.stateManager.claudeMessagesManager.overwriteClaudeMessages(modifiedClaudeMessages)
+		this.stateManager.state.claudeMessages = await this.stateManager.claudeMessagesManager.getSavedClaudeMessages()
 
 		const lastClaudeMessage = this.stateManager.state.claudeMessages
 			.slice()
@@ -259,12 +309,12 @@ export class KoduDev {
 		)
 
 		// remove the last ask after it's been answered
-		const modifiedClaudeMessagesAfterResume = await this.stateManager.getSavedClaudeMessages()
+		const modifiedClaudeMessagesAfterResume = await this.stateManager.claudeMessagesManager.getSavedClaudeMessages()
 		const lastAskIndex = modifiedClaudeMessagesAfterResume.findIndex((m) => m.ts === ts)
 		if (lastAskIndex !== -1) {
 			modifiedClaudeMessagesAfterResume.splice(lastAskIndex, 1)
 		}
-		await this.stateManager.overwriteClaudeMessages(modifiedClaudeMessagesAfterResume)
+		await this.stateManager.claudeMessagesManager.overwriteClaudeMessages(modifiedClaudeMessagesAfterResume)
 		await this.providerRef
 			.deref()
 			?.getWebviewManager()
@@ -290,7 +340,7 @@ export class KoduDev {
 			newUserContent.push({ type: "text", text: `Let's continue the task from where we left off.` })
 		}
 		const existingApiConversationHistory: Anthropic.Messages.MessageParam[] =
-			await this.stateManager.getSavedApiConversationHistory()
+			await this.stateManager.apiHistoryManager.getSavedApiConversationHistory()
 
 		// remove all the corrupted messages (if there is a message with empty content)
 		const modifiedApiConversationHistory = existingApiConversationHistory.filter((m) => {
@@ -305,7 +355,7 @@ export class KoduDev {
 			}
 			return shouldKeep
 		})
-		await this.stateManager.overwriteApiConversationHistory(modifiedApiConversationHistory) // remove the corrupted messages
+		await this.stateManager.apiHistoryManager.overwriteApiConversationHistory(modifiedApiConversationHistory) // remove the corrupted messages
 
 		const newUserContentText = newUserContent.find((block) => block.type === "text")?.text
 		const agoText = (() => {
@@ -432,17 +482,17 @@ export class KoduDev {
 		}
 
 		// Remove all messages after the specified ts
-		const updatedClaudeMessages = await this.stateManager.removeEverythingAfterMessage(ts)
+		const updatedClaudeMessages = await this.stateManager.claudeMessagesManager.removeEverythingAfterMessage(ts)
 		if (!updatedClaudeMessages) {
 			vscode.window.showErrorMessage(`Failed to rollback: could not find message with ts ${ts}`)
 			return
 		}
 
-		const allApiHistory = await this.stateManager.getSavedApiConversationHistory()
+		const allApiHistory = await this.stateManager.apiHistoryManager.getSavedApiConversationHistory()
 		const lastApiIndex = allApiHistory.findIndex((h) => h.ts === ts)
 		if (lastApiIndex !== -1) {
 			const updatedApiHistory = allApiHistory.slice(0, lastApiIndex + 1)
-			await this.stateManager.overwriteApiConversationHistory(updatedApiHistory)
+			await this.stateManager.apiHistoryManager.overwriteApiConversationHistory(updatedApiHistory)
 		}
 
 		// Now revert all files in the task to the requested version (or nearest lower version)
@@ -483,6 +533,7 @@ export class KoduDev {
 			"execute_command",
 			"write_to_file",
 			"edit_file_blocks",
+			"file_editor",
 		]
 		const isLastMsgMutable = lastTwoMsgs.some((msg) => {
 			if (Array.isArray(msg.content)) {
@@ -599,7 +650,7 @@ export class KoduDev {
 				// don't want to immediately access desktop since it would show permission popup
 				details += "(Desktop files not shown automatically. Use list_files to explore if needed.)"
 			} else {
-				const [files, didHitLimit] = await listFiles(getCwd(), true, 600)
+				const [files, didHitLimit] = await listFiles(getCwd(), true, 300)
 				const result = formatFilesList(getCwd(), files, didHitLimit)
 
 				details += result

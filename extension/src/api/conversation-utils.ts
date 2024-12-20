@@ -16,7 +16,7 @@ import { cleanUpMsg, ApiMetrics } from "./api-utils"
 export async function processConversationHistory(
 	provider: KoduDev,
 	history: Anthropic.MessageParam[],
-	criticalMsg: string,
+	criticalMsg?: string,
 	/**
 	 * Whether to save the conversation to state and disk after processing
 	 */
@@ -59,7 +59,7 @@ export async function processConversationHistory(
 	await enrichConversationHistory(provider, history, isLastMessageFromUser, criticalMsg)
 
 	if (autoSaveToDisk) {
-		await provider.getStateManager().overwriteApiConversationHistory(history)
+		await provider.getStateManager().apiHistoryManager.overwriteApiConversationHistory(history)
 	}
 }
 
@@ -73,7 +73,7 @@ export async function enrichConversationHistory(
 	provider: KoduDev,
 	history: Anthropic.MessageParam[],
 	isLastMessageFromUser: boolean,
-	criticalMsg: string
+	criticalMsg?: string
 ): Promise<void> {
 	if (!provider) {
 		return
@@ -86,7 +86,12 @@ export async function enrichConversationHistory(
 	const lastMessage = history[history.length - 1]
 	const isFirstMessage = history.length === 1
 
-	if (isLastMessageFromUser && Array.isArray(lastMessage.content) && (shouldAddCriticalMsg || isFirstMessage)) {
+	if (
+		isLastMessageFromUser &&
+		Array.isArray(lastMessage.content) &&
+		(shouldAddCriticalMsg || isFirstMessage) &&
+		criticalMsg
+	) {
 		lastMessage.content.push({
 			type: "text",
 			text: criticalMsg,
@@ -110,6 +115,11 @@ export async function enrichConversationHistory(
 			})
 		}
 	}
+
+	// now we want to reverse of the content so the first content is the last message (gives it better attention)
+	if (Array.isArray(lastMessage.content)) {
+		lastMessage.content.reverse()
+	}
 }
 
 /**
@@ -124,8 +134,6 @@ export async function enrichConversationHistory(
 export async function manageContextWindow(
 	provider: KoduDev,
 	api: ApiHandler,
-	currentSystemPrompt: string,
-	getApiMetricsFn: (claudeMessages: ClaudeMessage[]) => ApiMetrics,
 	logFn: (status: "info" | "debug" | "error", message: string, ...args: any[]) => void
 ): Promise<"chat_finished" | "compressed"> {
 	if (!provider) {
@@ -136,33 +144,18 @@ export async function manageContextWindow(
 
 	if (!isAutoSummaryEnabled) {
 		const updatedMessages = truncateHalfConversation(history)
-		await provider.getStateManager().overwriteApiConversationHistory(updatedMessages)
+		await provider.getStateManager().apiHistoryManager.overwriteApiConversationHistory(updatedMessages)
 		return "compressed"
 	}
-
-	const state = await provider.getStateManager().state
-	const systemPromptTokens = estimateTokenCount({
-		role: "assistant",
-		content: [{ type: "text", text: currentSystemPrompt ?? "" }],
-	})
-	const metrics = getApiMetricsFn(state?.claudeMessages || [])
-	const totalTokens =
-		metrics.inputTokens +
-		metrics.outputTokens +
-		metrics.inputCacheWrite +
-		metrics.inputCacheRead +
-		systemPromptTokens +
-		estimateTokenCount(history[history.length - 1])
 
 	const contextWindow = api.getModel().info.contextWindow
 	const terminalCompressionThreshold = await provider.getStateManager().state.terminalCompressionThreshold
 	const compressedMessages = await smartTruncation(history, api, terminalCompressionThreshold)
 	const newMemorySize = compressedMessages.reduce((acc, message) => acc + estimateTokenCount(message), 0)
 	logFn("info", `API History before compression:`, history)
-	logFn("info", `Total tokens before compression: ${totalTokens}`)
 	logFn("info", `Total tokens after compression: ${newMemorySize}`)
 	const maxPostTruncationTokens = contextWindow - 13_314 + api.getModel().info.maxTokens
-	await provider.getStateManager().overwriteApiConversationHistory(compressedMessages)
+	await provider.getStateManager().apiHistoryManager.overwriteApiConversationHistory(compressedMessages)
 
 	if (newMemorySize >= maxPostTruncationTokens) {
 		// reached the end

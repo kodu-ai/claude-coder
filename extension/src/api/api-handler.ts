@@ -12,11 +12,11 @@ import { KoduError, koduSSEResponse } from "../shared/kodu"
 import { amplitudeTracker } from "../utils/amplitude"
 import { ApiHistoryItem, ClaudeMessage, UserContent } from "../agent/v1/types"
 import { getCwd, isTextBlock } from "../agent/v1/utils"
-import m11182024Prompt from "../agent/v1/prompts/main.prompt"
 
 // Imported utility functions
 import { calculateApiCost, cleanUpMsg, getApiMetrics } from "./api-utils"
 import { processConversationHistory, manageContextWindow } from "./conversation-utils"
+import { mainPrompts } from "../agent/v1/prompts/main.prompt"
 import dedent from "dedent"
 
 /**
@@ -26,8 +26,7 @@ export class ApiManager {
 	private api: ApiHandler
 	private customInstructions?: string
 	private providerRef: WeakRef<ExtensionProvider>
-	private currentSystemPrompt = ""
-	private currentRequestContent = ""
+	private currentRequestText: string = ""
 
 	constructor(provider: ExtensionProvider, apiConfiguration: ApiConfiguration, customInstructions?: string) {
 		this.api = buildApiHandler(apiConfiguration)
@@ -86,11 +85,8 @@ export class ApiManager {
 			return undefined
 		}
 
-		return `
-====
-
+		return dedent`====
 USER'S CUSTOM INSTRUCTIONS
-
 The following additional instructions are provided by the user. They should be followed and given precedence in case of conflicts with previous instructions.
 
 ${this.customInstructions.trim()}
@@ -106,6 +102,13 @@ ${this.customInstructions.trim()}
 	async *createApiStreamRequest(
 		apiConversationHistory: ApiHistoryItem[],
 		abortController: AbortController,
+		customSystemPrompt?: {
+			automaticReminders?: string
+			systemPrompt?: string | []
+			customInstructions?: string
+			useExistingSystemPrompt?: (systemPrompt: string[]) => string[]
+		},
+		skipSavingToDisk = false,
 		postProcessConversationCallback?: (apiConversationHistory: ApiHistoryItem[]) => Promise<void>
 	): AsyncGenerator<koduSSEResponse> {
 		const provider = this.providerRef.deref()
@@ -115,21 +118,55 @@ ${this.customInstructions.trim()}
 
 		const executeRequest = async () => {
 			const conversationHistory =
-				(await provider.koduDev?.getStateManager().getSavedApiConversationHistory()) ?? apiConversationHistory
+				apiConversationHistory ??
+				(await provider.koduDev?.getStateManager().apiHistoryManager.getSavedApiConversationHistory())
+			const supportImages = this.api.getModel().info.supportsImages
+
+			let baseSystem = [mainPrompts.prompt(supportImages)]
+			if (customSystemPrompt?.systemPrompt) {
+				if (Array.isArray(customSystemPrompt.systemPrompt)) {
+					baseSystem = customSystemPrompt.systemPrompt
+				} else {
+					baseSystem = [customSystemPrompt.systemPrompt]
+				}
+			}
+			let criticalMsg: string | undefined = mainPrompts.criticalMsg
+			if (customSystemPrompt) {
+				criticalMsg = customSystemPrompt.automaticReminders
+			}
+			// we want to replace {{task}} with the current task if it exists in the critical message
+			if (criticalMsg) {
+				const firstRequest = conversationHistory.at(0)?.content
+				const firstRequestTextBlock = Array.isArray(firstRequest)
+					? firstRequest.find(isTextBlock)?.text
+					: firstRequest
+				if (firstRequestTextBlock && criticalMsg.includes("{{task}}")) {
+					criticalMsg = criticalMsg.replace("{{task}}", this.getTaskText(firstRequestTextBlock))
+				}
+			}
 
 			// Process conversation history using our external utility
-			await processConversationHistory(provider.koduDev!, conversationHistory, m11182024Prompt.criticalMsg, true)
+			await processConversationHistory(provider.koduDev!, conversationHistory, criticalMsg, !skipSavingToDisk)
 			if (postProcessConversationCallback) {
 				await postProcessConversationCallback?.(conversationHistory)
 			}
 
-			const supportImages = this.api.getModel().info.supportsImages
-			const supportComputerUse = supportImages && this.getModelId().includes("sonnet")
-			const baseSystem = m11182024Prompt.prompt(getCwd(), supportImages, supportComputerUse)
-			const systemPrompt = [baseSystem]
+			let systemPrompt = [...baseSystem]
 			const customInstructions = this.formatCustomInstructions()
-			if (customInstructions) {
+			if (customInstructions && !customSystemPrompt?.customInstructions) {
 				systemPrompt.push(customInstructions)
+			}
+			if (customSystemPrompt?.customInstructions) {
+				systemPrompt.push(customSystemPrompt.customInstructions)
+			}
+			if (customSystemPrompt?.useExistingSystemPrompt) {
+				systemPrompt = customSystemPrompt.useExistingSystemPrompt(systemPrompt)
+			}
+
+			// get current request text
+			const lastReq = apiConversationHistory.at(-1)?.content
+			if (lastReq && Array.isArray(lastReq) && isTextBlock(lastReq[0])) {
+				this.currentRequestText = lastReq[0].text
 			}
 			const stream = await this.api.createMessageStream({
 				systemPrompt,
@@ -139,13 +176,6 @@ ${this.customInstructions.trim()}
 			})
 
 			return stream
-		}
-
-		const lastMessageContent = apiConversationHistory[apiConversationHistory.length - 1]?.content[0]
-
-		// Check if the last message is a text block
-		if (isTextBlock(lastMessageContent)) {
-			this.currentSystemPrompt = lastMessageContent.text
 		}
 
 		let lastMessageAt = 0
@@ -167,6 +197,7 @@ ${this.customInstructions.trim()}
 
 			let retryAttempt = 0
 			const MAX_RETRIES = 5
+			let shouldResetContext = false
 
 			while (retryAttempt <= MAX_RETRIES) {
 				try {
@@ -179,16 +210,15 @@ ${this.customInstructions.trim()}
 							return
 						}
 
-						if (chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) {
+						if (
+							(chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) ||
+							shouldResetContext
+						) {
 							// clear the interval
 							clearInterval(checkInactivity)
 							// Compress the context and retry
-							const result = await manageContextWindow(
-								provider.koduDev!,
-								this.api,
-								this.currentSystemPrompt,
-								(m) => getApiMetrics(m),
-								(s, msg, ...args) => this.log(s, msg, ...args)
+							const result = await manageContextWindow(provider.koduDev!, this.api, (s, msg, ...args) =>
+								this.log(s, msg, ...args)
 							)
 							if (result === "chat_finished") {
 								throw new KoduError({ code: 413 })
@@ -263,6 +293,7 @@ ${this.customInstructions.trim()}
 		if (chunk.body.internal.userCredits !== undefined) {
 			await provider.getStateManager()?.updateKoduCredits(chunk.body.internal.userCredits)
 		}
+
 		// Track metrics
 		const state = await provider.getState()
 		const apiCost = calculateApiCost(
@@ -272,12 +303,16 @@ ${this.customInstructions.trim()}
 			cache_creation_input_tokens,
 			cache_read_input_tokens
 		)
-
 		console.log(
 			dedent`
-		#### KODU RESPONSE ####
+
+		#### HUMAN MESSAGE ####
+		${this.currentRequestText}
+		#### HUMAN MESSAGE ####
+		
+		#### ASSISTANT RESPONSE ####
 		${response.content[0].type === "text" ? response.content[0].text : "Error: Response is not text"}
-		#### KODU RESPONSE ####
+		#### ASSISTANT RESPONSE ####
 
 		#### API METRICS ####
 		Cost: ${apiCost}$
@@ -288,7 +323,6 @@ ${this.customInstructions.trim()}
 		#### API METRICS ####
 		`
 		)
-
 		amplitudeTracker.taskRequest({
 			taskId: state?.currentTaskId!,
 			model: this.getModelId(),
@@ -326,6 +360,12 @@ ${this.customInstructions.trim()}
 	 */
 	public createUserReadableRequest(userContent: UserContent): string {
 		return this.api.createUserReadableRequest(userContent)
+	}
+
+	private getTaskText(str: string) {
+		const [taskStartTag, taskEndTag] = ["<task>", "</task>"]
+		const [start, end] = [str.indexOf(taskStartTag), str.indexOf(taskEndTag)]
+		return str.slice(start + taskStartTag.length, end)
 	}
 
 	private log(status: "info" | "debug" | "error", message: string, ...args: any[]) {

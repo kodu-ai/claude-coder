@@ -66,7 +66,7 @@ export class DevServerTool extends BaseAgentTool<ServerRunnerToolParams> {
 		output?: string
 	) {
 		const updateParams: ServerRunnerTool & ChatTool = {
-			tool: "server_runner_tool",
+			tool: "server_runner",
 			approvalState,
 			ts: this.ts,
 			commandType,
@@ -100,7 +100,7 @@ export class DevServerTool extends BaseAgentTool<ServerRunnerToolParams> {
 					</validation>
 					<help>
 						<example_usage>
-							<tool>server_runner_tool</tool>
+							<tool>server_runner</tool>
 							<parameters>
 								<commandType>start</commandType>
 								<commandToRun>npm run dev</commandToRun>
@@ -132,7 +132,7 @@ export class DevServerTool extends BaseAgentTool<ServerRunnerToolParams> {
 					</context>
 					<help>
 						<example_usage>
-							<tool>server_runner_tool</tool>
+							<tool>server_runner</tool>
 							<parameters>
 								<commandType>${commandType}</commandType>
 								<commandToRun>npm run dev</commandToRun>
@@ -150,7 +150,7 @@ export class DevServerTool extends BaseAgentTool<ServerRunnerToolParams> {
 			"tool",
 			{
 				tool: {
-					tool: "server_runner_tool",
+					tool: "server_runner",
 					approvalState: "pending",
 					ts: this.ts,
 					commandType,
@@ -195,7 +195,7 @@ export class DevServerTool extends BaseAgentTool<ServerRunnerToolParams> {
 						"tool",
 						{
 							tool: {
-								tool: "server_runner_tool",
+								tool: "server_runner",
 								approvalState: "rejected",
 								ts: this.ts,
 								commandType,

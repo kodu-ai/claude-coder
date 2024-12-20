@@ -121,9 +121,7 @@ export const FileEditorTool: React.FC<FileEditorToolParams & ToolAddons> = memo(
 					<ScrollArea className="h-24 rounded border bg-background p-2">
 						<ScrollBar orientation="vertical" />
 						<ScrollBar orientation="horizontal" />
-						<pre className="font-mono text-xs text-white whitespace-pre-wrap overflow-hidden">
-							<MarkdownRenderer markdown={displayedContent?.trim()} />
-						</pre>
+						<MarkdownRenderer markdown={displayedContent?.trim()} />
 					</ScrollArea>
 
 					<div className="flex justify-between items-center">

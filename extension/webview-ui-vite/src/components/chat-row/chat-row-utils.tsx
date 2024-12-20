@@ -15,57 +15,69 @@ import MarkdownRenderer from "./markdown-renderer"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { Button } from "../ui/button"
 import { AnimatePresence, m, motion } from "framer-motion"
+import { Badge } from "../ui/badge"
 
-export const APIRequestMessage: React.FC<{
-	message: V1ClaudeMessage
-	nextMessage?: V1ClaudeMessage
+import { CheckCircle, XCircle, Loader2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
-	syntaxHighlighterStyle: SyntaxHighlighterStyle
-}> = React.memo(({ message, nextMessage, syntaxHighlighterStyle }) => {
-	const { cost } = message.apiMetrics || {}
-	const isError = message.isError || message.isAborted
+function StatusIcon({ message }: { message: V1ClaudeMessage }) {
+	if (message.isError || message.isAborted) return <XCircle className="shrink-0 h-4 w-4 text-destructive" />
+	if (message.isFetching) return <Loader2 className="shrink-0 h-4 w-4 animate-spin text-info" />
+	if (message.retryCount) return <AlertCircle className="shrink-0 h-4 w-4 text-warning" />
+	if (message.isDone) return <CheckCircle className="shrink-0 h-4 w-4 text-success" />
+	return null
+}
+
+export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => {
+	const { cost } = message?.apiMetrics || {}
 	const [icon, title] = IconAndTitle({
 		type: "api_req_started",
 		cost: message.apiMetrics?.cost,
 		isCommandExecuting: !!message.isExecutingCommand,
-		/**
-		 * ideally this would be automatically updated so isStreaming is only on until we reached error or success
-		 */
 		apiRequestFailedMessage: message.errorText || message.isError ? "Request Failed" : false,
 	})
-
-	const getStatusInfo = () => {
-		if (message.isDone) {
-			return { status: "", className: "text-success" }
-		}
-		if (message.retryCount) {
-			return { status: `Retried (${message.retryCount})`, className: "text-error" }
-		}
-		if (message.isError) {
-			return { status: "Error", className: "text-error" }
-		}
-		if (message.isFetching) {
-			return { status: "", className: "" }
-		}
-		if (message.isAborted) {
-			return { status: "Aborted", className: "text-error" }
-		}
-
-		return { status: "", className: "text-success" }
+	if (message?.agentName) {
+		// @ts-expect-error - agentName is literal string
+		message.agentName = message.agentName
+			.split("_")
+			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+			.join(" ")
 	}
 
-	const { status, className } = getStatusInfo()
+	// Combine agent and model into one concise badge
+	const agentModelText = [message?.agentName, message?.modelId].filter(Boolean).join(" @ ")
 
 	return (
-		<>
-			<div className="flex-line">
-				{icon}
-				{title}
-				{cost && (
-					<Tooltip>
-						<TooltipContent className="bg-secondary text-secondary-foreground">
+		<div
+			className={cn(
+				"flex items-center w-full text-sm gap-2 overflow-hidden",
+				"px-2 py-1 bg-card text-card-foreground rounded-sm"
+			)}
+			style={{ maxWidth: "100%" }}>
+			{/* Status Icon at the start */}
+			<StatusIcon message={message} />
+
+			{/* Title next to status */}
+			<span className="font-medium shrink-0">{title}</span>
+
+			{/* Agent/Model badge if present */}
+			{agentModelText && (
+				<Tooltip>
+					<TooltipContent className="bg-secondary text-secondary-foreground">
+						{cost && (
 							<div className="space-y-2">
-								<h3 className="font-medium text-lg">Price Breakdown</h3>
+								<h4 className="font-medium text-md ">Model Info</h4>
+								<div className="flex justify-between">
+									<span className="text-secondary-foreground/80">Agent</span>
+									<span className="text-secondary-foreground">
+										{message.agentName ?? "Kodu Main"}
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-secondary-foreground/80 shrink-0 mr-2">Model</span>
+									<span className="text-secondary-foreground truncate">{message.modelId}</span>
+								</div>
+								<h4 className="font-medium text-md">Price Breakdown</h4>
 								{Object.entries(message.apiMetrics!)
 									.reverse()
 									.map(([key, value], index) => (
@@ -73,7 +85,7 @@ export const APIRequestMessage: React.FC<{
 											key={key}
 											className={`flex justify-between ${
 												index === Object.entries(message.apiMetrics!).length - 1
-													? "pt-2 border-t border-gray-200 font-medium"
+													? "pt-2 border-t border-foreground/80 font-medium"
 													: ""
 											}`}>
 											<span className="text-secondary-foreground/80">{key}</span>
@@ -81,27 +93,32 @@ export const APIRequestMessage: React.FC<{
 										</div>
 									))}
 							</div>
-						</TooltipContent>
-						<TooltipTrigger asChild>
-							<code className="text-light">${Number(cost)?.toFixed(4)}</code>
-						</TooltipTrigger>
-					</Tooltip>
-				)}
-				<div className={`ml-2 ${className}`}>{status}</div>
-				<div className="flex-1" />
-				<AnimatePresence mode="wait"></AnimatePresence>
-			</div>
-			{isError && <div className="text-error">{message.errorText || "An error occurred. Please try again."}</div>}
-		</>
+						)}
+					</TooltipContent>
+					<TooltipTrigger disabled={!cost} className="flex w-full overflow-hidden ml-auto justify-end">
+						<Badge
+							variant="secondary"
+							className="text-[11px] truncate" // w-32 or some fixed width class
+						>
+							<span className="truncate">{agentModelText}</span>
+							{/* {agentModelText} */}
+						</Badge>
+					</TooltipTrigger>
+				</Tooltip>
+			)}
+
+			<div className="flex-1" />
+
+			{/* Cost at the far right, subtle */}
+			{/* {cost && <code className="text-foreground/50 text-xs whitespace-nowrap">${Number(cost).toFixed(4)}</code>} */}
+		</div>
 	)
 })
-
-export const TextMessage: React.FC<{ message: V1ClaudeMessage; syntaxHighlighterStyle: SyntaxHighlighterStyle }> =
-	React.memo(({ message, syntaxHighlighterStyle }) => (
-		<div className="flex text-wrap flex-wrap gap-2">
-			<MarkdownRenderer markdown={message.text || ""} />
-		</div>
-	))
+export const TextMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => (
+	<div className="flex text-wrap flex-wrap gap-2">
+		<MarkdownRenderer markdown={message.text || ""} />
+	</div>
+))
 
 export const UserFeedbackMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => {
 	return (
@@ -126,8 +143,7 @@ export const InfoMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({
 
 export const UserFeedbackDiffMessage: React.FC<{
 	message: V1ClaudeMessage
-	syntaxHighlighterStyle: SyntaxHighlighterStyle
-}> = React.memo(({ message, syntaxHighlighterStyle }) => {
+}> = React.memo(({ message }) => {
 	const [isExpanded, setToggle] = React.useState(false)
 	const onToggleExpand = () => setToggle(!isExpanded)
 	const tool = JSON.parse(message.text || "{}") as ClaudeSayTool
@@ -154,7 +170,6 @@ export const UserFeedbackDiffMessage: React.FC<{
 				diff={tool.diff!}
 				// @ts-expect-error - path is not always defined
 				path={tool.path!}
-				syntaxHighlighterStyle={syntaxHighlighterStyle}
 				isExpanded={isExpanded}
 				onToggleExpand={onToggleExpand}
 			/>

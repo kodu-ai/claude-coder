@@ -92,12 +92,12 @@ export default function TaskHeader({
 						key={currentTask?.name ?? currentTask?.task ?? task?.text}>
 						{task?.images && task.images.length > 0 && <Thumbnails images={task.images} />}
 						<TokenInfo
-							tokensIn={tokensIn}
-							tokensOut={tokensOut}
+							tokensIn={currentTask?.tokensIn ?? tokensIn}
+							tokensOut={currentTask?.tokensOut ?? tokensOut}
 							doesModelSupportPromptCache={doesModelSupportPromptCache}
-							cacheWrites={cacheWrites}
-							cacheReads={cacheReads}
-							totalCost={totalCost}
+							cacheWrites={currentTask?.cacheWrites ?? cacheWrites}
+							cacheReads={currentTask?.cacheReads ?? cacheReads}
+							totalCost={currentTask?.totalCost ?? totalCost}
 							currentContextTokens={currentContextTokens}
 							currentContextWindow={currentContextWindow}
 						/>

@@ -5,8 +5,9 @@ import * as vscode from "vscode"
 import { formatAttachementsIntoBlocks } from "../../../agent/v1/tools/format-content"
 import { HistoryItem } from "../../../shared/history-item"
 import { Resource } from "../../../shared/webview-message"
-import { compressImages, downloadTask, selectImages } from "../../../utils"
+// import { compressImages, downloadTask, selectImages } from "../../../utils"
 import { ExtensionProvider } from "../claude-coder-provider"
+import { compressImages, selectImages, downloadTask } from "../../../utils"
 
 export class TaskManager {
 	private provider: ExtensionProvider
@@ -104,7 +105,6 @@ export class TaskManager {
 
 		taskData.historyItem.name = newTaskName
 		await this.provider.getStateManager().updateTaskHistory(taskData.historyItem)
-		await this.provider.getWebviewManager().postBaseStateToWebview()
 		vscode.window.showInformationMessage(`Task renamed to ${newTaskName}`)
 	}
 

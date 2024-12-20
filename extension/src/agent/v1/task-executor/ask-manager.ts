@@ -63,7 +63,7 @@ export class AskManager {
 
 		// Reject current ask if exists
 		if (this.currentAsk) {
-			const askData = this.stateManager.getMessageById(this.currentAskId!)
+			const askData = this.stateManager.claudeMessagesManager.getMessageById(this.currentAskId!)
 			if (askData) {
 				try {
 					const tool = (askData.ask === "tool" ? safeParseJSON(askData.text ?? "{}") : undefined) as ChatTool
@@ -221,11 +221,11 @@ export class AskManager {
 			autoApproved: status === "approved",
 		}
 		try {
-			if (this.stateManager.getMessageById(id)) {
+			if (this.stateManager.claudeMessagesManager.getMessageById(id)) {
 				// we can void the promise here as we don't need to wait for the state to be updated
-				await this.stateManager.updateClaudeMessage(id, message)
+				await this.stateManager.claudeMessagesManager.updateClaudeMessage(id, message)
 			} else {
-				await this.stateManager.addToClaudeMessages(message)
+				await this.stateManager.claudeMessagesManager.addToClaudeMessages(message)
 			}
 			await this.webViewManager.postClaudeMessageToWebview(message)
 		} catch (error) {

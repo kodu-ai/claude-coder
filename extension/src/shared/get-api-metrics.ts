@@ -34,40 +34,15 @@ export function getApiMetrics(messages: ClaudeMessage[]): ApiMetrics {
 		totalCost: 0,
 	}
 
-	messages.forEach((message) => {
-		if (message.type === "say" && message.say === "api_req_started" && message.text) {
-			if (isV1ClaudeMessage(message)) {
-				result.totalTokensIn += message.apiMetrics?.inputTokens ?? 0
-				result.totalTokensOut += message.apiMetrics?.outputTokens ?? 0
-				result.totalCacheWrites = (result.totalCacheWrites ?? 0) + (message.apiMetrics?.inputCacheWrite ?? 0)
-				result.totalCacheReads = (result.totalCacheReads ?? 0) + (message.apiMetrics?.inputCacheRead ?? 0)
-				result.totalCost += message.apiMetrics?.cost ?? 0
-				return
-			}
-			try {
-				const parsedData = JSON.parse(message.text)
-				const { tokensIn, tokensOut, cacheWrites, cacheReads, cost } = parsedData
-
-				if (typeof tokensIn === "number") {
-					result.totalTokensIn += tokensIn
-				}
-				if (typeof tokensOut === "number") {
-					result.totalTokensOut += tokensOut
-				}
-				if (typeof cacheWrites === "number") {
-					result.totalCacheWrites = (result.totalCacheWrites ?? 0) + cacheWrites
-				}
-				if (typeof cacheReads === "number") {
-					result.totalCacheReads = (result.totalCacheReads ?? 0) + cacheReads
-				}
-				if (typeof cost === "number") {
-					result.totalCost += cost
-				}
-			} catch (error) {
-				console.error("Error parsing JSON:", error)
-			}
+	for (const message of messages) {
+		if (isV1ClaudeMessage(message)) {
+			result.totalTokensIn += message.apiMetrics?.inputTokens ?? 0
+			result.totalTokensOut += message.apiMetrics?.outputTokens ?? 0
+			result.totalCacheWrites = (result.totalCacheWrites ?? 0) + (message.apiMetrics?.inputCacheWrite ?? 0)
+			result.totalCacheReads = (result.totalCacheReads ?? 0) + (message.apiMetrics?.inputCacheRead ?? 0)
+			result.totalCost += message.apiMetrics?.cost ?? 0
 		}
-	})
+	}
 
 	return result
 }

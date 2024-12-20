@@ -3,15 +3,18 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
 	AlertCircle,
+	Bot,
 	CheckCircle,
 	ChevronDown,
 	ChevronUp,
+	ClipboardCheck,
 	Code,
 	FileText,
 	FolderTree,
 	HelpCircle,
 	Image,
 	LoaderPinwheel,
+	LogOut,
 	MessageCircle,
 	MessageCircleReply,
 	Play,
@@ -37,13 +40,17 @@ import {
 	SearchFilesTool,
 	SearchSymbolsTool,
 	ServerRunnerTool,
+	SpawnAgentTool,
+	ExitAgentTool,
 	UrlScreenshotTool,
+	SubmitReviewTool,
 } from "../../../../src/shared/new-tools"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { EnhancedWebSearchBlock } from "./tools/web-search-tool"
 import { FileEditorTool } from "./tools/file-editor-tool"
+import { SpawnAgentBlock, ExitAgentBlock } from "./tools/agent-tools"
 import MarkdownRenderer from "./markdown-renderer"
 
 type ApprovalState = ToolStatus
@@ -97,7 +104,7 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({
 	return (
 		<div
 			className={cn(
-				"border-l-4 p-3 bg-card text-card-foreground",
+				"border-l-4 p-3 bg-card text-card-foreground rounded-sm",
 				{
 					"border-primary": variant === "primary",
 					"border-secondary": variant === "info",
@@ -722,6 +729,48 @@ export const FileChangesPlanBlock: React.FC<
 	)
 }
 
+export const SubmitReviewBlock: React.FC<SubmitReviewTool & ToolAddons> = ({
+	review,
+	approvalState,
+	tool,
+	ts,
+	...rest
+}) => {
+	const [isOpen, setIsOpen] = React.useState(false)
+
+	return (
+		<ToolBlock
+			{...rest}
+			ts={ts}
+			tool={tool}
+			icon={ClipboardCheck}
+			title="Submit Review"
+			variant="accent"
+			approvalState={approvalState}>
+			<div className="text-xs space-y-3">
+				{review && (
+					<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
+						<CollapsibleTrigger asChild>
+							<Button variant="ghost" size="sm" className="flex items-center w-full justify-between">
+								<span>View Review</span>
+								{isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+							</Button>
+						</CollapsibleTrigger>
+						<CollapsibleContent className="mt-2">
+							<ScrollArea className="h-[200px] w-full rounded-md border">
+								<div className="bg-secondary/20 p-3 rounded-md text-sm">
+									<MarkdownRenderer markdown={review} />
+								</div>
+								<ScrollBar orientation="vertical" />
+							</ScrollArea>
+						</CollapsibleContent>
+					</Collapsible>
+				)}
+			</div>
+		</ToolBlock>
+	)
+}
+
 export const ToolRenderer: React.FC<{
 	tool: ChatTool
 	hasNextMessage?: boolean
@@ -747,12 +796,18 @@ export const ToolRenderer: React.FC<{
 			return <EnhancedWebSearchBlock {...tool} />
 		case "url_screenshot":
 			return <UrlScreenshotBlock {...tool} />
-		case "server_runner_tool":
+		case "server_runner":
 			return <DevServerToolBlock {...tool} />
 		case "search_symbol":
 			return <SearchSymbolBlock {...tool} />
 		case "add_interested_file":
 			return <AddInterestedFileBlock {...tool} />
+		case "spawn_agent":
+			return <SpawnAgentBlock {...tool} />
+		case "exit_agent":
+			return <ExitAgentBlock {...tool} />
+		case "submit_review":
+			return <SubmitReviewBlock {...tool} />
 		default:
 			return null
 	}
