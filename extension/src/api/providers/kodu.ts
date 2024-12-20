@@ -117,10 +117,13 @@ export class KoduHandler implements ApiHandler {
 			getKoduInferenceUrl(),
 			{
 				...requestBody,
+				temperature: 0.1,
+				top_p: 0.9,
 			},
 			{
 				headers: {
-					...this.requestHeaders,
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
 				},
 				responseType: "stream",
 				signal: abortSignal ?? undefined,
@@ -386,7 +389,10 @@ export class KoduHandler implements ApiHandler {
 				browserMode,
 			},
 			{
-				headers: this.requestHeaders,
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": this.options.koduApiKey || "",
+				},
 				timeout: 60_000,
 				responseType: "stream",
 				signal: abortSignal ?? undefined,

@@ -381,7 +381,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 				images
 			)
 		}
-		const { finalContent, results } = await this.inlineEditor.saveChanges()
+		const { finalContent, results, finalContentRaw } = await this.inlineEditor.saveChanges()
 
 		this.koduDev.getStateManager().addErrorPath(path)
 
@@ -403,7 +403,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			? `<file_changeset_message>${commitResult.commitMessage}</file_changeset_message>`
 			: ""
 		// Save a new file version
-		const newVersion = await this.saveNewFileVersion(path, finalContent)
+		const newVersion = await this.saveNewFileVersion(path, finalContentRaw)
 		await this.params.updateAsk(
 			"tool",
 			{
@@ -607,9 +607,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			return this.toolResponse("success", toolMsg, undefined, commitResult)
 		}
 
-			undefined,
-			commitResult
-		)
+		return this.toolResponse("success", toolMsg, undefined, commitResult)
 	}
 
 	private async processFileWrite() {

@@ -47,33 +47,21 @@ export abstract class BaseAgentTool<T extends ToolParams> {
 		return this.params.ts
 	}
 
-	get paramsInput(): ToolInputForName<TName> {
+	get paramsInput(): AgentToolParams["input"] {
 		return this.params.input
 	}
 
-	get toolParams() {
-		return {
-			...this.params,
-			input: this.paramsInput,
-		}
+	get toolParams(): AgentToolParams {
+		return this.params
 	}
 
 	get isFinal(): boolean {
 		return this.params.isFinal ?? false
 	}
 
-	// Update execute method to use the generic type
-	abstract execute(params: {
-		name: string
-		id: string
-		input: ToolInputForName<TName>
-		ts: number
-		isSubMsg?: boolean
-		isLastWriteToFile: boolean
-		isFinal?: boolean
-	}): Promise<ToolResponseV2>
+	abstract execute(params: AgentToolParams): Promise<ToolResponseV2>
 
-	public updateParams(input: ToolInputForName<TName>) {
+	public updateParams(input: AgentToolParams["input"]) {
 		this.params.input = input
 	}
 

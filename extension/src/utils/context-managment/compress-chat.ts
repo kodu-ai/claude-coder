@@ -15,9 +15,6 @@ import { ToolName } from "../../agent/v1/tools/types"
 const KODU_DIFF = "kodu_diff" as const
 const KODU_CONTENT = "kodu_content" as const
 
-const KODU_DIFF = "kodu_diff" as const
-const KODU_CONTENT = "kodu_content" as const
-
 const logger = (msg: string, level: "info" | "warn" | "error" | "debug") => {
 	console[level](`[CompressToolFromMsg] ${msg}`)
 }

@@ -69,8 +69,6 @@ const schema = z.object({
 		),
 })
 
-export type ExecuteCommandToolParams = z.infer<typeof schema>
-
 const examples = [
 	`<tool name="execute_command">
   <command>ls -la</command>

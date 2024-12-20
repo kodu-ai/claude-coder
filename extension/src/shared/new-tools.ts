@@ -6,10 +6,21 @@ import { ToolStatus } from "./extension-message"
 export type ExecuteCommandTool = {
 	tool: "execute_command"
 	/**
+	 * the command to execute
+	 */
+	command: string
+	/**
 	 * the output of the command
 	 */
 	output?: string
-} & ExecuteCommandToolParams
+	/**
+	 * this is a long running command so ask user if they want to continue
+	 */
+	earlyExit?: "pending" | "approved" | "rejected"
+
+	commitHash?: string
+	branch?: string
+}
 
 export type ListFilesTool = {
 	tool: "list_files"
@@ -49,10 +60,6 @@ export type WriteToFileTool = {
 	notAppliedCount?: number
 	branch?: string
 	commitHash?: string
-}
-
-export type EditFileBlocks = {
-	tool: "edit_file_blocks"
 }
 
 export type AskFollowupQuestionTool = {
@@ -136,17 +143,7 @@ export type FileEditorTool = {
 	branch?: string
 }
 
-export type ComputerUseTool = {
-	tool: "computer_use"
-	action: ComputerUseAction
-	url?: string
-	base64Image?: string
-	coordinate?: string
-	text?: string
-}
-
 export type ChatTool = (
-	| EditFileBlocks
 	| ExecuteCommandTool
 	| ListFilesTool
 	| ExploreRepoFolderTool

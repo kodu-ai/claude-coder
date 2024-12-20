@@ -4,7 +4,7 @@ import { isV1ClaudeMessage } from "../../shared/extension-message"
 import { ClaudeAskResponse } from "../../shared/webview-message"
 import { ApiManager } from "../../api/api-handler"
 import { ToolExecutor } from "./tools/tool-executor"
-import { KoduDevOptions, ToolName, ToolResponse, UserContent } from "./types"
+import { KoduDevOptions, ToolResponse, UserContent } from "./types"
 import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails, formatFilesList } from "./utils"
 import { StateManager } from "./state-manager"
 import { findLastIndex } from "../../utils"
@@ -476,8 +476,6 @@ export class KoduDev {
 		vscode.window.showInformationMessage(`Successfully rolled back to version ${version} for ${filePath}.`)
 	}
 
-	async get3rdPartyCritisim() {}
-
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {
 		let details = ""
 		const lastTwoMsgs = this.stateManager.state.apiConversationHistory.slice(-2)
@@ -500,7 +498,7 @@ export class KoduDev {
 		})
 		if (isLastMsgMutable) {
 			// proper delay to make sure that the vscode diagnostics and server logs are updated
-			await delay(2000)
+			await delay(3000)
 		}
 		const devServers = TerminalRegistry.getAllDevServers()
 		const isDevServerRunning = devServers.length > 0

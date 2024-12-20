@@ -52,6 +52,9 @@ export type AgentToolParams = {
 	id: string
 	input: ToolParams["input"]
 	ts: number
+	/**
+	 * If this is a sub message, it will force it to stick to previous tool call in the ui (same message)
+	 */
 	isSubMsg?: boolean
 	isLastWriteToFile: boolean
 	isFinal?: boolean

@@ -17,6 +17,7 @@ import m11182024Prompt from "../agent/v1/prompts/main.prompt"
 // Imported utility functions
 import { calculateApiCost, cleanUpMsg, getApiMetrics } from "./api-utils"
 import { processConversationHistory, manageContextWindow } from "./conversation-utils"
+import dedent from "dedent"
 
 /**
  * Main API Manager class that handles all Claude API interactions
@@ -26,6 +27,7 @@ export class ApiManager {
 	private customInstructions?: string
 	private providerRef: WeakRef<ExtensionProvider>
 	private currentSystemPrompt = ""
+	private currentRequestContent = ""
 
 	constructor(provider: ExtensionProvider, apiConfiguration: ApiConfiguration, customInstructions?: string) {
 		this.api = buildApiHandler(apiConfiguration)
@@ -120,8 +122,6 @@ ${this.customInstructions.trim()}
 			if (postProcessConversationCallback) {
 				await postProcessConversationCallback?.(conversationHistory)
 			}
-			// log the last 2 messages
-			this.log("info", `Last 2 messages:`, conversationHistory.slice(-2))
 
 			const supportImages = this.api.getModel().info.supportsImages
 			const supportComputerUse = supportImages && this.getModelId().includes("sonnet")
@@ -139,6 +139,13 @@ ${this.customInstructions.trim()}
 			})
 
 			return stream
+		}
+
+		const lastMessageContent = apiConversationHistory[apiConversationHistory.length - 1]?.content[0]
+
+		// Check if the last message is a text block
+		if (isTextBlock(lastMessageContent)) {
+			this.currentSystemPrompt = lastMessageContent.text
 		}
 
 		let lastMessageAt = 0
@@ -256,7 +263,6 @@ ${this.customInstructions.trim()}
 		if (chunk.body.internal.userCredits !== undefined) {
 			await provider.getStateManager()?.updateKoduCredits(chunk.body.internal.userCredits)
 		}
-
 		// Track metrics
 		const state = await provider.getState()
 		const apiCost = calculateApiCost(
@@ -266,7 +272,22 @@ ${this.customInstructions.trim()}
 			cache_creation_input_tokens,
 			cache_read_input_tokens
 		)
-		this.log("info", `API REQUEST FINISHED: ${apiCost} tokens used data:`, response)
+
+		console.log(
+			dedent`
+		#### KODU RESPONSE ####
+		${response.content[0].type === "text" ? response.content[0].text : "Error: Response is not text"}
+		#### KODU RESPONSE ####
+
+		#### API METRICS ####
+		Cost: ${apiCost}$
+		Input Tokens: ${input_tokens}
+		Output Tokens: ${output_tokens}
+		Cache Read Tokens: ${cache_read_input_tokens ?? 0}
+		Cache Write Tokens: ${cache_creation_input_tokens ?? 0}
+		#### API METRICS ####
+		`
+		)
 
 		amplitudeTracker.taskRequest({
 			taskId: state?.currentTaskId!,

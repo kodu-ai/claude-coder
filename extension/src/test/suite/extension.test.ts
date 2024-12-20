@@ -2,6 +2,7 @@ import { before, suite, test } from "mocha"
 import { env } from "process"
 import * as vscode from "vscode"
 import * as path from "path"
+import dedent from "dedent"
 
 suite("Extension Test Suite", () => {
 	let extension: vscode.Extension<any>
@@ -75,9 +76,9 @@ suite("Extension Test Suite", () => {
 		const parsedTask = JSON.parse(problemStatement.toString())
 		console.log(`[DEBUG] Problem statement is the following: ${parsedTask["problem_statement"]}`)
 
-		let task = `${taskPrompt.toString()}
-Here is the PR Information you should take extra deep look and remember it at all time this is the most important part of this test and you must resolve it with 100% confidence while taking care of all the potentioanl edge cases, making the most perfect solution that will tackle the root cause of the problem and get the PR approved!
-<pull_request_issue>${parsedTask["problem_statement"]}</pull_request_issue>`.trim()
+		let task = dedent`<pr_description>${parsedTask["problem_statement"]}</pr_description>
+${taskPrompt.toString()}
+`
 
 		console.log(`[DEBUG] Task is the following: ${task}`)
 		console.log("Task started")

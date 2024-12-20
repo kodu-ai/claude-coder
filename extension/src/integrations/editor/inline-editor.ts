@@ -471,6 +471,7 @@ export class InlineEditHandler {
 		finalContent: string
 		results: BlockResult[]
 		userEdits?: string
+		finalContentRaw: string
 	}> {
 		this.logger("Saving changes", "debug")
 		this.validateDocumentState()
@@ -527,6 +528,7 @@ export class InlineEditHandler {
 		// Compare contents and create patch if needed
 		const normalizedEditedContent = finalContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
 		const normalizedStreamedContent = finalStreamedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+		const finalContentRaw = finalContent
 		finalContent = formatFileToLines(finalContent)
 
 		if (normalizedEditedContent !== normalizedStreamedContent) {
@@ -534,11 +536,11 @@ export class InlineEditHandler {
 			const patch = createPatch(filename, normalizedStreamedContent, normalizedEditedContent)
 
 			this.dispose()
-			return { userEdits: patch, finalContent: normalizedEditedContent, results }
+			return { userEdits: patch, finalContent: normalizedEditedContent, results, finalContentRaw }
 		}
 
 		this.dispose()
-		return { finalContent, results }
+		return { finalContent, results, finalContentRaw }
 	}
 
 	private async closeDiffEditors() {

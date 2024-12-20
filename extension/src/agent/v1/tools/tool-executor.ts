@@ -2,6 +2,7 @@
  * @fileoverview Tool Executor manages the lifecycle and execution of various tools in the Kodu extension.
  * It handles tool creation, execution queuing, state management, and cleanup of running tools.
  */
+
 import treeKill from "tree-kill"
 import { ToolResponseV2 } from "../types"
 import { KoduDev } from ".."
@@ -18,7 +19,6 @@ import {
 	UrlScreenshotTool,
 	FileChangePlanTool,
 } from "."
-import { ExecuteCommandTool } from "./runners/execute-command.tool"
 import { WebSearchTool } from "./runners/web-search-tool"
 import { SearchSymbolsTool } from "./runners/search-symbols.tool"
 import { AddInterestedFileTool } from "./runners/add-interested-file.tool"
@@ -406,7 +406,6 @@ export class ToolExecutor {
 
 		try {
 			context.status = "processing"
-			console.log(`[ToolExecutor] Processing tool: ${context.tool.name}`)
 			const result = await context.tool.execute({
 				name: context.tool.name as ToolName,
 				input: context.tool.paramsInput,
@@ -418,7 +417,6 @@ export class ToolExecutor {
 				say: this.koduDev.taskExecutor.say.bind(this.koduDev.taskExecutor),
 				updateAsk: this.koduDev.taskExecutor.updateAsk.bind(this.koduDev.taskExecutor),
 			})
-			console.log(`[ToolExecutor] Tool completed: ${context.tool.name}`)
 
 			this.toolResults.push({ name: context.tool.name, result })
 			console.log(`Tool execution completed: ${context.tool.name}`)
