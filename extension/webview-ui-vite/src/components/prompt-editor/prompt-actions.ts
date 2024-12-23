@@ -7,12 +7,14 @@ import {
 	ActionMessage,
 } from "../../../../src/shared/messages/client-message"
 import { ExtensionMessage } from "../../../../src/shared/messages/extension-message"
+import { ToolName } from "../../../../src/agent/v1/tools/types"
 
 interface MessageCallbacks {
-	onTemplateSaved?: () => void
-	onTemplateLoaded?: (content: string) => void
+	onTemplateSaved?: (templateName: string) => void
+	onTemplateLoaded?: (content: string, id: string) => void
 	onTemplatesList?: (templates: string[], activeTemplate: string | null) => void
 	onActiveTemplateUpdated?: (templateName: string | null) => void
+	onPromptPreviewed?: (content: string, visible: boolean) => void
 }
 
 export interface PromptTemplate {
@@ -61,26 +63,53 @@ export class PromptActions {
 		})
 	}
 
+	public async deleteTemplate(name: string): Promise<void> {
+		vscode.postMessage({
+			type: "deletePromptTemplate",
+			templateName: name,
+		})
+	}
+
 	public closeEditor(): void {
 		vscode.postMessage({
 			type: "closePromptEditor",
 		})
 	}
 
+	public previewPrompt(content: string, visible: boolean): void {
+		vscode.postMessage({
+			type: "previewPrompt",
+			content,
+			visible,
+		})
+	}
+
 	public handleMessage(message: ExtensionMessage, callbacks: MessageCallbacks): void {
 		switch (message.type) {
 			case "templates_list":
-				console.log(message)
 				callbacks.onTemplatesList?.(message.templates, message.activeTemplate)
 				break
 			case "load_prompt_template":
-				callbacks.onTemplateLoaded?.(message.content)
+				callbacks.onTemplateLoaded?.(message.content, message.promptId)
 				break
 			case "save_prompt_template":
-				callbacks.onTemplateSaved?.()
+				callbacks.onTemplateSaved?.(message.templateName)
+				this.loadTemplate(message.templateName)
+				this.setActiveTemplate(message.templateName)
+				this.listTemplates()
 				break
+
+			case "previewPrompt":
+				callbacks.onPromptPreviewed?.(message.content, message.visible)
+				break
+
 			case "set_active_prompt":
 				callbacks.onActiveTemplateUpdated?.(message.templateName)
+				break
+			case "deletePromptTemplate":
+				// After successful deletion, refresh the templates list and notify about the deletion
+				this.listTemplates()
+				callbacks.onTemplatesList?.([], null) // Reset templates list immediately
 				break
 		}
 	}

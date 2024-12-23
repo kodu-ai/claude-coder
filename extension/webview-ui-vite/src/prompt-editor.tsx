@@ -10,7 +10,7 @@ const App = () => {
 	return (
 		<>
 			<TooltipProvider>
-				<div className="container mx-auto px-4 max-[280px]:px-2 py-4 max-w-[800px] flex flex-col h-full">
+				<div className="container mx-auto px-4 max-[280px]:px-2 py-4 max-w-screen-xl flex flex-col h-full">
 					<PromptEditor />
 				</div>
 			</TooltipProvider>
