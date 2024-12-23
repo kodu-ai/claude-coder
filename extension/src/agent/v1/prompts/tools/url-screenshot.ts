@@ -1,4 +1,4 @@
-import { ToolPromptSchema } from "../utils/types"
+import { ToolPromptSchema } from "../utils/utils"
 
 export const urlScreenshotPrompt: ToolPromptSchema = {
 	name: "url_screenshot",
@@ -23,4 +23,5 @@ export const urlScreenshotPrompt: ToolPromptSchema = {
 </url_screenshot>`,
 		},
 	],
+	requiresFeatures: ["vision"],
 }

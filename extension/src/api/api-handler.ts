@@ -18,6 +18,8 @@ import { calculateApiCost, cleanUpMsg, getApiMetrics } from "./api-utils"
 import { processConversationHistory, manageContextWindow } from "./conversation-utils"
 import { mainPrompts } from "../agent/v1/prompts/main.prompt"
 import dedent from "dedent"
+import { PromptStateManager } from "../providers/state/prompt-state-manager"
+import { buildPromptFromTemplate } from "../agent/v1/prompts/utils/utils"
 
 /**
  * Main API Manager class that handles all Claude API interactions
@@ -121,7 +123,7 @@ ${this.customInstructions.trim()}
 				(await provider.koduDev?.getStateManager().apiHistoryManager.getSavedApiConversationHistory())
 			const supportImages = this.api.getModel().info.supportsImages
 
-			let baseSystem = [mainPrompts.prompt(supportImages)]
+			let baseSystem = [await this.getCurrentPrompts()]
 			if (customSystemPrompt?.systemPrompt) {
 				if (Array.isArray(customSystemPrompt.systemPrompt)) {
 					baseSystem = customSystemPrompt.systemPrompt
@@ -311,6 +313,14 @@ ${this.customInstructions.trim()}
 			cacheWriteTokens: cache_creation_input_tokens,
 			outputTokens: output_tokens,
 		})
+	}
+
+	private async getCurrentPrompts() {
+		const template =
+			(await PromptStateManager.getInstance().getActivePromptContent()) ??
+			PromptStateManager.getInstance().getDefaultPromptContent()
+
+		return await buildPromptFromTemplate(template)
 	}
 
 	/**

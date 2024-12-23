@@ -1,4 +1,5 @@
 import { SpawnAgentOptions } from "../../agent/v1/tools/schema/agents/agent-spawner"
+import { ToolName } from "../../agent/v1/tools/types"
 import type { GlobalState } from "../../providers/state/global-state-manager"
 import { ApiConfiguration } from "../api"
 import { HistoryItem } from "../history-item"
@@ -111,6 +112,7 @@ type ListPromptTemplatesMessage = {
 type LoadPromptTemplateMessage = {
 	type: "load_prompt_template"
 	content: string
+	promptId: string
 }
 
 type SetActivePromptMessage = {
@@ -129,7 +131,19 @@ type DeletePromptTemplateMessage = {
 	templateName: string
 }
 
+type PreviewPromptMessage = {
+	type: "previewPrompt"
+	content: string
+	visible: boolean
+}
+
+type DisabledToolsMessage = {
+	type: "disabledTools"
+	tools: ToolName[]
+}
+
 type PromptActionMessage =
+	| PreviewPromptMessage
 	| ListPromptTemplatesMessage
 	| SaveTemplateMessage
 	| LoadPromptTemplateMessage
@@ -137,6 +151,7 @@ type PromptActionMessage =
 	| DeletePromptTemplateMessage
 
 export type ExtensionMessage =
+	| DisabledToolsMessage
 	| PromptActionMessage
 	| SetCommandTimeoutMessage
 	| SetInlineEditModeMessage
@@ -167,6 +182,7 @@ export interface BaseExtensionState {
 	skipWriteAnimation?: boolean
 	autoSummarize?: boolean
 	customInstructions?: string
+	observerHookEvery?: number
 	alwaysAllowReadOnly?: boolean
 	alwaysAllowWriteOnly?: boolean
 	user: GlobalState["user"]

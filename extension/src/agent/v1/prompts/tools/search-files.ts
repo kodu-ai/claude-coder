@@ -1,4 +1,4 @@
-import { ToolPromptSchema } from "../utils/types"
+import { ToolPromptSchema } from "../utils/utils"
 
 export const searchFilesPrompt: ToolPromptSchema = {
 	name: "search_files",

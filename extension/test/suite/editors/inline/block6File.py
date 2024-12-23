@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+
+"""
+Interactive script that demonstrates blocking input.
+Gets user's name and age along with other questions in a deterministic random order
+based on the file location. Successfully completing the interaction reveals a CTF token.
+"""
+import sys
+import hashlib
+import random
+import os
+
+def get_user_info():
+    # Get the absolute path of this script to use as seed
+    script_path = os.path.abspath(__file__)
+    
+    # Create a deterministic seed from the file path
+    path_hash = hashlib.md5(script_path.encode()).hexdigest()
+    seed = int(path_hash[:8], 16)  # Use first 8 chars of hash as seed
+    
+    # Set the random seed for deterministic ordering
+    random.seed(seed)
+    
+    print("Welcome to the Interactive Greeter!", flush=True)
+    print("Please answer a few questions:", flush=True)
+    sys.stdout.flush()
+    
+    # Initialize variables to store required info
+    name = None
+    age = None
+    
+    # Create list of questions
+    questions = [
+        ("What's your name? ", "name"),
+        ("How old are you? ", "age"),
+        ("What's your favorite color? ", "color"),
+        ("What's your favorite hobby? ", "hobby"),
+        ("Where are you from? ", "location")
+    ]
+    
+    # Shuffle questions once using our deterministic seed
+    random.shuffle(questions)
+    
+    # Ask all questions in our determined order
+    for question, q_type in questions:
+        # Ask the question
+        answer = input(question)
+        
+        # Process the answer based on type
+        if q_type == "name":
+            name = answer
+            print(f"Nice to meet you, {name}!", flush=True)
+        elif q_type == "age":
+            while True:
+                try:
+                    age = int(answer)
+                    # Provide age-specific response
+                    if age < 18:
+                        print("Hey, you're still young! Enjoy your youth!", flush=True)
+                    elif age < 30:
+                        print("Your twenties are a great time to learn and grow!", flush=True)
+                    elif age < 50:
+                        print("Hope you're enjoying life's adventures!", flush=True)
+                    else:
+                        print("Your wisdom and experience are valuable!", flush=True)
+                    break
+                except ValueError:
+                    print("Please enter a valid number for age.", flush=True)
+                    answer = input(question)
+        else:
+            # Generic response for other questions
+            print(f"Thanks for sharing that!", flush=True)
+        
+        sys.stdout.flush()
+    
+    # Generate a CTF token based on the interaction
+    token_data = f"{name}{age}secret_salt_2024".encode('utf-8')
+    token = f"CTF_{hashlib.sha256(token_data).hexdigest()[:12]}"
+    
+    print(f"\nCongratulations! Here's your token: {token}", flush=True)
+    sys.stdout.flush()
+
+if __name__ == "__main__":
+    get_user_info()

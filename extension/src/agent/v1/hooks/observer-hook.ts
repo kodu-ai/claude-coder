@@ -1,6 +1,6 @@
 import dedent from "dedent"
 import { ApiHistoryItem, KoduDev } from ".."
-import { promptTemplate } from "../prompts/utils/types"
+import { promptTemplate } from "../prompts/utils/utils"
 import { BaseHook, HookOptions } from "./base-hook"
 import { PromptBuilder } from "../prompts/utils/builder"
 import { ApiMetrics } from "../../../api/api-utils"

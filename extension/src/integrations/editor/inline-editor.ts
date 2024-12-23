@@ -34,7 +34,7 @@ interface EditBlock {
 	dmpAttempted?: boolean
 }
 
-interface BlockResult {
+export interface BlockResult {
 	id: string
 	searchContent: string
 	replaceContent: string
@@ -580,9 +580,13 @@ export class InlineEditHandler {
 	 * Force finalize all given blocks by applying their final content and marking them as final,
 	 * then re-applying changes to ensure everything is updated.
 	 */
-	public async forceFinalize(
-		blocks: { id: string; searchContent: string; replaceContent: string }[]
-	): Promise<{ failedCount: number; isAllFailed: boolean; isAnyFailed: boolean; failedBlocks?: BlockResult[] }> {
+	public async forceFinalize(blocks: { id: string; searchContent: string; replaceContent: string }[]): Promise<{
+		failedCount: number
+		isAllFailed: boolean
+		isAnyFailed: boolean
+		failedBlocks?: BlockResult[]
+		results: BlockResult[]
+	}> {
 		this.logger("Forcing finalization of given blocks", "debug")
 		this.validateDocumentState()
 
@@ -622,7 +626,7 @@ export class InlineEditHandler {
 			await this.closeDiffEditors()
 			this.dispose()
 		}
-		return { failedCount: failedBlocks.length, isAllFailed, isAnyFailed, failedBlocks }
+		return { failedCount: failedBlocks.length, isAllFailed, isAnyFailed, failedBlocks, results: failedBlocks }
 	}
 
 	public setAutoScroll(enabled: boolean) {

@@ -22,25 +22,29 @@ export class DiagnosticsHandler {
 	): Promise<{ key: string; errorString: string | null }[]> {
 		return Promise.all(
 			paths.map(async (filePath) => {
-				const fullPath = path.resolve(getCwd(), filePath)
-				const uri = vscode.Uri.file(fullPath)
+				try {
+					const fullPath = path.resolve(getCwd(), filePath)
+					const uri = vscode.Uri.file(fullPath)
 
-				if (openDocs) {
-					const doc = await vscode.workspace.openTextDocument(uri)
-					await vscode.window.showTextDocument(doc, { preview: false })
-					// Wait for language server to fully load diagnostics
-					await delay(2000)
+					if (openDocs) {
+						const doc = await vscode.workspace.openTextDocument(uri)
+						await vscode.window.showTextDocument(doc, { preview: false })
+						// Wait for language server to fully load diagnostics
+						await delay(2000)
+					}
+
+					const diagnostics = vscode.languages.getDiagnostics(uri)
+					const errors = diagnostics.filter((diag) => diag.severity === vscode.DiagnosticSeverity.Error)
+
+					let errorString: string | null = null
+					if (errors.length > 0) {
+						errorString = await this.formatDiagnostics(uri, errors)
+					}
+
+					return { key: filePath, errorString }
+				} catch (err) {
+					return { key: filePath, errorString: null }
 				}
-
-				const diagnostics = vscode.languages.getDiagnostics(uri)
-				const errors = diagnostics.filter((diag) => diag.severity === vscode.DiagnosticSeverity.Error)
-
-				let errorString: string | null = null
-				if (errors.length > 0) {
-					errorString = await this.formatDiagnostics(uri, errors)
-				}
-
-				return { key: filePath, errorString }
 			})
 		)
 	}

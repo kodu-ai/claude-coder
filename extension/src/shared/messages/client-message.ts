@@ -1,3 +1,4 @@
+import { ToolName } from "../../agent/v1/tools/types"
 import { ApiConfiguration } from "../../api"
 import { GlobalState } from "../../providers/state/global-state-manager"
 import { BaseExtensionState } from "./extension-message"
@@ -133,7 +134,27 @@ export type OpenPromptEditorMessage = {
 	type: "openPromptEditor"
 }
 
+export type PreviewPromptMessage = {
+	type: "previewPrompt"
+	content: string
+	visible: boolean
+}
+
+export type EnableObserverHookMessage = {
+	type: "enableObserverHook"
+	triggerEvery?: number
+}
+
+export type DisableToolMessage = {
+	type: "disableTool"
+	toolName: ToolName
+	boolean: boolean
+	content?: string
+}
+
 export type PromptActions =
+	| PreviewPromptMessage
+	| DisableToolMessage
 	| OpenPromptEditorMessage
 	| listPromptTemplatesMessage
 	| savePromptTemplateMessage
@@ -178,6 +199,7 @@ export type clearHistoryMessage = {
 }
 
 export type WebviewMessage =
+	| EnableObserverHookMessage
 	| PromptActions
 	| ActionMessage
 	| clearHistoryMessage

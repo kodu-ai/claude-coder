@@ -1,5 +1,5 @@
 import dedent from "dedent"
-import { ToolPromptSchema } from "../utils/types"
+import { ToolPromptSchema } from "../utils/utils"
 
 export const fileEditorPrompt: ToolPromptSchema = {
 	name: "file_editor",

@@ -1,6 +1,9 @@
+import { PromptBuilder } from "../../agent/v1/prompts/utils/builder"
+import { buildPromptFromTemplate } from "../../agent/v1/prompts/utils/utils"
 import { WebviewMessage } from "../../shared/messages/client-message"
 import { ExtensionMessage } from "../../shared/messages/extension-message"
 import { getNonce, getUri } from "../../utils"
+import { GlobalStateManager } from "../state/global-state-manager"
 import { PromptStateManager } from "../state/prompt-state-manager"
 import { WebviewManager } from "./webview-manager"
 import * as vscode from "vscode"
@@ -106,12 +109,12 @@ export class PromptManager {
 				localResourceRoots: [this.webviewManager.provider.getContext().extensionUri],
 			}
 		)
+
 		this.promptEditorPanel.iconPath = vscode.Uri.joinPath(
 			this.webviewManager.provider.getContext().extensionUri,
 			"assets",
 			"kodu.png"
 		)
-		await PromptStateManager.init(this.webviewManager.provider.context)
 
 		this.promptEditorPanel.webview.html = this.getPromptEditorHtmlContent(this.promptEditorPanel.webview)
 		this.setWebviewMessageListener(this.promptEditorPanel.webview)
@@ -125,12 +128,26 @@ export class PromptManager {
 		)
 	}
 
-	private showPromptEditor() {
+	private async showPromptEditor() {
 		if (this.promptEditorPanel) {
 			this.promptEditorPanel.reveal(vscode.ViewColumn.One)
 		} else {
-			this.createPromptEditorPanel()
+			await this.createPromptEditorPanel()
 		}
+		// now post the first prompt to the webview
+		const promptManager = await PromptStateManager.getInstance()
+		const content = (await promptManager.getActivePromptContent()) ?? promptManager.getDefaultPromptContent()
+		await Promise.all([
+			this.postMessageToWebview({
+				type: "load_prompt_template",
+				content,
+				promptId: promptManager.getActivePromptName(),
+			}),
+			this.postMessageToWebview({
+				type: "disabledTools",
+				tools: (await GlobalStateManager.getInstance().getGlobalState("disabledTools")) ?? [],
+			}),
+		])
 	}
 	/**
 	 * Handles debug instructions for the extension
@@ -197,6 +214,7 @@ export class PromptManager {
 			await this.postMessageToWebview({
 				type: "load_prompt_template",
 				content,
+				promptId: templateName,
 			})
 		} catch (error) {
 			if (error instanceof Error) {
@@ -224,12 +242,34 @@ export class PromptManager {
 			}
 		}
 	}
+
+	private async deleteTemplate(templateName: string): Promise<void> {
+		try {
+			const promptManager = await PromptStateManager.getInstance()
+			await promptManager.deleteTemplate(templateName)
+
+			await this.postMessageToWebview({
+				type: "deletePromptTemplate",
+				templateName,
+			})
+
+			// Refresh templates list after deletion
+			await this.listPromptTemplates()
+		} catch (error) {
+			if (error instanceof Error) {
+				vscode.window.showErrorMessage(`Failed to delete template: ${error.message}`)
+			} else {
+				vscode.window.showErrorMessage("Failed to delete template: Unknown error")
+			}
+		}
+	}
+
 	private setWebviewMessageListener(webview: vscode.Webview) {
 		webview.onDidReceiveMessage(async (message: WebviewMessage) => {
-			this.handleMessage(message)
+			await this.handleMessage(message)
 		})
 	}
-	public handleMessage(message: WebviewMessage): void {
+	public async handleMessage(message: WebviewMessage) {
 		switch (message.type) {
 			case "openPromptEditor":
 				this.showPromptEditor()
@@ -248,6 +288,51 @@ export class PromptManager {
 				break
 			case "setActivePrompt":
 				this.setActivePrompt(message.templateName)
+				break
+			case "deletePromptTemplate":
+				this.deleteTemplate(message.templateName)
+				break
+			case "previewPrompt":
+				const fullContent = await buildPromptFromTemplate(message.content)
+				await this.postMessageToWebview({
+					type: "previewPrompt",
+					content: fullContent,
+					visible: message.visible,
+				})
+				break
+			case "disableTool":
+				const currentDisabledTools = GlobalStateManager.getInstance().getGlobalState("disabledTools") ?? []
+				const newDisabledTools = new Set(currentDisabledTools)
+				if (message.toolName) {
+					if (message.boolean) {
+						newDisabledTools.delete(message.toolName)
+					} else {
+						newDisabledTools.add(message.toolName)
+					}
+				}
+				await GlobalStateManager.getInstance().updateGlobalState("disabledTools", Array.from(newDisabledTools))
+				let content: string | undefined
+				if (message.content) {
+					// it means we want to preview the prompt
+					content = await buildPromptFromTemplate(message.content)
+				}
+				const promises: Promise<any>[] = []
+				promises.push(
+					this.postMessageToWebview({
+						type: "disabledTools",
+						tools: Array.from(newDisabledTools),
+					})
+				)
+				if (content) {
+					promises.push(
+						this.postMessageToWebview({
+							type: "previewPrompt",
+							content,
+							visible: true,
+						})
+					)
+				}
+				await Promise.all(promises)
 				break
 		}
 	}

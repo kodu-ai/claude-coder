@@ -3,12 +3,11 @@ import os from "os"
 import osName from "os-name"
 import defaultShell from "default-shell"
 import { PromptBuilder } from "../utils/builder"
-import { PromptConfig, promptTemplate } from "../utils/types"
+import { PromptConfig, promptTemplate } from "../utils/utils"
 import dedent from "dedent"
 
 export const PLANNER_SYSTEM_PROMPT = (supportsImages: boolean) => {
 	const template = promptTemplate(
-		supportsImages,
 		(b, h) => dedent`You are ${
 			b.agentName
 		}, a Planning Agent specialized in analyzing tasks and creating detailed execution plans.
@@ -95,7 +94,8 @@ export const PLANNER_SYSTEM_PROMPT = (supportsImages: boolean) => {
     - Consider potential risks and dependencies
     - Provide clear success criteria
     - Use exit_agent when planning is complete
-    ${h.supportsImages(
+    ${h.block(
+		"vision",
 		"- When presented with images, utilize your vision capabilities to thoroughly examine them and extract meaningful information. Incorporate these insights into your planning process."
 	)}
     - At the end of each user message, you will automatically receive environment_details. This information is not written by the user themselves, but is auto-generated to provide potentially relevant context about the project structure and environment.

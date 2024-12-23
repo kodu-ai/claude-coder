@@ -5,15 +5,13 @@ import * as dotenv from "dotenv"
 import * as path from "path"
 import { extensionName } from "./shared/constants"
 import "./utils/path-helpers"
-import { TerminalManager } from "./integrations/terminal/terminal-manager"
-import { getCwd } from "./agent/v1/utils"
-import { readFile } from "fs/promises"
 import {
 	DIFF_VIEW_URI_SCHEME,
 	INLINE_DIFF_VIEW_URI_SCHEME,
 	INLINE_MODIFIED_URI_SCHEME,
 	MODIFIED_URI_SCHEME,
 } from "./integrations/editor/decoration-controller"
+import { PromptStateManager } from "./providers/state/prompt-state-manager"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -238,11 +236,12 @@ export function activate(context: vscode.ExtensionContext) {
 		tabProvider.resolveWebviewView(panel)
 		console.log("Opened Claude Coder in new tab")
 
-		// Lock the editor group so clicking on files doesn't open them over the panel
+		// Lock the editor group so clicking on files doesn't open over the panel
 		new Promise((resolve) => setTimeout(resolve, 100)).then(() => {
 			vscode.commands.executeCommand("workbench.action.lockEditorGroup")
 		})
 	}
+	PromptStateManager.init(context)
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand(`${extensionName}.popoutButtonTapped`, openExtensionInNewTab)

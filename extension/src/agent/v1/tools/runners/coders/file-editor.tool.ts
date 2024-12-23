@@ -1,13 +1,13 @@
 import * as path from "path"
 import { DiffViewProvider } from "../../../../../integrations/editor/diff-view-provider"
 import { ClaudeSayTool } from "../../../../../shared/messages/extension-message"
-import { getCwd, getReadablePath } from "../../../utils"
+import { getCwd, getReadablePath, isTextBlock } from "../../../utils"
 import { BaseAgentTool, FullToolParams } from "../../base-agent.tool"
 import { AgentToolOptions } from "../../types"
 import fs from "fs"
 import { detectCodeOmission } from "./detect-code-omission"
 import { parseDiffBlocks, checkFileExists, preprocessContent, EditBlock } from "./utils"
-import { InlineEditHandler } from "../../../../../integrations/editor/inline-editor"
+import { BlockResult, InlineEditHandler } from "../../../../../integrations/editor/inline-editor"
 import { ToolResponseV2 } from "../../../types"
 import PQueue from "p-queue"
 
@@ -17,7 +17,8 @@ import { FileEditorToolParams } from "../../schema/file_editor_tool"
 import { FileVersion } from "../../../types"
 import dedent from "dedent"
 import { formatFileToLines } from "../read-file/utils"
-
+import diffFixerPrompt from "../../../prompts/agents/diff-fixer.prompt"
+import * as vscode from "vscode"
 export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 	public diffViewProvider: DiffViewProvider
 	public inlineEditor: InlineEditHandler
@@ -284,7 +285,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		})
 	}
 
-	private async finalizeInlineEdit(path: string, content: string): Promise<ToolResponseV2> {
+	private async finalizeInlineEdit(path: string, content: string, allowFixed = true): Promise<ToolResponseV2> {
 		const mode = "edit"
 		this.isProcessingFinalContent = true
 		let editBlocks: EditBlock[] = []
@@ -298,12 +299,31 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		if (!this.inlineEditor.isOpen() && editBlocks.length > 0) {
 			await this.inlineEditor.open(editBlocks[0]?.id, this.fileState?.absolutePath!, editBlocks[0].searchContent)
 		}
-		const { failedCount, isAllFailed, isAnyFailed, failedBlocks } = await this.inlineEditor.forceFinalize(
-			editBlocks
-		)
+		const {
+			failedCount,
+			isAllFailed,
+			isAnyFailed,
+			failedBlocks,
+			results: allResults,
+		} = await this.inlineEditor.forceFinalize(editBlocks)
 		this.logger(`Failed count: ${failedCount}, isAllFailed: ${isAllFailed}`, "debug")
 		if (isAnyFailed) {
-			await this.params.updateAsk(
+			if (allowFixed) {
+				// let's show a loading vs code toast
+				vscode.window.showInformationMessage("Attempting to fix the failed blocks")
+				const fixedOutput = await this.inlineFixRetry(allResults)
+				if (fixedOutput) {
+					await this.inlineEditor.rejectChanges()
+					await this.inlineEditor.dispose()
+
+					return await this.finalizeInlineEdit(path, fixedOutput, false)
+				} else {
+					// show vscode toast
+					vscode.window.showErrorMessage("Failed to fix the failed blocks")
+				}
+			}
+
+			const extractKoduDiff = await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -828,5 +848,92 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 	</rollback_response>
 	`
 		)
+	}
+
+	private async inlineFixRetry(blocks: BlockResult[]): Promise<string | undefined> {
+		if (!this.fileState?.orignalContent) {
+			return
+		}
+		const originalContent = await fs.readFileSync(this.fileState.absolutePath, "utf8")
+		const fileToLines = formatFileToLines(originalContent)
+
+		const systemPrompt = diffFixerPrompt()
+
+		const stream = await this.koduDev
+			.getApiManager()
+			.getApi()
+			.createMessageStream({
+				systemPrompt: [systemPrompt],
+				messages: [
+					{
+						role: "user",
+						content: [
+							{
+								type: "text",
+								text: dedent`You're required to view the live current file content with the line numbers and the search and replace blocks.
+					After you view both of them and understand the context, you should be able to identify the correct block of code that needs to be replaced and apply the correct changes to the file content.
+					You must call file_editor tool again with the correct search and replace blocks to apply the changes to the file content, fix any missing content or incorrect search blocks.
+					current file content is shown below with line numbers.
+					current search and replace blocks are shown below.
+					<search_replace_blocks>
+					${blocks.map(
+						(block) =>
+							dedent`
+					<search_replace_block>
+					<search_content>${block.searchContent}</search_content>
+					<replace_content>${block.replaceContent}</replace_content>
+					</search_replace_block>
+					`
+					)}
+					</search_replace_blocks>
+
+					HERE IS THE LATEST FRESH FILE CONTENT WITH LINE NUMBERS YOU MUST TAKE THIS AS THE SOURCE OF TRUTH FOR THE FILE CONTENT NOT THE SEARCH AND REPLACE BLOCKS.
+					<file_content>
+					<file_path>${this.fileState.absolutePath}</file_path>
+					Here is the latest file content with line numbers:
+					<content>
+					${fileToLines}
+					</content>
+					</file_content>
+
+					NOW TRY TO FIGURE OTU THE CORRECT search_content based on the latest file content and apply the corrected search and replace blocks to the file content.
+					ALWAYS ALWAYS TAKE THE FILE CONTENT AS THE SOURCE OF TRUTH FOR THE FILE CONTENT, you must adjust the search and replace blocks based on the file content, don't rely on the search and replace blocks as the source of truth.
+					NOW use the file_editor tool again with the corrected search and replace blocks to apply the changes to the file content.
+					
+					YOU MUST CALL FILE_EDITOR TOOL AND THE OUTPUT MUST BE STRUCUTRED AS FOLLOWS:
+					<thinking>after reviewing the file content and the search and replace blocks i found the following problems:
+					... list of findings ...</thinking>
+					Now let me fix the search and replace blocks and apply the changes to the file content.
+					<file_editor>
+					<mode>edit</mode>
+					<path>${this.fileState.absolutePath}</path>
+					<kodu_diff>
+					... corrected search and replace blocks content ...
+					</kodu_diff>
+					</file_editor>`,
+							},
+						],
+					},
+				],
+				modelId: this.koduDev.getApiManager().getApi().cheapModelId ?? "claude-3-5-haiku-20241022",
+				abortSignal: this.AbortController.signal,
+			})
+
+		let finalContent: null | string = null
+		for await (const message of stream) {
+			if (message.code === 1) {
+				if (isTextBlock(message.body.anthropic.content[0])) {
+					// let's try to extract kodu_diff from the message
+					const diffBlock = message.body.anthropic.content[0]
+					const [startTag, endTag] = ["<kodu_diff>", "</kodu_diff>"]
+					const [startIdx, endIdx] = [
+						diffBlock.text.indexOf(startTag) + startTag.length,
+						diffBlock.text.indexOf(endTag),
+					]
+					return diffBlock.text.slice(startIdx, endIdx)
+				}
+			}
+		}
+		return undefined
 	}
 }

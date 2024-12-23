@@ -1,9 +1,9 @@
+import "../src/utils/path-helpers"
 import * as path from "node:path"
 import { runTests } from "@vscode/test-electron"
 import { fileURLToPath } from "node:url"
 import * as vscode from "vscode"
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
 async function main() {
 	try {
 		// Path to the extension's root directory

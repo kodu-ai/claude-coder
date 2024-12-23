@@ -73,6 +73,10 @@ export abstract class BaseHook {
 		return false
 	}
 
+	public updateOptions(options: Partial<HookOptions>): void {
+		this._hookOptions = { ...this._hookOptions, ...options }
+	}
+
 	/**
 	 * Execute the hook and return content to inject
 	 */

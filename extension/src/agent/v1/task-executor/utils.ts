@@ -94,6 +94,7 @@ export abstract class TaskExecutorUtils {
 			v: 1,
 			status: tool?.approvalState,
 			autoApproved: !!this.stateManager.alwaysAllowWriteOnly,
+			modelId: this.getModelId(),
 		}
 		if (!this.stateManager.claudeMessagesManager.getMessageById(askTs)) {
 			await this.stateManager.claudeMessagesManager.addToClaudeMessages(askMessage)
@@ -117,6 +118,7 @@ export abstract class TaskExecutorUtils {
 			images,
 			isFetching: type === "api_req_started",
 			v: 1,
+			modelId: this.getModelId(),
 		}
 		if (this.stateManager.claudeMessagesManager.getMessageById(sayTs)) {
 			await this.stateManager.claudeMessagesManager.updateClaudeMessage(sayTs, sayMessage)
@@ -152,6 +154,8 @@ export abstract class TaskExecutorUtils {
 				output,
 				input,
 			},
+			modelId: this.getModelId(),
+			apiMetrics,
 			v: 1,
 		}
 		if (this.stateManager.claudeMessagesManager.getMessageById(ts)) {
@@ -179,11 +183,16 @@ export abstract class TaskExecutorUtils {
 			isFetching: type === "api_req_started",
 			v: 1,
 			...options,
+			modelId: this.getModelId(),
 		}
 
 		await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage)
 		await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(sayMessage)
 		return sayTs
+	}
+
+	private getModelId(): string {
+		return this.stateManager.apiManager.getModelId()
 	}
 
 	protected logState(message: string): void {

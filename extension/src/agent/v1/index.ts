@@ -26,6 +26,7 @@ import { ToolName } from "./tools/types"
 import { DIFF_VIEW_URI_SCHEME } from "../../integrations/editor/decoration-controller"
 import { HookManager, BaseHook, HookOptions, HookConstructor } from "./hooks"
 import { ObserverHook } from "./hooks/observer-hook"
+import { GlobalStateManager } from "../../providers/state/global-state-manager"
 
 // new KoduDev
 export class KoduDev {
@@ -68,14 +69,16 @@ export class KoduDev {
 		// Initialize hook manager
 		this.hookManager = new HookManager(this)
 
+		const triggerEvery = GlobalStateManager.getInstance().getGlobalState("observerHookEvery")
+
 		// Initialize default hooks
-		// if (!options.noTask) {
-		// 	// Add diagnostic hook by default
-		// 	this.hookManager.registerHook(ObserverHook, {
-		// 		hookName: "observer",
-		// 		triggerEvery: 1, // Trigger every 5 requests
-		// 	})
-		// }
+		if (!options.noTask && triggerEvery) {
+			// Add diagnostic hook by default
+			this.hookManager.registerHook(ObserverHook, {
+				hookName: "observer",
+				triggerEvery,
+			})
+		}
 		this.toolExecutor = new ToolExecutor({
 			cwd: getCwd(),
 			alwaysAllowReadOnly: this.stateManager.alwaysAllowReadOnly,
@@ -215,6 +218,7 @@ export class KoduDev {
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
 	}
 
+	// FIXME: this function breaks prompt cache i think. or attempt completion is breaking the cache
 	async resumeTaskFromHistory() {
 		if (this.isAborting) {
 			throw new Error("Cannot resume task while aborting")
@@ -455,6 +459,20 @@ export class KoduDev {
 		await vscode.commands.executeCommand("vscode.diff", leftUri, rightUri, `${filePath} (local ↔ v${version})`)
 	}
 
+	observerHookEvery(value?: number) {
+		// if not value is provided, we disable the observer hook
+		if (!value) {
+			this.hookManager.removeHook("observer")
+			return
+		}
+		// check if the observer hook is already registered
+		if (this.hookManager.hasHook("observer")) {
+			this.hookManager.getHook("observer")?.updateOptions({ triggerEvery: value })
+		} else {
+			this.hookManager.registerHook(ObserverHook, { hookName: "observer", triggerEvery: value })
+		}
+	}
+
 	/**
 	 * current impelementation isn't working as expected requires better data structure to store the file versions and context if the file existed before or not
 	 * Rollback to a specific checkpoint:
@@ -523,8 +541,6 @@ export class KoduDev {
 
 		vscode.window.showInformationMessage(`Successfully rolled back to version ${version} for ${filePath}.`)
 	}
-
-	async get3rdPartyCritisim() {}
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {
 		let details = ""

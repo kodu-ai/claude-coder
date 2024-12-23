@@ -1,9 +1,9 @@
-import { ToolPromptSchema } from "../utils/types"
+import { ToolPromptSchema } from "../utils/utils"
 
 export const spawnAgentPrompt: ToolPromptSchema = {
 	name: "spawn_agent",
 	description:
-		"Request to spawn a new sub-agent with specific instructions and capabilities. This tool allows you to create specialized agents for specific tasks like handling sub-tasks. The tool requires user approval before creating the agent.",
+		"Request to spawn a sub task agent with specific instructions and capabilities. This tool allows you to create specialized agents for specific sub tasks like planning, installing dependencies and running unit tests or even exploring the repo and reporting back. The tool requires user approval before creating the agent.",
 	parameters: {
 		agentName: {
 			type: "string",

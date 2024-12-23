@@ -54,7 +54,7 @@ describe("Edit Blocks Parser and Validator", () => {
 			const blocks = parseDiffBlocks(block, "test.py")
 			assert.strictEqual(blocks.length, 1)
 		})
-		it("should parse single SEARCH/REPLACE block correctly", () => {
+		it("should parse single SEARCH/REPLACE block correctly 2", () => {
 			const diffContent = `SEARCH
 function hello() {
   console.log("hello");

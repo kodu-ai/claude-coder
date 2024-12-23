@@ -3,7 +3,7 @@ import * as os from "os"
 import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeMessage, ClaudeSayTool } from "../../shared/messages/extension-message"
-
+import "../../utils/path-helpers"
 declare global {
 	interface String {
 		toPosix(): string

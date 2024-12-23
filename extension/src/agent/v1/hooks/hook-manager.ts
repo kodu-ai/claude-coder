@@ -25,6 +25,18 @@ export class HookManager {
 	}
 
 	/**
+	 * Update hook settings
+	 */
+	public updateHook(hookName: string, options: Partial<HookOptions>): void {
+		const hook = this.getHook(hookName)
+		if (!hook) {
+			throw new Error(`Hook with name ${hookName} does not exist`)
+		}
+
+		hook.updateOptions(options)
+	}
+
+	/**
 	 * Check all hooks and execute those that should be triggered
 	 * Returns concatenated content from all triggered hooks
 	 */

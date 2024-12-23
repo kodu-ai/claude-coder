@@ -4,7 +4,7 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
-## [2.0.1] - 2024-12-16
+## [2.0.0] - 2024-12-16
 
 ### Changed
 
@@ -21,6 +21,11 @@ All notable changes to the "claude-coder" extension will be documented in this f
 -   better diagnostic now show Kodu the hover hints, related intelligence and the actual line that the error has occurred on.
 -   interested files tool lets Kodu note interested files for further usage and remembers it in memory at all time
 -   3rd party observer LLM that auto correct Kodu when Kodu makes mistakes and guide Kodu to the path passively
+-   reduced token usage
+-   improved extension speed
+-   Prompt Editor allow you to truly configure your Kodu instructions.
+-   auto fix inline edits in the same request
+-   multi agent system preview
 
 ## [1.16.0] - 2024-12-05
 

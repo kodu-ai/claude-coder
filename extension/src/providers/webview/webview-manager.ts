@@ -366,6 +366,14 @@ export class WebviewManager {
 						vscode.env.openExternal(vscode.Uri.parse(message.url))
 						break
 
+					case "enableObserverHook":
+						this.provider
+							.getGlobalStateManager()
+							.updateGlobalState("observerHookEvery", message.triggerEvery)
+						this.provider.getKoduDev()?.observerHookEvery(message.triggerEvery)
+						this.postBaseStateToWebview()
+						break
+
 					case "amplitude":
 						AmplitudeWebviewManager.handleMessage(message)
 						break

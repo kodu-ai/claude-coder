@@ -11,8 +11,6 @@ import { urlScreenshotPrompt } from "./url-screenshot"
 import { attemptCompletionPrompt } from "./attempt-complete"
 import { askFollowupQuestionPrompt } from "./ask-followup-question"
 import { spawnAgentPrompt } from "./spawn-agent"
-import { exitAgentPrompt } from "./exit-agent"
-import { submitReviewPrompt } from "./submit-review"
 
 export const toolPrompts = [
 	addInterestedFilePrompt,
@@ -27,6 +25,6 @@ export const toolPrompts = [
 	urlScreenshotPrompt,
 	attemptCompletionPrompt,
 	askFollowupQuestionPrompt,
-	// spawnAgentPrompt,
+	spawnAgentPrompt,
 	// submitReviewPrompt,
 ]
