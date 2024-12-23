@@ -2,12 +2,12 @@ import { Anthropic } from "@anthropic-ai/sdk"
 import fs from "fs/promises"
 import * as path from "path"
 import * as vscode from "vscode"
-import { formatAttachementsIntoBlocks } from "../../../agent/v1/tools/format-content"
-import { HistoryItem } from "../../../shared/history-item"
-import { Resource } from "../../../shared/webview-message"
+import { formatAttachementsIntoBlocks } from "../../agent/v1/tools/format-content"
+import { HistoryItem } from "../../shared/history-item"
+import { Resource } from "../../shared/webview-message"
 // import { compressImages, downloadTask, selectImages } from "../../../utils"
-import { ExtensionProvider } from "../claude-coder-provider"
-import { compressImages, selectImages, downloadTask } from "../../../utils"
+import { ExtensionProvider } from "../extension-provider"
+import { compressImages, selectImages, downloadTask } from "../../utils"
 
 export class TaskManager {
 	private provider: ExtensionProvider

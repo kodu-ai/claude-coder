@@ -1,13 +1,13 @@
 import * as vscode from "vscode"
-import { KoduDev } from "../../agent/v1"
-import { StateManager } from "./state/state-manager"
+import { KoduDev } from "../agent/v1"
+import { ExtensionStateManager } from "./state/extension-state-manager"
 import { WebviewManager } from "./webview/webview-manager"
 import { TaskManager } from "./state/task-manager"
 import { GlobalStateManager } from "./state/global-state-manager"
 import { ApiManager } from "./state/api-manager"
-import { HistoryItem } from "../../shared/history-item"
+import { HistoryItem } from "../shared/history-item"
 import { SecretStateManager } from "./state/secret-state-manager"
-import { extensionName } from "../../shared/constants"
+import { extensionName } from "../shared/constants"
 
 export class ExtensionProvider implements vscode.WebviewViewProvider {
 	public static readonly sideBarId = `${extensionName}.SidebarProvider`
@@ -21,7 +21,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 	public set koduDev(value: KoduDev | undefined) {
 		this._koduDev = value
 	}
-	private stateManager: StateManager
+	private stateManager: ExtensionStateManager
 	private webviewManager: WebviewManager
 	private secretStateManager: SecretStateManager
 	private taskManager: TaskManager
@@ -32,7 +32,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 		this.outputChannel.appendLine("ExtensionProvider instantiated")
 		this.globalStateManager = GlobalStateManager.getInstance(context)
 		this.secretStateManager = SecretStateManager.getInstance(context)
-		this.stateManager = new StateManager(this)
+		this.stateManager = new ExtensionStateManager(this)
 		this.taskManager = new TaskManager(this)
 		this.apiManager = ApiManager.getInstance(this)
 		this.webviewManager = new WebviewManager(this)

@@ -1,14 +1,14 @@
 import { GlobalStateManager } from "./global-state-manager"
-import { HistoryItem, isSatifiesHistoryItem } from "../../../shared/history-item"
+import { HistoryItem, isSatifiesHistoryItem } from "../../shared/history-item"
 import { SecretStateManager } from "./secret-state-manager"
-import { fetchKoduUser as fetchKoduUserAPI } from "../../../api/providers/kodu"
-import { ExtensionProvider } from "../claude-coder-provider"
-import { ExtensionState, isV1ClaudeMessage, V1ClaudeMessage } from "../../../shared/extension-message"
+import { fetchKoduUser as fetchKoduUserAPI } from "../../api/providers/kodu"
+import { ExtensionProvider } from "../extension-provider"
+import { ExtensionState, isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/extension-message"
 
 /**
  * this at the current form can't be a singleton because it has dependicies on the KoduDev instance, and one extension can have multiple KoduDev instances
  */
-export class StateManager {
+export class ExtensionStateManager {
 	private globalStateManager: GlobalStateManager
 	private secretStateManager: SecretStateManager
 
@@ -28,7 +28,6 @@ export class StateManager {
 			alwaysAllowReadOnly,
 			alwaysAllowWriteOnly,
 			taskHistory,
-			fp,
 			autoCloseTerminal,
 			skipWriteAnimation,
 			autoSummarize,
@@ -46,7 +45,6 @@ export class StateManager {
 			this.globalStateManager.getGlobalState("alwaysAllowReadOnly"),
 			this.globalStateManager.getGlobalState("alwaysAllowWriteOnly"),
 			this.globalStateManager.getGlobalState("taskHistory"),
-			this.secretStateManager.getSecretState("fp"),
 			this.globalStateManager.getGlobalState("autoCloseTerminal"),
 			this.globalStateManager.getGlobalState("skipWriteAnimation"),
 			this.globalStateManager.getGlobalState("autoSummarize"),
@@ -90,17 +88,15 @@ export class StateManager {
 			shouldShowAnnouncement: lastShownAnnouncementId === undefined,
 			claudeMessages: currentClaudeMessage ?? [],
 			version: this.context.context.extension.packageJSON.version,
-			fpjsKey: process.env.FPJS_API_KEY,
 			alwaysAllowWriteOnly: alwaysAllowWriteOnly ?? false,
 			taskHistory: taskHistory ?? [],
 
-			fingerprint: fp,
 			autoCloseTerminal: autoCloseTerminal ?? false,
 			skipWriteAnimation: skipWriteAnimation ?? false,
 			currentContextWindow: currentContextWindow ?? 0,
 			currentContextTokens: tokens ?? 0,
 			autoSummarize: autoSummarize ?? false,
-			inlineEditOutputType,
+			inlineEditOutputType: inlineEditOutputType ?? "full",
 			gitHandlerEnabled: gitHandlerEnabled ?? true,
 		} satisfies ExtensionState
 	}

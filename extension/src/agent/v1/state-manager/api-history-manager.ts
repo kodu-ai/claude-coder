@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk"
-import { ExtensionProvider } from "../../../providers/claude-coder/claude-coder-provider"
+import { ExtensionProvider } from "../../../providers/extension-provider"
 import { KoduAgentState, ApiHistoryItem } from "../types"
 import { IOManager } from "./io-manager"
 

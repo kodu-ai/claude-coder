@@ -1,5 +1,5 @@
 import { ApiManager } from "../../../api/api-handler"
-import { ExtensionProvider } from "../../../providers/claude-coder/claude-coder-provider"
+import { ExtensionProvider } from "../../../providers/extension-provider"
 import { amplitudeTracker } from "../../../utils/amplitude"
 import { KoduAgentState, KoduDevOptions, FileVersion, SubAgentState } from "../types"
 import { ApiHistoryManager } from "./api-history-manager"

@@ -18,12 +18,7 @@ export type ApiConfiguration = {
 	apiModelId?: KoduModelId
 	browserModelId?: string
 }
-export const bugReportSchema = z.object({
-	description: z.string(),
-	reproduction: z.string(),
-	apiHistory: z.string(),
-	claudeMessage: z.string(),
-})
+
 export interface ApiHandler {
 	createMessageStream({
 		systemPrompt,
@@ -33,6 +28,7 @@ export interface ApiHandler {
 		tempature,
 		modelId,
 		appendAfterCacheToLastMessage,
+		updateAfterCacheInserts,
 	}: {
 		systemPrompt: string[]
 		messages: ApiHistoryItem[]
@@ -47,25 +43,9 @@ export interface ApiHandler {
 		) => Promise<[ApiHistoryItem[], Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[]]>
 	}): AsyncIterableIterator<koduSSEResponse>
 
-	createBaseMessageStream(
-		systemPrompt: string,
-		messages: Anthropic.Messages.MessageParam[],
-		modelId: KoduModelId,
-		abortSignal?: AbortSignal | null,
-		tempature?: number,
-		top_p?: number
-	): AsyncIterableIterator<koduSSEResponse>
-
-	createUserReadableRequest(
-		userContent: Array<
-			| Anthropic.TextBlockParam
-			| Anthropic.ImageBlockParam
-			| Anthropic.ToolUseBlockParam
-			| Anthropic.ToolResultBlockParam
-		>
-	): any
-
 	get options(): ApiHandlerOptions
+
+	get cheapModelId(): string | undefined
 
 	getModel(): { id: ApiModelId; info: ModelInfo }
 

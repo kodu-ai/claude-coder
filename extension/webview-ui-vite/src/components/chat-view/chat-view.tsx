@@ -1,15 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { ChatState, ChatViewProps } from "./chat"
-import { useAtom, useSetAtom } from "jotai"
-import { attachmentsAtom, chatState, selectedImagesAtom, syntaxHighlighterAtom } from "./atoms"
+import { useAtom } from "jotai"
+import { attachmentsAtom, chatState, syntaxHighlighterAtom } from "./atoms"
 import { useExtensionState } from "@/context/extension-state-context"
 import { useChatMessageHandling } from "@/hooks/use-message-handler"
 import { useImageHandling } from "@/hooks/use-image-handler"
 import { useMessageRunning } from "@/hooks/use-message-running"
 import { useSelectImages } from "@/hooks/use-select-images"
-import { combineApiRequests } from "../../../../src/shared/combine-api-requests"
-import { combineCommandSequences, COMMAND_STDIN_STRING } from "../../../../src/shared/combine-command-sequences"
-import { getApiMetrics } from "../../../../src/shared/get-api-metrics"
 import { getSyntaxHighlighterStyleFromTheme } from "@/utils/get-syntax-highlighter-style-from-theme"
 import { vscode } from "@/utils/vscode"
 import { ChatInput } from "./chat-input"
@@ -124,11 +121,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 		}
 	}, [currentTask?.ts])
 
-	const modifiedMessages = useMemo(() => combineApiRequests(combineCommandSequences(messages.slice(1))), [messages])
 	useChatMessageHandling(messages, handleButtonStateUpdate, setAttachments)
 
 	const visibleMessages = useMemo(() => {
-		return modifiedMessages.filter((message) => {
+		return messages.filter((message) => {
 			if (message.say === "shell_integration_warning") {
 				return true
 			}
@@ -153,7 +149,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 			}
 			return true
 		})
-	}, [modifiedMessages])
+	}, [messages])
 
 	useEffect(() => {
 		const hasMaxContext = visibleMessages.some(

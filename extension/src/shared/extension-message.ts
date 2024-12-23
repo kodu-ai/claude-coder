@@ -1,5 +1,5 @@
 import { SpawnAgentOptions } from "../agent/v1/tools/schema/agents/agent-spawner"
-import type { GlobalState } from "../providers/claude-coder/state/global-state-manager"
+import type { GlobalState } from "../providers/state/global-state-manager"
 import { ApiConfiguration } from "./api"
 import { HistoryItem } from "./history-item"
 import { ChatTool } from "./new-tools"
@@ -131,7 +131,6 @@ export interface BaseExtensionState {
 	customInstructions?: string
 	alwaysAllowReadOnly?: boolean
 	alwaysAllowWriteOnly?: boolean
-	fpjsKey?: string
 	user: GlobalState["user"]
 	apiConfiguration?: ApiConfiguration
 	themeName?: string
@@ -141,7 +140,6 @@ export interface BaseExtensionState {
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean
 	autoCloseTerminal: boolean
-	fingerprint?: string
 }
 
 export interface ExtensionState extends BaseExtensionState {

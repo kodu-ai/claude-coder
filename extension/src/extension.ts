@@ -1,5 +1,5 @@
 import * as vscode from "vscode"
-import { ExtensionProvider } from "./providers/claude-coder/claude-coder-provider"
+import { ExtensionProvider } from "./providers/extension-provider"
 import { amplitudeTracker } from "./utils/amplitude"
 import * as dotenv from "dotenv"
 import * as path from "path"

@@ -1,6 +1,6 @@
 import * as vscode from "vscode"
-import { HistoryItem } from "../../../shared/history-item"
-import { KoduModelId } from "../../../shared/api"
+import { HistoryItem } from "../../shared/history-item"
+import { KoduModelId } from "../../shared/api"
 
 type User = {
 	email: string

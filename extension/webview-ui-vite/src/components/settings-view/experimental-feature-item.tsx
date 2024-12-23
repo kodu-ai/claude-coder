@@ -2,7 +2,7 @@ import React from "react"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
-import { GlobalState } from "../../../../src/providers/claude-coder/state/global-state-manager"
+import { GlobalState } from "../../../../src/providers/state/global-state-manager"
 import { cn } from "@/lib/utils"
 
 interface ExperimentalFeature {

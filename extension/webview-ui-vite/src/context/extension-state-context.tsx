@@ -5,7 +5,7 @@ import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/extension-m
 import { vscode } from "../utils/vscode"
 import { ApiConfiguration } from "../../../src/api/index"
 import { HistoryItem } from "../../../src/shared/history-item"
-import type { GlobalState } from "../../../src/providers/claude-coder/state/global-state-manager"
+import type { GlobalState } from "../../../src/providers/state/global-state-manager"
 import { useState } from "react"
 
 // Define atoms for each piece of state
@@ -35,10 +35,7 @@ const themeNameAtom = atom<string | undefined>(undefined)
 themeNameAtom.debugLabel = "themeName"
 const extensionNameAtom = atom<string | undefined>(undefined)
 extensionNameAtom.debugLabel = "extensionName"
-const fingerprintAtom = atom<string | undefined>(undefined)
-fingerprintAtom.debugLabel = "fingerprint"
-const fpjsKeyAtom = atom<string | undefined>(undefined)
-fpjsKeyAtom.debugLabel = "fpjsKey"
+
 const currentTaskIdAtom = atom<string | undefined>(undefined)
 currentTaskIdAtom.debugLabel = "currentTask"
 const autoCloseTerminalAtom = atom(false)
@@ -76,11 +73,9 @@ export const extensionStateAtom = atom((get) => ({
 
 	uriScheme: get(uriSchemeAtom),
 	customInstructions: get(customInstructionsAtom),
-	fingerprint: get(fingerprintAtom),
 	skipWriteAnimation: get(skipWriteAnimationAtom),
 	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
 	autoCloseTerminal: get(autoCloseTerminalAtom),
-	fpjsKey: get(fpjsKeyAtom),
 	extensionName: get(extensionNameAtom),
 	themeName: get(themeNameAtom),
 	user: get(userAtom),
@@ -162,7 +157,6 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
 	const setThemeName = useSetAtom(themeNameAtom)
 	const setCurrentIdTask = useSetAtom(currentTaskIdAtom)
-	const setFingerprint = useSetAtom(fingerprintAtom)
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setUriScheme = useSetAtom(uriSchemeAtom)
 	const setCurrentContextWindow = useSetAtom(currentContextWindowAtom)
@@ -170,7 +164,6 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setCurrentContextTokens = useSetAtom(currentContextTokensAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setExtensionName = useSetAtom(extensionNameAtom)
-	const setFpjsKey = useSetAtom(fpjsKeyAtom)
 	const setTerminalCompressionThreshold = useSetAtom(terminalCompressionThresholdAtom)
 	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
 
@@ -205,8 +198,6 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setAlwaysAllowWriteOnly(!!message.state.alwaysAllowWriteOnly)
 			setDidHydrateState(true)
 			setThemeName(message.state.themeName)
-			setFpjsKey(message.state.fpjsKey)
-			setFingerprint(message.state.fingerprint)
 			setUriScheme(message.state.uriScheme)
 			setApiConfiguration(message.state.apiConfiguration)
 		}

@@ -7,7 +7,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { AxiosError } from "axios"
 import { ApiConfiguration, ApiHandler, buildApiHandler } from "."
-import { ExtensionProvider } from "../providers/claude-coder/claude-coder-provider"
+import { ExtensionProvider } from "../providers/extension-provider"
 import { KoduError, koduSSEResponse } from "../shared/kodu"
 import { amplitudeTracker } from "../utils/amplitude"
 import { ApiHistoryItem, ClaudeMessage, UserContent } from "../agent/v1/types"

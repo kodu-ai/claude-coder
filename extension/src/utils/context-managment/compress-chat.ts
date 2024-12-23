@@ -210,9 +210,9 @@ export class CompressToolExecution {
 		}
 		logger(`Compressing output for command: ${command}`, "info")
 		try {
-			const resultStream = this.apiHandler.createBaseMessageStream(
-				SYSTEM_PROMPT,
-				[
+			const resultStream = this.apiHandler.createMessageStream({
+				systemPrompt: [SYSTEM_PROMPT],
+				messages: [
 					{
 						role: "user",
 						content: [
@@ -223,8 +223,9 @@ export class CompressToolExecution {
 						],
 					},
 				],
-				"claude-3-5-haiku-20241022"
-			)
+				abortSignal: null,
+				modelId: this.apiHandler.cheapModelId ?? this.apiHandler.getModel().id,
+			})
 			for await (const message of resultStream) {
 				if (message.code === 1 && isTextBlock(message.body.anthropic.content[0])) {
 					return message.body.anthropic.content[0].text

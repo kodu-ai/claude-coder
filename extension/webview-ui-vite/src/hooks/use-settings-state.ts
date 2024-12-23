@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react"
-import { GlobalState } from "../../../src/providers/claude-coder/state/global-state-manager"
+import { GlobalState } from "../../../src/providers/state/global-state-manager"
 import { useExtensionState } from "../context/extension-state-context"
 import { vscode } from "../utils/vscode"
 

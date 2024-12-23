@@ -115,6 +115,11 @@ export async function enrichConversationHistory(
 			})
 		}
 	}
+
+	// now we want to reverse of the content so the first content is the last message (gives it better attention)
+	if (Array.isArray(lastMessage.content)) {
+		lastMessage.content.reverse()
+	}
 }
 
 /**

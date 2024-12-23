@@ -3,7 +3,7 @@ import { ClaudeAskResponse } from "../../../shared/webview-message"
 import { AskDetails, AskResponse } from "./utils"
 import { StateManager } from "../state-manager"
 import { ChatTool } from "../../../shared/new-tools"
-import { WebviewManager } from "../../../providers/claude-coder/webview/webview-manager"
+import { WebviewManager } from "../../../providers/webview/webview-manager"
 interface PendingAsk {
 	resolve: (value: AskResponse) => void
 	reject: (error: Error) => void

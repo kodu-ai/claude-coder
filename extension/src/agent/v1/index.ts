@@ -1,5 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ExtensionProvider } from "../../providers/claude-coder/claude-coder-provider"
+import { ExtensionProvider } from "../../providers/extension-provider"
 import { isV1ClaudeMessage } from "../../shared/extension-message"
 import { ClaudeAskResponse } from "../../shared/webview-message"
 import { ApiManager } from "../../api/api-handler"

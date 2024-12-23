@@ -5,6 +5,7 @@ export interface ApiHandlerOptions {
 	koduEmail?: string
 	apiModelId?: KoduModelId
 	browserModelId?: string
+	cheapModelId?: string
 }
 
 export type ApiConfiguration = ApiHandlerOptions & {

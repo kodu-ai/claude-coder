@@ -1,5 +1,5 @@
 import { ApiConfiguration } from "../api"
-import { GlobalState } from "../providers/claude-coder/state/global-state-manager"
+import { GlobalState } from "../providers/state/global-state-manager"
 
 export type Resource =
 	| { id: string; type: "file" | "folder"; name: string }

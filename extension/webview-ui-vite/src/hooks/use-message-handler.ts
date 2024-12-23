@@ -149,6 +149,11 @@ export const useChatMessageHandling = (
 						textAreaDisabled: false,
 						enableButtons: true,
 					},
+					submit_review: {
+						...baseState,
+						primaryButtonText: "Submit Review",
+						secondaryButtonText: "Cancel",
+					},
 					write_to_file: {
 						...baseState,
 						primaryButtonText: "Save",
