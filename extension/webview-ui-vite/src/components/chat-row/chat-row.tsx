@@ -13,6 +13,7 @@ import {
 } from "./chat-row-utils"
 import { ToolRenderer, ChatMaxWindowBlock, ChatTruncatedBlock } from "./chat-tools"
 import { ChatTool } from "../../../../src/shared/new-tools"
+import { ObserverBadge } from "./tools/observer-hook"
 
 interface ChatRowProps {
 	message: V1ClaudeMessage
@@ -44,6 +45,15 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, isFirst, nextMessage }) =>
 						return <ChatTruncatedBlock ts={message.ts} text={message.text} />
 					case "chat_finished":
 						return <ChatMaxWindowBlock ts={message.ts} />
+					case "hook":
+						return (
+							<ObserverBadge
+								state={message.hook?.state === "pending" ? "observing" : "complete"}
+								apiMetrics={message.apiMetrics}
+								modelId={message.modelId}
+								output={message.hook?.output}
+							/>
+						)
 					case "api_req_started":
 						return (
 							<APIRequestMessage

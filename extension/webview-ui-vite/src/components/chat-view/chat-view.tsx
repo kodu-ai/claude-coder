@@ -105,6 +105,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	const firstTaskMsg = useMemo(() => messages.at(0), [messages])
 
+	const cleanedMessages = useMemo(() => messages.slice(1), [messages])
+
 	const isMessageRunning = useMessageRunning(messages)
 
 	useEffect(() => {
@@ -121,10 +123,10 @@ const ChatView: React.FC<ChatViewProps> = ({
 		}
 	}, [currentTask?.ts])
 
-	useChatMessageHandling(messages, handleButtonStateUpdate, setAttachments)
+	useChatMessageHandling(cleanedMessages, handleButtonStateUpdate, setAttachments)
 
 	const visibleMessages = useMemo(() => {
-		return messages.filter((message) => {
+		return cleanedMessages.filter((message) => {
 			if (message.say === "shell_integration_warning") {
 				return true
 			}
@@ -149,7 +151,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 			}
 			return true
 		})
-	}, [messages])
+	}, [cleanedMessages])
 
 	useEffect(() => {
 		const hasMaxContext = visibleMessages.some(
