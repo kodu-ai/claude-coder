@@ -25,17 +25,23 @@ export class PromptManager {
 				"webview-ui-vite",
 				"build",
 				"assets",
-				"index.js",
+				"prompt-editor.js",
 			])
 		} else {
 			scriptUri = `http://${localServerUrl}/src/prompt-editor.tsx`
 		}
+		const stylesUri2 = getUri(webview, this.webviewManager.provider.getContext().extensionUri, [
+			"webview-ui-vite",
+			"build",
+			"assets",
+			"App.css",
+		])
 
 		const stylesUri = getUri(webview, this.webviewManager.provider.getContext().extensionUri, [
 			"webview-ui-vite",
 			"build",
 			"assets",
-			"index.css",
+			"prompt-editor.css",
 		])
 
 		const codiconsUri = webview.asWebviewUri(
@@ -73,6 +79,7 @@ export class PromptManager {
                 <meta name="theme-color" content="#000000">
                 <meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
                 <link rel="stylesheet" type="text/css" href="${stylesUri}">
+                <link rel="stylesheet" type="text/css" href="${stylesUri2}">
                 <link href="${codiconsUri}" rel="stylesheet" />
                 <title>Prompt Templates</title>
               </head>

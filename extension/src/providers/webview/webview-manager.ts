@@ -207,7 +207,7 @@ export class WebviewManager {
 			"webview-ui-vite",
 			"build",
 			"assets",
-			"index.css",
+			"App.css",
 		])
 
 		// Updated codicons path and error handling

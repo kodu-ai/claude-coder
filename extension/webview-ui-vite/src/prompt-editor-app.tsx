@@ -1,10 +1,9 @@
 import React from "react"
 import { createRoot } from "react-dom/client"
 import { PromptEditor } from "./components/prompt-editor"
+import { TooltipProvider } from "./components/ui/tooltip"
 import "./App.css"
 import "./index.css"
-import { TooltipProvider } from "./components/ui/tooltip"
-import { ExtensionStateProvider } from "./context/extension-state-context"
 
 const App = () => {
 	return (

@@ -10,7 +10,6 @@ import {
 import { normalizeApiConfiguration } from "./components/settings-view/utils"
 import ChatView from "./components/chat-view/chat-view"
 import HistoryView from "./components/history-view/history-view"
-import "./App.css"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import OutOfCreditDialog from "./components/dialogs/out-of-credit-dialog"
