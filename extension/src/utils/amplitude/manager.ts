@@ -1,5 +1,5 @@
 import { amplitudeTracker } from "."
-import { AmplitudeWebviewMessage } from "../../shared/webview-message"
+import { AmplitudeWebviewMessage } from "../../shared/messages/client-message"
 
 export class AmplitudeWebviewManager {
 	static handleMessage(message: AmplitudeWebviewMessage) {

@@ -1,5 +1,5 @@
-import { ClaudeAsk, ClaudeSay } from "../../../../shared/extension-message"
-import { ClaudeAskResponse } from "../../../../shared/webview-message"
+import { ClaudeAsk, ClaudeSay } from "../../../../shared/messages/extension-message"
+import { ClaudeAskResponse } from "../../../../shared/messages/client-message"
 import { KoduDev } from "../.."
 import { TaskExecutorUtils } from "../../task-executor/utils"
 import { ServerRunnerTool } from "../../../../shared/new-tools"

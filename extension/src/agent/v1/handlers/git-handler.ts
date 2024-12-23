@@ -1,6 +1,6 @@
 import { execa, ExecaError } from "execa"
 import { promises as fs } from "fs"
-import { GitBranchItem, GitLogItem } from "../../../shared/extension-message"
+import { GitBranchItem, GitLogItem } from "../../../shared/messages/extension-message"
 import { StateManager } from "../state-manager"
 
 export type GitCommitResult = {

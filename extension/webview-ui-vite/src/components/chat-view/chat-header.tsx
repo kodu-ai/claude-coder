@@ -1,6 +1,6 @@
 // components/ChatHeader.tsx
 import React, { memo } from "react"
-import { ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/extension-message"
+import { ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/messages/extension-message"
 import TaskHeader from "../task-header/task-header"
 
 interface ChatHeaderProps {

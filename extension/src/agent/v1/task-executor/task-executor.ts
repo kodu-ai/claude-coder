@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { ExtensionProvider } from "../../../providers/extension-provider"
-import { isV1ClaudeMessage } from "../../../shared/extension-message"
+import { isV1ClaudeMessage } from "../../../shared/messages/extension-message"
 import { toolResponseToAIState } from "../../../shared/format-tools"
 import { KODU_ERROR_CODES, KoduError, koduSSEResponse } from "../../../shared/kodu"
 import { ChatTool } from "../../../shared/new-tools"

@@ -1,5 +1,5 @@
 import { SpawnAgentOptions } from "../agent/v1/tools/schema/agents/agent-spawner"
-import { ToolStatus } from "./extension-message"
+import { ToolStatus } from "./messages/extension-message"
 
 /**
  * This is the input and output for execute_command tool

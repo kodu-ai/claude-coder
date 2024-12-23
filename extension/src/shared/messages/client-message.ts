@@ -1,5 +1,5 @@
-import { ApiConfiguration } from "../api"
-import { GlobalState } from "../providers/state/global-state-manager"
+import { ApiConfiguration } from "../../api"
+import { GlobalState } from "../../providers/state/global-state-manager"
 import { BaseExtensionState } from "./extension-message"
 
 export type Resource =
@@ -111,21 +111,48 @@ export type loadPromptTemplateMessage = {
 	templateName: string
 }
 
+export type setActivePromptMessage = {
+	type: "setActivePrompt"
+	templateName: string | null
+}
+
 export type listPromptTemplatesMessage = {
 	type: "listPromptTemplates"
 }
 
+export type deletePromptTemplateMessage = {
+	type: "deletePromptTemplate"
+	templateName: string
+}
+
+export type ClosePromptEditorMessage = {
+	type: "closePromptEditor"
+}
+
+export type OpenPromptEditorMessage = {
+	type: "openPromptEditor"
+}
+
+export type PromptActions =
+	| OpenPromptEditorMessage
+	| listPromptTemplatesMessage
+	| savePromptTemplateMessage
+	| loadPromptTemplateMessage
+	| setActivePromptMessage
+	| deletePromptTemplateMessage
+	| ClosePromptEditorMessage
+
 export type ActionMessage = {
 	type: "action"
-	action:
-		| "promptEditorButtonTapped"
-		| "didBecomeVisible"
-		| "koduAuthenticated"
-		| "koduCreditsFetched"
-		| "prompt_template_saved"
-		| "prompt_template_loaded"
+	action: "didBecomeVisible" | "koduAuthenticated" | "koduCreditsFetched"
 	text?: string
 	state?: BaseExtensionState
+}
+
+export type TemplatesListMessage = {
+	type: "templates_list"
+	templates: string[]
+	activeTemplate: string | null
 }
 
 export type toggleGitHandlerMessage = {
@@ -146,19 +173,17 @@ export type rollbackToCheckpointMessage = {
 	ts: number
 }
 
+export type clearHistoryMessage = {
+	type: "clearHistory"
+}
+
 export type WebviewMessage =
+	| PromptActions
+	| ActionMessage
+	| clearHistoryMessage
 	| rollbackToCheckpointMessage
 	| viewFileMessage
 	| setCommandTimeoutMessage
-	| { type: "closePromptEditor" }
-	| ActionMessage
-	| savePromptTemplateMessage
-	| loadPromptTemplateMessage
-	| listPromptTemplatesMessage
-	| {
-			type: "prompt_template_loaded"
-			content: string
-	  }
 	| toggleGitHandlerMessage
 	| setInlineEditModeMessage
 	| pauseTemporayAutoModeMessage
@@ -197,10 +222,6 @@ export type WebviewMessage =
 				| "fetchKoduCredits"
 				| "resetState"
 				| "fileTree"
-				| "clearHistory"
-				| "prompt_template_saved"
-				| "prompt_template_loaded"
-				| "templates_list"
 			text?: string
 			askResponse?: ClaudeAskResponse
 			images?: string[]

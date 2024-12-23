@@ -3,7 +3,7 @@ import { ExtensionProvider } from "../../../providers/extension-provider"
 import { KoduAgentState, ClaudeMessage } from "../types"
 import { IOManager } from "./io-manager"
 import { getApiMetrics } from "../../../shared/get-api-metrics"
-import { isV1ClaudeMessage } from "../../../shared/extension-message"
+import { isV1ClaudeMessage } from "../../../shared/messages/extension-message"
 import { StateManager } from "."
 
 interface ClaudeMessagesManagerOptions {

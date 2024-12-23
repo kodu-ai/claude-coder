@@ -3,7 +3,7 @@ import { HistoryItem, isSatifiesHistoryItem } from "../../shared/history-item"
 import { SecretStateManager } from "./secret-state-manager"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../api/providers/kodu"
 import { ExtensionProvider } from "../extension-provider"
-import { ExtensionState, isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/extension-message"
+import { ExtensionState, isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/messages/extension-message"
 
 /**
  * this at the current form can't be a singleton because it has dependicies on the KoduDev instance, and one extension can have multiple KoduDev instances

@@ -58,7 +58,7 @@ const AdvancedTab: React.FC = () => {
 						size="sm"
 						variant="secondary"
 						onClick={() => {
-							vscode.postMessage({ type: "action", action: "promptEditorButtonTapped" })
+							vscode.postMessage({ type: "openPromptEditor" })
 						}}>
 						Open Editor
 					</Button>

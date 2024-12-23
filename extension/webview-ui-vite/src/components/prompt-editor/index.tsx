@@ -7,8 +7,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { vscode } from "@/utils/vscode"
+import { PromptActions, PromptTemplate } from "./prompt-actions"
+import { useEvent } from "react-use"
 
 interface PromptEditorProps {}
+
+interface TemplateInfo {
+	name: string
+	isActive: boolean
+}
+
+const promptActions = PromptActions.getInstance()
 
 interface TemplatePlaceholder {
 	description: string
@@ -98,7 +107,8 @@ export const PromptEditor: React.FC<PromptEditorProps> = () => {
 	const [showSaveDialog, setShowSaveDialog] = useState<boolean>(false)
 	const [showLoadDialog, setShowLoadDialog] = useState<boolean>(false)
 	const [templateName, setTemplateName] = useState<string>("")
-	const [templates, setTemplates] = useState<string[]>([])
+	const [templates, setTemplates] = useState<TemplateInfo[]>([])
+	const [activeTemplate, setActiveTemplate] = useState<string | null>(null)
 
 	const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 	const suggestionsRef = React.useRef<HTMLDivElement>(null)
@@ -211,50 +221,58 @@ export const PromptEditor: React.FC<PromptEditorProps> = () => {
 
 	const handleSave = useCallback(() => {
 		if (templateName.trim()) {
-			vscode.postMessage({
-				type: "savePromptTemplate",
-				templateName: templateName.trim(),
-				content: value,
-			})
+			promptActions.saveTemplate(templateName.trim(), value)
 			setShowSaveDialog(false)
 			setTemplateName("")
 		}
 	}, [templateName, value])
 
 	const handleLoad = useCallback((template: string) => {
-		vscode.postMessage({
-			type: "loadPromptTemplate",
-			templateName: template,
-		})
+		promptActions.loadTemplate(template)
 		setShowLoadDialog(false)
 	}, [])
 
-	useEffect(() => {
-		const handleMessage = (event: MessageEvent) => {
-			const message = event.data
-			if (message.type === "prompt_template_loaded") {
-				setValue(message.content)
-				let preview = message.content
+	const handleSetActive = useCallback((templateName: string | null) => {
+		promptActions.setActiveTemplate(templateName)
+	}, [])
+	const handleMessage = useCallback((event: MessageEvent) => {
+		console.log(event)
+		promptActions.handleMessage(event.data, {
+			onTemplateLoaded: (content) => {
+				setValue(content)
+				let preview = content
 				PLACEHOLDER_NAMES.forEach((placeholder) => {
 					const regex = new RegExp(`{{${placeholder}}}`, "g")
 					preview = preview.replace(regex, `[Example ${placeholder} value]`)
 				})
 				setPreviewValue(preview)
-			} else if (message.type === "templates_list") {
-				setTemplates(message.templates)
-			}
-		}
-
-		window.addEventListener("message", handleMessage)
-		return () => window.removeEventListener("message", handleMessage)
+			},
+			onTemplatesList: (templates, activeTemplate) => {
+				setTemplates(
+					templates.map((name) => ({
+						name,
+						isActive: name === activeTemplate,
+					}))
+				)
+				setActiveTemplate(activeTemplate)
+			},
+			onActiveTemplateUpdated: (templateName) => {
+				setActiveTemplate(templateName)
+				setTemplates((prev) =>
+					prev.map((template) => ({
+						...template,
+						isActive: template.name === templateName,
+					}))
+				)
+			},
+		})
 	}, [])
+	useEvent("message", handleMessage)
 
 	useEffect(() => {
 		// Request templates list when load dialog opens
 		if (showLoadDialog) {
-			vscode.postMessage({
-				type: "listPromptTemplates",
-			})
+			promptActions.listTemplates()
 		}
 	}, [showLoadDialog])
 
@@ -307,7 +325,7 @@ export const PromptEditor: React.FC<PromptEditorProps> = () => {
 							<Button
 								variant="ghost"
 								size="sm"
-								onClick={() => vscode.postMessage({ type: "closePromptEditor" })}
+								onClick={() => promptActions.closeEditor()}
 								className="flex items-center gap-2">
 								<X className="w-4 h-4" />
 							</Button>
@@ -440,13 +458,27 @@ export const PromptEditor: React.FC<PromptEditorProps> = () => {
 							) : (
 								<div className="space-y-2">
 									{templates.map((template) => (
-										<Button
-											key={template}
-											variant="outline"
-											className="w-full justify-start"
-											onClick={() => handleLoad(template)}>
-											{template}
-										</Button>
+										<div key={template.name} className="flex items-center gap-2">
+											<Button
+												variant={template.isActive ? "default" : "outline"}
+												className="w-full justify-start"
+												onClick={() => handleLoad(template.name)}>
+												{template.name}
+												{template.isActive && (
+													<span className="ml-2 text-xs bg-primary/20 px-2 py-1 rounded">
+														Active
+													</span>
+												)}
+											</Button>
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() =>
+													handleSetActive(template.isActive ? null : template.name)
+												}>
+												{template.isActive ? "Deactivate" : "Set Active"}
+											</Button>
+										</div>
 									))}
 								</div>
 							)}

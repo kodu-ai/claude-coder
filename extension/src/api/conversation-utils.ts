@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { ApiHandler } from "."
 import { KoduDev } from "../agent/v1"
-import { ClaudeMessage } from "../shared/extension-message"
+import { ClaudeMessage } from "../shared/messages/extension-message"
 import { isTextBlock } from "../shared/format-tools"
 import { truncateHalfConversation, estimateTokenCount, smartTruncation } from "../utils/context-managment"
 import { cleanUpMsg, ApiMetrics } from "./api-utils"

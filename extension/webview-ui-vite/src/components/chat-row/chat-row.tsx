@@ -1,5 +1,5 @@
 import React from "react"
-import { isV1ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/extension-message"
+import { isV1ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/messages/extension-message"
 import { SyntaxHighlighterStyle } from "../../utils/get-syntax-highlighter-style-from-theme"
 import IconAndTitle from "./icon-and-title"
 import { cn } from "../../lib/utils"

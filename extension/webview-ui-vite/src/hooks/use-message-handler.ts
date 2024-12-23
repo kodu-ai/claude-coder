@@ -1,8 +1,8 @@
 import { ChatState } from "@/components/chat-view/chat"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ClaudeMessage, ExtensionMessage, isV1ClaudeMessage } from "../../../src/shared/extension-message"
+import { ClaudeMessage, ExtensionMessage, isV1ClaudeMessage } from "../../../src/shared/messages/extension-message"
 import { ChatTool } from "../../../src/shared/new-tools"
-import { Resource } from "../../../src/shared/webview-message"
+import { Resource } from "../../../src/shared/messages/client-message"
 import { useEvent } from "react-use"
 
 export const useChatMessageHandling = (

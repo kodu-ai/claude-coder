@@ -5,7 +5,7 @@
 
 import { ApiHistoryItem } from "../agent/v1"
 import { ModelInfo } from "../shared/api"
-import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../shared/extension-message"
+import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../shared/messages/extension-message"
 import { isTextBlock } from "../shared/format-tools"
 
 export interface ApiMetrics {

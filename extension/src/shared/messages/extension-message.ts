@@ -1,8 +1,8 @@
-import { SpawnAgentOptions } from "../agent/v1/tools/schema/agents/agent-spawner"
-import type { GlobalState } from "../providers/state/global-state-manager"
-import { ApiConfiguration } from "./api"
-import { HistoryItem } from "./history-item"
-import { ChatTool } from "./new-tools"
+import { SpawnAgentOptions } from "../../agent/v1/tools/schema/agents/agent-spawner"
+import type { GlobalState } from "../../providers/state/global-state-manager"
+import { ApiConfiguration } from "../api"
+import { HistoryItem } from "../history-item"
+import { ChatTool } from "../new-tools"
 
 interface FileTreeItem {
 	id: string
@@ -85,45 +85,63 @@ export type ToggleGitHandlerMessage = {
 	enabled: boolean
 }
 
+export type BaseExtensionMessage = {
+	type: "action" | "state" | "selectedImages"
+	text?: string
+	user?: ExtensionState["user"]
+	action?:
+		| "chatButtonTapped"
+		| "settingsButtonTapped"
+		| "historyButtonTapped"
+		| "promptEditorButtonTapped"
+		| "didBecomeVisible"
+		| "koduAuthenticated"
+		| "koduCreditsFetched"
+
+	state?: BaseExtensionState
+	images?: string[]
+}
+
+type ListPromptTemplatesMessage = {
+	type: "templates_list"
+	templates: string[]
+	activeTemplate: string | null
+}
+
+type LoadPromptTemplateMessage = {
+	type: "load_prompt_template"
+	content: string
+}
+
+type SetActivePromptMessage = {
+	type: "set_active_prompt"
+	templateName: string | null
+}
+
+type SaveTemplateMessage = {
+	type: "save_prompt_template"
+	templateName: string
+	content: string
+}
+
+type DeletePromptTemplateMessage = {
+	type: "deletePromptTemplate"
+	templateName: string
+}
+
+type PromptActionMessage =
+	| ListPromptTemplatesMessage
+	| SaveTemplateMessage
+	| LoadPromptTemplateMessage
+	| SetActivePromptMessage
+	| DeletePromptTemplateMessage
+
 export type ExtensionMessage =
+	| PromptActionMessage
 	| SetCommandTimeoutMessage
 	| SetInlineEditModeMessage
 	| ToggleGitHandlerMessage
-	| {
-			type: "savePromptTemplate"
-			templateName: string
-			content: string
-	  }
-	| {
-			type: "loadPromptTemplate"
-			templateName: string
-	  }
-	| {
-			type: "templates_list"
-			templates: string[]
-	  }
-	| {
-			type: "prompt_template_loaded"
-			content: string
-	  }
-	| {
-			type: "action" | "state" | "selectedImages"
-			text?: string
-			user?: ExtensionState["user"]
-			action?:
-				| "chatButtonTapped"
-				| "settingsButtonTapped"
-				| "historyButtonTapped"
-				| "promptEditorButtonTapped"
-				| "didBecomeVisible"
-				| "koduAuthenticated"
-				| "koduCreditsFetched"
-				| "prompt_template_saved"
-				| "prompt_template_loaded"
-
-			state?: BaseExtensionState
-			images?: string[]
-	  }
+	| BaseExtensionMessage
 	| PostFoldersAndItems
 	| PostClaudeMessages
 	| PostGitLog

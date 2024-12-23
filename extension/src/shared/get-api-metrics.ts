@@ -1,4 +1,4 @@
-import { ClaudeMessage, isV1ClaudeMessage } from "./extension-message"
+import { ClaudeMessage, isV1ClaudeMessage } from "./messages/extension-message"
 
 interface ApiMetrics {
 	totalTokensIn: number

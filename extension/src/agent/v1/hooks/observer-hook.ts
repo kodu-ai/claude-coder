@@ -4,7 +4,7 @@ import { promptTemplate } from "../prompts/utils/types"
 import { BaseHook, HookOptions } from "./base-hook"
 import { PromptBuilder } from "../prompts/utils/builder"
 import { ApiMetrics } from "../../../api/api-utils"
-import { V1ClaudeMessage } from "../../../shared/extension-message"
+import { V1ClaudeMessage } from "../../../shared/messages/extension-message"
 import { spawnAgentTool } from "../tools/schema/agents/agent-spawner"
 
 /**

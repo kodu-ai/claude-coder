@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react"
 import { useEvent } from "react-use"
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
-import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/extension-message"
+import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/messages/extension-message"
 import { vscode } from "../utils/vscode"
 import { ApiConfiguration } from "../../../src/api/index"
 import { HistoryItem } from "../../../src/shared/history-item"

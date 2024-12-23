@@ -1,6 +1,6 @@
 import * as path from "path"
 import * as vscode from "vscode"
-import { Resource } from "../../../shared/webview-message"
+import { Resource } from "../../../shared/messages/client-message"
 
 async function readFile(fileName: string): Promise<string> {
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0]

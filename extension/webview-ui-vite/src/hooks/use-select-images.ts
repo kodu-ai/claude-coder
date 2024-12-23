@@ -1,6 +1,6 @@
 import React, { Dispatch, SetStateAction, useCallback } from "react"
 import { useEvent } from "react-use"
-import { ExtensionMessage } from "../../../src/shared/extension-message"
+import { ExtensionMessage } from "../../../src/shared/messages/extension-message"
 import { MAX_IMAGES_PER_MESSAGE } from "./use-image-handler"
 import { selectedImagesAtom } from "@/components/chat-view/atoms"
 import { useAtom, useSetAtom } from "jotai"
