@@ -34,7 +34,7 @@ export default function AnnouncementBanner() {
 				<div className="flex items-start justify-between">
 					<div className="flex items-center gap-2">
 						<AlertCircle className="h-5 w-5 text-primary" />
-						<h2 className="text-sm font-semibold">Latest Updates (v1.16.0)</h2>
+						<h2 className="text-sm font-semibold">Latest Updates (v2.0.0)</h2>
 					</div>
 					<Button
 						variant="ghost"
@@ -48,17 +48,18 @@ export default function AnnouncementBanner() {
 
 				<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🔄 Tool response format improved for better accuracy</p>
-						<p>📝 Enhanced linter error response format</p>
-						<p>⚡️ Reduced environment details for better performance</p>
-						<p>🎯 Improved system prompt for better task focus</p>
+						<p>🔄 Better obedience to prompt and improved tools output</p>
+						<p>🔍 New search capabilities for symbols and repositories</p>
+						<p>📝 Enhanced file editing with version control features</p>
+						<p>🤖 New 3rd party observer LLM for guidance</p>
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🐛 Fixed inline editing caching issues</p>
-						<p>🚀 Better task completion accuracy</p>
-						<p>📈 Improved token efficiency</p>
-						<p>✨ Enhanced code generation reliability</p>
+						<p>⚡️ Reduced token usage and improved extension speed</p>
+						<p>🛠️ New Prompt Editor for configuring Kodu instructions</p>
+						<p>🔧 Auto fix inline edits in the same request</p>
+						<p>👥 Multi agent system preview</p>
+						<p>📊 Better diagnostic information with hover hints</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">

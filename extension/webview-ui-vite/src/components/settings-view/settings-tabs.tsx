@@ -1,20 +1,44 @@
-import React from "react"
+"use client"
+
+import React, { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { vscode } from "@/utils/vscode"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import UserInfoSection from "./user-info-section"
 import PreferencesTab from "./preferences-tab"
 import ExperimentalTab from "./experimental-tab"
 import AdvancedTab from "./advanced-tab"
 import AgentsTab from "./agents-tab"
-
 import ClosePageButton from "./close-page-button"
 import { SettingsFooter } from "./settings-footer"
+import { Label } from "../ui/label"
+import { Separator } from "../ui/separator"
+
+const tabItems = [
+	{ value: "preferences", label: "Preferences" },
+	{ value: "experimental", label: "Experimental" },
+	{ value: "advanced", label: "Advanced" },
+	{ value: "agents", label: "Agents" },
+]
 
 const SettingsPage: React.FC = () => {
+	const [activeTab, setActiveTab] = useState("preferences")
+	const [isMobile, setIsMobile] = useState(false)
+
+	useEffect(() => {
+		const checkMobile = () => setIsMobile(window.innerWidth < 315)
+		checkMobile()
+		window.addEventListener("resize", checkMobile)
+		return () => window.removeEventListener("resize", checkMobile)
+	}, [])
+
+	const handleTabChange = (value: string) => {
+		setActiveTab(value)
+	}
+
 	return (
 		<div className="container mx-auto px-4 max-[280px]:px-2 py-4 max-w-[500px] flex flex-col h-full">
-			<div className="flex items-center">
+			<div className="flex items-center justify-between">
 				<h1 className="text-xl font-bold mb-2">Settings</h1>
 				<ClosePageButton />
 			</div>
@@ -24,40 +48,41 @@ const SettingsPage: React.FC = () => {
 				<UserInfoSection />
 			</div>
 
-			<Tabs defaultValue="preferences" className="space-y-4">
-				<ScrollArea className="w-full whitespace-nowrap">
-					<TabsList className="w-full inline-flex h-fit">
-						<TabsTrigger value="preferences" className="text-xs py-1 px-4 h-auto">
-							Preferences
-						</TabsTrigger>
-						<TabsTrigger value="experimental" className="text-xs py-1 px-4 h-auto">
-							Experimental
-						</TabsTrigger>
-						<TabsTrigger value="advanced" className="text-xs py-1 px-4 h-auto">
-							Advanced
-						</TabsTrigger>
-						<TabsTrigger value="agents" className="text-xs py-1 px-4 h-auto">
-							Agents
-						</TabsTrigger>
+			{isMobile ? (
+				<div>
+					<Label>Settings</Label>
+					<Select value={activeTab} onValueChange={handleTabChange}>
+						<SelectTrigger className="w-full mb-2.5 mt-1">
+							<SelectValue placeholder="Select a tab" />
+						</SelectTrigger>
+						<SelectContent>
+							{tabItems.map((item) => (
+								<SelectItem key={item.value} value={item.value}>
+									{item.label} Tab
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					<Separator />
+				</div>
+			) : (
+				<Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 mx-auto">
+					<TabsList>
+						{tabItems.map((item) => (
+							<TabsTrigger className="p-1.5 text-xs" key={item.value} value={item.value}>
+								{item.label}
+							</TabsTrigger>
+						))}
 					</TabsList>
-					<ScrollBar orientation="horizontal" />
-				</ScrollArea>
+				</Tabs>
+			)}
 
-				<TabsContent value="preferences">
-					<PreferencesTab />
-				</TabsContent>
-
-				<TabsContent value="experimental">
-					<ExperimentalTab />
-				</TabsContent>
-
-				<TabsContent value="advanced">
-					<AdvancedTab />
-				</TabsContent>
-				<TabsContent value="agents">
-					<AgentsTab />
-				</TabsContent>
-			</Tabs>
+			<div className="mt-4">
+				{activeTab === "preferences" && <PreferencesTab />}
+				{activeTab === "experimental" && <ExperimentalTab />}
+				{activeTab === "advanced" && <AdvancedTab />}
+				{activeTab === "agents" && <AgentsTab />}
+			</div>
 
 			<div className="mt-auto mb-2 flex w-full">
 				<SettingsFooter />
