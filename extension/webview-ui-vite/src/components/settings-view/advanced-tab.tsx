@@ -14,7 +14,6 @@ const AdvancedTab: React.FC = () => {
 	const {
 		readOnly,
 		autoCloseTerminal,
-		autoSkipWrite,
 		customInstructions,
 		terminalCompressionThreshold,
 		commandTimeout,
@@ -44,6 +43,26 @@ const AdvancedTab: React.FC = () => {
 	return (
 		<div className="space-y-6">
 			<div className="space-y-4">
+				<div className={"flex items-center justify-between"}>
+					<div className={"flex-1 pr-2"}>
+						<Label htmlFor="cutomizePrompt" className="text-xs font-medium flex items-center">
+							Customize Instructions
+						</Label>
+						<p className="text-[10px] text-muted-foreground">
+							Let's you customize the instructions that Kodu will follow when executing Tasks. You can
+							customize the tools and general instructions that Kodu will follow.
+						</p>
+					</div>
+
+					<Button
+						size="sm"
+						variant="secondary"
+						onClick={() => {
+							vscode.postMessage({ type: "action", action: "promptEditorButtonTapped" })
+						}}>
+						Open Editor
+					</Button>
+				</div>
 				<ExperimentalFeatureItem
 					feature={{
 						id: "gitHandlerEnabled",
@@ -71,16 +90,7 @@ const AdvancedTab: React.FC = () => {
 					checked={autoCloseTerminal}
 					onCheckedChange={handleSetAutoCloseTerminal}
 				/>
-				<ExperimentalFeatureItem
-					feature={{
-						id: "skipWriteAnimation",
-						label: "Automatically skip file write animation",
-						description:
-							"Automatically skip the file write animation when saving files *good for low-end machines*",
-					}}
-					checked={autoSkipWrite}
-					onCheckedChange={handleAutoSkipWriteChange}
-				/>
+
 				<div className="space-y-4 mx-0">
 					<ExperimentalFeatureItem
 						feature={{
@@ -172,27 +182,6 @@ const AdvancedTab: React.FC = () => {
 							Set the maximum time in seconds that a command can run before being terminated
 						</p>
 					</div>
-				</div>
-			</div>
-			<div className="space-y-4">
-				<div className="space-y-2">
-					<Label htmlFor="custom-instructions" className="text-xs font-medium">
-						Custom Instructions
-					</Label>
-					<Textarea
-						id="custom-instructions"
-						placeholder="e.g. 'Run unit tests at the end', 'Use TypeScript with async/await'"
-						value={customInstructions}
-						onChange={handleTextAreaChange}
-						className="min-h-[120px] text-xs resize-y"
-						style={{
-							fontFamily: "var(--vscode-editor-font-family)",
-						}}
-						spellCheck={false}
-					/>
-					<p className="text-xs text-muted-foreground mt-1">
-						These instructions will be included in every task
-					</p>
 				</div>
 			</div>
 		</div>

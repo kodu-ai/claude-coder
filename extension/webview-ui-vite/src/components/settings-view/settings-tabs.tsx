@@ -1,11 +1,13 @@
 import React from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { vscode } from "@/utils/vscode"
 import UserInfoSection from "./user-info-section"
 import PreferencesTab from "./preferences-tab"
 import ExperimentalTab from "./experimental-tab"
 import AdvancedTab from "./advanced-tab"
 import AgentsTab from "./agents-tab"
+
 import ClosePageButton from "./close-page-button"
 import { SettingsFooter } from "./settings-footer"
 

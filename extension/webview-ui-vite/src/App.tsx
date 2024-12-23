@@ -1,8 +1,12 @@
 import { useCallback, useMemo, useState } from "react"
 import { useEvent } from "react-use"
 import { ExtensionMessage } from "../../src/shared/extension-message"
-import { ExtensionStateProvider, showSettingsAtom, useExtensionState } from "./context/extension-state-context"
-import { vscode } from "./utils/vscode"
+import {
+	ExtensionStateProvider,
+	showSettingsAtom,
+	showPromptEditorAtom,
+	useExtensionState,
+} from "./context/extension-state-context"
 import { normalizeApiConfiguration } from "./components/settings-view/utils"
 import ChatView from "./components/chat-view/chat-view"
 import HistoryView from "./components/history-view/history-view"
@@ -11,13 +15,14 @@ import { TooltipProvider } from "./components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import OutOfCreditDialog from "./components/dialogs/out-of-credit-dialog"
 import SettingsPage from "./components/settings-view/settings-tabs"
-import { useAtom, useAtomValue } from "jotai"
+import { useAtom } from "jotai"
 const queryClient = new QueryClient()
 
 const AppContent = () => {
 	const { apiConfiguration, user, currentTaskId } = useExtensionState()
 	const [showSettings, setShowSettings] = useAtom(showSettingsAtom)
 	const [showHistory, setShowHistory] = useState(false)
+	const [showPromptEditor, setShowPromptEditor] = useAtom(showPromptEditorAtom)
 
 	const handleMessage = useCallback((e: MessageEvent) => {
 		const message: ExtensionMessage = e.data
@@ -39,6 +44,12 @@ const AppContent = () => {
 					case "chatButtonTapped":
 						setShowSettings(false)
 						setShowHistory(false)
+						setShowPromptEditor(false)
+						break
+					case "promptEditorButtonTapped":
+						setShowSettings(false)
+						setShowHistory(false)
+						setShowPromptEditor(true)
 						break
 				}
 				break
@@ -63,7 +74,7 @@ const AppContent = () => {
 					setShowSettings(false)
 					setShowHistory(true)
 				}}
-				isHidden={showSettings || showHistory}
+				isHidden={showSettings || showHistory || showPromptEditor}
 				selectedModelSupportsImages={selectedModelInfo.supportsImages}
 				selectedModelSupportsPromptCache={selectedModelInfo.supportsPromptCache}
 			/>

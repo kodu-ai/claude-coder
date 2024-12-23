@@ -332,15 +332,6 @@ ${this.customInstructions.trim()}
 		throw error
 	}
 
-	/**
-	 * Creates a human-readable request string
-	 * @param userContent - User content to format
-	 * @returns Formatted request string
-	 */
-	public createUserReadableRequest(userContent: UserContent): string {
-		return this.api.createUserReadableRequest(userContent)
-	}
-
 	private getTaskText(str: string) {
 		const [taskStartTag, taskEndTag] = ["<task>", "</task>"]
 		const [start, end] = [str.indexOf(taskStartTag), str.indexOf(taskEndTag)]

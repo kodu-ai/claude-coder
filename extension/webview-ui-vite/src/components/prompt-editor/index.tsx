@@ -1,13 +1,31 @@
 import React, { useState, useCallback, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Save, Copy, RefreshCw } from "lucide-react"
+import { Save, Copy, RefreshCw, FolderOpen, X } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { vscode } from "@/utils/vscode"
 
-const TEMPLATE_PLACEHOLDERS = {
+interface PromptEditorProps {}
+
+interface TemplatePlaceholder {
+	description: string
+}
+
+interface TemplateHighlighterProps {
+	text: string
+}
+
+interface CursorInfo {
+	position: number
+	lineHeight: number
+	left: number
+	top: number
+}
+
+const TEMPLATE_PLACEHOLDERS: Record<string, TemplatePlaceholder> = {
 	agentName: {
 		description: "The name of the AI assistant being configured",
 	},
@@ -45,11 +63,11 @@ const TEMPLATE_PLACEHOLDERS = {
 
 const PLACEHOLDER_NAMES = Object.keys(TEMPLATE_PLACEHOLDERS)
 
-const TemplateHighlighter = ({ text }) => {
+const TemplateHighlighter: React.FC<TemplateHighlighterProps> = ({ text }: TemplateHighlighterProps) => {
 	const parts = text.split(/({{[^}]+}})/g)
 	return (
 		<div className="pointer-events-none whitespace-pre-wrap font-mono text-sm text-transparent">
-			{parts.map((part, index) => {
+			{parts.map((part: string, index: number) => {
 				if (part.match(/{{[^}]+}}/)) {
 					const placeholder = part.slice(2, -2)
 					const isValid = placeholder in TEMPLATE_PLACEHOLDERS
@@ -57,7 +75,9 @@ const TemplateHighlighter = ({ text }) => {
 					return (
 						<span
 							key={index}
-							className={`${isValid ? "bg-blue-100/70" : "bg-red-100/30"} text-transparent rounded px-0`}>
+							className={`${
+								isValid ? "bg-primary/20" : "bg-destructive/20"
+							} text-transparent rounded px-0`}>
 							{part}
 						</span>
 					)
@@ -68,18 +88,20 @@ const TemplateHighlighter = ({ text }) => {
 	)
 }
 
-const PromptEditor = () => {
+export const PromptEditor: React.FC<PromptEditorProps> = () => {
 	const [value, setValue] = useState("")
-	const [suggestions, setSuggestions] = useState([])
-	const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
-	const [cursorInfo, setCursorInfo] = useState({ position: 0, lineHeight: 0, left: 0, top: 0 })
-	const [previewValue, setPreviewValue] = useState("")
-	const [showCopiedAlert, setShowCopiedAlert] = useState(false)
-	const [showSaveDialog, setShowSaveDialog] = useState(false)
-	const [templateName, setTemplateName] = useState("")
+	const [suggestions, setSuggestions] = useState<string[]>([])
+	const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<number>(0)
+	const [cursorInfo, setCursorInfo] = useState<CursorInfo>({ position: 0, lineHeight: 0, left: 0, top: 0 })
+	const [previewValue, setPreviewValue] = useState<string>("")
+	const [showCopiedAlert, setShowCopiedAlert] = useState<boolean>(false)
+	const [showSaveDialog, setShowSaveDialog] = useState<boolean>(false)
+	const [showLoadDialog, setShowLoadDialog] = useState<boolean>(false)
+	const [templateName, setTemplateName] = useState<string>("")
+	const [templates, setTemplates] = useState<string[]>([])
 
-	const textareaRef = React.useRef(null)
-	const suggestionsRef = React.useRef(null)
+	const textareaRef = React.useRef<HTMLTextAreaElement>(null)
+	const suggestionsRef = React.useRef<HTMLDivElement>(null)
 
 	const updateSuggestionPosition = useCallback(() => {
 		if (!textareaRef.current) return
@@ -112,7 +134,7 @@ const PromptEditor = () => {
 		})
 	}, [])
 
-	const handleInputChange = (e) => {
+	const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		const newValue = e.target.value
 		setValue(newValue)
 		updateSuggestionPosition()
@@ -133,7 +155,7 @@ const PromptEditor = () => {
 		let preview = newValue
 		PLACEHOLDER_NAMES.forEach((placeholder) => {
 			const regex = new RegExp(`{{${placeholder}}}`, "g")
-			preview = preview.replace(regex, `[Example ${placeholder} value]`)
+			preview = preview.replace(regex, `[${placeholder}]`)
 		})
 		setPreviewValue(preview)
 	}
@@ -147,7 +169,7 @@ const PromptEditor = () => {
 		}
 	}
 
-	const insertSuggestion = (suggestion) => {
+	const insertSuggestion = (suggestion: string) => {
 		const beforeCursor = value.substring(0, cursorInfo.position)
 		const afterCursor = value.substring(cursorInfo.position)
 		const lastOpenBrace = beforeCursor.lastIndexOf("{{")
@@ -164,7 +186,7 @@ const PromptEditor = () => {
 		}
 	}
 
-	const handleKeyDown = (e) => {
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
 		if (suggestions.length > 0) {
 			switch (e.key) {
 				case "ArrowDown":
@@ -189,15 +211,52 @@ const PromptEditor = () => {
 
 	const handleSave = useCallback(() => {
 		if (templateName.trim()) {
-			// Here you would implement the actual save logic
-			console.log("Saving template:", {
-				name: templateName,
+			vscode.postMessage({
+				type: "savePromptTemplate",
+				templateName: templateName.trim(),
 				content: value,
 			})
 			setShowSaveDialog(false)
 			setTemplateName("")
 		}
 	}, [templateName, value])
+
+	const handleLoad = useCallback((template: string) => {
+		vscode.postMessage({
+			type: "loadPromptTemplate",
+			templateName: template,
+		})
+		setShowLoadDialog(false)
+	}, [])
+
+	useEffect(() => {
+		const handleMessage = (event: MessageEvent) => {
+			const message = event.data
+			if (message.type === "prompt_template_loaded") {
+				setValue(message.content)
+				let preview = message.content
+				PLACEHOLDER_NAMES.forEach((placeholder) => {
+					const regex = new RegExp(`{{${placeholder}}}`, "g")
+					preview = preview.replace(regex, `[Example ${placeholder} value]`)
+				})
+				setPreviewValue(preview)
+			} else if (message.type === "templates_list") {
+				setTemplates(message.templates)
+			}
+		}
+
+		window.addEventListener("message", handleMessage)
+		return () => window.removeEventListener("message", handleMessage)
+	}, [])
+
+	useEffect(() => {
+		// Request templates list when load dialog opens
+		if (showLoadDialog) {
+			vscode.postMessage({
+				type: "listPromptTemplates",
+			})
+		}
+	}, [showLoadDialog])
 
 	const handleCopy = useCallback(() => {
 		navigator.clipboard.writeText(value).then(() => {
@@ -207,8 +266,8 @@ const PromptEditor = () => {
 	}, [value])
 
 	useEffect(() => {
-		const handleClickOutside = (event) => {
-			if (suggestionsRef.current && !suggestionsRef.current.contains(event.target)) {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
 				setSuggestions([])
 			}
 		}
@@ -227,7 +286,9 @@ const PromptEditor = () => {
 				return (
 					<span
 						key={index}
-						className={`px-1 rounded ${isValid ? "bg-blue-100 text-blue-800" : "bg-red-100 text-red-800"}`}>
+						className={`px-1 rounded ${
+							isValid ? "bg-primary/20 text-primary" : "bg-destructive/20 text-destructive"
+						}`}>
 						{isValid ? part : `${part} (Invalid)`}
 					</span>
 				)
@@ -243,6 +304,21 @@ const PromptEditor = () => {
 					<CardTitle className="flex items-center justify-between">
 						<span>Prompt Template Editor</span>
 						<div className="flex gap-2">
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => vscode.postMessage({ type: "closePromptEditor" })}
+								className="flex items-center gap-2">
+								<X className="w-4 h-4" />
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setShowLoadDialog(true)}
+								className="flex items-center gap-2">
+								<FolderOpen className="w-4 h-4" />
+								Load
+							</Button>
 							<Button
 								variant="outline"
 								size="sm"
@@ -272,7 +348,7 @@ const PromptEditor = () => {
 				<CardContent>
 					<div className="space-y-4">
 						<div className="relative">
-							<div className="relative w-full h-64 font-mono text-sm border rounded-md focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
+							<div className="relative w-full h-64 font-mono text-sm border rounded-md focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent">
 								<div className="absolute inset-0 p-4 pointer-events-none">
 									<TemplateHighlighter text={value} />
 								</div>
@@ -290,7 +366,7 @@ const PromptEditor = () => {
 							{suggestions.length > 0 && (
 								<div
 									ref={suggestionsRef}
-									className="absolute z-10 w-96 bg-white border rounded-md shadow-lg overflow-hidden"
+									className="absolute z-10 w-96 bg-background border rounded-md shadow-lg overflow-hidden"
 									style={{
 										left: `${cursorInfo.left + 20}px`,
 										top: `${cursorInfo.top + cursorInfo.lineHeight}px`,
@@ -299,14 +375,14 @@ const PromptEditor = () => {
 										<div
 											key={suggestion}
 											className={`cursor-pointer ${
-												index === selectedSuggestionIndex ? "bg-blue-50" : "hover:bg-gray-50"
+												index === selectedSuggestionIndex ? "bg-primary/10" : "hover:bg-muted"
 											}`}
 											onClick={() => insertSuggestion(suggestion)}
 											onMouseEnter={() => setSelectedSuggestionIndex(index)}>
 											<div className="px-4 py-2 flex items-center gap-2">
 												<span className="font-medium">{`{{${suggestion}}}`}</span>
 											</div>
-											<div className="px-4 pb-2 text-sm text-gray-600">
+											<div className="px-4 pb-2 text-sm text-muted-foreground">
 												{TEMPLATE_PLACEHOLDERS[suggestion].description}
 											</div>
 										</div>
@@ -317,7 +393,7 @@ const PromptEditor = () => {
 
 						<div className="space-y-2">
 							<h3 className="text-lg font-semibold">Preview</h3>
-							<div className="p-4 bg-gray-50 rounded-md min-h-32">
+							<div className="p-4 bg-muted rounded-md min-h-32">
 								<div className="whitespace-pre-wrap">{renderPreview()}</div>
 							</div>
 						</div>
@@ -347,6 +423,38 @@ const PromptEditor = () => {
 						</Button>
 						<Button onClick={handleSave} disabled={!templateName.trim()}>
 							Save Template
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog open={showLoadDialog} onOpenChange={setShowLoadDialog}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Load Template</DialogTitle>
+					</DialogHeader>
+					<div className="space-y-4 py-4">
+						<div className="space-y-2">
+							{templates.length === 0 ? (
+								<div className="text-center text-muted-foreground">No templates found</div>
+							) : (
+								<div className="space-y-2">
+									{templates.map((template) => (
+										<Button
+											key={template}
+											variant="outline"
+											className="w-full justify-start"
+											onClick={() => handleLoad(template)}>
+											{template}
+										</Button>
+									))}
+								</div>
+							)}
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setShowLoadDialog(false)}>
+							Cancel
 						</Button>
 					</DialogFooter>
 				</DialogContent>

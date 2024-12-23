@@ -90,6 +90,23 @@ export type ExtensionMessage =
 	| SetInlineEditModeMessage
 	| ToggleGitHandlerMessage
 	| {
+			type: "savePromptTemplate"
+			templateName: string
+			content: string
+	  }
+	| {
+			type: "loadPromptTemplate"
+			templateName: string
+	  }
+	| {
+			type: "templates_list"
+			templates: string[]
+	  }
+	| {
+			type: "prompt_template_loaded"
+			content: string
+	  }
+	| {
 			type: "action" | "state" | "selectedImages"
 			text?: string
 			user?: ExtensionState["user"]
@@ -97,9 +114,12 @@ export type ExtensionMessage =
 				| "chatButtonTapped"
 				| "settingsButtonTapped"
 				| "historyButtonTapped"
+				| "promptEditorButtonTapped"
 				| "didBecomeVisible"
 				| "koduAuthenticated"
 				| "koduCreditsFetched"
+				| "prompt_template_saved"
+				| "prompt_template_loaded"
 
 			state?: BaseExtensionState
 			images?: string[]
@@ -241,6 +261,8 @@ export type ClaudeSay =
 	| "abort_automode"
 	| "shell_integration_warning"
 	| "show_terminal"
+	| "prompt_template_saved"
+	| "prompt_template_loaded"
 
 export type UrlScreenshotTool = {
 	tool: "url_screenshot"
@@ -264,11 +286,15 @@ export type ClaudeSayTool =
 				| "listFilesRecursive"
 				| "listCodeDefinitionNames"
 				| "searchFiles"
+				| "savePromptTemplate"
+				| "loadPromptTemplate"
 			path?: string
 			diff?: string
 			content?: string
 			regex?: string
 			filePattern?: string
+			templateName?: string
+			templateContent?: string
 	  }
 
 export type GitLogItem = {

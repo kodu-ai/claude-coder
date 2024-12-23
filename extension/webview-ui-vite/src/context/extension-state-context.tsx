@@ -90,6 +90,9 @@ didHydrateStateAtom.debugLabel = "didHydrateState"
 export const showSettingsAtom = atom(false)
 showSettingsAtom.debugLabel = "showSettings"
 
+export const showPromptEditorAtom = atom(false)
+showPromptEditorAtom.debugLabel = "showPromptEditor"
+
 const currentContextTokensAtom = atom(0)
 currentContextTokensAtom.debugLabel = "currentContextTokens"
 

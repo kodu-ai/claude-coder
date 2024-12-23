@@ -1,5 +1,6 @@
 import { ApiConfiguration } from "../api"
 import { GlobalState } from "../providers/state/global-state-manager"
+import { BaseExtensionState } from "./extension-message"
 
 export type Resource =
 	| { id: string; type: "file" | "folder"; name: string }
@@ -99,6 +100,34 @@ export type setCommandTimeoutMessage = {
 	commandTimeout: number
 }
 
+export type savePromptTemplateMessage = {
+	type: "savePromptTemplate"
+	templateName: string
+	content: string
+}
+
+export type loadPromptTemplateMessage = {
+	type: "loadPromptTemplate"
+	templateName: string
+}
+
+export type listPromptTemplatesMessage = {
+	type: "listPromptTemplates"
+}
+
+export type ActionMessage = {
+	type: "action"
+	action:
+		| "promptEditorButtonTapped"
+		| "didBecomeVisible"
+		| "koduAuthenticated"
+		| "koduCreditsFetched"
+		| "prompt_template_saved"
+		| "prompt_template_loaded"
+	text?: string
+	state?: BaseExtensionState
+}
+
 export type toggleGitHandlerMessage = {
 	type: "toggleGitHandler"
 	enabled: boolean
@@ -121,6 +150,15 @@ export type WebviewMessage =
 	| rollbackToCheckpointMessage
 	| viewFileMessage
 	| setCommandTimeoutMessage
+	| { type: "closePromptEditor" }
+	| ActionMessage
+	| savePromptTemplateMessage
+	| loadPromptTemplateMessage
+	| listPromptTemplatesMessage
+	| {
+			type: "prompt_template_loaded"
+			content: string
+	  }
 	| toggleGitHandlerMessage
 	| setInlineEditModeMessage
 	| pauseTemporayAutoModeMessage
@@ -160,6 +198,9 @@ export type WebviewMessage =
 				| "resetState"
 				| "fileTree"
 				| "clearHistory"
+				| "prompt_template_saved"
+				| "prompt_template_loaded"
+				| "templates_list"
 			text?: string
 			askResponse?: ClaudeAskResponse
 			images?: string[]
