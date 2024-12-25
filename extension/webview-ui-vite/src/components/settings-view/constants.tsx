@@ -13,8 +13,8 @@ export const models: Record<
 		isBrowserModel?: boolean
 	}
 > = {
-	"claude-3-5-sonnet-20240620": {
-		...koduModels["claude-3-5-sonnet-20240620"],
+	"claude-3-5-sonnet-20241022": {
+		...koduModels["claude-3-5-sonnet-20241022"],
 		label: "Claude 3.5 Sonnet",
 		isRecommended: true,
 		isHardWorker: true,

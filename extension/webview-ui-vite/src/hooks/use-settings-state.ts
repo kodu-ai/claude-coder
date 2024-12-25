@@ -2,12 +2,13 @@ import { useCallback, useState } from "react"
 import { GlobalState } from "../../../src/providers/state/global-state-manager"
 import { useExtensionState } from "../context/extension-state-context"
 import { vscode } from "../utils/vscode"
+import { returnValidModelId } from "../../../src/shared/api"
 
 export function useSettingsState() {
 	const extensionState = useExtensionState()
-	const [model, setModel] = useState(extensionState.apiConfiguration?.apiModelId || "claude-3-5-sonnet-20240620")
+	const [model, setModel] = useState(returnValidModelId(extensionState.apiConfiguration?.apiModelId ?? "-1"))
 	const [browserModel, setBrowserModel] = useState(
-		extensionState.apiConfiguration?.browserModelId || "claude-3-haiku-20240307"
+		returnValidModelId(extensionState.apiConfiguration?.browserModelId ?? "claude-3-5-haiku-20241022")
 	)
 	const [readOnly, setReadOnly] = useState(extensionState.alwaysAllowReadOnly || false)
 	const [autoCloseTerminal, setAutoCloseTerminal] = useState(extensionState.autoCloseTerminal || false)

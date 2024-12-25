@@ -121,7 +121,6 @@ ${this.customInstructions.trim()}
 			const conversationHistory =
 				apiConversationHistory ??
 				(await provider.koduDev?.getStateManager().apiHistoryManager.getSavedApiConversationHistory())
-			const supportImages = this.api.getModel().info.supportsImages
 
 			let baseSystem = [await this.getCurrentPrompts()]
 			if (customSystemPrompt?.systemPrompt) {

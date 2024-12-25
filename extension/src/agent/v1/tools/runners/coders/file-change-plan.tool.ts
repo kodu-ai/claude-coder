@@ -308,7 +308,7 @@ export class FileChangePlanTool extends BaseAgentTool<FileChangePlanParams> {
 			)
 			// here we will make call using api handler for separate branch
 			const stream = await this.koduDev.getApiManager().getApi().createMessageStream({
-				modelId: "claude-3-5-sonnet-20240620",
+				modelId: "claude-3-5-sonnet-20241022",
 				systemPrompt,
 				messages,
 				abortSignal: this.AbortController.signal,

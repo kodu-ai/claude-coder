@@ -23,6 +23,7 @@ export interface ModelInfo {
 	outputPrice: number
 	cacheWritesPrice?: number | undefined
 	cacheReadsPrice?: number | undefined
+	disabld?: boolean
 }
 
 export type ApiModelId = KoduModelId
@@ -30,8 +31,18 @@ export type ApiModelId = KoduModelId
 // Anthropic
 // https://docs.anthropic.com/en/docs/about-claude/models
 export type AnthropicModelId = keyof typeof anthropicModels
-export const anthropicDefaultModelId: AnthropicModelId = "claude-3-5-sonnet-20240620"
+export const anthropicDefaultModelId: AnthropicModelId = "claude-3-5-sonnet-20241022"
 export const anthropicModels: Record<string, ModelInfo> = {
+	"claude-3-5-sonnet-20241022": {
+		maxTokens: 8192,
+		contextWindow: 200_000,
+		supportsImages: true,
+		supportsPromptCache: true,
+		inputPrice: 3.0, // $3 per million input tokens
+		outputPrice: 15.0, // $15 per million output tokens
+		cacheWritesPrice: 3.75, // $3.75 per million tokens
+		cacheReadsPrice: 0.3, // $0.30 per million tokens
+	},
 	"claude-3-5-sonnet-20240620": {
 		maxTokens: 8192,
 		contextWindow: 200_000,
@@ -74,21 +85,20 @@ export const anthropicModels: Record<string, ModelInfo> = {
 	},
 } as const
 
-const grokModels: Record<string, ModelInfo> = {
-	"grok-beta": {
-		maxTokens: 131_072,
-		contextWindow: 131_072,
-		supportsImages: false,
-		supportsPromptCache: false,
-		inputPrice: 5,
-		outputPrice: 15,
-	},
-} as const
-
 export type KoduModelId = string
-export const koduDefaultModelId: KoduModelId = "claude-3-5-sonnet-20240620"
+export const koduDefaultModelId: KoduModelId = "claude-3-5-sonnet-20241022"
 export const koduModels: Record<string, ModelInfo> = {
 	...anthropicModels,
 	// ...grokModels,
 }
 export type KoduModels = typeof koduModels
+
+export const returnValidModelId = (modelId: string): KoduModelId => {
+	if (modelId === "claude-3-5-sonnet-20240620") {
+		return "claude-3-5-sonnet-20241022"
+	}
+	if (koduModels[modelId]) {
+		return modelId
+	}
+	return koduDefaultModelId
+}

@@ -24,7 +24,7 @@ export const ModelDetails: React.FC<ModelDetailsProps> = React.memo(({ model }) 
 					<div>Context Window: {details.contextWindow?.toLocaleString()}</div>
 					<div>
 						Supports Images:{" "}
-						{details.supportsImages ? (
+						{details?.supportsImages ? (
 							<Check className="inline text-green-500 h-3 w-3" />
 						) : (
 							<X className="inline text-red-500 h-3 w-3" />

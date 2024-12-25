@@ -28,7 +28,7 @@ export class PromptManager {
 				"prompt-editor.js",
 			])
 		} else {
-			scriptUri = `http://${localServerUrl}/src/prompt-editor.tsx`
+			scriptUri = `http://${localServerUrl}/src/prompt-editor-app.tsx`
 		}
 		const stylesUri2 = getUri(webview, this.webviewManager.provider.getContext().extensionUri, [
 			"webview-ui-vite",

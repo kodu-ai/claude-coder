@@ -40,8 +40,6 @@ import {
 	SearchFilesTool,
 	SearchSymbolsTool,
 	ServerRunnerTool,
-	SpawnAgentTool,
-	ExitAgentTool,
 	UrlScreenshotTool,
 	SubmitReviewTool,
 } from "../../../../src/shared/new-tools"
@@ -500,7 +498,9 @@ export const AskFollowupQuestionBlock: React.FC<AskFollowupQuestionTool & ToolAd
 		title="Follow-up Question"
 		variant="info"
 		approvalState={approvalState}>
-		<div className="bg-info/20 text-info-foreground p-2 rounded text-xs">{question}</div>
+		<div className="bg-info/20 text-info-foreground p-2 rounded text-xs">
+			<MarkdownRenderer>{question}</MarkdownRenderer>
+		</div>
 	</ToolBlock>
 )
 

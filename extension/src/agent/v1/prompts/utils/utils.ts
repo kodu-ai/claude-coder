@@ -109,7 +109,7 @@ export function promptTemplate(
 }
 
 export async function buildPromptFromTemplate(template: string, task?: string): Promise<string> {
-	const vision = ApiManager.getInstance().getCurrentModelInfo().supportsImages
+	const vision = ApiManager.getInstance().getCurrentModelInfo()?.supportsImages ?? false
 	const config: PromptConfig = {
 		agentName: "Kodu",
 		osName: osName(),

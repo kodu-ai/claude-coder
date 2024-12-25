@@ -9,11 +9,17 @@ import { useAtomValue } from "jotai"
 import { syntaxHighlighterAtom } from "../chat-view/atoms"
 
 // Example interface, you can customize as needed
-interface MarkdownRendererProps {
-	markdown: string
-}
+type MarkdownRendererProps =
+	| {
+			markdown: string
+			children?: string
+	  }
+	| {
+			markdown?: string
+			children: string
+	  }
 
-export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown }) => {
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, children }) => {
 	const syntaxHighlighter = useAtomValue(syntaxHighlighterAtom)
 	return (
 		<div className="mr-auto p-4 py-0">
@@ -66,7 +72,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown }) 
 						),
 						// You can override other elements as needed, but `prose` handles most gracefully.
 					}}>
-					{markdown}
+					{markdown ?? children}
 				</ReactMarkdown>
 			</div>
 		</div>

@@ -184,6 +184,27 @@ const AdvancedTab: React.FC = () => {
 					</div>
 				</div>
 			</div>
+			<div className="space-y-4">
+				<div className="space-y-2">
+					<Label htmlFor="custom-instructions" className="text-xs font-medium">
+						Custom Instructions
+					</Label>
+					<Textarea
+						id="custom-instructions"
+						placeholder="e.g. 'Run unit tests at the end', 'Use TypeScript with async/await'"
+						value={customInstructions}
+						onChange={handleTextAreaChange}
+						className="min-h-[120px] text-xs resize-y"
+						style={{
+							fontFamily: "var(--vscode-editor-font-family)",
+						}}
+						spellCheck={false}
+					/>
+					<p className="text-xs text-muted-foreground mt-1">
+						These instructions will be included in every task
+					</p>
+				</div>
+			</div>
 		</div>
 	)
 }

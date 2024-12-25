@@ -10,6 +10,14 @@ type User = {
 	isVisitor: boolean
 }
 
+const defaults: Partial<GlobalState> = {
+	inlineEditOutputType: "full",
+	autoSummarize: true,
+	gitHandlerEnabled: false,
+	apiModelId: "claude-3-5-sonnet-20241022",
+	browserModelId: "claude-3-5-haiku-20241022",
+}
+
 export type GlobalState = {
 	user: User | undefined | null
 	terminalCompressionThreshold: number | undefined
@@ -17,7 +25,7 @@ export type GlobalState = {
 	customInstructions: string | undefined
 	gitHandlerEnabled: boolean | undefined
 	apiModelId: KoduModelId | undefined
-	browserModelId: string | undefined
+	browserModelId: KoduModelId | undefined
 	alwaysAllowReadOnly: boolean | undefined
 	alwaysAllowWriteOnly: boolean | undefined
 	inlineEditOutputType?: "full" | "diff"
@@ -57,12 +65,22 @@ export class GlobalStateManager {
 	}
 
 	getGlobalState<K extends keyof GlobalState>(key: K): GlobalState[K] {
-		return this.context.globalState.get(key) as GlobalState[K]
+		const keyData = this.context.globalState.get(key)
+		if (keyData === undefined) {
+			return this.getKeyDefaultValue(key)
+		}
+		return keyData as GlobalState[K]
 	}
 
 	async resetState(): Promise<void> {
 		for (const key of this.context.globalState.keys()) {
 			await this.context.globalState.update(key, undefined)
 		}
+	}
+	private getKeyDefaultValue<K extends keyof GlobalState>(key: K): GlobalState[K] {
+		if (key in defaults) {
+			return defaults[key] as GlobalState[K]
+		}
+		return undefined
 	}
 }
