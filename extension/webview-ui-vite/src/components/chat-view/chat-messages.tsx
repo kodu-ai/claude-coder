@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from "react"
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso"
 import { ChevronDown } from "lucide-react"
+import { useCollapseState } from "../../context/collapse-state-context"
 import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/messages/extension-message"
 import { SyntaxHighlighterStyle } from "../../utils/get-syntax-highlighter-style-from-theme"
 import ChatRowV1 from "../chat-row/chat-row"
@@ -172,23 +173,25 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, sy
 			<Virtuoso
 				key={`virtuoso-${taskId}`}
 				ref={virtuosoRef}
-				data={visibleMessages.filter((message) => {
-					if (message.text) {
-						message.text = message.text?.trim() ?? ""
-					}
+				data={useMemo(() => {
+					return visibleMessages.filter((message) => {
+						if (message.text) {
+							message.text = message.text?.trim() ?? ""
+						}
 
-					if (
-						(message.say === "shell_integration_warning" ||
-							message.say === "api_req_started" ||
-							message.say === "hook" ||
-							(message.text?.length ?? 0) > 0 ||
-							(message.images?.length ?? 0) > 0) &&
-						!isActionTag(message.text ?? "")
-					) {
-						return true
-					}
-					return false
-				})}
+						// First apply existing filters
+						const passesBasicFilters =
+							(message.say === "shell_integration_warning" ||
+								message.say === "api_req_started" ||
+								message.say === "hook" ||
+								(message.text?.length ?? 0) > 0 ||
+								(message.images?.length ?? 0) > 0) &&
+							!isActionTag(message.text ?? "")
+
+						// Then check collapse state
+						return passesBasicFilters && shouldShowMessage(message, visibleMessages)
+					})
+				}, [visibleMessages, shouldShowMessage])}
 				style={{ height: "100%" }}
 				followOutput={followOutput}
 				initialTopMostItemIndex={{
