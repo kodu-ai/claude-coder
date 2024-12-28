@@ -3,6 +3,7 @@ import { ChatState, ChatViewProps } from "./chat"
 import { useAtom } from "jotai"
 import { attachmentsAtom, chatState, syntaxHighlighterAtom } from "./atoms"
 import { useExtensionState } from "@/context/extension-state-context"
+import { CollapseProvider } from "@/context/collapse-state-context"
 import { useChatMessageHandling } from "@/hooks/use-message-handler"
 import { useImageHandling } from "@/hooks/use-image-handler"
 import { useMessageRunning } from "@/hooks/use-message-running"
@@ -317,12 +318,14 @@ const ChatView: React.FC<ChatViewProps> = ({
 							koduCredits={user?.credits ?? 0}
 							vscodeUriScheme={uriScheme}
 						/>
-						<ChatMessages
-							key={`messages-${firstTaskMsg.ts}`}
-							taskId={firstTaskMsg.ts}
-							visibleMessages={visibleMessages}
-							syntaxHighlighterStyle={syntaxHighlighterStyle}
-						/>
+						<CollapseProvider>
+							<ChatMessages
+								key={`messages-${firstTaskMsg.ts}`}
+								taskId={firstTaskMsg.ts}
+								visibleMessages={visibleMessages}
+								syntaxHighlighterStyle={syntaxHighlighterStyle}
+							/>
+						</CollapseProvider>
 					</>
 				) : (
 					<>
