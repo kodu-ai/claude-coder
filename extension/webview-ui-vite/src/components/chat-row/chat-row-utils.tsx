@@ -1,6 +1,7 @@
 import { AlertCircle, LogIn, CreditCard, CircleX, X, ChevronDown, ChevronRight } from "lucide-react"
 import { loginKodu } from "@/utils/kodu-links"
 import { useExtensionState } from "@/context/extension-state-context"
+import { useCollapseState } from "@/context/collapse-state-context"
 import { vscode } from "@/utils/vscode"
 import { getKoduOfferUrl } from "../../../../src/shared/kodu"
 import { TextWithAttachments } from "@/utils/extract-attachments"
