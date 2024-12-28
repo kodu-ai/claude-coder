@@ -51,6 +51,7 @@ const MessageRenderer = React.memo(
 MessageRenderer.displayName = "MessageRenderer"
 
 const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, syntaxHighlighterStyle }) => {
+	const { shouldShowMessage } = useCollapseState()
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
 	const [atBottom, setAtBottom] = useState(true)
 	const [userScrolled, setUserScrolled] = useState(false)
