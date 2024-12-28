@@ -34,7 +34,7 @@ export default function AnnouncementBanner() {
 				<div className="flex items-start justify-between">
 					<div className="flex items-center gap-2">
 						<AlertCircle className="h-5 w-5 text-primary" />
-						<h2 className="text-sm font-semibold">Latest Updates (v2.0.1)</h2>
+						<h2 className="text-sm font-semibold">Latest Updates (v2.0.2)</h2>
 					</div>
 					<Button
 						variant="ghost"

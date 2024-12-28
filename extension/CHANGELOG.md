@@ -4,6 +4,12 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.0.2] - 2024-12-29
+
+### RESYNC
+
+-   resynced v2.0.1 to upstream
+
 ## [2.0.1] - 2024-12-29
 
 ### New
