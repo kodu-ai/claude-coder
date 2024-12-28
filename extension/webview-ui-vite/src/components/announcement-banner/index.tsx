@@ -48,18 +48,18 @@ export default function AnnouncementBanner() {
 
 				<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🌐 Support for 3rd party providers (OpenRouter, LMStudio)</p>
-						<p>🎯 Agent model selection - choose specific models for each agent</p>
-						<p>⚡️ Improved stream speed and stability</p>
-						<p>📝 Enhanced diff editing capabilities</p>
+						<p>🔄 Better obedience to prompt and improved tools output</p>
+						<p>🔍 New search capabilities for symbols and repositories</p>
+						<p>⚡️ Improved stream speed and stability (v2.0.1)</p>
+						<p>📝 Enhanced diff editing capabilities (v2.0.1)</p>
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🔄 Better obedience to prompt and improved tools output</p>
-						<p>🔍 New search capabilities for symbols and repositories</p>
 						<p>🤖 New 3rd party observer LLM for guidance</p>
-						<p>💾 Reduced context window consumption</p>
-						<p>🐛 Fixed numerous edge cases and model display issues</p>
+						<p>🛠️ New Prompt Editor for configuring Kodu instructions</p>
+						<p>🔧 Auto fix inline edits in the same request</p>
+						<p>💾 Reduced context window consumption (v2.0.1)</p>
+						<p>🐛 Fixed model display and edge cases (v2.0.1)</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">
