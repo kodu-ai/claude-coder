@@ -1,4 +1,4 @@
-import { AlertCircle, LogIn, CreditCard, CircleX, X } from "lucide-react"
+import { AlertCircle, LogIn, CreditCard, CircleX, X, ChevronDown, ChevronRight } from "lucide-react"
 import { loginKodu } from "@/utils/kodu-links"
 import { useExtensionState } from "@/context/extension-state-context"
 import { vscode } from "@/utils/vscode"
@@ -29,6 +29,8 @@ function StatusIcon({ message }: { message: V1ClaudeMessage }) {
 }
 
 export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => {
+	const { toggleCollapse, isCollapsed } = useCollapseState()
+	const collapsed = isCollapsed(message.ts)
 	const { cost } = message?.apiMetrics || {}
 	const [icon, title] = IconAndTitle({
 		type: "api_req_started",
@@ -50,8 +52,9 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 	return (
 		<div
 			className={cn(
-				"flex items-center w-full text-sm gap-2 overflow-hidden",
-				"px-2 py-1 bg-card text-card-foreground rounded-sm"
+				"flex items-center w-full text-sm gap-2 overflow-hidden group",
+				"px-2 py-1 bg-card text-card-foreground rounded-sm",
+				"hover:bg-card/80 transition-colors"
 			)}
 			style={{ maxWidth: "100%" }}>
 			{/* Status Icon at the start */}
@@ -109,8 +112,17 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 
 			<div className="flex-1" />
 
-			{/* Cost at the far right, subtle */}
-			{/* {cost && <code className="text-foreground/50 text-xs whitespace-nowrap">${Number(cost).toFixed(4)}</code>} */}
+			{/* Collapse button */}
+			<Button
+				variant="ghost"
+				size="icon"
+				className={cn(
+					"h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity ml-auto",
+					collapsed && "opacity-100 rotate-180"
+				)}
+				onClick={() => toggleCollapse(message.ts)}>
+				<ChevronDown className="h-4 w-4" />
+			</Button>
 		</div>
 	)
 })
