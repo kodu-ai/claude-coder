@@ -1,6 +1,17 @@
 import { AlertCircle, LogIn, CreditCard, CircleX, X, ChevronDown, ChevronRight } from "lucide-react"
 import { loginKodu } from "@/utils/kodu-links"
 import { useExtensionState } from "@/context/extension-state-context"
+
+function formatElapsedTime(ms: number): string {
+	const seconds = Math.floor(ms / 1000)
+	const minutes = Math.floor(seconds / 60)
+	const remainingSeconds = seconds % 60
+
+	if (minutes > 0) {
+		return `${minutes}m ${remainingSeconds}s`
+	}
+	return `${seconds}s`
+}
 import { useCollapseState } from "@/context/collapse-state-context"
 import { vscode } from "@/utils/vscode"
 import { getKoduOfferUrl } from "../../../../src/shared/kodu"
@@ -81,7 +92,34 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 									<span className="text-secondary-foreground/80 shrink-0 mr-2">Model</span>
 									<span className="text-secondary-foreground truncate">{message.modelId}</span>
 								</div>
-								<h4 className="font-medium text-md">Price Breakdown</h4>
+								<div className="border-t border-border/40 my-2 pt-2">
+									<h4 className="font-medium text-md mb-2">Timing</h4>
+									<div className="flex justify-between">
+										<span className="text-secondary-foreground/80">Started</span>
+										<span className="text-secondary-foreground">
+											{new Date(message.ts).toLocaleTimeString()}
+										</span>
+									</div>
+									{message.completedAt && (
+										<>
+											<div className="flex justify-between">
+												<span className="text-secondary-foreground/80">Completed</span>
+												<span className="text-secondary-foreground">
+													{new Date(message.completedAt).toLocaleTimeString()}
+												</span>
+											</div>
+											<div className="flex justify-between font-medium">
+												<span className="text-secondary-foreground/80">Duration</span>
+												<span className="text-secondary-foreground">
+													{formatElapsedTime(message.completedAt - message.ts)}
+												</span>
+											</div>
+										</>
+									)}
+								</div>
+								<div className="border-t border-border/40 pt-2">
+									<h4 className="font-medium text-md mb-2">Price Breakdown</h4>
+								</div>
 								{Object.entries(message.apiMetrics!)
 									.reverse()
 									.map(([key, value], index) => (
@@ -114,15 +152,13 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 			<div className="flex-1" />
 
 			{/* Collapse button */}
-			<Button
-				variant="ghost"
-				size="icon"
-				className={cn(
-					"h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity ml-auto",
-					collapsed && "opacity-100 rotate-180"
-				)}
-				onClick={() => toggleCollapse(message.ts)}>
-				<ChevronDown className="h-4 w-4" />
+			<Button variant="ghost" size="icon" className={cn("size-5")} onClick={() => toggleCollapse(message.ts)}>
+				<ChevronDown
+					style={{
+						transform: collapsed ? "rotate(90deg)" : "rotate(0deg)",
+					}}
+					className={cn("size-4 transform transition-transform duration-200 ease-in-out")}
+				/>
 			</Button>
 		</div>
 	)

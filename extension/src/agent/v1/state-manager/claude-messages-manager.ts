@@ -75,6 +75,9 @@ export class ClaudeMessagesManager {
 		if (isV1ClaudeMessage(message)) {
 			message.agentName = this.stateManager.subAgentManager.agentName
 			message.modelId = this.stateManager.apiManager.getModelId()
+			if (message.isDone) {
+				message.completedAt = Date.now()
+			}
 		}
 		this.state.claudeMessages.push(message)
 		await this.saveClaudeMessages()
@@ -113,6 +116,10 @@ export class ClaudeMessagesManager {
 		if (index === -1) {
 			console.error(`[ClaudeMessagesManager] updateClaudeMessage: Message with id ${messageId} not found`)
 			return
+		}
+		// Set completedAt when a message is marked as done
+		if (isV1ClaudeMessage(message) && message.isDone && !message.completedAt) {
+			message.completedAt = Date.now()
 		}
 		// In-place update of the message object
 		this.state.claudeMessages[index] = message

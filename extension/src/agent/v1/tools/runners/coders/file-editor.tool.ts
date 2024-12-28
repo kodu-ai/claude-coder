@@ -6,7 +6,15 @@ import { BaseAgentTool, FullToolParams } from "../../base-agent.tool"
 import { AgentToolOptions } from "../../types"
 import fs from "fs"
 import { detectCodeOmission } from "./detect-code-omission"
-import { checkFileExists, preprocessContent, EditBlock, DiffBlockManager } from "./utils"
+import {
+	checkFileExists,
+	preprocessContent,
+	EditBlock,
+	DiffBlockManager,
+	SEARCH_HEAD,
+	SEPARATOR,
+	REPLACE_HEAD,
+} from "./utils"
 import { BlockResult, InlineEditHandler } from "../../../../../integrations/editor/inline-editor"
 import { ToolResponseV2 } from "../../../types"
 import PQueue from "p-queue"
@@ -280,20 +288,21 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		} = await this.inlineEditor.forceFinalize(editBlocks)
 		this.logger(`Failed count: ${failedCount}, isAllFailed: ${isAllFailed}`, "debug")
 		if (isAnyFailed) {
-			if (allowFixed) {
-				// let's show a loading vs code toast
-				vscode.window.showInformationMessage("Attempting to fix the failed blocks")
-				const fixedOutput = await this.inlineFixRetry(allResults)
-				if (fixedOutput) {
-					await this.inlineEditor.rejectChanges()
-					await this.inlineEditor.dispose()
+			//// disabled for now
+			// if (allowFixed) {
+			// 	// let's show a loading vs code toast
+			// 	vscode.window.showInformationMessage("Attempting to fix the failed blocks")
+			// 	const fixedOutput = await this.inlineFixRetry(allResults)
+			// 	if (fixedOutput) {
+			// 		await this.inlineEditor.rejectChanges()
+			// 		await this.inlineEditor.dispose()
 
-					return await this.finalizeInlineEdit(path, fixedOutput, false)
-				} else {
-					// show vscode toast
-					vscode.window.showErrorMessage("Failed to fix the failed blocks")
-				}
-			}
+			// 		return await this.finalizeInlineEdit(path, fixedOutput, false)
+			// 	} else {
+			// 		// show vscode toast
+			// 		vscode.window.showErrorMessage("Failed to fix the failed blocks")
+			// 	}
+			// }
 
 			const extractKoduDiff = this.params.updateAsk(
 				"tool",
@@ -324,11 +333,11 @@ ${failedBlocks?.map(
 	(block) =>
 		dedent`
 <failed_block>
-SEARCH
+${SEARCH_HEAD}
 ${block.searchContent}
-=======
-REPLACE
+${SEPARATOR}
 ${block.replaceContent}
+${REPLACE_HEAD}
 </failed_block>
 `
 )}

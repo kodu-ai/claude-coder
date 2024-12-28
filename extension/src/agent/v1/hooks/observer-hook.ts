@@ -150,30 +150,36 @@ export class ObserverHook extends BaseHook {
 	private shouldExecute(): boolean {
 		// check if last message spawned agent
 
-		const lastMessage = this.koduDev.getStateManager().state.apiConversationHistory.slice(-1)[0].content[0]
-		const lastMessageText =
-			typeof lastMessage === "string" ? lastMessage : lastMessage.type === "text" ? lastMessage.text : ""
-		const lastAgentTag = `</${spawnAgentTool.schema.name}>`
-		const isSpawnAgentAction = lastMessageText.includes(lastAgentTag)
-		const isInSubAgent = !!this.koduDev.getStateManager().subAgentManager.currentSubAgentId
+		try {
+			const lastMessage = this.koduDev.getStateManager().state.apiConversationHistory.slice(-1)?.[0]?.content?.[0]
+			const lastMessageText =
+				typeof lastMessage === "string" ? lastMessage : lastMessage.type === "text" ? lastMessage.text : ""
+			const lastAgentTag = `</${spawnAgentTool.schema.name}>`
+			const isSpawnAgentAction = lastMessageText.includes(lastAgentTag)
+			const isInSubAgent = !!this.koduDev.getStateManager().subAgentManager.currentSubAgentId
+			const pastFirstMsg = this.koduDev.getStateManager().state.apiConversationHistory.length > 2
 
-		return (
-			this.koduDev.getStateManager().state.apiConversationHistory.length > 3 &&
-			!isInSubAgent &&
-			// if we spawn agent we don't want to execute observer hook because the follow up message will be different context (agent)
-			!isSpawnAgentAction
-		)
+			return (
+				pastFirstMsg &&
+				!isInSubAgent &&
+				// if we spawn agent we don't want to execute observer hook because the follow up message will be different context (agent)
+				!isSpawnAgentAction
+			)
+		} catch (e) {
+			return false
+		}
 	}
 
 	protected async executeHook(): Promise<string | null> {
+		const ts = Date.now()
 		try {
 			if (!this.shouldExecute()) {
 				return null
 			}
-			const ts = Date.now()
 			console.log("[ObserverHook] - executing observer hook")
 			// Get current context from state
 			const currentContext = this.getCurrentContext()
+
 			this.koduDev.taskExecutor.sayHook({
 				hookName: "observer",
 				state: "pending",
@@ -182,7 +188,7 @@ export class ObserverHook extends BaseHook {
 				ts,
 			})
 
-			const taskHistory = currentContext.history
+			const taskHistory = [...currentContext.history]
 			const lastMessage = taskHistory.at(-1)
 			// must happen
 			if (lastMessage?.role === "assistant" && Array.isArray(lastMessage.content)) {
@@ -200,7 +206,10 @@ export class ObserverHook extends BaseHook {
 							Your response should be structured in the following format:
 							<thinkings>YOUR THOUGHTS HERE</thinkings>
 							<explanation>YOUR EXPLANATION HERE</explanation>
-							<score>YOUR SCORE HERE</score>`,
+							<score>YOUR SCORE HERE</score>
+							
+							GIVE ME CONCISE FEEDBACK ON THE AGENT'S LAST ACTION BASED ON THE TASK AND THE CONVERSATION HISTORY.
+							`,
 						},
 					],
 				})
@@ -260,10 +269,26 @@ export class ObserverHook extends BaseHook {
 				<observer_feedback>${finalOutput}</observer_feedback>
 				## End of Observer Feedback ##
 				`
+			} else {
+				this.koduDev.taskExecutor.sayHook({
+					hookName: "observer",
+					state: "error",
+					output: finalOutput,
+					input: "",
+					apiMetrics,
+					ts,
+				})
 			}
 
 			return finalOutput
 		} catch (error) {
+			this.koduDev.taskExecutor.sayHook({
+				hookName: "observer",
+				state: "error",
+				output: "",
+				input: "",
+				ts,
+			})
 			console.error("Failed to execute observer hook:", error)
 			return null
 		}
@@ -274,12 +299,25 @@ export class ObserverHook extends BaseHook {
 	 */
 	private getCurrentContext() {
 		const history = this.koduDev.getStateManager().state.apiConversationHistory
-
+		if (history.length === 0) {
+			return {
+				history: [],
+				taskMsg: null,
+				taskMsgText: "",
+			}
+		}
 		// we take the first message anyway
-		const taskMsg = history[0]
+		const taskMsg = history.at(0)
 
+		if (!taskMsg || !taskMsg.content || !Array.isArray(taskMsg.content)) {
+			return {
+				history: [],
+				taskMsg: null,
+				taskMsgText: "",
+			}
+		}
 		const taskMsgText = this.getTaskText(
-			typeof taskMsg.content[0] === "string"
+			typeof taskMsg?.content?.[0] === "string"
 				? taskMsg.content[0]
 				: typeof taskMsg.content[0].type === "string"
 				? taskMsg.content[0].type

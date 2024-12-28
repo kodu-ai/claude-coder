@@ -1,6 +1,7 @@
 import React from "react"
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
 import { ClaudeMessage } from "../../../../src/shared/messages/extension-message"
+import { Button } from "../ui/button"
 import { vscode } from "../../utils/vscode"
 import { cn } from "@/lib/utils"
 import Thumbnails from "../thumbnails/thumbnails"
@@ -12,7 +13,7 @@ import { useExtensionState } from "@/context/extension-state-context"
 import { useCollapseState } from "@/context/collapse-state-context"
 import BugReportDialog from "./bug-report-dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { ChevronDown, ChevronUp, FoldVertical } from "lucide-react"
+import { ChevronDown, ChevronUp, FoldVertical, Clock } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -29,6 +30,18 @@ interface TaskHeaderProps {
 	koduCredits?: number
 	vscodeUriScheme?: string
 	apiProvider?: ApiProvider
+	elapsedTime?: number
+}
+
+function formatElapsedTime(ms: number): string {
+	const seconds = Math.floor(ms / 1000)
+	const minutes = Math.floor(seconds / 60)
+	const remainingSeconds = seconds % 60
+
+	if (minutes > 0) {
+		return `${minutes}m ${remainingSeconds}s`
+	}
+	return `${seconds}s`
 }
 
 export default function TaskHeader({
@@ -42,10 +55,12 @@ export default function TaskHeader({
 	onClose,
 	koduCredits,
 	vscodeUriScheme,
+	elapsedTime,
 }: TaskHeaderProps) {
 	const { currentTaskId, currentTask, currentContextTokens, currentContextWindow } = useExtensionState()
 	const { collapseAll, isAllCollapsed } = useCollapseState()
 	const [isOpen, setIsOpen] = React.useState(true)
+	const [showTiming, setShowTiming] = React.useState(false)
 
 	const handleDownload = () => {
 		vscode.postMessage({ type: "exportCurrentTask" })
@@ -61,12 +76,25 @@ export default function TaskHeader({
 					<h3 className="uppercase">Task</h3>
 					<div style={{ flex: "1 1 0%" }}></div>
 					<BugReportDialog />
+
 					<VSCodeButton appearance="icon" onClick={handleRename}>
 						Rename
 					</VSCodeButton>
 					<VSCodeButton appearance="icon" onClick={handleDownload}>
 						Export
 					</VSCodeButton>
+					{task && (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<VSCodeButton appearance="icon" onClick={() => setShowTiming(!showTiming)}>
+									<Clock className={cn("h-4 w-4", showTiming && "text-accent-foreground")} />
+								</VSCodeButton>
+							</TooltipTrigger>
+							<TooltipContent avoidCollisions side="left">
+								{showTiming ? "Hide Task Timing" : "Show Task Timing"}
+							</TooltipContent>
+						</Tooltip>
+					)}
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<VSCodeButton appearance="icon" onClick={collapseAll}>
@@ -117,6 +145,39 @@ export default function TaskHeader({
 							currentContextTokens={currentContextTokens}
 							currentContextWindow={currentContextWindow}
 						/>
+						{task && showTiming && (
+							<div className="flex flex-col gap-1 text-xs text-muted-foreground mt-2">
+								<AnimatePresence>
+									<motion.div
+										initial={{ height: 0, opacity: 0 }}
+										animate={{ height: "auto", opacity: 1 }}
+										exit={{ height: 0, opacity: 0 }}
+										transition={{ duration: 0.2 }}
+										className="overflow-hidden">
+										<div className="border border-border/40 rounded-sm p-2">
+											<div className="flex items-center justify-between">
+												<span>Started:</span>
+												<span>{new Date(task.ts).toLocaleTimeString()}</span>
+											</div>
+											{elapsedTime !== undefined && (
+												<>
+													<div className="flex items-center justify-between">
+														<span>Completed:</span>
+														<span>
+															{new Date(task.ts + elapsedTime).toLocaleTimeString()}
+														</span>
+													</div>
+													<div className="flex items-center justify-between border-t border-border/40 pt-1 mt-1 font-medium">
+														<span>Total Time:</span>
+														<span>{formatElapsedTime(elapsedTime)}</span>
+													</div>
+												</>
+											)}
+										</div>
+									</motion.div>
+								</AnimatePresence>
+							</div>
+						)}
 					</div>
 					<CreditsInfo koduCredits={koduCredits} vscodeUriScheme={vscodeUriScheme} />
 				</CollapsibleContent>

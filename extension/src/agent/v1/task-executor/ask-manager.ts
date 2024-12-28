@@ -44,15 +44,19 @@ export class AskManager {
 		"add_interested_file",
 	] as const
 
-	private readonly mustRequestApprovalTypes = [
+	private readonly mustRequestApprovalTypes: (ChatTool["tool"] | string)[] = [
 		"completion_result",
 		"resume_completed_task",
 		"resume_task",
 		"request_limit_reached",
 		"followup",
+		"ask_followup_question",
 	] as const
 
-	private readonly mustRequestApprovalTools = ["ask_followup_question", "attempt_completion"] as const
+	private readonly mustRequestApprovalTools: ChatTool["tool"][] = [
+		"ask_followup_question",
+		"attempt_completion",
+	] as const
 
 	constructor(stateManager: StateManager) {
 		this.stateManager = stateManager

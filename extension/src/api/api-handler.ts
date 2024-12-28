@@ -148,6 +148,8 @@ ${this.customInstructions.trim()}
 			// Process conversation history using our external utility
 			if (!skipProcessing) {
 				await processConversationHistory(provider.koduDev!, conversationHistory, criticalMsg, true)
+			} else {
+				this.log("info", `Skipping conversation history processing`)
 			}
 			if (postProcessConversationCallback) {
 				await postProcessConversationCallback?.(conversationHistory)

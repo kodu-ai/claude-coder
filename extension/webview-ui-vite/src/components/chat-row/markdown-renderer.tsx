@@ -24,8 +24,8 @@ type MarkdownRendererProps =
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, children }) => {
 	const syntaxHighlighter = useAtomValue(syntaxHighlighterAtom)
 	return (
-		<div className="mr-auto p-4 py-0">
-			<div className="prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none">
+		<div className="mr-auto p-4 py-0 overflow-hidden">
+			<div className="prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none w-full">
 				<ReactMarkdown
 					// GFM adds support for tables, strikethrough, and task lists
 					remarkPlugins={[remarkGfm]}
@@ -43,7 +43,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, ch
 								console.log(`No language specified for code block: ${children}`)
 								// Inline code block
 								return (
-									<code className="rounded bg-gray-100 dark:bg-gray-800 px-1 py-0.5 font-mono text-sm">
+									<code className="rounded bg-gray-100 dark:bg-gray-800 px-1 py-0.5 font-mono text-sm overflow-auto">
 										{children}
 									</code>
 								)

@@ -224,6 +224,10 @@ export type V1ClaudeMessage = {
 	 */
 	v: 1
 	/**
+	 * Timestamp when the message generation was completed
+	 */
+	completedAt?: number
+	/**
 	 *
 	 */
 	isAborted?: "user" | "timeout"

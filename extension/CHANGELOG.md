@@ -6,6 +6,11 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 ## [2.0.1] - 2024-12-29
 
+### New
+
+-   Track task time elapsed
+-   Collapse messages
+
 ### Changed
 
 -   Prepared for general release 3rd party providers (openrouter, lmstudio)

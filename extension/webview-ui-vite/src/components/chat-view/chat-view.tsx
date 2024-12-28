@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { ChatState, ChatViewProps } from "./chat"
+import { isV1ClaudeMessage } from "../../../../src/shared/messages/extension-message"
 import { useAtom } from "jotai"
 import { attachmentsAtom, chatState, syntaxHighlighterAtom } from "./atoms"
 import { useExtensionState } from "@/context/extension-state-context"
@@ -105,8 +106,21 @@ const ChatView: React.FC<ChatViewProps> = ({
 	const { shouldDisableImages, handlePaste } = useImageHandling(selectedModelSupportsImages, state, updateState)
 
 	const firstTaskMsg = useMemo(() => messages.at(0), [messages])
-
 	const cleanedMessages = useMemo(() => messages.slice(1), [messages])
+
+	const elapsedTime = useMemo(() => {
+		if (!firstTaskMsg) return undefined
+		const lastCompletedMessage = messages
+			.filter((msg) => isV1ClaudeMessage(msg) && msg.completedAt)
+			.sort(
+				(a, b) => (isV1ClaudeMessage(b) ? b.completedAt! : 0) - (isV1ClaudeMessage(a) ? a.completedAt! : 0)
+			)[0]
+
+		if (lastCompletedMessage && isV1ClaudeMessage(lastCompletedMessage) && lastCompletedMessage.completedAt) {
+			return lastCompletedMessage.completedAt - firstTaskMsg.ts
+		}
+		return undefined
+	}, [messages, firstTaskMsg])
 
 	const isMessageRunning = useMessageRunning(messages)
 
@@ -310,6 +324,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 								firstMsg={firstTaskMsg}
 								tokensIn={currentTask.tokensIn}
 								tokensOut={currentTask.tokensOut}
+								elapsedTime={elapsedTime}
 								doesModelSupportPromptCache={selectedModelSupportsPromptCache}
 								cacheWrites={currentTask.cacheWrites}
 								cacheReads={currentTask.cacheReads}

@@ -48,18 +48,19 @@ export default function AnnouncementBanner() {
 
 				<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🔄 Better obedience to prompt and improved tools output</p>
-						<p>🔍 New search capabilities for symbols and repositories</p>
-						<p>⚡️ Improved stream speed and stability (v2.0.1)</p>
-						<p>📝 Enhanced diff editing capabilities (v2.0.1)</p>
+						<p>⚡️ Major performance improvements (v2.0.1)</p>
+						<p>🎯 Better task handling with ReAct prompting system (v2.0.1)</p>
+						<p>🔍 New symbol search and repository exploration tools (v2.0.1)</p>
+						<p>📝 Enhanced diff editing with automatic fixes (v2.0.1)</p>
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
 						<p>🤖 New 3rd party observer LLM for guidance</p>
-						<p>🛠️ New Prompt Editor for configuring Kodu instructions</p>
-						<p>🔧 Auto fix inline edits in the same request</p>
-						<p>💾 Reduced context window consumption (v2.0.1)</p>
-						<p>🐛 Fixed model display and edge cases (v2.0.1)</p>
+						<p>🛠️ Configurable Prompt Editor and multi-agent system</p>
+						<p>📦 File history control with Git integration (v1.15.0)</p>
+						<p>🔄 Support for concurrent multiple edits (v1.13.0)</p>
+						<p>💾 Smart memory management and context compression</p>
+						<p>⚡️ Improved extension performance and stability</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">
