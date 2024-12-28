@@ -114,7 +114,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 					orignalContent: "",
 					isExistingFile: false,
 				}
-				return
+				throw new Error(`File does not exist: ${relPath}`)
 			}
 
 			// Otherwise, read the file's original content

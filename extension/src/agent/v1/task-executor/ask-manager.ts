@@ -34,13 +34,14 @@ export class AskManager {
 	private currentAskId: number | null = null
 	private pendingToolAsks: Map<string, number> = new Map()
 
-	private readonly readOnlyTools = [
+	private readonly readOnlyTools: ChatTool["tool"][] = [
 		"read_file",
 		"list_files",
 		"search_files",
 		"explore_repo_folder",
 		"web_search",
 		"url_screenshot",
+		"add_interested_file",
 	] as const
 
 	private readonly mustRequestApprovalTypes = [
@@ -66,7 +67,7 @@ export class AskManager {
 			const askData = this.stateManager.claudeMessagesManager.getMessageById(this.currentAskId!)
 			if (askData) {
 				try {
-					const tool = (askData.ask === "tool" ? safeParseJSON(askData.text ?? "{}") : undefined) as ChatTool
+					const tool = (askData?.ask === "tool" ? safeParseJSON(askData.text ?? "{}") : undefined) as ChatTool
 					if (typeof tool === "object") {
 						tool.approvalState = "error"
 						tool.error = "Tool was aborted"

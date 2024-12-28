@@ -41,7 +41,7 @@ export class ListFilesTool extends BaseAgentTool<ListFilesToolParams> {
 			const recursive = recursiveRaw?.toLowerCase() === "true"
 			const absolutePath = path.resolve(this.cwd, relDirPath)
 			const [files, hitLimit] = await listFiles(absolutePath, recursive, 500)
-			const result = formatFilesList(absolutePath, files, hitLimit)
+			const result = await formatFilesList(absolutePath, files, hitLimit)
 
 			const { response, text, images } = await ask(
 				"tool",

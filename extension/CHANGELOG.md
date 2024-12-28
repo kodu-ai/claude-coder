@@ -4,6 +4,22 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.0.1] - 2024-12-29
+
+### Changed
+
+-   Prepared for general release 3rd party providers (openrouter, lmstudio)
+-   Prepared for general release Agent model selection (allow you to select specifc model for each agent)
+-   Update prompt structure and inital task message to allow better discovery of the repo
+-   Improved diff editing significantly
+-   Improved stream speed and stability
+-   Reduce context window consumption
+
+### Fixed
+
+-   Incorrect model display
+-   bug fixed numerous edge cases
+
 ## [2.0.0] - 2024-12-16
 
 ### Changed
