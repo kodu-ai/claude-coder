@@ -883,12 +883,14 @@ Now let me fix the search and replace blocks and apply the changes to the file c
 <kodu_diff>
 ... corrected search and replace blocks content ...
 </kodu_diff>
-</file_editor>`,
+</file_editor>
+
+YOU ABSOLUTELY MUST CALL FILE_EDITOR TOOL AGAIN WITH THE CORRECTED SEARCH AND REPLACE BLOCKS TO APPLY THE CHANGES TO THE FILE CONTENT, DON"T ASK ME TO DO IT FOR YOU, YOU MUST DO IT. AND YOU MUST FIX THE 'kodu_diff' content based on the original intent and live content of the file.`,
 							},
 						],
 					},
 				],
-				modelId: this.koduDev.getApiManager().getApi().cheapModelId ?? "claude-3-5-haiku-20241022",
+				modelId: this.koduDev.getApiManager().getApi().getModel().id,
 				abortSignal: this.AbortController.signal,
 			})
 

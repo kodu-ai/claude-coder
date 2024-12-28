@@ -1,17 +1,23 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { ClaudeMessage, isV1ClaudeMessage } from '../../../src/shared/messages/extension-message';
+import React, { createContext, useContext, useState, useCallback } from "react"
+import { ClaudeMessage, isV1ClaudeMessage } from "../../../src/shared/messages/extension-message"
 
 interface CollapseContextType {
   collapsedMessages: Set<number>;
+  messages: ClaudeMessage[];
+  isAllCollapsed: boolean;
   toggleCollapse: (messageTs: number) => void;
   isCollapsed: (messageTs: number) => boolean;
-  shouldShowMessage: (message: ClaudeMessage, messages: ClaudeMessage[]) => boolean;
+  shouldShowMessage: (message: ClaudeMessage) => boolean;
+  collapseAll: () => void;
+  setMessages: (messages: ClaudeMessage[]) => void;
 }
 
 const CollapseContext = createContext<CollapseContextType | undefined>(undefined);
 
 export function CollapseProvider({ children }: { children: React.ReactNode }) {
+  const [messages, setMessages] = useState<ClaudeMessage[]>([]);
   const [collapsedMessages, setCollapsedMessages] = useState<Set<number>>(new Set());
+  const [isAllCollapsed, setIsAllCollapsed] = useState(false);
 
   const toggleCollapse = useCallback((messageTs: number) => {
     setCollapsedMessages((prev) => {
@@ -29,7 +35,7 @@ export function CollapseProvider({ children }: { children: React.ReactNode }) {
     return collapsedMessages.has(messageTs);
   }, [collapsedMessages]);
 
-  const shouldShowMessage = useCallback((message: ClaudeMessage, messages: ClaudeMessage[]) => {
+  const shouldShowMessage = useCallback((message: ClaudeMessage) => {
     // Only V1 messages can be collapsed
     if (!isV1ClaudeMessage(message)) {
       return true;
@@ -41,10 +47,10 @@ export function CollapseProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Find the previous API request message
-    let previousApiRequest: ClaudeMessage | undefined;
     const messageIndex = messages.findIndex(m => m.ts === message.ts);
     
     // Iterate backwards from current message to find the previous API request
+    let previousApiRequest: ClaudeMessage | undefined;
     for (let i = messageIndex - 1; i >= 0; i--) {
       const msg = messages[i];
       if (isV1ClaudeMessage(msg) && msg.say === 'api_req_started') {
@@ -60,13 +66,33 @@ export function CollapseProvider({ children }: { children: React.ReactNode }) {
 
     // If the previous API request is collapsed, hide this message
     return false;
-  }, [collapsedMessages]);
+  }, [messages, collapsedMessages]);
+
+  const collapseAll = useCallback(() => {
+    if (isAllCollapsed) {
+      // Uncollapse all
+      setCollapsedMessages(new Set());
+      setIsAllCollapsed(false);
+    } else {
+      // Collapse all API request messages
+      setCollapsedMessages(new Set(
+        messages
+          .filter(message => isV1ClaudeMessage(message) && message.say === 'api_req_started')
+          .map(message => message.ts)
+      ));
+      setIsAllCollapsed(true);
+    }
+  }, [messages, isAllCollapsed]);
 
   const value = {
     collapsedMessages,
+    messages,
+    isAllCollapsed,
     toggleCollapse,
     isCollapsed,
     shouldShowMessage,
+    collapseAll,
+    setMessages,
   };
 
   return <CollapseContext.Provider value={value}>{children}</CollapseContext.Provider>;

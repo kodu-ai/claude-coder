@@ -304,21 +304,21 @@ const ChatView: React.FC<ChatViewProps> = ({
 				<AnnouncementBanner />
 				{!!currentTask && firstTaskMsg ? (
 					<>
-						<TaskHeader
-							key={`header-${firstTaskMsg.ts}`}
-							firstMsg={firstTaskMsg}
-							tokensIn={currentTask.tokensIn}
-							tokensOut={currentTask.tokensOut}
-							doesModelSupportPromptCache={selectedModelSupportsPromptCache}
-							cacheWrites={currentTask.cacheWrites}
-							cacheReads={currentTask.cacheReads}
-							totalCost={currentTask.totalCost}
-							onClose={() => vscode.postMessage({ type: "clearTask" })}
-							isHidden={isHidden}
-							koduCredits={user?.credits ?? 0}
-							vscodeUriScheme={uriScheme}
-						/>
 						<CollapseProvider>
+							<TaskHeader
+								key={`header-${firstTaskMsg.ts}`}
+								firstMsg={firstTaskMsg}
+								tokensIn={currentTask.tokensIn}
+								tokensOut={currentTask.tokensOut}
+								doesModelSupportPromptCache={selectedModelSupportsPromptCache}
+								cacheWrites={currentTask.cacheWrites}
+								cacheReads={currentTask.cacheReads}
+								totalCost={currentTask.totalCost}
+								onClose={() => vscode.postMessage({ type: "clearTask" })}
+								isHidden={isHidden}
+								koduCredits={user?.credits ?? 0}
+								vscodeUriScheme={uriScheme}
+							/>
 							<ChatMessages
 								key={`messages-${firstTaskMsg.ts}`}
 								taskId={firstTaskMsg.ts}

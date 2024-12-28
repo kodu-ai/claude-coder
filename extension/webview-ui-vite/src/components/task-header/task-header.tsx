@@ -2,15 +2,17 @@ import React from "react"
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
 import { ClaudeMessage } from "../../../../src/shared/messages/extension-message"
 import { vscode } from "../../utils/vscode"
+import { cn } from "@/lib/utils"
 import Thumbnails from "../thumbnails/thumbnails"
 import { ApiProvider } from "../../../../src/shared/api"
 import TaskText from "./task-text"
 import TokenInfo from "./token-info"
 import CreditsInfo from "./credits-info"
 import { useExtensionState } from "@/context/extension-state-context"
+import { useCollapseState } from "@/context/collapse-state-context"
 import BugReportDialog from "./bug-report-dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { ChevronDown, ChevronUp } from "lucide-react"
+import { ChevronDown, ChevronUp, FoldVertical } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -42,6 +44,7 @@ export default function TaskHeader({
 	vscodeUriScheme,
 }: TaskHeaderProps) {
 	const { currentTaskId, currentTask, currentContextTokens, currentContextWindow } = useExtensionState()
+	const { collapseAll, isAllCollapsed } = useCollapseState()
 	const [isOpen, setIsOpen] = React.useState(true)
 
 	const handleDownload = () => {
@@ -64,6 +67,19 @@ export default function TaskHeader({
 					<VSCodeButton appearance="icon" onClick={handleDownload}>
 						Export
 					</VSCodeButton>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<VSCodeButton appearance="icon" onClick={collapseAll}>
+								<FoldVertical
+									size={16}
+									className={cn("transition-transform", isAllCollapsed && "rotate-180")}
+								/>
+							</VSCodeButton>
+						</TooltipTrigger>
+						<TooltipContent avoidCollisions side="left">
+							{isAllCollapsed ? "Expand All Messages" : "Collapse All Messages"}
+						</TooltipContent>
+					</Tooltip>
 					<VSCodeButton appearance="icon" onClick={onClose}>
 						<span className="codicon codicon-close"></span>
 					</VSCodeButton>

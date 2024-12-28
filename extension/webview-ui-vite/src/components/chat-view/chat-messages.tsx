@@ -51,7 +51,12 @@ const MessageRenderer = React.memo(
 MessageRenderer.displayName = "MessageRenderer"
 
 const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, syntaxHighlighterStyle }) => {
-	const { shouldShowMessage } = useCollapseState()
+	const { shouldShowMessage, setMessages } = useCollapseState()
+
+	// Keep collapse context messages in sync
+	useEffect(() => {
+		setMessages(visibleMessages)
+	}, [visibleMessages, setMessages])
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
 	const [atBottom, setAtBottom] = useState(true)
 	const [userScrolled, setUserScrolled] = useState(false)
@@ -190,7 +195,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, sy
 							!isActionTag(message.text ?? "")
 
 						// Then check collapse state
-						return passesBasicFilters && shouldShowMessage(message, visibleMessages)
+						return passesBasicFilters && shouldShowMessage(message)
 					})
 				}, [visibleMessages, shouldShowMessage])}
 				style={{ height: "100%" }}
