@@ -33,6 +33,7 @@ export const models: Record<
 	"claude-3-5-haiku-20241022": {
 		...koduModels["claude-3-5-haiku-20241022"],
 		label: "Claude 3.5 Haiku",
+		isBrowserModel: true,
 	},
 }
 

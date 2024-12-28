@@ -285,16 +285,16 @@ export class ToolExecutor {
 		if (context.tool instanceof FileEditorTool && params.path) {
 			if (params.kodu_content) {
 				if (params.kodu_content) {
-					context.tool.handlePartialUpdate(params.path, params.kodu_content)
+					await context.tool.handlePartialUpdate(params.path, params.kodu_content)
 				}
 			}
 			// enable after updating the animation
 			if (params.kodu_diff) {
 				// this.updateToolStatus(context, params, ts)
-				context.tool.handlePartialUpdateDiff(params.path, params.kodu_diff)
+				await context.tool.handlePartialUpdateDiff(params.path, params.kodu_diff)
 			}
 		} else {
-			this.updateToolStatus(context, params, ts)
+			await this.updateToolStatus(context, params, ts)
 		}
 	}
 
@@ -332,7 +332,7 @@ export class ToolExecutor {
 		context.tool.updateIsFinal(true)
 
 		this.queue.add(() => this.processTool(context!))
-		await this.updateToolStatus(context, params, context.tool.ts)
+		this.updateToolStatus(context, params, context.tool.ts)
 	}
 
 	/**
@@ -378,7 +378,7 @@ export class ToolExecutor {
 	 * @param ts Timestamp of the update
 	 */
 	private async updateToolStatus(context: ToolContext, params: any, ts: number) {
-		this.koduDev.taskExecutor.updateAsk(
+		await this.koduDev.taskExecutor.updateAsk(
 			"tool",
 			{
 				tool: {

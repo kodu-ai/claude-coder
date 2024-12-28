@@ -79,9 +79,9 @@ export async function enrichConversationHistory(
 		return
 	}
 
-	// Add critical messages every 4th message or the first message
+	// Add critical messages every 8th message or the first message
 	const userMessageCount = (history.length + 1) / 2
-	const shouldAddCriticalMsg = userMessageCount === 1 || userMessageCount % 4 === 0
+	const shouldAddCriticalMsg = userMessageCount === 1 || userMessageCount % 8 === 0
 
 	const lastMessage = history[history.length - 1]
 	const isFirstMessage = history.length === 1

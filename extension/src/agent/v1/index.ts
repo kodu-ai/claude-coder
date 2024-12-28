@@ -5,7 +5,7 @@ import { ClaudeAskResponse } from "../../shared/messages/client-message"
 import { ApiManager } from "../../api/api-handler"
 import { ToolExecutor } from "./tools/tool-executor"
 import { KoduDevOptions, ToolResponse, UserContent } from "./types"
-import { getCwd, formatImagesIntoBlocks, getPotentiallyRelevantDetails, formatFilesList } from "./utils"
+import { getCwd, formatImagesIntoBlocks, formatFilesList } from "./utils"
 import { StateManager } from "./state-manager"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
@@ -27,6 +27,7 @@ import { DIFF_VIEW_URI_SCHEME } from "../../integrations/editor/decoration-contr
 import { HookManager, BaseHook, HookOptions, HookConstructor } from "./hooks"
 import { ObserverHook } from "./hooks/observer-hook"
 import { GlobalStateManager } from "../../providers/state/global-state-manager"
+import dedent from "dedent"
 
 // new KoduDev
 export class KoduDev {
@@ -90,7 +91,7 @@ export class KoduDev {
 		this.browserManager = new BrowserManager(this.providerRef.deref()!.context)
 
 		this.setupTaskExecutor()
-		this.gitHandler = new GitHandler(getCwd(), this.stateManager)
+		this.gitHandler = new GitHandler(getCwd())
 
 		amplitudeTracker.updateUserSettings({
 			AlwaysAllowReads: this.stateManager.alwaysAllowReadOnly,
@@ -210,7 +211,7 @@ export class KoduDev {
 
 		let textBlock: Anthropic.TextBlockParam = {
 			type: "text",
-			text: `<task>\n${task}\n</task>\n\n${getPotentiallyRelevantDetails()}`,
+			text: `Here is our task for this conversation, you must remember it all time unless i tell you otherwise.\n<task>\n${task}\n</task>`,
 		}
 		let imageBlocks: Anthropic.ImageBlockParam[] = formatImagesIntoBlocks(images)
 		amplitudeTracker.taskStart(this.stateManager.state.taskId)
@@ -569,9 +570,7 @@ export class KoduDev {
 		}
 		const devServers = TerminalRegistry.getAllDevServers()
 		const isDevServerRunning = devServers.length > 0
-		let devServerSection =
-			"# Critical information about the current running development server, when you call the dev_server tool, the dev server information will be updated here. this is the only place where the dev server information will be updated. don't ask the user for information about the dev server, always refer to this section.\n"
-		devServerSection += `\n\n<dev_server_status>\n`
+		let devServerSection = "<dev_server_status>\n"
 		devServerSection += `<dev_server_running>${
 			isDevServerRunning ? "SERVER IS RUNNING" : "SERVER IS NOT RUNNING!"
 		}</dev_server_running>\n`
@@ -586,31 +585,31 @@ export class KoduDev {
 					logs.length === 0
 						? "No logs"
 						: `
-					You have a total of ${logs.length} logs. Here are the last 15 logs
-					if you want to get the full logs use the dev_server tool.
-					:\n` + logs.join("\n")
+					You have a total of ${logs.length} logs. Here are the last 15 logs if you want to get the full logs use the dev_server tool.\n` +
+						  logs.join("\n")
 				}</dev_server_logs>\n`
 				devServerSection += `</dev_server_info>\n`
 			}
 		} else {
-			devServerSection += `<dev_server_info>Dev server is not running. Please start the dev server using the dev_server tool if needed.</dev_server_info>\n`
+			devServerSection += `<dev_server_info>Dev server is not running. you can start the dev server using the dev_server tool if needed.</dev_server_info>\n`
 		}
 		devServerSection += `</dev_server_status>\n`
 		details += devServerSection
 		// It could be useful for cline to know if the user went from one or no file to another between messages, so we always include this context
-		details += "\n\n# VSCode Visible Files"
+		details += "<visible_files>\n"
 		const visibleFiles = vscode.window.visibleTextEditors
 			?.map((editor) => editor.document?.uri?.fsPath)
 			.filter(Boolean)
 			.map((absolutePath) => path.relative(getCwd(), absolutePath).toPosix())
 			.join("\n")
 		if (visibleFiles) {
-			details += `\n${visibleFiles}`
+			details += `${visibleFiles}`
 		} else {
-			details += "\n(No visible files)"
+			details += "(No visible files)"
 		}
+		details += "\n</visible_files>\n"
 
-		details += "\n\n# VSCode Open Tabs"
+		details += "<open_tabs>\n"
 		const openTabs = vscode.window.tabGroups.all
 			.flatMap((group) => group.tabs)
 			.map((tab) => (tab.input as vscode.TabInputText)?.uri?.fsPath)
@@ -618,10 +617,11 @@ export class KoduDev {
 			.map((absolutePath) => path.relative(getCwd(), absolutePath).toPosix())
 			.join("\n")
 		if (openTabs) {
-			details += `\n${openTabs}`
+			details += `${openTabs}`
 		} else {
-			details += "\n(No open tabs)"
+			details += "(No open tabs)"
 		}
+		details += "\n</open_tabs>\n"
 
 		// get the diagnostics errors for all files in the current task
 
@@ -647,12 +647,12 @@ export class KoduDev {
 
 		// map the diagnostics to the original file path
 		details +=
-			"\n\n# CURRENT ERRORS (Linter Errors) this is the only errors that are present if you seen previous linting errors they have been resolved."
+			"# CURRENT ERRORS (Linter Errors) this is the only errors that are present if you seen previous linting errors they have been resolved."
 		if (newErrors.length === 0) {
 			details += "\n(No diagnostics errors)"
 		} else {
 			console.log("[ENVIRONMENT DETAILS] New errors found", newErrors.map((diag) => diag.errorString).join("\n"))
-			details += `The following errors are present in the current task you have been working on. this is the only errors that are present if you seen previous linting errors they have been resolved.\n`
+			details += `\nThe following errors are present in the current task you have been working on. this is the only errors that are present if you seen previous linting errors they have been resolved.\n`
 			details += `<linter_errors>\n`
 			details += newErrors.map((diag) => diag.errorString).join("\n")
 			details += `</linter_errors>\n`
@@ -666,14 +666,18 @@ export class KoduDev {
 				// don't want to immediately access desktop since it would show permission popup
 				details += "(Desktop files not shown automatically. Use list_files to explore if needed.)"
 			} else {
-				const [files, didHitLimit] = await listFiles(getCwd(), true, 300)
-				const result = formatFilesList(getCwd(), files, didHitLimit)
+				const [files, didHitLimit] = await listFiles(getCwd(), true, 1_000)
+				const result = await formatFilesList(getCwd(), files, didHitLimit)
 
 				details += result
 			}
 		}
 
-		return `<environment_details>\n${details.trim()}\n</environment_details>`
+		return dedent`<environment_details>
+# Here is the environment details for the current timestamp, it should be valid only for this current timestamp.
+<environment_details_timestamp>${Date.now()}</environment_details_timestamp>
+${details.trim()}
+</environment_details>`
 	}
 }
 

@@ -83,7 +83,7 @@ const extensionToLanguage: { [key: string]: string } = {
 // Example usage:
 // console.log(getLanguageFromPath('/path/to/file.js')); // Output: javascript
 
-export function getLanguageFromPath(path: string): string | undefined {
-	const extension = path.split(".").pop()?.toLowerCase() || ""
+export function getLanguageFromPath(path?: string): string | undefined {
+	const extension = path?.split(".")?.pop()?.toLowerCase() || ""
 	return extensionToLanguage[extension]
 }

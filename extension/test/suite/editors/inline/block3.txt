@@ -1,4 +1,4 @@
-SEARCH
+<<<<<<< HEAD
 import { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -10,7 +10,7 @@ import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 =======
-REPLACE
+>>>>>>> updated
 import { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -34,7 +34,7 @@ import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { Loader2 } from "lucide-react";
 =======
-SEARCH
+<<<<<<< HEAD
   const [formData, setFormData] = useState<
     Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>
   >({
@@ -46,7 +46,7 @@ SEARCH
     description: '',
   });
 =======
-REPLACE
+>>>>>>> updated
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [formData, setFormData] = useState<
@@ -65,7 +65,7 @@ REPLACE
     price: '',
   });
 =======
-SEARCH
+<<<<<<< HEAD
   // Handle form submission for updating subscription details
   // Prevents default form behavior and updates the subscription in the store
   const handleSubmit = (e: React.FormEvent) => {
@@ -85,7 +85,7 @@ SEARCH
     }
   };
 =======
-REPLACE
+>>>>>>> updated
   const validateForm = () => {
     const newErrors = {
       name: '',
@@ -140,7 +140,7 @@ REPLACE
     }
   };
 =======
-SEARCH
+<<<<<<< HEAD
                 <SelectContent>
                   <SelectItem value="USD">USD</SelectItem>
                   <SelectItem value="EUR">EUR</SelectItem>
@@ -149,7 +149,7 @@ SEARCH
                   <SelectItem value="CNY">CNY</SelectItem>
                 </SelectContent>
 =======
-REPLACE
+>>>>>>> updated
                 <SelectContent>
                   <SelectItem value="USD">USD (US Dollar)</SelectItem>
                   <SelectItem value="EUR">EUR (Euro)</SelectItem>
@@ -163,7 +163,7 @@ REPLACE
                   <SelectItem value="MXN">MXN (Mexican Peso)</SelectItem>
                 </SelectContent>
 =======
-SEARCH
+<<<<<<< HEAD
           <div className="flex justify-between">
             <Button type="button" variant="destructive" onClick={handleDelete}>
               Delete
@@ -179,7 +179,7 @@ SEARCH
       </DialogContent>
     </Dialog>
 =======
-REPLACE
+>>>>>>> updated
           <div className="flex justify-between">
             <Button 
               type="button" 

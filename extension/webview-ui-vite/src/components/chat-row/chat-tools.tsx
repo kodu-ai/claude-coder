@@ -26,7 +26,7 @@ import {
 	Terminal,
 	XCircle,
 } from "lucide-react"
-import React, { useState } from "react"
+import React, { useMemo, useState } from "react"
 import {
 	AddInterestedFileTool,
 	AskFollowupQuestionTool,
@@ -50,6 +50,8 @@ import { EnhancedWebSearchBlock } from "./tools/web-search-tool"
 import { FileEditorTool } from "./tools/file-editor-tool"
 import { SpawnAgentBlock, ExitAgentBlock } from "./tools/agent-tools"
 import MarkdownRenderer from "./markdown-renderer"
+import { CodeBlock } from "./code-block"
+import { getLanguageFromPath } from "@/utils/get-language-from-path"
 
 type ApprovalState = ToolStatus
 export type ToolAddons = {
@@ -422,6 +424,16 @@ export const SearchFilesBlock: React.FC<SearchFilesTool & ToolAddons> = ({
 	</ToolBlock>
 )
 
+const CodeBlockMemorized = React.memo(({ content, path }: { content: string; path: string }) => {
+	return (
+		<ScrollArea className="h-[200px] w-full rounded-md border">
+			<CodeBlock language={path} children={content} />
+			<ScrollBar orientation="vertical" />
+			<ScrollBar orientation="horizontal" />
+		</ScrollArea>
+	)
+})
+
 export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 	path,
 	approvalState,
@@ -433,6 +445,7 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 	...rest
 }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
+	const pathEnding = useMemo(() => getLanguageFromPath(path), [path])
 
 	return (
 		<ToolBlock
@@ -466,13 +479,8 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 						</Button>
 					</CollapsibleTrigger>
 					<CollapsibleContent className="mt-2">
-						<ScrollArea className="h-[200px] w-full rounded-md border">
-							<div className="bg-secondary/20 p-3 rounded-md text-sm">
-								<pre className="whitespace-pre-wrap">{content}</pre>
-							</div>
-							<ScrollBar orientation="vertical" />
-							<ScrollBar orientation="horizontal" />
-						</ScrollArea>
+						{/* this optimize the render to not do heavy work unless it's open */}
+						{isOpen && <CodeBlockMemorized content={content} path={pathEnding ?? "text"} />}
 					</CollapsibleContent>
 				</Collapsible>
 			)}

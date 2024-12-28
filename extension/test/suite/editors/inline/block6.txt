@@ -1,4 +1,4 @@
-SEARCH
+<<<<<<< HEAD
 """
 Interactive script that demonstrates blocking input.
 Gets user's name and age along with other questions in a deterministic random order
@@ -11,7 +11,7 @@ import os
 
 def get_user_info():
 =======
-REPLACE
+>>>>>>> updated
 """
 Interactive Personality Greeter and CTF Challenge
 
@@ -63,7 +63,7 @@ def get_user_info():
         - All outputs are flushed to ensure reliable interaction
     """
 =======
-SEARCH
+<<<<<<< HEAD
     # Ask all questions in our determined order
     for question, q_type in questions:
         # Ask the question
@@ -88,7 +88,7 @@ SEARCH
                         print("Your wisdom and experience are valuable!", flush=True)
                     break
 =======
-REPLACE
+>>>>>>> updated
     # Ask all questions in our determined order
     for question, q_type in questions:
         # Ask the question and ensure proper output flushing
@@ -129,14 +129,14 @@ REPLACE
                         print("and there's still so much more to explore! 🎨", flush=True)
                     break
 =======
-SEARCH
+<<<<<<< HEAD
         else:
             # Generic response for other questions
             print(f"Thanks for sharing that!", flush=True)
         
         sys.stdout.flush()
 =======
-REPLACE
+>>>>>>> updated
         else:
             # Enhanced responses for other questions
             if q_type == "color":

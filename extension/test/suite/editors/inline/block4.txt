@@ -1,11 +1,10 @@
-SEARCH
+<<<<<<< HEAD
 const autoCloseTerminalAtom = atom(false)
 autoCloseTerminalAtom.debugLabel = "autoCloseTerminal"
 
 const useUdiffAtom = atom(false)
 useUdiffAtom.debugLabel = "useUdiff"
 =======
-REPLACE
 const autoCloseTerminalAtom = atom(false)
 autoCloseTerminalAtom.debugLabel = "autoCloseTerminal"
 
@@ -14,47 +13,34 @@ gitHandlerEnabledAtom.debugLabel = "gitHandlerEnabled"
 
 const useUdiffAtom = atom(false)
 useUdiffAtom.debugLabel = "useUdiff"
-=======
-SEARCH
-	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
-	const setUseUdiff = useSetAtom(useUdiffAtom)
-	const setThemeName = useSetAtom(themeNameAtom)
-=======
-REPLACE
-	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
-	const setGitHandlerEnabled = useSetAtom(gitHandlerEnabledAtom)
-	const setUseUdiff = useSetAtom(useUdiffAtom)
-	const setThemeName = useSetAtom(themeNameAtom)
-=======
-SEARCH
+>>>>>>> updated
+<<<<<<< HEAD
 			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
 			setUser(message.state.user)
 			setExtensionName(message.state.extensionName)
 =======
-REPLACE
 			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
 			setGitHandlerEnabled(message.state.gitHandlerEnabled ?? true)
 			setUser(message.state.user)
 			setExtensionName(message.state.extensionName)
-=======
-SEARCH
+>>>>>>> updated
+<<<<<<< HEAD
 export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
 	commandTimeout: get(commandTimeoutAtom),
 =======
-REPLACE
 export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
 	gitHandlerEnabled: get(gitHandlerEnabledAtom),
 	commandTimeout: get(commandTimeoutAtom),
-=======
-SEARCH
+>>>>>>> updated
+<<<<<<< HEAD
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
 =======
-REPLACE
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)
 	const setGitHandlerEnabled = useSetAtom(gitHandlerEnabledAtom)
 	const setTechnicalBackground = useSetAtom(technicalBackgroundAtom)
 	const setCreativeMode = useSetAtom(creativeModeAtom)
+>>>>>>> updated

@@ -268,6 +268,7 @@ ${this.customInstructions.trim()}
 				await this.handleFinalResponse(chunk)
 				break
 		}
+
 		yield chunk
 	}
 

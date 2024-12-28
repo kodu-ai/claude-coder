@@ -106,7 +106,9 @@ async function globbyLevelByLevel(limit: number, options?: Options) {
 			const filesAtLevel = await globby(pattern, options)
 
 			for (const file of filesAtLevel) {
-				if (results.size >= limit) break
+				if (results.size >= limit) {
+					break
+				}
 				results.add(file)
 				if (file.endsWith("/")) {
 					queue.push(`${file}*`)

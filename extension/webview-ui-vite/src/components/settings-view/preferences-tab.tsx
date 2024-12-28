@@ -8,6 +8,7 @@ import { models } from "./constants"
 
 const PreferencesTab: React.FC = () => {
 	const { model, handleModelChange, browserModel, handleBrowserModelChange } = useSettingsState()
+	console.log(browserModel)
 
 	return (
 		<div className="space-y-4">

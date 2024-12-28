@@ -3,7 +3,14 @@ import * as assert from "assert"
 import { InlineEditHandler } from "../../../../src/integrations/editor/inline-editor"
 import * as fs from "fs"
 import * as path from "path"
-import { EditBlock, normalize, parseDiffBlocks } from "../../../../src/agent/v1/tools/runners/coders/utils"
+import {
+	DiffBlockManager,
+	EditBlock,
+	normalize,
+	REPLACE_HEAD,
+	SEARCH_HEAD,
+	SEPARATOR,
+} from "../../../../src/agent/v1/tools/runners/coders/utils"
 
 const readBlock = (filePath: string, extension = "ts") => {
 	const block6FilePath = path.join(__dirname, `${filePath}File.${extension}`)
@@ -51,85 +58,63 @@ async function handleStreaming(
 ) {
 	let editBlocks: EditBlock[] = []
 	let lastAppliedBlockId: string | undefined
+	const diffBlockManager = new DiffBlockManager()
 	for await (const diff of generator) {
-		if (!(diff.includes("SEARCH") && diff.includes("REPLACE"))) {
-			continue
-		}
 		try {
-			editBlocks = parseDiffBlocks(diff, blockFilePath)
+			editBlocks = diffBlockManager.parseAndMergeDiff(diff, blockFilePath)
 		} catch (err) {
 			console.log(`Error parsing diff blocks: ${err}`, "error")
 			continue
 		}
-		if (!inlineEditHandler.isOpen()) {
-			try {
-				await inlineEditHandler.open(editBlocks[0].id, blockFilePath, editBlocks[0].searchContent)
-			} catch (e) {
-				console.log("Error opening diff view: " + e, "error")
-				continue
-			}
-		}
+		const lastBlock = editBlocks.at(-1)
 		// now we are going to start applying the diff blocks
 		if (editBlocks.length > 0) {
-			const currentBlock = editBlocks.at(-1)
-			if (!currentBlock?.replaceContent) {
-				continue
-			}
-
-			// If this block hasn't been tracked yet, initialize it
-			if (!editBlocks.some((block) => block.id === currentBlock.id)) {
-				// Clean up any SEARCH text from the last block before starting new one
-				if (lastAppliedBlockId) {
-					const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-					if (lastBlock) {
-						const lines = lastBlock.replaceContent.split("\n")
-						// Only remove the last line if it ONLY contains a partial SEARCH
-						if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
-							lines.pop()
-							await inlineEditHandler.applyFinalContent(
-								lastBlock.id,
-								lastBlock.searchContent,
-								lines.join("\n")
-							)
-						} else {
-							await inlineEditHandler.applyFinalContent(
-								lastBlock.id,
-								lastBlock.searchContent,
-								lastBlock.replaceContent
-							)
-						}
-					}
+			if (!inlineEditHandler.isOpen()) {
+				try {
+					await inlineEditHandler.open(editBlocks[0].id, blockFilePath, editBlocks[0].searchContent)
+				} catch (e) {
+					console.log("Error opening diff view: " + e, "error")
+					continue
 				}
-
-				editBlocks.push({
-					id: currentBlock.id,
-					replaceContent: currentBlock.replaceContent,
-					path: block3FilePath,
-					searchContent: currentBlock.searchContent,
-				})
-				lastAppliedBlockId = currentBlock.id
 			}
+			if (lastBlock?.id) {
+				// Now we can see if the last block is finalized
+				if (lastBlock?.isFinalized) {
+					// If that block is now fully finalized, we can apply final content, e.g.:
 
-			const blockData = editBlocks.find((block) => block.id === currentBlock.id)
-			if (blockData) {
-				blockData.replaceContent = currentBlock.replaceContent
-				await inlineEditHandler.applyStreamContent(
-					currentBlock.id,
-					currentBlock.searchContent,
-					currentBlock.replaceContent
-				)
-			}
-		}
-
-		// Finalize the last block
-		if (lastAppliedBlockId) {
-			const lastBlock = editBlocks.find((block) => block.id === lastAppliedBlockId)
-			if (lastBlock) {
-				const lines = lastBlock.replaceContent.split("\n")
-				await inlineEditHandler.applyFinalContent(lastBlock.id, lastBlock.searchContent, lines.join("\n"))
+					lastAppliedBlockId = lastBlock.id
+					await inlineEditHandler.applyFinalContent(
+						lastBlock.id,
+						lastBlock.searchContent,
+						lastBlock.replaceContent
+					)
+				} else {
+					// Otherwise we do partial streaming
+					await inlineEditHandler.applyStreamContent(
+						lastBlock.id,
+						lastBlock.searchContent,
+						lastBlock.replaceContent
+					)
+				}
 			}
 		}
 	}
+	// now we force the final content to be applied
+
+	diffBlockManager.finalizeAllBlocks()
+
+	// 4) Then apply them in the inline editor
+	if (!inlineEditHandler.isOpen() && editBlocks.length > 0) {
+		await inlineEditHandler.open(editBlocks[0]?.id, blockFilePath, editBlocks[0].searchContent)
+	}
+
+	const {
+		failedCount,
+		results: allResults,
+		isAnyFailed,
+		isAllFailed,
+		failedBlocks,
+	} = await inlineEditHandler.forceFinalize(editBlocks)
 }
 
 async function testBlock(
@@ -149,7 +134,7 @@ async function testBlock(
 
 	// await delay(10_000)
 	// Save with no tabs open
-	const { finalContent: finalDocument, results } = await inlineEditHandler.saveChanges()
+	const { finalContentRaw: finalDocument, results } = await inlineEditHandler.saveChanges()
 
 	// await delay(10_000)
 
@@ -158,7 +143,7 @@ async function testBlock(
 		expectedContent = expectedContent.replace(block.searchContent, block.replaceContent)
 	}
 
-	assert.strictEqual(finalDocument, expectedContent)
+	assert.strictEqual(normalize(finalDocument), normalize(expectedContent))
 }
 const testFilePath = path.join(__dirname, "testFile.ts")
 const toEditFilePath = path.join(__dirname, "toEditFile.txt")
@@ -389,7 +374,8 @@ describe("InlineEditHandler End-to-End Test", () => {
 		const testContent = "// Some content\r\n" + searchContent.replace(/\n/g, "\r\n") + "\r\n// More content"
 		fs.writeFileSync(testFilePath, testContent, "utf8")
 
-		const diff = `SEARCH\n${searchContent}\n\nREPLACE\n${replaceContent}`
+		// const diff = `SEARCH\n${searchContent}\n\nREPLACE\n${replaceContent}`
+		const diff = `${SEARCH_HEAD}\n${searchContent}\n${SEPARATOR}\n${replaceContent}\n${REPLACE_HEAD}`
 		const generator = await simulateStreaming(diff, 25)
 
 		await handleStreaming(generator, testFilePath, inlineEditHandler)

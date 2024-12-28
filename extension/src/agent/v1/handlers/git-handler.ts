@@ -2,6 +2,7 @@ import { execa, ExecaError } from "execa"
 import { promises as fs } from "fs"
 import { GitBranchItem, GitLogItem } from "../../../shared/messages/extension-message"
 import { StateManager } from "../state-manager"
+import { GlobalStateManager } from "../../../providers/state/global-state-manager"
 
 export type GitCommitResult = {
 	branch: string
@@ -13,15 +14,14 @@ export class GitHandler {
 	private repoPath: string | undefined
 	private readonly DEFAULT_USER_NAME = "kodu-ai"
 	private readonly DEFAULT_USER_EMAIL = "bot@kodu.ai"
-	private stateManager: StateManager
 
-	constructor(repoPath: string, stateManager: StateManager) {
+	constructor(repoPath: string) {
 		this.repoPath = repoPath
-		this.stateManager = stateManager
 	}
 
 	private checkEnabled(): boolean {
-		if (!this.stateManager.gitHandlerEnabled) {
+		const shouldCommit = GlobalStateManager.getInstance().getGlobalState("gitHandlerEnabled")
+		if (!shouldCommit) {
 			console.log("Git handler is disabled")
 			return false
 		}

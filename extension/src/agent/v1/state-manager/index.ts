@@ -20,7 +20,7 @@ export class StateManager {
 	private _autoSummarize?: boolean
 	private _temporayPauseAutomaticMode: boolean = false
 	private _inlineEditOutputType?: "full" | "diff" = "full"
-	private _gitHandlerEnabled: boolean = true
+	private _gitHandlerEnabled: boolean = false
 	private _ioManager: IOManager
 	private _subAgentManager: SubAgentManager
 
@@ -49,7 +49,7 @@ export class StateManager {
 		this._alwaysAllowWriteOnly = options.alwaysAllowWriteOnly ?? false
 		this._customInstructions = options.customInstructions
 		this._terminalCompressionThreshold = options.terminalCompressionThreshold
-		this._gitHandlerEnabled = options.gitHandlerEnabled ?? true
+		this._gitHandlerEnabled = options.gitHandlerEnabled ?? false
 
 		if (["full", "diff"].includes(options.inlineEditOutputType ?? "")) {
 			this._inlineEditOutputType = options.inlineEditOutputType

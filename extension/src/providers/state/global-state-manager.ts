@@ -69,6 +69,9 @@ export class GlobalStateManager {
 		if (keyData === undefined) {
 			return this.getKeyDefaultValue(key)
 		}
+		if ((key === "apiModelId" || key === "browserModelId") && typeof keyData === "string") {
+			return this.fixModelId(keyData) as GlobalState[K]
+		}
 		return keyData as GlobalState[K]
 	}
 
@@ -82,5 +85,16 @@ export class GlobalStateManager {
 			return defaults[key] as GlobalState[K]
 		}
 		return undefined
+	}
+
+	private fixModelId(modelId: string): KoduModelId {
+		// we update the models to the latest version
+		if (modelId === "claude-3-5-sonnet-20240620") {
+			return "claude-3-5-sonnet-20241022"
+		}
+		if (modelId === "claude-3-haiku-20240307") {
+			return "claude-3-5-haiku-20241022"
+		}
+		return modelId
 	}
 }

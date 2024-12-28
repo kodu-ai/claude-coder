@@ -54,20 +54,18 @@ export const toolResponseToAIState = (result: ToolResponseV2, isCompressed?: boo
 		blocks.push({
 			type: "text",
 			text: dedent`<toolResponse>
-            <toolName>${result.toolName}</toolName>
-            <toolStatus>${result.status}</toolStatus>
-            <toolResult>${toolFeedbackToMsg(result.status)(result.text)}</toolResult>
-			${
-				result.images?.length
-					? `<images>there is ${result.images.length} image attached to the request, please check them.</images>\n`
-					: ""
-			}${
+<toolName>${result.toolName}</toolName>
+<toolStatus>${result.status}</toolStatus>
+<toolResult>${toolFeedbackToMsg(result.status)(result.text)}</toolResult>
+${
+	result.images?.length
+		? `<images>there is ${result.images.length} image attached to the request, please check them.</images>\n`
+		: ""
+}${
 				isCompressed
 					? `<isToolCompressed description="true if the tool output / input been compressed">true</isToolCompressed>\n`
 					: ""
-			}
-            </toolResponse>
-            `,
+			}</toolResponse>`,
 		})
 	}
 	if (result.images?.length) {

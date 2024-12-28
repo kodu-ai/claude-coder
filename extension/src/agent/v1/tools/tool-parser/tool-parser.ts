@@ -40,7 +40,21 @@ export class ToolParser {
 	private isInTag: boolean = false
 	private isInTool: boolean = false
 	private nonToolBuffer: string = ""
-	private readonly UPDATE_THRESHOLD = 33 // Send update every N characters
+
+	/**
+	 * Character-based threshold for partial updates
+	 */
+	private readonly UPDATE_THRESHOLD = 50
+
+	/**
+	 * Time-based flush interval (in ms). Even if UPDATE_THRESHOLD
+	 * isn't met, we'll flush after this interval passes.
+	 */
+	private readonly FLUSH_INTERVAL = 150
+
+	/** Timestamp of the last partial update flush */
+	private lastFlushTime: number = 0
+
 	public onToolUpdate?: ToolUpdateCallback
 	public onToolEnd?: ToolEndCallback
 	public onToolError?: ToolErrorCallback
@@ -63,13 +77,40 @@ export class ToolParser {
 		return this.isInTool
 	}
 
-	appendText(text: string): string {
+	public appendText(text: string): string {
 		for (const char of text) {
 			this.processChar(char)
+			// After every char, check if we need a time-based flush
+			this.checkTimeBasedFlush()
 		}
 		const output = this.nonToolBuffer
 		this.nonToolBuffer = ""
 		return output
+	}
+
+	/**
+	 * Checks if enough time has passed since last flush to force an update,
+	 * even if we haven't hit the character-based threshold or a new tag.
+	 */
+	private checkTimeBasedFlush() {
+		if (!this.currentContext || !this.currentContext.currentParam) {
+			return // not inside a param or no context
+		}
+
+		const now = Date.now()
+		if (now - this.lastFlushTime >= this.FLUSH_INTERVAL) {
+			// Force partial update if there's at least some new content
+			const paramName = this.currentContext.currentParam
+			const currentLength = this.currentContext.paramBuffer[paramName]?.length ?? 0
+			const lastUpdateLength = this.currentContext.lastUpdateLength[paramName] ?? 0
+
+			// Only flush if there's new content beyond the last checkpoint
+			if (currentLength > lastUpdateLength) {
+				this.sendProgressUpdate()
+			}
+			// Update the last flush time even if no new content
+			this.lastFlushTime = now
+		}
 	}
 
 	private processChar(char: string): void {
@@ -99,23 +140,82 @@ export class ToolParser {
 	}
 
 	private processToolChar(char: string): void {
-		if (char === "<") {
-			this.handleBufferContent()
+		const MAX_TAG_BUFFER = 200 // or whatever limit you'd like
+
+		// 1) If we see a second '<' before closing the first <...>:
+		//    => we treat the entire buffer as normal tool content, *not* a real tag,
+		//    => so we append that buffer to the param buffer (if we have a param).
+		if (this.isInTag && char === "<") {
+			// If we're inside a tool param, revert the so-called "tag" buffer into it
+			if (this.currentContext && this.currentContext.currentParam) {
+				this.currentContext.paramBuffer[this.currentContext.currentParam] =
+					(this.currentContext.paramBuffer[this.currentContext.currentParam] ?? "") + this.buffer
+			} else {
+				// if for some reason there's no currentParam, put it in tool content
+				if (this.currentContext) {
+					this.currentContext.content += this.buffer
+				} else {
+					// worst-case fallback: outside any context
+					this.nonToolBuffer += this.buffer
+				}
+			}
+			// reset
+			this.buffer = ""
+			this.isInTag = false
+
+			// Now treat this new '<' as if we just saw the first one
+			// i.e. we can try to open a new tag or keep it as normal content.
+			// For simplicity, let's just append it to the param buffer again.
+			if (this.currentContext && this.currentContext.currentParam) {
+				this.currentContext.paramBuffer[this.currentContext.currentParam] += "<"
+			} else if (this.currentContext) {
+				this.currentContext.content += "<"
+			} else {
+				this.nonToolBuffer += "<"
+			}
+			return
+		}
+
+		// 2) If we see a brand new `<` from outside a tag
+		//    => handle partial content, then switch to "in tag" mode
+		if (!this.isInTag && char === "<") {
+			this.handleBufferContent() // flush old partial content if needed
 			this.isInTag = true
-			this.buffer = char
-		} else if (char === ">" && this.isInTag) {
-			this.buffer += char
-			this.handleTag(this.buffer)
+			this.buffer = "<"
+			return
+		}
+
+		// 3) If we see `>` while inTag, we close out that tag
+		if (char === ">" && this.isInTag) {
+			this.buffer += ">"
+			this.handleTag(this.buffer) // This calls your existing handleTag logic
 			this.isInTag = false
 			this.buffer = ""
-		} else {
-			if (this.isInTag) {
-				this.buffer += char
-			} else {
-				this.buffer += char
-				this.handleBufferContent()
-			}
+			return
 		}
+
+		// 4) If we are "inside a tag" but haven't seen `>` yet, keep accumulating
+		if (this.isInTag) {
+			this.buffer += char
+
+			// If the buffer gets too large => revert to normal tool content
+			if (this.buffer.length > MAX_TAG_BUFFER) {
+				if (this.currentContext && this.currentContext.currentParam) {
+					this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
+				} else if (this.currentContext) {
+					this.currentContext.content += this.buffer
+				} else {
+					this.nonToolBuffer += this.buffer
+				}
+				this.buffer = ""
+				this.isInTag = false
+			}
+			return
+		}
+
+		// 5) If we reach here, we are NOT inTag => normal content
+		this.buffer += char
+		this.handleBufferContent()
 	}
 
 	private checkForToolStart(tag: string): void {
@@ -136,6 +236,7 @@ export class ToolParser {
 				paramBuffer: {},
 				lastUpdateLength: {},
 			}
+			this.lastFlushTime = Date.now() // reset flush timer on new tool
 			this.onToolUpdate?.(id, tagName, {}, ts)
 		} else {
 			this.nonToolBuffer += tag
@@ -154,7 +255,7 @@ export class ToolParser {
 				// Add to parameter buffer
 				this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
 
-				// Check if we should send an update
+				// Check if we crossed our character threshold
 				const currentLength = this.currentContext.paramBuffer[this.currentContext.currentParam].length
 				const lastUpdateLength = this.currentContext.lastUpdateLength[this.currentContext.currentParam]
 
@@ -162,6 +263,7 @@ export class ToolParser {
 					this.sendProgressUpdate()
 				}
 			} else {
+				// no param => store in 'content'
 				this.currentContext.content += this.buffer
 			}
 			this.buffer = ""
@@ -175,21 +277,23 @@ export class ToolParser {
 
 		// Update the params with current buffer content
 		if (this.currentContext.currentParam) {
-			this.currentContext.params[this.currentContext.currentParam] =
-				this.currentContext.paramBuffer[this.currentContext.currentParam]
+			const paramName = this.currentContext.currentParam
+			this.currentContext.params[paramName] = this.currentContext.paramBuffer[paramName]
 
 			// Update the last update length
-			this.currentContext.lastUpdateLength[this.currentContext.currentParam] =
-				this.currentContext.paramBuffer[this.currentContext.currentParam].length
+			this.currentContext.lastUpdateLength[paramName] = this.currentContext.paramBuffer[paramName].length
 		}
 
-		// Send the update
+		console.log(`Sending update at ${Date.now()}`)
 		this.onToolUpdate?.(
 			this.currentContext.id,
 			this.currentContext.toolName,
 			{ ...this.currentContext.params },
 			this.currentContext.ts
 		)
+
+		// Refresh the flush timer so we don't double-flush
+		this.lastFlushTime = Date.now()
 	}
 
 	private handleTag(tag: string): void {
@@ -214,15 +318,15 @@ export class ToolParser {
 		}
 
 		if (this.currentContext.currentParam) {
-			// We're in a parameter, increment its nesting level if we see its tag
+			// Already in a parameter, so increment nesting if it matches param
 			if (tagName === this.currentContext.currentParam) {
 				this.currentContext.paramNestingLevel[tagName] =
 					(this.currentContext.paramNestingLevel[tagName] || 0) + 1
 			}
-			// Add the tag to the buffer
+			// Add the tag to param buffer
 			this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
 		} else if (this.toolSchemas.some((schema) => schema.name === tagName)) {
-			// This is a nested tool tag
+			// Nested tool
 			this.currentContext.nestingLevel++
 			if (this.currentContext.currentParam) {
 				this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
@@ -230,7 +334,7 @@ export class ToolParser {
 				this.currentContext.content += this.buffer
 			}
 		} else {
-			// This is a new parameter
+			// Start a new parameter
 			this.currentContext.currentParam = tagName
 			this.currentContext.paramNestingLevel[tagName] = 1
 			this.currentContext.paramBuffer[tagName] = ""
@@ -247,7 +351,7 @@ export class ToolParser {
 		if (tagName === this.currentContext.toolName) {
 			this.currentContext.nestingLevel--
 			if (this.currentContext.nestingLevel === 0) {
-				// Send final update with complete content
+				// Send final update with complete param content
 				if (this.currentContext.currentParam) {
 					this.currentContext.params[this.currentContext.currentParam] =
 						this.currentContext.paramBuffer[this.currentContext.currentParam]
@@ -256,7 +360,7 @@ export class ToolParser {
 				this.isInTool = false
 				this.currentContext = null
 			} else {
-				// This is a nested closing tool tag
+				// nested tool close
 				if (this.currentContext.currentParam) {
 					this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
 				} else {
@@ -264,12 +368,11 @@ export class ToolParser {
 				}
 			}
 		} else if (tagName === this.currentContext.currentParam) {
-			// Decrement the nesting level for this parameter
+			// Decrement the nesting level for this param
 			this.currentContext.paramNestingLevel[tagName]--
 
-			// Only clear the current parameter if we're at the root level
+			// If at root level, finalize the param
 			if (this.currentContext.paramNestingLevel[tagName] === 0) {
-				// Send final update for this parameter
 				this.currentContext.params[this.currentContext.currentParam] =
 					this.currentContext.paramBuffer[this.currentContext.currentParam]
 				this.sendProgressUpdate()
@@ -277,11 +380,11 @@ export class ToolParser {
 				this.currentContext.currentParam = ""
 				delete this.currentContext.paramNestingLevel[tagName]
 			} else {
-				// This is a nested closing tag, add it to buffer
+				// close a nested param
 				this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
 			}
 		} else if (this.currentContext.currentParam) {
-			// This is some other closing tag inside a parameter
+			// Some other closing tag inside the current param
 			this.currentContext.paramBuffer[this.currentContext.currentParam] += this.buffer
 		}
 	}
@@ -310,18 +413,19 @@ export class ToolParser {
 		}
 	}
 
-	endParsing(): void {
+	public endParsing(): void {
 		if (this.currentContext) {
 			this.onToolClosingError?.(new Error("Unclosed tool tag at end of input"))
 		}
 	}
 
-	reset(): void {
+	public reset(): void {
 		this.currentContext = null
 		this.buffer = ""
 		this.isInTag = false
 		this.isInTool = false
 		this.nonToolBuffer = ""
+		this.lastFlushTime = 0
 	}
 }
 

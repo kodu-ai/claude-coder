@@ -19,6 +19,8 @@ import { ToolAddons, ToolBlock } from "../chat-tools"
 import { memo } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import MarkdownRenderer from "../markdown-renderer"
+import { getLanguageFromPath } from "@/utils/get-language-from-path"
+import { CodeBlock } from "../code-block"
 
 type ApprovalState = ToolAddons["approvalState"]
 
@@ -121,7 +123,7 @@ export const FileEditorTool: React.FC<FileEditorToolParams & ToolAddons> = memo(
 					<ScrollArea className="h-24 rounded border bg-background p-2">
 						<ScrollBar orientation="vertical" />
 						<ScrollBar orientation="horizontal" />
-						<MarkdownRenderer markdown={displayedContent?.trim()} />
+						<pre className="text-xs whitespace-pre-wrap">{displayedContent?.trim()}</pre>
 					</ScrollArea>
 
 					<div className="flex justify-between items-center">

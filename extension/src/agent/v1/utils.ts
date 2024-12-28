@@ -4,6 +4,7 @@ import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClaudeMessage, ClaudeSayTool } from "../../shared/messages/extension-message"
 import "../../utils/path-helpers"
+import { lstat } from "fs/promises"
 declare global {
 	interface String {
 		toPosix(): string
@@ -38,71 +39,168 @@ export function getReadablePath(relPath: string, customCwd: string = cwd): strin
 	}
 }
 
-/**
- * Format a list of files for display
- * @param absolutePath - The absolute path of the directory
- * @param files - Array of file paths
- * @returns Formatted string of file list
- */
-export function formatFilesList(absolutePath: string, files: string[], didHitLimit: boolean): string {
-	const sorted = files
-		.map((file) => {
-			// convert absolute path to relative path
-			const relativePath = path.relative(absolutePath, file).toPosix()
-			return file.endsWith("/") ? relativePath + "/" : relativePath
-		})
-		// Sort so files are listed under their respective directories to make it clear what files are children of what directories. Since we build file list top down, even if file list is Compressed it will show directories that cline can then explore further.
-		.sort((a, b) => {
-			const aParts = a.split("/") // only works if we use toPosix first
-			const bParts = b.split("/")
-			for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
-				if (aParts[i] !== bParts[i]) {
-					// If one is a directory and the other isn't at this level, sort the directory first
-					if (i + 1 === aParts.length && i + 1 < bParts.length) {
-						return -1
-					}
-					if (i + 1 === bParts.length && i + 1 < aParts.length) {
-						return 1
-					}
-					// Otherwise, sort alphabetically
-					return aParts[i].localeCompare(bParts[i], undefined, { numeric: true, sensitivity: "base" })
-				}
-			}
-			// If all parts are the same up to the length of the shorter path,
-			// the shorter one comes first
-			return aParts.length - bParts.length
-		})
-	if (didHitLimit) {
-		return `${sorted.join(
-			"\n"
-		)}\n\n(File list truncated. Use list_files on specific subdirectories if you need to explore further.)`
-	} else if (sorted.length === 0 || (sorted.length === 1 && sorted[0] === "")) {
-		return "No files found."
-	} else {
-		return sorted.join("\n")
-	}
+interface FolderMeta {
+	files: Set<string>
+	subfolders: Set<string>
+}
+
+interface FolderListing {
+	folderPath: string // e.g. "azad", or "" for root
+	files: string[] // direct files in this folder
+	subfolders: string[] // direct subfolder names
 }
 
 /**
- * Get potentially relevant details for the AI
- * @returns A string containing relevant VSCode details
+ * Format a list of files for display in a depth-first "folder: ..." style
+ * @param absolutePath - The absolute path of the directory
+ * @param files - Array of absolute file paths (no guaranteed trailing slash)
+ * @param didHitLimit - If we truncated the list due to a file limit
+ * @returns A string showing depth-first folder listings
  */
-export function getPotentiallyRelevantDetails(): string {
-	return `<potentially_relevant_details>
-VSCode Visible Files: ${
-		vscode.window.visibleTextEditors
-			?.map((editor) => editor.document?.uri?.fsPath)
-			.filter(Boolean)
-			.join(", ") || "(No files open)"
+export async function formatFilesList(absolutePath: string, files: string[], didHitLimit: boolean): Promise<string> {
+	// Helper to convert Windows backslashes to forward slashes
+	function toPosix(p: string): string {
+		return p.replace(/\\/g, "/")
 	}
-VSCode Opened Tabs: ${
-		vscode.window.tabGroups.all
-			.flatMap((group) => group.tabs)
-			.map((tab) => (tab.input as vscode.TabInputText)?.uri?.fsPath)
-			.filter(Boolean)
-			.join(", ") || "(No tabs open)"
+
+	// If no files at all, return "No files found."
+	if (!files || files.length === 0) {
+		return "No files found."
 	}
-</potentially_relevant_details>`
+
+	// Map of folderPath => { files: Set, subfolders: Set }
+	const folderMap = new Map<string, FolderMeta>()
+
+	// ---------------------------------------------
+	// 1. Build the folderMap from the file paths
+	// ---------------------------------------------
+	for (const fullPath of files) {
+		// Convert absolute path to relative (to absolutePath), then to posix style
+		const rel = toPosix(path.relative(absolutePath, fullPath))
+		if (!rel) {
+			continue
+		} // Edge case: if same path as absolutePath
+
+		// Check if it's actually a directory, ignoring any trailing slash
+		let isDir = rel.endsWith("/")
+		const normalized = isDir ? rel.slice(0, -1) : rel // remove trailing slash if present
+
+		try {
+			if (!isDir) {
+				// If we didn't detect a trailing slash, check via lstat
+				const stats = await lstat(fullPath)
+				if (stats.isDirectory()) {
+					isDir = true
+				}
+			}
+		} catch (err) {
+			// If lstat fails (e.g. broken symlink), treat as file or skip
+			// console.warn(`lstat failed for ${fullPath}:`, err);
+		}
+
+		// Split out parent directory and last segment
+		const segments = normalized.split("/")
+		const lastSegment = segments[segments.length - 1]
+		const parentFolder = segments.length > 1 ? segments.slice(0, -1).join("/") : ""
+
+		// Ensure the parent folder entry exists
+		if (!folderMap.has(parentFolder)) {
+			folderMap.set(parentFolder, { files: new Set(), subfolders: new Set() })
+		}
+
+		if (isDir) {
+			// Also ensure this directory has an entry in folderMap
+			if (!folderMap.has(normalized)) {
+				folderMap.set(normalized, { files: new Set(), subfolders: new Set() })
+			}
+			folderMap.get(parentFolder)!.subfolders.add(lastSegment)
+		} else {
+			// It's a file
+			folderMap.get(parentFolder)!.files.add(lastSegment)
+		}
+	}
+
+	// ---------------------------------------------
+	// 2. Depth-first traversal (DFS) over folderMap
+	// ---------------------------------------------
+	const visited = new Set<string>()
+	const listings: FolderListing[] = []
+
+	function dfs(folderPath: string): void {
+		if (visited.has(folderPath)) {
+			return
+		}
+		visited.add(folderPath)
+
+		const meta = folderMap.get(folderPath)
+		if (!meta) {
+			return
+		}
+
+		// Sort files + subfolders alphabetically
+		const sortedFiles = Array.from(meta.files).sort()
+		const sortedSubfolders = Array.from(meta.subfolders).sort()
+
+		listings.push({
+			folderPath,
+			files: sortedFiles,
+			subfolders: sortedSubfolders,
+		})
+
+		// Recursively visit subfolders in alphabetical order
+		for (const sub of sortedSubfolders) {
+			const childPath = folderPath ? `${folderPath}/${sub}` : sub // handle root
+			dfs(childPath)
+		}
+	}
+
+	// Start DFS from the "root" folder path = ""
+	if (!folderMap.has("")) {
+		// If no "" key, create one so there's a top-level container
+		folderMap.set("", { files: new Set(), subfolders: new Set() })
+	}
+	dfs("")
+
+	// ---------------------------------------------
+	// 3. Build output string
+	// ---------------------------------------------
+	const lines: string[] = []
+
+	for (const { folderPath, files: fileList, subfolders } of listings) {
+		// If folderPath == "", use the basename of absolutePath
+		const label = folderPath === "" ? path.basename(absolutePath) || absolutePath : folderPath
+
+		lines.push(`Folder: ${label}`)
+
+		// Print each file
+		for (const f of fileList) {
+			lines.push(`  ${f}`)
+		}
+
+		// Print subfolders with trailing slash
+		for (const s of subfolders) {
+			lines.push(`  ${s}/`)
+		}
+
+		lines.push("") // blank line after each folder
+	}
+
+	// Remove trailing blank lines
+	while (lines.length && !lines[lines.length - 1].trim()) {
+		lines.pop()
+	}
+
+	// If we still have no content, say "No files found."
+	if (lines.length === 0) {
+		return "No files found."
+	}
+
+	// If truncated, append the limit message
+	if (didHitLimit) {
+		lines.push('(File limit reached. Use "list_files <folder>" to explore further.)')
+	}
+
+	return lines.join("\n")
 }
 
 /**

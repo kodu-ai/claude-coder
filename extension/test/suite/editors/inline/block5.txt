@@ -1,4 +1,4 @@
-SEARCH
+<<<<<<< HEAD
 		const errorMsg = `Error: Missing value for required parameter 'query'. Please retry with complete response.
 		A good example of a ask_consultant tool call is:
 		{
@@ -8,7 +8,7 @@ SEARCH
 		Please try again with the correct query, you are not allowed to search without a query.`
 		return this.toolResponse("error", errorMsg)
 =======
-REPLACE
+>>>>>>> updated
 		const errorMsg = `
 		<consultant_tool_response>
 			<status>
@@ -32,11 +32,11 @@ REPLACE
 		</consultant_tool_response>`
 		return this.toolResponse("error", errorMsg)
 =======
-SEARCH
+<<<<<<< HEAD
 				const errorMsg = `Consultant failed to answer your question.`
 				return this.toolResponse("error", errorMsg)
 =======
-REPLACE
+>>>>>>> updated
 				const errorMsg = `
 				<consultant_tool_response>
 					<status>
@@ -55,11 +55,11 @@ REPLACE
 				</consultant_tool_response>`
 				return this.toolResponse("error", errorMsg)
 =======
-SEARCH
+<<<<<<< HEAD
 			const result = `This is the advice from the consultant: ${response.result}`
 			return this.toolResponse("success", result)
 =======
-REPLACE
+>>>>>>> updated
 			const result = `
 			<consultant_tool_response>
 				<status>
@@ -80,11 +80,11 @@ REPLACE
 			</consultant_tool_response>`
 			return this.toolResponse("success", result)
 =======
-SEARCH
+<<<<<<< HEAD
 			const errorMsg = `Consultant failed to answer your question with the error: ${err}`
 			return this.toolResponse("error", errorMsg)
 =======
-REPLACE
+>>>>>>> updated
 			const errorMsg = `
 			<consultant_tool_response>
 				<status>
@@ -104,10 +104,10 @@ REPLACE
 			</consultant_tool_response>`
 			return this.toolResponse("error", errorMsg)
 =======
-SEARCH
+<<<<<<< HEAD
 			return this.toolResponse("feedback", this.formatGenericToolFeedback(text), images)
 =======
-REPLACE
+>>>>>>> updated
 			return this.toolResponse(
 				"feedback",
 				`<consultant_tool_response>
@@ -125,10 +125,10 @@ REPLACE
 				images
 			)
 =======
-SEARCH
+<<<<<<< HEAD
 		return this.toolResponse("rejected", this.formatGenericToolFeedback())
 =======
-REPLACE
+>>>>>>> updated
 		return this.toolResponse(
 			"rejected",
 			`<consultant_tool_response>

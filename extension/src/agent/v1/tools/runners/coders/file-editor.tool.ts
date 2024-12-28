@@ -6,7 +6,7 @@ import { BaseAgentTool, FullToolParams } from "../../base-agent.tool"
 import { AgentToolOptions } from "../../types"
 import fs from "fs"
 import { detectCodeOmission } from "./detect-code-omission"
-import { parseDiffBlocks, checkFileExists, preprocessContent, EditBlock } from "./utils"
+import { checkFileExists, preprocessContent, EditBlock, DiffBlockManager } from "./utils"
 import { BlockResult, InlineEditHandler } from "../../../../../integrations/editor/inline-editor"
 import { ToolResponseV2 } from "../../../types"
 import PQueue from "p-queue"
@@ -25,18 +25,19 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 	private isProcessingFinalContent: boolean = false
 	private pQueue: PQueue = new PQueue({ concurrency: 1 })
 	private skipWriteAnimation: boolean = false
-	private editBlocks: EditBlock[] = []
 	private fileState?: {
 		absolutePath: string
 		orignalContent: string
 		isExistingFile: boolean
 	}
-	private lastAppliedEditBlockId: string = ""
+	private diffBlockManager: DiffBlockManager
+	private finalizedBlockIds: string[] = []
 
 	constructor(params: FullToolParams<FileEditorToolParams>, options: AgentToolOptions) {
 		super(params, options)
 		this.diffViewProvider = new DiffViewProvider(getCwd())
 		this.inlineEditor = new InlineEditHandler()
+		this.diffBlockManager = new DiffBlockManager()
 		if (!!this.koduDev.getStateManager().skipWriteAnimation) {
 			this.skipWriteAnimation = true
 		}
@@ -79,14 +80,16 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 	}
 
 	public async handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
-		await this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
+		this.pQueue.add(() => this._handlePartialUpdateDiff(relPath, diff))
 	}
 
 	private async _handlePartialUpdateDiff(relPath: string, diff: string): Promise<void> {
-		const mode = "edit" // partial updates always mean editing the file
+		// Partial update always means "edit"
+		const mode = "edit"
 
 		if (!this.fileState) {
-			await this.params.updateAsk(
+			// First update the UI / ask state to show 'loading'
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -100,6 +103,8 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 				},
 				this.ts
 			)
+
+			// Check if file exists. If not, store an empty original.
 			const absolutePath = path.resolve(getCwd(), relPath)
 			const isExistingFile = await checkFileExists(relPath)
 			if (!isExistingFile) {
@@ -111,13 +116,17 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 				}
 				return
 			}
+
+			// Otherwise, read the file's original content
 			const originalContent = fs.readFileSync(absolutePath, "utf8")
 			this.fileState = {
 				absolutePath,
 				orignalContent: originalContent,
-				isExistingFile,
+				isExistingFile: true,
 			}
 		}
+
+		// 1) If we’re already finalizing the entire content, skip
 		await this.params.updateAsk(
 			"tool",
 			{
@@ -133,97 +142,54 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			this.ts
 		)
 		if (this.isProcessingFinalContent) {
-			this.logger("Skipping partial update because the tool is processing the final content.", "warn")
+			// this.logger("Skipping partial update because we're processing final content.", "warn")
 			return
 		}
-
-		if (!diff.includes("REPLACE")) {
-			this.logger("Skipping partial update because the diff does not contain REPLACE keyword.", "warn")
-			return
-		}
-
-		if (this.skipWriteAnimation) {
-			return
-		}
-		let editBlocks: EditBlock[] = []
+		// 3) Use our new manager to parse/merge the blocks
+		let newBlocks: EditBlock[] = []
 		try {
-			editBlocks = parseDiffBlocks(diff, this.fileState.absolutePath)
-			this.editBlocks = editBlocks
+			newBlocks = this.diffBlockManager.parseAndMergeDiff(diff, this.fileState.absolutePath)
 		} catch (err) {
 			this.logger(`Error parsing diff blocks: ${err}`, "error")
 			return
 		}
-		if (!this.inlineEditor.isOpen() && this.editBlocks.length > 0) {
-			try {
-				await this.inlineEditor.open(
-					editBlocks[0].id,
-					this.fileState!.absolutePath,
-					editBlocks[0].searchContent
-				)
-			} catch (e) {
-				this.logger("Error opening diff view: " + e, "error")
-				return
-			}
+
+		// 4) If no blocks found, just return
+		if (newBlocks.length === 0) {
+			this.logger("No blocks found in partial diff chunk.", "debug")
+			return
 		}
 
-		if (editBlocks.length > 0) {
-			const currentBlock = editBlocks.at(-1)
-			if (!currentBlock?.replaceContent) {
-				return
-			}
-
-			if (!editBlocks.some((block) => block.id === currentBlock.id)) {
-				if (this.lastAppliedEditBlockId) {
-					const lastBlock = editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
-					if (lastBlock) {
-						const lines = lastBlock.replaceContent.split("\n")
-						if (lines.length > 0 && /^=?=?=?=?=?=?=?$/.test(lines[lines.length - 1].trim())) {
-							lines.pop()
-							await this.inlineEditor.applyFinalContent(
-								lastBlock.id,
-								lastBlock.searchContent,
-								lines.join("\n")
-							)
-						} else {
-							await this.inlineEditor.applyFinalContent(
-								lastBlock.id,
-								lastBlock.searchContent,
-								lastBlock.replaceContent
-							)
-						}
-					}
-				}
-
-				await this.inlineEditor.open(currentBlock.id, this.fileState!.absolutePath, currentBlock.searchContent)
-				this.editBlocks.push({
-					id: currentBlock.id,
-					replaceContent: currentBlock.replaceContent,
-					path: this.fileState!.absolutePath,
-					searchContent: currentBlock.searchContent,
-				})
-				this.lastAppliedEditBlockId = currentBlock.id
-			}
-
-			const blockData = editBlocks.find((block) => block.id === currentBlock.id)
-			if (blockData) {
-				blockData.replaceContent = currentBlock.replaceContent
-				await this.inlineEditor.applyStreamContent(
-					currentBlock.id,
-					currentBlock.searchContent,
-					currentBlock.replaceContent
-				)
-			}
+		if (!this.inlineEditor.isOpen() && newBlocks.length > 0) {
+			await this.inlineEditor.open(newBlocks[0]?.id, this.fileState.absolutePath, newBlocks[0].searchContent)
 		}
 
-		if (this.lastAppliedEditBlockId) {
-			const lastBlock = editBlocks.find((block) => block.id === this.lastAppliedEditBlockId)
-			if (lastBlock) {
-				await this.inlineEditor.applyFinalContent(
-					lastBlock.id,
-					lastBlock.searchContent,
-					lastBlock.replaceContent
-				)
+		// Now we can see if the last block is finalized
+		const lastBlock = newBlocks.at(-1)
+
+		// get all the block that are finalized but not in the finalizedBlockIds
+		const finalizedBlocks = newBlocks.filter(
+			(block) => block.isFinalized && !this.finalizedBlockIds.includes(block.id)
+		)
+		// finalize them sequentially
+		for (const block of finalizedBlocks) {
+			await this.inlineEditor.applyFinalContent(block.id, block.searchContent, block.replaceContent)
+			this.finalizedBlockIds.push(block.id)
+		}
+
+		if (!lastBlock) {
+			return
+		}
+		if (lastBlock.isFinalized) {
+			if (this.finalizedBlockIds.includes(lastBlock.id)) {
+				return
 			}
+			// If that block is now fully finalized, we can apply final content, e.g.:
+			this.logger(`Block is finalized, applying final content for block ID=${lastBlock.id}`, "debug")
+			await this.inlineEditor.applyFinalContent(lastBlock.id, lastBlock.searchContent, lastBlock.replaceContent)
+		} else {
+			// Otherwise we do partial streaming
+			await this.inlineEditor.applyStreamContent(lastBlock.id, lastBlock.searchContent, lastBlock.replaceContent)
 		}
 	}
 
@@ -254,7 +220,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			return
 		}
 
-		await this.params.updateAsk(
+		this.params.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -269,7 +235,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			this.ts
 		)
 
-		await this.pQueue.add(async () => {
+		this.pQueue.add(async () => {
 			if (!this.diffViewProvider.isDiffViewOpen()) {
 				try {
 					const now = Date.now()
@@ -288,23 +254,29 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 	private async finalizeInlineEdit(path: string, content: string, allowFixed = true): Promise<ToolResponseV2> {
 		const mode = "edit"
 		this.isProcessingFinalContent = true
-		let editBlocks: EditBlock[] = []
-		try {
-			editBlocks = parseDiffBlocks(content, path)
-			this.editBlocks = editBlocks
-		} catch (err) {
-			this.logger(`Error parsing diff blocks: ${err}`, "error")
-			throw new Error(`Error parsing diff blocks: ${err}`)
-		}
+
+		// 1) Reset or parse new blocks from the final diff
+		//    If you want to re-use the existing partial blocks,
+		//    you might call .parseAndMergeDiff again or do something else
+		this.diffBlockManager.parseAndMergeDiff(content, path)
+
+		// 2) Grab the final blocks from the manager
+		const editBlocks = this.diffBlockManager.blocks
+
+		// 3) Force finalize them
+		this.diffBlockManager.finalizeAllBlocks()
+
+		// 4) Then apply them in the inline editor
 		if (!this.inlineEditor.isOpen() && editBlocks.length > 0) {
-			await this.inlineEditor.open(editBlocks[0]?.id, this.fileState?.absolutePath!, editBlocks[0].searchContent)
+			await this.inlineEditor.open(editBlocks[0]?.id, this.fileState!.absolutePath, editBlocks[0].searchContent)
 		}
+
 		const {
 			failedCount,
-			isAllFailed,
-			isAnyFailed,
-			failedBlocks,
 			results: allResults,
+			isAnyFailed,
+			isAllFailed,
+			failedBlocks,
 		} = await this.inlineEditor.forceFinalize(editBlocks)
 		this.logger(`Failed count: ${failedCount}, isAllFailed: ${isAllFailed}`, "debug")
 		if (isAnyFailed) {
@@ -323,7 +295,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 				}
 			}
 
-			const extractKoduDiff = await this.params.updateAsk(
+			const extractKoduDiff = this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -341,26 +313,26 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			return this.toolResponse(
 				"error",
 				dedent`
-				<error_message>Failed to apply changes to the file. This is a fatal error than can be caused due to two reasons:
-				1. the search content was not found in the file, or the search content was not an exact letter by letter, space by space match with absolute accuracy.
-				2. the file content was modified or you don't have the latest file content in memory. Please retry the operation again with an absolute match of the search content.
-				In case of two errors in a row, please refresh the file content by calling the read_file tool on the same file path to get the latest file content.
-				</error_message>
-				<not_applied_count>${failedCount}</not_applied_count>
-				<failed_to_match_blocks>
-				${failedBlocks?.map(
-					(block) =>
-						dedent`
-				<failed_block>
-				SEARCH
-				${block.searchContent}
-				=======
-				REPLACE
-				${block.replaceContent}
-				</failed_block>
-				`
-				)}
-				</failed_to_match_blocks>
+<error_message>Failed to apply changes to the file. This is a fatal error than can be caused due to two reasons:
+1. the search content was not found in the file, or the search content was not an exact letter by letter, space by space match with absolute accuracy.
+2. the file content was modified or you don't have the latest file content in memory. Please retry the operation again with an absolute match of the search content.
+In case of two errors in a row, please refresh the file content by calling the read_file tool on the same file path to get the latest file content.
+</error_message>
+<not_applied_count>${failedCount}</not_applied_count>
+<failed_to_match_blocks>
+${failedBlocks?.map(
+	(block) =>
+		dedent`
+<failed_block>
+SEARCH
+${block.searchContent}
+=======
+REPLACE
+${block.replaceContent}
+</failed_block>
+`
+)}
+</failed_to_match_blocks>
 				`
 			)
 		}
@@ -379,7 +351,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			this.ts
 		)
 		if (response !== "yesButtonTapped") {
-			await this.params.updateAsk(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -430,7 +402,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			: ""
 		// Save a new file version
 		const newVersion = await this.saveNewFileVersion(path, finalContentRaw)
-		await this.params.updateAsk(
+		this.params.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -454,26 +426,26 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			return this.toolResponse(
 				"success",
 				dedent`<file_editor_response>
-					<status>
-					<result>success</result>
-					<operation>file_edit_with_diff</operation>
-					<timestamp>${new Date().toISOString()}</timestamp>
-					<validation>${validationMsg}</validation>
-					${commitXmlInfo}
-					</status>
-					<file_info>
-					<path>${path}</path>
-					<file_version>${newVersion.version}</file_version>
-					${fileChangesetMessage}
-					<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
-					<information>The updated file content is shown below. This reflects the change that were applied and their current position in the file.
-					This should act as a source of truth for the changes that were made unless further modifications were made after this point.
-					</information>
-					<updated_file_content_blocks>
-					${results.map((res) => res.formattedSavedArea).join("\n-------\n")}
-					</updated_file_content_blocks>
-					</file_info>
-				</file_editor_response>`,
+<status>
+<result>success</result>
+<operation>file_edit_with_diff</operation>
+<timestamp>${new Date().toISOString()}</timestamp>
+<validation>${validationMsg}</validation>
+${commitXmlInfo}
+</status>
+<file_info>
+<path>${path}</path>
+<file_version>${newVersion.version}</file_version>
+${fileChangesetMessage}
+<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
+<information>The updated file content is shown below. This reflects the change that were applied and their current position in the file.
+This should act as a source of truth for the changes that were made unless further modifications were made after this point.
+</information>
+<updated_file_content_blocks>
+${results.map((res) => res.formattedSavedArea).join("\n-------\n")}
+</updated_file_content_blocks>
+</file_info>
+</file_editor_response>`,
 				undefined,
 				commitResult
 			)
@@ -482,26 +454,26 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		return this.toolResponse(
 			"success",
 			dedent`<file_editor_response>
-		<file_info>
-		<path>${path}</path>
-		<file_version>${newVersion.version}</file_version>
-		${fileChangesetMessage}
-		<file_payload_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_payload_timestamp>
-		<critical_information>Congratulations! Your changes were successfully applied to the file.
-		from this moment onward you must reference and remember file version ${
-			newVersion.version
-		} as the latest content of the file.
-		This means from now on any further changes should be based on this version of the file, if you want to call edit on this file again you must use this as your base content for your search and replace blocks.
-		THIS MEANS THAT ANY FURTHER CHANGES WILL BE BASED ON THIS VERSION OF THE FILE, AND THIS VERSION OF THE FILE IS THE LATEST VERSION OF THE FILE, UNLESS YOU MAKE FURTHER CHANGES USING FILE_EDITOR TOOL.
-		</critical_information>
-		<updated_file_content>
-		Here is the latest file content for '${path}' at timestamp ${new Date(
+<file_info>
+<path>${path}</path>
+<file_version>${newVersion.version}</file_version>
+${fileChangesetMessage}
+<file_payload_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_payload_timestamp>
+<critical_information>Congratulations! Your changes were successfully applied to the file.
+from this moment onward you must reference and remember file version ${
+				newVersion.version
+			} as the latest content of the file.
+This means from now on any further changes should be based on this version of the file, if you want to call edit on this file again you must use this as your base content for your search and replace blocks.
+THIS MEANS THAT ANY FURTHER CHANGES WILL BE BASED ON THIS VERSION OF THE FILE, AND THIS VERSION OF THE FILE IS THE LATEST VERSION OF THE FILE, UNLESS YOU MAKE FURTHER CHANGES USING FILE_EDITOR TOOL.
+</critical_information>
+<updated_file_content>
+Here is the latest file content for '${path}' at timestamp ${new Date(
 				newVersion.createdAt
 			).toISOString()} YOU MUST REMEMBER THIS VERSION OF THE FILE FOR FUTURE OPERATIONS UNLESS YOU HAVE A NEWER VERSION OF THE FILE (AFTER THIS TIMESTAMP).
-		${finalContent}
-		</updated_file_content>
-		</file_info>
-		</file_editor_response>
+${finalContent}
+</updated_file_content>
+</file_info>
+</file_editor_response>
 		`,
 			undefined,
 			commitResult
@@ -517,7 +489,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		await this.showChangesInDiffView(relPath, content)
 		this.logger(`Asking for approval to write to file: ${relPath}`, "info")
 
-		await this.params.updateAsk(
+		this.params.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -548,7 +520,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		)
 
 		if (response !== "yesButtonTapped") {
-			await this.params.updateAsk(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -587,7 +559,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		}
 		const newVersion = await this.saveNewFileVersion(relPath, finalContent)
 
-		await this.params.updateAsk(
+		this.params.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -605,18 +577,18 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			this.ts
 		)
 
-		let toolMsg = `The content was successfully saved to ${relPath.toPosix()}.
-			<file_version>${newVersion.version}</file_version>
-			<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
-			${commitXmlInfo}
+		let toolMsg = dedent`The content was successfully saved to ${relPath.toPosix()}. you should remember this version of the file as the latest version of the file for future operations (unless further modifications were made after this point).
+<file_version>${newVersion.version}</file_version>
+<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
+${commitXmlInfo}
 		`
 		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
 			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
-			toolMsg = `The content was successfully saved to ${relPath.toPosix()},
-				but some code may have been omitted. Please ensure the full content is correct.
-				<file_version>${newVersion.version}</file_version>
-				<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
-				${commitXmlInfo}`
+			toolMsg = dedent`The content was successfully saved to ${relPath.toPosix()}. you should remember this version of the file as the latest version of the file for future operations (unless further modifications were made after this point).
+but some code may have been omitted. Please ensure the full content is correct.
+<file_version>${newVersion.version}</file_version>
+<file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
+${commitXmlInfo}`
 		}
 
 		if (userEdits) {
@@ -643,7 +615,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			this.logger(`Writing to file: ${relPath}`, "info")
 
 			this.isProcessingFinalContent = true
-			await this.pQueue.onIdle()
+			await this.pQueue.clear()
 
 			if (diff) {
 				return await this.finalizeInlineEdit(relPath, diff)
@@ -655,7 +627,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		} catch (error) {
 			this.logger(`Error in processFileWrite: ${error}`, "error")
 			const mode = this.params.input.mode
-			await this.params.updateAsk(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -704,7 +676,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			await this.diffViewProvider.open(relPath)
 		}
 
-		await this.pQueue.add(async () => {
+		this.pQueue.add(async () => {
 			await this.diffViewProvider.update(content, true)
 		})
 		await this.pQueue.onIdle()
@@ -750,7 +722,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		await this.diffViewProvider.update(versionToRollback.content, true)
 
 		// Ask for approval (pending)
-		await this.params.updateAsk(
+		this.params.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -781,7 +753,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		)
 
 		if (response !== "yesButtonTapped") {
-			await this.params.updateAsk(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -810,9 +782,9 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			commitXmlInfo = this.commitXMLGenerator(commitResult)
 		} catch {}
 
-		const newVersion = await this.koduDev.getStateManager().deleteFileVersion(versionToRollback)
+		await this.koduDev.getStateManager().deleteFileVersion(versionToRollback)
 
-		await this.params.updateAsk(
+		this.params.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -831,21 +803,20 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 
 		return this.toolResponse(
 			"success",
-			dedent`
-	<rollback_response>
-		<status>success</status>
-		<operation>rollback</operation>
-		<current_available_versions>${versions.length - 1 > 0 ? versions.length - 1 : 0}</current_available_versions>
-		<file_version_timestamp>${new Date(versionToRollback.createdAt).toISOString()}</file_version_timestamp>
-		${commitXmlInfo}
-		<critical_information>From now on, the file will be reverted to the version that was rolled back to.
-		I'm providing you the latest file content below for reference, you should only remember this file version unless further modifications were made after this point.
-		From now on file '${relPath}' content will be the content shown in <updated_file_content> field. 
-		</critical_information>
-		<updated_file_content>Here is the latest file content after the rollback you should remember this content as the latest file content unless you make further modifications.
-		${formatFileToLines(file.finalContent)}
-		</updated_file_content>
-	</rollback_response>
+			dedent`<rollback_response>
+	<status>success</status>
+	<operation>rollback</operation>
+	<current_available_versions>${versions.length - 1 > 0 ? versions.length - 1 : 0}</current_available_versions>
+	<file_version_timestamp>${new Date(versionToRollback.createdAt).toISOString()}</file_version_timestamp>
+	${commitXmlInfo}
+	<critical_information>From now on, the file will be reverted to the version that was rolled back to.
+	I'm providing you the latest file content below for reference, you should only remember this file version unless further modifications were made after this point.
+	From now on file '${relPath}' content will be the content shown in <updated_file_content> field. 
+	</critical_information>
+	<updated_file_content>Here is the latest file content after the rollback you should remember this content as the latest file content unless you make further modifications.
+	${formatFileToLines(file.finalContent)}
+	</updated_file_content>
+</rollback_response>
 	`
 		)
 	}
@@ -871,46 +842,48 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 							{
 								type: "text",
 								text: dedent`You're required to view the live current file content with the line numbers and the search and replace blocks.
-					After you view both of them and understand the context, you should be able to identify the correct block of code that needs to be replaced and apply the correct changes to the file content.
-					You must call file_editor tool again with the correct search and replace blocks to apply the changes to the file content, fix any missing content or incorrect search blocks.
-					current file content is shown below with line numbers.
-					current search and replace blocks are shown below.
-					<search_replace_blocks>
-					${blocks.map(
-						(block) =>
-							dedent`
-					<search_replace_block>
-					<search_content>${block.searchContent}</search_content>
-					<replace_content>${block.replaceContent}</replace_content>
-					</search_replace_block>
-					`
-					)}
-					</search_replace_blocks>
+After you view both of them and understand the context, you should be able to identify the correct block of code that needs to be replaced and apply the correct changes to the file content.
+You must call file_editor tool again with the correct search and replace blocks to apply the changes to the file content, fix any missing content or incorrect search blocks.
+current file content is shown below with line numbers.
+current search and replace blocks are shown below.
+<search_replace_blocks>
+${blocks.map(
+	(block) =>
+		dedent`
+<search_replace_block>
+<search_content>
+${block.searchContent}
+</search_content>
+<replace_content>
+${block.replaceContent}
+</replace_content>
+</search_replace_block>
+`
+)}
+</search_replace_blocks>
+HERE IS THE LATEST FRESH FILE CONTENT WITH LINE NUMBERS YOU MUST TAKE THIS AS THE SOURCE OF TRUTH FOR THE FILE CONTENT NOT THE SEARCH AND REPLACE BLOCKS.
+<file_content>
+<file_path>${this.fileState.absolutePath}</file_path>
+Here is the latest file content with line numbers:
+<lastest_file_content>
+${fileToLines}
+</lastest_file_content>
+</file_content>
+NOW TRY TO FIGURE OTU THE CORRECT search_content based on the latest file content and apply the corrected search and replace blocks to the file content.
+ALWAYS ALWAYS TAKE THE FILE CONTENT AS THE SOURCE OF TRUTH FOR THE FILE CONTENT, you must adjust the search and replace blocks based on the file content, don't rely on the search and replace blocks as the source of truth.
+NOW use the file_editor tool again with the corrected search and replace blocks to apply the changes to the file content.
 
-					HERE IS THE LATEST FRESH FILE CONTENT WITH LINE NUMBERS YOU MUST TAKE THIS AS THE SOURCE OF TRUTH FOR THE FILE CONTENT NOT THE SEARCH AND REPLACE BLOCKS.
-					<file_content>
-					<file_path>${this.fileState.absolutePath}</file_path>
-					Here is the latest file content with line numbers:
-					<content>
-					${fileToLines}
-					</content>
-					</file_content>
-
-					NOW TRY TO FIGURE OTU THE CORRECT search_content based on the latest file content and apply the corrected search and replace blocks to the file content.
-					ALWAYS ALWAYS TAKE THE FILE CONTENT AS THE SOURCE OF TRUTH FOR THE FILE CONTENT, you must adjust the search and replace blocks based on the file content, don't rely on the search and replace blocks as the source of truth.
-					NOW use the file_editor tool again with the corrected search and replace blocks to apply the changes to the file content.
-					
-					YOU MUST CALL FILE_EDITOR TOOL AND THE OUTPUT MUST BE STRUCUTRED AS FOLLOWS:
-					<thinking>after reviewing the file content and the search and replace blocks i found the following problems:
-					... list of findings ...</thinking>
-					Now let me fix the search and replace blocks and apply the changes to the file content.
-					<file_editor>
-					<mode>edit</mode>
-					<path>${this.fileState.absolutePath}</path>
-					<kodu_diff>
-					... corrected search and replace blocks content ...
-					</kodu_diff>
-					</file_editor>`,
+YOU MUST CALL FILE_EDITOR TOOL AND THE OUTPUT MUST BE STRUCUTRED AS FOLLOWS:
+<thinking>after reviewing the file content and the search and replace blocks i found the following problems:
+... list of findings ...</thinking>
+Now let me fix the search and replace blocks and apply the changes to the file content.
+<file_editor>
+<mode>edit</mode>
+<path>${this.fileState.absolutePath}</path>
+<kodu_diff>
+... corrected search and replace blocks content ...
+</kodu_diff>
+</file_editor>`,
 							},
 						],
 					},

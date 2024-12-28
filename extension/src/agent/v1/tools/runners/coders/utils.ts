@@ -1,20 +1,199 @@
-// import { getCwd } from "@/agent/v1/utils"
-// import { fileExistsAtPath } from "@/utils/path-helpers"
+// file-editor.tool.ts
+
+import path from "path"
 import { getCwd } from "../../../utils"
 import { fileExistsAtPath } from "../../../../../utils/path-helpers"
-import path from "path"
-// @ts-expect-error - not typed
-import { SequenceMatcher } from "@ewoudenberg/difflib"
 
+/**
+ * Data structure for each diff block (HEAD vs updated).
+ */
 export interface EditBlock {
 	id: string
 	path: string
 	searchContent: string
 	replaceContent: string
 	isDelete?: boolean
+	isFinalized?: boolean
 }
+export const SEARCH_HEAD = "<<<<<<< HEAD" as const
+export const SEPARATOR = "=======" as const
+export const REPLACE_HEAD = ">>>>>>> updated" as const
 
 /**
+ * Manage partial diff blocks, parse them, merge them, and generate stable IDs.
+ */
+export class DiffBlockManager {
+	private _blocks: EditBlock[] = []
+
+	get blocks(): EditBlock[] {
+		return this._blocks
+	}
+
+	/**
+	 * Return the "last" block we appended or updated, if any.
+	 * (You may or may not need this, depending on how you track partial streaming.)
+	 */
+	public getLastBlock(): EditBlock | undefined {
+		return this._blocks.at(-1)
+	}
+
+	/**
+	 * Parse new diff content, create or update blocks,
+	 * and return the blocks that were newly discovered from this parse operation.
+	 */
+	public parseAndMergeDiff(diffContent: string, filePath: string): EditBlock[] {
+		// 1. Parse the newly-provided diff into temp blocks
+		const newBlocks = this.parseDiffBlocks(diffContent, filePath)
+
+		// 2. Merge with this.blocks
+		//    - If a block ID doesn’t exist in this.blocks, push it
+		//    - If it does exist and is not finalized, update or re-append any new lines
+		for (const newBlock of newBlocks) {
+			const existingIdx = this._blocks.findIndex((b) => b.id === newBlock.id)
+			if (existingIdx === -1) {
+				// It's brand new
+				this._blocks.push(newBlock)
+			} else {
+				const existing = this._blocks[existingIdx]
+				// If the block isn't finalized yet, merge search/replace content
+				if (!existing.isFinalized) {
+					Object.assign(existing, newBlock)
+				}
+			}
+		}
+		return newBlocks
+	}
+
+	/**
+	 * If you need to do a final pass over all blocks once the streaming is complete.
+	 */
+	public finalizeAllBlocks() {
+		for (const block of this._blocks) {
+			block.isFinalized = true
+		}
+	}
+
+	/**
+	 * Actually parse the raw diff content and produce EditBlock objects.
+	 */
+	public parseDiffBlocks(diffContent: string, filePath: string): EditBlock[] {
+		const lines = diffContent.split("\n")
+		const blocks: EditBlock[] = []
+
+		let blockId = 0
+
+		// Temporary buffers and state for the conflict block we’re building
+		let searchContent = ""
+		let replaceContent = ""
+		let isCollectingSearch = false
+		let isCollectingReplace = false
+		let didSeeSeparator = false // used to confirm we actually have a complete "searchContent"
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i]
+			const trimmed = line.trim()
+
+			// 1) Detect start of a new conflict block: <<<<<<< HEAD
+			if (trimmed === SEARCH_HEAD) {
+				// If we were in the middle of a block that never saw '=======',
+				// we discard it because we only append a block if entire search content arrived.
+				if (isCollectingSearch || isCollectingReplace) {
+					// We never got to finalize, so discard it (no push).
+					// Reset everything:
+					searchContent = ""
+					replaceContent = ""
+					isCollectingSearch = false
+					isCollectingReplace = false
+					didSeeSeparator = false
+				}
+
+				// Now start a new block: collect HEAD content
+				isCollectingSearch = true
+				isCollectingReplace = false
+				didSeeSeparator = false
+				continue
+			}
+
+			// 2) Detect the separator: =======
+			if (trimmed === SEPARATOR && isCollectingSearch) {
+				// We have a valid search section only if we were collecting search
+				// and now we see the separator
+				didSeeSeparator = true
+				isCollectingSearch = false
+				isCollectingReplace = true
+				continue
+			}
+
+			// 3) Detect the end of a block: >>>>>>> updated
+			if (trimmed === REPLACE_HEAD && isCollectingReplace) {
+				// We only append a block if we had a valid search section
+				// (meaning we saw the separator)
+				if (didSeeSeparator) {
+					// Build a new block
+					const block: EditBlock = {
+						id: blockId.toString(),
+						path: filePath,
+						searchContent: searchContent.trimEnd(),
+						replaceContent: replaceContent.trimEnd(),
+						isDelete: replaceContent.trim().length === 0,
+						isFinalized: true, // we encountered >>>>>>> updated
+					}
+					blocks.push(block)
+					blockId++
+				}
+				// else, if we never saw '=======', we skip adding it
+
+				// Reset for next potential block
+				searchContent = ""
+				replaceContent = ""
+				isCollectingSearch = false
+				isCollectingReplace = false
+				didSeeSeparator = false
+				continue
+			}
+
+			// -----------------------------
+			// If none of the markers matched, handle normal lines:
+			// -----------------------------
+
+			// If currently collecting search lines, add them
+			if (isCollectingSearch) {
+				// Skip the marker line itself
+				if (trimmed !== SEARCH_HEAD && trimmed !== SEPARATOR && trimmed !== REPLACE_HEAD) {
+					searchContent += line + "\n"
+				}
+			}
+			// If currently collecting replace lines, add them
+			else if (isCollectingReplace) {
+				if (trimmed !== SEARCH_HEAD && trimmed !== SEPARATOR && trimmed !== REPLACE_HEAD) {
+					replaceContent += line + "\n"
+				}
+			}
+		}
+
+		// If the diff ended while collecting search/replace but never saw >>>>>>> updated:
+		// - we only append a "partial" block if we had a valid search section
+		//   (meaning we did see '=======')
+		// - if didSeeSeparator is false, that means we never had a complete search section -> discard
+		if (isCollectingReplace && didSeeSeparator) {
+			// It's an incomplete block (no >>>>>>> updated)
+			const block: EditBlock = {
+				id: blockId.toString(),
+				path: filePath,
+				searchContent: searchContent.trimEnd(),
+				replaceContent: replaceContent.trimEnd(),
+				isDelete: replaceContent.trim().length === 0,
+				isFinalized: false, // never saw the >>>>>>> updated
+			}
+			blocks.push(block)
+			blockId++
+		}
+
+		return blocks
+	}
+}
+
+/*
  * Normalizes text content for cross-platform comparison
  * Handles different line endings (CRLF vs LF) and path separators
  *
@@ -22,7 +201,9 @@ export interface EditBlock {
  * @returns Normalized text suitable for cross-platform comparison
  */
 export function normalize(text: string): string {
-	if (!text) return text
+	if (!text) {
+		return text
+	}
 
 	return (
 		text
@@ -35,316 +216,6 @@ export function normalize(text: string): string {
 			// Trim any trailing/leading whitespace
 			.trim()
 	)
-}
-
-export function generateEditBlockId(searchContent: string): string {
-	// fast hash the search content to generate a unique id
-	let hash = 0
-	for (let i = 0; i < searchContent.length; i++) {
-		hash = (hash << 5) - hash + searchContent.charCodeAt(i)
-		hash |= 0
-	}
-	return hash.toString(16)
-}
-
-export function findCodeBlock(content: string, startIndex: number): { start: number; end: number } | null {
-	const lines = content.split("\n")
-	let openBraces = 0
-	let blockStart = -1
-
-	for (let i = startIndex; i < lines.length; i++) {
-		const line = lines[i]
-
-		// Check for block start indicators
-		if (line.includes("{")) {
-			if (openBraces === 0) {
-				blockStart = i
-			}
-			openBraces += (line.match(/{/g) || []).length
-		}
-
-		// Check for block end
-		if (line.includes("}")) {
-			openBraces -= (line.match(/}/g) || []).length
-			if (openBraces === 0 && blockStart !== -1) {
-				return {
-					start: blockStart,
-					end: i,
-				}
-			}
-		}
-	}
-
-	return null
-}
-
-export async function findSimilarLines(
-	searchContent: string,
-	content: string,
-	threshold: number = 0.6
-): Promise<string> {
-	const searchLines = searchContent.split("\n")
-	const contentLines = content.split("\n")
-
-	let bestRatio = 0
-	let bestMatch: string[] = []
-
-	for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
-		const chunk = contentLines.slice(i, i + searchLines.length)
-		const matcher = new SequenceMatcher(null, searchLines.join("\n"), chunk.join("\n"))
-		const similarity = matcher.ratio()
-		if (similarity > bestRatio) {
-			bestRatio = similarity
-			bestMatch = chunk
-		}
-	}
-
-	return bestRatio >= threshold ? bestMatch.join("\n") : ""
-}
-
-export async function applyEditBlocksToFile(content: string, editBlocks: EditBlock[]): Promise<string> {
-	let newContent = content
-	for (const block of editBlocks) {
-		const searchContent = block.searchContent
-		const replaceContent = block.replaceContent
-
-		const result = replaceIgnoringIndentation(newContent, searchContent, replaceContent)
-		if (result !== null) {
-			newContent = result
-		} else {
-			// Try to find similar lines (optional)
-			const similarLines = await findSimilarLines(searchContent, newContent)
-			if (similarLines) {
-				const similarIndex = newContent.indexOf(similarLines)
-				newContent =
-					newContent.substring(0, similarIndex) +
-					replaceContent +
-					newContent.substring(similarIndex + similarLines.length)
-			} else {
-				console.log(`Failed to find match for block: ${block.searchContent.slice(0, 100)}...`, "warn")
-				throw new Error(`Failed to find matching block in file`)
-			}
-		}
-	}
-	return newContent
-}
-
-interface DiffBlockPosition {
-	blockIndex: number
-	startLine: number
-	endLine: number
-}
-
-interface EditBlockWithPosition extends EditBlock {
-	position?: DiffBlockPosition
-}
-
-function findPositionsInContent(content: string, searchStrings: string[]): number[] {
-	const lines = content.split("\n")
-	const positions: number[] = []
-
-	for (const search of searchStrings) {
-		const searchLines = search.split("\n")
-		const searchLen = searchLines.length
-
-		lineLoop: for (let i = 0; i <= lines.length - searchLen; i++) {
-			for (let j = 0; j < searchLen; j++) {
-				if (lines[i + j].trimEnd() !== searchLines[j].trimEnd()) {
-					continue lineLoop
-				}
-			}
-			positions.push(i)
-			break // Only find first match for each search block
-		}
-	}
-
-	return positions
-}
-
-export function getEditBlockPositions(originalContent: string, blocks: EditBlock[]): EditBlockWithPosition[] {
-	const lines = originalContent.split("\n")
-	const blocksWithPosition: EditBlockWithPosition[] = []
-	let currentLine = 0
-
-	for (let i = 0; i < blocks.length; i++) {
-		const block = blocks[i]
-		const positions = findPositionsInContent(originalContent, [block.searchContent])
-
-		if (positions.length > 0) {
-			const startLine = positions[0]
-			const replaceLines = block.replaceContent.split("\n").length
-			const searchLines = block.searchContent.split("\n").length
-
-			blocksWithPosition.push({
-				...block,
-				position: {
-					blockIndex: i,
-					startLine,
-					// For deletions, endLine will be the same as startLine
-					endLine: startLine + (block.isDelete ? 0 : replaceLines - 1),
-				},
-			})
-
-			// Update current line position
-			currentLine = startLine + searchLines
-		} else {
-			blocksWithPosition.push(block)
-		}
-	}
-
-	return blocksWithPosition
-}
-
-// Add the new replaceIgnoringIndentation method
-export function replaceIgnoringIndentation(
-	content: string,
-	searchContent: string,
-	replaceContent: string
-): string | null {
-	const contentLines = content.split(/\r?\n/)
-	const searchLines = searchContent.split(/\r?\n/)
-	const replaceLines = replaceContent.split(/\r?\n/)
-
-	// Strip leading whitespace from searchLines for matching
-	const strippedSearchLines = searchLines.map((line) => line.trimStart())
-
-	// Try to find a match in contentLines
-	for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
-		const contentSlice = contentLines.slice(i, i + searchLines.length)
-		// Strip leading whitespace from contentSlice
-		const strippedContentSlice = contentSlice.map((line) => line.trimStart())
-
-		// Compare the stripped lines
-		if (strippedContentSlice.join("\n") === strippedSearchLines.join("\n")) {
-			// Match found, calculate indentation difference for each line
-			const indentedReplaceLines = adjustIndentationPerLine(contentSlice, searchLines, replaceLines)
-
-			// Replace the original lines with the indented replacement lines
-			const newContentLines = [
-				...contentLines.slice(0, i),
-				...indentedReplaceLines,
-				...contentLines.slice(i + searchLines.length),
-			]
-
-			return newContentLines.join("\n")
-		}
-	}
-
-	// No match found
-	return null
-}
-
-// Helper method to adjust indentation per line
-export function adjustIndentationPerLine(
-	contentSlice: string[],
-	searchLines: string[],
-	replaceLines: string[]
-): string[] {
-	const adjustedLines: string[] = []
-
-	for (let idx = 0; idx < replaceLines.length; idx++) {
-		const replaceLine = replaceLines[idx]
-		const searchLine = searchLines[idx] || ""
-		const contentLine = contentSlice[idx] || ""
-
-		// Get indentation levels
-		const searchIndentation = searchLine.match(/^\s*/)?.[0] || ""
-		const contentIndentation = contentLine.match(/^\s*/)?.[0] || ""
-		const replaceIndentation = replaceLine.match(/^\s*/)?.[0] || ""
-
-		// Calculate indentation difference
-		const indentationDifference = contentIndentation.length - searchIndentation.length
-
-		// Adjust replace line indentation
-		let newIndentationLength = replaceIndentation.length + indentationDifference
-		if (newIndentationLength < 0) {
-			newIndentationLength = 0
-		}
-		const newIndentation = " ".repeat(newIndentationLength)
-		const lineContent = replaceLine.trimStart()
-		adjustedLines.push(newIndentation + lineContent)
-	}
-
-	return adjustedLines
-}
-
-export function parseDiffBlocks(diffContent: string, path: string): EditBlock[] {
-	const blocks: EditBlock[] = []
-	const lines = diffContent.split("\n")
-	let currentSearchLines: string[] = []
-	let currentReplaceLines: string[] = []
-	let isCollectingSearch = false
-	let isCollectingReplace = false
-
-	function finalizeBlock() {
-		if (currentSearchLines.length > 0) {
-			const searchContent = currentSearchLines.join("\n").trimEnd()
-			const replaceContent = currentReplaceLines.join("\n").trimEnd()
-			const id = generateEditBlockId(searchContent)
-
-			blocks.push({
-				id,
-				path,
-				searchContent,
-				replaceContent,
-				isDelete: replaceContent.trim() === "",
-			})
-		}
-
-		currentSearchLines = []
-		currentReplaceLines = []
-		isCollectingSearch = false
-		isCollectingReplace = false
-	}
-
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i]
-		const nextLine = i + 1 < lines.length ? lines[i + 1] : null
-		const trimmedLine = line.trim()
-
-		// Handle start of a new block
-		if (trimmedLine === "SEARCH") {
-			// If we were already collecting a block, finalize it first
-			if (isCollectingSearch || isCollectingReplace) {
-				finalizeBlock()
-			}
-			isCollectingSearch = true
-			continue
-		}
-
-		// Handle separator
-		if (trimmedLine === "=======") {
-			if (isCollectingSearch) {
-				isCollectingSearch = false
-				isCollectingReplace = true
-			}
-			continue
-		}
-
-		// Handle REPLACE marker
-		if (trimmedLine === "REPLACE" && isCollectingReplace) {
-			continue
-		}
-
-		// Collect content
-		if (isCollectingSearch) {
-			currentSearchLines.push(line)
-		} else if (isCollectingReplace) {
-			currentReplaceLines.push(line)
-		}
-
-		// Finalize block if we're about to start a new one
-		if (nextLine?.trim() === "SEARCH" && isCollectingReplace) {
-			finalizeBlock()
-		}
-	}
-
-	// Handle the last block if it's complete (has both search and replace content)
-	if (currentSearchLines.length > 0 && isCollectingReplace) {
-		finalizeBlock()
-	}
-
-	return blocks
 }
 
 export async function checkFileExists(relPath: string): Promise<boolean> {
@@ -361,11 +232,4 @@ export function preprocessContent(content: string): string {
 		content = content.split("\n").slice(0, -1).join("\n").trim()
 	}
 	return content.replace(/>/g, ">").replace(/</g, "<").replace(/"/g, '"')
-}
-
-export async function parseAndApplyDiffBlocks(content: string, diffContent: string, path: string): Promise<string> {
-	const blocks = parseDiffBlocks(diffContent, path)
-	const positions = getEditBlockPositions(content, blocks)
-	const newContent = await applyEditBlocksToFile(content, positions)
-	return newContent
 }

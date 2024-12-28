@@ -198,7 +198,7 @@ export class InlineEditHandler {
 		await this.updateFileContent()
 	}
 
-	public async applyFinalContent(id: string, searchContent: string, content: string): Promise<void> {
+	public async applyFinalContent(id: string, searchContent: string, replaceContent: string): Promise<void> {
 		this.logger(`Applying final content for id ${id}`, "debug")
 		if (!this.isOpen()) {
 			this.logger(`Editor not open, queueing final operation for id ${id}`, "debug")
@@ -221,10 +221,10 @@ export class InlineEditHandler {
 		}
 
 		// Normalize content to LF
-		content = content.replace(/\r\n/g, "\n")
+		replaceContent = replaceContent.replace(/\r\n/g, "\n")
 
-		block.currentContent = content
-		block.finalContent = content
+		block.currentContent = replaceContent
+		block.finalContent = replaceContent
 		block.status = "final"
 
 		await this.updateFileContent()
@@ -365,7 +365,7 @@ export class InlineEditHandler {
 			currentPos += text.length
 		}
 
-		if (bestMatch.length > searchContent.length * 0.9) {
+		if (bestMatch.length > searchContent.length * 0.85) {
 			const startLine = content.substr(0, bestMatch.start).split("\n").length - 1
 			const endLine = startLine + searchContent.split("\n").length - 1
 
@@ -418,7 +418,7 @@ export class InlineEditHandler {
 					wasApplied: false,
 					failureReason: matchResult.failureReason,
 				})
-				this.logger(`Failed to apply block ${block.id}: ${matchResult.failureReason}`, "warn")
+				this.logger(`Failed to apply block ${block.id}`, "warn")
 			}
 		}
 

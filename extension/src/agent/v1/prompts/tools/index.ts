@@ -13,18 +13,18 @@ import { askFollowupQuestionPrompt } from "./ask-followup-question"
 import { spawnAgentPrompt } from "./spawn-agent"
 
 export const toolPrompts = [
-	addInterestedFilePrompt,
 	fileEditorPrompt,
+	spawnAgentPrompt,
 	exploreRepoFolderPrompt,
+	readFilePrompt,
+	addInterestedFilePrompt,
 	searchFilesPrompt,
 	searchSymbolPrompt,
 	listFilesPrompt,
-	readFilePrompt,
 	executeCommandPrompt,
 	serverRunnerPrompt,
 	urlScreenshotPrompt,
-	attemptCompletionPrompt,
 	askFollowupQuestionPrompt,
-	spawnAgentPrompt,
+	attemptCompletionPrompt,
 	// submitReviewPrompt,
 ]
