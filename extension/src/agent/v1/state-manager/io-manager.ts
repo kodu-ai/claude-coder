@@ -211,38 +211,6 @@ export class IOManager {
 		return result
 	}
 
-	// ---------- Hooks ----------
-
-	private async getHookDirectory(): Promise<string> {
-		const taskDir = await this.ensureTaskDirectoryExists()
-		const hookDir = path.join(taskDir, "hooks")
-		await fs.mkdir(hookDir, { recursive: true })
-		return hookDir
-	}
-
-	public async saveHookData(
-		hookName: string,
-		data: {
-			requestsSinceLastTrigger: number
-		}
-	): Promise<void> {
-		const hookDir = await this.getHookDirectory()
-		const hookFilePath = path.join(hookDir, `${hookName}.json`)
-		await fs.writeFile(hookFilePath, JSON.stringify(data, null, 2))
-	}
-
-	public async loadHookData(hookName: string): Promise<{ requestsSinceLastTrigger: number } | undefined> {
-		const hookDir = await this.getHookDirectory()
-		const hookFilePath = path.join(hookDir, `${hookName}.json`)
-
-		try {
-			const data = await fs.readFile(hookFilePath, "utf8")
-			return JSON.parse(data)
-		} catch {
-			return undefined
-		}
-	}
-
 	// ---------- Utility ----------
 
 	private encodeFilePath(filePath: string): string {

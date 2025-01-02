@@ -14,7 +14,8 @@ vsc-extension-quickstart.md
 **/*.ts
 **/.vscode-test.*
 !dist/codicons/**
-
+# Except better-sqlite3 (so we keep the native addon)
+!node_modules/better-sqlite3/**
 
 
 # Custom
@@ -40,3 +41,9 @@ webview-ui-vite/node_modules/**
 
 # env
 .env.local
+
+# bin
+!bin/**
+
+# ignore all @libsql files
+@libsql/**

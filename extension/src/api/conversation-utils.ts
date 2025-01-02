@@ -158,6 +158,7 @@ export async function manageContextWindow(
 	await provider.getStateManager().apiHistoryManager.overwriteApiConversationHistory(compressedMessages)
 
 	if (newMemorySize >= maxPostTruncationTokens) {
+		console.error(`We have reached the maximum token limit: ${newMemorySize}`)
 		// reached the end
 		// provider?.taskExecutor.say(
 		// 	"chat_finished",

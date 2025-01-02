@@ -284,7 +284,6 @@ export class ToolParser {
 			this.currentContext.lastUpdateLength[paramName] = this.currentContext.paramBuffer[paramName].length
 		}
 
-		console.log(`Sending update at ${Date.now()}`)
 		this.onToolUpdate?.(
 			this.currentContext.id,
 			this.currentContext.toolName,

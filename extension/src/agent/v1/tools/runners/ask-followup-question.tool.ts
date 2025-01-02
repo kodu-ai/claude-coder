@@ -1,5 +1,7 @@
+import delay from "delay"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AskFollowupQuestionToolParams } from "../schema/ask_followup_question"
+import dedent from "dedent"
 
 export class AskFollowupQuestionTool extends BaseAgentTool<AskFollowupQuestionToolParams> {
 	async execute() {
@@ -42,6 +44,7 @@ export class AskFollowupQuestionTool extends BaseAgentTool<AskFollowupQuestionTo
 			},
 			this.ts
 		)
+		// let the ask update the approval state
 		await this.params.updateAsk(
 			"tool",
 			{ tool: { tool: "ask_followup_question", question, approvalState: "approved", ts: this.ts } },
@@ -51,24 +54,15 @@ export class AskFollowupQuestionTool extends BaseAgentTool<AskFollowupQuestionTo
 
 		return this.toolResponse(
 			"success",
-			`<question_tool_response>
-				<status>
-					<result>success</result>
-					<operation>ask_followup_question</operation>
-					<timestamp>${new Date().toISOString()}</timestamp>
-				</status>
-				<interaction>
-					<question>${question}</question>
-					<response>
-						<text>${text || ""}</text>
-						${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
-					</response>
-					<metadata>
-						<response_type>${images ? "text_with_images" : "text_only"}</response_type>
-						<response_length>${text?.length || 0}</response_length>
-					</metadata>
-				</interaction>
-			</question_tool_response>`,
+			dedent`<status>
+<result>success</result>
+<operation>ask_followup_question</operation>
+<timestamp>${new Date().toISOString()}</timestamp>
+</status>
+<user_feedback>
+YOU MUST TAKE IN ACCOUNT THE FOLLOWING FEEDBACK USER FEEDBACK:
+${text || "please take a look into the images"}
+</user_feedback>`,
 			images
 		)
 	}
