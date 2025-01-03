@@ -4,11 +4,16 @@ import { migrate } from "drizzle-orm/libsql/migrator"
 import * as schema from "./schema" // your schema
 import path from "path"
 import fs from "fs"
+import { LibSQLDatabase } from "drizzle-orm/libsql/driver-core"
 
 class DB {
 	private static instance: DB | null = null
 	private dbPath: string
-	private db: ReturnType<typeof drizzle> | null = null
+	private db:
+		| (LibSQLDatabase<typeof schema> & {
+				$client: ReturnType<typeof drizzle>["$client"]
+		  })
+		| null = null
 
 	private constructor(dbPath: string) {
 		this.dbPath = dbPath
@@ -25,11 +30,11 @@ class DB {
 		return DB.instance
 	}
 
-	public static getInstance(): ReturnType<typeof drizzle> {
+	public static getInstance() {
 		if (!DB.instance || !DB.instance.db) {
 			throw new Error("DB not initialized")
 		}
-		return DB.instance.db
+		return DB.instance.db!
 	}
 
 	public static disconnect(): void {
@@ -52,11 +57,12 @@ class DB {
 
 	private async initializeDB(): Promise<void> {
 		this.ensureDBPath()
-		// Now that we've installed the correct libsql client, let's import "drizzle-orm/libsql/node"
+		// We load it externally on runtime to load the correct libsql version (arm, x64, etc)
 		const { drizzle } = await import("drizzle-orm/libsql/node")
 		// Connect to the SQLite database
 		this.db = drizzle({
 			connection: `file:${this.dbPath}`,
+			schema,
 		})
 		// Run migrations
 		await this.runMigrations()
@@ -72,29 +78,6 @@ class DB {
 			migrationsFolder,
 		})
 		console.log("Migrations completed successfully.")
-		// we test so we insert a task with data and fetch all tasks
-		this.testDB()
-	}
-
-	private testDB(): void {
-		if (!this.db) {
-			return
-		}
-		this.db
-			.insert(schema.tasks)
-			.values({
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				text: "Test task",
-			})
-			.execute()
-		this.db
-			.select()
-			.from(schema.tasks)
-			.execute()
-			.then((res) => {
-				console.log("testing db here is the current Tasks:", res)
-			})
 	}
 }
 

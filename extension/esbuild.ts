@@ -114,6 +114,11 @@ const unpackLibsqlPlugin = {
 				console.warn(`No @libsql folder found at ${rootLibsqlDir}, skipping unpack.`)
 				return
 			}
+			// check if the dist/node_modules/@libsql folder exists if so we skip the unpacking
+			if (fs.existsSync(path.join(__dirname, "dist", "node_modules", "@libsql"))) {
+				console.warn("libsql binaries already unpacked, skipping.")
+				return
+			}
 
 			const distLibsqlDir = path.join(__dirname, "dist", "node_modules", "@libsql")
 			fs.mkdirSync(distLibsqlDir, { recursive: true })
