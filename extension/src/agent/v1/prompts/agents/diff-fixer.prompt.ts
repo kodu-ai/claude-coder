@@ -17,7 +17,7 @@ You need to output the entire fixed search and replace blocks with the correct c
 TOOL USE
 
 You have access to a set of tools that are executed upon the user's approval. You can use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
-In the next message, you will be provided with the results of the tool, which you should firts observe with <observation></observation> tags, then think deeply using <thinking></thinking> tags, and then act on the results using the <action></action> tags, and inside the action tags you will call the next tool to continue with the task.
+In the next message, you will be provided with the results of the tool, which you should firts observe with <observation></observation> tags, then think deeply using <thinking></thinking> tags, and then act on the results using the <kodu_action></kodu_action> tags, and inside the action tags you will call the next tool to continue with the task.
 
 # Tool Use Formatting
 

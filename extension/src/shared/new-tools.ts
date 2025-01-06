@@ -191,3 +191,23 @@ export type ChatTool = (
 	error?: string
 	userFeedback?: string
 }
+export const readOnlyTools: ChatTool["tool"][] = [
+	"read_file",
+	"list_files",
+	"search_files",
+	"explore_repo_folder",
+	"web_search",
+	"url_screenshot",
+	"add_interested_file",
+] as const
+
+export const mustRequestApprovalTypes: (ChatTool["tool"] | string)[] = [
+	"completion_result",
+	"resume_completed_task",
+	"resume_task",
+	"request_limit_reached",
+	"followup",
+	"ask_followup_question",
+] as const
+
+export const mustRequestApprovalTools: ChatTool["tool"][] = ["ask_followup_question", "attempt_completion"] as const

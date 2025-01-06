@@ -162,7 +162,11 @@ const extensionConfig: BuildOptions = {
 	minify: production,
 	sourcemap: !production,
 	logLevel: "silent",
-	plugins: [copyAssetsPlugin, unpackLibsqlPlugin, esbuildProblemMatcherPlugin],
+	plugins: [
+		copyAssetsPlugin,
+		//  unpackLibsqlPlugin,
+		esbuildProblemMatcherPlugin,
+	],
 	entryPoints: ["src/extension.ts"],
 	sourcesContent: false,
 	keepNames: true,
@@ -174,13 +178,13 @@ const extensionConfig: BuildOptions = {
 		"chromium-bidi",
 		// Add more if you want to fully externalize @libsql
 		// e.g., "@libsql/client", "@libsql/win32-x64-msvc", etc.
-		"@libsql/win32-x64-msvc",
-		"@libsql/darwin-arm64",
-		"@libsql/darwin-x64",
-		"@libsql/linux-arm64-gnu",
-		"@libsql/linux-arm64-musl",
-		"@libsql/linux-x64-gnu",
-		"@libsql/linux-x64-musl",
+		// "@libsql/win32-x64-msvc",
+		// "@libsql/darwin-arm64",
+		// "@libsql/darwin-x64",
+		// "@libsql/linux-arm64-gnu",
+		// "@libsql/linux-arm64-musl",
+		// "@libsql/linux-x64-gnu",
+		// "@libsql/linux-x64-musl",
 	],
 }
 

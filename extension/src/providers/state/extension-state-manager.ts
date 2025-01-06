@@ -166,22 +166,27 @@ export class ExtensionStateManager {
 	}
 
 	setCustomInstructions(value: string | undefined) {
+		this.context.getKoduDev()?.getStateManager()?.setCustomInstructions(value)
 		return this.globalStateManager.updateGlobalState("customInstructions", value)
 	}
 
 	setAutoSummarize(value: boolean) {
+		this.context.getKoduDev()?.getStateManager()?.setAutoSummarize(value)
 		return this.globalStateManager.updateGlobalState("autoSummarize", value)
 	}
 
 	setGitHandlerEnabled(value: boolean) {
+		this.context.getKoduDev()?.getStateManager()?.setGitHandlerEnabled(value)
 		return this.globalStateManager.updateGlobalState("gitHandlerEnabled", value)
 	}
 
 	setAlwaysAllowReadOnly(value: boolean) {
+		this.context.getKoduDev()?.getStateManager()?.setAlwaysAllowReadOnly(value)
 		return this.globalStateManager.updateGlobalState("alwaysAllowReadOnly", value)
 	}
 
 	setAlwaysAllowWriteOnly(value: boolean) {
+		this.context.getKoduDev()?.getStateManager()?.setAlwaysAllowWriteOnly(value)
 		return this.globalStateManager.updateGlobalState("alwaysAllowWriteOnly", value)
 	}
 }

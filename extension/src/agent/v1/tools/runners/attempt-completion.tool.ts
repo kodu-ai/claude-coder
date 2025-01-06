@@ -1,8 +1,6 @@
-import { ToolResponseV2 } from "../../types"
+import { attemptCompletionPrompt } from "../../prompts/tools/attempt-complete"
 import { BaseAgentTool } from "../base-agent.tool"
 import { AttemptCompletionToolParams } from "../schema/attempt_completion"
-import { ExecuteCommandTool } from "./execute-command.tool"
-import { AgentToolParams } from "../types"
 
 export class AttemptCompletionTool extends BaseAgentTool<AttemptCompletionToolParams> {
 	async execute() {
@@ -26,10 +24,7 @@ export class AttemptCompletionTool extends BaseAgentTool<AttemptCompletionToolPa
 					<message>Missing required parameter 'result'</message>
 					<help>
 						<example_usage>
-							<tool>attempt_completion</tool>
-							<parameters>
-								<result>Your completion result here</result>
-							</parameters>
+						<kodu_action>${attemptCompletionPrompt.examples[0].output}</kodu_action>
 						</example_usage>
 						<note>Completion attempts require a valid result parameter to proceed</note>
 					</help>
@@ -46,13 +41,26 @@ export class AttemptCompletionTool extends BaseAgentTool<AttemptCompletionToolPa
 				tool: {
 					tool: "attempt_completion",
 					result: resultToSend,
-					approvalState: "approved",
+					approvalState: "pending",
 					ts: this.ts,
 				},
 			},
-			this.ts
+			this.ts,
+			true
 		)
 		if (response === "yesButtonTapped") {
+			this.params.updateAsk(
+				"tool",
+				{
+					tool: {
+						tool: "attempt_completion",
+						result: resultToSend,
+						approvalState: "approved",
+						ts: this.ts,
+					},
+				},
+				this.ts
+			)
 			return this.toolResponse(
 				"success",
 				`<completion_tool_response>
@@ -70,6 +78,20 @@ export class AttemptCompletionTool extends BaseAgentTool<AttemptCompletionToolPa
 				images
 			)
 		}
+
+		this.params.updateAsk(
+			"tool",
+			{
+				tool: {
+					tool: "attempt_completion",
+					result: resultToSend,
+					approvalState: "rejected",
+					ts: this.ts,
+					userFeedback: response === "noButtonTapped" ? undefined : text,
+				},
+			},
+			this.ts
+		)
 
 		await say("user_feedback", text ?? "", images)
 		return this.toolResponse(

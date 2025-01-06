@@ -483,6 +483,7 @@ export class InlineEditHandler {
 		const workspaceEdit = new vscode.WorkspaceEdit()
 		const document = await vscode.workspace.openTextDocument(uri)
 		const diffDocument = await vscode.workspace.openTextDocument(this.modifiedUri!)
+		const finalContentBeforeSave = diffDocument.getText()
 		if (document.isDirty) {
 			await document.save()
 		}
@@ -501,8 +502,14 @@ export class InlineEditHandler {
 		await document.save()
 		await vscode.commands.executeCommand("workbench.action.closeActiveEditor")
 		await this.closeDiffEditors()
+		const finalDoc = await vscode.workspace.openTextDocument(uri)
 		// open the file itself in a new editor
-		await vscode.window.showTextDocument(uri, { preview: false, viewColumn: vscode.ViewColumn.Active })
+		const finalEditor = await vscode.window.showTextDocument(finalDoc, {
+			preview: false,
+			viewColumn: vscode.ViewColumn.Active,
+		})
+		// get the content after document is saved to make sure the content is up-to-date + formatted
+		finalContent = finalDoc.getText()
 
 		// Now compute formattedSavedArea for each applied result
 		const finalLines = finalContent.split("\n")
@@ -526,17 +533,18 @@ export class InlineEditHandler {
 		}
 
 		// Compare contents and create patch if needed
-		const normalizedEditedContent = finalContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+		const normalizedFinalContent = finalContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+		const normalizedfinalContentBeforeSave = finalContentBeforeSave.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
 		const normalizedStreamedContent = finalStreamedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
 		const finalContentRaw = finalContent
 		finalContent = formatFileToLines(finalContent)
 
-		if (normalizedEditedContent !== normalizedStreamedContent) {
+		if (normalizedfinalContentBeforeSave !== normalizedStreamedContent) {
 			const filename = path.basename(uri.fsPath).replace(/\\/g, "/") // Ensure forward slashes for consistency
-			const patch = createPatch(filename, normalizedStreamedContent, normalizedEditedContent)
+			const patch = createPatch(filename, normalizedStreamedContent, normalizedFinalContent)
 
 			this.dispose()
-			return { userEdits: patch, finalContent: normalizedEditedContent, results, finalContentRaw }
+			return { userEdits: patch, finalContent: normalizedFinalContent, results, finalContentRaw }
 		}
 
 		this.dispose()

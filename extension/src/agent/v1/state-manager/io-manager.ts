@@ -2,7 +2,7 @@
 import fs from "fs/promises"
 import path from "path"
 import { ApiHistoryItem, ClaudeMessage, FileVersion, SubAgentState } from "../types"
-
+import { writeFile } from "atomically"
 interface IOManagerOptions {
 	fsPath: string
 	taskId: string
@@ -54,7 +54,7 @@ export class IOManager {
 	public async saveSubAgentState(state: SubAgentState): Promise<void> {
 		const subAgentDir = await this.getSubAgentDirectory()
 		const stateFilePath = path.join(subAgentDir, "state.json")
-		await fs.writeFile(stateFilePath, JSON.stringify(state, null, 2))
+		await writeFile(stateFilePath, JSON.stringify(state, null, 2))
 	}
 
 	public async loadSubAgentState(): Promise<SubAgentState | undefined> {
@@ -95,11 +95,11 @@ export class IOManager {
 	}
 
 	public async saveClaudeMessages(messages: ClaudeMessage[]): Promise<void> {
-		this.getClaudeMessagesFilePath()
-			.then((filePath) => {
+		await this.getClaudeMessagesFilePath()
+			.then(async (filePath) => {
 				const data = JSON.stringify(messages, null, 2)
 				// Fire and forget
-				fs.writeFile(filePath, data).catch((err) => console.error("Failed to save Claude messages:", err))
+				await writeFile(filePath, data).catch((err) => console.error("Failed to save Claude messages:", err))
 			})
 			.catch((err) => console.error("Failed to get Claude messages file path:", err))
 	}
@@ -119,11 +119,18 @@ export class IOManager {
 	}
 
 	public async saveApiHistory(history: ApiHistoryItem[]): Promise<void> {
-		this.getApiHistoryFilePath()
-			.then((filePath) => {
+		await this.getApiHistoryFilePath()
+			.then(async (filePath) => {
+				// check if history have 2 assistant messages in a row
+				// if so console.warn
+				for (let i = 0; i < history.length - 1; i++) {
+					if (history[i].role === "assistant" && history[i + 1].role === "assistant") {
+						console.warn("Two assistant messages in a row detected in API history")
+					}
+				}
 				const data = JSON.stringify(history, null, 2)
 				// Fire and forget
-				fs.writeFile(filePath, data).catch((err) => console.error("Failed to save API history:", err))
+				await writeFile(filePath, data).catch((err) => console.error("Failed to save API history:", err))
 			})
 			.catch((err) => console.error("Failed to get API history file path:", err))
 	}
@@ -147,7 +154,7 @@ export class IOManager {
 			content: file.content,
 			createdAt: file.createdAt,
 		}
-		await fs.writeFile(versionFilePath, JSON.stringify(data, null, 2))
+		await writeFile(versionFilePath, JSON.stringify(data, null, 2))
 	}
 
 	public async deleteFileVersion(file: FileVersion): Promise<void> {

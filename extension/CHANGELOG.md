@@ -4,6 +4,24 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.0.3] - 2025-01-05
+
+### Fixed
+
+-   race condition in file writes causing task to corrupt on panic exit
+-   ask follow up question would sometimes not work on automatic mode
+-   file edit would not take into account auto formatting
+-   request failed would not show the fail reason
+-   missing UI for autosummary algorithm
+-   file editor would at times truncate content or output improper edit
+-   other race conditions and edge cases
+-   force correct tool calling and only one tool per request (using stop sequence)
+-   fixed system prompt to better understand how to observe, think and call an action while maintaing the tool use guidelines
+
+### Removed
+
+-   removed add_interested_files tool
+
 ## [2.0.2] - 2024-12-29
 
 ### RESYNC

@@ -3,9 +3,7 @@ import path from "path"
 import { promises as fs } from "fs"
 import { mainPrompts } from "../../agent/v1/prompts/main.prompt"
 import { GlobalStateManager } from "./global-state-manager"
-import DB from "../../db"
-import { promptTemplates } from "../../db/schema"
-import { eq } from "drizzle-orm"
+import { writeFile } from "atomically"
 
 interface PromptState {
 	activePromptName: string
@@ -60,35 +58,38 @@ export class PromptStateManager {
 		await GlobalStateManager.getInstance().updateGlobalState("activePromptName", this.state.activePromptName)
 	}
 
+	private getTemplatesDir(): string {
+		return path.join(this.context.globalStorageUri.fsPath, "templates")
+	}
+
 	public async saveTemplate(name: string, content: string): Promise<void> {
 		if (name === this.DEFAULT_PROMPT_NAME) {
 			throw new Error("Cannot modify the default prompt template")
 		}
-		await DB.getInstance().insert(promptTemplates).values({
-			name,
-			agentName: "main",
-			type: "system",
-			content,
-			enabledTools: [],
-		})
+
+		const templatesDir = this.getTemplatesDir()
+		await fs.mkdir(templatesDir, { recursive: true })
+
+		const templatePath = path.join(templatesDir, `${name}.txt`)
+		await writeFile(templatePath, content)
 	}
 
 	public async loadTemplate(name: string): Promise<string> {
 		if (name === this.DEFAULT_PROMPT_NAME) {
 			return this.state.defaultPromptContent
 		}
-		const template = await DB.getInstance().query.promptTemplates.findFirst({
-			where: (t, op) => op.eq(t.name, name),
-		})
-		if (!template) {
-			throw new Error(`Template not found: ${name}`)
-		}
-		return template.content
+
+		const templatePath = path.join(this.getTemplatesDir(), `${name}.txt`)
+		return await fs.readFile(templatePath, "utf-8")
 	}
 
 	public async listTemplates(): Promise<string[]> {
 		try {
-			const templates = await (await DB.getInstance().query.promptTemplates.findMany({})).map((t) => t.name)
+			const templatesDir = this.getTemplatesDir()
+			await fs.mkdir(templatesDir, { recursive: true })
+
+			const files = await fs.readdir(templatesDir)
+			const templates = files.filter((file) => file.endsWith(".txt")).map((file) => file.slice(0, -4))
 
 			// Always include default template at the top of the list
 			return [this.DEFAULT_PROMPT_NAME, ...templates]
@@ -124,7 +125,10 @@ export class PromptStateManager {
 		if (name === this.DEFAULT_PROMPT_NAME) {
 			throw new Error("Cannot delete the default prompt template")
 		}
-		await DB.getInstance().delete(promptTemplates).where(eq(promptTemplates.name, name))
+
+		const templatePath = path.join(this.getTemplatesDir(), `${name}.txt`)
+		await fs.unlink(templatePath)
+
 		// If this was the active prompt, reset to default
 		if (this.state.activePromptName === name) {
 			await this.setActivePrompt(this.DEFAULT_PROMPT_NAME)

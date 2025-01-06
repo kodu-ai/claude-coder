@@ -4,12 +4,14 @@ import {
 	ClaudeMessage,
 	ToolStatus,
 	V1ClaudeMessage,
+	isV1ClaudeMessage,
 } from "../../../shared/messages/extension-message"
 import { ClaudeAskResponse } from "../../../shared/messages/client-message"
 import { StateManager } from "../state-manager"
 import { ExtensionProvider } from "../../../providers/extension-provider"
 import { ChatTool } from "../../../shared/new-tools"
 import { AskManager } from "./ask-manager"
+import { merge } from "lodash"
 
 export enum TaskState {
 	IDLE = "IDLE",
@@ -80,9 +82,36 @@ export abstract class TaskExecutorUtils {
 			this.askManager.handleResponse(lastAskMessage.ts, response, text, images)
 		}
 	}
-	public async ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
-		return await this.askManager.ask(type, data, askTs)
+	public async ask(...args: Parameters<AskManager["ask"]>): Promise<AskResponse> {
+		return await this.askManager.ask(...args)
 	}
+
+	public async partialUpdateTool(data: Partial<ChatTool>, askTs: number): Promise<void> {
+		const { tool } = data
+		// check if there is an existing ask message with the same ts if not create a new one
+		const msg = this.stateManager.claudeMessagesManager.getMessageById(askTs)
+		if (!msg || !isV1ClaudeMessage(msg)) {
+			// if there is no message with the same ts we avoid updating
+			return
+		}
+		try {
+			const msgToolData = JSON.parse(msg.text ?? "") as ChatTool
+
+			const mergedToolData = merge({}, msgToolData, data)
+
+			const askMessageLatest = await this.stateManager.claudeMessagesManager.updateClaudeMessage(askTs, {
+				...msg,
+				text: JSON.stringify(mergedToolData),
+			})
+			if (!askMessageLatest) {
+				return
+			}
+			await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(askMessageLatest)
+		} catch (err) {
+			console.error(err)
+		}
+	}
+
 	public async updateAsk(type: ClaudeAsk, data: AskDetails, askTs: number): Promise<void> {
 		const { question, tool } = data
 		// check if there is an existing ask message with the same ts if not create a new one

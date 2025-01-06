@@ -77,12 +77,12 @@ function handleFirstInstall(context: vscode.ExtensionContext) {
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 	dotenv.config({ path: path.join(context.extensionPath, ".env") })
-
+	console.log(`Current time of activation: ${new Date().toLocaleTimeString()}`)
 	const getCurrentUser = () => {
 		return context.globalState.get("user") as { email: string; credits: number; id: string } | undefined
 	}
 
-	DB.init(path.join(context.globalStorageUri.fsPath, "db", "kodu.db"))
+	// DB.init(path.join(context.globalStorageUri.fsPath, "db", "kodu.db"), context)
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated

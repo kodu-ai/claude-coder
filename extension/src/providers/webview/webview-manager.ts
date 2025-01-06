@@ -495,13 +495,13 @@ export class WebviewManager {
 						await this.postBaseStateToWebview()
 						break
 					case "viewFile":
-						await this.provider.getKoduDev()?.viewFileInDiff(message.path, message.version)
+						// await this.provider.getKoduDev()?.viewFileInDiff(message.path, message.version)
 						break
-					case "rollbackToCheckpoint":
-						await this.provider
-							.getKoduDev()
-							?.rollbackToCheckpoint(message.path, message.version, message.ts)
-						break
+					// case "rollbackToCheckpoint":
+					// 	await this.provider
+					// 		.getKoduDev()
+					// 		?.rollbackToCheckpoint(message.path, message.version, message.ts)
+					// 	break
 					case "resetState":
 						await this.provider.getGlobalStateManager().resetState()
 						await this.provider.getSecretStateManager().resetState()

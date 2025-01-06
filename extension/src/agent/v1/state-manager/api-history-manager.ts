@@ -65,32 +65,4 @@ export class ApiHistoryManager {
 		}
 		await this.saveApiHistory()
 	}
-
-	// Refactored to create a deep copy for cleaning
-	public async getCleanedApiConversationHistory(): Promise<Anthropic.MessageParam[]> {
-		const apiHistory = await this.getSavedApiConversationHistory()
-
-		// Deep copy and sanitize the content in the copy
-		const deepCopy = JSON.parse(JSON.stringify(apiHistory))
-
-		const sanitizeContent = (content: Anthropic.MessageParam["content"]): string | any[] => {
-			if (typeof content === "string") {
-				return "[REDACTED]"
-			} else if (Array.isArray(content)) {
-				return content.map((item) => {
-					if (item.type === "tool_use" || item.type === "text" || item.type === "tool_result") {
-						return { ...item, content: "[REDACTED]", input: "[REDACTED]" }
-					}
-					// Assume if it is not the above types, it is an image
-					return item
-				})
-			}
-			return content
-		}
-
-		return deepCopy.map((message: Anthropic.MessageParam) => ({
-			...message,
-			content: sanitizeContent(message.content),
-		}))
-	}
 }

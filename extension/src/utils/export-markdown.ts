@@ -1,4 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
+import dedent from "dedent"
 import os from "os"
 import * as path from "path"
 import * as vscode from "vscode"
@@ -47,34 +48,23 @@ function formatContentBlockToMarkdown(
 		| Anthropic.TextBlockParam
 		| Anthropic.ImageBlockParam
 		| Anthropic.ToolUseBlockParam
-		| Anthropic.ToolResultBlockParam
+		| Anthropic.ToolResultBlockParam,
+	index: number
 ): string {
+	let output = ""
 	switch (block.type) {
 		case "text":
-			return block.text
+			output = block.text
+			break
 		case "image":
-			return `[Image]`
-		case "tool_use":
-			let input: string
-			if (typeof block.input === "object" && block.input !== null) {
-				input = Object.entries(block.input)
-					.map(([key, value]) => `${key.charAt(0).toUpperCase() + key.slice(1)}: ${value}`)
-					.join("\n")
-			} else {
-				input = String(block.input)
-			}
-			return `[Tool Use: ${block.name}]\n${input}`
-		case "tool_result":
-			if (typeof block.content === "string") {
-				return `[Tool Result${block.is_error ? " (Error)" : ""}]\n${block.content}`
-			} else if (Array.isArray(block.content)) {
-				return `[Tool Result${block.is_error ? " (Error)" : ""}]\n${block.content
-					.map(formatContentBlockToMarkdown)
-					.join("\n")}`
-			} else {
-				return `[Tool Result${block.is_error ? " (Error)" : ""}]`
-			}
+			output = `[Image]`
+			break
 		default:
-			return "[Unexpected content type]"
+			output = "[Unexpected content type]"
+			break
 	}
+	return dedent`-----------------------\n
+BLOCK ${index + 1}:\n
+${output}\n
+-----------------------`
 }

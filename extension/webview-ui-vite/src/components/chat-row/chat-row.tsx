@@ -42,7 +42,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, isFirst, nextMessage }) =>
 					case "payment_required":
 						return <ErrorMsgComponent type="payment_required" />
 					case "chat_truncated":
-						return <ChatTruncatedBlock ts={message.ts} text={message.text} />
+						return <ChatTruncatedBlock ts={message.ts} />
 					case "chat_finished":
 						return <ChatMaxWindowBlock ts={message.ts} />
 					case "hook":

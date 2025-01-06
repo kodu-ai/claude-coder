@@ -13,6 +13,7 @@ import ClosePageButton from "./close-page-button"
 import { SettingsFooter } from "./settings-footer"
 import { Label } from "../ui/label"
 import { Separator } from "../ui/separator"
+import PreferencesTabNew from "./preferences/preferences-tab-new"
 
 const tabItems = [
 	{ value: "preferences", label: "Preferences" },

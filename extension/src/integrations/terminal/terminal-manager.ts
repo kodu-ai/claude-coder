@@ -390,30 +390,6 @@ export class TerminalManager {
 			.map((t) => ({ id: t.id, name: t.name, lastCommand: t.lastCommand }))
 	}
 
-	// getUnretrievedOutput(terminalId: number, updateRetrievedIndex: boolean = true): string {
-	// 	if (!this.terminalIds.has(terminalId)) {
-	// 		return ""
-	// 	}
-	// 	const process = this.processes.get(terminalId)
-	// 	return process ? process.getUnretrievedOutput(updateRetrievedIndex) : ""
-	// }
-
-	// getPartialOutput(terminalId: number, fromLineIndex: number, toLineIndex?: number): string {
-	// 	if (!this.terminalIds.has(terminalId)) {
-	// 		return ""
-	// 	}
-	// 	const process = this.processes.get(terminalId)
-	// 	return process ? process.getOutput(fromLineIndex, toLineIndex).join("\n") : ""
-	// }
-
-	// getFullOutput(terminalId: number): string {
-	// 	if (!this.terminalIds.has(terminalId)) {
-	// 		return ""
-	// 	}
-	// 	const process = this.processes.get(terminalId)
-	// 	return process ? process.getFullOutput().join("\n") : ""
-	// }
-
 	isProcessHot(terminalId: number): boolean {
 		const process = this.processes.get(terminalId)
 		return process ? process.isHot : false
@@ -522,7 +498,9 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 						data = stripAnsi(data)
 					}
 					clearTimeout(noShellTimeout)
-					if (!data.trim()) {continue}
+					if (!data.trim()) {
+						continue
+					}
 					// Remove command echo but preserve line updates
 					const lines = data.split(/[\n\r]+/)
 					const filteredLines = lines.filter((line) => {
@@ -533,7 +511,9 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 
 					// Handle hot state
 					this.isHot = true
-					if (this.hotTimer) {clearTimeout(this.hotTimer)}
+					if (this.hotTimer) {
+						clearTimeout(this.hotTimer)
+					}
 
 					const compilingMarkers = ["compiling", "building", "bundling"]
 					const markerNullifiers = ["compiled", "success", "finish"]

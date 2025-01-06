@@ -188,7 +188,8 @@ export class TaskManager {
 			.catch(() => false)
 
 		if (!fileExists) {
-			await this.deleteTaskFromState(id)
+			vscode.window.showErrorMessage(`Task files not found for task, please try closing and opening vscode again`)
+			// await this.deleteTaskFromState(id)
 			throw new Error("Task files not found")
 		}
 

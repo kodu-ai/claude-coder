@@ -4,6 +4,7 @@ import { parseSourceCodeForDefinitionsTopLevel } from "../../../../parse-source-
 import { BaseAgentTool } from "../base-agent.tool"
 import { ExploreRepoFolderToolParams } from "../schema/explore-repo-folder.schema"
 import { getReadablePath } from "../../utils"
+import { exploreRepoFolderPrompt } from "../../prompts/tools/explore-repo-folder"
 
 export class ExploreRepoFolderTool extends BaseAgentTool<ExploreRepoFolderToolParams> {
 	async execute() {
@@ -30,10 +31,7 @@ export class ExploreRepoFolderTool extends BaseAgentTool<ExploreRepoFolderToolPa
 						<message>Missing required parameter 'path'</message>
 						<help>
 							<example_usage>
-								<tool>explore_repo_folder</tool>
-								<parameters>
-									<path>path/to/directory</path>
-								</parameters>
+							<kodu_action>${exploreRepoFolderPrompt.examples[0].output}</kodu_action>
 							</example_usage>
 							<note>A valid directory path is required to list code definitions</note>
 						</help>

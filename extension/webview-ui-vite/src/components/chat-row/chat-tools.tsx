@@ -232,21 +232,7 @@ export const DevServerToolBlock: React.FC<ServerRunnerTool & ToolAddons> = ({
 		</ToolBlock>
 	)
 }
-export const ChatTruncatedBlock = ({ ts, text }: { ts: number; text?: string }) => {
-	let before: number | undefined
-	let after: number | undefined
-
-	try {
-		const parsed = JSON.parse(text ?? "{}")
-		before = parsed.before
-		after = parsed.after
-	} catch {
-		// Do nothing
-	}
-
-	const tokensSaved = before && after ? before - after : undefined
-	const reductionPercent = before && after ? Math.round((tokensSaved! / before) * 100) : undefined
-
+export const ChatTruncatedBlock = ({ ts }: { ts: number }) => {
 	return (
 		<ToolBlock
 			ts={ts}
@@ -263,25 +249,6 @@ export const ChatTruncatedBlock = ({ ts, text }: { ts: number; text?: string }) 
 						content may be unavailable, but the task can continue.
 					</p>
 				</div>
-
-				{before && after && (
-					<div className="space-y-3">
-						<div className="flex items-center justify-between text-sm">
-							<div className="flex items-center gap-2">
-								<span className="font-medium">Tokens</span>
-								<span className="text-muted-foreground">
-									{before.toLocaleString()} → {after.toLocaleString()}
-								</span>
-							</div>
-							<div className="flex items-center gap-2">
-								<span className="font-medium">Saved</span>
-								<span className="text-success">
-									{tokensSaved?.toLocaleString()} ({reductionPercent}%)
-								</span>
-							</div>
-						</div>
-					</div>
-				)}
 			</div>
 		</ToolBlock>
 	)
@@ -497,20 +464,23 @@ export const AskFollowupQuestionBlock: React.FC<AskFollowupQuestionTool & ToolAd
 	tool,
 	ts,
 	...rest
-}) => (
-	<ToolBlock
-		{...rest}
-		ts={ts}
-		tool={tool}
-		icon={HelpCircle}
-		title="Follow-up Question"
-		variant="info"
-		approvalState={approvalState}>
-		<div className="bg-info/20 text-info-foreground p-2 rounded text-xs">
-			<MarkdownRenderer>{question}</MarkdownRenderer>
-		</div>
-	</ToolBlock>
-)
+}) => {
+	console.log(question)
+	return (
+		<ToolBlock
+			{...rest}
+			ts={ts}
+			tool={tool}
+			icon={HelpCircle}
+			title="Follow-up Question"
+			variant="info"
+			approvalState={approvalState}>
+			<div className="bg-info/20 text-info-foreground p-2 rounded text-xs">
+				<MarkdownRenderer>{question}</MarkdownRenderer>
+			</div>
+		</ToolBlock>
+	)
+}
 
 export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons> = ({
 	result,
@@ -526,7 +496,7 @@ export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons
 		tool={tool}
 		icon={CheckCircle}
 		title="Task Completion"
-		variant="success"
+		variant={approvalState === "approved" ? "success" : "info"}
 		approvalState={approvalState}>
 		{/* {command && (
 			<div className="bg-muted p-2 rounded font-mono text-xs overflow-x-auto mb-2">
@@ -797,7 +767,7 @@ export const ToolRenderer: React.FC<{
 		case "file_editor":
 			return <FileEditorTool {...tool} />
 		case "ask_followup_question":
-			return <AskFollowupQuestionBlock {...tool} approvalState="pending" />
+			return <AskFollowupQuestionBlock {...tool} />
 		case "attempt_completion":
 			return <AttemptCompletionBlock {...tool} />
 		case "web_search":

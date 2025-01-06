@@ -143,9 +143,9 @@ export const useChatMessageHandling = (
 					},
 					attempt_completion: {
 						...baseState,
-						claudeAsk: "completion_result",
-						primaryButtonText: "Start New Task",
-						secondaryButtonText: undefined,
+						// claudeAsk: "completion_result",
+						primaryButtonText: "Mark as Completed",
+						secondaryButtonText: "Mark as Incomplete",
 						textAreaDisabled: false,
 						enableButtons: true,
 					},

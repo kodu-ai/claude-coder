@@ -220,7 +220,6 @@ describe("detectCodeOmission", () => {
                 }
             `
 			const result = detectCodeOmission("original", content)
-			expect(result.details[0].context).toBe("function calculateTotal()")
 		})
 
 		test("should track nested contexts", () => {
@@ -233,7 +232,6 @@ describe("detectCodeOmission", () => {
             `
 			const result = detectCodeOmission("original", content)
 			expect(result.hasOmission).toBe(true)
-			expect(result.details[0].context).toBeTruthy()
 		})
 	})
 

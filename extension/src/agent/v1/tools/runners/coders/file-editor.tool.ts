@@ -56,7 +56,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		const relPath = this.params.input.path
 
 		if (!relPath) {
-			throw new Error("Missing required parameter 'path'")
+			return this.toolResponse("error", "Missing required parameter 'path'")
 		}
 
 		switch (mode) {

@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useSettingsState } from "../../hooks/use-settings-state"
-import { ModelDetails } from "./model-details"
+import { ModelDetails } from "./preferences/model-details"
 import { models } from "./constants"
 
 const PreferencesTab: React.FC = () => {

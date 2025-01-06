@@ -21,16 +21,28 @@ type MarkdownRendererProps =
 			children: string
 	  }
 
+function cleanMarkdown(markdown?: string) {
+	if (!markdown) return ""
+	const tags = ["kodu_action", "thinking", "observation"]
+
+	for (const tag of tags) {
+		const openTag = `<${tag}>`
+		const closeTag = `</${tag}>`
+		markdown = markdown.replaceAll(openTag, ``)
+		markdown = markdown.replaceAll(closeTag, ``)
+	}
+	return markdown
+}
+
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, children }) => {
-	const syntaxHighlighter = useAtomValue(syntaxHighlighterAtom)
+	markdown = cleanMarkdown(markdown ?? children)
 	return (
 		<div className="mr-auto p-4 py-0 overflow-hidden">
-			<div className="prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none w-full">
+			<div className="prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none w-full space-y-1">
 				<ReactMarkdown
 					// GFM adds support for tables, strikethrough, and task lists
 					remarkPlugins={[remarkGfm]}
 					// Allows rendering raw HTML in the markdown content (use with caution)
-					rehypePlugins={[rehypeRaw]}
 					components={{
 						// Customize code blocks
 						code: ({ node, className, children, ...props }) => {
@@ -65,7 +77,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, ch
 						),
 						// You can override other elements as needed, but `prose` handles most gracefully.
 					}}>
-					{markdown ?? children}
+					{markdown}
 				</ReactMarkdown>
 			</div>
 		</div>

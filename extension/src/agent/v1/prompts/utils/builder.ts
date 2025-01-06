@@ -216,7 +216,7 @@ ${tool.examples
 	.map(
 		(example) => `### ${example.description}
 > ${this.config.agentName} Output
-${example.output}`
+<kodu_action>${example.output}</kodu_action>`
 	)
 	.join("\n\n")}`
 		: ""

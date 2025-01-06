@@ -7,6 +7,7 @@ import { getReadablePath } from "../../../utils"
 import { BaseAgentTool } from "../../base-agent.tool"
 import { extractTextFromFile, formatFileToLines } from "./utils"
 import { ReadFileToolParams } from "../../schema/read_file"
+import { readFilePrompt } from "../../../prompts/tools/read-file"
 
 export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 	async execute() {
@@ -175,8 +176,7 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 				    <path>${relPath}</path>
 				    <help>
 				      <example_usage>
-				        <tool>read_file</tool>
-				        <path>path/to/file.txt</path>
+				        <kodu_action>${readFilePrompt.examples[0].output}</kodu_action>
 				      </example_usage>
 				      <note>Please provide a valid file path. File reading operations require a valid path parameter.</note>
 				    </help>

@@ -17,6 +17,10 @@ const useIsAutomaticMode = () => {
 	return useMemo(() => alwaysAllowWriteOnly, [alwaysAllowWriteOnly])
 }
 
+const isValidStringOrNull = (str: string | undefined | null) => {
+	return typeof str === "string" && str.length > 0
+}
+
 function ButtonSection({
 	primaryButtonText,
 	secondaryButtonText,
@@ -28,40 +32,27 @@ function ButtonSection({
 	const [isPending, startTransition] = useTransition()
 	const isAutomaticMode = useIsAutomaticMode()
 	const [isAutomaticPaused, setIsAutomaticPaused] = useState(false)
-	const isAnyMessageResumeTask =
-		primaryButtonText?.includes("Resume Task") || secondaryButtonText?.includes("Resume Task")
-	const handleAbort = useCallback(() => {
-		startTransition(() => {
-			vscode.postMessage({ type: "cancelCurrentRequest" })
-		})
-	}, [])
+	const isRequireUserInput =
+		primaryButtonText?.includes("Resume Task") ||
+		secondaryButtonText?.includes("Resume Task") ||
+		primaryButtonText?.includes("Start New Task") ||
+		secondaryButtonText?.includes("Start New Task") ||
+		primaryButtonText?.includes("Mark as Completed") ||
+		secondaryButtonText?.includes("Mark as Incomplete")
 
 	const handlePauseOrResumeAutomatic = useCallback(() => {
 		setIsAutomaticPaused(!isAutomaticPaused)
-		console.log(`Pause or Resume Automatic: ${!isAutomaticPaused}`)
 		startTransition(() => {
 			vscode.postMessage({ type: "pauseTemporayAutoMode", mode: !isAutomaticPaused })
 		})
 	}, [isAutomaticPaused])
 
-	if (
-		isAutomaticMode &&
-		!isAnyMessageResumeTask &&
-		!(isAutomaticPaused && primaryButtonText && secondaryButtonText)
-	) {
+	if (isAutomaticMode && !isRequireUserInput && !(isAutomaticPaused && primaryButtonText && secondaryButtonText)) {
 		return (
-			<div className="z-50 grid grid-cols-2 gap-2 px-4 pt-2">
+			<div className="z-50 px-4 pt-2 flex">
 				<Button
 					size="sm"
-					className="transition-colors duration-200 ease-in-out"
-					variant="destructive"
-					disabled={!isRequestRunning}
-					onClick={handleAbort}>
-					Abort Request
-				</Button>
-				<Button
-					size="sm"
-					className="transition-colors duration-200 ease-in-out"
+					className="transition-colors duration-200 ease-in-out flex-1 flex-grow"
 					variant="secondary"
 					onClick={handlePauseOrResumeAutomatic}>
 					{isAutomaticPaused ? "Resume Automatic" : "Pause Automatic"}
@@ -70,28 +61,13 @@ function ButtonSection({
 		)
 	}
 
-	if (!primaryButtonText && !isRequestRunning) return null
-
-	if (isRequestRunning && !secondaryButtonText) {
-		return (
-			<div className="z-50 flex flex-col gap-2 space-x-2 px-4 pt-2">
-				<Button
-					size="sm"
-					className="transition-colors duration-200 ease-in-out"
-					variant="destructive"
-					disabled={!enableButtons && !isRequestRunning}
-					onClick={handleAbort}>
-					Abort Request
-				</Button>
-			</div>
-		)
-	}
+	if (!isValidStringOrNull(primaryButtonText)) return null
 
 	return (
-		<div className="z-50 grid grid-cols-2 gap-2 px-4 pt-2">
+		<div className="z-50 flex flex-wrap gap-2 px-4 pt-2 items-stretch">
 			<Button
 				size="sm"
-				className={!secondaryButtonText ? "col-span-2" : ""}
+				className={"flex-1"}
 				disabled={!enableButtons || isPending}
 				onClick={() => startTransition(() => handlePrimaryButtonClick())}>
 				{primaryButtonText}
@@ -100,6 +76,7 @@ function ButtonSection({
 				<Button
 					size="sm"
 					variant="secondary"
+					className="flex-1"
 					disabled={!enableButtons || isPending}
 					onClick={() => startTransition(() => handleSecondaryButtonClick())}>
 					{secondaryButtonText}

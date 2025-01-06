@@ -2,7 +2,7 @@ import { ClaudeAsk, ClaudeMessage, V1ClaudeMessage } from "../../../shared/messa
 import { ClaudeAskResponse } from "../../../shared/messages/client-message"
 import { AskDetails, AskResponse } from "./utils"
 import { StateManager } from "../state-manager"
-import { ChatTool } from "../../../shared/new-tools"
+import { ChatTool, mustRequestApprovalTools, mustRequestApprovalTypes, readOnlyTools } from "../../../shared/new-tools"
 import { WebviewManager } from "../../../providers/webview/webview-manager"
 interface PendingAsk {
 	resolve: (value: AskResponse) => void
@@ -33,30 +33,6 @@ export class AskManager {
 	private currentAsk: PendingAsk | null = null
 	private currentAskId: number | null = null
 	private pendingToolAsks: Map<string, number> = new Map()
-
-	private readonly readOnlyTools: ChatTool["tool"][] = [
-		"read_file",
-		"list_files",
-		"search_files",
-		"explore_repo_folder",
-		"web_search",
-		"url_screenshot",
-		"add_interested_file",
-	] as const
-
-	private readonly mustRequestApprovalTypes: (ChatTool["tool"] | string)[] = [
-		"completion_result",
-		"resume_completed_task",
-		"resume_task",
-		"request_limit_reached",
-		"followup",
-		"ask_followup_question",
-	] as const
-
-	private readonly mustRequestApprovalTools: ChatTool["tool"][] = [
-		"ask_followup_question",
-		"attempt_completion",
-	] as const
 
 	constructor(stateManager: StateManager) {
 		this.stateManager = stateManager
@@ -95,12 +71,17 @@ export class AskManager {
 		this.pendingToolAsks.clear()
 	}
 
-	public async ask(type: ClaudeAsk, data?: AskDetails, askTs?: number): Promise<AskResponse> {
+	public async ask(
+		type: ClaudeAsk,
+		data?: AskDetails,
+		askTs?: number,
+		disableAutoApprove = false
+	): Promise<AskResponse> {
 		const id = askTs || Date.now()
 		const { question, tool } = data ?? {}
 
 		// Handle auto-approval first
-		if (this.shouldAutoApprove(type, tool?.tool)) {
+		if (this.shouldAutoApprove(type, tool?.tool) && !disableAutoApprove) {
 			await this.updateState(id, type, tool, "approved")
 			return { response: "yesButtonTapped", text: "", images: [] }
 		}
@@ -240,15 +221,15 @@ export class AskManager {
 	}
 
 	private shouldAutoApprove(type: ClaudeAsk, tool?: string): boolean {
-		if (this.stateManager.alwaysAllowReadOnly && tool && this.readOnlyTools.includes(tool as any)) {
+		if (this.stateManager.alwaysAllowReadOnly && tool && readOnlyTools.includes(tool as any)) {
 			return true
 		}
 
 		if (
 			!this.stateManager.temporayPauseAutomaticMode &&
 			this.stateManager.alwaysAllowWriteOnly &&
-			!this.mustRequestApprovalTypes.includes(type as any) &&
-			(!tool || !this.mustRequestApprovalTools.includes(tool as any))
+			!mustRequestApprovalTypes.includes(type as any) &&
+			(!tool || !mustRequestApprovalTools.includes(tool as any))
 		) {
 			return true
 		}

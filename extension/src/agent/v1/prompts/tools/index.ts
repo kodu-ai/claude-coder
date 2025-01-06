@@ -1,4 +1,3 @@
-import { addInterestedFilePrompt } from "./add-interested-file"
 import { fileEditorPrompt } from "./file-editor"
 import { exploreRepoFolderPrompt } from "./explore-repo-folder"
 import { searchFilesPrompt } from "./search-files"
@@ -17,7 +16,6 @@ export const toolPrompts = [
 	spawnAgentPrompt,
 	exploreRepoFolderPrompt,
 	readFilePrompt,
-	addInterestedFilePrompt,
 	searchFilesPrompt,
 	searchSymbolPrompt,
 	listFilesPrompt,

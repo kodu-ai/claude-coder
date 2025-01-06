@@ -1,7 +1,9 @@
-import React, { KeyboardEvent, useState } from "react"
+import React, { KeyboardEvent, startTransition, useCallback, useEffect, useState } from "react"
 import Thumbnails from "../thumbnails/thumbnails"
 import { Button } from "../ui/button"
 import InputV1 from "./input-v1"
+import { ImagePlus, PauseCircle, SendHorizonal } from "lucide-react"
+import { vscode } from "@/utils/vscode"
 
 interface InputAreaProps {
 	inputRef: React.RefObject<HTMLTextAreaElement>
@@ -22,6 +24,24 @@ interface InputAreaProps {
 	isInTask: boolean
 }
 
+const useHandleAbort = (isRequestRunning: boolean) => {
+	const [isAborting, setIsAborting] = useState(false)
+	const handleAbort = useCallback(() => {
+		if (isAborting) return
+		setIsAborting(true)
+
+		vscode.postMessage({ type: "cancelCurrentRequest" })
+	}, [isAborting])
+
+	useEffect(() => {
+		if (!isRequestRunning) {
+			setIsAborting(false)
+		}
+	}, [isRequestRunning])
+
+	return [handleAbort, isAborting] as const
+}
+
 const InputArea: React.FC<InputAreaProps> = ({
 	inputValue,
 	setInputValue,
@@ -39,14 +59,14 @@ const InputArea: React.FC<InputAreaProps> = ({
 	isRequestRunning,
 }) => {
 	const [_, setIsTextAreaFocused] = useState(false)
-
+	const [handleAbort, isAborting] = useHandleAbort(isRequestRunning)
 	return (
 		<>
 			<div
 				className="flex flex-col gap-2"
 				style={{
 					padding: "8px 16px",
-					opacity: textAreaDisabled ? 0.5 : 1,
+					// opacity: textAreaDisabled ? 0.5 : 1,
 					position: "relative",
 					display: "flex",
 					marginTop: 0,
@@ -87,27 +107,43 @@ const InputArea: React.FC<InputAreaProps> = ({
 						bottom: 10,
 					}}>
 					<div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2 }}>
-						<Button
-							tabIndex={0}
-							disabled={shouldDisableImages}
-							variant="ghost"
-							className="!p-1 h-6 w-6"
-							size="icon"
-							aria-label="Attach Images"
-							onClick={selectImages}
-							style={{ marginRight: "2px" }}>
-							<span className="codicon codicon-device-camera" style={{ fontSize: 16 }}></span>
-						</Button>
-						<Button
-							tabIndex={0}
-							disabled={textAreaDisabled}
-							variant="ghost"
-							className="!p-1 h-6 w-6"
-							size="icon"
-							aria-label="Send Message"
-							onClick={handleSendMessage}>
-							<span className="codicon codicon-send" style={{ fontSize: 16 }}></span>
-						</Button>
+						{isRequestRunning ? (
+							<Button
+								disabled={isAborting}
+								tabIndex={0}
+								variant="ghost"
+								className="!p-1 h-6 w-6"
+								size="icon"
+								aria-label="Abort Request"
+								onClick={handleAbort}
+								style={{ marginRight: "2px" }}>
+								<PauseCircle size={16} />
+							</Button>
+						) : (
+							<>
+								<Button
+									tabIndex={0}
+									disabled={shouldDisableImages}
+									variant="ghost"
+									className="!p-1 h-6 w-6"
+									size="icon"
+									aria-label="Attach Images"
+									onClick={selectImages}
+									style={{ marginRight: "2px" }}>
+									<ImagePlus size={16} />
+								</Button>
+								<Button
+									tabIndex={0}
+									disabled={textAreaDisabled}
+									variant="ghost"
+									className="!p-1 h-6 w-6"
+									size="icon"
+									aria-label="Send Message"
+									onClick={handleSendMessage}>
+									<SendHorizonal size={16} />
+								</Button>
+							</>
+						)}
 					</div>
 				</div>
 			</div>

@@ -4,6 +4,7 @@ import { LIST_FILES_LIMIT, listFiles } from "../../../../parse-source-code"
 import { formatFilesList, getReadablePath } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
 import { ListFilesToolParams } from "../schema/list_files"
+import { listFilesPrompt } from "../../prompts/tools/list-files"
 
 export class ListFilesTool extends BaseAgentTool<ListFilesToolParams> {
 	async execute() {
@@ -24,11 +25,7 @@ export class ListFilesTool extends BaseAgentTool<ListFilesToolParams> {
 					<message>Missing required parameter 'path'</message>
 					<help>
 						<example_usage>
-							<tool>list_files</tool>
-							<parameters>
-								<path>path/to/directory</path>
-								<recursive>true</recursive>
-							</parameters>
+						<kodu_action>${listFilesPrompt.examples[0].output}</kodu_action>
 						</example_usage>
 						<note>A valid directory path is required to list files</note>
 					</help>

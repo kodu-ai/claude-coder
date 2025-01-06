@@ -79,7 +79,6 @@ export class SpawnAgentTool extends BaseAgentTool<SpawnAgentToolParams> {
 			state: "RUNNING",
 			ts: this.ts,
 			apiConversationHistory: [],
-			interestedFiles: [],
 			historyErrors: {},
 			systemPrompt,
 		})

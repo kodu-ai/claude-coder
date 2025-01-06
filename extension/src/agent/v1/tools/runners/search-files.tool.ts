@@ -4,6 +4,7 @@ import { getReadablePath } from "../../utils"
 import { regexSearchFiles } from "../../../../utils/ripgrep"
 import { BaseAgentTool } from "../base-agent.tool"
 import { SearchFilesToolParams } from "../schema/search_files"
+import { searchFilesPrompt } from "../../prompts/tools/search-files"
 
 export class SearchFilesTool extends BaseAgentTool<SearchFilesToolParams> {
 	async execute() {
@@ -28,12 +29,7 @@ export class SearchFilesTool extends BaseAgentTool<SearchFilesToolParams> {
 					<message>Missing required parameter 'path'</message>
 					<help>
 						<example_usage>
-							<tool>search_files</tool>
-							<parameters>
-								<path>path/to/directory</path>
-								<regex>search pattern</regex>
-								<file_pattern>optional glob pattern</file_pattern>
-							</parameters>
+						<kodu_action>${searchFilesPrompt.examples[0].output}</kodu_action>
 						</example_usage>
 						<note>Both path and regex parameters are required for file searching</note>
 					</help>

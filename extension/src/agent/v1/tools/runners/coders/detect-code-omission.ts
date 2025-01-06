@@ -1,8 +1,14 @@
 /**
  * Detects potential AI-generated code omissions in the given file content.
- * @param originalFileContent The original content of the file
- * @param newFileContent The new content of the file to check
- * @returns An object containing whether an omission was detected and details about the detection
+ * Triggers if:
+ *   - We find specific keywords/phrases indicating omitted code, OR
+ *   - More than X% of the content is missing (by line count).
+ *
+ * NOTE: Omission cannot happen if the original file is empty at the start.
+ *
+ * @param originalFileContent The original content of the file.
+ * @param newFileContent The new content of the file to check.
+ * @returns An object containing whether an omission was detected and details about the detection.
  */
 export function detectCodeOmission(
 	originalFileContent: string,
@@ -13,19 +19,41 @@ export function detectCodeOmission(
 		line?: string
 		keyword?: string
 		lineNumber?: number
-		context?: string
 	}[]
 } {
-	const originalLines = originalFileContent.split("\n")
-	const newLines = newFileContent.split("\n")
-	const details: { line?: string; keyword?: string; lineNumber?: number; context?: string }[] = []
-
-	// Skip detection if original content is empty
-	if (originalFileContent.trim().length === 0) {
+	// Early exit if original is empty => cannot flag omission
+	if (!originalFileContent.trim() || originalFileContent.length < 10) {
 		return { hasOmission: false, details: [] }
 	}
 
-	// Phrases that strongly indicate intentional code omission
+	// Split into lines
+	const originalLines = originalFileContent.split("\n")
+	const newLines = newFileContent.split("\n")
+
+	// Prepare array for storing details about any flagged lines
+	const details: { line?: string; keyword?: string; lineNumber?: number }[] = []
+
+	// Threshold: if more than 30% of content is missing, flag as omission
+	const MISSING_THRESHOLD = 0.3 // 30%
+	const originalLineCount = originalLines.length
+	const newLineCount = newLines.length
+
+	// Check if enough content is missing to count as an omission
+	// (e.g., if missingRatio > 0.3, we consider it "omitted")
+	if (originalLineCount > 0) {
+		const missingCount = originalLineCount - newLineCount
+		const missingRatio = missingCount / originalLineCount
+
+		if (missingRatio > MISSING_THRESHOLD) {
+			details.push({
+				line: "",
+				keyword: `More than ${MISSING_THRESHOLD * 100}% of content missing`,
+				lineNumber: 0,
+			})
+		}
+	}
+
+	// Define omission-indicating phrases (case-insensitive)
 	const strongOmissionPhrases = [
 		"rest of (the )?code remains( the same)?",
 		"previous implementation",
@@ -42,130 +70,29 @@ export function detectCodeOmission(
 		"rest of processing logic",
 		"submission logic",
 		"initialization code",
-	].map((phrase) => new RegExp(phrase, "i"))
+	].map((p) => new RegExp(p, "i"))
 
-	// Comment patterns with capturing groups for content
-	const commentPatterns = [
-		/^\s*\/\/\s*(.+)$/, // Single-line comment
-		/^\s*#\s*(.+)$/, // Python/Ruby comment
-		/^\s*\/\*\s*(.+?)\s*\*\/$/, // Single-line multi-line comment
-		/^\s*\*\s*(.+)$/, // Multi-line comment continuation
-		/^\s*<!--\s*(.+?)\s*-->$/, // HTML comment
-	]
+	// Scan each line in the new content for omission-indicating phrases
+	for (let i = 0; i < newLines.length; i++) {
+		const line = newLines[i]
 
-	// Patterns that indicate code block starts
-	const codeBlockStarts = [
-		{
-			pattern: /^\s*(function|class|interface|module|def)\s+(\w+)/,
-			extract: (match: RegExpMatchArray) => `${match[1]} ${match[2]}()`,
-		},
-		{
-			pattern: /^\s*(const|let|var)\s+(\w+)\s*=\s*(function|\(.*\)\s*=>|\{)/,
-			extract: (match: RegExpMatchArray) => `${match[1]} ${match[2]}`,
-		},
-		{ pattern: /^\s*(public|private|protected)\s+(\w+)/, extract: (match: RegExpMatchArray) => match[0].trim() },
-		{ pattern: /^\s*class\s+(\w+)/, extract: (match: RegExpMatchArray) => `class ${match[1]}` },
-	]
-
-	// Ellipsis patterns that indicate omission (only in comments or specific patterns)
-	const ellipsisPatterns = [
-		/^\/\*\s*\.\.\.\s*\*\/$/, // /* ... */
-		/^\/\/\s*\.\.\.\s*$/, // // ...
-		/^\s*\.\.\.\s*$/, // ... (on its own line)
-		/^\{\s*\.\.\.\s*\}$/, // { ... }
-		/^\(\s*\.\.\.\s*\)$/, // ( ... )
-		/^\[\s*\.\.\.\s*\]$/, // [ ... ]
-		/^\/\*\s*\.\.\.\s*\w+\s*\*\/$/, // /* ... something */
-	]
-
-	// Ellipsis with context (must be in comments)
-	const ellipsisWithContextPatterns = [
-		/\/\/\s*\.\.\.\s*(rest|remaining|code|implementation|logic)/i, // // ... rest/remaining/code/implementation/logic
-		/\/\*\s*\.\.\.\s*(rest|remaining|code|implementation|logic)\s*\*\//i, // /* ... rest/remaining/code/implementation/logic */
-		/#\s*\.\.\.\s*(rest|remaining|code|implementation|logic)/i, // # ... rest/remaining/code/implementation/logic
-	]
-
-	let currentContext: string[] = []
-	let bracketStack = 0
-
-	// Process each line
-	newLines.forEach((line, lineNumber) => {
-		const trimmedLine = line.trim()
-		const indentation = line.search(/\S|$/)
-
-		// Update code block context
-		for (const { pattern, extract } of codeBlockStarts) {
+		// Check each pattern
+		for (const pattern of strongOmissionPhrases) {
 			const match = line.match(pattern)
 			if (match) {
-				const context = extract(match)
-				currentContext.push(context)
-				bracketStack = 0
+				details.push({
+					line,
+					keyword: match[0],
+					lineNumber: i + 1,
+				})
+				// We can break once we find a phrase, to avoid duplicating
 				break
 			}
 		}
-
-		// Track brackets for context
-		const openBrackets = (line.match(/\{/g) || []).length
-		const closeBrackets = (line.match(/\}/g) || []).length
-		bracketStack += openBrackets - closeBrackets
-
-		// Exit context when brackets close
-		if (bracketStack <= 0 && currentContext.length > 0) {
-			currentContext.pop()
-			bracketStack = 0
-		}
-
-		// Function to add detail with current context
-		const addDetail = (keyword: string) => {
-			details.push({
-				line: line,
-				keyword: keyword,
-				lineNumber: lineNumber + 1,
-				context: currentContext[currentContext.length - 1] || "",
-			})
-		}
-
-		// Check for strong omission phrases in comments
-		for (const commentPattern of commentPatterns) {
-			const commentMatch = line.match(commentPattern)
-			if (commentMatch) {
-				const commentContent = commentMatch[1]
-				for (const pattern of strongOmissionPhrases) {
-					if (pattern.test(commentContent)) {
-						addDetail(commentContent.match(pattern)![0])
-						return // Exit after finding a match to avoid duplicates
-					}
-				}
-			}
-		}
-
-		// Check if the line is a comment
-		const isComment = commentPatterns.some((pattern) => pattern.test(line))
-
-		// Check for ellipsis patterns when in a comment or specific structural pattern
-		for (const pattern of ellipsisPatterns) {
-			if (pattern.test(trimmedLine)) {
-				// Ignore if it's in a string literal
-				if (!/["'`].*\.\.\..*["'`]/.test(line)) {
-					addDetail("...")
-					return // Exit after finding a match
-				}
-			}
-		}
-
-		// Check for ellipsis with context only in comments
-		if (isComment) {
-			for (const pattern of ellipsisWithContextPatterns) {
-				if (pattern.test(line)) {
-					addDetail("...")
-					return // Exit after finding a match
-				}
-			}
-		}
-	})
+	}
 
 	return {
 		hasOmission: details.length > 0,
-		details: details,
+		details,
 	}
 }

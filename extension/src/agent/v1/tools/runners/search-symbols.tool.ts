@@ -5,6 +5,7 @@ import { getReadablePath } from "../../utils"
 import * as vscode from "vscode"
 import { SearchSymbolsToolParams } from "../schema/search_symbols"
 import dedent from "dedent"
+import { searchSymbolPrompt } from "../../prompts/tools/search-symbol"
 
 export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 	async execute() {
@@ -29,10 +30,7 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
                     <message>Missing required parameter 'symbolName'</message>
                     <help>
                         <example_usage>
-                            <tool>search_symbol</tool>
-                            <parameters>
-                                <symbolName>function or class name</symbolName>
-                            </parameters>
+						<kodu_action>${searchSymbolPrompt.examples[0].output}</kodu_action>
                         </example_usage>
                         <note>The symbolName parameter is required for symbol searching</note>
                     </help>

@@ -128,7 +128,7 @@ export const FileEditorTool: React.FC<FileEditorToolParams & ToolAddons> = memo(
 
 					<div className="flex justify-between items-center">
 						<span className="text-xs text-muted-foreground">{`${totalLines} lines`}</span>
-						<div className="flex gap-2 flex-wrap justify-end">
+						{/* <div className="flex gap-2 flex-wrap justify-end">
 							<Button
 								variant="outline"
 								size="sm"
@@ -148,7 +148,7 @@ export const FileEditorTool: React.FC<FileEditorToolParams & ToolAddons> = memo(
 								<Undo2 className="w-4 h-4" />
 								<span>Rollback</span>
 							</Button>
-						</div>
+						</div> */}
 					</div>
 				</div>
 

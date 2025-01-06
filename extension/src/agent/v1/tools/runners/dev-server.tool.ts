@@ -6,6 +6,7 @@ import delay from "delay"
 import { ChatTool, ServerRunnerTool } from "../../../../shared/new-tools"
 import { shellIntegrationErrorOutput } from "./execute-command.tool"
 import { AgentToolOptions, AgentToolParams } from "../types"
+import { serverRunnerPrompt } from "../../prompts/tools/server-runner"
 
 interface UpdateAskParams {
 	tool: string
@@ -100,12 +101,7 @@ export class DevServerTool extends BaseAgentTool<ServerRunnerToolParams> {
 					</validation>
 					<help>
 						<example_usage>
-							<tool>server_runner</tool>
-							<parameters>
-								<commandType>start</commandType>
-								<commandToRun>npm run dev</commandToRun>
-								<serverName>my-dev-server</serverName>
-							</parameters>
+						<kodu_action>${serverRunnerPrompt.examples[0].output}</kodu_action>
 						</example_usage>
 						<note>All required parameters must be provided for server operations</note>
 					</help>

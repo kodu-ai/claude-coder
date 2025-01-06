@@ -14,6 +14,7 @@ import {
 import { WebSearchResponseDto } from "../interfaces"
 import { ApiHistoryItem } from "../../agent/v1"
 import { cloneDeep } from "lodash"
+import delay from "delay"
 
 export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 	const response = await axios.get(getKoduCurrentUser(), {
@@ -134,6 +135,7 @@ export class KoduHandler implements ApiHandler {
 			messages: messagesToCache,
 			temperature: tempature ?? 0.1,
 			top_p: top_p ?? undefined,
+			stop_sequences: ["</kodu_action>"],
 		}
 		this.cancelTokenSource = axios.CancelToken.source()
 
@@ -182,10 +184,23 @@ export class KoduHandler implements ApiHandler {
 						if (eventData.code === 2) {
 							// -> Happens to the current message
 							// We have a partial response, so we need to add it to the message shown to the user and refresh the UI
-						}
-						if (eventData.code === 0) {
 						} else if (eventData.code === 1) {
+							console.log("Final response received")
+							console.log(`final content length: ${eventData.body.anthropic.content.length}`)
 							finalResponse = eventData
+							// if we hit a stop_sequence, we should yield the stop_sequence before the final response
+							if (finalResponse.body.anthropic.stop_reason === "stop_sequence") {
+								console.log("Stop sequence reached")
+								console.log(`stop_sequence: ${finalResponse.body.anthropic.stop_sequence}`)
+
+								yield {
+									code: 2,
+									body: {
+										text: "</kodu_action>",
+									},
+								}
+								await delay(50)
+							}
 						} else if (eventData.code === -1) {
 							console.error("Network / API ERROR")
 							// we should yield the error and not throw it

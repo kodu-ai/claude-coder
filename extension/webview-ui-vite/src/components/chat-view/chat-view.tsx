@@ -69,18 +69,16 @@ const ChatView: React.FC<ChatViewProps> = ({
 	)
 
 	const updateButtonState = useCallback((updates: Partial<ChatState>) => {
-		startTransition(() => {
-			setState((prev) => {
-				const shouldUpdate =
-					prev.enableButtons !== updates.enableButtons ||
-					prev.primaryButtonText !== updates.primaryButtonText ||
-					prev.secondaryButtonText !== updates.secondaryButtonText ||
-					prev.claudeAsk !== updates.claudeAsk ||
-					prev.textAreaDisabled !== updates.textAreaDisabled
+		setState((prev) => {
+			const shouldUpdate =
+				prev.enableButtons !== updates.enableButtons ||
+				prev.primaryButtonText !== updates.primaryButtonText ||
+				prev.secondaryButtonText !== updates.secondaryButtonText ||
+				prev.claudeAsk !== updates.claudeAsk ||
+				prev.textAreaDisabled !== updates.textAreaDisabled
 
-				if (!shouldUpdate) return prev
-				return { ...prev, ...updates }
-			})
+			if (!shouldUpdate) return prev
+			return { ...prev, ...updates }
 		})
 	}, [])
 
@@ -385,8 +383,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 						</div>
 						<span className="text-sm">
 							The conversation has reached its context window limit and cannot continue further. To
-							proceed, you'll need to start a new task. Don't worry - the tool will still have access to
-							your project's files and structure in the new task.
+							proceed, you'll need to start a new task. Don't worry - Kodu will still have access to your
+							project's files and structure in the new task.
 						</span>
 					</div>
 					<div className="flex justify-end">

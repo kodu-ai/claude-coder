@@ -17,11 +17,9 @@ import {
 	ReadFileTool,
 	FileEditorTool,
 	UrlScreenshotTool,
-	FileChangePlanTool,
 } from "."
 import { WebSearchTool } from "./runners/web-search-tool"
 import { SearchSymbolsTool } from "./runners/search-symbols.tool"
-import { AddInterestedFileTool } from "./runners/add-interested-file.tool"
 import { BaseAgentTool, FullToolParams } from "./base-agent.tool"
 import ToolParser from "./tool-parser/tool-parser"
 import { tools, writeToFileTool } from "./schema"
@@ -132,10 +130,8 @@ export class ToolExecutor {
 			server_runner: DevServerTool,
 			search_symbol: SearchSymbolsTool,
 			file_editor: FileEditorTool,
-			add_interested_file: AddInterestedFileTool,
 			spawn_agent: SpawnAgentTool,
 			exit_agent: ExitAgentTool,
-			submit_review: SubmitReviewTool,
 		} as const
 
 		const ToolClass = toolMap[params.name as keyof typeof toolMap]
@@ -434,6 +430,14 @@ export class ToolExecutor {
 			console.error(`Error executing tool: ${context.tool.name}`, error)
 			context.status = "error"
 			context.error = error as Error
+			await this.koduDev.taskExecutor.partialUpdateTool(
+				{
+					ts: context.tool.ts,
+					approvalState: "error",
+					error: error instanceof Error ? error.message : `unknown error for tool ${context.tool.name}`,
+				},
+				context.tool.ts
+			)
 
 			// Add error result to toolResults
 			const errorMessage = error instanceof Error ? error.message : `unknown error for tool ${context.tool.name}`

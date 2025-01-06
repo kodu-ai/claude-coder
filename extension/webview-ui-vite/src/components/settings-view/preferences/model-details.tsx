@@ -1,8 +1,8 @@
 import React from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ChevronDown, Check, X } from "lucide-react"
-import { KoduModels } from "../../../../src/shared/api"
-import { models } from "./constants"
+import { KoduModels } from "../../../../../src/shared/api"
+import { models } from "../constants"
 
 interface ModelDetailsProps {
 	model: keyof KoduModels

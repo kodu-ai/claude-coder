@@ -28,6 +28,7 @@ import { HookManager, BaseHook, HookOptions, HookConstructor } from "./hooks"
 import { ObserverHook } from "./hooks/observer-hook"
 import { GlobalStateManager } from "../../providers/state/global-state-manager"
 import dedent from "dedent"
+import { nanoid } from "nanoid"
 
 // new KoduDev
 export class KoduDev {
@@ -53,18 +54,20 @@ export class KoduDev {
 		}
 	) {
 		const { provider, apiConfiguration, customInstructions, task, images, historyItem } = options
+		const targetedTaskId = nanoid()
+		const isNewTask = !historyItem
+		// if there is no history item we need to setup id for the task
+		if (isNewTask) {
+			options.historyItem = {
+				id: targetedTaskId,
+				ts: Date.now(),
+				tokensIn: 0,
+				tokensOut: 0,
+				totalCost: 0,
+				task: task ?? "",
+			}
+		}
 		this.stateManager = new StateManager(options)
-		this.stateManager.setState({
-			taskId: historyItem ? historyItem.id : Date.now().toString(),
-			dirAbsolutePath: historyItem?.dirAbsolutePath ?? "",
-			isRepoInitialized: historyItem?.isRepoInitialized ?? false,
-			requestCount: 0,
-			apiConversationHistory: [],
-			claudeMessages: [],
-			interestedFiles: [],
-			historyErrors: {},
-			abort: false,
-		})
 		this.providerRef = new WeakRef(provider)
 		this.apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
 		// Initialize hook manager
@@ -99,16 +102,12 @@ export class KoduDev {
 			AutoSummarize: this.stateManager.autoSummarize,
 		})
 
-		if (historyItem?.dirAbsolutePath) {
-		}
-
 		if (options.noTask) {
 			return
 		}
-		if (historyItem) {
+		if (!isNewTask) {
 			this.stateManager.state.isHistoryItem = true
 			this.resumeTaskFromHistory()
-			this.gitHandler.init()
 			this.providerRef.deref()?.getWebviewManager().postBaseStateToWebview()
 		} else if (task || images) {
 			this.startTask(task, images)
@@ -202,6 +201,7 @@ export class KoduDev {
 		}
 		this.taskExecutor.handleAskResponse(askResponse, text, images)
 	}
+
 	public async startTask(task?: string, images?: string[]): Promise<void> {
 		if (this.isAborting) {
 			throw new Error("Cannot start task while aborting")
@@ -420,46 +420,6 @@ export class KoduDev {
 		}
 	}
 
-	/**
-	 * checks if the file exists in the task history
-	 * if it exists it check if the original file exists
-	 * if task history file exists and the original file exists it opens a diff view between them
-	 * if the task history file exists and the original file does not exist it still opens the file in a diff view
-	 * if the task history file does not exist it shows an error message
-	 */
-	async viewFileInDiff(filePath: string, version: string) {
-		const verNum = parseInt(version, 10)
-		if (isNaN(verNum)) {
-			vscode.window.showErrorMessage(`Invalid version number: ${version}`)
-			return
-		}
-
-		const versions = await this.stateManager.getFileVersions(filePath)
-		const targetVersion = versions.find((v) => v.version === verNum)
-		if (!targetVersion) {
-			vscode.window.showErrorMessage(`Version ${version} not found for file ${filePath}`)
-			return
-		}
-
-		const absolutePath = path.resolve(this.stateManager.dirAbsolutePath ?? "", filePath)
-		let originalContent = ""
-		try {
-			const fileUri = vscode.Uri.file(absolutePath)
-			const doc = await vscode.workspace.openTextDocument(fileUri)
-			originalContent = doc.getText()
-		} catch {
-			// file doesn't exist locally, originalContent stays empty
-		}
-
-		const leftData = Buffer.from(originalContent, "utf-8").toString("base64")
-		const rightData = Buffer.from(targetVersion.content, "utf-8").toString("base64")
-
-		const leftUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${path.basename(filePath)}?${leftData}`)
-		const rightUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${path.basename(filePath)}_v${version}?${rightData}`)
-
-		await vscode.commands.executeCommand("vscode.diff", leftUri, rightUri, `${filePath} (local ↔ v${version})`)
-	}
-
 	observerHookEvery(value?: number) {
 		// if not value is provided, we disable the observer hook
 		if (!value) {
@@ -472,75 +432,6 @@ export class KoduDev {
 		} else {
 			this.hookManager.registerHook(ObserverHook, { hookName: "observer", triggerEvery: value })
 		}
-	}
-
-	/**
-	 * current impelementation isn't working as expected requires better data structure to store the file versions and context if the file existed before or not
-	 * Rollback to a specific checkpoint:
-	 *  - Validate version number and existence
-	 *  - Find the message by ts and remove all messages (Claude and API) after it
-	 *  - For each file in the task:
-	 *    - Find the highest version <= requested version
-	 *    - Revert file content to that version using vscode.workspace.applyEdit
-	 *  - Save updated conversation history
-	 *  - Show success message
-	 */
-	async rollbackToCheckpoint(filePath: string, version: string, ts: number) {
-		const verNum = parseInt(version, 10)
-		if (isNaN(verNum)) {
-			vscode.window.showErrorMessage(`Invalid version number: ${version}`)
-			return
-		}
-		const versions = await this.stateManager.getFileVersions(filePath)
-		const targetVersion = versions.find((v) => v.version === verNum)
-		if (!targetVersion) {
-			vscode.window.showErrorMessage(`Version ${version} not found for file ${filePath}`)
-			return
-		}
-
-		// Remove all messages after the specified ts
-		const updatedClaudeMessages = await this.stateManager.claudeMessagesManager.removeEverythingAfterMessage(ts)
-		if (!updatedClaudeMessages) {
-			vscode.window.showErrorMessage(`Failed to rollback: could not find message with ts ${ts}`)
-			return
-		}
-
-		const allApiHistory = await this.stateManager.apiHistoryManager.getSavedApiConversationHistory()
-		const lastApiIndex = allApiHistory.findIndex((h) => h.ts === ts)
-		if (lastApiIndex !== -1) {
-			const updatedApiHistory = allApiHistory.slice(0, lastApiIndex + 1)
-			await this.stateManager.apiHistoryManager.overwriteApiConversationHistory(updatedApiHistory)
-		}
-
-		// Now revert all files in the task to the requested version (or nearest lower version)
-		const filesMap = await this.stateManager.getFilesInTaskDirectory()
-		const edit = new vscode.WorkspaceEdit()
-
-		for (const [fPath, fVersions] of Object.entries(filesMap)) {
-			// Find the version <= verNum
-			const revertVersion = [...fVersions].reverse().find((fv) => fv.version <= verNum)
-			if (!revertVersion) {
-				// no version <= verNum means file didn't exist at that time, revert to empty
-				const fileUri = vscode.Uri.file(path.resolve(this.stateManager.dirAbsolutePath ?? "", fPath))
-				edit.createFile(fileUri, { overwrite: true })
-			} else {
-				const fileUri = vscode.Uri.file(path.resolve(this.stateManager.dirAbsolutePath ?? "", fPath))
-				edit.createFile(fileUri, { overwrite: true })
-				edit.insert(fileUri, new vscode.Position(0, 0), revertVersion.content)
-			}
-		}
-
-		const applied = await vscode.workspace.applyEdit(edit)
-		if (!applied) {
-			vscode.window.showErrorMessage("Failed to apply rollback changes to files.")
-			return
-		}
-
-		// Reload the webview
-		await this.providerRef.deref()?.getWebviewManager().postBaseStateToWebview()
-		await this.providerRef.deref()?.getWebviewManager().postClaudeMessagesToWebview(updatedClaudeMessages)
-
-		vscode.window.showInformationMessage(`Successfully rolled back to version ${version} for ${filePath}.`)
 	}
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {

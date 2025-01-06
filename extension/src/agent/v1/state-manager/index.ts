@@ -65,15 +65,9 @@ export class StateManager {
 		// Initialize arrays and objects so they're always defined and stable
 		this._state = {
 			taskId: taskId,
-			dirAbsolutePath: options.historyItem?.dirAbsolutePath ?? "",
-			isRepoInitialized: options.historyItem?.isRepoInitialized ?? false,
-			requestCount: 0,
-			memory: options.historyItem?.memory,
 			apiConversationHistory: [],
 			claudeMessages: [],
-			abort: false,
 			historyErrors: {}, // ensure it's always an object
-			interestedFiles: [], // ensure it's always an array
 		}
 
 		this.claudeMessagesManager = new ClaudeMessagesManager({
@@ -124,14 +118,6 @@ export class StateManager {
 		return this._temporayPauseAutomaticMode
 	}
 
-	get dirAbsolutePath(): string | undefined {
-		return this._state.dirAbsolutePath
-	}
-
-	get isRepoInitialized(): boolean {
-		return this._state.isRepoInitialized ?? false
-	}
-
 	get apiManager(): ApiManager {
 		return this._apiManager
 	}
@@ -178,11 +164,6 @@ export class StateManager {
 	public setState(newState: KoduAgentState): void {
 		// Copy primitive values
 		this._state.taskId = newState.taskId
-		this._state.dirAbsolutePath = newState.dirAbsolutePath
-		this._state.isRepoInitialized = newState.isRepoInitialized
-		this._state.requestCount = newState.requestCount
-		this._state.memory = newState.memory
-		this._state.abort = newState.abort
 
 		// Copy arrays by clearing and pushing
 		this._state.apiConversationHistory.length = 0
@@ -200,12 +181,6 @@ export class StateManager {
 			for (const key in newState.historyErrors) {
 				this._state.historyErrors[key] = newState.historyErrors[key]
 			}
-		}
-
-		// Copy interestedFiles
-		this._state.interestedFiles.length = 0
-		if (newState.interestedFiles) {
-			this._state.interestedFiles.push(...newState.interestedFiles)
 		}
 	}
 
@@ -305,18 +280,6 @@ export class StateManager {
 			lastCheckedAt: -1,
 			error: "",
 		}
-	}
-
-	/**
-	 * Add an interested file to the task's state.
-	 * This mutates the existing array rather than reassigning it.
-	 */
-	async addinterestedFileToTask(why: string, filePath: string) {
-		this._state.interestedFiles.push({ path: filePath, why, createdAt: Date.now() })
-		await this._providerRef.deref()?.getStateManager().updateTaskHistory({
-			id: this._state.taskId,
-			interestedFiles: this._state.interestedFiles,
-		})
 	}
 
 	public async setTemporaryPauseAutomaticMode(newValue: boolean): Promise<void> {

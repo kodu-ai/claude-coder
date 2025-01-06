@@ -50,6 +50,7 @@ const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>((props
 				borderLeft: "9px solid transparent",
 				padding: 0,
 				cursor: props.disabled ? "not-allowed" : undefined,
+				opacity: props.disabled ? 0.5 : 1,
 				flex: 1,
 			}}
 		/>

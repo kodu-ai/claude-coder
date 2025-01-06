@@ -62,105 +62,108 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 	const agentModelText = [message?.agentName, message?.modelId].filter(Boolean).join(" @ ")
 
 	return (
-		<div
-			className={cn(
-				"flex items-center w-full text-sm gap-2 overflow-hidden group",
-				"px-2 py-1 bg-card text-card-foreground rounded-sm",
-				"hover:bg-card/80 transition-colors"
-			)}
-			style={{ maxWidth: "100%" }}>
-			{/* Status Icon at the start */}
-			<StatusIcon message={message} />
+		<>
+			<div
+				className={cn(
+					"flex items-center w-full text-sm gap-2 overflow-hidden group",
+					"px-2 py-1 bg-card text-card-foreground rounded-sm",
+					"hover:bg-card/80 transition-colors"
+				)}
+				style={{ maxWidth: "100%" }}>
+				{/* Status Icon at the start */}
+				<StatusIcon message={message} />
 
-			{/* Title next to status */}
-			<span className="font-medium shrink-0">{title}</span>
+				{/* Title next to status */}
+				<span className="font-medium shrink-0">{title}</span>
 
-			{/* Agent/Model badge if present */}
-			{agentModelText && (
-				<Tooltip>
-					<TooltipContent className="bg-secondary text-secondary-foreground">
-						{cost && (
-							<div className="space-y-2">
-								<h4 className="font-medium text-md ">Model Info</h4>
-								<div className="flex justify-between">
-									<span className="text-secondary-foreground/80">Agent</span>
-									<span className="text-secondary-foreground">
-										{message.agentName ?? "Kodu Main"}
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="text-secondary-foreground/80 shrink-0 mr-2">Model</span>
-									<span className="text-secondary-foreground truncate">{message.modelId}</span>
-								</div>
-								<div className="border-t border-border/40 my-2 pt-2">
-									<h4 className="font-medium text-md mb-2">Timing</h4>
+				{/* Agent/Model badge if present */}
+				{agentModelText && (
+					<Tooltip>
+						<TooltipContent className="bg-secondary text-secondary-foreground">
+							{cost && (
+								<div className="space-y-2">
+									<h4 className="font-medium text-md ">Model Info</h4>
 									<div className="flex justify-between">
-										<span className="text-secondary-foreground/80">Started</span>
+										<span className="text-secondary-foreground/80">Agent</span>
 										<span className="text-secondary-foreground">
-											{new Date(message.ts).toLocaleTimeString()}
+											{message.agentName ?? "Kodu Main"}
 										</span>
 									</div>
-									{message.completedAt && (
-										<>
-											<div className="flex justify-between">
-												<span className="text-secondary-foreground/80">Completed</span>
-												<span className="text-secondary-foreground">
-													{new Date(message.completedAt).toLocaleTimeString()}
-												</span>
-											</div>
-											<div className="flex justify-between font-medium">
-												<span className="text-secondary-foreground/80">Duration</span>
-												<span className="text-secondary-foreground">
-													{formatElapsedTime(message.completedAt - message.ts)}
-												</span>
-											</div>
-										</>
-									)}
-								</div>
-								<div className="border-t border-border/40 pt-2">
-									<h4 className="font-medium text-md mb-2">Price Breakdown</h4>
-								</div>
-								{Object.entries(message.apiMetrics!)
-									.reverse()
-									.map(([key, value], index) => (
-										<div
-											key={key}
-											className={`flex justify-between ${
-												index === Object.entries(message.apiMetrics!).length - 1
-													? "pt-2 border-t border-foreground/80 font-medium"
-													: ""
-											}`}>
-											<span className="text-secondary-foreground/80">{key}</span>
-											<span className="text-secondary-foreground">{value?.toFixed(2)}</span>
+									<div className="flex justify-between">
+										<span className="text-secondary-foreground/80 shrink-0 mr-2">Model</span>
+										<span className="text-secondary-foreground truncate">{message.modelId}</span>
+									</div>
+									<div className="border-t border-border/40 my-2 pt-2">
+										<h4 className="font-medium text-md mb-2">Timing</h4>
+										<div className="flex justify-between">
+											<span className="text-secondary-foreground/80">Started</span>
+											<span className="text-secondary-foreground">
+												{new Date(message.ts).toLocaleTimeString()}
+											</span>
 										</div>
-									))}
-							</div>
-						)}
-					</TooltipContent>
-					<TooltipTrigger disabled={!cost} className="flex w-full overflow-hidden ml-auto justify-end">
-						<Badge
-							variant="secondary"
-							className="text-[11px] truncate" // w-32 or some fixed width class
-						>
-							<span className="truncate">{agentModelText}</span>
-							{/* {agentModelText} */}
-						</Badge>
-					</TooltipTrigger>
-				</Tooltip>
-			)}
+										{message.completedAt && (
+											<>
+												<div className="flex justify-between">
+													<span className="text-secondary-foreground/80">Completed</span>
+													<span className="text-secondary-foreground">
+														{new Date(message.completedAt).toLocaleTimeString()}
+													</span>
+												</div>
+												<div className="flex justify-between font-medium">
+													<span className="text-secondary-foreground/80">Duration</span>
+													<span className="text-secondary-foreground">
+														{formatElapsedTime(message.completedAt - message.ts)}
+													</span>
+												</div>
+											</>
+										)}
+									</div>
+									<div className="border-t border-border/40 pt-2">
+										<h4 className="font-medium text-md mb-2">Price Breakdown</h4>
+									</div>
+									{Object.entries(message.apiMetrics!)
+										.reverse()
+										.map(([key, value], index) => (
+											<div
+												key={key}
+												className={`flex justify-between ${
+													index === Object.entries(message.apiMetrics!).length - 1
+														? "pt-2 border-t border-foreground/80 font-medium"
+														: ""
+												}`}>
+												<span className="text-secondary-foreground/80">{key}</span>
+												<span className="text-secondary-foreground">{value?.toFixed(2)}</span>
+											</div>
+										))}
+								</div>
+							)}
+						</TooltipContent>
+						<TooltipTrigger disabled={!cost} className="flex w-full overflow-hidden ml-auto justify-end">
+							<Badge
+								variant="secondary"
+								className="text-[11px] truncate" // w-32 or some fixed width class
+							>
+								<span className="truncate">{agentModelText}</span>
+								{/* {agentModelText} */}
+							</Badge>
+						</TooltipTrigger>
+					</Tooltip>
+				)}
 
-			<div className="flex-1" />
+				<div className="flex-1" />
 
-			{/* Collapse button */}
-			<Button variant="ghost" size="icon" className={cn("size-5")} onClick={() => toggleCollapse(message.ts)}>
-				<ChevronDown
-					style={{
-						transform: collapsed ? "rotate(90deg)" : "rotate(0deg)",
-					}}
-					className={cn("size-4 transform transition-transform duration-200 ease-in-out")}
-				/>
-			</Button>
-		</div>
+				{/* Collapse button */}
+				<Button variant="ghost" size="icon" className={cn("size-5")} onClick={() => toggleCollapse(message.ts)}>
+					<ChevronDown
+						style={{
+							transform: collapsed ? "rotate(90deg)" : "rotate(0deg)",
+						}}
+						className={cn("size-4 transform transition-transform duration-200 ease-in-out")}
+					/>
+				</Button>
+			</div>
+			{message.isError && <span className="text-destructive p-2 flex">{message.errorText}</span>}
+		</>
 	)
 })
 export const TextMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => (

@@ -7,7 +7,7 @@ import { SyntaxHighlighterStyle } from "../../utils/get-syntax-highlighter-style
 import ChatRowV1 from "../chat-row/chat-row"
 import { Button } from "../ui/button"
 
-const isActionTag = (txt: string) => txt.trim().startsWith("<action>") || txt.trim().startsWith("</action>")
+const isActionTag = (txt: string) => txt.trim().startsWith("<kodu_action>") || txt.trim().startsWith("</kodu_action>")
 
 interface ChatMessagesProps {
 	visibleMessages: ClaudeMessage[]
@@ -190,6 +190,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, sy
 							(message.say === "shell_integration_warning" ||
 								message.say === "api_req_started" ||
 								message.say === "hook" ||
+								message.say === "chat_truncated" ||
 								(message.text?.length ?? 0) > 0 ||
 								(message.images?.length ?? 0) > 0) &&
 							!isActionTag(message.text ?? "")
@@ -200,11 +201,6 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ taskId, visibleMessages, sy
 				}, [visibleMessages, shouldShowMessage])}
 				style={{ height: "100%" }}
 				followOutput={followOutput}
-				initialTopMostItemIndex={{
-					index: "LAST",
-					behavior: "smooth",
-					align: "end",
-				}}
 				atBottomStateChange={handleAtBottomStateChange}
 				atBottomThreshold={SCROLL_THRESHOLD}
 				scrollerRef={scrollerRefCallback}

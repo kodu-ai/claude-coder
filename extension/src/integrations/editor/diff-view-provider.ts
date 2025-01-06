@@ -420,7 +420,8 @@ export class DiffViewProvider {
 			await this.updateQueue.onIdle()
 			const updatedDocument = this.diffEditor.document
 
-			const editedContent = updatedDocument.getText()
+			let finalContent = updatedDocument.getText()
+			const finalContentBeforeSave = finalContent
 
 			const uri = vscode.Uri.file(path.resolve(this.cwd, this.relPath))
 
@@ -447,9 +448,12 @@ export class DiffViewProvider {
 				}
 
 				// update the file with the edited content
-				await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(editedContent))
+				await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(finalContent))
 				// we save the file after writing to it
 				await vscode.workspace.save(uri)
+				const finalDoc = await vscode.workspace.openTextDocument(uri)
+				await vscode.window.showTextDocument(finalDoc)
+				finalContent = finalDoc.getText()
 			} catch (error) {
 				throw new Error(`Failed to write file: ${error instanceof Error ? error.message : String(error)}`)
 			}
@@ -461,7 +465,8 @@ export class DiffViewProvider {
 			await vscode.window.showTextDocument(uri)
 
 			// Compare contents and create patch if needed
-			const normalizedEditedContent = editedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+			const normalizedEditedContent = finalContentBeforeSave.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
+			const normalizedFinalContent = finalContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
 			const normalizedStreamedContent = this.streamedContent.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
 
 			if (normalizedEditedContent !== normalizedStreamedContent) {
@@ -470,10 +475,10 @@ export class DiffViewProvider {
 					normalizedStreamedContent,
 					normalizedEditedContent
 				)
-				return { userEdits, finalContent: normalizedEditedContent }
+				return { userEdits, finalContent: normalizedFinalContent }
 			}
 
-			return { userEdits: undefined, finalContent: normalizedEditedContent }
+			return { userEdits: undefined, finalContent: normalizedFinalContent }
 		} catch (error) {
 			this.logger(`Failed to save changes: ${error}`, "error")
 			// Throw a more descriptive error

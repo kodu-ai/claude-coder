@@ -83,7 +83,9 @@ export class DiagnosticsHandler {
 						if (typeof content === "string") {
 							textValue = content.trim()
 						} else if ("value" in content) {
-							textValue = content.value.trim()
+							if (content.value.trim().startsWith("```")) {
+								textValue = content.value.trim()
+							}
 						}
 						if (textValue) {
 							hoverLines.push(textValue)
