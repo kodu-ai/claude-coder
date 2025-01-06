@@ -4,6 +4,34 @@ import { getCwd } from "../utils"
 import delay from "delay"
 import * as fs from "fs"
 
+function getFreeColumn(): vscode.ViewColumn {
+	const activeEditor = vscode.window.activeTextEditor
+	if (!activeEditor) {
+		return vscode.ViewColumn.One
+	}
+
+	switch (activeEditor.viewColumn) {
+		case vscode.ViewColumn.One:
+			return vscode.ViewColumn.Two
+		case vscode.ViewColumn.Two:
+			return vscode.ViewColumn.Three
+		case vscode.ViewColumn.Three:
+			return vscode.ViewColumn.Four
+		case vscode.ViewColumn.Four:
+			return vscode.ViewColumn.Five
+		case vscode.ViewColumn.Five:
+			return vscode.ViewColumn.Six
+		case vscode.ViewColumn.Six:
+			return vscode.ViewColumn.Seven
+		case vscode.ViewColumn.Seven:
+			return vscode.ViewColumn.Eight
+		case vscode.ViewColumn.Eight:
+			return vscode.ViewColumn.Nine
+		default:
+			return vscode.ViewColumn.One
+	}
+}
+
 export class DiagnosticsHandler {
 	private static instance: DiagnosticsHandler
 
@@ -16,6 +44,14 @@ export class DiagnosticsHandler {
 		return DiagnosticsHandler.instance
 	}
 
+	public async openFiles(paths: string[]): Promise<void> {
+		for (const filePath of paths) {
+			const fullPath = path.resolve(getCwd(), filePath)
+			const uri = vscode.Uri.file(fullPath)
+			const doc = await vscode.workspace.openTextDocument(uri)
+		}
+	}
+
 	public async getDiagnostics(
 		paths: string[],
 		openDocs: boolean = false
@@ -25,12 +61,14 @@ export class DiagnosticsHandler {
 				try {
 					const fullPath = path.resolve(getCwd(), filePath)
 					const uri = vscode.Uri.file(fullPath)
-
+					const viewColumn = vscode.window.activeTextEditor?.viewColumn
 					if (openDocs) {
 						const doc = await vscode.workspace.openTextDocument(uri)
-						await vscode.window.showTextDocument(doc, { preview: false })
-						// Wait for language server to fully load diagnostics
-						await delay(2000)
+						await vscode.window.showTextDocument(doc, {
+							preview: false,
+							preserveFocus: true,
+							viewColumn,
+						})
 					}
 
 					const diagnostics = vscode.languages.getDiagnostics(uri)

@@ -4,6 +4,27 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.0.5] - 2025-01-07
+
+### Fixed
+
+-   diagnostic handler will not receive updates correctly if the tab is closed
+-   marking a task as complete wouldn't let you send messages afterwards unless you reopen it
+-   notify Kodu on how to delete, copy and moved files (using execute_command tool)
+-   attempt to enforce Kodu to always pick up the latest file content based on the timestamp and file version.
+
+## [2.0.4] - 2025-01-06
+
+### Fixed
+
+-   missing ui for ask follow up question
+-   race condition in task creation (will cause task to corrupt)
+
+### Changed
+
+-   When kodu thinks the task is marked as complete you will be prompted to verify it or provide feedback.
+-   Update the initial repo filemap that's provided to Kodu.
+
 ## [2.0.3] - 2025-01-05
 
 ### Fixed

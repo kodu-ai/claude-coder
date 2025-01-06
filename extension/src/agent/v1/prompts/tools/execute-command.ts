@@ -13,7 +13,7 @@ export const executeCommandPrompt: ToolPromptSchema = {
 		},
 	},
 	capabilities: [
-		"You can use execute_command tool to execute a CLI command on the system, this tool is useful when you need to perform system operations or run specific commands to accomplish any step in the user's task, you must tailor your command to the user's system and provide a clear explanation of what the command does, prefer to execute complex CLI commands over creating executable scripts, as they are more flexible and easier to run.",
+		"You can use execute_command tool to execute a CLI command on the system, this tool is useful when you need to perform system operations or run specific commands to accomplish any step in the user's task, you must tailor your command to the user's system and provide a clear explanation of what the command does, prefer to execute complex CLI commands over creating executable scripts, as they are more flexible and easier to run. for example, you can use this tool to install a package using npm, run a build command, etc or for example remove a file, create a directory, copy a file, etc.",
 	],
 
 	examples: [

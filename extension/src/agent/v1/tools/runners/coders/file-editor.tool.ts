@@ -325,7 +325,8 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 <error_message>Failed to apply changes to the file. This is a fatal error than can be caused due to two reasons:
 1. the search content was not found in the file, or the search content was not an exact letter by letter, space by space match with absolute accuracy.
 2. the file content was modified or you don't have the latest file content in memory. Please retry the operation again with an absolute match of the search content.
-In case of two errors in a row, please refresh the file content by calling the read_file tool on the same file path to get the latest file content.
+If you encountured this error in editing to the same file path twice in a row, please refresh the file content by calling the read_file tool on the same file path to get the latest file content.
+You must always use the latest file content as marked by the latest timestamp in the conversation history.
 </error_message>
 <not_applied_count>${failedCount}</not_applied_count>
 <failed_to_match_blocks>
@@ -467,20 +468,25 @@ ${results.map((res) => res.formattedSavedArea).join("\n-------\n")}
 <path>${path}</path>
 <file_version>${newVersion.version}</file_version>
 ${fileChangesetMessage}
-<file_payload_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_payload_timestamp>
-<critical_information>Congratulations! Your changes were successfully applied to the file.
-from this moment onward you must reference and remember file version ${
+<file_content_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_content_timestamp>
+<message>Your changes were successfully applied to the file.
+The latest updated file version is ${
 				newVersion.version
-			} as the latest content of the file.
-This means from now on any further changes should be based on this version of the file, if you want to call edit on this file again you must use this as your base content for your search and replace blocks.
-THIS MEANS THAT ANY FURTHER CHANGES WILL BE BASED ON THIS VERSION OF THE FILE, AND THIS VERSION OF THE FILE IS THE LATEST VERSION OF THE FILE, UNLESS YOU MAKE FURTHER CHANGES USING FILE_EDITOR TOOL.
-</critical_information>
-<updated_file_content>
-Here is the latest file content for '${path}' at timestamp ${new Date(
+			} you must remember this version of the file for future operations unless further modifications were made after this point.
+If you want to rollback the changes you can call the file_editor tool with the rollback mode and the path of the file.
+You must always find the latest file version and file_content_timestamp this will be your latest reference for '${path}' file.
+</message>
+<latest_file_content>
+Here is the latest file content for version ${newVersion.version} at ${new Date(
 				newVersion.createdAt
-			).toISOString()} YOU MUST REMEMBER THIS VERSION OF THE FILE FOR FUTURE OPERATIONS UNLESS YOU HAVE A NEWER VERSION OF THE FILE (AFTER THIS TIMESTAMP).
+			).toISOString()} this is the only file content you should remember for future operations unless a newer version was created after this point in time and is referenced in the conversation history.
+This is a critical reference point for the file content and must never be forgotten, you should never forget or reference any other version of the file content unless it was created after this point in time.
+Always prioritize the last file version based on the timestamp and version number.
+HERE IS THE FULL UPDATED FILE CONTENT FOR VERSION ${newVersion.version} AT ${new Date(
+				newVersion.createdAt
+			).toISOString()} FOR ${path}:
 ${finalContent}
-</updated_file_content>
+</latest_file_content>
 </file_info>
 </file_editor_response>
 		`,

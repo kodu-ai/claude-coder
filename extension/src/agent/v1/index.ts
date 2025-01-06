@@ -183,17 +183,21 @@ export class KoduDev {
 			return
 		}
 		if (
-			(this.taskExecutor.state === TaskState.WAITING_FOR_USER || this.taskExecutor.state === TaskState.IDLE) &&
+			(this.taskExecutor.state === TaskState.WAITING_FOR_USER ||
+				this.taskExecutor.state === TaskState.IDLE ||
+				this.taskExecutor.state === TaskState.COMPLETED) &&
 			askResponse === "messageResponse" &&
 			!this.taskExecutor.askManager.hasActiveAsk()
 		) {
+			// If the task is waiting for user input and the user sends a message
 			await this.taskExecutor.newMessage([
 				{
 					type: "text",
-					text:
-						text ?? images?.length
-							? "Please check the images below for more information."
-							: "Continue the task.",
+					text: text
+						? text
+						: images?.length
+						? "Please check the images below for more information."
+						: "Continue the task.",
 				},
 				...formatImagesIntoBlocks(images),
 			])
@@ -455,8 +459,13 @@ export class KoduDev {
 			}
 			return false
 		})
+
+		const diagnosticsHandler = DiagnosticsHandler.getInstance()
+		const files = this.stateManager.historyErrors ? Object.keys(this.stateManager.historyErrors) : []
 		if (isLastMsgMutable) {
 			// proper delay to make sure that the vscode diagnostics and server logs are updated
+			// open first in memory file to make sure that the diagnostics are updated
+			await diagnosticsHandler.openFiles(files)
 			await delay(3000)
 		}
 		const devServers = TerminalRegistry.getAllDevServers()
@@ -516,8 +525,6 @@ export class KoduDev {
 
 		// get the diagnostics errors for all files in the current task
 
-		const diagnosticsHandler = DiagnosticsHandler.getInstance()
-		const files = this.stateManager.historyErrors ? Object.keys(this.stateManager.historyErrors) : []
 		const diagnostics = await diagnosticsHandler.getDiagnostics(files)
 		const newErrors = diagnostics.filter(
 			(diag) => diag.errorString !== null && diag.errorString !== undefined && diag.errorString !== ""
@@ -539,12 +546,14 @@ export class KoduDev {
 		// map the diagnostics to the original file path
 		details +=
 			"# CURRENT ERRORS (Linter Errors) this is the only errors that are present if you seen previous linting errors they have been resolved."
+		details += `\nThe following errors are present in the current task you have been working on. this is the only errors that are present if you seen previous linting errors they have been resolved.\n`
+		details += `<linter_errors_timestamp>${Date.now()}</linter_errors_timestamp>\n`
 		if (newErrors.length === 0) {
-			details += "\n(No diagnostics errors)"
+			details += `<linting_errors>All clean, the current environment as of now is free of errors.</linting_errors>\n`
 		} else {
 			console.log("[ENVIRONMENT DETAILS] New errors found", newErrors.map((diag) => diag.errorString).join("\n"))
-			details += `\nThe following errors are present in the current task you have been working on. this is the only errors that are present if you seen previous linting errors they have been resolved.\n`
 			details += `<linter_errors>\n`
+			details += `This is the only known errors that are present in the environment. ignore any previous <linter_errors> tags you have seen.\n`
 			details += newErrors.map((diag) => diag.errorString).join("\n")
 			details += `</linter_errors>\n`
 		}
