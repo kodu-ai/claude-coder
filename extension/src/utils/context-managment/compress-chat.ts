@@ -224,7 +224,7 @@ export class CompressToolExecution {
 					},
 				],
 				abortSignal: null,
-				modelId: this.apiHandler.cheapModelId ?? this.apiHandler.getModel().id,
+				modelId: this.apiHandler.getModel().id,
 			})
 			for await (const message of resultStream) {
 				if (message.code === 1 && isTextBlock(message.body.anthropic.content[0])) {

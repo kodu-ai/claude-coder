@@ -50,8 +50,6 @@ export interface ApiHandler {
 
 	get options(): ApiHandlerOptions
 
-	get cheapModelId(): string | undefined
-
 	getModel(): { id: string; info: ModelInfo }
 
 	sendWebSearchRequest?(
