@@ -31,6 +31,8 @@ type ReactQueryClientForRouter<TRouter extends Router> = {
 				useMutation: (
 					options?: Omit<UseMutationOptions<TOutput, unknown, TInput, unknown>, "mutationFn">
 				) => UseMutationResult<TOutput, unknown, TInput, unknown>
+
+				use: (input: TInput) => Promise<TOutput>
 		  }
 		: never
 }
@@ -85,6 +87,12 @@ export function createAppClientWithRQuery<TRouter extends Router>(
 						// Spread in any user-supplied options (e.g. onSuccess, onError, etc.)
 						...options,
 					})
+				},
+				/**
+				 * Typed direct call for this route.
+				 */
+				use: (input: unknown) => {
+					return transport.call(routeKey, input)
 				},
 			}
 		},

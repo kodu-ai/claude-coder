@@ -27,7 +27,7 @@ export class StateManager {
 	public claudeMessagesManager: ClaudeMessagesManager
 	public apiHistoryManager: ApiHistoryManager
 
-	constructor(options: KoduDevOptions) {
+	constructor(options: KoduDevOptions, apiManager: ApiManager) {
 		const provider = options.provider
 		this._providerRef = new WeakRef(provider)
 
@@ -43,7 +43,7 @@ export class StateManager {
 			taskId: taskId,
 		})
 
-		this._apiManager = new ApiManager(provider, options.apiConfiguration, options.customInstructions)
+		this._apiManager = apiManager
 
 		this._alwaysAllowReadOnly = options.alwaysAllowReadOnly ?? false
 		this._alwaysAllowWriteOnly = options.alwaysAllowWriteOnly ?? false

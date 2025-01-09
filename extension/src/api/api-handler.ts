@@ -19,6 +19,8 @@ import { mainPrompts } from "../agent/v1/prompts/main.prompt"
 import dedent from "dedent"
 import { PromptStateManager } from "../providers/state/prompt-state-manager"
 import { buildPromptFromTemplate } from "../agent/v1/prompts/utils/utils"
+import { CustomProviderError } from "./providers/custom-provider"
+import { getCurrentApiSettings } from "../router/routes/provider-router"
 
 /**
  * Main API Manager class that handles all Claude API interactions
@@ -61,6 +63,15 @@ export class ApiManager {
 		this.api = buildApiHandler(apiConfiguration)
 	}
 
+	/**
+	 * pulls the latest API from the secure store and rebuilds the API handler
+	 */
+	public async pullLatestApi() {
+		this.log("info", "Pulling latest API configuration")
+		const settings = await getCurrentApiSettings()
+
+		this.api = buildApiHandler(settings)
+	}
 	/**
 	 * Updates custom instructions for the API
 	 * @param customInstructions - New custom instructions
@@ -164,7 +175,7 @@ ${this.customInstructions.trim()}
 				systemPrompt,
 				messages: conversationHistory,
 				modelId: this.getModelId(),
-				abortSignal: abortController.signal,
+				abortSignal: abortController?.signal,
 			})
 
 			return stream
@@ -223,6 +234,11 @@ ${this.customInstructions.trim()}
 						yield* this.processStreamChunk(chunk)
 					}
 				} catch (streamError) {
+					if (streamError instanceof CustomProviderError) {
+						// requires manual intervention
+						retryAttempt = MAX_RETRIES
+						throw streamError
+					}
 					if (streamError instanceof Error && streamError.message === "aborted") {
 						throw new KoduError({ code: 1 })
 					}
@@ -279,6 +295,7 @@ ${this.customInstructions.trim()}
 			return
 		}
 		const response = chunk?.body?.anthropic
+		const apiCost = chunk.body.internal.cost
 		const { input_tokens, output_tokens } = response.usage
 		const { cache_creation_input_tokens, cache_read_input_tokens } = response.usage as any
 
@@ -289,18 +306,11 @@ ${this.customInstructions.trim()}
 
 		// Track metrics
 		const state = await provider.getState()
-		const apiCost = calculateApiCost(
-			this.getModelInfo(),
-			input_tokens,
-			output_tokens,
-			cache_creation_input_tokens,
-			cache_read_input_tokens
-		)
 		this.log("info", `API REQUEST FINISHED: ${apiCost} tokens used data:`, response)
 
 		amplitudeTracker.taskRequest({
 			taskId: state?.currentTaskId!,
-			model: this.getModelId(),
+			model: response.model,
 			apiCost: apiCost,
 			inputTokens: input_tokens,
 			cacheReadTokens: cache_read_input_tokens,

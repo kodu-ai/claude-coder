@@ -27,7 +27,6 @@ export interface ProviderConfig {
 export type ProviderType = ProviderId
 
 interface BaseProviderSettings {
-	id: string | null
 	providerId: ProviderType
 	modelId: string
 }

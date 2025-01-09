@@ -156,7 +156,7 @@ export type koduSSEResponse =
 				anthropic: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage
 				internal: {
 					cost: number
-					userCredits: number
+					userCredits?: number
 					inputTokens: number
 					outputTokens: number
 					cacheCreationInputTokens: number

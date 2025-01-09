@@ -7,19 +7,45 @@ import { createOpenAI } from "@ai-sdk/openai"
 import { convertToAISDKFormat } from "../../utils/ai-sdk-format"
 import { ModelInfo } from "./types"
 import { PROVIDER_IDS } from "./constants"
+import { calculateApiCost } from "../api-utils"
+
+export class CustomProviderError extends Error {
+	private _providerId: string
+	private _modelId: string
+	constructor(message: string, providerId: string, modelId: string) {
+		super(message)
+		this.name = "CustomProviderError"
+		this._providerId = providerId
+		this._modelId = modelId
+	}
+
+	get providerId() {
+		return this._providerId
+	}
+	get modelId() {
+		return this._modelId
+	}
+}
 
 const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) => {
 	switch (settings.providerSettings.providerId) {
 		case PROVIDER_IDS.DEEPSEEK:
+			if (!settings.providerSettings.apiKey) {
+				throw new CustomProviderError("Deepseek Missing API key", settings.providerSettings.providerId, modelId)
+			}
 			return createDeepSeek({
 				apiKey: settings.providerSettings.apiKey,
 			}).languageModel(modelId)
 		case PROVIDER_IDS.OPENAI:
+			if (!settings.providerSettings.apiKey) {
+				throw new CustomProviderError("OpenAI Missing API key", settings.providerSettings.providerId, modelId)
+			}
 			return createOpenAI({
 				apiKey: settings.providerSettings.apiKey,
+				compatibility: "strict",
 			}).languageModel(modelId)
 		default:
-			throw new Error("Invalid provider")
+			throw new CustomProviderError("Provider not configured", settings.providerSettings.providerId, modelId)
 	}
 }
 
@@ -63,7 +89,7 @@ export class CustomApiHandler implements ApiHandler {
 		}
 
 		const convertedMessagesFull = convertedMessages.concat(convertToAISDKFormat(messages))
-
+		const currentModel = this._options.models.find((m) => m.id === modelId) ?? this._options.model
 		const result = streamText({
 			model: providerToAISDKModel(this._options, modelId),
 			// prompt: `This is a test tell me a random fact about the world`,
@@ -73,6 +99,7 @@ export class CustomApiHandler implements ApiHandler {
 			stopSequences: ["</kodu_action>"],
 			abortSignal: abortSignal ?? undefined,
 		})
+
 		let text = ""
 		for await (const part of result.fullStream) {
 			if (part.type === "text-delta") {
@@ -109,8 +136,13 @@ export class CustomApiHandler implements ApiHandler {
 							},
 						},
 						internal: {
-							cost: 0,
-							userCredits: 0,
+							cost: calculateApiCost(
+								currentModel,
+								part.usage.promptTokens,
+								part.usage.completionTokens,
+								0,
+								0
+							),
 							inputTokens: part.usage.promptTokens,
 							outputTokens: part.usage.completionTokens,
 							cacheCreationInputTokens: 0,

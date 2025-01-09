@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@ai-sdk/openai-compatible':
+    hash: bksbwhxwa4mqglq66xoskr76oa
+    path: patches/@ai-sdk__openai-compatible.patch
+
 importers:
 
   .:
@@ -12,8 +17,8 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(zod@3.24.1)
       '@ai-sdk/deepseek':
-        specifier: ^0.0.2
-        version: 0.0.2(zod@3.24.1)
+        specifier: ^0.0.3
+        version: 0.0.3(zod@3.24.1)
       '@ai-sdk/fireworks':
         specifier: ^0.0.9
         version: 0.0.9(zod@3.24.1)
@@ -26,6 +31,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^1.0.15
         version: 1.0.15(zod@3.24.1)
+      '@ai-sdk/provider':
+        specifier: ^1.0.4
+        version: 1.0.4
       '@amplitude/analytics-browser':
         specifier: ^2.11.9
         version: 2.11.11
@@ -267,8 +275,8 @@ packages:
     peerDependencies:
       zod: ^3.0.0
 
-  '@ai-sdk/deepseek@0.0.2':
-    resolution: {integrity: sha512-WbmRi9rg/GCwctBLv5NPAHIWXFAbUPLAn4OhDKyrr02fHjan7iVwC9IiAwdcS3Ximo/kIH3Wjrw9oA3khC8+DA==}
+  '@ai-sdk/deepseek@0.0.3':
+    resolution: {integrity: sha512-H/yEFsHn3B5jyz8cyxRBGl4LoHHaLh+fPMdzaAFw4eh4MF/ZtSDtfzlHNOZ1N3JiUz4ABfwYBfP86W7zaPXeMQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.0.0
@@ -297,6 +305,12 @@ packages:
     peerDependencies:
       zod: ^3.0.0
 
+  '@ai-sdk/openai-compatible@0.0.15':
+    resolution: {integrity: sha512-kGuaJ2RgMO/ftX5LEpuYnShGTyk0YfH0IFKduFJo0YKuzlI3VgRRfYAnvGgTscpSMmEQTAlTtV4CGt9HM1v74A==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.0.0
+
   '@ai-sdk/openai@1.0.15':
     resolution: {integrity: sha512-acX2crxBrkyfIlTtJGGX/YD/ck6L+LpPdaYQqGiahacHX07yn1nUE1jlnNLmTnDFoMwgxJXXt/wI16LC3ybYZg==}
     engines: {node: '>=18'}
@@ -305,6 +319,15 @@ packages:
 
   '@ai-sdk/provider-utils@2.0.6':
     resolution: {integrity: sha512-nB0rPwIBSCk0UkfdkprAxQ45ZjfKlk+Ts5zvIBQkJ5SnTCL9meg6bW65aomQrxhdvtqZML2jjaWTI8/l6AIVlQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.0.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
+  '@ai-sdk/provider-utils@2.0.7':
+    resolution: {integrity: sha512-4sfPlKEALHPXLmMFcPlYksst3sWBJXmCDZpIBJisRrmwGG6Nn3mq0N1Zu/nZaGcrWZoOY+HT2Wbxla1oTElYHQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.0.0
@@ -4936,16 +4959,16 @@ snapshots:
       '@ai-sdk/provider-utils': 2.0.6(zod@3.24.1)
       zod: 3.24.1
 
-  '@ai-sdk/deepseek@0.0.2(zod@3.24.1)':
+  '@ai-sdk/deepseek@0.0.3(zod@3.24.1)':
     dependencies:
-      '@ai-sdk/openai-compatible': 0.0.14(zod@3.24.1)
+      '@ai-sdk/openai-compatible': 0.0.15(patch_hash=bksbwhxwa4mqglq66xoskr76oa)(zod@3.24.1)
       '@ai-sdk/provider': 1.0.4
-      '@ai-sdk/provider-utils': 2.0.6(zod@3.24.1)
+      '@ai-sdk/provider-utils': 2.0.7(zod@3.24.1)
       zod: 3.24.1
 
   '@ai-sdk/fireworks@0.0.9(zod@3.24.1)':
     dependencies:
-      '@ai-sdk/openai-compatible': 0.0.14(zod@3.24.1)
+      '@ai-sdk/openai-compatible': 0.0.14(patch_hash=bksbwhxwa4mqglq66xoskr76oa)(zod@3.24.1)
       '@ai-sdk/provider': 1.0.4
       '@ai-sdk/provider-utils': 2.0.6(zod@3.24.1)
       zod: 3.24.1
@@ -4968,10 +4991,16 @@ snapshots:
       '@ai-sdk/provider-utils': 2.0.6(zod@3.24.1)
       zod: 3.24.1
 
-  '@ai-sdk/openai-compatible@0.0.14(zod@3.24.1)':
+  '@ai-sdk/openai-compatible@0.0.14(patch_hash=bksbwhxwa4mqglq66xoskr76oa)(zod@3.24.1)':
     dependencies:
       '@ai-sdk/provider': 1.0.4
       '@ai-sdk/provider-utils': 2.0.6(zod@3.24.1)
+      zod: 3.24.1
+
+  '@ai-sdk/openai-compatible@0.0.15(patch_hash=bksbwhxwa4mqglq66xoskr76oa)(zod@3.24.1)':
+    dependencies:
+      '@ai-sdk/provider': 1.0.4
+      '@ai-sdk/provider-utils': 2.0.7(zod@3.24.1)
       zod: 3.24.1
 
   '@ai-sdk/openai@1.0.15(zod@3.24.1)':
@@ -4981,6 +5010,15 @@ snapshots:
       zod: 3.24.1
 
   '@ai-sdk/provider-utils@2.0.6(zod@3.24.1)':
+    dependencies:
+      '@ai-sdk/provider': 1.0.4
+      eventsource-parser: 3.0.0
+      nanoid: 3.3.8
+      secure-json-parse: 2.7.0
+    optionalDependencies:
+      zod: 3.24.1
+
+  '@ai-sdk/provider-utils@2.0.7(zod@3.24.1)':
     dependencies:
       '@ai-sdk/provider': 1.0.4
       eventsource-parser: 3.0.0

@@ -6,9 +6,10 @@ interface IconAndTitleProps {
 	isCommandExecuting: boolean
 	cost?: number
 	apiRequestFailedMessage?: string | boolean
+	isCompleted?: boolean
 }
 
-const IconAndTitle = ({ type, isCommandExecuting, cost, apiRequestFailedMessage }: IconAndTitleProps) => {
+const IconAndTitle = ({ type, isCommandExecuting, cost, apiRequestFailedMessage, isCompleted }: IconAndTitleProps) => {
 	const ProgressIndicator = (
 		<div
 			style={{
@@ -51,7 +52,7 @@ const IconAndTitle = ({ type, isCommandExecuting, cost, apiRequestFailedMessage 
 				) : (
 					ProgressIndicator
 				),
-				cost ? (
+				cost || (isCompleted && !apiRequestFailedMessage) ? (
 					<h3 className="text-success">Request Complete</h3>
 				) : apiRequestFailedMessage ? (
 					<h3 className="text-error">Request Failed</h3>

@@ -47,11 +47,14 @@ export async function getModelProviderData(providerId: string) {
 export async function getCurrentApiSettings() {
 	const apiConfig = GlobalStateManager.getInstance().getGlobalState("apiConfig")
 	const providerData = await getModelProviderData(apiConfig?.providerId ?? "-")
-	if (!providerData.currentProvider) {
-		throw new Error(`Provider not found: ${apiConfig?.providerId}`)
-	}
 	const { model } = await getCurrentModelInfo()
-	return { providerSettings: providerData.currentProvider!, model } satisfies ApiConstructorOptions
+	return {
+		providerSettings: providerData.currentProvider ?? {
+			providerId: apiConfig?.providerId ?? "-",
+		},
+		models: providerData.models,
+		model,
+	}
 }
 
 export async function getCurrentModelInfo() {
@@ -61,7 +64,7 @@ export async function getCurrentModelInfo() {
 	if (!model) {
 		throw new Error(`Model not found: ${apiConfig?.modelId}`)
 	}
-	return { model }
+	return { model, providerData }
 }
 
 const providerRouter = router({
@@ -81,8 +84,9 @@ const providerRouter = router({
 	}),
 
 	currentModelInfo: procedure.input(z.object({})).resolve(async (ctx, input) => {
-		const { model } = await getCurrentModelInfo()
-		return { model }
+		const { model, providerData } = await getCurrentModelInfo()
+		const isValidModel = model?.id === providerData.currentProvider?.modelId
+		return { model, providerData }
 	}),
 
 	selectModel: procedure
@@ -102,6 +106,7 @@ const providerRouter = router({
 				providerId: input.providerId as ProviderId,
 				modelId: input.modelId,
 			})
+			await ctx.provider.koduDev?.getApiManager().pullLatestApi()
 
 			return { success: true }
 		}),
@@ -128,15 +133,11 @@ const providerRouter = router({
 			throw new Error(`Invalid provider: ${input.providerId}`)
 		}
 
-		const modelExists = providerConfig.models.some((m) => m.id === input.modelId)
-		if (!modelExists) {
-			throw new Error(`Invalid model for provider ${input.providerId}: ${input.modelId}`)
-		}
-
 		const newProvider = { ...input }
 		const newProviders = [...providers, newProvider]
 
 		await SecretStateManager.getInstance().updateSecretState("providers", JSON.stringify(newProviders))
+		await ctx.provider.koduDev?.getApiManager().pullLatestApi()
 
 		return { provider: newProvider }
 	}),
@@ -151,13 +152,9 @@ const providerRouter = router({
 			throw new Error(`Invalid provider: ${input.providerId}`)
 		}
 
-		const modelExists = providerConfig.models.some((m) => m.id === input.modelId)
-		if (!modelExists) {
-			throw new Error(`Invalid model for provider ${input.providerId}: ${input.modelId}`)
-		}
-
 		const newProviders = providers.map((p) => (p.providerId === input.providerId ? input : p))
 		await SecretStateManager.getInstance().updateSecretState("providers", JSON.stringify(newProviders))
+		await ctx.provider.koduDev?.getApiManager().pullLatestApi()
 
 		return { provider: input }
 	}),
@@ -168,6 +165,7 @@ const providerRouter = router({
 		const newProviders = providers.filter((p) => p.providerId !== input.id)
 
 		await SecretStateManager.getInstance().updateSecretState("providers", JSON.stringify(newProviders))
+		await ctx.provider.koduDev?.getApiManager().pullLatestApi()
 
 		return { success: true }
 	}),

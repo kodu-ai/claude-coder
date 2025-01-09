@@ -153,7 +153,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 		})
 	}
 
-	private async getCurrentApiSettings() {
+	public async getCurrentApiSettings() {
 		try {
 			return await getCurrentApiSettings()
 		} catch (e: unknown) {

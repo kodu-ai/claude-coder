@@ -1,4 +1,4 @@
-import { AlertCircle, LogIn, CreditCard, CircleX, X, ChevronDown, ChevronRight } from "lucide-react"
+import { AlertCircle, LogIn, CreditCard, CircleX, X, ChevronDown, ChevronRight, Settings } from "lucide-react"
 import { loginKodu } from "@/utils/kodu-links"
 import { useExtensionState } from "@/context/extension-state-context"
 
@@ -31,6 +31,7 @@ import { Badge } from "../ui/badge"
 
 import { CheckCircle, XCircle, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useSwitchToProviderManager } from "../settings-view/preferences/atoms"
 
 function StatusIcon({ message }: { message: V1ClaudeMessage }) {
 	if (message.isError || message.isAborted) return <XCircle className="shrink-0 h-4 w-4 text-destructive" />
@@ -44,11 +45,13 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 	const { toggleCollapse, isCollapsed } = useCollapseState()
 	const collapsed = isCollapsed(message.ts)
 	const { cost } = message?.apiMetrics || {}
+	const apiRequestFailedMessage = message.errorText || message.isError ? "Request Failed" : false
 	const [icon, title] = IconAndTitle({
 		type: "api_req_started",
 		cost: message.apiMetrics?.cost,
 		isCommandExecuting: !!message.isExecutingCommand,
-		apiRequestFailedMessage: message.errorText || message.isError ? "Request Failed" : false,
+		apiRequestFailedMessage,
+		isCompleted: message.isDone,
 	})
 	if (message?.agentName) {
 		// @ts-expect-error - agentName is literal string
@@ -80,73 +83,72 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 				{agentModelText && (
 					<Tooltip>
 						<TooltipContent className="bg-secondary text-secondary-foreground">
-							{cost && (
-								<div className="space-y-2">
-									<h4 className="font-medium text-md ">Model Info</h4>
+							<div className="space-y-2">
+								<h4 className="font-medium text-md ">Model Info</h4>
+								<div className="flex justify-between">
+									<span className="text-secondary-foreground/80">Agent</span>
+									<span className="text-secondary-foreground">
+										{message.agentName ?? "Kodu Main"}
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-secondary-foreground/80 shrink-0 mr-2">Model</span>
+									<span className="text-secondary-foreground truncate">{message.modelId}</span>
+								</div>
+								<div className="border-t border-border/40 my-2 pt-2">
+									<h4 className="font-medium text-md mb-2">Timing</h4>
 									<div className="flex justify-between">
-										<span className="text-secondary-foreground/80">Agent</span>
+										<span className="text-secondary-foreground/80">Started</span>
 										<span className="text-secondary-foreground">
-											{message.agentName ?? "Kodu Main"}
+											{new Date(message.ts).toLocaleTimeString()}
 										</span>
 									</div>
-									<div className="flex justify-between">
-										<span className="text-secondary-foreground/80 shrink-0 mr-2">Model</span>
-										<span className="text-secondary-foreground truncate">{message.modelId}</span>
-									</div>
-									<div className="border-t border-border/40 my-2 pt-2">
-										<h4 className="font-medium text-md mb-2">Timing</h4>
-										<div className="flex justify-between">
-											<span className="text-secondary-foreground/80">Started</span>
-											<span className="text-secondary-foreground">
-												{new Date(message.ts).toLocaleTimeString()}
-											</span>
-										</div>
-										{message.completedAt && (
-											<>
-												<div className="flex justify-between">
-													<span className="text-secondary-foreground/80">Completed</span>
-													<span className="text-secondary-foreground">
-														{new Date(message.completedAt).toLocaleTimeString()}
-													</span>
-												</div>
-												<div className="flex justify-between font-medium">
-													<span className="text-secondary-foreground/80">Duration</span>
-													<span className="text-secondary-foreground">
-														{formatElapsedTime(message.completedAt - message.ts)}
-													</span>
-												</div>
-											</>
-										)}
-									</div>
-									<div className="border-t border-border/40 pt-2">
-										<h4 className="font-medium text-md mb-2">Price Breakdown</h4>
-									</div>
-									{Object.entries(message.apiMetrics!)
-										.reverse()
-										.map(([key, value], index) => (
-											<div
-												key={key}
-												className={`flex justify-between ${
-													index === Object.entries(message.apiMetrics!).length - 1
-														? "pt-2 border-t border-foreground/80 font-medium"
-														: ""
-												}`}>
-												<span className="text-secondary-foreground/80">{key}</span>
-												<span className="text-secondary-foreground">{value?.toFixed(2)}</span>
+									{message.completedAt && (
+										<>
+											<div className="flex justify-between">
+												<span className="text-secondary-foreground/80">Completed</span>
+												<span className="text-secondary-foreground">
+													{new Date(message.completedAt).toLocaleTimeString()}
+												</span>
 											</div>
-										))}
+											<div className="flex justify-between font-medium">
+												<span className="text-secondary-foreground/80">Duration</span>
+												<span className="text-secondary-foreground">
+													{formatElapsedTime(message.completedAt - message.ts)}
+												</span>
+											</div>
+										</>
+									)}
 								</div>
-							)}
+								<div className="border-t border-border/40 pt-2">
+									<h4 className="font-medium text-md mb-2">Price Breakdown</h4>
+								</div>
+								{Object.entries(message?.apiMetrics ?? {})
+									.reverse()
+									.map(([key, value], index) => (
+										<div
+											key={key}
+											className={`flex justify-between ${
+												index === Object.entries(message.apiMetrics!).length - 1
+													? "pt-2 border-t border-foreground/80 font-medium"
+													: ""
+											}`}>
+											<span className="text-secondary-foreground/80">{key}</span>
+											<span className="text-secondary-foreground">{value?.toFixed(2)}</span>
+										</div>
+									))}
+							</div>
 						</TooltipContent>
-						<TooltipTrigger disabled={!cost} className="flex w-full overflow-hidden ml-auto justify-end">
-							<Badge
-								variant="secondary"
-								className="text-[11px] truncate" // w-32 or some fixed width class
+						<div className="flex w-full overflow-hidden ml-auto justify-end">
+							<TooltipTrigger
+								className="text-[11px] truncate flex" // w-32 or some fixed width class
 							>
-								<span className="truncate">{agentModelText}</span>
-								{/* {agentModelText} */}
-							</Badge>
-						</TooltipTrigger>
+								<Badge variant="secondary" className="text-[11px] truncate flex">
+									<span className="truncate">{agentModelText}</span>
+									{/* {agentModelText} */}
+								</Badge>
+							</TooltipTrigger>
+						</div>
 					</Tooltip>
 				)}
 
@@ -228,6 +230,39 @@ export const UserFeedbackDiffMessage: React.FC<{
 		</div>
 	)
 })
+
+export function CustomProviderSettingRequired({ text }: { text: string }) {
+	const switchToProvider = useSwitchToProviderManager()
+	return (
+		<div className="border border-destructive/50 rounded-md p-4 max-w-[360px] mx-auto bg-background/5">
+			<div className="flex items-center space-x-2 text-destructive">
+				<AlertCircle className="h-4 w-4" />
+				<h4 className="font-semibold text-sm">Provider Configuration Required</h4>
+			</div>
+			<p className="text-destructive/90 text-xs mt-2">
+				Yikes! Looks like you need to configure a custom provider to use this feature.
+			</p>
+			<button className="w-full mt-3 py-1 px-2 text-xs border border-destructive/50 rounded hover:bg-destructive/10 transition-colors">
+				<span
+					onClick={() => {
+						let providerSettings: {
+							providerId?: string
+						} = {}
+						try {
+							providerSettings = JSON.parse(text) as { providerId: string }
+						} catch (e) {
+							console.error(e)
+						}
+						// @ts-expect-error - providerId is not always defined
+						switchToProvider(providerSettings?.providerId)
+					}}
+					className="flex items-center justify-center">
+					<Settings className="mr-2 h-3 w-3" /> Configure Provider
+				</span>
+			</button>
+		</div>
+	)
+}
 
 export function ErrorMsgComponent({ type }: { type: "unauthorized" | "payment_required" }) {
 	const { uriScheme, extensionName } = useExtensionState()

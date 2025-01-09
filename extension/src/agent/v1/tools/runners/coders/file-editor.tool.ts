@@ -784,6 +784,11 @@ ${commitXmlInfo}`
 				this.ts
 			)
 			await this.diffViewProvider.revertChanges()
+			if (response === "messageResponse") {
+				await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
+
+				return this.toolResponse("feedback", text ?? "The user denied this operation.", images)
+			}
 			return this.toolResponse("rejected", "Rollback operation cancelled by user.")
 		}
 
@@ -906,7 +911,7 @@ YOU ABSOLUTELY MUST CALL FILE_EDITOR TOOL AGAIN WITH THE CORRECTED SEARCH AND RE
 					},
 				],
 				modelId: this.koduDev.getApiManager().getApi().getModel().id,
-				abortSignal: this.AbortController.signal,
+				abortSignal: this.AbortController?.signal,
 			})
 
 		let finalContent: null | string = null

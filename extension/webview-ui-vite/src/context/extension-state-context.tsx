@@ -89,6 +89,9 @@ didHydrateStateAtom.debugLabel = "didHydrateState"
 export const showSettingsAtom = atom(false)
 showSettingsAtom.debugLabel = "showSettings"
 
+export const showHistoryAtom = atom(false)
+showHistoryAtom.debugLabel = "showHistory"
+
 export const showPromptEditorAtom = atom(false)
 showPromptEditorAtom.debugLabel = "showPromptEditor"
 

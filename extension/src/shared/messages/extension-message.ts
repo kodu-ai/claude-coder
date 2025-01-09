@@ -1,6 +1,7 @@
 import { SpawnAgentOptions } from "../../agent/v1/tools/schema/agents/agent-spawner"
 import { ToolName } from "../../agent/v1/tools/types"
 import { ApiConfiguration } from "../../api"
+import { ProviderId } from "../../api/providers/constants"
 import type { GlobalState } from "../../providers/state/global-state-manager"
 import { HistoryItem } from "../history-item"
 import { ChatTool } from "../new-tools"
@@ -150,7 +151,13 @@ type PromptActionMessage =
 	| SetActivePromptMessage
 	| DeletePromptTemplateMessage
 
+type ConfgiureApiRequiredMessage = {
+	providerId?: ProviderId
+	type: "configureApiRequired"
+}
+
 export type ExtensionMessage =
+	| ConfgiureApiRequiredMessage
 	| DisabledToolsMessage
 	| PromptActionMessage
 	| SetCommandTimeoutMessage
@@ -304,6 +311,7 @@ export type ClaudeSay =
 	| "show_terminal"
 	| "prompt_template_saved"
 	| "prompt_template_loaded"
+	| "custom_provider_error"
 
 export type UrlScreenshotTool = {
 	tool: "url_screenshot"

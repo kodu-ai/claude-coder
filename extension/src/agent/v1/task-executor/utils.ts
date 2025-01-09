@@ -228,7 +228,7 @@ export abstract class TaskExecutorUtils {
 		console.log(`[TaskExecutor] ${message} (State: ${this.getState()})`)
 	}
 
-	protected logError(error: TaskError): void {
+	protected logError(error: Error): void {
 		console.error(`[TaskExecutor] Error (State: ${this.getState()}):`, error)
 	}
 

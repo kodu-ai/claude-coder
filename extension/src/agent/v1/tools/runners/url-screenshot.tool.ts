@@ -31,7 +31,7 @@ export class UrlScreenshotTool extends BaseAgentTool<UrlScreenshotToolParams> {
 		try {
 			// Create a promise that resolves when aborted
 			const abortPromise = new Promise<ToolResponseV2>((_, reject) => {
-				this.abortController.signal.addEventListener("abort", () => {
+				this.abortController?.signal?.addEventListener("abort", () => {
 					reject(new Error("Tool execution was aborted"))
 				})
 			})
@@ -69,7 +69,7 @@ export class UrlScreenshotTool extends BaseAgentTool<UrlScreenshotToolParams> {
 			const confirmation = await this.askToolExecConfirmation()
 
 			// Check if aborted during confirmation
-			if (this.abortController.signal.aborted) {
+			if (this.abortController?.signal?.aborted) {
 				throw new Error("Tool execution was aborted")
 			}
 
@@ -96,7 +96,7 @@ export class UrlScreenshotTool extends BaseAgentTool<UrlScreenshotToolParams> {
 			)
 
 			// Check if aborted before browser launch
-			if (this.abortController.signal.aborted) {
+			if (this.abortController?.signal?.aborted) {
 				throw new Error("Tool execution was aborted")
 			}
 
@@ -104,7 +104,7 @@ export class UrlScreenshotTool extends BaseAgentTool<UrlScreenshotToolParams> {
 			await browserManager.launchBrowser()
 
 			// Check if aborted before screenshot
-			if (this.abortController.signal.aborted) {
+			if (this.abortController?.signal?.aborted) {
 				await browserManager.closeBrowser()
 				throw new Error("Tool execution was aborted")
 			}
@@ -112,7 +112,7 @@ export class UrlScreenshotTool extends BaseAgentTool<UrlScreenshotToolParams> {
 			const { buffer, logs } = await browserManager.urlToScreenshotAndLogs(url)
 
 			// Check if aborted before saving
-			if (this.abortController.signal.aborted) {
+			if (this.abortController?.signal?.aborted) {
 				await browserManager.closeBrowser()
 				throw new Error("Tool execution was aborted")
 			}
@@ -145,7 +145,7 @@ export class UrlScreenshotTool extends BaseAgentTool<UrlScreenshotToolParams> {
 			const imageBlock = [imageToBase64]
 
 			// Final abort check before completing
-			if (this.abortController.signal.aborted) {
+			if (this.abortController?.signal?.aborted) {
 				throw new Error("Tool execution was aborted")
 			}
 
@@ -210,7 +210,7 @@ export class UrlScreenshotTool extends BaseAgentTool<UrlScreenshotToolParams> {
 	}
 
 	private async askToolExecConfirmation(): Promise<AskConfirmationResponse> {
-		if (this.abortController.signal.aborted) {
+		if (this.abortController?.signal?.aborted) {
 			throw new Error("Tool execution was aborted")
 		}
 		return await this.params.ask(

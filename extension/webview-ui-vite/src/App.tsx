@@ -6,6 +6,7 @@ import {
 	showSettingsAtom,
 	showPromptEditorAtom,
 	useExtensionState,
+	showHistoryAtom,
 } from "./context/extension-state-context"
 import ChatView from "./components/chat-view/chat-view"
 import HistoryView from "./components/history-view/history-view"
@@ -15,6 +16,7 @@ import OutOfCreditDialog from "./components/dialogs/out-of-credit-dialog"
 import SettingsPage from "./components/settings-view/settings-tabs"
 import { useAtom } from "jotai"
 import { rpcClient, RPCClientProvider } from "./lib/rpc-client"
+import { useRequiredProviderHandler } from "./components/settings-view/preferences/atoms"
 const queryClient = new QueryClient()
 
 const useModelInfo = () => {
@@ -32,7 +34,7 @@ const useModelInfo = () => {
 
 const AppContent = () => {
 	const [showSettings, setShowSettings] = useAtom(showSettingsAtom)
-	const [showHistory, setShowHistory] = useState(false)
+	const [showHistory, setShowHistory] = useAtom(showHistoryAtom)
 	const [showPromptEditor, setShowPromptEditor] = useAtom(showPromptEditorAtom)
 	const selectedModelInfo = useModelInfo()
 	const handleMessage = useCallback((e: MessageEvent) => {

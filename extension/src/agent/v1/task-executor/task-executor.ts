@@ -10,6 +10,7 @@ import { ToolExecutor } from "../tools/tool-executor"
 import { ApiHistoryItem, ToolResponseV2, UserContent } from "../types"
 import { formatImagesIntoBlocks, isTextBlock } from "../utils"
 import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
+import { CustomProviderError } from "../../../api/providers/custom-provider"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -89,7 +90,11 @@ export class TaskExecutor extends TaskExecutorUtils {
 		} else {
 			// Process UI updates in parallel with fire-and-forget
 			void this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview()
-			await this.stateManager.claudeMessagesManager.appendToClaudeMessage(currentReplyId, contentToFlush, true)
+			void this.stateManager.claudeMessagesManager
+				.appendToClaudeMessage(currentReplyId, contentToFlush, true)
+				.then(() => {
+					// fire and forget
+				})
 		}
 	}
 
@@ -377,6 +382,11 @@ export class TaskExecutor extends TaskExecutorUtils {
 			await this.processApiResponse(stream, startedReqId)
 		} catch (error) {
 			if (!this.isRequestCancelled && !this.isAborting) {
+				if (error instanceof CustomProviderError) {
+					console.log("[TaskExecutor] CustomProviderError:", error)
+					await this.handleApiError(error)
+					return
+				}
 				if (error instanceof KoduError) {
 					console.log("[TaskExecutor] KoduError:", error)
 					if (error.errorCode === KODU_ERROR_CODES.AUTHENTICATION_ERROR) {
@@ -644,7 +654,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		this._abortController?.abort()
 	}
 
-	private async handleApiError(error: TaskError): Promise<void> {
+	private async handleApiError(error: TaskError | CustomProviderError): Promise<void> {
 		this.logError(error)
 		console.log(`[TaskExecutor] Error (State: ${this.state}):`, error)
 		await this.toolExecutor.resetToolState()
@@ -720,9 +730,20 @@ export class TaskExecutor extends TaskExecutorUtils {
 		await this.stateManager.claudeMessagesManager.overwriteClaudeMessages(modifiedClaudeMessages)
 		await this.stateManager.providerRef.deref()?.getWebviewManager().postClaudeMessagesToWebview()
 		this.consecutiveErrorCount++
-		if (error.type === "PAYMENT_REQUIRED" || error.type === "UNAUTHORIZED") {
+		if (error instanceof TaskError && (error.type === "PAYMENT_REQUIRED" || error.type === "UNAUTHORIZED")) {
 			this.state = TaskState.IDLE
 			this.say(error.type === "PAYMENT_REQUIRED" ? "payment_required" : "unauthorized", error.message)
+			return
+		}
+		if (error instanceof CustomProviderError) {
+			this.state = TaskState.IDLE
+			this.say(
+				"custom_provider_error",
+				JSON.stringify({
+					providerId: error.providerId,
+					modelId: error.modelId,
+				})
+			)
 			return
 		}
 

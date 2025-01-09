@@ -27,6 +27,7 @@ export type ApiHandlerOptions = Omit<ProviderConfig, "models"> & {
 
 export type ApiConstructorOptions = {
 	providerSettings: ProviderSettings
+	models: ProviderConfig["models"]
 	model: ProviderConfig["models"][number]
 }
 
