@@ -86,6 +86,7 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 	const [searchQuery, setSearchQuery] = useState("")
 	const [sortOption, setSortOption] = useState<SortOption>("newest")
 	const [lastNonRelevantSort, setLastNonRelevantSort] = useState<SortOption | null>("newest")
+	const { mutate: restoreTaskFromDisk } = rpcClient.restoreTaskFromDisk.useMutation({})
 
 	useEffect(() => {
 		if (searchQuery && sortOption !== "mostRelevant" && !lastNonRelevantSort) {
@@ -148,8 +149,8 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 				<div className="flex flex-wrap gap-2">
 					<Button
 						onClick={async () => {
-							const res = await rpcClient.restoreTaskFromDisk({})
-							console.log(`pauseTask response: ${JSON.stringify(res)}`)
+							const res = await restoreTaskFromDisk({})
+							// console.log(`pauseTask response: ${JSON.stringify(res)}`)
 						}}
 						size="sm"
 						variant="ghost">

@@ -1,7 +1,7 @@
 import { SpawnAgentOptions } from "../../agent/v1/tools/schema/agents/agent-spawner"
 import { ToolName } from "../../agent/v1/tools/types"
+import { ApiConfiguration } from "../../api"
 import type { GlobalState } from "../../providers/state/global-state-manager"
-import { ApiConfiguration, OpenAPIProvider } from "../api"
 import { HistoryItem } from "../history-item"
 import { ChatTool } from "../new-tools"
 
@@ -169,6 +169,9 @@ export type ExtensionMessage =
 	| RequestStatus
 	| PostClaudeMessage
 
+type NonPartial<T> = {
+	[P in keyof T]: T[P]
+}
 export interface BaseExtensionState {
 	version: string
 	maxRequestsPerTask?: number
@@ -186,7 +189,6 @@ export interface BaseExtensionState {
 	alwaysAllowReadOnly?: boolean
 	alwaysAllowWriteOnly?: boolean
 	user: GlobalState["user"]
-	apiConfiguration?: ApiConfiguration
 	themeName?: string
 	uriScheme?: string
 	extensionName?: string
@@ -194,7 +196,7 @@ export interface BaseExtensionState {
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean
 	autoCloseTerminal: boolean
-	customProvider?: OpenAPIProvider
+	apiConfig?: GlobalState["apiConfig"]
 }
 
 export interface ExtensionState extends BaseExtensionState {

@@ -1,3 +1,5 @@
+import { ProviderId } from "../../api/providers/constants"
+
 export type TaskCompleteEventParams = {
 	taskId: string
 	totalCost: number
@@ -15,7 +17,7 @@ export type TaskRequestEventParams = {
 	cacheReadTokens: number
 	cacheWriteTokens: number
 	outputTokens: number
-	provider: "kodu" | "custom"
+	provider: ProviderId
 }
 
 export enum AmplitudeMetrics {

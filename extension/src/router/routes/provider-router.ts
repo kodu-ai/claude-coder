@@ -4,40 +4,34 @@ import { router } from "../utils/router"
 import { SecretStateManager } from "../../providers/state/secret-state-manager"
 import { nanoid } from "nanoid"
 import { models, providerConfigs, customProvidersConfigs } from "../../api/providers/config"
-import { ProviderSettings } from "../../api/providers/types"
 import { GlobalStateManager } from "../../providers/state/global-state-manager"
 import { ProviderId } from "../../api/providers/constants"
-
-// Schema for provider settings validation
-const providerSettingsSchema = z.object({
-	id: z.string(),
-	providerId: z.string(),
-	modelId: z.string(),
-	apiKey: z.string().optional(),
-	// Google Vertex specific fields
-	clientEmail: z.string().optional(),
-	privateKey: z.string().optional(),
-	project: z.string().optional(),
-	location: z.string().optional(),
-	// Amazon Bedrock specific fields
-	region: z.string().optional(),
-	accessKeyId: z.string().optional(),
-	secretAccessKey: z.string().optional(),
-	sessionToken: z.string().optional(),
-})
+import { ApiConstructorOptions, ProviderSettings, providerSettingsSchema } from "../../api"
 
 export async function getProvider(id: string) {
+	if (id === "kodu") {
+		return { provider: providerConfigs.kodu }
+	}
 	const providersString = await SecretStateManager.getInstance().getSecretState("providers")
 	const providers = z.array(providerSettingsSchema).safeParse(JSON.parse(providersString || "[]")).data
-	const provider = providers?.find((p) => p.id === id)
+	const provider = providers?.find((p) => p.providerId === id)
 
 	return { provider }
 }
 
 export async function getModelProviderData(providerId: string) {
-	const providerConfig = providerConfigs[providerId]
-	if (!providerConfig) {
-		throw new Error(`Invalid provider: ${providerId}`)
+	if (providerId === "kodu") {
+		const apiKey = await SecretStateManager.getInstance().getSecretState("koduApiKey")
+		const providerSettings: ProviderSettings = {
+			providerId: "kodu",
+			apiKey,
+			modelId: "kodu",
+		}
+		return {
+			providerId,
+			currentProvider: providerSettings,
+			models: providerConfigs.kodu.models,
+		}
 	}
 	const providersData = await SecretStateManager.getInstance().getSecretState("providers")
 	const providers = z.array(providerSettingsSchema).safeParse(JSON.parse(providersData || "[]")).data ?? []
@@ -45,9 +39,29 @@ export async function getModelProviderData(providerId: string) {
 
 	return {
 		providerId,
-		models: providerConfig.models,
+		models: providerConfigs[providerId].models,
 		currentProvider,
 	}
+}
+
+export async function getCurrentApiSettings() {
+	const apiConfig = GlobalStateManager.getInstance().getGlobalState("apiConfig")
+	const providerData = await getModelProviderData(apiConfig?.providerId ?? "-")
+	if (!providerData.currentProvider) {
+		throw new Error(`Provider not found: ${apiConfig?.providerId}`)
+	}
+	const { model } = await getCurrentModelInfo()
+	return { providerSettings: providerData.currentProvider!, model } satisfies ApiConstructorOptions
+}
+
+export async function getCurrentModelInfo() {
+	const apiConfig = GlobalStateManager.getInstance().getGlobalState("apiConfig")
+	const providerData = await getModelProviderData(apiConfig?.providerId ?? "-")
+	const model = providerData.models?.find((m) => m.id === apiConfig?.modelId)
+	if (!model) {
+		throw new Error(`Model not found: ${apiConfig?.modelId}`)
+	}
+	return { model }
 }
 
 const providerRouter = router({
@@ -57,9 +71,18 @@ const providerRouter = router({
 		}
 	}),
 
+	currentApiSettings: procedure.input(z.object({})).resolve(async (ctx, input) => {
+		return getCurrentApiSettings()
+	}),
+
 	currentModel: procedure.input(z.object({})).resolve(async (ctx, input) => {
 		const apiConfig = GlobalStateManager.getInstance().getGlobalState("apiConfig")
 		return { modelId: apiConfig?.modelId }
+	}),
+
+	currentModelInfo: procedure.input(z.object({})).resolve(async (ctx, input) => {
+		const { model } = await getCurrentModelInfo()
+		return { model }
 	}),
 
 	selectModel: procedure
@@ -110,7 +133,7 @@ const providerRouter = router({
 			throw new Error(`Invalid model for provider ${input.providerId}: ${input.modelId}`)
 		}
 
-		const newProvider = { ...input, id: input.id || nanoid() }
+		const newProvider = { ...input }
 		const newProviders = [...providers, newProvider]
 
 		await SecretStateManager.getInstance().updateSecretState("providers", JSON.stringify(newProviders))
@@ -133,7 +156,7 @@ const providerRouter = router({
 			throw new Error(`Invalid model for provider ${input.providerId}: ${input.modelId}`)
 		}
 
-		const newProviders = providers.map((p) => (p.id === input.id ? input : p))
+		const newProviders = providers.map((p) => (p.providerId === input.providerId ? input : p))
 		await SecretStateManager.getInstance().updateSecretState("providers", JSON.stringify(newProviders))
 
 		return { provider: input }
@@ -142,7 +165,7 @@ const providerRouter = router({
 	deleteProvider: procedure.input(z.object({ id: z.string() })).resolve(async (ctx, input) => {
 		const providersString = await SecretStateManager.getInstance().getSecretState("providers")
 		const providers = z.array(providerSettingsSchema).safeParse(JSON.parse(providersString || "[]")).data ?? []
-		const newProviders = providers.filter((p) => p.id !== input.id)
+		const newProviders = providers.filter((p) => p.providerId !== input.id)
 
 		await SecretStateManager.getInstance().updateSecretState("providers", JSON.stringify(newProviders))
 

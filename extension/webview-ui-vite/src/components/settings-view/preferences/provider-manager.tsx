@@ -104,7 +104,6 @@ const ProviderManager: React.FC = () => {
 			if (existingProvider) {
 				updateProvider({
 					...settingsWithId,
-					id: existingProvider.id,
 				})
 			} else {
 				createProvider(settingsWithId)

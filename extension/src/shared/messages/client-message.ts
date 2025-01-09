@@ -1,5 +1,4 @@
 import { ToolName } from "../../agent/v1/tools/types"
-import { ApiConfiguration } from "../../api"
 import { GlobalState } from "../../providers/state/global-state-manager"
 import { BaseExtensionState } from "./extension-message"
 
@@ -37,11 +36,6 @@ type RenameTask =
 type OpenExternalLink = {
 	type: "openExternalLink"
 	url: string
-}
-
-type ApiConfigurationMessage = {
-	type: "apiConfiguration"
-	apiConfiguration: NonNullable<ApiConfiguration>
 }
 
 type DebugMessage = {
@@ -212,7 +206,6 @@ export type WebviewMessage =
 	| AmplitudeWebviewMessage
 	| OpenExternalLink
 	| autoCloseTerminalMessage
-	| ApiConfigurationMessage
 	| RenameTask
 	| DebugMessage
 	| customInstructionsMessage

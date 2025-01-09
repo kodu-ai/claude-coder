@@ -5,7 +5,6 @@ import { Button } from "../ui/button"
 import { vscode } from "../../utils/vscode"
 import { cn } from "@/lib/utils"
 import Thumbnails from "../thumbnails/thumbnails"
-import { ApiProvider } from "../../../../src/shared/api"
 import TaskText from "./task-text"
 import TokenInfo from "./token-info"
 import CreditsInfo from "./credits-info"
@@ -29,7 +28,6 @@ interface TaskHeaderProps {
 	isHidden: boolean
 	koduCredits?: number
 	vscodeUriScheme?: string
-	apiProvider?: ApiProvider
 	elapsedTime?: number
 }
 

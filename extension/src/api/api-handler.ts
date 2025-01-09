@@ -4,17 +4,16 @@
  * token calculations, and conversation history management.
  */
 
-import Anthropic from "@anthropic-ai/sdk"
 import { AxiosError } from "axios"
-import { ApiConfiguration, ApiHandler, buildApiHandler } from "."
+import { ApiConstructorOptions, ApiHandler, buildApiHandler } from "."
 import { ExtensionProvider } from "../providers/extension-provider"
 import { KoduError, koduSSEResponse } from "../shared/kodu"
 import { amplitudeTracker } from "../utils/amplitude"
-import { ApiHistoryItem, ClaudeMessage, UserContent } from "../agent/v1/types"
-import { getCwd, isTextBlock } from "../agent/v1/utils"
+import { ApiHistoryItem } from "../agent/v1/types"
+import { isTextBlock } from "../agent/v1/utils"
 
 // Imported utility functions
-import { calculateApiCost, cleanUpMsg, getApiMetrics } from "./api-utils"
+import { calculateApiCost } from "./api-utils"
 import { processConversationHistory, manageContextWindow } from "./conversation-utils"
 import { mainPrompts } from "../agent/v1/prompts/main.prompt"
 import dedent from "dedent"
@@ -29,7 +28,7 @@ export class ApiManager {
 	private customInstructions?: string
 	private providerRef: WeakRef<ExtensionProvider>
 
-	constructor(provider: ExtensionProvider, apiConfiguration: ApiConfiguration, customInstructions?: string) {
+	constructor(provider: ExtensionProvider, apiConfiguration: ApiConstructorOptions, customInstructions?: string) {
 		this.api = buildApiHandler(apiConfiguration)
 		this.customInstructions = customInstructions
 		this.providerRef = new WeakRef(provider)
@@ -57,7 +56,7 @@ export class ApiManager {
 	 * Updates the API configuration
 	 * @param apiConfiguration - New API configuration
 	 */
-	public updateApi(apiConfiguration: ApiConfiguration): void {
+	public updateApi(apiConfiguration: ApiConstructorOptions): void {
 		this.log("info", "Updating API configuration", apiConfiguration)
 		this.api = buildApiHandler(apiConfiguration)
 	}

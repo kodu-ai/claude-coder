@@ -19,9 +19,6 @@ export class ExtensionStateManager {
 
 	async getState() {
 		const [
-			apiModelId,
-			browserModelId,
-			koduApiKey,
 			user,
 			lastShownAnnouncementId,
 			customInstructions,
@@ -36,11 +33,9 @@ export class ExtensionStateManager {
 			gitHandlerEnabled,
 			inlineEditOutputType,
 			observerHookEvery,
-			customProvider,
+			apiConfig,
+			koduApiKey,
 		] = await Promise.all([
-			this.globalStateManager.getGlobalState("apiModelId"),
-			this.globalStateManager.getGlobalState("browserModelId"),
-			this.secretStateManager.getSecretState("koduApiKey"),
 			this.globalStateManager.getGlobalState("user"),
 			this.globalStateManager.getGlobalState("lastShownAnnouncementId"),
 			this.globalStateManager.getGlobalState("customInstructions"),
@@ -55,7 +50,8 @@ export class ExtensionStateManager {
 			this.globalStateManager.getGlobalState("gitHandlerEnabled"),
 			this.globalStateManager.getGlobalState("inlineEditOutputType"),
 			this.globalStateManager.getGlobalState("observerHookEvery"),
-			this.globalStateManager.getGlobalState("customProvider"),
+			this.globalStateManager.getGlobalState("apiConfig"),
+			this.secretStateManager.getSecretState("koduApiKey"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -74,14 +70,11 @@ export class ExtensionStateManager {
 			.getKoduDev()
 			?.getStateManager()
 			?.apiManager.getModelInfo()?.contextWindow
+		if (apiConfig) {
+			apiConfig.koduApiKey = koduApiKey
+		}
 
 		return {
-			apiConfiguration: {
-				apiModelId,
-				koduApiKey,
-				browserModelId,
-				customProvider,
-			},
 			user,
 			terminalCompressionThreshold,
 			lastShownAnnouncementId,
@@ -104,7 +97,7 @@ export class ExtensionStateManager {
 			inlineEditOutputType: inlineEditOutputType ?? "full",
 			gitHandlerEnabled: gitHandlerEnabled ?? true,
 			observerHookEvery,
-			customProvider,
+			apiConfig,
 		} satisfies ExtensionState
 	}
 

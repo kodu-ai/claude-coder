@@ -1,12 +1,12 @@
-import { Anthropic } from "@anthropic-ai/sdk"
+import type { Anthropic } from "@anthropic-ai/sdk"
 import { KoduHandler } from "./providers/kodu"
-import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
-import { z } from "zod"
+import { WebSearchResponseDto } from "./interfaces"
 import { koduSSEResponse } from "../shared/kodu"
 import { ApiHistoryItem } from "../agent/v1"
 import { CustomApiHandler } from "./providers/custom-provider"
 import { ProviderId } from "./providers/constants"
 import { ModelInfo, ProviderConfig } from "./providers/types"
+import { z } from "zod"
 
 export interface ApiHandlerMessageResponse {
 	message: Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage
@@ -18,9 +18,15 @@ export interface ApiHandlerMessageResponse {
 export type ApiConfiguration = {
 	providerId: ProviderId
 	modelId: string
+	koduApiKey: string
 }
 
 export type ApiHandlerOptions = Omit<ProviderConfig, "models"> & {
+	model: ProviderConfig["models"][number]
+}
+
+export type ApiConstructorOptions = {
+	providerSettings: ProviderSettings
 	model: ProviderConfig["models"][number]
 }
 
@@ -48,9 +54,7 @@ export interface ApiHandler {
 		) => Promise<[ApiHistoryItem[], Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[]]>
 	}): AsyncIterableIterator<koduSSEResponse>
 
-	get options(): ApiHandlerOptions
-
-	get cheapModelId(): string | undefined
+	get options(): ApiConstructorOptions
 
 	getModel(): { id: string; info: ModelInfo }
 
@@ -63,11 +67,11 @@ export interface ApiHandler {
 	): AsyncIterable<WebSearchResponseDto>
 }
 
-export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
-	if (configuration.providerId !== "kodu") {
+export function buildApiHandler(configuration: ApiConstructorOptions): ApiHandler {
+	if (configuration.providerSettings.providerId !== "kodu") {
 		return new CustomApiHandler(configuration)
 	}
-	return new KoduHandler({ koduApiKey: configuration, apiModelId: configuration.modelId })
+	return new KoduHandler(configuration)
 }
 
 export function withoutImageData(
@@ -97,3 +101,21 @@ export function withoutImageData(
 		return part
 	})
 }
+export const providerSettingsSchema = z.object({
+	// id: z.string(),
+	providerId: z.string(),
+	modelId: z.string().optional(),
+	apiKey: z.string().optional(),
+	// Google Vertex specific fields
+	clientEmail: z.string().optional(),
+	privateKey: z.string().optional(),
+	project: z.string().optional(),
+	location: z.string().optional(),
+	// Amazon Bedrock specific fields
+	region: z.string().optional(),
+	accessKeyId: z.string().optional(),
+	secretAccessKey: z.string().optional(),
+	sessionToken: z.string().optional(),
+})
+
+export type ProviderSettings = z.infer<typeof providerSettingsSchema>

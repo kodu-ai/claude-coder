@@ -18,6 +18,7 @@ const defaults: Partial<GlobalState> = {
 	apiConfig: {
 		providerId: "kodu",
 		modelId: "claude-3-5-sonnet-20241022",
+		koduApiKey: "-",
 	},
 }
 
@@ -26,7 +27,7 @@ export type GlobalState = {
 	terminalCompressionThreshold: number | undefined
 	lastShownAnnouncementId: string | undefined
 	customInstructions: string | undefined
-	apiConfig?: ApiConfiguration
+	apiConfig?: Partial<ApiConfiguration>
 	gitHandlerEnabled: boolean | undefined
 	alwaysAllowReadOnly: boolean | undefined
 	alwaysAllowWriteOnly: boolean | undefined

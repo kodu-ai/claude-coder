@@ -34,11 +34,11 @@ const TokenInfo: React.FC<TokenInfoProps> = ({
 					<span className="text-muted-foreground whitespace-nowrap">In/Out:</span>
 					<span className="flex items-center gap-1 min-w-0">
 						<FileInput className="w-3 h-3 text-muted-foreground shrink-0" />
-						<span className="truncate">{tokensIn.toLocaleString()}</span>
+						<span className="truncate">{tokensIn?.toLocaleString() ?? 0}</span>
 					</span>
 					<span className="flex items-center gap-1 min-w-0">
 						<FilePen className="w-3 h-3 text-muted-foreground shrink-0" />
-						<span className="truncate">{tokensOut.toLocaleString()}</span>
+						<span className="truncate">{tokensOut?.toLocaleString() ?? 0}</span>
 					</span>
 				</span>
 

@@ -5,8 +5,8 @@ interface TaskCardProps {
 	id: string
 	task: string
 	ts: number
-	tokensIn: number
-	tokensOut: number
+	tokensIn?: number
+	tokensOut?: number
 	cacheWrites?: number
 	cacheReads?: number
 	totalCost: number
@@ -43,11 +43,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
 				Tokens:
 				<code>
 					<span>↑</span>
-					{tokensIn.toLocaleString()}
+					{tokensIn?.toLocaleString() ?? 0}
 				</code>
 				<code>
 					<span>↓</span>
-					{tokensOut.toLocaleString()}
+					{tokensOut?.toLocaleString() ?? 0}
 				</code>
 			</div>
 			{!!cacheWrites && !!cacheReads && (
@@ -55,11 +55,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
 					Cache:
 					<code>
 						<span>+</span>
-						{cacheWrites.toLocaleString()}
+						{cacheWrites?.toLocaleString()}
 					</code>
 					<code>
 						<span>→</span>
-						{cacheReads.toLocaleString()}
+						{cacheReads?.toLocaleString()}
 					</code>
 				</div>
 			)}

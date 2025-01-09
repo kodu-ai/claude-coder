@@ -401,12 +401,6 @@ export class WebviewManager {
 							.getTaskManager()
 							.handleNewTask(message.text, message.images, message.attachements)
 						break
-					case "apiConfiguration":
-						if (message.apiConfiguration) {
-							await this.provider.getApiManager().updateApiConfiguration(message.apiConfiguration)
-							await this.postBaseStateToWebview()
-						}
-						break
 
 					case "autoCloseTerminal":
 						await this.provider.getStateManager().setAutoCloseTerminal(message.bool)

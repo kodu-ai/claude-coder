@@ -2,14 +2,9 @@ import { useCallback, useState } from "react"
 import { GlobalState } from "../../../src/providers/state/global-state-manager"
 import { useExtensionState } from "../context/extension-state-context"
 import { vscode } from "../utils/vscode"
-import { koduDefaultModelId, koduModels } from "../../../src/shared/api"
 
 export function useSettingsState() {
 	const extensionState = useExtensionState()
-	const [model, setModel] = useState(extensionState.apiConfiguration?.apiModelId ?? koduDefaultModelId)
-	const [browserModel, setBrowserModel] = useState(
-		extensionState.apiConfiguration?.browserModelId ?? "claude-3-5-haiku-20241022"
-	)
 	const [readOnly, setReadOnly] = useState(extensionState.alwaysAllowReadOnly || false)
 	const [autoCloseTerminal, setAutoCloseTerminal] = useState(extensionState.autoCloseTerminal || false)
 	const [gitHandlerEnabled, setGitHandlerEnabled] = useState(extensionState.gitHandlerEnabled ?? true)
@@ -61,21 +56,6 @@ export function useSettingsState() {
 		vscode.postMessage({ type: "setInlineEditMode", inlineEditOutputType: type })
 	}, [])
 
-	const handleModelChange = useCallback((newModel: typeof model) => {
-		const isCustomModel = koduModels[newModel] ? false : true
-		setModel(newModel!)
-		if (isCustomModel) {
-			vscode.postMessage({ type: "apiConfiguration", apiConfiguration: { customModel: { id: newModel } } })
-		} else {
-			vscode.postMessage({ type: "apiConfiguration", apiConfiguration: { apiModelId: newModel } })
-		}
-	}, [])
-
-	const handleBrowserModelChange = useCallback((newModel: typeof model) => {
-		setBrowserModel(newModel!)
-		vscode.postMessage({ type: "apiConfiguration", apiConfiguration: { browserModelId: newModel } })
-	}, [])
-
 	const handleSetReadOnly = useCallback((checked: boolean) => {
 		setReadOnly(checked)
 		vscode.postMessage({ type: "alwaysAllowReadOnly", bool: checked })
@@ -107,8 +87,6 @@ export function useSettingsState() {
 	}, [])
 
 	return {
-		model,
-		browserModel,
 		readOnly,
 		autoCloseTerminal,
 		gitHandlerEnabled,
@@ -123,8 +101,6 @@ export function useSettingsState() {
 		handleTerminalCompressionThresholdChange,
 		handleAutoSkipWriteChange,
 		handleExperimentalFeatureChange,
-		handleModelChange,
-		handleBrowserModelChange,
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
 		handleSetGitHandlerEnabled,
