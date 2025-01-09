@@ -4,22 +4,23 @@
  * token calculations, and conversation history management.
  */
 
-import Anthropic from "@anthropic-ai/sdk"
 import { AxiosError } from "axios"
-import { ApiConfiguration, ApiHandler, buildApiHandler } from "."
+import { ApiConstructorOptions, ApiHandler, buildApiHandler } from "."
 import { ExtensionProvider } from "../providers/extension-provider"
 import { KoduError, koduSSEResponse } from "../shared/kodu"
 import { amplitudeTracker } from "../utils/amplitude"
-import { ApiHistoryItem, ClaudeMessage, UserContent } from "../agent/v1/types"
-import { getCwd, isTextBlock } from "../agent/v1/utils"
+import { ApiHistoryItem } from "../agent/v1/types"
+import { isTextBlock } from "../agent/v1/utils"
 
 // Imported utility functions
-import { calculateApiCost, cleanUpMsg, getApiMetrics } from "./api-utils"
+import { calculateApiCost } from "./api-utils"
 import { processConversationHistory, manageContextWindow } from "./conversation-utils"
 import { mainPrompts } from "../agent/v1/prompts/main.prompt"
 import dedent from "dedent"
 import { PromptStateManager } from "../providers/state/prompt-state-manager"
 import { buildPromptFromTemplate } from "../agent/v1/prompts/utils/utils"
+import { CustomProviderError } from "./providers/custom-provider"
+import { getCurrentApiSettings } from "../router/routes/provider-router"
 
 /**
  * Main API Manager class that handles all Claude API interactions
@@ -29,7 +30,7 @@ export class ApiManager {
 	private customInstructions?: string
 	private providerRef: WeakRef<ExtensionProvider>
 
-	constructor(provider: ExtensionProvider, apiConfiguration: ApiConfiguration, customInstructions?: string) {
+	constructor(provider: ExtensionProvider, apiConfiguration: ApiConstructorOptions, customInstructions?: string) {
 		this.api = buildApiHandler(apiConfiguration)
 		this.customInstructions = customInstructions
 		this.providerRef = new WeakRef(provider)
@@ -57,11 +58,20 @@ export class ApiManager {
 	 * Updates the API configuration
 	 * @param apiConfiguration - New API configuration
 	 */
-	public updateApi(apiConfiguration: ApiConfiguration): void {
+	public updateApi(apiConfiguration: ApiConstructorOptions): void {
 		this.log("info", "Updating API configuration", apiConfiguration)
 		this.api = buildApiHandler(apiConfiguration)
 	}
 
+	/**
+	 * pulls the latest API from the secure store and rebuilds the API handler
+	 */
+	public async pullLatestApi() {
+		this.log("info", "Pulling latest API configuration")
+		const settings = await getCurrentApiSettings()
+
+		this.api = buildApiHandler(settings)
+	}
 	/**
 	 * Updates custom instructions for the API
 	 * @param customInstructions - New custom instructions
@@ -165,7 +175,7 @@ ${this.customInstructions.trim()}
 				systemPrompt,
 				messages: conversationHistory,
 				modelId: this.getModelId(),
-				abortSignal: abortController.signal,
+				abortSignal: abortController?.signal,
 			})
 
 			return stream
@@ -224,6 +234,11 @@ ${this.customInstructions.trim()}
 						yield* this.processStreamChunk(chunk)
 					}
 				} catch (streamError) {
+					if (streamError instanceof CustomProviderError) {
+						// requires manual intervention
+						retryAttempt = MAX_RETRIES
+						throw streamError
+					}
 					if (streamError instanceof Error && streamError.message === "aborted") {
 						throw new KoduError({ code: 1 })
 					}
@@ -280,6 +295,7 @@ ${this.customInstructions.trim()}
 			return
 		}
 		const response = chunk?.body?.anthropic
+		const apiCost = chunk.body.internal.cost
 		const { input_tokens, output_tokens } = response.usage
 		const { cache_creation_input_tokens, cache_read_input_tokens } = response.usage as any
 
@@ -290,18 +306,11 @@ ${this.customInstructions.trim()}
 
 		// Track metrics
 		const state = await provider.getState()
-		const apiCost = calculateApiCost(
-			this.getModelInfo(),
-			input_tokens,
-			output_tokens,
-			cache_creation_input_tokens,
-			cache_read_input_tokens
-		)
 		this.log("info", `API REQUEST FINISHED: ${apiCost} tokens used data:`, response)
 
 		amplitudeTracker.taskRequest({
 			taskId: state?.currentTaskId!,
-			model: this.getModelId(),
+			model: response.model,
 			apiCost: apiCost,
 			inputTokens: input_tokens,
 			cacheReadTokens: cache_read_input_tokens,

@@ -13,10 +13,13 @@ import {
 } from "../../../../../src/api/providers/types"
 import { customProvidersConfigs as providers } from "../../../../../src/api/providers/config/index"
 import { rpcClient } from "@/lib/rpc-client"
+import { useAtom } from "jotai"
+import { createDefaultSettings, providerSettingsAtom } from "./atoms"
 
 const ProviderManager: React.FC = () => {
-	const [providerSettings, setProviderSettings] = useState<ProviderSettings | null>(null)
+	const [providerSettings, setProviderSettings] = useAtom(providerSettingsAtom)
 	const [error, setError] = useState<string>("")
+
 	// Query existing providers
 	const { data: providersData, refetch } = rpcClient.listProviders.useQuery({})
 
@@ -38,39 +41,6 @@ const ProviderManager: React.FC = () => {
 		},
 	})
 
-	const createDefaultSettings = (providerId: ProviderType, defaultModel: string): ProviderSettings => {
-		const baseSettings = {
-			id: crypto.randomUUID(),
-			providerId,
-			modelId: defaultModel,
-		}
-
-		switch (providerId) {
-			case "google-vertex":
-				return {
-					...baseSettings,
-					providerId: "google-vertex",
-					clientEmail: "",
-					privateKey: "",
-					project: "",
-					location: "",
-				} as GoogleVertexSettings
-			case "amazon-bedrock":
-				return {
-					...baseSettings,
-					providerId: "amazon-bedrock",
-					region: "",
-					accessKeyId: "",
-					secretAccessKey: "",
-				} as AmazonBedrockSettings
-			default:
-				return {
-					...baseSettings,
-					apiKey: "",
-				} as ProviderSettings
-		}
-	}
-
 	const handleProviderChange = (providerId: ProviderType) => {
 		const existingProvider = providersData?.providers?.find((p) => p.providerId === providerId)
 		const provider = providers[providerId]
@@ -87,27 +57,18 @@ const ProviderManager: React.FC = () => {
 					setProviderSettings(existingProvider as ProviderSettings)
 			}
 		} else if (provider) {
-			const defaultModel = provider.models[0]
-			setProviderSettings(createDefaultSettings(providerId, defaultModel?.id || ""))
+			setProviderSettings(createDefaultSettings(providerId))
 		}
 	}
 
 	const saveSettings = (settings: ProviderSettings) => {
 		try {
 			const existingProvider = providersData?.providers?.find((p) => p.providerId === settings.providerId)
-
-			const settingsWithId = {
-				...settings,
-				id: settings.id || crypto.randomUUID(),
-			}
-
+			console.log("existingProvider", existingProvider)
 			if (existingProvider) {
-				updateProvider({
-					...settingsWithId,
-					id: existingProvider.id,
-				})
+				updateProvider(settings)
 			} else {
-				createProvider(settingsWithId)
+				createProvider(settings)
 			}
 		} catch (err) {
 			setError("Failed to save provider settings")
@@ -233,7 +194,7 @@ const ProviderManager: React.FC = () => {
 		})
 	}
 
-	const currentProvider = providerSettings?.providerId && providers?.[providerSettings?.providerId]
+	const currentProvider = providersData?.providers.find((p) => p.providerId === providerSettings?.providerId)
 
 	return (
 		<Card className="bg-background border-border">
@@ -285,10 +246,10 @@ const ProviderManager: React.FC = () => {
 								<Button
 									variant="destructive"
 									onClick={() => {
-										if (providerSettings.id) {
+										if (currentProvider.providerId) {
 											setProviderSettings(null)
 											setError("")
-											deleteProvider({ id: providerSettings.id! })
+											deleteProvider({ id: currentProvider.providerId! })
 										}
 									}}
 									className="w-full h-9">

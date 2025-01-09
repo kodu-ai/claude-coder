@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { rpcClient } from "@/lib/rpc-client"
+import { useSwitchToProviderManager } from "./atoms"
 
 /**
  * ModelSelector Props
@@ -38,6 +39,18 @@ export const ModelSelector: FC<ModelSelectorProps> = ({ modelId, onChangeModel, 
 	const [open, setOpen] = useState(false)
 	// Command input state
 	const [searchValue, setSearchValue] = useState("")
+	// Currently selected model info
+	const selectedModel: ModelInfo | undefined = models.find((model) => model.id === modelId)
+	const switchToProvider = useSwitchToProviderManager()
+
+	const { data: currentModelInfo, status: modelStatus } = rpcClient.currentModelInfo.useQuery(
+		{},
+		{
+			refetchInterval: 5000,
+			refetchOnMount: true,
+			refetchOnWindowFocus: true,
+		}
+	)
 
 	// Filter models by name + description
 	const filteredModels = useMemo(() => {
@@ -47,9 +60,6 @@ export const ModelSelector: FC<ModelSelectorProps> = ({ modelId, onChangeModel, 
 			return text.includes(query)
 		})
 	}, [searchValue, models])
-
-	// Currently selected model info
-	const selectedModel: ModelInfo | undefined = models.find((model) => model.id === modelId)
 
 	// Render badges for capabilities
 	const renderBadges = (model: ModelInfo, renderProvider = true) => (
@@ -195,11 +205,16 @@ export const ModelSelector: FC<ModelSelectorProps> = ({ modelId, onChangeModel, 
 									Prices are shown per million tokens
 								</span>
 								<br />
-								{selectedModel.provider !== "kodu" && (
-									<span className="text-muted-foreground text-[11px]">
-										This model requires setting provider-specific settings.
-									</span>
-								)}
+								{selectedModel.provider !== "kodu" &&
+									!currentModelInfo?.providerData.currentProvider && (
+										<span
+											onClick={() => {
+												switchToProvider(selectedModel.provider)
+											}}
+											className="text-destructive text-[11px] hover:underline cursor-pointer">
+											Requires setting up a provider key. Click here to set up a provider.
+										</span>
+									)}
 							</p>
 							{renderBadges(selectedModel, false)}
 						</div>

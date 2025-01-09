@@ -3,7 +3,6 @@ import { useEvent } from "react-use"
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
 import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/messages/extension-message"
 import { vscode } from "../utils/vscode"
-import { ApiConfiguration } from "../../../src/api/index"
 import { HistoryItem } from "../../../src/shared/history-item"
 import type { GlobalState } from "../../../src/providers/state/global-state-manager"
 import { useState } from "react"
@@ -19,8 +18,6 @@ const claudeMessagesAtom = atom<ClaudeMessage[]>([])
 claudeMessagesAtom.debugLabel = "claudeMessages"
 const taskHistoryAtom = atom<HistoryItem[]>([])
 taskHistoryAtom.debugLabel = "taskHistory"
-const apiConfigurationAtom = atom<ApiConfiguration | undefined>(undefined)
-apiConfigurationAtom.debugLabel = "apiConfiguration"
 const customInstructionsAtom = atom<string | undefined>(undefined)
 customInstructionsAtom.debugLabel = "customInstructions"
 const alwaysAllowReadOnlyAtom = atom(false)
@@ -72,15 +69,13 @@ export const extensionStateAtom = atom((get) => ({
 	currentTaskId: get(currentTaskIdAtom),
 	inlineEditModeType: get(inlineEditModeTypeAtom),
 	observerHookEvery: get(observerHookEveryAtom),
-
-	apiConfiguration: get(apiConfigurationAtom),
-
 	uriScheme: get(uriSchemeAtom),
 	customInstructions: get(customInstructionsAtom),
 	skipWriteAnimation: get(skipWriteAnimationAtom),
 	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
 	autoCloseTerminal: get(autoCloseTerminalAtom),
 	extensionName: get(extensionNameAtom),
+	apiConfig: get(apiConfigAtom),
 	themeName: get(themeNameAtom),
 	user: get(userAtom),
 	alwaysAllowWriteOnly: get(alwaysAllowApproveOnlyAtom),
@@ -93,6 +88,9 @@ didHydrateStateAtom.debugLabel = "didHydrateState"
 
 export const showSettingsAtom = atom(false)
 showSettingsAtom.debugLabel = "showSettings"
+
+export const showHistoryAtom = atom(false)
+showHistoryAtom.debugLabel = "showHistory"
 
 export const showPromptEditorAtom = atom(false)
 showPromptEditorAtom.debugLabel = "showPromptEditor"
@@ -108,6 +106,9 @@ autoSummarizeAtom.debugLabel = "autoSummarize"
 
 const terminalCompressionThresholdAtom = atom<number | undefined>(undefined)
 terminalCompressionThresholdAtom.debugLabel = "terminalCompressionThreshold"
+
+const apiConfigAtom = atom<GlobalState["apiConfig"] | undefined>(undefined)
+apiConfigAtom.debugLabel = "apiConfig"
 
 const useHandleClaudeMessages = () => {
 	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
@@ -152,9 +153,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setCommandTimeout = useSetAtom(commandTimeoutAtom)
 	const setTaskHistory = useSetAtom(taskHistoryAtom)
 	const setGitHandlerEnabled = useSetAtom(gitHandlerEnabledAtom)
-
-	const setApiConfiguration = useSetAtom(apiConfigurationAtom)
-
+	const setApiConfig = useSetAtom(apiConfigAtom)
 	const setCustomInstructions = useSetAtom(customInstructionsAtom)
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
 	const setAutoSummarize = useSetAtom(autoSummarizeAtom)
@@ -184,6 +183,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 				setClaudeMessages([])
 			}
 			setCommandTimeout(message.state.commandTimeout)
+			setApiConfig(message.state.apiConfig)
 			setTerminalCompressionThreshold(message.state.terminalCompressionThreshold)
 			setObserverHookEvery(message.state.observerHookEvery)
 			setAutoSummarize(!!message.state.autoSummarize)
@@ -206,7 +206,6 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setDidHydrateState(true)
 			setThemeName(message.state.themeName)
 			setUriScheme(message.state.uriScheme)
-			setApiConfiguration(message.state.apiConfiguration)
 		}
 		if (message.type === "action" && message.action === "koduCreditsFetched") {
 			setUser(message.user)
@@ -230,7 +229,6 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 
 export const useExtensionState = () => {
 	const [state] = useAtom(extensionStateAtom)
-	const setApiConfiguration = useSetAtom(apiConfigurationAtom)
 	const setCustomInstructions = useSetAtom(customInstructionsAtom)
 	const setLastShownAnnouncementId = useSetAtom(lastShownAnnouncementIdAtom)
 	const setTerminalCompressionThreshold = useSetAtom(terminalCompressionThresholdAtom)
@@ -239,6 +237,7 @@ export const useExtensionState = () => {
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
 	const setObserverHookEvery = useSetAtom(observerHookEveryAtom)
+	const setApiConfig = useSetAtom(apiConfigAtom)
 
 	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
 	const setAutoSummarize = useSetAtom(autoSummarizeAtom)
@@ -247,7 +246,7 @@ export const useExtensionState = () => {
 
 	return {
 		...state,
-		setApiConfiguration,
+		setApiConfig,
 		setLastShownAnnouncementId,
 		setTerminalCompressionThreshold,
 		setObserverHookEvery,

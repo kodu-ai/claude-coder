@@ -156,6 +156,7 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 								tool: "search_symbol",
 								userFeedback: text,
 								approvalState: "rejected",
+
 								ts: this.ts,
 								symbolName,
 							},

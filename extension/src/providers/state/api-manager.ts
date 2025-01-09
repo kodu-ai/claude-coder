@@ -1,9 +1,8 @@
 import * as vscode from "vscode"
-import { ApiModelId, koduDefaultModelId, KoduModelId, koduModels } from "../../shared/api"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../api/providers/kodu"
 import { ExtensionProvider } from "../extension-provider"
 import { ApiConfiguration } from "../../api"
-import { getProvider } from "../../router/routes/provider-router"
+import { getCurrentModelInfo, getProvider } from "../../router/routes/provider-router"
 
 export class ApiManager {
 	private static instance: ApiManager | null = null
@@ -23,48 +22,13 @@ export class ApiManager {
 		return ApiManager.instance
 	}
 
-	async updateApiConfiguration(apiConfiguration: ApiConfiguration) {
-		const { apiModelId, koduApiKey, browserModelId, customModel } = apiConfiguration
-		if (apiModelId) {
-			await this.context.getGlobalStateManager().updateGlobalState("apiModelId", apiModelId)
-			await this.context.getGlobalStateManager().updateGlobalState("customProvider", undefined)
-		}
-		if (browserModelId) {
-			await this.context.getGlobalStateManager().updateGlobalState("browserModelId", browserModelId)
-		}
-		if (koduApiKey) {
-			await this.context.getSecretStateManager().updateSecretState("koduApiKey", koduApiKey)
-		}
-		if (customModel?.id) {
-			const { provider } = await getProvider(customModel.id)
-			if (!provider) {
-				throw new Error("Custom provider not found")
-			}
-			await this.context.getGlobalStateManager().updateGlobalState("apiModelId", provider.id!)
-			await this.context.getGlobalStateManager().updateGlobalState("customProvider", provider)
-			await this.context.getKoduDev()?.getApiManager().updateApi({
-				customModel: provider,
-			})
-		}
-	}
-
-	getCurrentModelInfo() {
-		const apiModelId = this.context.getGlobalStateManager().getGlobalState("apiModelId") as ApiModelId
-		return koduModels[apiModelId]
+	async getCurrentModelInfo() {
+		return (await getCurrentModelInfo()).model
 	}
 
 	async saveKoduApiKey(apiKey: string) {
 		await this.context.getSecretStateManager().updateSecretState("koduApiKey", apiKey)
 		console.log("Saved Kodu API key")
-		const modelId = await this.context.getKoduDev()?.getStateManager().apiManager.getModelId()
-		await this.context
-			.getKoduDev()
-			?.getStateManager()
-			.apiManager.updateApi({
-				koduApiKey: apiKey,
-				apiModelId:
-					modelId ?? this.context.getGlobalStateManager().getGlobalState("apiModelId") ?? koduDefaultModelId,
-			})
 		const user = await this.fetchKoduUser(apiKey)
 		await this.context.getGlobalStateManager().updateGlobalState("user", user)
 		await this.context.getWebviewManager().postBaseStateToWebview()

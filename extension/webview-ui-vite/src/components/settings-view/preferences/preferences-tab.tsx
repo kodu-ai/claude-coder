@@ -7,6 +7,8 @@ import { useSettingsState } from "../../../hooks/use-settings-state"
 import { ModelSelector } from "./model-picker"
 import { rpcClient } from "@/lib/rpc-client"
 import ProviderManager from "./provider-manager"
+import { useAtom } from "jotai"
+import { preferencesViewAtom } from "./atoms"
 
 /**
  * PreferencesTab
@@ -20,7 +22,7 @@ const PreferencesTabNew: React.FC = () => {
 			refetch()
 		},
 	})
-	const [isCustomModel, setIsCustomModel] = useState(false)
+	const [viewMode, setViewMode] = useAtom(preferencesViewAtom)
 	const { data, status } = rpcClient.listModels.useQuery(
 		{},
 		{
@@ -39,7 +41,7 @@ const PreferencesTabNew: React.FC = () => {
 
 			<CardContent className="space-y-4">
 				{/* Popover-based select with autocomplete */}
-				{isCustomModel ? (
+				{viewMode === "provider-manager" ? (
 					<ProviderManager />
 				) : (
 					<ModelSelector
@@ -55,9 +57,11 @@ const PreferencesTabNew: React.FC = () => {
 				<span>Agent-specific models can be configured in the Agents tab.</span>
 				<br />
 				<span>
-					{!isCustomModel ? "Want to use a custom provider? " : "Want to select models from the list? "}
+					{viewMode === "select-model"
+						? "Want to use a custom provider? "
+						: "Want to select models from the list? "}
 					<button
-						onClick={() => setIsCustomModel((prev) => !prev)}
+						onClick={() => setViewMode(viewMode === "select-model" ? "provider-manager" : "select-model")}
 						className="hover:underline text-primary transition-all">
 						click here
 					</button>

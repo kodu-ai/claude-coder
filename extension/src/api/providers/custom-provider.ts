@@ -1,24 +1,63 @@
 import { CancelTokenSource } from "axios"
-import { ApiHandler } from ".."
-import { ApiHandlerOptions, KoduModelId, ModelInfo, customProviderToModelInfo } from "../../shared/api"
+import { ApiConstructorOptions, ApiHandler, ApiHandlerOptions } from ".."
 import { koduSSEResponse } from "../../shared/kodu"
 import { CoreMessage, streamText } from "ai"
-import { deepseek } from "@ai-sdk/deepseek"
+import { createDeepSeek } from "@ai-sdk/deepseek"
+import { createOpenAI } from "@ai-sdk/openai"
 import { convertToAISDKFormat } from "../../utils/ai-sdk-format"
+import { ModelInfo } from "./types"
+import { PROVIDER_IDS } from "./constants"
+import { calculateApiCost } from "../api-utils"
+
+export class CustomProviderError extends Error {
+	private _providerId: string
+	private _modelId: string
+	constructor(message: string, providerId: string, modelId: string) {
+		super(message)
+		this.name = "CustomProviderError"
+		this._providerId = providerId
+		this._modelId = modelId
+	}
+
+	get providerId() {
+		return this._providerId
+	}
+	get modelId() {
+		return this._modelId
+	}
+}
+
+const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) => {
+	switch (settings.providerSettings.providerId) {
+		case PROVIDER_IDS.DEEPSEEK:
+			if (!settings.providerSettings.apiKey) {
+				throw new CustomProviderError("Deepseek Missing API key", settings.providerSettings.providerId, modelId)
+			}
+			return createDeepSeek({
+				apiKey: settings.providerSettings.apiKey,
+			}).languageModel(modelId)
+		case PROVIDER_IDS.OPENAI:
+			if (!settings.providerSettings.apiKey) {
+				throw new CustomProviderError("OpenAI Missing API key", settings.providerSettings.providerId, modelId)
+			}
+			return createOpenAI({
+				apiKey: settings.providerSettings.apiKey,
+				compatibility: "strict",
+			}).languageModel(modelId)
+		default:
+			throw new CustomProviderError("Provider not configured", settings.providerSettings.providerId, modelId)
+	}
+}
 
 export class CustomApiHandler implements ApiHandler {
-	private _options: ApiHandlerOptions
+	private _options: ApiConstructorOptions
 	private cancelTokenSource: CancelTokenSource | null = null
 
 	get options() {
 		return this._options
 	}
 
-	get cheapModelId() {
-		return this._options.cheapModelId
-	}
-
-	constructor(options: ApiHandlerOptions) {
+	constructor(options: ApiConstructorOptions) {
 		this._options = options
 	}
 
@@ -39,9 +78,6 @@ export class CustomApiHandler implements ApiHandler {
 		appendAfterCacheToLastMessage,
 		updateAfterCacheInserts,
 	}: Parameters<ApiHandler["createMessageStream"]>[0]): AsyncIterableIterator<koduSSEResponse> {
-		if (!this.options.customProvider) {
-			throw new Error("Custom provider not found")
-		}
 		const convertedMessages: CoreMessage[] = []
 
 		for (const systemMsg of systemPrompt) {
@@ -51,36 +87,39 @@ export class CustomApiHandler implements ApiHandler {
 				// if it's the last or before last message, make it ephemeral
 			})
 		}
-		convertedMessages.concat(convertToAISDKFormat(messages))
 
-		// Create a transform stream to bridge the callback and the generator
-		const { readable, writable } = new TransformStream<koduSSEResponse>()
-		const writer = writable.getWriter()
+		const convertedMessagesFull = convertedMessages.concat(convertToAISDKFormat(messages))
+		const currentModel = this._options.models.find((m) => m.id === modelId) ?? this._options.model
+		const result = streamText({
+			model: providerToAISDKModel(this._options, modelId),
+			// prompt: `This is a test tell me a random fact about the world`,
+			messages: convertedMessagesFull,
+			temperature: tempature ?? 0.1,
+			topP: top_p ?? undefined,
+			stopSequences: ["</kodu_action>"],
+			abortSignal: abortSignal ?? undefined,
+		})
 
-		streamText({
-			model: deepseek("deepseek-chat"),
-			prompt: "Invent a new holiday and describe its traditions.",
-			messages: convertedMessages,
-			onChunk({ chunk }) {
-				if (chunk.type === "text-delta") {
-					// Write the chunk to the transform stream
-					writer.write({
-						code: 2,
-						body: {
-							text: chunk.textDelta,
-						},
-					})
+		let text = ""
+		for await (const part of result.fullStream) {
+			if (part.type === "text-delta") {
+				text += part.textDelta
+				yield {
+					code: 2,
+					body: {
+						text: part.textDelta,
+					},
 				}
-			},
-			onFinish(event) {
-				writer.write({
+			}
+			if (part.type === "finish") {
+				yield {
 					code: 1,
 					body: {
 						anthropic: {
 							content: [
 								{
 									type: "text",
-									text: event.text,
+									text,
 								},
 							],
 							id: "1",
@@ -90,53 +129,48 @@ export class CustomApiHandler implements ApiHandler {
 							stop_sequence: "</kodu_action>",
 							model: modelId,
 							usage: {
-								input_tokens: event.usage.promptTokens,
-								output_tokens: event.usage.completionTokens,
+								input_tokens: part.usage.promptTokens,
+								output_tokens: part.usage.completionTokens,
 								cache_creation_input_tokens: null,
 								cache_read_input_tokens: null,
 							},
 						},
 						internal: {
-							cost: 0,
-							userCredits: 0,
-							inputTokens: event.usage.promptTokens,
-							outputTokens: event.usage.completionTokens,
+							cost: calculateApiCost(
+								currentModel,
+								part.usage.promptTokens,
+								part.usage.completionTokens,
+								0,
+								0
+							),
+							inputTokens: part.usage.promptTokens,
+							outputTokens: part.usage.completionTokens,
 							cacheCreationInputTokens: 0,
 							cacheReadInputTokens: 0,
 						},
 					},
-				})
-
-				writer.close()
-			},
-			temperature: tempature ?? 0.1,
-			topP: top_p ?? undefined,
-			stopSequences: ["</kodu_action>"],
-			abortSignal: abortSignal ?? undefined,
-		})
-		// Yield chunks from the transform stream
-		const reader = readable.getReader()
-		while (true) {
-			const { done, value } = await reader.read()
-			if (done) {
-				break
+				}
 			}
-			yield {
-				code: 2,
-				body: {
-					text: value,
-				},
+			if (part.type === "error") {
+				console.error(part.error)
+				throw part.error
+				// if (part.error instanceof Error) {
+				// 	yield {
+				// 		code: -1,
+				// 		body: {
+				// 			msg: part.error.message ?? "Unknown error",
+				// 			status: 500,
+				// 		},
+				// 	}
+				// }
 			}
 		}
 	}
 
-	getModel(): { id: KoduModelId; info: ModelInfo } {
-		if (this._options.customProvider) {
-			return {
-				id: this._options.customProvider.id!,
-				info: customProviderToModelInfo(this._options.customProvider),
-			}
+	getModel(): { id: string; info: ModelInfo } {
+		return {
+			id: this._options.model.id,
+			info: this._options.model,
 		}
-		throw new Error("Model not found")
 	}
 }

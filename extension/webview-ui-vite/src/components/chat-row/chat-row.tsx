@@ -10,6 +10,7 @@ import {
 	InfoMessage,
 	UserFeedbackMessage,
 	UserFeedbackDiffMessage,
+	CustomProviderSettingRequired,
 } from "./chat-row-utils"
 import { ToolRenderer, ChatMaxWindowBlock, ChatTruncatedBlock } from "./chat-tools"
 import { ChatTool } from "../../../../src/shared/new-tools"
@@ -41,6 +42,8 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, isFirst, nextMessage }) =>
 						return <ErrorMsgComponent type="unauthorized" />
 					case "payment_required":
 						return <ErrorMsgComponent type="payment_required" />
+					case "custom_provider_error":
+						return <CustomProviderSettingRequired text={message.text ?? ""} />
 					case "chat_truncated":
 						return <ChatTruncatedBlock ts={message.ts} />
 					case "chat_finished":

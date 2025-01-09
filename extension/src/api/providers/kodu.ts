@@ -1,7 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import axios, { CancelTokenSource } from "axios"
-import { ApiHandler, withoutImageData } from ".."
-import { ApiHandlerOptions, KoduModelId, ModelInfo, koduDefaultModelId, koduModels } from "../../shared/api"
+import { ApiConstructorOptions, ApiHandler, ApiHandlerOptions, withoutImageData } from ".."
 import {
 	KODU_ERROR_CODES,
 	KoduError,
@@ -15,6 +14,7 @@ import { WebSearchResponseDto } from "../interfaces"
 import { ApiHistoryItem } from "../../agent/v1"
 import { cloneDeep } from "lodash"
 import delay from "delay"
+import { ModelInfo } from "./types"
 
 export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 	const response = await axios.get(getKoduCurrentUser(), {
@@ -37,18 +37,14 @@ export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 // const findLastMessageTextMsg
 
 export class KoduHandler implements ApiHandler {
-	private _options: ApiHandlerOptions
+	private _options: ApiConstructorOptions
 	private cancelTokenSource: CancelTokenSource | null = null
 
 	get options() {
 		return this._options
 	}
 
-	get cheapModelId() {
-		return this._options.cheapModelId
-	}
-
-	constructor(options: ApiHandlerOptions) {
+	constructor(options: ApiConstructorOptions) {
 		this._options = options
 	}
 
@@ -147,7 +143,7 @@ export class KoduHandler implements ApiHandler {
 			{
 				headers: {
 					"Content-Type": "application/json",
-					"x-api-key": this._options.koduApiKey || "",
+					"x-api-key": this._options.providerSettings.apiKey || "",
 					"continue-generation": "true",
 				},
 				responseType: "stream",
@@ -222,14 +218,11 @@ export class KoduHandler implements ApiHandler {
 			}
 		}
 	}
-
-	getModel(): { id: KoduModelId; info: ModelInfo } {
-		const modelId = this._options.apiModelId
-		if (modelId && modelId in koduModels) {
-			const id = modelId as KoduModelId
-			return { id, info: koduModels[id] }
+	getModel(): { id: string; info: ModelInfo } {
+		return {
+			id: this._options.model.id,
+			info: this._options.model,
 		}
-		return { id: koduDefaultModelId, info: koduModels[koduDefaultModelId] }
 	}
 
 	async *sendWebSearchRequest(
@@ -250,7 +243,7 @@ export class KoduHandler implements ApiHandler {
 			{
 				headers: {
 					"Content-Type": "application/json",
-					"x-api-key": this._options.koduApiKey || "",
+					"x-api-key": this._options.providerSettings.apiKey || "",
 				},
 				timeout: 60_000,
 				responseType: "stream",

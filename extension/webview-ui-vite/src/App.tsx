@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useEvent } from "react-use"
 import { ExtensionMessage } from "../../src/shared/messages/extension-message"
 import {
@@ -6,8 +6,8 @@ import {
 	showSettingsAtom,
 	showPromptEditorAtom,
 	useExtensionState,
+	showHistoryAtom,
 } from "./context/extension-state-context"
-import { normalizeApiConfiguration } from "./components/settings-view/utils"
 import ChatView from "./components/chat-view/chat-view"
 import HistoryView from "./components/history-view/history-view"
 import { TooltipProvider } from "./components/ui/tooltip"
@@ -15,15 +15,28 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import OutOfCreditDialog from "./components/dialogs/out-of-credit-dialog"
 import SettingsPage from "./components/settings-view/settings-tabs"
 import { useAtom } from "jotai"
-import { RPCClientProvider } from "./lib/rpc-client"
+import { rpcClient, RPCClientProvider } from "./lib/rpc-client"
+import { useRequiredProviderHandler } from "./components/settings-view/preferences/atoms"
 const queryClient = new QueryClient()
 
-const AppContent = () => {
-	const { apiConfiguration, user, currentTaskId } = useExtensionState()
-	const [showSettings, setShowSettings] = useAtom(showSettingsAtom)
-	const [showHistory, setShowHistory] = useState(false)
-	const [showPromptEditor, setShowPromptEditor] = useAtom(showPromptEditorAtom)
+const useModelInfo = () => {
+	const { data, refetch } = rpcClient.currentModelInfo.useQuery({})
+	const { apiConfig } = useExtensionState()
 
+	useEffect(() => {
+		if (apiConfig?.modelId !== data?.model.id) {
+			refetch()
+		}
+	}, [apiConfig?.modelId])
+
+	return data?.model
+}
+
+const AppContent = () => {
+	const [showSettings, setShowSettings] = useAtom(showSettingsAtom)
+	const [showHistory, setShowHistory] = useAtom(showHistoryAtom)
+	const [showPromptEditor, setShowPromptEditor] = useAtom(showPromptEditorAtom)
+	const selectedModelInfo = useModelInfo()
 	const handleMessage = useCallback((e: MessageEvent) => {
 		const message: ExtensionMessage = e.data
 		switch (message.type) {
@@ -59,10 +72,6 @@ const AppContent = () => {
 
 	useEvent("message", handleMessage)
 
-	const { selectedModelInfo } = useMemo(() => {
-		return normalizeApiConfiguration(apiConfiguration)
-	}, [apiConfiguration])
-
 	return (
 		<>
 			{showSettings && <SettingsPage />}
@@ -75,8 +84,8 @@ const AppContent = () => {
 					setShowHistory(true)
 				}}
 				isHidden={showSettings || showHistory || showPromptEditor}
-				selectedModelSupportsImages={selectedModelInfo.supportsImages}
-				selectedModelSupportsPromptCache={selectedModelInfo.supportsPromptCache}
+				selectedModelSupportsImages={!!selectedModelInfo?.supportsImages}
+				selectedModelSupportsPromptCache={!!selectedModelInfo?.supportsPromptCache}
 			/>
 		</>
 	)

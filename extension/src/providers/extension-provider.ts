@@ -3,11 +3,13 @@ import { KoduDev } from "../agent/v1"
 import { ExtensionStateManager } from "./state/extension-state-manager"
 import { WebviewManager } from "./webview/webview-manager"
 import { TaskManager } from "./state/task-manager"
-import { GlobalStateManager } from "./state/global-state-manager"
+import { GlobalState, GlobalStateManager } from "./state/global-state-manager"
 import { ApiManager } from "./state/api-manager"
 import { HistoryItem } from "../shared/history-item"
 import { SecretStateManager } from "./state/secret-state-manager"
 import { extensionName } from "../shared/constants"
+import { ApiConfiguration } from "../api"
+import { getCurrentApiSettings } from "../router/routes/provider-router"
 
 export class ExtensionProvider implements vscode.WebviewViewProvider {
 	public static readonly sideBarId = `${extensionName}.SidebarProvider`
@@ -90,10 +92,12 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 	async initWithTask(task?: string, images?: string[], isDebug?: boolean) {
 		await this.taskManager.clearTask()
 		const state = await this.stateManager.getState()
+		const apiConfiguration = await this.getCurrentApiSettings()
+
 		this.koduDev = new KoduDev({
 			gitHandlerEnabled: state.gitHandlerEnabled,
 			provider: this,
-			apiConfiguration: { ...state.apiConfiguration, koduApiKey: state.apiConfiguration.koduApiKey },
+			apiConfiguration,
 			customInstructions: state.customInstructions,
 			alwaysAllowReadOnly: state.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: state.alwaysAllowWriteOnly,
@@ -110,10 +114,12 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 	async initWithHistoryItem(historyItem: HistoryItem) {
 		await this.taskManager.clearTask()
 		const state = await this.stateManager.getState()
+		const apiConfiguration = await this.getCurrentApiSettings()
+
 		this.koduDev = new KoduDev({
 			gitHandlerEnabled: state.gitHandlerEnabled,
 			provider: this,
-			apiConfiguration: { ...state.apiConfiguration, koduApiKey: state.apiConfiguration.koduApiKey },
+			apiConfiguration,
 			customInstructions: state.customInstructions,
 			alwaysAllowReadOnly: state.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: state.alwaysAllowWriteOnly,
@@ -131,10 +137,11 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 	async initWithNoTask() {
 		await this.taskManager.clearTask()
 		const state = await this.stateManager.getState()
+		const apiConfiguration = await this.getCurrentApiSettings()
 		this.koduDev = new KoduDev({
 			gitHandlerEnabled: state.gitHandlerEnabled,
 			provider: this,
-			apiConfiguration: { ...state.apiConfiguration, koduApiKey: state.apiConfiguration.koduApiKey },
+			apiConfiguration,
 			customInstructions: state.customInstructions,
 			alwaysAllowReadOnly: state.alwaysAllowReadOnly,
 			alwaysAllowWriteOnly: state.alwaysAllowWriteOnly,
@@ -144,6 +151,18 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 			autoSummarize: state.autoSummarize,
 			noTask: true,
 		})
+	}
+
+	public async getCurrentApiSettings() {
+		try {
+			return await getCurrentApiSettings()
+		} catch (e: unknown) {
+			if (e instanceof Error) {
+				this.outputChannel.appendLine(e.message)
+				vscode.window.showErrorMessage(`Api configuration must be set in the settings`)
+			}
+			throw e
+		}
 	}
 
 	getKoduDev() {

@@ -18,7 +18,6 @@ import {
 	FileEditorTool,
 	UrlScreenshotTool,
 } from "."
-import { WebSearchTool } from "./runners/web-search-tool"
 import { SearchSymbolsTool } from "./runners/search-symbols.tool"
 import { BaseAgentTool, FullToolParams } from "./base-agent.tool"
 import ToolParser from "./tool-parser/tool-parser"
@@ -125,7 +124,6 @@ export class ToolExecutor {
 			execute_command: ExecuteCommandTool,
 			ask_followup_question: AskFollowupQuestionTool,
 			attempt_completion: AttemptCompletionTool,
-			web_search: WebSearchTool,
 			url_screenshot: UrlScreenshotTool,
 			server_runner: DevServerTool,
 			search_symbol: SearchSymbolsTool,

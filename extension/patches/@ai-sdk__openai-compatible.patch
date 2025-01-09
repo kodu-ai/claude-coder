@@ -1,0 +1,88 @@
+diff --git a/dist/index.js b/dist/index.js
+index a0e05110aeddf93ab172be75ca470d2cab7d02d0..9901f76bc36f5337453ab1836619a0f6032978dd 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -405,6 +405,7 @@ var OpenAICompatibleChatLanguageModel = class {
+     });
+     const { messages: rawPrompt, ...rawSettings } = args;
+     const choice = response.choices[0];
++    console.log(`MATAN USAGE: ${JSON.stringify(response.usage)}`);
+     return {
+       text: (_a = choice.message.content) != null ? _a : void 0,
+       toolCalls: (_b = choice.message.tool_calls) == null ? void 0 : _b.map((toolCall) => {
+@@ -418,6 +419,7 @@ var OpenAICompatibleChatLanguageModel = class {
+       }),
+       finishReason: mapOpenAICompatibleFinishReason(choice.finish_reason),
+       usage: {
++        ...response.usage,
+         promptTokens: (_d = (_c = response.usage) == null ? void 0 : _c.prompt_tokens) != null ? _d : NaN,
+         completionTokens: (_f = (_e = response.usage) == null ? void 0 : _e.completion_tokens) != null ? _f : NaN
+       },
+@@ -517,7 +519,9 @@ var OpenAICompatibleChatLanguageModel = class {
+               });
+             }
+             if (value.usage != null) {
++              console.log(`MATAN USAGE: ${JSON.stringify(value.usage)}`);
+               usage = {
++                ...value.usage,
+                 promptTokens: (_a = value.usage.prompt_tokens) != null ? _a : void 0,
+                 completionTokens: (_b = value.usage.completion_tokens) != null ? _b : void 0
+               };
+@@ -914,6 +918,7 @@ var OpenAICompatibleCompletionLanguageModel = class {
+     return {
+       text: choice.text,
+       usage: {
++        ...response.usage,
+         promptTokens: (_b = (_a = response.usage) == null ? void 0 : _a.prompt_tokens) != null ? _b : NaN,
+         completionTokens: (_d = (_c = response.usage) == null ? void 0 : _c.completion_tokens) != null ? _d : NaN
+       },
+@@ -976,6 +981,7 @@ var OpenAICompatibleCompletionLanguageModel = class {
+             }
+             if (value.usage != null) {
+               usage = {
++                ...value.usage,
+                 promptTokens: value.usage.prompt_tokens,
+                 completionTokens: value.usage.completion_tokens
+               };
+diff --git a/dist/index.mjs b/dist/index.mjs
+index c2fad996791065001a450f710b1d75bac8e07311..0b5f77563ad34587c6443dead2fcb512c9726ed7 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -405,6 +405,7 @@ var OpenAICompatibleChatLanguageModel = class {
+       }),
+       finishReason: mapOpenAICompatibleFinishReason(choice.finish_reason),
+       usage: {
++        ...response.usage,
+         promptTokens: (_d = (_c = response.usage) == null ? void 0 : _c.prompt_tokens) != null ? _d : NaN,
+         completionTokens: (_f = (_e = response.usage) == null ? void 0 : _e.completion_tokens) != null ? _f : NaN
+       },
+@@ -505,6 +506,7 @@ var OpenAICompatibleChatLanguageModel = class {
+             }
+             if (value.usage != null) {
+               usage = {
++                ...value.usage,
+                 promptTokens: (_a = value.usage.prompt_tokens) != null ? _a : void 0,
+                 completionTokens: (_b = value.usage.completion_tokens) != null ? _b : void 0
+               };
+@@ -909,9 +911,11 @@ var OpenAICompatibleCompletionLanguageModel = class {
+     });
+     const { prompt: rawPrompt, ...rawSettings } = args;
+     const choice = response.choices[0];
++    console.log(`MATAN USAGE: ${JSON.stringify(response.usage)}`);
+     return {
+       text: choice.text,
+       usage: {
++        ...response.usage,
+         promptTokens: (_b = (_a = response.usage) == null ? void 0 : _a.prompt_tokens) != null ? _b : NaN,
+         completionTokens: (_d = (_c = response.usage) == null ? void 0 : _c.completion_tokens) != null ? _d : NaN
+       },
+@@ -973,7 +977,9 @@ var OpenAICompatibleCompletionLanguageModel = class {
+               });
+             }
+             if (value.usage != null) {
++              console.log(`MATAN USAGE: ${JSON.stringify(value.usage)}`);
+               usage = {
++                ...value.usage,
+                 promptTokens: value.usage.prompt_tokens,
+                 completionTokens: value.usage.completion_tokens
+               };

@@ -67,9 +67,9 @@ export class KoduDev {
 				task: task ?? "",
 			}
 		}
-		this.stateManager = new StateManager(options)
 		this.providerRef = new WeakRef(provider)
 		this.apiManager = new ApiManager(provider, apiConfiguration, customInstructions)
+		this.stateManager = new StateManager(options, this.apiManager)
 		// Initialize hook manager
 		this.hookManager = new HookManager(this)
 
@@ -466,7 +466,8 @@ export class KoduDev {
 			// proper delay to make sure that the vscode diagnostics and server logs are updated
 			// open first in memory file to make sure that the diagnostics are updated
 			await diagnosticsHandler.openFiles(files)
-			await delay(3000)
+			await diagnosticsHandler.getDiagnostics(files, true)
+			await delay(2000)
 		}
 		const devServers = TerminalRegistry.getAllDevServers()
 		const isDevServerRunning = devServers.length > 0
@@ -550,12 +551,19 @@ export class KoduDev {
 		details += `<linter_errors_timestamp>${Date.now()}</linter_errors_timestamp>\n`
 		if (newErrors.length === 0) {
 			details += `<linting_errors>All clean, the current environment as of now is free of errors.</linting_errors>\n`
+			details += `<linting_errors_count>0</linting_errors_count>\n`
+			details += `THERE IS NO LINTING ERRORS IN THE CURRENT ENVIRONMENT, DON'T TRY TO FIX PREVIOUS LINTING ERRORS THEY HAVE BEEN RESOLVED.\n`
+			details += `[ENVIRONMENT DETAILS] No linting errors or diagnostics errors found don't try to fix previous linting errors or any linting problems / eslint / diagnostics errors they have been resolved.\n`
 		} else {
 			console.log("[ENVIRONMENT DETAILS] New errors found", newErrors.map((diag) => diag.errorString).join("\n"))
 			details += `<linter_errors>\n`
 			details += `This is the only known errors that are present in the environment. ignore any previous <linter_errors> tags you have seen.\n`
 			details += newErrors.map((diag) => diag.errorString).join("\n")
 			details += `</linter_errors>\n`
+			if (newErrors.length > 1) {
+				details += `<linter_errors_count>${newErrors.length}</linter_errors_count>\n`
+				details += `This is the only available errors that are present in the environment. ignore any previous linting errors.\n`
+			}
 		}
 
 		if (includeFileDetails) {

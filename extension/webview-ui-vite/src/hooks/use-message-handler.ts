@@ -1,6 +1,11 @@
 import { ChatState } from "@/components/chat-view/chat"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ClaudeMessage, ExtensionMessage, isV1ClaudeMessage } from "../../../src/shared/messages/extension-message"
+import {
+	ClaudeMessage,
+	ClaudeSay,
+	ExtensionMessage,
+	isV1ClaudeMessage,
+} from "../../../src/shared/messages/extension-message"
 import { ChatTool } from "../../../src/shared/new-tools"
 import { Resource } from "../../../src/shared/messages/client-message"
 import { useEvent } from "react-use"
@@ -252,14 +257,15 @@ export const useChatMessageHandling = (
 
 	const handleSayMessage = useCallback(
 		(message: ClaudeMessage) => {
-			const sayStateMap: Record<string, Partial<ChatState>> = {
-				abort_automode: {
-					textAreaDisabled: false,
-					claudeAsk: undefined,
-					enableButtons: false,
-					primaryButtonText: undefined,
-					secondaryButtonText: undefined,
-				},
+			const reset: Partial<ChatState> = {
+				isAbortingRequest: false,
+				textAreaDisabled: false,
+				claudeAsk: undefined,
+				enableButtons: false,
+				primaryButtonText: undefined,
+				secondaryButtonText: undefined,
+			}
+			const sayStateMap: Partial<Record<ClaudeSay, Partial<ChatState>>> = {
 				api_req_started: {
 					inputValue: "",
 					isAbortingRequest: false,
@@ -268,18 +274,14 @@ export const useChatMessageHandling = (
 					claudeAsk: undefined,
 					enableButtons: false,
 				},
-				error: {
-					isAbortingRequest: false,
-					textAreaDisabled: false,
-					claudeAsk: undefined,
-					enableButtons: false,
-					primaryButtonText: undefined,
-					secondaryButtonText: undefined,
-				},
+				payment_required: reset,
+				unauthorized: reset,
+				custom_provider_error: reset,
 			}
 
-			const updates = sayStateMap[message.say!]
+			const updates = sayStateMap[message.say ?? "text"]
 			if (updates) {
+				console.log("Setting state", updates)
 				updateState(updates)
 			}
 		},
@@ -318,7 +320,7 @@ export const useChatMessageHandling = (
 				return
 			}
 		}
-		if (lastMessage?.say === "error" || lastMessage?.say === "api_req_started") {
+		if (lastMessage?.say) {
 			handleSayMessage(lastMessage)
 		} else if (lastAskMessage) {
 			handleAskMessage(lastAskMessage)
