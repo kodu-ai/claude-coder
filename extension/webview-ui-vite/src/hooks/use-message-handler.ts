@@ -239,8 +239,6 @@ export const useChatMessageHandling = (
 					secondaryButtonText: "Cancel",
 				}
 
-				console.log(`Updating state for tool: ${tool.tool}`)
-				console.log(updates)
 				updateState(updates)
 			} else {
 				const updates = toolStateMap[message.ask ?? ""]

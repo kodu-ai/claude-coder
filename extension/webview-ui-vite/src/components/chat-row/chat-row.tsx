@@ -46,7 +46,6 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, isFirst, nextMessage }) =>
 					case "chat_finished":
 						return <ChatMaxWindowBlock ts={message.ts} />
 					case "hook":
-						console.log(message.hook)
 						return (
 							<ObserverBadge
 								state={message.hook?.state === "pending" ? "observing" : "complete"}

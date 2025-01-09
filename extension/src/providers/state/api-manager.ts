@@ -2,6 +2,8 @@ import * as vscode from "vscode"
 import { ApiModelId, koduDefaultModelId, KoduModelId, koduModels } from "../../shared/api"
 import { fetchKoduUser as fetchKoduUserAPI } from "../../api/providers/kodu"
 import { ExtensionProvider } from "../extension-provider"
+import { ApiConfiguration } from "../../api"
+import { getProvider } from "../../router/routes/provider-router"
 
 export class ApiManager {
 	private static instance: ApiManager | null = null
@@ -21,20 +23,28 @@ export class ApiManager {
 		return ApiManager.instance
 	}
 
-	async updateApiConfiguration(apiConfiguration: {
-		apiModelId?: KoduModelId
-		koduApiKey?: string
-		browserModelId?: string
-	}) {
-		const { apiModelId, koduApiKey, browserModelId } = apiConfiguration
+	async updateApiConfiguration(apiConfiguration: ApiConfiguration) {
+		const { apiModelId, koduApiKey, browserModelId, customModel } = apiConfiguration
 		if (apiModelId) {
 			await this.context.getGlobalStateManager().updateGlobalState("apiModelId", apiModelId)
+			await this.context.getGlobalStateManager().updateGlobalState("customProvider", undefined)
 		}
 		if (browserModelId) {
 			await this.context.getGlobalStateManager().updateGlobalState("browserModelId", browserModelId)
 		}
 		if (koduApiKey) {
 			await this.context.getSecretStateManager().updateSecretState("koduApiKey", koduApiKey)
+		}
+		if (customModel?.id) {
+			const { provider } = await getProvider(customModel.id)
+			if (!provider) {
+				throw new Error("Custom provider not found")
+			}
+			await this.context.getGlobalStateManager().updateGlobalState("apiModelId", provider.id!)
+			await this.context.getGlobalStateManager().updateGlobalState("customProvider", provider)
+			await this.context.getKoduDev()?.getApiManager().updateApi({
+				customModel: provider,
+			})
 		}
 	}
 

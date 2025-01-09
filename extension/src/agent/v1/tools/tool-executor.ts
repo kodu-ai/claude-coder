@@ -221,7 +221,7 @@ export class ToolExecutor {
 	 */
 	public async processToolUse(text: string) {
 		if (this.isAborting) {
-			return { output: text }
+			return text
 		}
 		const res = this.toolParser.appendText(text)
 		return res

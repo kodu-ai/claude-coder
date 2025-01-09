@@ -1,7 +1,8 @@
 import * as vscode from "vscode"
 import { HistoryItem } from "../../shared/history-item"
-import { KoduModelId } from "../../shared/api"
 import { ToolName } from "../../agent/v1/tools/types"
+import { ProviderId } from "../../api/providers/constants"
+import { ApiConfiguration } from "../../api"
 
 type User = {
 	email: string
@@ -14,8 +15,10 @@ const defaults: Partial<GlobalState> = {
 	inlineEditOutputType: "full",
 	autoSummarize: true,
 	gitHandlerEnabled: false,
-	apiModelId: "claude-3-5-sonnet-20241022",
-	browserModelId: "claude-3-5-haiku-20241022",
+	apiConfig: {
+		providerId: "kodu",
+		modelId: "claude-3-5-sonnet-20241022",
+	},
 }
 
 export type GlobalState = {
@@ -23,9 +26,8 @@ export type GlobalState = {
 	terminalCompressionThreshold: number | undefined
 	lastShownAnnouncementId: string | undefined
 	customInstructions: string | undefined
+	apiConfig?: ApiConfiguration
 	gitHandlerEnabled: boolean | undefined
-	apiModelId: KoduModelId | undefined
-	browserModelId: KoduModelId | undefined
 	alwaysAllowReadOnly: boolean | undefined
 	alwaysAllowWriteOnly: boolean | undefined
 	inlineEditOutputType?: "full" | "diff"
@@ -69,9 +71,7 @@ export class GlobalStateManager {
 		if (keyData === undefined) {
 			return this.getKeyDefaultValue(key)
 		}
-		if ((key === "apiModelId" || key === "browserModelId") && typeof keyData === "string") {
-			return this.fixModelId(keyData) as GlobalState[K]
-		}
+
 		return keyData as GlobalState[K]
 	}
 
@@ -85,16 +85,5 @@ export class GlobalStateManager {
 			return defaults[key] as GlobalState[K]
 		}
 		return undefined
-	}
-
-	private fixModelId(modelId: string): KoduModelId {
-		// we update the models to the latest version
-		if (modelId === "claude-3-5-sonnet-20240620") {
-			return "claude-3-5-sonnet-20241022"
-		}
-		if (modelId === "claude-3-haiku-20240307") {
-			return "claude-3-5-haiku-20241022"
-		}
-		return modelId
 	}
 }

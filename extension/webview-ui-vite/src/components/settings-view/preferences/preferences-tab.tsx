@@ -1,26 +1,35 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState } from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Button } from "@/components/ui/button"
-import { Check, Brain, Code2, Image, ChevronsUpDown } from "lucide-react"
 
-import { koduModels, ModelInfo } from "../../../../../src/shared/api"
 import { useSettingsState } from "../../../hooks/use-settings-state"
 import { ModelSelector } from "./model-picker"
-import CustomProvider from "./custom-provider"
+import { rpcClient } from "@/lib/rpc-client"
+import ProviderManager from "./provider-manager"
 
 /**
  * PreferencesTab
  * A "Select with Autocomplete" using Popover + Command, now with contextWindow + maxTokens.
  */
 const PreferencesTabNew: React.FC = () => {
-	const { model: selectedModelId, handleModelChange } = useSettingsState()
+	// const { model: selectedModelId, handleModelChange } = useSettingsState()
+	const { data: { modelId: selectedModelId } = { modelId: "" }, refetch } = rpcClient.currentModel.useQuery({})
+	const { mutate: handleModelChange } = rpcClient.selectModel.useMutation({
+		onSuccess: () => {
+			refetch()
+		},
+	})
 	const [isCustomModel, setIsCustomModel] = useState(false)
+	const { data, status } = rpcClient.listModels.useQuery(
+		{},
+		{
+			refetchInterval: 5000,
+			refetchOnWindowFocus: true,
+		}
+	)
+
+	if (!data) return null
 	return (
 		<Card className="max-w-md w-full mx-auto">
 			<CardHeader>
@@ -31,9 +40,14 @@ const PreferencesTabNew: React.FC = () => {
 			<CardContent className="space-y-4">
 				{/* Popover-based select with autocomplete */}
 				{isCustomModel ? (
-					<CustomProvider />
+					<ProviderManager />
 				) : (
-					<ModelSelector modelId={selectedModelId} onChangeModel={handleModelChange} showDetails={true} />
+					<ModelSelector
+						models={data.models ?? []}
+						modelId={selectedModelId}
+						onChangeModel={handleModelChange}
+						showDetails={true}
+					/>
 				)}
 			</CardContent>
 
@@ -41,7 +55,7 @@ const PreferencesTabNew: React.FC = () => {
 				<span>Agent-specific models can be configured in the Agents tab.</span>
 				<br />
 				<span>
-					{isCustomModel ? "Want to use a custom model? " : "Want to use Kodu models (Recommended)? "}
+					{!isCustomModel ? "Want to use a custom provider? " : "Want to select models from the list? "}
 					<button
 						onClick={() => setIsCustomModel((prev) => !prev)}
 						className="hover:underline text-primary transition-all">

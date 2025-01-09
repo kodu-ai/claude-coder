@@ -76,11 +76,6 @@ export type setApiKeyDialogMessage = {
 	type: "setApiKeyDialog"
 }
 
-export type switchAutomaticModeMessage = {
-	type: "switchAutomaticMode"
-	bool: boolean
-}
-
 export type terminalCompressionThresholdMessage = {
 	type: "terminalCompressionThreshold"
 	value?: number
@@ -210,7 +205,6 @@ export type WebviewMessage =
 	| setInlineEditModeMessage
 	| pauseTemporayAutoModeMessage
 	| terminalCompressionThresholdMessage
-	| switchAutomaticModeMessage
 	| setApiKeyDialogMessage
 	| pauseNextMessage
 	| autoSummarizeMessage

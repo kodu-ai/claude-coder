@@ -2,13 +2,13 @@ import { useCallback, useState } from "react"
 import { GlobalState } from "../../../src/providers/state/global-state-manager"
 import { useExtensionState } from "../context/extension-state-context"
 import { vscode } from "../utils/vscode"
-import { returnValidModelId } from "../../../src/shared/api"
+import { koduDefaultModelId, koduModels } from "../../../src/shared/api"
 
 export function useSettingsState() {
 	const extensionState = useExtensionState()
-	const [model, setModel] = useState(returnValidModelId(extensionState.apiConfiguration?.apiModelId ?? "-1"))
+	const [model, setModel] = useState(extensionState.apiConfiguration?.apiModelId ?? koduDefaultModelId)
 	const [browserModel, setBrowserModel] = useState(
-		returnValidModelId(extensionState.apiConfiguration?.browserModelId ?? "claude-3-5-haiku-20241022")
+		extensionState.apiConfiguration?.browserModelId ?? "claude-3-5-haiku-20241022"
 	)
 	const [readOnly, setReadOnly] = useState(extensionState.alwaysAllowReadOnly || false)
 	const [autoCloseTerminal, setAutoCloseTerminal] = useState(extensionState.autoCloseTerminal || false)
@@ -62,8 +62,13 @@ export function useSettingsState() {
 	}, [])
 
 	const handleModelChange = useCallback((newModel: typeof model) => {
+		const isCustomModel = koduModels[newModel] ? false : true
 		setModel(newModel!)
-		vscode.postMessage({ type: "apiConfiguration", apiConfiguration: { apiModelId: newModel } })
+		if (isCustomModel) {
+			vscode.postMessage({ type: "apiConfiguration", apiConfiguration: { customModel: { id: newModel } } })
+		} else {
+			vscode.postMessage({ type: "apiConfiguration", apiConfiguration: { apiModelId: newModel } })
+		}
 	}, [])
 
 	const handleBrowserModelChange = useCallback((newModel: typeof model) => {

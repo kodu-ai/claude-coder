@@ -17,7 +17,8 @@
 		// shadcn
 		"baseUrl": ".",
 		"paths": {
-			"@/*": ["./src/*"]
+			"@/*": ["./src/*"],
+			"extension/*": ["./../src/*"]
 		},
 
 		/* Linting */

@@ -8,6 +8,8 @@ import { Resource } from "../../shared/messages/client-message"
 // import { compressImages, downloadTask, selectImages } from "../../../utils"
 import { ExtensionProvider } from "../extension-provider"
 import { compressImages, selectImages, downloadTask } from "../../utils"
+import { IOManager } from "../../agent/v1/state-manager/io-manager"
+import { GlobalStateManager } from "./global-state-manager"
 
 export class TaskManager {
 	private provider: ExtensionProvider
@@ -29,10 +31,6 @@ export class TaskManager {
 		}
 
 		console.log(`Task cleared in ${new Date().getTime() - now.getTime()}ms`)
-	}
-
-	async switchAutomaticMode() {
-		// to implement later
 	}
 
 	async handleNewTask(task?: string, images?: string[], attachements?: Resource[]) {
@@ -147,6 +145,19 @@ export class TaskManager {
 		await this.deleteTaskFiles(taskDirPath, apiConversationHistoryFilePath, claudeMessagesFilePath)
 
 		await this.deleteTaskFromState(id)
+	}
+
+	async restoreTaskFromDisk() {
+		const currenTasks = await GlobalStateManager.getInstance().getGlobalState("taskHistory")
+		const taskDirPath = path.join(this.provider.getContext().globalStorageUri.fsPath, "tasks")
+		const taskDirExists = await fs
+			.access(taskDirPath)
+			.then(() => true)
+			.catch(() => false)
+		const allFolders = await fs.readdir(taskDirPath)
+		const allTasks = allFolders.filter((folder) => folder !== ".DS_Store")
+		const tasksToRestore = allTasks.filter((task) => !currenTasks?.find((t) => t.id === task))
+		console.log(`Found ${tasksToRestore.length} tasks to restore`)
 	}
 
 	async clearAllTasks() {

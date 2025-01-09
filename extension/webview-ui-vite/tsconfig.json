@@ -4,7 +4,8 @@
 	"compilerOptions": {
 		"baseUrl": ".",
 		"paths": {
-			"@/*": ["./src/*"]
+			"@/*": ["./src/*"],
+			"extension/*": ["./../src/*"]
 		}
 	}
 }

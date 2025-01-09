@@ -54,13 +54,6 @@ export class ApiManager {
 	}
 
 	/**
-	 * Aborts the current API request
-	 */
-	public abortRequest(): void {
-		this.api.abortRequest()
-	}
-
-	/**
 	 * Updates the API configuration
 	 * @param apiConfiguration - New API configuration
 	 */
@@ -314,6 +307,7 @@ ${this.customInstructions.trim()}
 			cacheReadTokens: cache_read_input_tokens,
 			cacheWriteTokens: cache_creation_input_tokens,
 			outputTokens: output_tokens,
+			provider: this.getModelInfo().provider ?? "kodu",
 		})
 	}
 

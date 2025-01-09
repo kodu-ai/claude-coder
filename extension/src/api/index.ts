@@ -1,10 +1,12 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ApiHandlerOptions, ApiModelId, KoduModelId, ModelInfo } from "../shared/api"
 import { KoduHandler } from "./providers/kodu"
 import { AskConsultantResponseDto, SummaryResponseDto, WebSearchResponseDto } from "./interfaces"
 import { z } from "zod"
 import { koduSSEResponse } from "../shared/kodu"
 import { ApiHistoryItem } from "../agent/v1"
+import { CustomApiHandler } from "./providers/custom-provider"
+import { ProviderId } from "./providers/constants"
+import { ModelInfo, ProviderConfig } from "./providers/types"
 
 export interface ApiHandlerMessageResponse {
 	message: Anthropic.Messages.Message | Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage
@@ -14,9 +16,12 @@ export interface ApiHandlerMessageResponse {
 }
 
 export type ApiConfiguration = {
-	koduApiKey?: string
-	apiModelId?: KoduModelId
-	browserModelId?: string
+	providerId: ProviderId
+	modelId: string
+}
+
+export type ApiHandlerOptions = Omit<ProviderConfig, "models"> & {
+	model: ProviderConfig["models"][number]
 }
 
 export interface ApiHandler {
@@ -35,7 +40,7 @@ export interface ApiHandler {
 		abortSignal: AbortSignal | null
 		top_p?: number
 		tempature?: number
-		modelId: KoduModelId
+		modelId: string
 		appendAfterCacheToLastMessage?: (lastMessage: Anthropic.Messages.Message) => void
 		updateAfterCacheInserts?: (
 			messages: ApiHistoryItem[],
@@ -47,9 +52,7 @@ export interface ApiHandler {
 
 	get cheapModelId(): string | undefined
 
-	getModel(): { id: ApiModelId; info: ModelInfo }
-
-	abortRequest(): void
+	getModel(): { id: string; info: ModelInfo }
 
 	sendWebSearchRequest?(
 		searchQuery: string,
@@ -61,7 +64,10 @@ export interface ApiHandler {
 }
 
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
-	return new KoduHandler({ koduApiKey: configuration.koduApiKey, apiModelId: configuration.apiModelId })
+	if (configuration.providerId !== "kodu") {
+		return new CustomApiHandler(configuration)
+	}
+	return new KoduHandler({ koduApiKey: configuration, apiModelId: configuration.modelId })
 }
 
 export function withoutImageData(

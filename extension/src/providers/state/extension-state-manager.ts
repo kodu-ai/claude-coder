@@ -36,6 +36,7 @@ export class ExtensionStateManager {
 			gitHandlerEnabled,
 			inlineEditOutputType,
 			observerHookEvery,
+			customProvider,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("apiModelId"),
 			this.globalStateManager.getGlobalState("browserModelId"),
@@ -54,6 +55,7 @@ export class ExtensionStateManager {
 			this.globalStateManager.getGlobalState("gitHandlerEnabled"),
 			this.globalStateManager.getGlobalState("inlineEditOutputType"),
 			this.globalStateManager.getGlobalState("observerHookEvery"),
+			this.globalStateManager.getGlobalState("customProvider"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -78,6 +80,7 @@ export class ExtensionStateManager {
 				apiModelId,
 				koduApiKey,
 				browserModelId,
+				customProvider,
 			},
 			user,
 			terminalCompressionThreshold,
@@ -101,6 +104,7 @@ export class ExtensionStateManager {
 			inlineEditOutputType: inlineEditOutputType ?? "full",
 			gitHandlerEnabled: gitHandlerEnabled ?? true,
 			observerHookEvery,
+			customProvider,
 		} satisfies ExtensionState
 	}
 

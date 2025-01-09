@@ -24,7 +24,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private _currentReplyId: number | null = null
 	private pauseNext: boolean = false
 	private lastResultWithCommit: ToolResponseV2 | undefined = undefined
-	private lastUIUpdateAt: number = 0
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
@@ -73,7 +72,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 		if (!this.textBuffer || !currentReplyId) {
 			return
 		}
-		let shouldWaitBeforeFlush = Date.now() - this.lastUIUpdateAt < 10
 		const contentToFlush = this.textBuffer
 		this.textBuffer = "" // Clear buffer immediately
 
@@ -91,12 +89,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 		} else {
 			// Process UI updates in parallel with fire-and-forget
 			void this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview()
-			void this.stateManager.claudeMessagesManager.appendToClaudeMessage(currentReplyId, contentToFlush, true)
-			if (shouldWaitBeforeFlush) {
-				await new Promise((resolve) => setTimeout(resolve, 10))
-			}
+			await this.stateManager.claudeMessagesManager.appendToClaudeMessage(currentReplyId, contentToFlush, true)
 		}
-		this.lastUIUpdateAt = Date.now()
 	}
 
 	public async newMessage(message: UserContent) {

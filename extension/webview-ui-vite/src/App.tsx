@@ -15,6 +15,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import OutOfCreditDialog from "./components/dialogs/out-of-credit-dialog"
 import SettingsPage from "./components/settings-view/settings-tabs"
 import { useAtom } from "jotai"
+import { RPCClientProvider } from "./lib/rpc-client"
 const queryClient = new QueryClient()
 
 const AppContent = () => {
@@ -86,15 +87,17 @@ const App = () => {
 		<>
 			{/* <DevTools /> */}
 
-			<ExtensionStateProvider>
-				<QueryClientProvider client={queryClient}>
-					<TooltipProvider>
-						<AppContent />
-					</TooltipProvider>
-				</QueryClientProvider>
-				<OutOfCreditDialog />
-				{/* </Popover> */}
-			</ExtensionStateProvider>
+			<RPCClientProvider>
+				<ExtensionStateProvider>
+					<QueryClientProvider client={queryClient}>
+						<TooltipProvider>
+							<AppContent />
+						</TooltipProvider>
+					</QueryClientProvider>
+					<OutOfCreditDialog />
+					{/* </Popover> */}
+				</ExtensionStateProvider>
+			</RPCClientProvider>
 		</>
 	)
 }

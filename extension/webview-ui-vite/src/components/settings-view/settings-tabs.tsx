@@ -13,7 +13,7 @@ import ClosePageButton from "./close-page-button"
 import { SettingsFooter } from "./settings-footer"
 import { Label } from "../ui/label"
 import { Separator } from "../ui/separator"
-import PreferencesTabNew from "./preferences/preferences-tab-new"
+import PreferencesTabNew from "./preferences/preferences-tab"
 
 const tabItems = [
 	{ value: "preferences", label: "Preferences" },
@@ -79,7 +79,7 @@ const SettingsPage: React.FC = () => {
 			)}
 
 			<div className="mt-4">
-				{activeTab === "preferences" && <PreferencesTab />}
+				{activeTab === "preferences" && <PreferencesTabNew />}
 				{activeTab === "experimental" && <ExperimentalTab />}
 				{activeTab === "advanced" && <AdvancedTab />}
 				{activeTab === "agents" && <AgentsTab />}

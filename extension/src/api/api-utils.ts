@@ -1,12 +1,7 @@
-// import { ApiHistoryItem } from "@/agent/v1"
-// import { ModelInfo } from "@/shared/api"
-// import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "@/shared/extension-message"
-// import { isTextBlock } from "@/shared/format-tools"
-
 import { ApiHistoryItem } from "../agent/v1"
-import { ModelInfo } from "../shared/api"
 import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../shared/messages/extension-message"
 import { isTextBlock } from "../shared/format-tools"
+import { ModelInfo } from "./providers/types"
 
 export interface ApiMetrics {
 	inputTokens: number
@@ -85,19 +80,6 @@ export function getApiMetrics(claudeMessages: ClaudeMessage[]): ApiMetrics {
 		inputCacheWrite: 0,
 		cost: 0,
 	}
-
-	const lastApiReqFinished = [...claudeMessages].reverse().find((m) => m.say === "api_req_finished")
-	if (lastApiReqFinished?.text) {
-		const { tokensIn, tokensOut, cacheWrites, cacheReads } = JSON.parse(lastApiReqFinished.text)
-		return {
-			inputTokens: tokensIn || 0,
-			outputTokens: tokensOut || 0,
-			inputCacheRead: cacheReads || 0,
-			inputCacheWrite: cacheWrites || 0,
-			cost: 0,
-		}
-	}
-
 	const reversedMessages = claudeMessages.slice().reverse()
 	const lastV1Message = reversedMessages.find((m) => isV1ClaudeMessage(m) && m?.apiMetrics)
 	return (lastV1Message as V1ClaudeMessage)?.apiMetrics || defaultMetrics

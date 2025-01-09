@@ -22,9 +22,7 @@
 		"noEmit": false,
 		"declaration": false,
 		"declarationMap": false,
-		// "paths": {
-		// 	"@/*": ["./src/*"]
-		// },
+
 		"types": ["node", "vscode", "jest"]
 	},
 	"include": ["src/**/*", "scripts/**/*", "test/**/*.ts"],

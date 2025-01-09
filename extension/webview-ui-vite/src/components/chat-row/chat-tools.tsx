@@ -465,7 +465,6 @@ export const AskFollowupQuestionBlock: React.FC<AskFollowupQuestionTool & ToolAd
 	ts,
 	...rest
 }) => {
-	console.log(question)
 	return (
 		<ToolBlock
 			{...rest}

@@ -17,6 +17,8 @@ import { ExtensionProvider } from "../extension-provider"
 import { GlobalStateManager } from "../state/global-state-manager"
 import { PromptStateManager } from "../state/prompt-state-manager"
 import { PromptManager } from "./prompt-manager"
+import { ExtensionContext } from "../../router/utils/context"
+import { ExtensionServer } from "../../router/utils/extension-server"
 
 /**
  * Represents an item in the file tree structure.
@@ -82,7 +84,11 @@ export class WebviewManager {
 			localResourceRoots: [this.provider.getContext().extensionUri],
 		}
 		webviewView.webview.html = this.getHtmlContent(webviewView.webview)
+		// your extension context
+		const ctx: ExtensionContext = { provider: this.provider, userId: "someUser" }
 
+		// attach the server
+		new ExtensionServer(webviewView.webview, ctx)
 		this.setWebviewMessageListener(webviewView.webview)
 
 		if ("onDidChangeViewState" in webviewView) {
@@ -437,9 +443,7 @@ export class WebviewManager {
 						// trigger vscode.commands.registerCommand(`${extensionName}.setApiKey`
 						vscode.commands.executeCommand(`${extensionName}.setApiKey`)
 						break
-					case "switchAutomaticMode":
-						await this.provider.getTaskManager().switchAutomaticMode()
-						break
+
 					case "pauseNext":
 						await this.provider.getKoduDev()?.taskExecutor.pauseNextRequest()
 						break

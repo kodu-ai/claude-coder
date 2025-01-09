@@ -15,6 +15,7 @@ export type TaskRequestEventParams = {
 	cacheReadTokens: number
 	cacheWriteTokens: number
 	outputTokens: number
+	provider: "kodu" | "custom"
 }
 
 export enum AmplitudeMetrics {

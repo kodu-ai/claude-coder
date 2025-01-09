@@ -1,7 +1,7 @@
 import { SpawnAgentOptions } from "../../agent/v1/tools/schema/agents/agent-spawner"
 import { ToolName } from "../../agent/v1/tools/types"
 import type { GlobalState } from "../../providers/state/global-state-manager"
-import { ApiConfiguration } from "../api"
+import { ApiConfiguration, OpenAPIProvider } from "../api"
 import { HistoryItem } from "../history-item"
 import { ChatTool } from "../new-tools"
 
@@ -194,6 +194,7 @@ export interface BaseExtensionState {
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean
 	autoCloseTerminal: boolean
+	customProvider?: OpenAPIProvider
 }
 
 export interface ExtensionState extends BaseExtensionState {
@@ -260,7 +261,7 @@ export type V1ClaudeMessage = {
 	// other flags
 } & V0ClaudeMessage
 
-export type ClaudeMessage = V1ClaudeMessage | V0ClaudeMessage
+export type ClaudeMessage = V1ClaudeMessage
 
 export const isV1ClaudeMessage = (message: ClaudeMessage): message is V1ClaudeMessage => {
 	return (message as V1ClaudeMessage).v === 1

@@ -1,13 +1,15 @@
 import React, { FC, useState, useMemo } from "react"
-import { Check, Brain, Code2, Image, ChevronsUpDown, Info } from "lucide-react"
+import { Check, Brain, Code2, Image, ChevronsUpDown, Info, AlertTriangleIcon } from "lucide-react"
 
-import { koduModels, ModelInfo } from "../../../../../src/shared/api"
+import { ModelInfo } from "extension/api/providers/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem, CommandEmpty } from "@/components/ui/command"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { rpcClient } from "@/lib/rpc-client"
 
 /**
  * ModelSelector Props
@@ -18,73 +20,48 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
  * @param showDetails    Whether to show the selected model's details (CPM, contextWindow, output limit, badges) below the popover
  */
 interface ModelSelectorProps {
-	modelId: string
-	onChangeModel: (id: string) => void
-	models?: Record<string, ModelInfo>
+	modelId?: string
+	onChangeModel: ReturnType<typeof rpcClient.selectModel.useMutation>["mutate"]
+	models: ModelInfo[]
 	showDetails?: boolean
 }
 
 /**
  * A reusable "Select with Autocomplete" for picking a model:
  * - Clicking the button triggers a popover with a Command list
- * - Searching filters models by label + description
+ * - Searching filters models by name + description
  * - Selecting calls `onChangeModel`
  * - Optionally displays the selected model’s info below
  */
-export const ModelSelector: FC<ModelSelectorProps> = ({
-	modelId,
-	onChangeModel,
-	models = koduModels,
-	showDetails = true,
-}) => {
-	// Convert models to an array
-	const allModels = useMemo(
-		() =>
-			Object.entries(models).map(([id, info]) => ({
-				id,
-				...info,
-			})),
-		[models]
-	)
-
+export const ModelSelector: FC<ModelSelectorProps> = ({ modelId, onChangeModel, models, showDetails = true }) => {
 	// Popover open/close state
 	const [open, setOpen] = useState(false)
 	// Command input state
 	const [searchValue, setSearchValue] = useState("")
 
-	// Filter models by label + description
+	// Filter models by name + description
 	const filteredModels = useMemo(() => {
 		const query = searchValue.toLowerCase()
-		return allModels.filter((model) => {
-			const text = model.label.toLowerCase()
+		return models.filter((model) => {
+			const text = model.name.toLowerCase()
 			return text.includes(query)
 		})
-	}, [searchValue, allModels])
+	}, [searchValue, models])
 
 	// Currently selected model info
-	const selectedModel: ModelInfo | undefined = models[modelId]
+	const selectedModel: ModelInfo | undefined = models.find((model) => model.id === modelId)
 
 	// Render badges for capabilities
-	const renderBadges = (model: ModelInfo) => (
-		<div className="flex flex-wrap">
+	const renderBadges = (model: ModelInfo, renderProvider = true) => (
+		<div className="flex flex-wrap gap-2">
+			{renderProvider && <Badge variant="default">{model.provider}</Badge>}
 			{model.supportsImages && (
 				<Badge variant="secondary" className="flex items-center gap-1">
 					<Image className="w-3 h-3" />
 					<span className="text-xs">Vision</span>
 				</Badge>
 			)}
-			{/* {model.capabilities?.reasoning && (
-				<Badge variant="secondary" className="flex items-center gap-1">
-					<Brain className="w-3 h-3" />
-					<span className="text-xs">Reasoning</span>
-				</Badge>
-			)}
-			{model.capabilities?.coding && (
-				<Badge variant="secondary" className="flex items-center gap-1">
-					<Code2 className="w-3 h-3" />
-					<span className="text-xs">Coding</span>
-				</Badge>
-			)} */}
+
 			{model.isRecommended && <Badge variant="default">Recommended</Badge>}
 		</div>
 	)
@@ -122,7 +99,7 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 			<Popover open={open} onOpenChange={setOpen}>
 				<PopoverTrigger asChild>
 					<Button variant="outline" className="w-full justify-between text-sm">
-						{selectedModel ? selectedModel.label : "Select a Model"}
+						{selectedModel ? selectedModel.name : "Select a Model"}
 						<ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
 					</Button>
 				</PopoverTrigger>
@@ -144,12 +121,15 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 										<CommandItem
 											key={model.id}
 											onSelect={() => {
-												onChangeModel(model.id)
+												onChangeModel({
+													modelId: model.id,
+													providerId: model.provider,
+												})
 												setOpen(false)
 											}}
 											className="flex flex-col items-start gap-1">
 											<div className="w-full flex justify-between text-sm font-medium">
-												<span>{model.label}</span>
+												<span>{model.name}</span>
 												{isSelected && <Check className="h-4 w-4 text-primary" />}
 											</div>
 											{/* {model.description && (
@@ -191,7 +171,8 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 					{selectedModel ? (
 						<div className="space-y-2 text-sm">
 							<div className="flex items-center justify-between">
-								<span className="font-semibold">{selectedModel.label}</span>
+								<span className="font-semibold">{selectedModel.name}</span>
+								<Badge variant="default">{selectedModel.provider}</Badge>
 							</div>
 							<p className="text-xs text-muted-foreground">
 								<strong>Context Window:</strong> {selectedModel.contextWindow}
@@ -213,9 +194,14 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 								<span className="text-[11px] text-muted-foreground">
 									Prices are shown per million tokens
 								</span>
+								<br />
+								{selectedModel.provider !== "kodu" && (
+									<span className="text-muted-foreground text-[11px]">
+										This model requires setting provider-specific settings.
+									</span>
+								)}
 							</p>
-
-							{renderBadges(selectedModel)}
+							{renderBadges(selectedModel, false)}
 						</div>
 					) : (
 						<p className="text-sm text-muted-foreground">No model selected yet.</p>
