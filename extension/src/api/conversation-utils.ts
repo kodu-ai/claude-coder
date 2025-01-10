@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { ApiHandler } from "."
-import { KoduDev } from "../agent/v1"
+import { MainAgent } from "../agent/v1/main-agent"
 import { ClaudeMessage } from "../shared/messages/extension-message"
 import { isTextBlock } from "../shared/format-tools"
 import { truncateHalfConversation, estimateTokenCount, smartTruncation } from "../utils/context-managment"
@@ -14,7 +14,7 @@ import { cleanUpMsg, ApiMetrics } from "./api-utils"
  * @mutates history to add critical messages and environment details to the last message
  */
 export async function processConversationHistory(
-	provider: KoduDev,
+	provider: MainAgent,
 	history: Anthropic.MessageParam[],
 	criticalMsg?: string,
 	/**
@@ -70,7 +70,7 @@ export async function processConversationHistory(
  * @param isLastMessageFromUser - Whether the last message was from the user
  */
 export async function enrichConversationHistory(
-	provider: KoduDev,
+	provider: MainAgent,
 	history: Anthropic.MessageParam[],
 	isLastMessageFromUser: boolean,
 	criticalMsg?: string
@@ -132,7 +132,7 @@ export async function enrichConversationHistory(
  * @returns "chat_finished" or "compressed"
  */
 export async function manageContextWindow(
-	provider: KoduDev,
+	provider: MainAgent,
 	api: ApiHandler,
 	logFn: (status: "info" | "debug" | "error", message: string, ...args: any[]) => void
 ): Promise<"chat_finished" | "compressed"> {

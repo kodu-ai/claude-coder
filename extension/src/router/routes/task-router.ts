@@ -4,7 +4,7 @@ import { router } from "../utils/router"
 import { GlobalStateManager } from "../../providers/state/global-state-manager"
 import path from "path"
 import fs from "fs/promises"
-import { ClaudeMessage } from "../../agent/v1"
+import { ClaudeMessage } from "../../agent/v1/main-agent"
 import { HistoryItem } from "../../shared/history-item"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/messages/extension-message"
 import * as vscode from "vscode"
@@ -125,6 +125,15 @@ const taskRouter = router({
 			await vscode.window.showInformationMessage(`Restored ${res.tasksToRestore.length} tasks`)
 		}
 		return res
+	}),
+
+	markAsDone: procedure.input(z.object({ taskId: z.string() })).resolve(async (ctx, input) => {
+		await ctx.provider?.getTaskManager()?.markTaskAsCompleted(input.taskId, {
+			manual: true,
+		})
+		await ctx.provider.getWebviewManager().postBaseStateToWebview()
+		console.log(`Marked task ${input.taskId} as done`)
+		return { success: true } as const
 	}),
 })
 

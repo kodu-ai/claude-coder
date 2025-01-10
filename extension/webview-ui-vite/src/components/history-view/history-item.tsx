@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { formatDate } from "@/utils/dateFormatter"
 import { type HistoryItem } from "../../../../src/shared/history-item"
-import { Loader2, Trash2 } from "lucide-react"
+import { CheckCircle2, Clock, Loader2, Trash2 } from "lucide-react"
 import { useState } from "react"
 
 type HistoryItemProps = {
@@ -19,7 +19,17 @@ const HistoryItem = ({ item, onSelect, onDelete, onExport }: HistoryItemProps) =
 			onClick={() => onSelect(item.id)}>
 			<div className="flex flex-col gap-2 p-4 relative group">
 				<div className="flex justify-between items-center">
-					<span className="text-sm font-medium uppercase">{formatDate(item.ts)}</span>
+					<div className="flex items-center gap-2">
+						{
+							// Show the status icon
+							item.isCompleted ? (
+								<CheckCircle2 className="w-4 h-4 text-success" />
+							) : (
+								<Clock className="w-4 h-4 text-info" />
+							)
+						}
+						<span className="text-sm font-medium uppercase">{formatDate(item.ts)}</span>
+					</div>
 					<Button
 						variant="ghost"
 						size="sm"

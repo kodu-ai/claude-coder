@@ -1,4 +1,4 @@
-import { InterestedFile } from "../agent/v1"
+import { InterestedFile } from "../agent/v1/main-agent"
 
 export type HistoryItem = {
 	id: string
@@ -11,11 +11,11 @@ export type HistoryItem = {
 	totalCost: number
 	name?: string
 	dirAbsolutePath?: string
-	memory?: string
 	isRepoInitialized?: boolean
 	currentTokens?: number
-	interestedFiles?: InterestedFile[]
 	currentSubAgentId?: number
+	isCompleted?: boolean
+	manuallyMarkedCompletedAt?: number
 }
 
 export const isSatifiesHistoryItem = (item: any): item is HistoryItem => {

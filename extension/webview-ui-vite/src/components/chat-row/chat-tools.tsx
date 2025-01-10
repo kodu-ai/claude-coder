@@ -495,7 +495,7 @@ export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons
 		tool={tool}
 		icon={CheckCircle}
 		title="Task Completion"
-		variant={approvalState === "approved" ? "success" : "info"}
+		variant={approvalState === "approved" ? "success" : approvalState === "rejected" ? "destructive" : "info"}
 		approvalState={approvalState}>
 		{/* {command && (
 			<div className="bg-muted p-2 rounded font-mono text-xs overflow-x-auto mb-2">

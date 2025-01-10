@@ -5,7 +5,7 @@
 
 import treeKill from "tree-kill"
 import { ToolResponseV2 } from "../types"
-import { KoduDev } from ".."
+import { MainAgent } from "../main-agent"
 import { AgentToolOptions, ToolName } from "./types"
 import {
 	SearchFilesTool,
@@ -54,7 +54,7 @@ export class ToolExecutor {
 	/** Current working directory for tool execution */
 	private readonly cwd: string
 	/** Reference to the KoduDev instance */
-	private readonly koduDev: KoduDev
+	private readonly koduDev: MainAgent
 	/** Parser for handling tool commands and updates */
 	private readonly toolParser: ToolParser
 	/** Queue for managing sequential tool execution */

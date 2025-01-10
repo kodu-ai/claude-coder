@@ -1,7 +1,7 @@
 import { ApiManager } from "../../../api/api-handler"
 import { ExtensionProvider } from "../../../providers/extension-provider"
 import { amplitudeTracker } from "../../../utils/amplitude"
-import { KoduAgentState, KoduDevOptions, FileVersion, SubAgentState } from "../types"
+import { KoduAgentState, MainAgentOptions, FileVersion, SubAgentState } from "../types"
 import { ApiHistoryManager } from "./api-history-manager"
 import { ClaudeMessagesManager } from "./claude-messages-manager"
 import { IOManager } from "./io-manager"
@@ -27,7 +27,7 @@ export class StateManager {
 	public claudeMessagesManager: ClaudeMessagesManager
 	public apiHistoryManager: ApiHistoryManager
 
-	constructor(options: KoduDevOptions, apiManager: ApiManager) {
+	constructor(options: MainAgentOptions, apiManager: ApiManager) {
 		const provider = options.provider
 		this._providerRef = new WeakRef(provider)
 

@@ -1,5 +1,5 @@
 import dedent from "dedent"
-import { ApiHistoryItem, KoduDev } from ".."
+import { ApiHistoryItem, MainAgent } from "../main-agent"
 import { promptTemplate } from "../prompts/utils/utils"
 import { BaseHook, HookOptions } from "./base-hook"
 import { PromptBuilder } from "../prompts/utils/builder"
@@ -142,7 +142,7 @@ Now, it's your turn to evaluate the agent's last action. Remember to provide a c
 export class ObserverHook extends BaseHook {
 	private options: ObserverHookOptions
 
-	constructor(options: ObserverHookOptions, koduDev: KoduDev) {
+	constructor(options: ObserverHookOptions, koduDev: MainAgent) {
 		super(options, koduDev)
 		this.options = options
 	}

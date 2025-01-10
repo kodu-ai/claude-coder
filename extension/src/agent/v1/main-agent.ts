@@ -4,7 +4,7 @@ import { isV1ClaudeMessage } from "../../shared/messages/extension-message"
 import { ClaudeAskResponse } from "../../shared/messages/client-message"
 import { ApiManager } from "../../api/api-handler"
 import { ToolExecutor } from "./tools/tool-executor"
-import { KoduDevOptions, ToolResponse, UserContent } from "./types"
+import { MainAgentOptions, ToolResponse, UserContent } from "./types"
 import { getCwd, formatImagesIntoBlocks, formatFilesList } from "./utils"
 import { StateManager } from "./state-manager"
 import { findLastIndex } from "../../utils"
@@ -31,7 +31,7 @@ import dedent from "dedent"
 import { nanoid } from "nanoid"
 
 // new KoduDev
-export class KoduDev {
+export class MainAgent {
 	private stateManager: StateManager
 	private apiManager: ApiManager
 	private hookManager: HookManager
@@ -49,7 +49,7 @@ export class KoduDev {
 	public gitHandler: GitHandler
 
 	constructor(
-		options: KoduDevOptions & {
+		options: MainAgentOptions & {
 			noTask?: boolean
 		}
 	) {
@@ -223,7 +223,6 @@ export class KoduDev {
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
 	}
 
-	// FIXME: this function breaks prompt cache i think. or attempt completion is breaking the cache
 	async resumeTaskFromHistory() {
 		if (this.isAborting) {
 			throw new Error("Cannot resume task while aborting")
@@ -259,11 +258,7 @@ export class KoduDev {
 				if (m.ask === "tool" && m.type === "ask") {
 					try {
 						const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
-						if (typeof parsedTool === "object" && parsedTool.tool === "attempt_completion") {
-							parsedTool.approvalState = "approved"
-							m.text = JSON.stringify(parsedTool)
-							return
-						}
+
 						if (
 							typeof parsedTool === "object" &&
 							(parsedTool.approvalState === "pending" ||
@@ -288,7 +283,10 @@ export class KoduDev {
 				}
 			}
 		})
-		await this.stateManager.claudeMessagesManager.overwriteClaudeMessages(modifiedClaudeMessages)
+		// we don't want to update the timestamp of the last message yet
+		await this.stateManager.claudeMessagesManager.overwriteClaudeMessages(modifiedClaudeMessages, {
+			updateTs: false,
+		})
 		this.stateManager.state.claudeMessages = await this.stateManager.claudeMessagesManager.getSavedClaudeMessages()
 
 		const lastClaudeMessage = this.stateManager.state.claudeMessages
@@ -365,6 +363,8 @@ export class KoduDev {
 		await this.stateManager.apiHistoryManager.overwriteApiConversationHistory(modifiedApiConversationHistory) // remove the corrupted messages
 
 		const newUserContentText = newUserContent.find((block) => block.type === "text")?.text
+		// if it's been more than 15 minutes since the last message, we should reload the files
+		const shouldReloadFiles = lastClaudeMessage && Date.now() - lastClaudeMessage.ts > 15 * 60 * 1000
 		const agoText = (() => {
 			const timestamp = lastClaudeMessage?.ts ?? Date.now()
 			const now = Date.now()
@@ -391,7 +391,7 @@ export class KoduDev {
 				? `\n\nNew instructions for task continuation:\n<user_message>\n${newUserContentText}\n</user_message>\n`
 				: "")
 		combinedText += `\n\n`
-		combinedText += await this.getEnvironmentDetails(true)
+		combinedText += await this.getEnvironmentDetails(shouldReloadFiles)
 		combinedText += `No dev server information is available. Please start the dev server if needed.`
 
 		const pastRequestsCount = modifiedApiConversationHistory.filter((m) => m.role === "assistant").length

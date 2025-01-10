@@ -1,5 +1,5 @@
 import * as vscode from "vscode"
-import { KoduDev } from "../agent/v1"
+import { MainAgent } from "../agent/v1/main-agent"
 import { ExtensionStateManager } from "./state/extension-state-manager"
 import { WebviewManager } from "./webview/webview-manager"
 import { TaskManager } from "./state/task-manager"
@@ -16,11 +16,11 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 	public static readonly tabPanelId = `${extensionName}.TabPanelProvider`
 	private disposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
-	private _koduDev?: KoduDev | undefined
-	public get koduDev(): KoduDev | undefined {
+	private _koduDev?: MainAgent | undefined
+	public get koduDev(): MainAgent | undefined {
 		return this._koduDev
 	}
-	public set koduDev(value: KoduDev | undefined) {
+	public set koduDev(value: MainAgent | undefined) {
 		this._koduDev = value
 	}
 	private stateManager: ExtensionStateManager
@@ -38,6 +38,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 		this.taskManager = new TaskManager(this)
 		this.apiManager = ApiManager.getInstance(this)
 		this.webviewManager = new WebviewManager(this)
+		this.taskManager.migrateAllTasks()
 	}
 
 	async dispose() {
@@ -94,7 +95,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 		const state = await this.stateManager.getState()
 		const apiConfiguration = await this.getCurrentApiSettings()
 
-		this.koduDev = new KoduDev({
+		this.koduDev = new MainAgent({
 			gitHandlerEnabled: state.gitHandlerEnabled,
 			provider: this,
 			apiConfiguration,
@@ -116,7 +117,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 		const state = await this.stateManager.getState()
 		const apiConfiguration = await this.getCurrentApiSettings()
 
-		this.koduDev = new KoduDev({
+		this.koduDev = new MainAgent({
 			gitHandlerEnabled: state.gitHandlerEnabled,
 			provider: this,
 			apiConfiguration,
@@ -138,7 +139,7 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 		await this.taskManager.clearTask()
 		const state = await this.stateManager.getState()
 		const apiConfiguration = await this.getCurrentApiSettings()
-		this.koduDev = new KoduDev({
+		this.koduDev = new MainAgent({
 			gitHandlerEnabled: state.gitHandlerEnabled,
 			provider: this,
 			apiConfiguration,

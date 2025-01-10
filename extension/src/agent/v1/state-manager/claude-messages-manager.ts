@@ -5,6 +5,7 @@ import { IOManager } from "./io-manager"
 import { getApiMetrics } from "../../../shared/get-api-metrics"
 import { isV1ClaudeMessage } from "../../../shared/messages/extension-message"
 import { StateManager } from "."
+import { ChatTool } from "../../../shared/new-tools"
 
 interface ClaudeMessagesManagerOptions {
 	state: KoduAgentState
@@ -37,9 +38,8 @@ export class ClaudeMessagesManager {
 		return this.state.claudeMessages
 	}
 
-	public async saveClaudeMessages() {
+	public async saveClaudeMessages(updateTs = true) {
 		await this.ioManager.saveClaudeMessages(this.state.claudeMessages)
-
 		// Update task metrics and history
 		const apiMetrics = getApiMetrics(this.state.claudeMessages)
 		const taskMessage = this.state.claudeMessages[0]
@@ -50,20 +50,43 @@ export class ClaudeMessagesManager {
 					(m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task")
 				)
 			]
+		let isTaskCompleted = false
+		try {
+			let lastMessage = this.state.claudeMessages[this.state.claudeMessages.length - 1]
+			// If last message is resume_task or resume_completed_task, get the previous message
+			if (lastMessage.ask === "resume_task" || lastMessage.ask === "resume_completed_task") {
+				lastMessage = this.state.claudeMessages[this.state.claudeMessages.length - 2]
+			}
+
+			// Check if last message is a tool message and specifically attempt_completion
+			if (lastMessage.ask === "tool") {
+				const toolData = JSON.parse(lastMessage.text ?? "{}") as ChatTool
+				if (toolData.tool === "attempt_completion" && toolData.approvalState === "approved") {
+					isTaskCompleted = true
+				}
+			}
+		} catch (error) {}
 
 		await this.providerRef
 			.deref()
 			?.getStateManager()
-			.updateTaskHistory({
-				id: this.state.taskId,
-				ts: lastRelevantMessage?.ts,
-				task: taskMessage.text ?? "",
-				tokensIn: apiMetrics.totalTokensIn,
-				tokensOut: apiMetrics.totalTokensOut,
-				cacheWrites: apiMetrics.totalCacheWrites,
-				cacheReads: apiMetrics.totalCacheReads,
-				totalCost: apiMetrics.totalCost,
-			})
+			.updateTaskHistory(
+				{
+					isCompleted: isTaskCompleted,
+					id: this.state.taskId,
+					// ts: lastRelevantMessage?.ts,
+					...(updateTs ? { ts: lastRelevantMessage?.ts } : {}),
+					task: taskMessage.text ?? "",
+					tokensIn: apiMetrics.totalTokensIn,
+					tokensOut: apiMetrics.totalTokensOut,
+					cacheWrites: apiMetrics.totalCacheWrites,
+					cacheReads: apiMetrics.totalCacheReads,
+					totalCost: apiMetrics.totalCost,
+				},
+				{
+					lastMessageAt: lastRelevantMessage?.ts,
+				}
+			)
 		return this.state.claudeMessages
 	}
 
@@ -85,14 +108,20 @@ export class ClaudeMessagesManager {
 	}
 
 	// Refactored to use in-place modifications
-	public async overwriteClaudeMessages(newMessages: ClaudeMessage[]) {
+	public async overwriteClaudeMessages(
+		newMessages: ClaudeMessage[],
+		options?: {
+			// Update the task history timestamp
+			updateTs?: boolean
+		}
+	) {
 		// We do it because the newMessages might be a reference to the same array
 		const newMessagesCopy = [...newMessages]
 		// Clear the existing array in-place
 		this.state.claudeMessages.length = 0
 		// Push the new messages into the now-empty array
 		this.state.claudeMessages.push(...newMessagesCopy)
-		await this.saveClaudeMessages()
+		await this.saveClaudeMessages(options?.updateTs)
 		return this.state.claudeMessages
 	}
 

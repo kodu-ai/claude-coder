@@ -4,7 +4,7 @@ import { HookManager } from "./hook-manager"
 
 // Import types
 import type { HookOptions, HookState } from "./base-hook"
-import { KoduDev } from ".."
+import { MainAgent } from "../main-agent"
 
 /**
  * Base hook types and classes for implementing custom hooks
@@ -19,7 +19,7 @@ export type { HookState }
 export { HookManager }
 
 // Hook type for type safety when registering hooks
-export type HookConstructor<T extends BaseHook> = new (options: HookOptions, koduDev: KoduDev) => T
+export type HookConstructor<T extends BaseHook> = new (options: HookOptions, koduDev: MainAgent) => T
 
 // Hook registration helper type
 export type RegisteredHook = {

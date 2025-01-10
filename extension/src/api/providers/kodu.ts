@@ -11,7 +11,7 @@ import {
 	koduSSEResponse,
 } from "../../shared/kodu"
 import { WebSearchResponseDto } from "../interfaces"
-import { ApiHistoryItem } from "../../agent/v1"
+import { ApiHistoryItem } from "../../agent/v1/main-agent"
 import { cloneDeep } from "lodash"
 import delay from "delay"
 import { ModelInfo } from "./types"

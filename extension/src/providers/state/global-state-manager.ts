@@ -43,6 +43,7 @@ export type GlobalState = {
 	 * if number is set, the observer hook will be called every n-th time (which means that the hook is enabled)
 	 */
 	observerHookEvery: number | undefined
+	isMigratedTaskCompleted: boolean | undefined
 }
 
 export class GlobalStateManager {

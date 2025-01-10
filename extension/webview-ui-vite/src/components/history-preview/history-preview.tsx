@@ -24,7 +24,7 @@ const HistoryPreview: React.FC<HistoryPreviewProps> = ({ showHistoryView }) => {
 
 			{taskHistory
 				.filter((item) => item.ts && item.task)
-				.slice(0, 3)
+				.slice(0, 4)
 				.map((item) => (
 					<TaskCard
 						key={item.id}
@@ -36,6 +36,7 @@ const HistoryPreview: React.FC<HistoryPreviewProps> = ({ showHistoryView }) => {
 						cacheWrites={item.cacheWrites}
 						cacheReads={item.cacheReads}
 						totalCost={item.totalCost}
+						isCompleted={item.isCompleted}
 						onSelect={handleHistorySelect}
 					/>
 				))}

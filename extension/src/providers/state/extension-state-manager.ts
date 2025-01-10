@@ -120,13 +120,27 @@ export class ExtensionStateManager {
 		return this.globalStateManager.updateGlobalState("inlineEditOutputType", value)
 	}
 
-	async updateTaskHistory(item: Partial<HistoryItem> & { id: string }): Promise<HistoryItem[]> {
+	async updateTaskHistory(
+		item: Partial<HistoryItem> & { id: string },
+		metadata?: {
+			lastMessageAt?: number
+		}
+	): Promise<HistoryItem[]> {
 		const history = (await this.globalStateManager.getGlobalState("taskHistory")) ?? []
 		const existingItemIndex = history.findIndex((h) => h.id === item.id)
 		if (existingItemIndex !== -1) {
+			const manuallyMarkedTs = history[existingItemIndex].manuallyMarkedCompletedAt
 			history[existingItemIndex] = {
 				...history[existingItemIndex],
 				...item,
+			}
+
+			if (manuallyMarkedTs && metadata?.lastMessageAt && manuallyMarkedTs > metadata.lastMessageAt) {
+				history[existingItemIndex].manuallyMarkedCompletedAt = manuallyMarkedTs
+				history[existingItemIndex].isCompleted = true
+			}
+			if (manuallyMarkedTs && metadata?.lastMessageAt && metadata?.lastMessageAt > manuallyMarkedTs) {
+				history[existingItemIndex].isCompleted = false
 			}
 		} else {
 			if (isSatifiesHistoryItem(item)) {

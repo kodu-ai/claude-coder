@@ -5,7 +5,7 @@ import { relations } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { ClaudeAsk } from "../shared/messages/extension-message"
 import { SpawnAgentOptions } from "../agent/v1/tools/schema/agents/agent-spawner"
-import { ApiHistoryItem } from "../agent/v1"
+import { ApiHistoryItem } from "../agent/v1/main-agent"
 
 /* ------------------------------------------------------------------
 	 1) tasks

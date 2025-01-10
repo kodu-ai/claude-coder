@@ -1,6 +1,6 @@
 import { ClaudeAsk, ClaudeSay } from "../../../../shared/messages/extension-message"
 import { ClaudeAskResponse } from "../../../../shared/messages/client-message"
-import { KoduDev } from "../.."
+import { MainAgent } from "../../main-agent"
 import { TaskExecutorUtils } from "../../task-executor/utils"
 import { ServerRunnerTool } from "../../../../shared/new-tools"
 import { AddInterestedFileToolParams } from "../schema/add_interested_file"
@@ -80,7 +80,7 @@ export type AgentToolOptions = {
 	cwd: string
 	alwaysAllowReadOnly: boolean
 	alwaysAllowWriteOnly: boolean
-	koduDev: KoduDev
+	koduDev: MainAgent
 	setRunningProcessId?: (pid: number | undefined) => void
 	agentName?: SpawnAgentOptions
 }

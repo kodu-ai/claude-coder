@@ -10,6 +10,7 @@ import { ExtensionProvider } from "../extension-provider"
 import { compressImages, selectImages, downloadTask } from "../../utils"
 import { IOManager } from "../../agent/v1/state-manager/io-manager"
 import { GlobalStateManager } from "./global-state-manager"
+import { ChatTool } from "../../shared/new-tools"
 
 export class TaskManager {
 	private provider: ExtensionProvider
@@ -239,6 +240,116 @@ export class TaskManager {
 		}
 
 		await fs.rmdir(taskDirPath)
+	}
+
+	public async markTaskAsCompleted(
+		id: string,
+		options?: {
+			// was it marked as completed manually?
+			manual?: boolean
+		}
+	) {
+		const taskHistory = (await this.provider.getStateManager().getState()).taskHistory || []
+		const updatedTaskHistory = taskHistory.map((task) => {
+			if (task.id === id) {
+				task.isCompleted = true
+				if (options?.manual) {
+					task.manuallyMarkedCompletedAt = new Date().getTime()
+				}
+			}
+			return task
+		})
+		await this.provider.getGlobalStateManager().updateGlobalState("taskHistory", updatedTaskHistory)
+	}
+
+	public async markTasksAsCompleted(ids: string[]) {
+		const taskHistory = (await this.provider.getStateManager().getState()).taskHistory || []
+		const updatedTaskHistory = taskHistory.map((task) => {
+			if (ids.includes(task.id)) {
+				task.isCompleted = true
+			}
+			return task
+		})
+		await this.provider.getGlobalStateManager().updateGlobalState("taskHistory", updatedTaskHistory)
+	}
+
+	public async markTaskAsUncompleted(id: string) {
+		const taskHistory = (await this.provider.getStateManager().getState()).taskHistory || []
+		const updatedTaskHistory = taskHistory.map((task) => {
+			if (task.id === id) {
+				task.isCompleted = false
+			}
+			return task
+		})
+		await this.provider.getGlobalStateManager().updateGlobalState("taskHistory", updatedTaskHistory)
+	}
+
+	public async migrateAllTasks() {
+		const isMigrated = await this.provider.getGlobalStateManager().getGlobalState("isMigratedTaskCompleted")
+		if (isMigrated) {
+			return
+		}
+		const taskHistory = (await this.provider.getStateManager().getState()).taskHistory || []
+		const BATCH_SIZE = 250
+		const batches = Math.ceil(taskHistory.length / BATCH_SIZE)
+
+		await vscode.window.withProgress(
+			{
+				location: vscode.ProgressLocation.Notification,
+				title: "Migrating tasks...",
+				cancellable: false,
+			},
+			async (progress) => {
+				let completedTaskIds: string[] = []
+				for (let i = 0; i < batches; i++) {
+					const start = i * BATCH_SIZE
+					const end = Math.min(start + BATCH_SIZE, taskHistory.length)
+					const batch = taskHistory.slice(start, end)
+
+					progress.report({
+						increment: 100 / batches,
+						message: `Processing batch ${i + 1}/${batches} (${start + 1}-${end} of ${
+							taskHistory.length
+						} tasks)`,
+					})
+
+					for (const task of batch) {
+						const ioManager = new IOManager({
+							fsPath: this.provider.getContext().globalStorageUri.fsPath,
+							taskId: task.id,
+						})
+
+						try {
+							const messages = await ioManager.loadClaudeMessages()
+							if (messages.length === 0) {
+								continue
+							}
+
+							let lastMessage = messages[messages.length - 1]
+							// If last message is resume_task or resume_completed_task, get the previous message
+							if (lastMessage.ask === "resume_task" || lastMessage.ask === "resume_completed_task") {
+								lastMessage = messages[messages.length - 2]
+							}
+
+							// Check if last message is a tool message and specifically attempt_completion
+							if (lastMessage.ask === "tool") {
+								const toolData = JSON.parse(lastMessage.text ?? "{}") as ChatTool
+								if (toolData.tool === "attempt_completion" && toolData.approvalState === "approved") {
+									completedTaskIds.push(task.id)
+								}
+							}
+						} catch (error) {
+							console.error(`Error processing task ${task.id}:`, error)
+							continue
+						}
+					}
+				}
+				await this.markTasksAsCompleted(completedTaskIds)
+			}
+		)
+		await this.provider.getGlobalStateManager().updateGlobalState("isMigratedTaskCompleted", true)
+		// post base state to webview to update the task list
+		await this.provider.getWebviewManager().postBaseStateToWebview()
 	}
 
 	private async deleteTaskFromState(id: string) {

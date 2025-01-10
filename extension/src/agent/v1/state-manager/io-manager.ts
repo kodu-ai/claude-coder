@@ -47,8 +47,8 @@ export class IOManager {
 		this._agentHash = value
 	}
 
-	private async ensureTaskDirectoryExists(): Promise<string> {
-		const taskDir = path.join(this.fsPath, "tasks", this.taskId)
+	private async ensureTaskDirectoryExists(taskId?: string): Promise<string> {
+		const taskDir = path.join(this.fsPath, "tasks", taskId ?? this.taskId)
 		await fs.mkdir(taskDir, { recursive: true })
 		return taskDir
 	}
@@ -82,8 +82,8 @@ export class IOManager {
 		}
 	}
 
-	private async getClaudeMessagesFilePath(): Promise<string> {
-		const taskDir = await this.ensureTaskDirectoryExists()
+	private async getClaudeMessagesFilePath(taskId?: string): Promise<string> {
+		const taskDir = await this.ensureTaskDirectoryExists(taskId)
 		return path.join(taskDir, "claude_messages.json")
 	}
 
@@ -93,8 +93,8 @@ export class IOManager {
 	}
 
 	// ---------- Claude Messages I/O ----------
-	public async loadClaudeMessages(): Promise<ClaudeMessage[]> {
-		const filePath = await this.getClaudeMessagesFilePath()
+	public async loadClaudeMessages(taskId?: string): Promise<ClaudeMessage[]> {
+		const filePath = await this.getClaudeMessagesFilePath(taskId)
 
 		try {
 			const data = await fs.readFile(filePath, "utf8")

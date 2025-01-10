@@ -1,4 +1,4 @@
-import { KoduDev } from ".."
+import { MainAgent } from "../main-agent"
 import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
 import { Tool } from "../tools/schema"
@@ -38,13 +38,13 @@ export interface HookState {
 export abstract class BaseHook {
 	protected hookState: HookState
 	protected _hookOptions: HookOptions
-	protected koduDev: KoduDev
+	protected koduDev: MainAgent
 
 	get hookOptions(): HookOptions {
 		return this._hookOptions
 	}
 
-	constructor(options: HookOptions, koduDev: KoduDev) {
+	constructor(options: HookOptions, koduDev: MainAgent) {
 		this._hookOptions = options
 		this.koduDev = koduDev
 

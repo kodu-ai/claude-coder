@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk"
-import { KoduDev } from ".."
+import { MainAgent } from "../main-agent"
 import { ToolResponse, ToolResponseV2 } from "../types"
 import { AgentToolOptions, AgentToolParams, CommitInfo, ToolParams } from "./types"
 import { formatImagesIntoBlocks } from "../utils"
@@ -20,7 +20,7 @@ export abstract class BaseAgentTool<T extends ToolParams> {
 	protected cwd: string
 	protected alwaysAllowReadOnly: boolean
 	protected alwaysAllowWriteOnly: boolean
-	protected koduDev: KoduDev
+	protected koduDev: MainAgent
 	protected isAbortingTool: boolean = false
 	protected setRunningProcessId: (pid: number | undefined) => void
 	protected AbortController: AbortController

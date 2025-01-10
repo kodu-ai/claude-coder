@@ -1,4 +1,4 @@
-import { KoduDev } from ".."
+import { MainAgent } from "../main-agent"
 import { BaseHook, HookOptions } from "./base-hook"
 
 /**
@@ -6,9 +6,9 @@ import { BaseHook, HookOptions } from "./base-hook"
  */
 export class HookManager {
 	private hooks: BaseHook[] = []
-	private koduDev: KoduDev
+	private koduDev: MainAgent
 
-	constructor(koduDev: KoduDev) {
+	constructor(koduDev: MainAgent) {
 		this.koduDev = koduDev
 	}
 
@@ -16,7 +16,7 @@ export class HookManager {
 	 * Register a new hook
 	 */
 	public registerHook<T extends BaseHook>(
-		HookClass: new (options: HookOptions, koduDev: KoduDev) => T,
+		HookClass: new (options: HookOptions, koduDev: MainAgent) => T,
 		options: HookOptions
 	): T {
 		const hook = new HookClass(options, this.koduDev)

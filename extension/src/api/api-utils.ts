@@ -1,4 +1,4 @@
-import { ApiHistoryItem } from "../agent/v1"
+import { ApiHistoryItem } from "../agent/v1/main-agent"
 import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../shared/messages/extension-message"
 import { isTextBlock } from "../shared/format-tools"
 import { ModelInfo } from "./providers/types"

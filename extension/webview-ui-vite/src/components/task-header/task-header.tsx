@@ -12,9 +12,10 @@ import { useExtensionState } from "@/context/extension-state-context"
 import { useCollapseState } from "@/context/collapse-state-context"
 import BugReportDialog from "./bug-report-dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { ChevronDown, ChevronUp, FoldVertical, Clock } from "lucide-react"
+import { ChevronDown, ChevronUp, FoldVertical, Clock, CheckSquare, CheckCircleIcon } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
+import { rpcClient } from "@/lib/rpc-client"
 
 interface TaskHeaderProps {
 	firstMsg?: ClaudeMessage
@@ -57,6 +58,7 @@ export default function TaskHeader({
 }: TaskHeaderProps) {
 	const { currentTaskId, currentTask, currentContextTokens, currentContextWindow } = useExtensionState()
 	const { collapseAll, isAllCollapsed } = useCollapseState()
+	const { mutate: markAsComplete, isPending } = rpcClient.markAsDone.useMutation()
 	const [isOpen, setIsOpen] = React.useState(true)
 	const [showTiming, setShowTiming] = React.useState(false)
 
@@ -73,25 +75,40 @@ export default function TaskHeader({
 				<div className="flex flex-wrap">
 					<h3 className="uppercase">Task</h3>
 					<div style={{ flex: "1 1 0%" }}></div>
-					<BugReportDialog />
 
+					<BugReportDialog />
 					<VSCodeButton appearance="icon" onClick={handleRename}>
 						Rename
 					</VSCodeButton>
 					<VSCodeButton appearance="icon" onClick={handleDownload}>
 						Export
 					</VSCodeButton>
-					{task && (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<VSCodeButton appearance="icon" onClick={() => setShowTiming(!showTiming)}>
-									<Clock className={cn("h-4 w-4", showTiming && "text-accent-foreground")} />
-								</VSCodeButton>
-							</TooltipTrigger>
-							<TooltipContent avoidCollisions side="left">
-								{showTiming ? "Hide Task Timing" : "Show Task Timing"}
-							</TooltipContent>
-						</Tooltip>
+					{task && currentTaskId && (
+						<>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<VSCodeButton appearance="icon" onClick={() => setShowTiming(!showTiming)}>
+										<Clock className={cn("h-4 w-4", showTiming && "text-accent-foreground")} />
+									</VSCodeButton>
+								</TooltipTrigger>
+								<TooltipContent avoidCollisions side="left">
+									{showTiming ? "Hide Task Timing" : "Show Task Timing"}
+								</TooltipContent>
+							</Tooltip>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<VSCodeButton
+										appearance="icon"
+										disabled={isPending}
+										onClick={() => markAsComplete({ taskId: currentTaskId })}>
+										<CheckCircleIcon className="h-4 w-4" />
+									</VSCodeButton>
+								</TooltipTrigger>
+								<TooltipContent avoidCollisions side="left">
+									Mark as Done
+								</TooltipContent>
+							</Tooltip>
+						</>
 					)}
 					<Tooltip>
 						<TooltipTrigger asChild>

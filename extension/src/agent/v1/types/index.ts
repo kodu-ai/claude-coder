@@ -26,7 +26,7 @@ export type UserContent = Array<
 	Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam
 >
 
-export interface KoduDevOptions {
+export interface MainAgentOptions {
 	provider: ExtensionProvider
 	apiConfiguration: ApiConstructorOptions
 	maxRequestsPerTask?: number
