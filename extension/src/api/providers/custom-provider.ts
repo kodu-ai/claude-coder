@@ -4,6 +4,7 @@ import { koduSSEResponse } from "../../shared/kodu"
 import { CoreMessage, streamText } from "ai"
 import { createDeepSeek } from "@ai-sdk/deepseek"
 import { createOpenAI } from "@ai-sdk/openai"
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { convertToAISDKFormat } from "../../utils/ai-sdk-format"
 import { ModelInfo } from "./types"
 import { PROVIDER_IDS } from "./constants"
@@ -43,6 +44,17 @@ const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) 
 			return createOpenAI({
 				apiKey: settings.providerSettings.apiKey,
 				compatibility: "strict",
+			}).languageModel(modelId)
+		case PROVIDER_IDS.GOOGLE_GENAI:
+			if (!settings.providerSettings.apiKey) {
+				throw new CustomProviderError(
+					"Google GenerativeAI Missing API key",
+					settings.providerSettings.providerId,
+					modelId
+				)
+			}
+			return createGoogleGenerativeAI({
+				apiKey: settings.providerSettings.apiKey,
 			}).languageModel(modelId)
 		default:
 			throw new CustomProviderError("Provider not configured", settings.providerSettings.providerId, modelId)

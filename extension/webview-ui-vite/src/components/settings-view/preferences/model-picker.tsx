@@ -1,4 +1,4 @@
-import React, { FC, useState, useMemo } from "react"
+import React, { FC, useState, useMemo, useEffect } from "react"
 import { Check, Brain, Code2, Image, ChevronsUpDown, Info, AlertTriangleIcon } from "lucide-react"
 
 import { ModelInfo } from "extension/api/providers/types"
@@ -43,7 +43,11 @@ export const ModelSelector: FC<ModelSelectorProps> = ({ modelId, onChangeModel, 
 	const selectedModel: ModelInfo | undefined = models.find((model) => model.id === modelId)
 	const switchToProvider = useSwitchToProviderManager()
 
-	const { data: currentModelInfo, status: modelStatus } = rpcClient.currentModelInfo.useQuery(
+	const {
+		data: currentModelInfo,
+		status: modelStatus,
+		refetch: refetchModelData,
+	} = rpcClient.currentModelInfo.useQuery(
 		{},
 		{
 			refetchInterval: 5000,
@@ -51,6 +55,10 @@ export const ModelSelector: FC<ModelSelectorProps> = ({ modelId, onChangeModel, 
 			refetchOnWindowFocus: true,
 		}
 	)
+
+	useEffect(() => {
+		refetchModelData()
+	}, [selectedModel])
 
 	// Filter models by name + description
 	const filteredModels = useMemo(() => {
