@@ -9,12 +9,12 @@ export const PROVIDER_IDS = {
 	FIREWORKS: "fireworks",
 	DEEPSEEK: "deepseek",
 	DEEPINFRA: "deepinfra",
-	CUSTOM: "custom",
+	OPENAICOMPATIBLE: "openai-compatible",
 } as const
 
 export const PROVIDER_NAMES = {
 	[PROVIDER_IDS.KODU]: "Kodu",
-	[PROVIDER_IDS.GOOGLE_GENAI]: "Google GenerativeAI",
+	[PROVIDER_IDS.GOOGLE_GENAI]: "Google AI Studio",
 	[PROVIDER_IDS.GOOGLE_VERTEX]: "Google Vertex AI",
 	[PROVIDER_IDS.AMAZON_BEDROCK]: "Amazon Bedrock",
 	[PROVIDER_IDS.OPENAI]: "OpenAI",
@@ -22,7 +22,7 @@ export const PROVIDER_NAMES = {
 	[PROVIDER_IDS.FIREWORKS]: "Fireworks.ai",
 	[PROVIDER_IDS.DEEPSEEK]: "DeepSeek",
 	[PROVIDER_IDS.DEEPINFRA]: "DeepInfra",
-	[PROVIDER_IDS.CUSTOM]: "Custom Provider",
+	[PROVIDER_IDS.OPENAICOMPATIBLE]: "OpenAI Compatible",
 } as const
 
 export const DEFAULT_BASE_URLS = {
@@ -33,25 +33,26 @@ export const DEFAULT_BASE_URLS = {
 	[PROVIDER_IDS.FIREWORKS]: "https://api.fireworks.ai/inference/v1",
 	[PROVIDER_IDS.DEEPSEEK]: "https://api.deepseek.com/v1",
 	[PROVIDER_IDS.DEEPINFRA]: "https://api.deepinfra.com/v1/openai",
+	[PROVIDER_IDS.OPENAICOMPATIBLE]: "http://localhost:1234",
 } as const
 
 // For type safety when using provider IDs
 export type ProviderId = keyof typeof PROVIDER_NAMES
 
-// Helper function to check if a provider needs additional fields beyond apiKey
-// TODO: SWITCH TO LOAD IT FROM CONFIG
-export const getRequiredFields = (providerId: ProviderId): string[] => {
-	switch (providerId) {
-		case PROVIDER_IDS.GOOGLE_VERTEX:
-			return ["clientEmail", "privateKey", "project", "location"]
-		case PROVIDER_IDS.AMAZON_BEDROCK:
-			return ["region", "accessKeyId", "secretAccessKey"]
-		case PROVIDER_IDS.CUSTOM:
-			return ["name", "baseUrl", "apiKey", "modelId", "inputLimit", "outputLimit"]
-		default:
-			return ["apiKey"]
-	}
-}
+// // Helper function to check if a provider needs additional fields beyond apiKey
+// // TODO: SWITCH TO LOAD IT FROM CONFIG
+// export const getRequiredFields = (providerId: ProviderId): string[] => {
+// 	switch (providerId) {
+// 		case PROVIDER_IDS.GOOGLE_VERTEX:
+// 			return ["clientEmail", "privateKey", "project", "location"]
+// 		case PROVIDER_IDS.AMAZON_BEDROCK:
+// 			return ["region", "accessKeyId", "secretAccessKey"]
+// 		case PROVIDER_IDS.CUSTOM:
+// 			return ["name", "baseUrl", "apiKey", "modelId", "inputLimit", "outputLimit"]
+// 		default:
+// 			return ["apiKey"]
+// 	}
+// }
 
 // Helper to get the default base URL for a provider
 export const getDefaultBaseUrl = (providerId: ProviderId): string | undefined => {

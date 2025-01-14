@@ -31,6 +31,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^1.0.15
         version: 1.0.15(zod@3.24.1)
+      '@ai-sdk/openai-compatible':
+        specifier: ^0.0.15
+        version: 0.0.15(patch_hash=bksbwhxwa4mqglq66xoskr76oa)(zod@3.24.1)
       '@ai-sdk/provider':
         specifier: ^1.0.4
         version: 1.0.4

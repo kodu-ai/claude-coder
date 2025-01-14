@@ -182,7 +182,7 @@ ${this.customInstructions.trim()}
 		}
 
 		let lastMessageAt = 0
-		const TIMEOUT_MS = 10_000 // 10 seconds
+		const TIMEOUT_MS = 20_000 // 10 seconds
 		const checkInactivity = setInterval(() => {
 			const timeSinceLastMessage = Date.now() - lastMessageAt
 			if (lastMessageAt > 0 && timeSinceLastMessage > TIMEOUT_MS) {

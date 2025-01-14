@@ -1,10 +1,10 @@
 // providers/deepseek.ts
 import { ProviderConfig } from "../types"
-import { DEFAULT_BASE_URLS, PROVIDER_IDS } from "../constants"
+import { DEFAULT_BASE_URLS, PROVIDER_IDS, PROVIDER_NAMES } from "../constants"
 
 export const koduConfig: ProviderConfig = {
 	id: PROVIDER_IDS.KODU,
-	name: "Kodu",
+	name: PROVIDER_NAMES[PROVIDER_IDS.KODU],
 	baseUrl: DEFAULT_BASE_URLS[PROVIDER_IDS.KODU],
 	models: [
 		{

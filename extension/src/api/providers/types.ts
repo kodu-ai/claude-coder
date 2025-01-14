@@ -1,3 +1,4 @@
+import { z, ZodSchema } from "zod"
 import { PROVIDER_IDS, ProviderId } from "./constants"
 
 // types.ts
@@ -16,19 +17,29 @@ export interface ModelInfo {
 	provider: ProviderId
 }
 
-export interface ProviderConfig {
-	id: string
+interface BaseProviderConfig {
+	id: ProviderId
 	name: string
 	baseUrl: string
 	models: ModelInfo[]
 	requiredFields: string[]
 }
 
+interface ProviderConfigWithCustomSchema {
+	isProviderCustom: true
+	/**
+	 * we will load this directly from memory
+	 */
+	providerCustomSchema: z.infer<typeof customProviderSchema>
+}
+
+export type ProviderConfig = BaseProviderConfig | (BaseProviderConfig & ProviderConfigWithCustomSchema)
+
 export type ProviderType = ProviderId
 
 interface BaseProviderSettings {
 	providerId: ProviderType
-	modelId: string
+	// modelId: string
 }
 
 // Provider-specific settings interfaces
@@ -85,14 +96,9 @@ export interface DeepInfraSettings extends BaseProviderSettings {
 	baseUrl?: string
 }
 
-export interface CustomSettings extends BaseProviderSettings {
-	providerId: "custom"
-	baseUrl: string
-	apiKey: string
-	name: string
-	supportImages: boolean
-	inputLimit: string
-	outputLimit: string
+export interface OpenAICompatibleSettings extends BaseProviderSettings, ProviderCustomSchema {
+	providerId: "openai-compatible"
+	// ...ProviderCustomSchema
 }
 
 export interface KoduSettings extends BaseProviderSettings {
@@ -110,9 +116,24 @@ export type ProviderSettings =
 	| FireworksSettings
 	| DeepseekSettings
 	| DeepInfraSettings
-	| CustomSettings
+	| OpenAICompatibleSettings
 
 export interface ProviderWithModel {
 	settings: ProviderSettings
 	model: ModelInfo
 }
+
+export const customProviderSchema = z.object({
+	baseUrl: z.string(),
+	modelId: z.string(),
+	apiKey: z.string().optional(),
+	supportImages: z.boolean(),
+	inputLimit: z.string(),
+	outputLimit: z.string(),
+	inputTokensPrice: z.number(),
+	outputTokensPrice: z.number(),
+	cacheReadsPrice: z.number().optional(),
+	cacheWritesPrice: z.number().optional(),
+})
+
+export type ProviderCustomSchema = z.infer<typeof customProviderSchema>

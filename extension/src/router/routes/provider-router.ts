@@ -7,6 +7,7 @@ import { models, providerConfigs, customProvidersConfigs } from "../../api/provi
 import { GlobalStateManager } from "../../providers/state/global-state-manager"
 import { ProviderId } from "../../api/providers/constants"
 import { ApiConstructorOptions, ProviderSettings, providerSettingsSchema } from "../../api"
+import { OpenAICompatibleSettings, ProviderConfig } from "../../api/providers/types"
 
 export async function getProvider(id: string) {
 	if (id === "kodu") {
@@ -17,6 +18,25 @@ export async function getProvider(id: string) {
 	const provider = providers?.find((p) => p.providerId === id)
 
 	return { provider }
+}
+
+function openaiCompatibleModel(p: OpenAICompatibleSettings) {
+	const isBiggerThanZero = (n: any) => parseInt(n, 10) > 0
+	// we spread the models correctly
+	return {
+		name: p.modelId ?? "Custom Model",
+		id: p.modelId,
+		supportsImages: !!p.supportImages,
+		// supportsPromptCache: !!p.cacheReadsPrice && !!p.cacheWritesPrice,
+		supportsPromptCache: isBiggerThanZero(p.cacheReadsPrice),
+		contextWindow: Number(p.inputLimit ?? 0),
+		maxTokens: Number(p.outputLimit ?? 0),
+		inputPrice: p.inputTokensPrice ?? 0,
+		outputPrice: p.outputTokensPrice ?? 0,
+		cacheReadsPrice: p.cacheReadsPrice,
+		cacheWritesPrice: p.cacheWritesPrice,
+		provider: p.providerId,
+	} satisfies ProviderConfig["models"][number]
 }
 
 export async function getModelProviderData(providerId: string) {
@@ -35,26 +55,40 @@ export async function getModelProviderData(providerId: string) {
 	}
 	const providersData = await SecretStateManager.getInstance().getSecretState("providers")
 	const providers = z.array(providerSettingsSchema).safeParse(JSON.parse(providersData || "[]")).data ?? []
-	const currentProvider = providers.find((p) => p.providerId === providerId)
+	const currentProvider = providers.find((p) => p.providerId === providerId) as ProviderSettings
+	let models: ProviderConfig["models"] = providerConfigs[providerId].models
+	if (providerId === "openai-compatible") {
+		const providerData = await getProvider(providerId)
+		models = [openaiCompatibleModel(providerData.provider as OpenAICompatibleSettings)]
+	}
 
 	return {
 		providerId,
-		models: providerConfigs[providerId].models,
+		models,
 		currentProvider,
-	}
+	} satisfies { providerId: string; models: ProviderConfig["models"]; currentProvider: ProviderSettings }
 }
 
 export async function getCurrentApiSettings() {
 	const apiConfig = GlobalStateManager.getInstance().getGlobalState("apiConfig")
 	const providerData = await getModelProviderData(apiConfig?.providerId ?? "-")
 	const { model } = await getCurrentModelInfo()
-	return {
-		providerSettings: providerData.currentProvider ?? {
-			providerId: apiConfig?.providerId ?? "-",
-		},
+	const res = {
+		providerSettings: providerData.currentProvider,
 		models: providerData.models,
 		model,
 	}
+	if (!res.providerSettings) {
+		throw new Error("Provider not found")
+	}
+	return res satisfies ApiConstructorOptions
+}
+
+export async function listProviders() {
+	const providersString = await SecretStateManager.getInstance().getSecretState("providers")
+	const providers = z.array(providerSettingsSchema).safeParse(JSON.parse(providersString || "[]")).data
+
+	return { providers: providers ?? [] }
 }
 
 export async function getCurrentModelInfo() {
@@ -69,8 +103,17 @@ export async function getCurrentModelInfo() {
 
 const providerRouter = router({
 	listModels: procedure.input(z.object({})).resolve(async (ctx, input) => {
+		const { providers } = await listProviders()
+		const customModels = providers
+			.flatMap((p) => {
+				if (p.providerId === "openai-compatible") {
+					return openaiCompatibleModel(p as OpenAICompatibleSettings)
+				}
+				return null
+			})
+			.filter((m) => m !== null)
 		return {
-			models: models,
+			models: [...models, ...customModels],
 		}
 	}),
 
@@ -96,8 +139,14 @@ const providerRouter = router({
 			if (!providerConfig) {
 				throw new Error(`Invalid provider: ${input.providerId}`)
 			}
-
-			const modelExists = providerConfig.models.some((m) => m.id === input.modelId)
+			let modelExists = false
+			if (providerConfig.id === "openai-compatible") {
+				const providerData = await getProvider(providerConfig.id)
+				const model = openaiCompatibleModel(providerData.provider as OpenAICompatibleSettings)
+				modelExists = model.id === input.modelId
+			} else {
+				modelExists = providerConfig.models.some((m) => m.id === input.modelId)
+			}
 			if (!modelExists) {
 				throw new Error(`Invalid model for provider ${input.providerId}: ${input.modelId}`)
 			}
@@ -112,10 +161,8 @@ const providerRouter = router({
 		}),
 
 	listProviders: procedure.input(z.object({})).resolve(async (ctx, input) => {
-		const providersString = await SecretStateManager.getInstance().getSecretState("providers")
-		const providers = z.array(providerSettingsSchema).safeParse(JSON.parse(providersString || "[]")).data
-
-		return { providers: providers ?? [] }
+		const { providers } = await listProviders()
+		return { providers }
 	}),
 
 	getProvider: procedure.input(z.object({ id: z.string() })).resolve(async (ctx, input) => {

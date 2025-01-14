@@ -5,12 +5,14 @@ import { koduConfig } from "./kodu"
 import { PROVIDER_IDS } from "../constants"
 import { ProviderConfig } from "../types"
 import { googleGenAIConfig } from "./google-genai"
+import { openaiCompatible } from "./openai-compatible"
 
 export const providerConfigs: Record<string, ProviderConfig> = {
 	[PROVIDER_IDS.KODU]: koduConfig,
 	[PROVIDER_IDS.DEEPSEEK]: deepseekConfig,
 	[PROVIDER_IDS.OPENAI]: openaiConfig,
 	[PROVIDER_IDS.GOOGLE_GENAI]: googleGenAIConfig,
+	[PROVIDER_IDS.OPENAICOMPATIBLE]: openaiCompatible,
 	// Add other providers here as they're created
 }
 

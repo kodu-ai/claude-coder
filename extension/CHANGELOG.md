@@ -4,6 +4,22 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.1.0] - 2025-01-15
+
+### New
+
+-   Custom models and direct LLM calls (Google AI Studio, Deepseek, OpenAI, LM Studio)
+-   Manually Mark task as completed and visual indicator if a task is completed or pending
+-   Faster stream, the ui stream should be near instant as we receive content from LLM
+-   Switch models mid task without interruption
+
+### Fixed
+
+-   missing feedback message at some tools (file editor -> rollback)
+-   diagnostic at times would not load correctly causing LLM to hallucinate
+-   edge case bugs
+-   less hallucination when editing files (remembering the latest fresh content)
+
 ## [2.0.5] - 2025-01-07
 
 ### Fixed

@@ -46,7 +46,7 @@ export const createDefaultSettings = (providerId: ProviderType): ProviderSetting
 				privateKey: "",
 				project: "",
 				location: "",
-			} as GoogleVertexSettings
+			}
 		case "amazon-bedrock":
 			return {
 				...baseSettings,
@@ -54,7 +54,22 @@ export const createDefaultSettings = (providerId: ProviderType): ProviderSetting
 				region: "",
 				accessKeyId: "",
 				secretAccessKey: "",
-			} as AmazonBedrockSettings
+			}
+		case "openai-compatible":
+			return {
+				...baseSettings,
+				providerId: "openai-compatible",
+				modelId: "",
+				baseUrl: "",
+				apiKey: "",
+				supportImages: false,
+				inputLimit: "",
+				outputLimit: "",
+				inputTokensPrice: 0,
+				outputTokensPrice: 0,
+				cacheReadsPrice: 0,
+				cacheWritesPrice: 0,
+			}
 		default:
 			return {
 				...baseSettings,

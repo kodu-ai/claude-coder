@@ -1,10 +1,10 @@
 // providers/google-genai.ts
 import { ProviderConfig } from "../types"
-import { DEFAULT_BASE_URLS, PROVIDER_IDS } from "../constants"
+import { DEFAULT_BASE_URLS, PROVIDER_IDS, PROVIDER_NAMES } from "../constants"
 
 export const googleGenAIConfig: ProviderConfig = {
 	id: PROVIDER_IDS.GOOGLE_GENAI,
-	name: "Google AI Studio",
+	name: PROVIDER_NAMES[PROVIDER_IDS.GOOGLE_GENAI],
 	baseUrl: DEFAULT_BASE_URLS[PROVIDER_IDS.GOOGLE_GENAI],
 	models: [
 		{

@@ -15,6 +15,8 @@ import { customProvidersConfigs as providers } from "../../../../../src/api/prov
 import { rpcClient } from "@/lib/rpc-client"
 import { useAtom } from "jotai"
 import { createDefaultSettings, providerSettingsAtom } from "./atoms"
+import { Switch } from "@/components/ui/switch"
+type DistributedKeys<T> = T extends any ? keyof T : never
 
 const ProviderManager: React.FC = () => {
 	const [providerSettings, setProviderSettings] = useAtom(providerSettingsAtom)
@@ -46,16 +48,7 @@ const ProviderManager: React.FC = () => {
 		const provider = providers[providerId]
 
 		if (existingProvider) {
-			switch (providerId) {
-				case "google-vertex":
-					setProviderSettings(existingProvider as GoogleVertexSettings)
-					break
-				case "amazon-bedrock":
-					setProviderSettings(existingProvider as AmazonBedrockSettings)
-					break
-				default:
-					setProviderSettings(existingProvider as ProviderSettings)
-			}
+			setProviderSettings(existingProvider as ProviderSettings)
 		} else if (provider) {
 			setProviderSettings(createDefaultSettings(providerId))
 		}
@@ -167,9 +160,115 @@ const ProviderManager: React.FC = () => {
 					</>
 				)
 
+			case "openai-compatible":
+				const customSettings = providerSettings
+				return (
+					<>
+						<div className="space-y-2">
+							<Label htmlFor="baseUrl">Base URL</Label>
+							<Input
+								id="baseUrl"
+								value={customSettings.baseUrl || ""}
+								onChange={(e) => updateSettings("baseUrl", e.target.value)}
+								className="h-8"
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="model">Model ID</Label>
+							<Input
+								id="model"
+								value={customSettings.modelId || ""}
+								onChange={(e) => updateSettings("modelId", e.target.value)}
+								className="h-8"
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="apiKey">API Key (Optional)</Label>
+							<Input
+								id="apiKey"
+								type="password"
+								value={customSettings.apiKey || ""}
+								onChange={(e) => updateSettings("apiKey", e.target.value)}
+								className="h-8"
+							/>
+						</div>
+						<div className="flex items-center space-x-2">
+							<Switch
+								id="supportImages"
+								checked={customSettings.supportImages}
+								onCheckedChange={(checked) => updateSettings("supportImages", checked)}
+							/>
+							<Label htmlFor="supportImages">Support Images</Label>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="inputLimit">Input Limit</Label>
+							<Input
+								type="number"
+								id="inputLimit"
+								value={customSettings.inputLimit || ""}
+								onChange={(e) => updateSettings("inputLimit", e.target.value)}
+								className="h-8"
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="outputLimit">Output Limit</Label>
+							<Input
+								id="outputLimit"
+								type="number"
+								value={customSettings.outputLimit || ""}
+								onChange={(e) => updateSettings("outputLimit", e.target.value)}
+								className="h-8"
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="inputTokensPrice">Input Tokens Price</Label>
+							<Input
+								id="inputTokensPrice"
+								type="number"
+								value={customSettings.inputTokensPrice || 0}
+								onChange={(e) => updateSettings("inputTokensPrice", parseFloat(e.target.value))}
+								className="h-8"
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="outputTokensPrice">Output Tokens Price</Label>
+							<Input
+								id="outputTokensPrice"
+								type="number"
+								value={customSettings.outputTokensPrice || 0}
+								onChange={(e) => updateSettings("outputTokensPrice", parseFloat(e.target.value))}
+								className="h-8"
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="cacheReadsPrice">Cache Reads Price (Optional)</Label>
+							<Input
+								id="cacheReadsPrice"
+								type="number"
+								value={customSettings.cacheReadsPrice || 0}
+								onChange={(e) => updateSettings("cacheReadsPrice", parseFloat(e.target.value))}
+								className="h-8"
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="cacheWritesPrice">Cache Writes Price (Optional)</Label>
+							<Input
+								id="cacheWritesPrice"
+								type="number"
+								value={customSettings.cacheWritesPrice || 0}
+								onChange={(e) => updateSettings("cacheWritesPrice", parseFloat(e.target.value))}
+								className="h-8"
+							/>
+						</div>
+						<span className="text-[11px] text-muted-foreground">
+							Prices should be written per million tokens
+						</span>
+					</>
+				)
+
 			// Add other provider-specific fields here
 			default:
-				const settings = providerSettings as any
+				const settings = providerSettings
 				return (
 					<div className="space-y-2">
 						<Label htmlFor="apiKey">API Key</Label>
@@ -185,7 +284,7 @@ const ProviderManager: React.FC = () => {
 		}
 	}
 
-	const updateSettings = (field: string, value: string) => {
+	const updateSettings = (field: DistributedKeys<ProviderSettings>, value: string | boolean | number) => {
 		if (!providerSettings) return
 
 		setProviderSettings({
@@ -201,7 +300,6 @@ const ProviderManager: React.FC = () => {
 			<CardContent className="p-6">
 				<div className="space-y-4">
 					<h2 className="text-xl font-semibold">Provider Settings</h2>
-
 					<div className="space-y-4">
 						<div className="space-y-2">
 							<Label htmlFor="providerId">Provider</Label>

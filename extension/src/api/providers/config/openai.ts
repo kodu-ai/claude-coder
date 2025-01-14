@@ -1,10 +1,10 @@
 // providers/openai.ts
 import { ProviderConfig } from "../types"
-import { DEFAULT_BASE_URLS, PROVIDER_IDS } from "../constants"
+import { DEFAULT_BASE_URLS, PROVIDER_IDS, PROVIDER_NAMES } from "../constants"
 
 export const openaiConfig: ProviderConfig = {
 	id: PROVIDER_IDS.OPENAI,
-	name: "OpenAI",
+	name: PROVIDER_NAMES[PROVIDER_IDS.OPENAI],
 	baseUrl: DEFAULT_BASE_URLS[PROVIDER_IDS.OPENAI],
 	models: [
 		{

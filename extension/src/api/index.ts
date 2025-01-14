@@ -4,8 +4,8 @@ import { WebSearchResponseDto } from "./interfaces"
 import { koduSSEResponse } from "../shared/kodu"
 import { ApiHistoryItem } from "../agent/v1/main-agent"
 import { CustomApiHandler } from "./providers/custom-provider"
-import { ProviderId } from "./providers/constants"
-import { ModelInfo, ProviderConfig } from "./providers/types"
+import { PROVIDER_IDS, ProviderId } from "./providers/constants"
+import { customProviderSchema, ModelInfo, ProviderConfig } from "./providers/types"
 import { z } from "zod"
 
 export interface ApiHandlerMessageResponse {
@@ -102,21 +102,23 @@ export function withoutImageData(
 		return part
 	})
 }
-export const providerSettingsSchema = z.object({
-	// id: z.string(),
-	providerId: z.string(),
-	modelId: z.string().optional(),
-	apiKey: z.string().optional(),
-	// Google Vertex specific fields
-	clientEmail: z.string().optional(),
-	privateKey: z.string().optional(),
-	project: z.string().optional(),
-	location: z.string().optional(),
-	// Amazon Bedrock specific fields
-	region: z.string().optional(),
-	accessKeyId: z.string().optional(),
-	secretAccessKey: z.string().optional(),
-	sessionToken: z.string().optional(),
-})
+export const providerSettingsSchema = z
+	.object({
+		// id: z.string(),
+		providerId: z.nativeEnum(PROVIDER_IDS),
+		modelId: z.string().optional(),
+		apiKey: z.string().optional(),
+		// Google Vertex specific fields
+		clientEmail: z.string().optional(),
+		privateKey: z.string().optional(),
+		project: z.string().optional(),
+		location: z.string().optional(),
+		// Amazon Bedrock specific fields
+		region: z.string().optional(),
+		accessKeyId: z.string().optional(),
+		secretAccessKey: z.string().optional(),
+		sessionToken: z.string().optional(),
+	})
+	.merge(customProviderSchema.partial())
 
 export type ProviderSettings = z.infer<typeof providerSettingsSchema>

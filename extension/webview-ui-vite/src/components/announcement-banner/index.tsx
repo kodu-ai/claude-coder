@@ -34,7 +34,7 @@ export default function AnnouncementBanner() {
 				<div className="flex items-start justify-between">
 					<div className="flex items-center gap-2">
 						<AlertCircle className="h-5 w-5 text-primary" />
-						<h2 className="text-sm font-semibold">Latest Updates (v2.0.2)</h2>
+						<h2 className="text-sm font-semibold">Latest Updates (v2.1.0)</h2>
 					</div>
 					<Button
 						variant="ghost"
@@ -48,19 +48,17 @@ export default function AnnouncementBanner() {
 
 				<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>⚡️ Major performance improvements (v2.0.1)</p>
-						<p>🎯 Better task handling with ReAct prompting system (v2.0.1)</p>
-						<p>🔍 New symbol search and repository exploration tools (v2.0.1)</p>
-						<p>📝 Enhanced diff editing with automatic fixes (v2.0.1)</p>
+						<p>🤖 Custom models and direct LLM calls support</p>
+						<p>✨ Manual task completion and status indicators</p>
+						<p>⚡️ Near-instant UI streaming for LLM responses</p>
+						<p>🔄 Seamless model switching during tasks</p>
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🤖 New 3rd party observer LLM for guidance</p>
-						<p>🛠️ Configurable Prompt Editor and multi-agent system</p>
-						<p>📦 File history control with Git integration (v1.15.0)</p>
-						<p>🔄 Support for concurrent multiple edits (v1.13.0)</p>
-						<p>💾 Smart memory management and context compression</p>
-						<p>⚡️ Improved extension performance and stability</p>
+						<p>🛠️ Fixed missing feedback messages in tools</p>
+						<p>🔍 Improved diagnostic loading reliability</p>
+						<p>🐛 Resolved various edge case issues</p>
+						<p>📝 Enhanced file editing with better content retention</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">

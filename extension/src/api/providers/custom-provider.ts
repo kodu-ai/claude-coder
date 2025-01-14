@@ -6,7 +6,7 @@ import { createDeepSeek } from "@ai-sdk/deepseek"
 import { createOpenAI } from "@ai-sdk/openai"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { convertToAISDKFormat } from "../../utils/ai-sdk-format"
-import { ModelInfo } from "./types"
+import { customProviderSchema, ModelInfo } from "./types"
 import { PROVIDER_IDS } from "./constants"
 import { calculateApiCost } from "../api-utils"
 
@@ -56,6 +56,22 @@ const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) 
 			return createGoogleGenerativeAI({
 				apiKey: settings.providerSettings.apiKey,
 			}).languageModel(modelId)
+		case PROVIDER_IDS.OPENAICOMPATIBLE:
+			const providerSettings = customProviderSchema.safeParse(settings.providerSettings)
+			if (!providerSettings.success) {
+				throw new CustomProviderError(
+					"OpenAI Compatible Missing API key",
+					settings.providerSettings.providerId,
+					modelId
+				)
+			}
+			return createOpenAI({
+				apiKey: providerSettings.data.apiKey,
+				compatibility: "compatible",
+				baseURL: providerSettings.data.baseUrl,
+				name: providerSettings.data.modelId,
+			}).languageModel(modelId)
+
 		default:
 			throw new CustomProviderError("Provider not configured", settings.providerSettings.providerId, modelId)
 	}
