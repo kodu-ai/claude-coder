@@ -15,6 +15,8 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 -   Fixed incorrect command execution result handling
 -   Improved diagnostic handler performance on slower computers and large projects
+-   Fixed diagnostic handler, now properly load diagnostics
+-   Fixed bug where context memory wont load correctly (in chat)
 
 ## [2.1.0] - 2025-01-15
 
