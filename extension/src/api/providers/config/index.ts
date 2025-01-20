@@ -6,6 +6,7 @@ import { PROVIDER_IDS } from "../constants"
 import { ProviderConfig } from "../types"
 import { googleGenAIConfig } from "./google-genai"
 import { openaiCompatible } from "./openai-compatible"
+import { mistralConfig } from "./mistral"
 
 export const providerConfigs: Record<string, ProviderConfig> = {
 	[PROVIDER_IDS.KODU]: koduConfig,
@@ -13,6 +14,7 @@ export const providerConfigs: Record<string, ProviderConfig> = {
 	[PROVIDER_IDS.OPENAI]: openaiConfig,
 	[PROVIDER_IDS.GOOGLE_GENAI]: googleGenAIConfig,
 	[PROVIDER_IDS.OPENAICOMPATIBLE]: openaiCompatible,
+	[PROVIDER_IDS.MISTRAL]: mistralConfig,
 	// Add other providers here as they're created
 }
 

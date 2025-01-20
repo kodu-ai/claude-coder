@@ -41,7 +41,6 @@ export class ApiHistoryManager {
 		return message.ts
 	}
 
-	// Refactored to use in-place modifications
 	public async overwriteApiConversationHistory(newHistory: ApiHistoryItem[]) {
 		// we do it because the newHistory might be a reference to the same array
 		const newHistoryCopy = [...newHistory]
@@ -49,6 +48,16 @@ export class ApiHistoryManager {
 		this.state.apiConversationHistory.length = 0
 		// Push the new history items into the now-empty array
 		this.state.apiConversationHistory.push(...newHistoryCopy)
+		await this.saveApiHistory()
+	}
+
+	public async deleteApiHistoryItem(messageId: number) {
+		const index = this.state.apiConversationHistory.findIndex((msg) => msg?.ts === messageId)
+		if (index === -1) {
+			console.error(`[ApiHistoryManager] deleteApiConversationHistory: Message with id ${messageId} not found`)
+			return
+		}
+		this.state.apiConversationHistory.splice(index, 1)
 		await this.saveApiHistory()
 	}
 

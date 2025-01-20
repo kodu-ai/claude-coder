@@ -106,6 +106,11 @@ export interface KoduSettings extends BaseProviderSettings {
 	apiKey: string
 }
 
+export interface MistralSettings extends BaseProviderSettings {
+	providerId: "mistral"
+	apiKey: string
+}
+
 export type ProviderSettings =
 	| KoduSettings
 	| GoogleGenAISettings

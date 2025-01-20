@@ -2,7 +2,7 @@
 import fs from "fs/promises"
 import path from "path"
 import { writeFile } from "atomically"
-import { ApiHistoryItem, ClaudeMessage, FileVersion, SubAgentState } from "../types"
+import { ApiHistoryItem, Checkpoint, ClaudeMessage, FileVersion, SubAgentState } from "../types"
 
 interface IOManagerOptions {
 	fsPath: string
@@ -11,7 +11,7 @@ interface IOManagerOptions {
 }
 
 type WriteOperation = {
-	type: "claudeMessages" | "apiHistory" | "subAgentState" | "fileVersion"
+	type: "claudeMessages" | "apiHistory" | "subAgentState" | "fileVersion" | "checkpoint"
 	data: any
 	filePath: string
 }
@@ -211,6 +211,26 @@ export class IOManager {
 			// No files
 		}
 		return result
+	}
+
+	// ---------- File Versions I/O ----------
+	public async saveCheckpoint(checkpoint: Checkpoint): Promise<void> {
+		const taskDir = await this.ensureTaskDirectoryExists(checkpoint.taskId)
+		const checkpointFilePath = path.join(taskDir, "checkpoint.json")
+		this.enqueueWriteOperation("checkpoint", checkpoint, checkpointFilePath)
+	}
+
+	public async loadCheckpoint(taskId: string): Promise<Checkpoint | undefined> {
+		const taskDir = await this.ensureTaskDirectoryExists(taskId)
+		const checkpointFilePath = path.join(taskDir, "checkpoint.json")
+
+		try {
+			const data = await fs.readFile(checkpointFilePath, "utf8")
+			const checkpoint: Checkpoint = JSON.parse(data)
+			return checkpoint
+		} catch {
+			return undefined
+		}
 	}
 
 	// ---------- Utility ----------

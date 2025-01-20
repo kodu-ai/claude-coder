@@ -34,7 +34,7 @@ export default function AnnouncementBanner() {
 				<div className="flex items-start justify-between">
 					<div className="flex items-center gap-2">
 						<AlertCircle className="h-5 w-5 text-primary" />
-						<h2 className="text-sm font-semibold">Latest Updates (v2.1.0)</h2>
+						<h2 className="text-sm font-semibold">Latest Updates (v2.2.0)</h2>
 					</div>
 					<Button
 						variant="ghost"
@@ -48,17 +48,17 @@ export default function AnnouncementBanner() {
 
 				<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🤖 Custom models and direct LLM calls support</p>
-						<p>✨ Manual task completion and status indicators</p>
-						<p>⚡️ Near-instant UI streaming for LLM responses</p>
-						<p>🔄 Seamless model switching during tasks</p>
+						<p>🤖 New Mistral Codestral model (free)</p>
+						<p>✨ New Deepseek R1 model</p>
+						<p>⚡️ Improved command execution reliability</p>
+						<p>🔄 Better performance on large projects</p>
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🛠️ Fixed missing feedback messages in tools</p>
-						<p>🔍 Improved diagnostic loading reliability</p>
-						<p>🐛 Resolved various edge case issues</p>
-						<p>📝 Enhanced file editing with better content retention</p>
+						<p>🛠️ Enhanced diagnostic handler for slower systems</p>
+						<p>🔍 Optimized performance on large codebases</p>
+						<p>🐛 Fixed command execution result handling</p>
+						<p>📝 Improved overall system stability</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">

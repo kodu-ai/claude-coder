@@ -259,11 +259,6 @@ export class ExecuteCommandTool extends BaseAgentTool<ExecuteCommandToolParams> 
 				this.ts
 			)
 
-			let toolRes = "The command has been executed."
-			if (completed) {
-				toolRes = "Command execution completed successfully."
-			}
-
 			if ((userFeedback?.text && userFeedback.text.length) || userFeedback?.images?.length) {
 				await this.params.updateAsk(
 					"tool",
@@ -320,7 +315,7 @@ export class ExecuteCommandTool extends BaseAgentTool<ExecuteCommandToolParams> 
 				const toolRes = `
 			<command_execution_response>
 				<status>
-					<result>partial</result>
+					<result>${completed ? "executed sucessfully" : "execution in progress"}</result>
 					<operation>command_execution</operation>
 					<timestamp>${new Date().toISOString()}</timestamp>
 				</status>
@@ -331,7 +326,18 @@ export class ExecuteCommandTool extends BaseAgentTool<ExecuteCommandToolParams> 
 					</command_info>
 					<output>
 						<content>${this.output || "No output"}</content>
-						<note>This is a partial output as the command is still running</note>
+						${
+							shellIntegrationErrorOutput
+								? `<shell_integration_error>${shellIntegrationErrorOutput}</shell_integration_error>`
+								: ""
+						}
+						${earlyExit === "pending" ? `<early_exit>pending</early_exit>` : `<early_exit>${earlyExit}</early_exit>`}
+						<note>${
+							completed
+								? "Command executed successfully"
+								: "Command execution in progress partial output may be available you can continue with task if you think it's good to go"
+						}</note>
+						}
 					</output>
 				</execution_details>
 			</command_execution_response>`

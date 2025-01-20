@@ -4,6 +4,18 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.2.0] - 2025-01-20
+
+### New
+
+-   Add Mistral Codestral model to available models (currently free)
+-   Add Deepseek R1 model to available models
+
+### Fixed
+
+-   Fixed incorrect command execution result handling
+-   Improved diagnostic handler performance on slower computers and large projects
+
 ## [2.1.0] - 2025-01-15
 
 ### New

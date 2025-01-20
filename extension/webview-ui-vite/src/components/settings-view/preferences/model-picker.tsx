@@ -89,6 +89,28 @@ export const ModelSelector: FC<ModelSelectorProps> = ({ modelId, onChangeModel, 
 			{/* Title row with optional tooltips explaining terms */}
 			<div className="flex items-center justify-between">
 				<span className="text-sm font-medium">Pick a Model</span>
+
+				{/* Tooltip explaining CPM, context window, output limit */}
+				<TooltipProvider>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button variant="ghost" size="icon">
+								<Info className="w-4 h-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent className="max-w-xs text-xs space-y-1">
+							<p>
+								<strong>CPM</strong>: Cost per million tokens
+							</p>
+							<p>
+								<strong>Context Window</strong>: Maximum input size in tokens
+							</p>
+							<p>
+								<strong>Output Limit</strong>: The max tokens the model can produce
+							</p>
+						</TooltipContent>
+					</Tooltip>
+				</TooltipProvider>
 			</div>
 
 			{/* The Popover + Command-based autocomplete */}

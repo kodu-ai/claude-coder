@@ -4,11 +4,13 @@ import { koduSSEResponse } from "../../shared/kodu"
 import { CoreMessage, streamText } from "ai"
 import { createDeepSeek } from "@ai-sdk/deepseek"
 import { createOpenAI } from "@ai-sdk/openai"
+import { createMistral } from "@ai-sdk/mistral"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { convertToAISDKFormat } from "../../utils/ai-sdk-format"
 import { customProviderSchema, ModelInfo } from "./types"
 import { PROVIDER_IDS } from "./constants"
 import { calculateApiCost } from "../api-utils"
+import { mistralConfig } from "./config/mistral"
 
 export class CustomProviderError extends Error {
 	private _providerId: string
@@ -36,6 +38,14 @@ const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) 
 			}
 			return createDeepSeek({
 				apiKey: settings.providerSettings.apiKey,
+			}).languageModel(modelId)
+		case PROVIDER_IDS.MISTRAL:
+			if (!settings.providerSettings.apiKey) {
+				throw new CustomProviderError("Mistral Missing API key", settings.providerSettings.providerId, modelId)
+			}
+			return createMistral({
+				apiKey: settings.providerSettings.apiKey,
+				baseURL: mistralConfig.baseUrl,
 			}).languageModel(modelId)
 		case PROVIDER_IDS.OPENAI:
 			if (!settings.providerSettings.apiKey) {
@@ -122,7 +132,7 @@ export class CustomApiHandler implements ApiHandler {
 			model: providerToAISDKModel(this._options, modelId),
 			// prompt: `This is a test tell me a random fact about the world`,
 			messages: convertedMessagesFull,
-			temperature: tempature ?? 0.1,
+			temperature: currentModel.id === "deepseek-reasoner" ? undefined : tempature ?? 0.1, // deepseek-reasoner doesn't support temperature
 			topP: top_p ?? undefined,
 			stopSequences: ["</kodu_action>"],
 			abortSignal: abortSignal ?? undefined,

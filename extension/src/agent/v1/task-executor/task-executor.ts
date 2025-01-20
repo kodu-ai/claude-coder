@@ -23,6 +23,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private streamPaused: boolean = false
 	private textBuffer: string = ""
 	private _currentReplyId: number | null = null
+	private currentStreamTs: number | null = null
 	private pauseNext: boolean = false
 	private lastResultWithCommit: ToolResponseV2 | undefined = undefined
 
@@ -327,6 +328,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.logState("Making Claude API request")
 			// Execute hooks before making the API request
 			const startedReqId = await this.say("api_req_started")
+			this.currentStreamTs = startedReqId
 			const provider = this.providerRef.deref()
 			if (provider?.koduDev) {
 				const hookContent = await provider.koduDev.executeHooks()
@@ -354,7 +356,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			await this.stateManager.apiHistoryManager.addToApiConversationHistory({
 				role: "user",
 				content: this.currentUserContent,
-				ts: Date.now(),
+				ts: startedReqId,
 				...attributesToAdd,
 			})
 
@@ -659,20 +661,21 @@ export class TaskExecutor extends TaskExecutorUtils {
 		console.log(`[TaskExecutor] Error (State: ${this.state}):`, error)
 		await this.toolExecutor.resetToolState()
 
-		const lastAssistantMessage = this.stateManager.state.apiConversationHistory.at(-1)
-		if (lastAssistantMessage?.role === "assistant" && lastAssistantMessage.ts) {
-			if (typeof lastAssistantMessage.content === "string") {
-				lastAssistantMessage.content = [{ type: "text", text: lastAssistantMessage.content }]
+		const lastMessage = this.stateManager.state.apiConversationHistory.at(-1)
+		if (lastMessage?.role === "assistant" && lastMessage.ts) {
+			if (typeof lastMessage.content === "string") {
+				lastMessage.content = [{ type: "text", text: lastMessage.content }]
 			}
-			if (Array.isArray(lastAssistantMessage.content) && isTextBlock(lastAssistantMessage.content[0])) {
-				lastAssistantMessage.content[0].text =
-					lastAssistantMessage.content[0].text.trim() ||
+			if (Array.isArray(lastMessage.content) && isTextBlock(lastMessage.content[0])) {
+				lastMessage.content[0].text =
+					lastMessage.content[0].text.trim() ||
 					"An error occurred in the generation of the response. Please try again."
 			}
-			await this.stateManager.apiHistoryManager.updateApiHistoryItem(
-				lastAssistantMessage.ts,
-				lastAssistantMessage
-			)
+			await this.stateManager.apiHistoryManager.updateApiHistoryItem(lastMessage.ts, lastMessage)
+		}
+		if (lastMessage?.role === "user" && lastMessage.ts && lastMessage.ts === this.currentStreamTs) {
+			// remove the last message from the history
+			await this.stateManager.apiHistoryManager.deleteApiHistoryItem(lastMessage.ts)
 		}
 		const modifiedClaudeMessages = this.stateManager.state.claudeMessages.slice()
 		// update previous messages to ERROR

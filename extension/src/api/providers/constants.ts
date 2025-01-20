@@ -9,6 +9,7 @@ export const PROVIDER_IDS = {
 	FIREWORKS: "fireworks",
 	DEEPSEEK: "deepseek",
 	DEEPINFRA: "deepinfra",
+	MISTRAL: "mistral",
 	OPENAICOMPATIBLE: "openai-compatible",
 } as const
 
@@ -18,6 +19,7 @@ export const PROVIDER_NAMES = {
 	[PROVIDER_IDS.GOOGLE_VERTEX]: "Google Vertex AI",
 	[PROVIDER_IDS.AMAZON_BEDROCK]: "Amazon Bedrock",
 	[PROVIDER_IDS.OPENAI]: "OpenAI",
+	[PROVIDER_IDS.MISTRAL]: "Mistral",
 	[PROVIDER_IDS.TOGETHER_AI]: "Together.ai",
 	[PROVIDER_IDS.FIREWORKS]: "Fireworks.ai",
 	[PROVIDER_IDS.DEEPSEEK]: "DeepSeek",
@@ -34,6 +36,7 @@ export const DEFAULT_BASE_URLS = {
 	[PROVIDER_IDS.DEEPSEEK]: "https://api.deepseek.com/v1",
 	[PROVIDER_IDS.DEEPINFRA]: "https://api.deepinfra.com/v1/openai",
 	[PROVIDER_IDS.OPENAICOMPATIBLE]: "http://localhost:1234",
+	[PROVIDER_IDS.MISTRAL]: "https://codestral.mistral.ai/v1",
 } as const
 
 // For type safety when using provider IDs

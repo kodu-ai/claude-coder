@@ -3,7 +3,7 @@ import { ToolPromptSchema } from "../utils/utils"
 export const readFilePrompt: ToolPromptSchema = {
 	name: "read_file",
 	description:
-		"Request to read the contents of a file at the specified path. Use this when you need to examine the contents of an existing file you do not know the contents of, for example to analyze code, review text files, or extract information from configuration files. Automatically extracts raw text from PDF and DOCX files. May not be suitable for other types of binary files, as it returns the raw content as a string.",
+		"Request to read the contents of a file at the specified path. Use this when you need to examine the contents of an existing file you do not know the contents of, for example to analyze code, review text files, or extract information from configuration files. Automatically extracts raw text from PDF and DOCX files. May not be suitable for other types of binary files, as it returns the raw content as a string. read file tool automatically breaks the content of the file into pages, you can specify the page number to read from a file, or you can read all pages of a file. you can only specify one of the two options.",
 	parameters: {
 		path: {
 			type: "string",

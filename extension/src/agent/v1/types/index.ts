@@ -117,6 +117,19 @@ export type SubAgentState = {
 	state: "RUNNING" | "DONE" | "EXITED"
 }
 
+export type CheckpointEntry = {
+	taskId: string
+	agentId: number
+	agentState?: SubAgentState
+	content: KoduAgentState["apiConversationHistory"][number]
+	errorHistory: KoduAgentState["historyErrors"]
+}
+
+export type Checkpoint = {
+	taskId: string
+	enteries: CheckpointEntry[]
+}
+
 export interface KoduAgentState {
 	taskId: string
 	apiConversationHistory: ApiHistoryItem[]

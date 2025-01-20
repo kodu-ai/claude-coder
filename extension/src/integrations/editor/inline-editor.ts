@@ -365,7 +365,7 @@ export class InlineEditHandler {
 			currentPos += text.length
 		}
 
-		if (bestMatch.length > searchContent.length * 0.85) {
+		if (bestMatch.length > searchContent.length * 0.7) {
 			const startLine = content.substr(0, bestMatch.start).split("\n").length - 1
 			const endLine = startLine + searchContent.split("\n").length - 1
 

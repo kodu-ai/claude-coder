@@ -196,6 +196,7 @@ export const readOnlyTools: ChatTool["tool"][] = [
 	"list_files",
 	"search_files",
 	"explore_repo_folder",
+	"search_symbol",
 	"web_search",
 	"url_screenshot",
 	"add_interested_file",

@@ -449,25 +449,28 @@ export class MainAgent {
 		]
 		const isLastMsgMutable = lastTwoMsgs.some((msg) => {
 			if (Array.isArray(msg.content)) {
-				return msg.content.some(
-					(block) =>
-						block.type === "text" && awaitRequierdTools.map((i) => `<${i}>`).includes(block.text as any)
-				)
+				return msg.content.some((block) => {
+					if (block.type === "text") {
+						const isInclude = awaitRequierdTools.some((i) => block.text.includes(`<${i}>`))
+						return isInclude
+					}
+					return false
+				})
 			}
 			if (typeof msg.content === "string") {
-				return awaitRequierdTools.map((i) => `<${i}>`).includes(msg.content)
+				return awaitRequierdTools.map((i) => `<${i}>`).some((i) => `${msg.content}`.includes(i))
 			}
 			return false
 		})
 
 		const diagnosticsHandler = DiagnosticsHandler.getInstance()
 		const files = this.stateManager.historyErrors ? Object.keys(this.stateManager.historyErrors) : []
-		if (isLastMsgMutable) {
+		if (isLastMsgMutable && files.length > 0) {
 			// proper delay to make sure that the vscode diagnostics and server logs are updated
 			// open first in memory file to make sure that the diagnostics are updated
 			await diagnosticsHandler.openFiles(files)
 			await diagnosticsHandler.getDiagnostics(files, true)
-			await delay(2000)
+			await delay(2_000)
 		}
 		const devServers = TerminalRegistry.getAllDevServers()
 		const isDevServerRunning = devServers.length > 0
