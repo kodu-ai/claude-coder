@@ -59,6 +59,9 @@ export default function AnnouncementBanner() {
 						<p>🔍 Optimized performance on large codebases</p>
 						<p>🐛 Fixed command execution result handling</p>
 						<p>📝 Improved overall system stability</p>
+						<p>🛠️ Fixed diagnostic handler, now properly load diagnostics</p>
+						<p>🐛 Fixed bug where context memory wont load correctly (in chat)</p>
+						<p>🔍 Add option to select commit author on git handler</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">
