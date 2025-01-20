@@ -87,6 +87,11 @@ export type ToggleGitHandlerMessage = {
 	enabled: boolean
 }
 
+export type UpdateGlobalStateMessage = {
+	type: "updateGlobalState"
+	state: Partial<GlobalState>
+}
+
 export type BaseExtensionMessage = {
 	type: "action" | "state" | "selectedImages"
 	text?: string
@@ -163,6 +168,7 @@ export type ExtensionMessage =
 	| SetCommandTimeoutMessage
 	| SetInlineEditModeMessage
 	| ToggleGitHandlerMessage
+	| UpdateGlobalStateMessage
 	| BaseExtensionMessage
 	| PostFoldersAndItems
 	| PostClaudeMessages
@@ -184,6 +190,7 @@ export interface BaseExtensionState {
 	maxRequestsPerTask?: number
 	lastShownAnnouncementId?: string
 	gitHandlerEnabled?: boolean
+	gitCommitterType?: "kodu" | "user"
 	currentContextTokens: number
 	currentContextWindow: number
 	terminalCompressionThreshold: number | undefined

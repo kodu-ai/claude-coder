@@ -145,7 +145,10 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 					    <total_pages>${totalPages}</total_pages>
 					    <current_page>${currentPage}</current_page>
 					  </page_info>
-					  <content>${pageContent}</content>
+					  <note>Content is formatted with line numbers.</note>
+					  <content>The page content is formatted with line numbers, each line is prefixed with a line number and a space.
+					  ${pageContent}
+					  </content>
 					</file_read_response>`
 			)
 		} catch (error) {

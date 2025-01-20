@@ -39,6 +39,8 @@ const autoCloseTerminalAtom = atom(false)
 autoCloseTerminalAtom.debugLabel = "autoCloseTerminal"
 const gitHandlerEnabledAtom = atom(true)
 gitHandlerEnabledAtom.debugLabel = "gitHandlerEnabled"
+const gitCommitterTypeAtom = atom<"kodu" | "user">("kodu")
+gitCommitterTypeAtom.debugLabel = "gitCommitterType"
 const skipWriteAnimationAtom = atom(false)
 skipWriteAnimationAtom.debugLabel = "skipWriteAnimation"
 const lastShownAnnouncementIdAtom = atom<string | undefined>(undefined)
@@ -57,6 +59,7 @@ observerHookEveryAtom.debugLabel = "observerHookEvery"
 export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
 	gitHandlerEnabled: get(gitHandlerEnabledAtom),
+	gitCommitterType: get(gitCommitterTypeAtom),
 	commandTimeout: get(commandTimeoutAtom),
 	terminalCompressionThreshold: get(terminalCompressionThresholdAtom),
 	claudeMessages: get(claudeMessagesAtom),
@@ -153,6 +156,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setCommandTimeout = useSetAtom(commandTimeoutAtom)
 	const setTaskHistory = useSetAtom(taskHistoryAtom)
 	const setGitHandlerEnabled = useSetAtom(gitHandlerEnabledAtom)
+	const setGitCommitterType = useSetAtom(gitCommitterTypeAtom)
 	const setApiConfig = useSetAtom(apiConfigAtom)
 	const setCustomInstructions = useSetAtom(customInstructionsAtom)
 	const setAlwaysAllowReadOnly = useSetAtom(alwaysAllowReadOnlyAtom)
@@ -184,6 +188,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			}
 			setCommandTimeout(message.state.commandTimeout)
 			setApiConfig(message.state.apiConfig)
+			setGitCommitterType(message.state.gitCommitterType ?? "kodu")
 			setTerminalCompressionThreshold(message.state.terminalCompressionThreshold)
 			setObserverHookEvery(message.state.observerHookEvery)
 			setAutoSummarize(!!message.state.autoSummarize)
@@ -249,6 +254,7 @@ export const useExtensionState = () => {
 		setApiConfig,
 		setLastShownAnnouncementId,
 		setTerminalCompressionThreshold,
+		setGitCommitterType: useSetAtom(gitCommitterTypeAtom),
 		setObserverHookEvery,
 		setSkipWriteAnimation,
 		setCommandTimeout,

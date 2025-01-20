@@ -401,6 +401,7 @@ export class WebviewManager {
 							.getTaskManager()
 							.handleNewTask(message.text, message.images, message.attachements)
 						break
+					// case ""
 
 					case "autoCloseTerminal":
 						await this.provider.getStateManager().setAutoCloseTerminal(message.bool)

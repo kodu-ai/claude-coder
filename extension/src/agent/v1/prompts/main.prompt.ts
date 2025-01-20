@@ -239,7 +239,7 @@ You should always think about the context and the impact of the changes you are 
 You should prefer to use file_editor with mode equal to 'edit', use file_editor with mode equal to 'whole_write' when you are creating a new file or overwriting an existing file or rewriting a file.
 You must always use the latest file version and timestamp as your reference point when proposing changes, file_editor tool will always provide you with the latest file version and timestamp, you should always base your new proposed changes on the latest file version and timestamp.
 If you are using file_editor with mode equal to 'whole_write' you should always provide the full content of the file in kodu_content, this overwrites an existing file entirely or creates a new file if it doesn't exist, you should never provide a partial content of the file, you should always provide the full content of the file without truncation, placeholders, or omissions.
-if you are using file_editor with mode equal to 'edit' you should always provide the exact changes you want to make in kodu_diff using standard Git conflict merge format blocks (maximum 5 blocks per request each block should contain 3 prior context lines must match 1 to 1, letter by letter), each block should look like:
+if you are using file_editor with mode equal to 'edit' you should always provide the exact changes you want to make in kodu_diff using standard Git conflict merge format blocks (maximum 5 blocks per request each block should contain 3 prior context lines must match 1 to 1, letter by letter, space by space, tab by tab, the indentation and spacing is critical!), each block should look like:
 <<<<<<< HEAD
 (exact snippet of the current file content, including 3 lines of context above/below) it must match 1 to 1 with the latest file content marked by the lateset file timestamp.
 =======
@@ -259,6 +259,7 @@ second git conflict block must match 1 to 1 with the latest file content marked 
 updated content for the second git conflict block
 >>>>>>> updated
 You can put up to 5 git conflict blocks in one kodu_diff string if you need to apply multiple edits in one file but make sure they all include <<<<<<< HEAD followed by the exact snippet of the current file content, including 3 lines of context above/below and ======= followed by the fully updated content for that snippet and >>>>>>> updated. this is recursive and you can put as many git conflict blocks as you need in one kodu_diff string.
+Be sure to always write the latest file content marked by the latest file timestamp, don't include line numbers in the git conflict block, just include the exact snippet of the current file content, including 3 lines of context above/below, the snippet must match 1 to 1 and have proper indentation and spacing, the indentation and spacing is critical!
 Always remember good edits are much more accepted by the user compared to small edits with minor changes, this means you should provide as much context as possible in the kodu_diff string to make sure the user can understand the changes you are proposing and how they will help you to accomplish the user's task.
 </file_editor_reminders>
 # Error Handling and Loop Prevention Reminders:

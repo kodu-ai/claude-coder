@@ -35,6 +35,7 @@ export class ExtensionStateManager {
 			observerHookEvery,
 			apiConfig,
 			koduApiKey,
+			gitCommitterType,
 		] = await Promise.all([
 			this.globalStateManager.getGlobalState("user"),
 			this.globalStateManager.getGlobalState("lastShownAnnouncementId"),
@@ -52,6 +53,7 @@ export class ExtensionStateManager {
 			this.globalStateManager.getGlobalState("observerHookEvery"),
 			this.globalStateManager.getGlobalState("apiConfig"),
 			this.secretStateManager.getSecretState("koduApiKey"),
+			this.globalStateManager.getGlobalState("gitCommitterType"),
 		])
 
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
@@ -59,7 +61,12 @@ export class ExtensionStateManager {
 
 		const clone = [...(currentClaudeMessage ?? [])]?.slice(-24).reverse()
 		const lastClaudeApiFinished = clone?.find(
-			(m) => isV1ClaudeMessage(m) && m.type === "say" && m.say === "api_req_started" && m.apiMetrics?.inputTokens
+			(m) =>
+				(isV1ClaudeMessage(m) &&
+					m.type === "say" &&
+					m.say === "api_req_started" &&
+					m.apiMetrics?.outputTokens) ||
+				m.apiMetrics?.inputTokens
 		) as V1ClaudeMessage | undefined
 		const tokens =
 			(lastClaudeApiFinished?.apiMetrics?.inputTokens ?? 0) +
@@ -98,6 +105,7 @@ export class ExtensionStateManager {
 			gitHandlerEnabled: gitHandlerEnabled ?? true,
 			observerHookEvery,
 			apiConfig,
+			gitCommitterType,
 		} satisfies ExtensionState
 	}
 

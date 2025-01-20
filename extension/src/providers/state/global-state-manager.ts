@@ -15,6 +15,7 @@ const defaults: Partial<GlobalState> = {
 	inlineEditOutputType: "full",
 	autoSummarize: true,
 	gitHandlerEnabled: false,
+	gitCommitterType: "kodu",
 	apiConfig: {
 		providerId: "kodu",
 		modelId: "claude-3-5-sonnet-20241022",
@@ -29,6 +30,7 @@ export type GlobalState = {
 	customInstructions: string | undefined
 	apiConfig?: Partial<ApiConfiguration>
 	gitHandlerEnabled: boolean | undefined
+	gitCommitterType: "kodu" | "user" | undefined
 	alwaysAllowReadOnly: boolean | undefined
 	alwaysAllowWriteOnly: boolean | undefined
 	inlineEditOutputType?: "full" | "diff"

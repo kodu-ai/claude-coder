@@ -15,14 +15,12 @@ export const readFileAndFormat = async (filePath: string) => {
 }
 
 /**
- * Convert file content to format matching cat -n output
+ * Convert file content to line-numbered text
  */
 export const formatFileToLines = (content: string) => {
-	// const lines = content.split("\n")
-	// const lineNumbers = lines.map((_, index) => `${index + 1}`.padStart(6, " "))
-	// return lines.map((line, index) => `${lineNumbers[index]}\t${line}`).join("\n")
-	// disable line numbers for now
-	return content
+	const lines = content.split("\n")
+	const lineNumbers = lines.map((_, index) => `${index + 1}`.padStart(4, " "))
+	return lines.map((line, index) => `${lineNumbers[index]} ${line}`).join("\n")
 }
 
 export async function extractTextFromFile(filePath: string): Promise<string> {

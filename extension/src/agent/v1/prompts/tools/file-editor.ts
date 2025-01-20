@@ -64,10 +64,10 @@ export const fileEditorPrompt: ToolPromptSchema = {
 - No placeholders in the replacement section; it must be the final updated text
 #### CRITICAL RULES WHEN USING 'edit' MODE:
 1. Read the file if needed (to confirm current content).
-2. Match exactly in the HEAD block (including whitespace and indentation), don't include the line number in the HEAD block only write the HEAD content (3 lines of context + the replaced lines).
+2. Match exactly in the HEAD block (including whitespace and indentation).
 3. Provide a complete final version of each changed snippet in the block after =======.
 4. Combine multiple edits into a single call if they’re related.
-5. Provide context lines around each snippet (at least 3 lines to allow for robust matching).`,
+5. Provide context lines around each snippet (at least 3 lines to allow for robust matching) only write the snippet content (including whitespace and indentation) but exclude the line number.`,
 	examples: [
 		{
 			description: "Adding Imports and Removing a Function",
@@ -118,6 +118,43 @@ def another_function():
 # Context lines for better match
 def another_function():
     print("This is a test")
+>>>>>>> updated
+</kodu_diff>
+</file_editor>`,
+		},
+		{
+			description: "Multiple Related Changes in One Go",
+			output: `<thinking>
+...
+"I need to do multiple edits in a single file. First, update a function call from 'return str(factorial(n))' to 'return str(math.factorial(n))'. Also, add a new logging line inside another function. Both changes can be done with Git conflict–style blocks in one edit call."
+...
+</thinking>
+
+<file_editor>
+<path>mathweb/flask/app.py</path>
+<mode>edit</mode>
+<commit_message>fix(math): update factorial call to use math library and add debug log</commit_message>
+<kodu_diff>
+<<<<<<< HEAD
+# Contextual code for better matching
+def process_number(n):
+    result = n * 2
+    return str(factorial(n))
+
+# More context if necessary
+def another_function_call():
+    pass
+=======
+# Contextual code for better matching
+def process_number(n):
+    result = n * 2
+    return str(math.factorial(n))
+
+# More context if necessary
+def another_function_call():
+    # Adding a debug log line
+    print("another_function_call invoked")
+    pass
 >>>>>>> updated
 </kodu_diff>
 </file_editor>`,

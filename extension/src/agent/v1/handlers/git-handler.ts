@@ -12,11 +12,45 @@ export type GitCommitResult = {
 
 export class GitHandler {
 	private repoPath: string | undefined
-	private readonly DEFAULT_USER_NAME = "kodu-ai"
-	private readonly DEFAULT_USER_EMAIL = "bot@kodu.ai"
+	private readonly KODU_USER_NAME = "kodu-ai"
+	private readonly KODU_USER_EMAIL = "bot@kodu.ai"
 
 	constructor(repoPath: string) {
 		this.repoPath = repoPath
+	}
+
+	private async getCommitterInfo(): Promise<{ name: string; email: string }> {
+		const committerType = GlobalStateManager.getInstance().getGlobalState("gitCommitterType") ?? "kodu"
+
+		if (committerType === "kodu") {
+			return {
+				name: this.KODU_USER_NAME,
+				email: this.KODU_USER_EMAIL,
+			}
+		}
+
+		// Use git config to get user's name and email
+		try {
+			const name = (await this.getLocalConfigValue("user.name")) || (await this.getGlobalConfigValue("user.name"))
+			const email =
+				(await this.getLocalConfigValue("user.email")) || (await this.getGlobalConfigValue("user.email"))
+
+			if (!name || !email) {
+				console.log("User git config not found, falling back to kodu")
+				return {
+					name: this.KODU_USER_NAME,
+					email: this.KODU_USER_EMAIL,
+				}
+			}
+
+			return { name, email }
+		} catch (error) {
+			console.error("Error getting user git config:", error)
+			return {
+				name: this.KODU_USER_NAME,
+				email: this.KODU_USER_EMAIL,
+			}
+		}
 	}
 
 	private checkEnabled(): boolean {
@@ -110,13 +144,14 @@ export class GitHandler {
 
 	private async commitWithMessage(path: string, message: string): Promise<GitCommitResult> {
 		try {
+			// Get committer info
+			const { name, email } = await this.getCommitterInfo()
+
 			// Separate add and commit for better error handling
 			await execa("git", ["add", path], { cwd: this.repoPath })
-			const { stdout } = await execa(
-				"git",
-				["commit", "--author", `${this.DEFAULT_USER_NAME} <${this.DEFAULT_USER_EMAIL}>`, "-m", message],
-				{ cwd: this.repoPath }
-			)
+			const { stdout } = await execa("git", ["commit", "--author", `${name} <${email}>`, "-m", message], {
+				cwd: this.repoPath,
+			})
 			return this.getCommittedHash(stdout.trim())
 		} catch (error) {
 			if (error instanceof ExecaError) {
@@ -389,10 +424,18 @@ export class GitHandler {
 
 	private async getLocalConfigValue(key: string): Promise<string | null> {
 		try {
-			const { stdout } = await execa("git", ["config", key], { cwd: this.repoPath })
+			const { stdout } = await execa("git", ["config", "--local", key], { cwd: this.repoPath })
 			return stdout.trim()
 		} catch (error) {
-			console.error(`Error getting git config ${key}: ${error}`)
+			return null
+		}
+	}
+
+	private async getGlobalConfigValue(key: string): Promise<string | null> {
+		try {
+			const { stdout } = await execa("git", ["config", "--global", key])
+			return stdout.trim()
+		} catch (error) {
 			return null
 		}
 	}

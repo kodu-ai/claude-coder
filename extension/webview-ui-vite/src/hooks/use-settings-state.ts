@@ -8,6 +8,7 @@ export function useSettingsState() {
 	const [readOnly, setReadOnly] = useState(extensionState.alwaysAllowReadOnly || false)
 	const [autoCloseTerminal, setAutoCloseTerminal] = useState(extensionState.autoCloseTerminal || false)
 	const [gitHandlerEnabled, setGitHandlerEnabled] = useState(extensionState.gitHandlerEnabled ?? true)
+	const [gitCommitterType, setGitCommitterType] = useState(extensionState.gitCommitterType ?? "kodu")
 	const [experimentalFeatureStates, setExperimentalFeatureStates] = useState({
 		alwaysAllowWriteOnly: extensionState.alwaysAllowWriteOnly || false,
 		autoSummarize: extensionState.autoSummarize || false,
@@ -71,6 +72,18 @@ export function useSettingsState() {
 		vscode.postMessage({ type: "toggleGitHandler", enabled: checked })
 	}, [])
 
+	const handleSetGitCommitterType = useCallback(
+		(type: "kodu" | "user") => {
+			setGitCommitterType(type)
+			extensionState.setGitCommitterType(type)
+			vscode.postMessage({
+				type: "updateGlobalState",
+				state: { gitCommitterType: type },
+			})
+		},
+		[extensionState]
+	)
+
 	const handleCustomInstructionsChange = useCallback(
 		(val: string) => {
 			if (val === extensionState.customInstructions) return
@@ -90,6 +103,7 @@ export function useSettingsState() {
 		readOnly,
 		autoCloseTerminal,
 		gitHandlerEnabled,
+		gitCommitterType,
 		experimentalFeatureStates,
 		customInstructions,
 		autoSkipWrite,
@@ -104,6 +118,7 @@ export function useSettingsState() {
 		handleSetReadOnly,
 		handleSetAutoCloseTerminal,
 		handleSetGitHandlerEnabled,
+		handleSetGitCommitterType,
 		handleCustomInstructionsChange,
 	}
 }

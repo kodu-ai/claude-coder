@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import React from "react"
@@ -18,7 +19,9 @@ const AdvancedTab: React.FC = () => {
 		terminalCompressionThreshold,
 		commandTimeout,
 		gitHandlerEnabled,
+		gitCommitterType,
 		handleSetGitHandlerEnabled,
+		handleSetGitCommitterType,
 		handleCommandTimeout,
 		handleTerminalCompressionThresholdChange,
 		handleSetReadOnly,
@@ -63,15 +66,42 @@ const AdvancedTab: React.FC = () => {
 						Open Editor
 					</Button>
 				</div>
-				<ExperimentalFeatureItem
-					feature={{
-						id: "gitHandlerEnabled",
-						label: "Git Handler",
-						description: "Enable or disable automatic git operations and version control",
-					}}
-					checked={gitHandlerEnabled}
-					onCheckedChange={handleSetGitHandlerEnabled}
-				/>
+				<div className="space-y-4">
+					<ExperimentalFeatureItem
+						feature={{
+							id: "gitHandlerEnabled",
+							label: "Git Handler",
+							description: "Enable or disable automatic git operations and version control",
+						}}
+						checked={gitHandlerEnabled}
+						onCheckedChange={handleSetGitHandlerEnabled}
+					/>
+					{gitHandlerEnabled && (
+						<div className="pl-6 space-y-2">
+							<Label className="text-xs font-medium">Git Committer</Label>
+							<RadioGroup
+								value={gitCommitterType}
+								onValueChange={(value) => handleSetGitCommitterType(value as "kodu" | "user")}
+								className="flex flex-col space-y-1">
+								<div className="flex items-center space-x-2">
+									<RadioGroupItem value="kodu" id="kodu" />
+									<Label htmlFor="kodu" className="text-sm">
+										Kodu AI
+									</Label>
+								</div>
+								<div className="flex items-center space-x-2">
+									<RadioGroupItem value="user" id="user" />
+									<Label htmlFor="user" className="text-sm">
+										User Profile
+									</Label>
+								</div>
+							</RadioGroup>
+							<p className="text-[10px] text-muted-foreground">
+								Choose who should be credited for git commits
+							</p>
+						</div>
+					)}
+				</div>
 				<ExperimentalFeatureItem
 					feature={{
 						id: "alwaysAllowReadOnly",
