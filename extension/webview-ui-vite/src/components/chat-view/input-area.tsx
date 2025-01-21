@@ -129,15 +129,24 @@ const InputArea: React.FC<InputAreaProps> = ({
 									const newText = inputValue + "@"
 									setInputValue(newText)
 									// Create synthetic React change event
-									const fakeEvent = {
-										target: { value: newText },
-										persist: () => {},
-									} as unknown as React.ChangeEvent<HTMLTextAreaElement>
+									// Create proper React change event
+									const event = new Event("input", {
+										bubbles: true,
+									}) as unknown as React.ChangeEvent<HTMLTextAreaElement>
+									Object.defineProperty(event, "target", {
+										writable: false,
+										value: {
+											value: newText,
+											selectionStart: newText.length,
+											selectionEnd: newText.length,
+										},
+									})
 
 									// Trigger InputV1's onChange handler directly
 									if (inputRef.current) {
-										inputRef.current.dispatchEvent(new Event("input", { bubbles: true }))
-										inputRef.current.onchange?.(fakeEvent)
+										// Trigger both React and DOM event handlers
+										inputRef.current.dispatchEvent(event)
+										props.onChange(event)
 										// Focus and position cursor after state update
 										setTimeout(() => {
 											inputRef.current?.focus()
