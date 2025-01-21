@@ -127,19 +127,21 @@ const InputArea: React.FC<InputAreaProps> = ({
 							onClick={() => {
 								if (inputRef.current) {
 									const newText = inputValue + "@"
-									setInputValue(newText) // Update React state
-									// Sync with DOM and trigger events
-									if (inputRef.current) {
-										inputRef.current.value = newText
-										inputRef.current.dispatchEvent(new Event("input", { bubbles: true }))
-									}
-									// Set cursor after updates
+									setInputValue(newText)
+									// Let React update DOM before cursor positioning
 									setTimeout(() => {
 										if (inputRef.current) {
 											inputRef.current.focus()
 											inputRef.current.setSelectionRange(newText.length, newText.length)
+											// Create synthetic input event with data
+											const event = new Event("input", { bubbles: true })
+											Object.defineProperty(event, "target", {
+												value: { value: newText },
+												enumerable: true,
+											})
+											inputRef.current.dispatchEvent(event)
 										}
-									}, 0)
+									}, 10)
 								}
 							}}>
 							<AtSign size={16} />
