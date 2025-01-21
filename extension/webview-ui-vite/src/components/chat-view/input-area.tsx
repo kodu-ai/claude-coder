@@ -126,18 +126,21 @@ const InputArea: React.FC<InputAreaProps> = ({
 							aria-label="Insert @"
 							onClick={() => {
 								if (inputRef.current) {
-									const newText = inputValue + "@"
-									setInputValue(newText)
-									// Trigger DOM input event for listeners
-									inputRef.current?.dispatchEvent(new Event("input", { bubbles: true }))
-									// Set cursor to end
+									if (inputRef.current) {
+										const newText = inputRef.current.value + "@"
+										inputRef.current.value = newText
+										// Trigger React's change detection
+										inputRef.current.dispatchEvent(new Event("input", { bubbles: true }))
+										inputRef.current.dispatchEvent(new Event("change", { bubbles: true }))
+									}
+									// Set cursor to end after DOM update
 									setTimeout(() => {
 										if (inputRef.current) {
 											inputRef.current.focus()
-											const newCursorPos = newText.length
+											const newCursorPos = inputRef.current.value.length
 											inputRef.current.setSelectionRange(newCursorPos, newCursorPos)
 										}
-									}, 0)
+									}, 10)
 								}
 							}}>
 							<AtSign size={16} />
