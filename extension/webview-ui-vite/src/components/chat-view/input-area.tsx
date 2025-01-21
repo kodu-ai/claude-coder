@@ -144,9 +144,8 @@ const InputArea: React.FC<InputAreaProps> = ({
 
 									// Trigger InputV1's onChange handler directly
 									if (inputRef.current) {
-										// Trigger both React and DOM event handlers
+										// Trigger DOM event to update InputV1's state
 										inputRef.current.dispatchEvent(event)
-										props.onChange(event)
 										// Focus and position cursor after state update
 										setTimeout(() => {
 											inputRef.current?.focus()
