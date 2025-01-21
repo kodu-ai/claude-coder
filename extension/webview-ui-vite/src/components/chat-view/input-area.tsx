@@ -73,6 +73,16 @@ const InputArea: React.FC<InputAreaProps> = ({
 						value={inputValue}
 						disabled={textAreaDisabled}
 						onChange={(e) => setInputValue(e.target.value)}
+						onInsertAt={() => {
+							const newText = inputValue + "@"
+							setInputValue(newText)
+							setTimeout(() => {
+								if (inputRef.current) {
+									inputRef.current.focus()
+									inputRef.current.setSelectionRange(newText.length, newText.length)
+								}
+							}, 0)
+						}}
 						onKeyDown={handleKeyDown}
 						onFocus={() => setIsTextAreaFocused(true)}
 						onBlur={() => setIsTextAreaFocused(false)}
@@ -125,12 +135,8 @@ const InputArea: React.FC<InputAreaProps> = ({
 							size="icon"
 							aria-label="Insert @"
 							onClick={() => {
-								if (inputRef.current) {
-									const newText = inputValue + "@"
-									setInputValue(newText)
-									// Let InputV1 handle the insertion and cursor positioning
-									inputRef.current.onInsertAt?.()
-								}
+								const newText = inputValue + "@"
+								setInputValue(newText)
 							}}>
 							<AtSign size={16} />
 						</Button>
