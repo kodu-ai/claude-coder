@@ -25,6 +25,7 @@ interface ModelSelectorProps {
 	onChangeModel: ReturnType<typeof rpcClient.selectModel.useMutation>["mutate"]
 	models: ModelInfo[]
 	showDetails?: boolean
+	children?: React.ReactNode
 }
 
 /**
@@ -34,7 +35,13 @@ interface ModelSelectorProps {
  * - Selecting calls `onChangeModel`
  * - Optionally displays the selected model’s info below
  */
-export const ModelSelector: FC<ModelSelectorProps> = ({ modelId, onChangeModel, models, showDetails = true }) => {
+export const ModelSelector: FC<ModelSelectorProps> = ({
+	modelId,
+	onChangeModel,
+	models,
+	showDetails = true,
+	children,
+}) => {
 	// Popover open/close state
 	const [open, setOpen] = useState(false)
 	// Command input state
@@ -87,39 +94,43 @@ export const ModelSelector: FC<ModelSelectorProps> = ({ modelId, onChangeModel, 
 	return (
 		<div className="space-y-4">
 			{/* Title row with optional tooltips explaining terms */}
-			<div className="flex items-center justify-between">
-				<span className="text-sm font-medium">Pick a Model</span>
+			{!children && (
+				<div className="flex items-center justify-between">
+					<span className="text-sm font-medium">Pick a Model</span>
 
-				{/* Tooltip explaining CPM, context window, output limit */}
-				<TooltipProvider>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button variant="ghost" size="icon">
-								<Info className="w-4 h-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent className="max-w-xs text-xs space-y-1">
-							<p>
-								<strong>CPM</strong>: Cost per million tokens
-							</p>
-							<p>
-								<strong>Context Window</strong>: Maximum input size in tokens
-							</p>
-							<p>
-								<strong>Output Limit</strong>: The max tokens the model can produce
-							</p>
-						</TooltipContent>
-					</Tooltip>
-				</TooltipProvider>
-			</div>
+					{/* Tooltip explaining CPM, context window, output limit */}
+					<TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button variant="ghost" size="icon">
+									<Info className="w-4 h-4" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent className="max-w-xs text-xs space-y-1">
+								<p>
+									<strong>CPM</strong>: Cost per million tokens
+								</p>
+								<p>
+									<strong>Context Window</strong>: Maximum input size in tokens
+								</p>
+								<p>
+									<strong>Output Limit</strong>: The max tokens the model can produce
+								</p>
+							</TooltipContent>
+						</Tooltip>
+					</TooltipProvider>
+				</div>
+			)}
 
 			{/* The Popover + Command-based autocomplete */}
 			<Popover open={open} onOpenChange={setOpen}>
 				<PopoverTrigger asChild>
-					<Button variant="outline" className="w-full justify-between text-sm">
-						{selectedModel ? selectedModel.name : "Select a Model"}
-						<ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
-					</Button>
+					{children ?? (
+						<Button variant="outline" className="w-full justify-between text-sm">
+							{selectedModel ? selectedModel.name : "Select a Model"}
+							<ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+						</Button>
+					)}
 				</PopoverTrigger>
 
 				{/* The popover content: up to 80vw on sm: screens, max 24rem */}
@@ -158,14 +169,14 @@ export const ModelSelector: FC<ModelSelectorProps> = ({ modelId, onChangeModel, 
 
 											{/* CPM, context window, output limit inline */}
 											<span className="text-[11px] text-muted-foreground">
-												Input: ${model.inputPrice.toFixed(2)} | Output: $
-												{model.outputPrice.toFixed(2)} |{" "}
+												Input: ${model.inputPrice?.toFixed(2)} | Output: $
+												{model.outputPrice?.toFixed(2)} |{" "}
 												{model.cacheWritesPrice &&
 													model.cacheReadsPrice &&
 													"Cache Writes: $" +
-														model.cacheWritesPrice.toFixed(2) +
+														model.cacheWritesPrice?.toFixed(2) +
 														" | Cache Reads: $" +
-														model.cacheReadsPrice.toFixed(2) +
+														model.cacheReadsPrice?.toFixed(2) +
 														" | "}
 												Context: {model.contextWindow} | Output: {model.maxTokens}
 											</span>
@@ -197,15 +208,16 @@ export const ModelSelector: FC<ModelSelectorProps> = ({ modelId, onChangeModel, 
 								<br />
 								<strong>Output Limit:</strong> {selectedModel.maxTokens}
 								<br />
-								<strong>Input Cost:</strong> ${selectedModel.inputPrice.toFixed(2)}
+								<strong>Input Cost:</strong> ${selectedModel.inputPrice?.toFixed(2)}
 								<br />
-								<strong>Output Cost:</strong> ${selectedModel.outputPrice.toFixed(2)}
+								<strong>Output Cost:</strong> ${selectedModel.outputPrice?.toFixed(2)}
 								{selectedModel.cacheWritesPrice && selectedModel.cacheReadsPrice && (
 									<>
 										<br />
-										<strong>Cache Writes Cost:</strong> ${selectedModel.cacheWritesPrice.toFixed(2)}
+										<strong>Cache Writes Cost:</strong> $
+										{selectedModel.cacheWritesPrice?.toFixed(2)}
 										<br />
-										<strong>Cache Reads Cost:</strong> ${selectedModel.cacheReadsPrice.toFixed(2)}
+										<strong>Cache Reads Cost:</strong> ${selectedModel.cacheReadsPrice?.toFixed(2)}
 									</>
 								)}
 								<br />

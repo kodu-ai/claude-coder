@@ -85,7 +85,7 @@ export const ObserverBadge: React.FC<TaskBadgeProps> = ({
 										<div>
 											<span className="text-muted-foreground font-mono">Cost:</span>
 											<p className="text-primary-foreground font-mono">
-												${apiMetrics.cost.toFixed(4)}
+												${apiMetrics.cost?.toFixed(4)}
 											</p>
 										</div>
 										<div>

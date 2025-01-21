@@ -68,7 +68,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
 					API Cost:
 					<code>
 						<span>$</span>
-						{totalCost.toFixed(4)}
+						{totalCost?.toFixed(4) ?? 0}
 					</code>
 				</div>
 			</div>

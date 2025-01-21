@@ -9,7 +9,7 @@ import { SetStateAction } from "react"
 export const attachmentsAtom = atom<Resource[]>([])
 export const syntaxHighlighterAtom = atom(vsDarkPlus)
 
-export const chatState = atom<ChatState>({
+export const chatStateAtom = atom<ChatState>({
 	inputValue: "",
 	textAreaDisabled: false,
 	selectedImages: [],
@@ -23,8 +23,8 @@ export const chatState = atom<ChatState>({
 })
 
 export const selectedImagesAtom = atom(
-	(get) => get(chatState).selectedImages,
+	(get) => get(chatStateAtom).selectedImages,
 	(_get, set, newImages: string[]) => {
-		set(chatState, (prev) => ({ ...prev, selectedImages: newImages }))
+		set(chatStateAtom, (prev) => ({ ...prev, selectedImages: newImages }))
 	}
 )

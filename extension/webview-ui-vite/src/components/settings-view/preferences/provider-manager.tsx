@@ -10,17 +10,88 @@ import {
 	ProviderType,
 	GoogleVertexSettings,
 	AmazonBedrockSettings,
+	OpenAICompatibleSettings,
 } from "../../../../../src/api/providers/types"
 import { customProvidersConfigs as providers } from "../../../../../src/api/providers/config/index"
 import { rpcClient } from "@/lib/rpc-client"
 import { useAtom } from "jotai"
-import { createDefaultSettings, providerSettingsAtom } from "./atoms"
+import { createDefaultSettings, providerSettingsAtom, useSwitchView } from "./atoms"
 import { Switch } from "@/components/ui/switch"
+import { Wand2 } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog"
+
 type DistributedKeys<T> = T extends any ? keyof T : never
+
+interface PresetsDropdownProps {
+	onSelectPreset: (url: string) => void
+}
+
+const PresetsDropdown: React.FC<PresetsDropdownProps> = ({ onSelectPreset }) => {
+	const [showTooltip, setShowTooltip] = useState(true)
+
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setShowTooltip(false)
+		}, 3000)
+
+		return () => clearTimeout(timer)
+	}, [])
+
+	return (
+		<TooltipProvider>
+			<DropdownMenu>
+				<Tooltip open={showTooltip}>
+					<TooltipTrigger asChild>
+						<DropdownMenuTrigger asChild>
+							<Button variant="ghost" size="icon" className="absolute right-2 size-4">
+								<Wand2 className="w-4 h-4 text-muted-foreground" />
+							</Button>
+						</DropdownMenuTrigger>
+					</TooltipTrigger>
+					<TooltipContent>
+						<p>Choose from presets</p>
+					</TooltipContent>
+				</Tooltip>
+				<DropdownMenuContent>
+					<DropdownMenuLabel>Choose from presets</DropdownMenuLabel>
+					<DropdownMenuSeparator />
+					<DropdownMenuItem
+						onClick={() => onSelectPreset("https://openrouter.ai/api/v1")}
+						className="text-sm">
+						OpenRouter
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => onSelectPreset("http://localhost:11434/v1")} className="text-sm">
+						Ollama
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => onSelectPreset("http://127.0.0.1:1234/v1")} className="text-sm">
+						LMStudio
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</TooltipProvider>
+	)
+}
 
 const ProviderManager: React.FC = () => {
 	const [providerSettings, setProviderSettings] = useAtom(providerSettingsAtom)
 	const [error, setError] = useState<string>("")
+	const [showApplyModel, setShowApplyModel] = useState(false)
 
 	// Query existing providers
 	const { data: providersData, refetch } = rpcClient.listProviders.useQuery({})
@@ -43,6 +114,8 @@ const ProviderManager: React.FC = () => {
 		},
 	})
 
+	const { mutate: selectModel } = rpcClient.selectModel.useMutation()
+
 	const handleProviderChange = (providerId: ProviderType) => {
 		const existingProvider = providersData?.providers?.find((p) => p.providerId === providerId)
 		const provider = providers[providerId]
@@ -54,25 +127,52 @@ const ProviderManager: React.FC = () => {
 		}
 	}
 
-	const saveSettings = (settings: ProviderSettings) => {
+	const switchView = useSwitchView()
+
+	const saveSettings = async (settings: ProviderSettings) => {
 		try {
 			const existingProvider = providersData?.providers?.find((p) => p.providerId === settings.providerId)
 			console.log("existingProvider", existingProvider)
 			if (existingProvider) {
-				updateProvider(settings)
+				await updateProvider(settings)
 			} else {
-				createProvider(settings)
+				await createProvider(settings)
+			}
+
+			// For OpenAI-compatible providers, show apply model dialog
+			if (settings.providerId === "openai-compatible") {
+				setShowApplyModel(true)
 			}
 		} catch (err) {
 			setError("Failed to save provider settings")
 		}
 	}
 
+	const handleApplyModel = () => {
+		const settings = providerSettings as OpenAICompatibleSettings
+		if (settings && settings.modelId) {
+			selectModel({
+				modelId: settings.modelId,
+				providerId: settings.providerId,
+			})
+		}
+		setShowApplyModel(false)
+	}
+
+	const updateSettings = (field: DistributedKeys<ProviderSettings>, value: string | boolean | number) => {
+		if (!providerSettings) return
+
+		setProviderSettings({
+			...providerSettings,
+			[field]: value,
+		})
+	}
+
 	const renderProviderSpecificFields = () => {
 		if (!providerSettings) return null
 
 		switch (providerSettings.providerId) {
-			case "google-vertex":
+			case "google-vertex": {
 				const vertexSettings = providerSettings as GoogleVertexSettings
 				return (
 					<>
@@ -115,8 +215,9 @@ const ProviderManager: React.FC = () => {
 						</div>
 					</>
 				)
+			}
 
-			case "amazon-bedrock":
+			case "amazon-bedrock": {
 				const bedrockSettings = providerSettings as AmazonBedrockSettings
 				return (
 					<>
@@ -159,19 +260,29 @@ const ProviderManager: React.FC = () => {
 						</div>
 					</>
 				)
+			}
 
-			case "openai-compatible":
-				const customSettings = providerSettings
+			case "openai-compatible": {
+				const customSettings = providerSettings as OpenAICompatibleSettings
 				return (
 					<>
 						<div className="space-y-2">
 							<Label htmlFor="baseUrl">Base URL</Label>
-							<Input
-								id="baseUrl"
-								value={customSettings.baseUrl || ""}
-								onChange={(e) => updateSettings("baseUrl", e.target.value)}
-								className="h-8"
-							/>
+							<div className="flex relative items-center">
+								<Input
+									placeholder="http://127.0.0.1:1234/v1"
+									id="baseUrl"
+									value={customSettings.baseUrl || ""}
+									onChange={(e) => updateSettings("baseUrl", e.target.value)}
+									className="h-8 pr-8"
+								/>
+								<PresetsDropdown onSelectPreset={(url) => updateSettings("baseUrl", url)} />
+							</div>
+							<p className="text-[0.8rem] text-muted-foreground">
+								Format: http://127.0.0.1:1234/v1
+								<br />
+								*without /chat/completions*
+							</p>
 						</div>
 						<div className="space-y-2">
 							<Label htmlFor="model">Model ID</Label>
@@ -265,17 +376,16 @@ const ProviderManager: React.FC = () => {
 						</span>
 					</>
 				)
+			}
 
-			// Add other provider-specific fields here
 			default:
-				const settings = providerSettings
 				return (
 					<div className="space-y-2">
 						<Label htmlFor="apiKey">API Key</Label>
 						<Input
 							id="apiKey"
 							type="password"
-							value={settings.apiKey || ""}
+							value={providerSettings.apiKey || ""}
 							onChange={(e) => updateSettings("apiKey", e.target.value)}
 							className="h-8"
 						/>
@@ -284,81 +394,95 @@ const ProviderManager: React.FC = () => {
 		}
 	}
 
-	const updateSettings = (field: DistributedKeys<ProviderSettings>, value: string | boolean | number) => {
-		if (!providerSettings) return
-
-		setProviderSettings({
-			...providerSettings,
-			[field]: value,
-		})
-	}
-
 	const currentProvider = providersData?.providers.find((p) => p.providerId === providerSettings?.providerId)
 
 	return (
-		<Card className="bg-background border-border">
-			<CardContent className="p-6">
-				<div className="space-y-4">
-					<h2 className="text-xl font-semibold">Provider Settings</h2>
+		<>
+			<Card className="bg-background border-border">
+				<CardContent className="p-6">
 					<div className="space-y-4">
-						<div className="space-y-2">
-							<Label htmlFor="providerId">Provider</Label>
-							<Select
-								value={providerSettings?.providerId || ""}
-								onValueChange={(value: ProviderType) => handleProviderChange(value)}>
-								<SelectTrigger className="h-8">
-									<SelectValue placeholder="Select provider" />
-								</SelectTrigger>
-								<SelectContent>
-									{Object.entries(providers).map(([id, config]) => {
-										const isConfigured = providersData?.providers?.some((p) => p.providerId === id)
-										return (
-											<SelectItem key={id} value={id}>
-												<div className="flex items-center gap-2">
-													{config.name}
-													{isConfigured && <span className="text-green-500 text-sm">✓</span>}
-												</div>
-											</SelectItem>
-										)
-									})}
-								</SelectContent>
-							</Select>
-						</div>
+						<h2 className="text-xl font-semibold">Provider Settings</h2>
+						<div className="space-y-4">
+							<div className="space-y-2">
+								<Label htmlFor="providerId">Provider</Label>
+								<Select
+									value={providerSettings?.providerId || ""}
+									onValueChange={(value: ProviderType) => handleProviderChange(value)}>
+									<SelectTrigger className="h-8">
+										<SelectValue placeholder="Select provider" />
+									</SelectTrigger>
+									<SelectContent>
+										{Object.entries(providers).map(([id, config]) => {
+											const isConfigured = providersData?.providers?.some(
+												(p) => p.providerId === id
+											)
+											return (
+												<SelectItem key={id} value={id}>
+													<div className="flex items-center gap-2">
+														{config.name}
+														{isConfigured && (
+															<span className="text-green-500 text-sm">✓</span>
+														)}
+													</div>
+												</SelectItem>
+											)
+										})}
+									</SelectContent>
+								</Select>
+							</div>
 
-						{renderProviderSpecificFields()}
+							{renderProviderSpecificFields()}
 
-						{error && (
-							<Alert variant="destructive">
-								<AlertDescription>{error}</AlertDescription>
-							</Alert>
-						)}
+							{error && (
+								<Alert variant="destructive">
+									<AlertDescription>{error}</AlertDescription>
+								</Alert>
+							)}
 
-						<Button
-							onClick={() => providerSettings && saveSettings(providerSettings)}
-							className="w-full h-9">
-							Save Settings
-						</Button>
-						{
-							// Show delete button if provider is already configured
-							currentProvider && (
+							<Button
+								onClick={() => providerSettings && saveSettings(providerSettings)}
+								className="w-full h-9">
+								Save Settings
+							</Button>
+							{currentProvider && (
 								<Button
 									variant="destructive"
 									onClick={() => {
 										if (currentProvider.providerId) {
 											setProviderSettings(null)
 											setError("")
-											deleteProvider({ id: currentProvider.providerId! })
+											deleteProvider({ id: currentProvider.providerId })
 										}
 									}}
 									className="w-full h-9">
 									Delete Provider
 								</Button>
-							)
-						}
+							)}
+						</div>
 					</div>
-				</div>
-			</CardContent>
-		</Card>
+				</CardContent>
+			</Card>
+
+			<Dialog open={showApplyModel} onOpenChange={setShowApplyModel}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Apply Model</DialogTitle>
+						<DialogDescription>Would you like to apply this model as your current model?</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="gap-2">
+						<Button
+							variant="outline"
+							onClick={() => {
+								setShowApplyModel(false)
+								switchView("select-model")
+							}}>
+							No, Select Different Model
+						</Button>
+						<Button onClick={handleApplyModel}>Yes, Apply Model</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</>
 	)
 }
 

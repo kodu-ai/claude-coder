@@ -66,8 +66,11 @@ export const fileEditorPrompt: ToolPromptSchema = {
 1. Read the file if needed (to confirm current content).
 2. Match exactly in the HEAD block (including whitespace and indentation).
 3. Provide a complete final version of each changed snippet in the block after =======.
-4. Combine multiple edits into a single call if they’re related.
-5. Provide context lines around each snippet (at least 3 lines to allow for robust matching) only write the snippet content (including whitespace and indentation) but exclude the line number.`,
+4. Combine multiple edits into a single call if they’re related, order the edits from top to bottom (as they appear in the file).
+5. Provide context lines around each snippet (at least 3 lines to allow for robust matching) only write the snippet content (including whitespace and indentation) but exclude the line number.
+6. Make sure to escape newlines and special characters in the content.
+7. absolutely make sure you are using the real content with proper indentation and spacing, this is critical for the tool to work correctly and have the search find the correct lines.
+`,
 	examples: [
 		{
 			description: "Adding Imports and Removing a Function",

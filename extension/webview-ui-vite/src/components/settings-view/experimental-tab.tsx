@@ -23,20 +23,6 @@ const ExperimentalTab: React.FC = () => {
 					onCheckedChange={(checked) => handleExperimentalFeatureChange(feature.id, checked)}
 				/>
 			))}
-			<div className="flex items-center gap-4">
-				<Label htmlFor="editing-type" className="text-sm font-medium">
-					Inline Editing Type
-				</Label>
-				<Select value={inlineEditingType} onValueChange={handleInlineEditingTypeChange}>
-					<SelectTrigger id="editing-type" className="w-32">
-						<SelectValue placeholder="Select type" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="full">Full</SelectItem>
-						<SelectItem value="diff">Diff</SelectItem>
-					</SelectContent>
-				</Select>
-			</div>
 		</div>
 	)
 }

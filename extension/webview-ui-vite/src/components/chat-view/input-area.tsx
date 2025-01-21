@@ -2,8 +2,10 @@ import React, { KeyboardEvent, startTransition, useCallback, useEffect, useState
 import Thumbnails from "../thumbnails/thumbnails"
 import { Button } from "../ui/button"
 import InputV1 from "./input-v1"
-import { ImagePlus, PauseCircle, SendHorizonal } from "lucide-react"
+import { AtSign, ImagePlus, SendHorizonal } from "lucide-react"
+import { AbortButton } from "./abort-button"
 import { vscode } from "@/utils/vscode"
+import { ModelDisplay } from "./model-display"
 
 interface InputAreaProps {
 	inputRef: React.RefObject<HTMLTextAreaElement>
@@ -62,88 +64,97 @@ const InputArea: React.FC<InputAreaProps> = ({
 	const [handleAbort, isAborting] = useHandleAbort(isRequestRunning)
 	return (
 		<>
-			<div
-				className="flex flex-col gap-2"
-				style={{
-					padding: "8px 16px",
-					// opacity: textAreaDisabled ? 0.5 : 1,
-					position: "relative",
-					display: "flex",
-					marginTop: 0,
-				}}>
-				<InputV1
-					isRequestRunning={isRequestRunning}
-					thumbnailsHeight={thumbnailsHeight}
-					ref={inputRef}
-					value={inputValue}
-					disabled={textAreaDisabled}
-					onChange={(e) => setInputValue(e.target.value)}
-					onKeyDown={handleKeyDown}
-					onFocus={() => setIsTextAreaFocused(true)}
-					onBlur={() => setIsTextAreaFocused(false)}
-					onPaste={handlePaste}
-				/>
-				<Thumbnails
-					images={selectedImages}
-					setImages={setSelectedImages}
-					onHeightChange={handleThumbnailsHeightChange}
-					style={{
-						position: "absolute",
-						paddingTop: 4,
-						bottom: 14,
-						left: 22,
-						right: 67,
-					}}
-				/>
-				<div
-					style={{
-						position: "absolute",
-						right: 20,
-						display: "flex",
-						alignItems: "flex-center",
-						height: "calc(100% - 80px)",
-						marginTop: 30,
-						marginBottom: 30,
-						bottom: 10,
-					}}>
-					<div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2 }}>
+			<div className="flex flex-col" style={{ padding: "8px 16px", position: "relative" }}>
+				<div className="relative">
+					<InputV1
+						isRequestRunning={isRequestRunning}
+						thumbnailsHeight={thumbnailsHeight}
+						ref={inputRef}
+						value={inputValue}
+						disabled={textAreaDisabled}
+						onChange={(e) => setInputValue(e.target.value)}
+						onKeyDown={handleKeyDown}
+						onFocus={() => setIsTextAreaFocused(true)}
+						onBlur={() => setIsTextAreaFocused(false)}
+						onPaste={handlePaste}
+					/>
+					<Thumbnails
+						images={selectedImages}
+						setImages={setSelectedImages}
+						onHeightChange={handleThumbnailsHeightChange}
+						style={{
+							position: "absolute",
+							paddingTop: 4,
+							bottom: 8,
+							left: 8,
+							// right: 67,
+						}}
+					/>
+					<div
+						style={{
+							position: "absolute",
+							right: 4,
+							top: "50%",
+							transform: "translateY(-50%)",
+						}}
+						className="flex items-center gap-2">
 						{isRequestRunning ? (
+							<AbortButton isAborting={isAborting} onAbort={handleAbort} />
+						) : (
 							<Button
-								disabled={isAborting}
 								tabIndex={0}
+								disabled={textAreaDisabled}
 								variant="ghost"
 								className="!p-1 h-6 w-6"
 								size="icon"
-								aria-label="Abort Request"
-								onClick={handleAbort}
-								style={{ marginRight: "2px" }}>
-								<PauseCircle size={16} />
+								aria-label="Send Message"
+								onClick={handleSendMessage}>
+								<SendHorizonal size={16} />
 							</Button>
-						) : (
-							<>
-								<Button
-									tabIndex={0}
-									disabled={shouldDisableImages}
-									variant="ghost"
-									className="!p-1 h-6 w-6"
-									size="icon"
-									aria-label="Attach Images"
-									onClick={selectImages}
-									style={{ marginRight: "2px" }}>
-									<ImagePlus size={16} />
-								</Button>
-								<Button
-									tabIndex={0}
-									disabled={textAreaDisabled}
-									variant="ghost"
-									className="!p-1 h-6 w-6"
-									size="icon"
-									aria-label="Send Message"
-									onClick={handleSendMessage}>
-									<SendHorizonal size={16} />
-								</Button>
-							</>
 						)}
+					</div>
+				</div>
+
+				<div className="flex justify-between items-center px-1 pt-1">
+					<ModelDisplay />
+					<div className="flex items-center gap-2">
+						<Button
+							tabIndex={0}
+							variant="ghost"
+							className="!p-1 h-6 w-6"
+							size="icon"
+							aria-label="Insert @"
+							onClick={() => {
+								if (inputRef.current) {
+									const start = inputRef.current.selectionStart
+									const end = inputRef.current.selectionEnd
+									const text = inputRef.current.value
+									const before = text.substring(0, start)
+									const after = text.substring(end)
+									const newText = before + "@" + after
+									setInputValue(newText)
+									// Set cursor position after update
+									setTimeout(() => {
+										if (inputRef.current) {
+											inputRef.current.focus()
+											const newCursorPos = start + 1
+											inputRef.current.setSelectionRange(newCursorPos, newCursorPos)
+										}
+									}, 0)
+								}
+							}}>
+							<AtSign size={16} />
+						</Button>
+						<Button
+							tabIndex={0}
+							disabled={shouldDisableImages}
+							variant="ghost"
+							className="!p-1 h-6 w-6"
+							size="icon"
+							aria-label="Attach Images"
+							onClick={selectImages}>
+							<ImagePlus size={16} />
+						</Button>
 					</div>
 				</div>
 			</div>

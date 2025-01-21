@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState, useTransition } from 
 import { ChatState, ChatViewProps } from "./chat"
 import { isV1ClaudeMessage } from "../../../../src/shared/messages/extension-message"
 import { useAtom } from "jotai"
-import { attachmentsAtom, chatState, syntaxHighlighterAtom } from "./atoms"
+import { attachmentsAtom, chatStateAtom, syntaxHighlighterAtom } from "./atoms"
 import { useExtensionState } from "@/context/extension-state-context"
 import { CollapseProvider } from "@/context/collapse-state-context"
 import { useChatMessageHandling } from "@/hooks/use-message-handler"
@@ -30,7 +30,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 	showHistoryView,
 }) => {
 	const { openOutOfCreditDialog, shouldOpenOutOfCreditDialog } = useOutOfCreditDialog()
-	const [state, setState] = useAtom(chatState)
+	const [state, setState] = useAtom(chatStateAtom)
 	const [isMaxContextReached, setIsMaxContextReached] = useState(false)
 
 	const updateState = useCallback(

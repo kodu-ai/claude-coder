@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 
 import { useSettingsState } from "../../../hooks/use-settings-state"
@@ -16,7 +16,13 @@ import { preferencesViewAtom } from "./atoms"
  */
 const PreferencesTabNew: React.FC = () => {
 	// const { model: selectedModelId, handleModelChange } = useSettingsState()
-	const { data: { modelId: selectedModelId } = { modelId: "" }, refetch } = rpcClient.currentModel.useQuery({})
+	const { data: { modelId: selectedModelId } = { modelId: "" }, refetch } = rpcClient.currentModel.useQuery(
+		{},
+		{
+			refetchInterval: 5000,
+			refetchIntervalInBackground: true,
+		}
+	)
 	const { mutate: handleModelChange } = rpcClient.selectModel.useMutation({
 		onSuccess: () => {
 			refetch()
@@ -30,6 +36,13 @@ const PreferencesTabNew: React.FC = () => {
 			refetchOnWindowFocus: true,
 		}
 	)
+
+	useEffect(() => {
+		return () => {
+			// clean up to set the view mode back to select-model
+			setViewMode("select-model")
+		}
+	}, [])
 
 	if (!data) return null
 	return (

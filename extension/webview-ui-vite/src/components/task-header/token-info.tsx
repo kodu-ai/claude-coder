@@ -59,7 +59,7 @@ const TokenInfo: React.FC<TokenInfoProps> = ({
 
 				<span className="flex items-center gap-1 min-w-0">
 					<span className="text-muted-foreground whitespace-nowrap">Cost:</span>
-					<span className="truncate">${totalCost.toFixed(4)}</span>
+					<span className="truncate">${totalCost?.toFixed(4) ?? 0}</span>
 				</span>
 			</div>
 
