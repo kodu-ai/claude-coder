@@ -22,9 +22,27 @@ type InputOpts = {
 	onBlur: () => void
 	onPaste: (e: React.ClipboardEvent) => void
 	thumbnailsHeight: number
+	onInsertAt?: () => void
 }
 
 const InputV2 = forwardRef<HTMLTextAreaElement, InputOpts>((props, forwardedRef) => {
+	const handleInsertAt = () => {
+		if (props.onInsertAt) {
+			props.onInsertAt()
+		} else {
+			const newText = props.value + "@"
+			props.onChange({
+				target: { value: newText },
+				persist: () => {},
+			} as React.ChangeEvent<HTMLTextAreaElement>)
+			setTimeout(() => {
+				if (localTextareaRef.current) {
+					localTextareaRef.current.focus()
+					localTextareaRef.current.setSelectionRange(newText.length, newText.length)
+				}
+			}, 0)
+		}
+	}
 	const [showPopover, setShowPopover] = useState(false)
 	const [textareaValue, setTextareaValue] = useState(props.value ?? "")
 	const [cursorPosition, setCursorPosition] = useState(0)
