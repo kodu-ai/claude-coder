@@ -584,8 +584,28 @@ export class MainAgent {
 			}
 		}
 
+		details += `\n\n# Current Execution Mode\n`
+		const isAutomaticMode = !!this.stateManager.alwaysAllowWriteOnly
+		const isTemporayPausedAutomaticMode = !!this.stateManager.temporayPauseAutomaticMode
+		details += dedent`You are currently run as ${isAutomaticMode ? "full autonomous" : "semi-autonomous"} mode, ${
+			isAutomaticMode
+				? "Every tool request is automatically approved."
+				: "Some tools may require user approval such as file edits and command execution."
+		}
+		${
+			isTemporayPausedAutomaticMode && isAutomaticMode
+				? "Automatic approval has been temporarily paused by the user, this might be an indication that the user wants to review the next or current tool request before it's approved."
+				: ""
+		}
+		${
+			isAutomaticMode
+				? "Remember that you are running in full autonomous mode, every tool request is automatically approved, you should be extra careful with the code and tools you use, try to avoid breaking the code or the environment, you must follow the task instructions carefully."
+				: "Remember that you are running in semi-autonomous mode, some tools may require user approval such as file edits and command execution, you should be extra careful with the code and tools you use, try to avoid breaking the code or the environment, you must follow the task instructions carefully."
+		}		
+		`
+
 		return dedent`<environment_details>
-# Here is the environment details for the current timestamp, it should be valid only for this current timestamp.
+# Here is the environment details for the current timestamp, it should be valid only for this current timestamp. please make sure to put extra attention to the details and make sure to follow the task instructions carefully and you observe the environment details accurately.
 <environment_details_timestamp>${Date.now()}</environment_details_timestamp>
 ${details.trim()}
 </environment_details>`

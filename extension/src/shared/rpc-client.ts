@@ -3,6 +3,7 @@ import { object, z } from "zod"
 import { ProcedureInstance } from "../router/utils/procedure"
 import { Router } from "../router/utils/router"
 import { AppRouter } from "../router/app-router"
+import { ExtensionContext } from "../router/utils/context"
 
 const responseSchema = z.object({
 	type: z.literal("rpcResponse"),

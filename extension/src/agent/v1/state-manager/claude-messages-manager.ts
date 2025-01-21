@@ -97,7 +97,7 @@ export class ClaudeMessagesManager {
 	public async addToClaudeMessages(message: ClaudeMessage) {
 		if (isV1ClaudeMessage(message)) {
 			message.agentName = this.stateManager.subAgentManager.agentName
-			message.modelId = this.stateManager.apiManager.getModelId()
+			message.modelId = message.modelId ?? this.stateManager.apiManager.getModelId()
 			if (message.isDone) {
 				message.completedAt = Date.now()
 			}

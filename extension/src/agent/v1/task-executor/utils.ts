@@ -165,6 +165,7 @@ export abstract class TaskExecutorUtils {
 		output,
 		input,
 		apiMetrics,
+		...rest
 	}: {
 		hookName: string
 		state: "pending" | "completed" | "error"
@@ -172,7 +173,7 @@ export abstract class TaskExecutorUtils {
 		output: string
 		input: string
 		apiMetrics?: V1ClaudeMessage["apiMetrics"]
-	}): Promise<number> {
+	} & Partial<V1ClaudeMessage>): Promise<number> {
 		const sayMessage: ClaudeMessage = {
 			ts,
 			type: "say",
@@ -186,6 +187,7 @@ export abstract class TaskExecutorUtils {
 			modelId: this.getModelId(),
 			apiMetrics,
 			v: 1,
+			...rest,
 		}
 		if (this.stateManager.claudeMessagesManager.getMessageById(ts)) {
 			await this.stateManager.claudeMessagesManager.updateClaudeMessage(ts, sayMessage)

@@ -4,6 +4,8 @@ import * as vscode from "vscode"
 import { z } from "zod"
 import { ExtensionContext } from "./context"
 import { appRouter } from "../app-router"
+import { Router } from "./router"
+import { ClientForRouter } from "../../shared/rpc-client"
 
 /**
  * The shape of a message from the webview calling a procedure:
@@ -24,6 +26,7 @@ export class ExtensionServer {
 	constructor(private vscodeWebview: vscode.Webview, private ctx: ExtensionContext) {
 		// Listen for messages from the webview
 		this.vscodeWebview.onDidReceiveMessage((msg) => this.handleMessage(msg))
+		ServerRPC.getInstance(ctx)
 	}
 
 	/**
@@ -89,3 +92,49 @@ export class ExtensionServer {
 		})
 	}
 }
+
+export function createServerClient<TRouter extends Router>(appRouter: TRouter, ctx: ExtensionContext) {
+	// We'll intercept property access, e.g. client.renameTask.
+	// Then we do transport.call("renameTask", input).
+	return new Proxy(
+		{},
+		{
+			get(_target, propKey: string) {
+				// Return a function that calls the route
+				return (input: unknown) => {
+					const procedure = appRouter[propKey]
+					if (!procedure) {
+						throw new Error(`No route named '${propKey}' in the router.`)
+					}
+					return procedure.use(ctx, input)
+				}
+			},
+		}
+	) as ClientForRouter<TRouter>
+}
+
+/**
+ * singleton that initalize createServerClient with appRouter and ExtensionContext
+ */
+export class ServerRPC {
+	private static instance: ServerRPC | null = null
+
+	private constructor(private ctx: ExtensionContext) {}
+
+	static getInstance(ctx?: ExtensionContext): ServerRPC {
+		if (!ServerRPC.instance && ctx) {
+			ServerRPC.instance = new ServerRPC(ctx)
+		} else {
+			if (!ServerRPC.instance) {
+				throw new Error("ServerRPC not initialized")
+			}
+		}
+		return ServerRPC.instance
+	}
+
+	getClient() {
+		return createServerClient(appRouter, this.ctx)
+	}
+}
+
+export const serverRPC = ServerRPC.getInstance

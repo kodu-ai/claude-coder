@@ -9,13 +9,35 @@ import { useExtensionState } from "@/context/extension-state-context"
 import { vscode } from "@/utils/vscode"
 import _ from "lodash"
 import { Badge } from "../ui/badge"
+import { ModelSelector } from "./preferences/model-picker"
+import { ChevronDown } from "lucide-react"
+import { rpcClient } from "@/lib/rpc-client"
 
 const AgentsTab: React.FC = () => {
 	const [subTaskEnabled, setSubTaskEnabled] = useState(false)
 	const [coderEnabled, setCoderEnabled] = useState(false)
 	const { observerHookEvery, setObserverHookEvery } = useExtensionState()
 	const observerEnabled = !!(observerHookEvery ?? 0 > 0)
-
+	const { data, refetch } = rpcClient.currentObserverModel.useQuery(
+		{},
+		{
+			refetchInterval: 5000,
+			refetchOnMount: true,
+			refetchOnWindowFocus: true,
+		}
+	)
+	const { mutate: handleModelChange } = rpcClient.selectObserverModel.useMutation({
+		onSuccess: () => {
+			refetch()
+		},
+	})
+	const { data: modelListData, status } = rpcClient.listModels.useQuery(
+		{},
+		{
+			refetchInterval: 5000,
+			refetchOnWindowFocus: true,
+		}
+	)
 	// Create a debounced version of the vscode message sender
 	const debouncedVSCodeUpdate = useCallback(
 		_.debounce((value?: number) => {
@@ -74,18 +96,35 @@ const AgentsTab: React.FC = () => {
 						returns the action, reward and explanition
 					</CardDescription>
 					{observerHookEvery && (
-						<div className="space-y-2">
-							<Label className="text-xs">Observer Frequency (messages)</Label>
-							<Slider
-								value={[observerHookEvery]}
-								onValueChange={(value) => setObserverFrequency(value[0])}
-								min={1}
-								max={10}
-								step={1}
-								className="w-full"
-							/>
-							<div className="text-xs text-muted-foreground">
-								Current: Every {observerHookEvery} message{observerHookEvery > 1 ? "s" : ""}
+						<div className="flex flex-col gap-4">
+							<div className="space-y-2">
+								<Label className="text-xs">Observer Frequency (messages)</Label>
+								<Slider
+									value={[observerHookEvery]}
+									onValueChange={(value) => setObserverFrequency(value[0])}
+									min={1}
+									max={10}
+									step={1}
+									className="w-full"
+								/>
+								<div className="text-xs text-muted-foreground">
+									Current: Every {observerHookEvery} message{observerHookEvery > 1 ? "s" : ""}
+								</div>
+							</div>
+							<div className="space-y-2">
+								<Label className="text-xs">Select Observer Model</Label>
+								<ModelSelector
+									models={modelListData?.models ?? []}
+									modelId={data?.model?.id}
+									onChangeModel={handleModelChange}
+									showDetails={false}>
+									<Button
+										variant="ghost"
+										className="text-xs flex items-center gap-1 h-6 px-2 hover:bg-accent">
+										{data?.model.name}
+										<ChevronDown className="w-4 h-4" />
+									</Button>
+								</ModelSelector>
 							</div>
 						</div>
 					)}

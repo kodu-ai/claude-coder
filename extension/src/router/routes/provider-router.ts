@@ -4,7 +4,7 @@ import { router } from "../utils/router"
 import { SecretStateManager } from "../../providers/state/secret-state-manager"
 import { nanoid } from "nanoid"
 import { models, providerConfigs, customProvidersConfigs } from "../../api/providers/config"
-import { GlobalStateManager } from "../../providers/state/global-state-manager"
+import { GlobalState, GlobalStateManager } from "../../providers/state/global-state-manager"
 import { ProviderId } from "../../api/providers/constants"
 import { ApiConstructorOptions, ProviderSettings, providerSettingsSchema } from "../../api"
 import { OpenAICompatibleSettings, ProviderConfig } from "../../api/providers/types"
@@ -91,8 +91,10 @@ export async function listProviders() {
 	return { providers: providers ?? [] }
 }
 
-export async function getCurrentModelInfo() {
-	const apiConfig = GlobalStateManager.getInstance().getGlobalState("apiConfig")
+export async function getCurrentModelInfo(apiConfig?: GlobalState["apiConfig"]) {
+	if (!apiConfig) {
+		apiConfig = GlobalStateManager.getInstance().getGlobalState("apiConfig")
+	}
 	const providerData = await getModelProviderData(apiConfig?.providerId ?? "-")
 	const model = providerData.models?.find((m) => m.id === apiConfig?.modelId)
 	if (!model) {
@@ -116,6 +118,23 @@ const providerRouter = router({
 			models: [...models, ...customModels],
 		}
 	}),
+
+	currentObserverModel: procedure.input(z.object({})).resolve(async (ctx, input) => {
+		const observerModel = GlobalStateManager.getInstance().getGlobalState("observerModel")
+		return await getCurrentModelInfo(
+			observerModel ? { providerId: observerModel.providerId, modelId: observerModel.modelId } : undefined
+		)
+	}),
+
+	selectObserverModel: procedure
+		.input(z.object({ providerId: z.string(), modelId: z.string() }))
+		.resolve(async (ctx, input) => {
+			await GlobalStateManager.getInstance().updateGlobalState("observerModel", {
+				providerId: input.providerId as ProviderId,
+				modelId: input.modelId,
+			})
+			return { success: true }
+		}),
 
 	currentApiSettings: procedure.input(z.object({})).resolve(async (ctx, input) => {
 		return getCurrentApiSettings()

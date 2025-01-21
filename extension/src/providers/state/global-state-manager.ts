@@ -40,6 +40,12 @@ export type GlobalState = {
 	skipWriteAnimation: boolean | undefined
 	commandTimeout: number | undefined
 	activePromptName: string | undefined
+	observerModel:
+		| {
+				modelId: string
+				providerId: ProviderId
+		  }
+		| undefined
 	disabledTools: ToolName[] | undefined
 	/**
 	 * if number is set, the observer hook will be called every n-th time (which means that the hook is enabled)

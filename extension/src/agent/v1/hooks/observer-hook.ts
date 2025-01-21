@@ -6,6 +6,8 @@ import { PromptBuilder } from "../prompts/utils/builder"
 import { ApiMetrics } from "../../../api/api-utils"
 import { V1ClaudeMessage } from "../../../shared/messages/extension-message"
 import { spawnAgentTool } from "../tools/schema/agents/agent-spawner"
+import { ApiManager } from "../../../api/api-handler"
+import { serverRPC } from "../../../router/utils/extension-server"
 
 /**
  * Options specific to the memory hook
@@ -172,6 +174,8 @@ export class ObserverHook extends BaseHook {
 
 	protected async executeHook(): Promise<string | null> {
 		const ts = Date.now()
+		const { providerData, model } = await serverRPC().getClient().currentObserverModel({})
+
 		try {
 			if (!this.shouldExecute()) {
 				return null
@@ -186,8 +190,8 @@ export class ObserverHook extends BaseHook {
 				output: "",
 				input: "",
 				ts,
+				modelId: model.id,
 			})
-
 			const taskHistory = [...currentContext.history]
 			const lastMessage = taskHistory.at(-1)
 			// must happen
@@ -213,15 +217,6 @@ export class ObserverHook extends BaseHook {
 						},
 					],
 				})
-				taskHistory.push({
-					role: "assistant",
-					content: [
-						{
-							type: "text",
-							text: dedent`Okay i get it, i need to basically rethink about self critiquing myself I will provide feedback to the point based on the task and my last prior actions, In addition i will give a honest score and explanation based on the conversation history <thinkings>`,
-						},
-					],
-				})
 			} else {
 				// should not happen
 				console.error(
@@ -229,14 +224,26 @@ export class ObserverHook extends BaseHook {
 				)
 				return null
 			}
-
-			const thirdPartyObserver = await this.koduDev
-				.getApiManager()
-				.createApiStreamRequest(taskHistory, this.koduDev.taskExecutor.abortController!, undefined, true)
+			const providerSettings = {
+				providerSettings: providerData.currentProvider,
+				models: providerData.models,
+				model,
+			}
+			const apiManager = new ApiManager(this.koduDev.providerRef.deref()!, providerSettings)
+			const thirdPartyObserver = await apiManager.createApiStreamRequest(
+				taskHistory,
+				this.koduDev.taskExecutor.abortController!,
+				undefined,
+				true
+			)
 
 			let finalOutput = ``
 			let apiMetrics: V1ClaudeMessage["apiMetrics"]
 			for await (const message of thirdPartyObserver) {
+				if (message.code === -1) {
+					console.error("Observer hook failed to execute:", message.body)
+					throw new Error("Observer hook failed to execute")
+				}
 				if (message.code === 1) {
 					const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
 						message.body.internal
@@ -260,6 +267,7 @@ export class ObserverHook extends BaseHook {
 				input: "",
 				apiMetrics,
 				ts,
+				modelId: model.id,
 			})
 
 			if (finalOutput.length > 0) {
@@ -277,6 +285,7 @@ export class ObserverHook extends BaseHook {
 					input: "",
 					apiMetrics,
 					ts,
+					modelId: model.id,
 				})
 			}
 
@@ -288,6 +297,7 @@ export class ObserverHook extends BaseHook {
 				output: "",
 				input: "",
 				ts,
+				modelId: model.id,
 			})
 			console.error("Failed to execute observer hook:", error)
 			return null
