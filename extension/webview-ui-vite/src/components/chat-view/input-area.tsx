@@ -128,18 +128,22 @@ const InputArea: React.FC<InputAreaProps> = ({
 								if (inputRef.current) {
 									const newText = inputValue + "@"
 									setInputValue(newText)
-									// Queue microtask to trigger React's event flow after state update
-									setTimeout(() => {
-										if (inputRef.current) {
-											// Create native input event
-											const event = new Event("input", { bubbles: true })
-											// Let React's synthetic event system handle it
-											inputRef.current.dispatchEvent(event)
-											// Maintain cursor position
-											inputRef.current.focus()
-											inputRef.current.setSelectionRange(newText.length, newText.length)
-										}
-									}, 0)
+									// Create synthetic React change event
+									const fakeEvent = {
+										target: { value: newText },
+										persist: () => {},
+									} as unknown as React.ChangeEvent<HTMLTextAreaElement>
+
+									// Trigger InputV1's onChange handler directly
+									if (inputRef.current) {
+										inputRef.current.dispatchEvent(new Event("input", { bubbles: true }))
+										inputRef.current.onchange?.(fakeEvent)
+										// Focus and position cursor after state update
+										setTimeout(() => {
+											inputRef.current?.focus()
+											inputRef.current?.setSelectionRange(newText.length, newText.length)
+										}, 0)
+									}
 								}
 							}}>
 							<AtSign size={16} />
