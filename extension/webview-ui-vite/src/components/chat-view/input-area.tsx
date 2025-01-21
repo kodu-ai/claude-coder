@@ -128,9 +128,14 @@ const InputArea: React.FC<InputAreaProps> = ({
 								if (inputRef.current) {
 									const newText = inputValue + "@"
 									setInputValue(newText)
-									// Let React handle DOM updates naturally
+									// Queue microtask to trigger React's event flow after state update
 									setTimeout(() => {
 										if (inputRef.current) {
+											// Create native input event
+											const event = new Event("input", { bubbles: true })
+											// Let React's synthetic event system handle it
+											inputRef.current.dispatchEvent(event)
+											// Maintain cursor position
 											inputRef.current.focus()
 											inputRef.current.setSelectionRange(newText.length, newText.length)
 										}
