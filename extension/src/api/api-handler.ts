@@ -120,8 +120,14 @@ ${this.customInstructions.trim()}
 			throw new Error("Provider reference has been garbage collected")
 		}
 
-		const executeRequest = async () => {
-			const conversationHistory =
+		const executeRequest = async ({
+			requireInterleave,
+			shouldResetContext,
+		}: {
+			requireInterleave: boolean
+			shouldResetContext: boolean
+		}) => {
+			let conversationHistory =
 				apiConversationHistory ??
 				(await provider.koduDev?.getStateManager().apiHistoryManager.getSavedApiConversationHistory())
 
@@ -147,12 +153,23 @@ ${this.customInstructions.trim()}
 					criticalMsg = criticalMsg.replace("{{task}}", this.getTaskText(firstRequestTextBlock))
 				}
 			}
-
+			if (shouldResetContext) {
+				// Compress the context and retry
+				const result = await manageContextWindow(provider.koduDev!, this.api, (s, msg, ...args) =>
+					this.log(s, msg, ...args)
+				)
+				if (result === "chat_finished") {
+					throw new KoduError({ code: 413 })
+				}
+			}
 			// Process conversation history using our external utility
 			if (!skipProcessing) {
 				await processConversationHistory(provider.koduDev!, conversationHistory, criticalMsg, true)
 			} else {
 				this.log("info", `Skipping conversation history processing`)
+			}
+			if (requireInterleave) {
+				conversationHistory = this.interleaveMessages(conversationHistory)
 			}
 			if (postProcessConversationCallback) {
 				await postProcessConversationCallback?.(conversationHistory)
@@ -201,10 +218,14 @@ ${this.customInstructions.trim()}
 			let retryAttempt = 0
 			const MAX_RETRIES = 5
 			let shouldResetContext = false
+			let requireInterleave = false
 
 			while (retryAttempt <= MAX_RETRIES) {
 				try {
-					const stream = await executeRequest()
+					const stream = await executeRequest({
+						requireInterleave,
+						shouldResetContext,
+					})
 
 					for await (const chunk of stream) {
 						if (chunk.code === 1) {
@@ -212,20 +233,24 @@ ${this.customInstructions.trim()}
 							yield* this.processStreamChunk(chunk)
 							return
 						}
+						if (chunk.code === -1 && chunk.body.msg?.includes("interleave the user/assistant messages")) {
+							requireInterleave = true
+						}
 
 						if (
-							(chunk.code === -1 && chunk.body.msg?.includes("prompt is too long")) ||
+							(chunk.code === -1 &&
+								[
+									"maximum context length",
+									"context window exceeded",
+									"context window size exceeded",
+									"reduce length of context",
+									"reduce length of the messages",
+									"prompt is too long",
+								].some((msg) => chunk.body.msg?.includes(msg))) ||
 							shouldResetContext
 						) {
 							// clear the interval
 							clearInterval(checkInactivity)
-							// Compress the context and retry
-							const result = await manageContextWindow(provider.koduDev!, this.api, (s, msg, ...args) =>
-								this.log(s, msg, ...args)
-							)
-							if (result === "chat_finished") {
-								throw new KoduError({ code: 413 })
-							}
 							retryAttempt++
 							break // Break the for loop to retry with compressed history
 						}
@@ -242,6 +267,22 @@ ${this.customInstructions.trim()}
 					if (streamError instanceof Error && streamError.message === "aborted") {
 						throw new KoduError({ code: 1 })
 					}
+					if (`${streamError}`.includes("interleave the user/assistant messages")) {
+						requireInterleave = true
+					}
+					if (
+						[
+							"maximum context length",
+							"context window exceeded",
+							"context window size exceeded",
+							"reduce length of context",
+							"reduce length of the messages",
+							"prompt is too long",
+						].some((msg) => `${streamError}`.includes(msg))
+					) {
+						shouldResetContext = true
+					}
+
 					throw streamError
 				}
 			}
@@ -345,6 +386,31 @@ ${this.customInstructions.trim()}
 		}
 
 		throw error
+	}
+
+	/**
+	 *
+	 * it interleave the user/assistant messages so we always have user > assistant > user > assistant > ...
+	 */
+	private interleaveMessages(messages: ApiHistoryItem[]) {
+		const interleavedMessages: ApiHistoryItem[] = []
+		let lastRole = "user"
+		for (const message of messages) {
+			if (message.role === lastRole) {
+				const lastInterleavedMessage = interleavedMessages.at(-1)
+				if (
+					lastInterleavedMessage &&
+					Array.isArray(lastInterleavedMessage.content) &&
+					Array.isArray(message.content)
+				) {
+					lastInterleavedMessage.content.push(...message.content)
+					continue
+				}
+			}
+			interleavedMessages.push(message)
+			lastRole = message.role
+		}
+		return interleavedMessages
 	}
 
 	private getTaskText(str: string) {

@@ -320,7 +320,8 @@ export class TaskExecutor extends TaskExecutorUtils {
 					question: "Claude has encountered an error 3 times in a row. Would you like to resume the task?",
 				})
 
-				if (res.response === "yesButtonTapped") {
+				if (res.response === "yesButtonTapped" || res.response === "messageResponse") {
+					this.say("user_feedback", res.text, res.images)
 					this.resetState()
 					this.consecutiveErrorCount = 0
 				}
