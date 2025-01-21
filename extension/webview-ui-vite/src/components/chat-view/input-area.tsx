@@ -126,18 +126,15 @@ const InputArea: React.FC<InputAreaProps> = ({
 							aria-label="Insert @"
 							onClick={() => {
 								if (inputRef.current) {
-									const start = inputRef.current.selectionStart
-									const end = inputRef.current.selectionEnd
-									const text = inputRef.current.value
-									const before = text.substring(0, start)
-									const after = text.substring(end)
-									const newText = before + "@" + after
+									const newText = inputValue + "@"
 									setInputValue(newText)
-									// Set cursor position after update
+									// Trigger DOM input event for listeners
+									inputRef.current?.dispatchEvent(new Event("input", { bubbles: true }))
+									// Set cursor to end
 									setTimeout(() => {
 										if (inputRef.current) {
 											inputRef.current.focus()
-											const newCursorPos = start + 1
+											const newCursorPos = newText.length
 											inputRef.current.setSelectionRange(newCursorPos, newCursorPos)
 										}
 									}, 0)
