@@ -4,19 +4,21 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
-## [2.2.0] - 2025-01-20
+## [2.2.0] - 2024-01-25
 
-### New
+### Features
 
--   Add Mistral Codestral model to available models (currently free)
--   Add Deepseek R1 model to available models
+-   Customizable Observer Agent (custom models, message observation, prompt customization)
+-   Enhanced UI for quick model switching
+-   Deepseek reasoning token support
+-   Improved system prompts and inline editing capabilities
+-   Better error messaging and handling
 
 ### Fixed
 
 -   Fixed incorrect command execution result handling
--   Improved diagnostic handler performance on slower computers and large projects
--   Fixed diagnostic handler, now properly load diagnostics
--   Fixed bug where context memory wont load correctly (in chat)
+-   Improved diagnostic handler performance
+-   Fixed context memory loading in chat
 
 ## [2.1.0] - 2025-01-15
 
