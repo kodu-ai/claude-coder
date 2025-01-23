@@ -48,20 +48,20 @@ export default function AnnouncementBanner() {
 
 				<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🤖 New Mistral Codestral model (free)</p>
-						<p>✨ New Deepseek R1 model</p>
-						<p>⚡️ Improved command execution reliability</p>
-						<p>🔄 Better performance on large projects</p>
+						<p>🤖 Customizable Observer Agent</p>
+						<p>✨ Quick model switching UI</p>
+						<p>⚡️ Deepseek reasoning tokens</p>
+						<p>🔄 Improved error handling</p>
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🛠️ Enhanced diagnostic handler for slower systems</p>
-						<p>🔍 Optimized performance on large codebases</p>
-						<p>🐛 Fixed command execution result handling</p>
-						<p>📝 Improved overall system stability</p>
-						<p>🛠️ Fixed diagnostic handler, now properly load diagnostics</p>
-						<p>🐛 Fixed bug where context memory wont load correctly (in chat)</p>
-						<p>🔍 Add option to select commit author on git handler</p>
+						<p>🛠️ Enhanced system prompts</p>
+						<p>🔍 Better inline editing</p>
+						<p>🐛 Fixed context memory loading</p>
+						<p>📝 Improved diagnostic performance</p>
+						<p>🛠️ Enhanced error messages</p>
+						<p>🐛 Fixed command execution issues</p>
+						<p>🔍 General stability improvements</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">
