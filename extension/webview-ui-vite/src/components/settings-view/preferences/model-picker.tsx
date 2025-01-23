@@ -44,8 +44,6 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 }) => {
 	// Popover open/close state
 	const [open, setOpen] = useState(false)
-	// Command input state
-	const [searchValue, setSearchValue] = useState("")
 	// Currently selected model info
 	const selectedModel: ModelInfo | undefined = models.find((model) => model.id === modelId)
 	const switchToProvider = useSwitchToProviderManager()
@@ -66,15 +64,6 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 	useEffect(() => {
 		refetchModelData()
 	}, [selectedModel])
-
-	// Filter models by name + description
-	const filteredModels = useMemo(() => {
-		const query = searchValue.toLowerCase()
-		return models.filter((model) => {
-			const text = model.name.toLowerCase()
-			return text.includes(query)
-		})
-	}, [searchValue, models])
 
 	// Render badges for capabilities
 	const renderBadges = (model: ModelInfo, renderProvider = true) => (
@@ -135,19 +124,25 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 
 				{/* The popover content: up to 80vw on sm: screens, max 24rem */}
 				<PopoverContent className="w-full p-0">
-					<Command style={{ width: "80vw", maxWidth: "400px" }}>
+					<Command
+						filter={(item, query) => {
+							const isIncluded = item.toLowerCase().includes(query.toLowerCase())
+							return isIncluded ? 1 : 0
+						}}
+						style={{ width: "80vw", maxWidth: "400px" }}>
 						<CommandInput
 							placeholder="Search models..."
-							value={searchValue}
-							onValueChange={setSearchValue}
+							// value={searchValue}
+							// onValueChange={setSearchValue}
 						/>
 						<CommandList>
 							<CommandEmpty>No models found.</CommandEmpty>
 							<CommandGroup>
-								{filteredModels.map((model) => {
+								{models.map((model) => {
 									const isSelected = model.id === modelId
 									return (
 										<CommandItem
+											value={model.name}
 											key={model.id}
 											onSelect={() => {
 												onChangeModel({

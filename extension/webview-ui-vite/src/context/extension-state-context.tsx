@@ -52,9 +52,6 @@ const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 	return get(taskHistoryAtom).find((task) => task.id === currentTaskId)
 })
 
-const observerHookEveryAtom = atom<number | undefined>(undefined)
-observerHookEveryAtom.debugLabel = "observerHookEvery"
-
 // Derived atom for the entire state
 export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
@@ -71,7 +68,6 @@ export const extensionStateAtom = atom((get) => ({
 	currentTask: get(currentTaskAtom),
 	currentTaskId: get(currentTaskIdAtom),
 	inlineEditModeType: get(inlineEditModeTypeAtom),
-	observerHookEvery: get(observerHookEveryAtom),
 	uriScheme: get(uriSchemeAtom),
 	customInstructions: get(customInstructionsAtom),
 	skipWriteAnimation: get(skipWriteAnimationAtom),
@@ -175,7 +171,6 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setExtensionName = useSetAtom(extensionNameAtom)
 	const setTerminalCompressionThreshold = useSetAtom(terminalCompressionThresholdAtom)
 	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
-	const setObserverHookEvery = useSetAtom(observerHookEveryAtom)
 
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
@@ -190,7 +185,6 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setApiConfig(message.state.apiConfig)
 			setGitCommitterType(message.state.gitCommitterType ?? "kodu")
 			setTerminalCompressionThreshold(message.state.terminalCompressionThreshold)
-			setObserverHookEvery(message.state.observerHookEvery)
 			setAutoSummarize(!!message.state.autoSummarize)
 			setInlineEditModeType(message.state.inlineEditOutputType ?? "full")
 			setLastShownAnnouncementId(message.state.lastShownAnnouncementId)
@@ -241,7 +235,6 @@ export const useExtensionState = () => {
 	const setCommandTimeout = useSetAtom(commandTimeoutAtom)
 	const setAlwaysAllowWriteOnly = useSetAtom(alwaysAllowApproveOnlyAtom)
 	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
-	const setObserverHookEvery = useSetAtom(observerHookEveryAtom)
 	const setApiConfig = useSetAtom(apiConfigAtom)
 
 	const setSkipWriteAnimation = useSetAtom(skipWriteAnimationAtom)
@@ -255,7 +248,6 @@ export const useExtensionState = () => {
 		setLastShownAnnouncementId,
 		setTerminalCompressionThreshold,
 		setGitCommitterType: useSetAtom(gitCommitterTypeAtom),
-		setObserverHookEvery,
 		setSkipWriteAnimation,
 		setCommandTimeout,
 		setAutoCloseTerminal,

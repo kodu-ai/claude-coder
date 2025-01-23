@@ -47,14 +47,20 @@ export class AskManager {
 			const askData = this.stateManager.claudeMessagesManager.getMessageById(this.currentAskId!)
 			if (askData) {
 				try {
+					let skipUpdate = false
 					const tool = (askData?.ask === "tool" ? safeParseJSON(askData.text ?? "{}") : undefined) as ChatTool
 					if (typeof tool === "object") {
 						tool.approvalState = "error"
 						tool.error = "Tool was aborted"
 					} else {
 						console.error("Error in abortPendingAsks: tool is not an object")
+						// we are going to delete it from history and
+						skipUpdate = true
+						await this.stateManager.claudeMessagesManager.deleteClaudeMessage(this.currentAskId!, true)
 					}
-					await this.updateState(this.currentAskId!, "tool", tool, "error")
+					if (!skipUpdate) {
+						await this.updateState(this.currentAskId!, "tool", tool, "error")
+					}
 				} catch (err) {
 					console.error("Error in abortPendingAsks:", err)
 					await this.updateState(this.currentAskId!, "tool", undefined, "error")
@@ -209,11 +215,10 @@ export class AskManager {
 		try {
 			if (this.stateManager.claudeMessagesManager.getMessageById(id)) {
 				// we can void the promise here as we don't need to wait for the state to be updated
-				await this.stateManager.claudeMessagesManager.updateClaudeMessage(id, message)
+				await this.stateManager.claudeMessagesManager.updateClaudeMessage(id, message, true)
 			} else {
-				await this.stateManager.claudeMessagesManager.addToClaudeMessages(message)
+				await this.stateManager.claudeMessagesManager.addToClaudeMessages(message, true)
 			}
-			await this.webViewManager.postClaudeMessageToWebview(message)
 		} catch (error) {
 			console.error("Error in updateState:", error)
 			throw error

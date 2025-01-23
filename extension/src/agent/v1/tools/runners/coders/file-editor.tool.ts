@@ -286,6 +286,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			isAllFailed,
 			failedBlocks,
 		} = await this.inlineEditor.forceFinalize(editBlocks)
+
 		this.logger(`Failed count: ${failedCount}, isAllFailed: ${isAllFailed}`, "debug")
 		if (isAnyFailed) {
 			//// disabled for now
@@ -321,8 +322,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			)
 			return this.toolResponse(
 				"error",
-				dedent`
-<error_message>Failed to apply changes to the file. This is a fatal error than can be caused due to two reasons:
+				`<error_message>Failed to apply changes to the file. This is a fatal error than can be caused due to two reasons:
 1. the search content was not found in the file, or the search content was not an exact letter by letter, space by space match with absolute accuracy.
 2. the file content was modified or you don't have the latest file content in memory. Please retry the operation again with an absolute match of the search content.
 If you encountured this error in editing to the same file path twice in a row, please refresh the file content by calling the read_file tool on the same file path to get the latest file content.
@@ -342,8 +342,7 @@ ${REPLACE_HEAD}
 </failed_block>
 `
 )}
-</failed_to_match_blocks>
-				`
+</failed_to_match_blocks>`
 			)
 		}
 		const { response, text, images } = await this.params.ask(
@@ -463,7 +462,7 @@ ${results.map((res) => res.formattedSavedArea).join("\n-------\n")}
 
 		return this.toolResponse(
 			"success",
-			dedent`<file_editor_response>
+			`<file_editor_response>
 <file_info>
 <path>${path}</path>
 <file_version>${newVersion.version}</file_version>
@@ -592,14 +591,14 @@ ${finalContent}
 			this.ts
 		)
 
-		let toolMsg = dedent`The content was successfully saved to ${relPath.toPosix()}. you should remember this version of the file as the latest version of the file for future operations (unless further modifications were made after this point).
+		let toolMsg = `The content was successfully saved to ${relPath.toPosix()}. you should remember this version of the file as the latest version of the file for future operations (unless further modifications were made after this point).
 <file_version>${newVersion.version}</file_version>
 <file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>
 ${commitXmlInfo}
 		`
 		if (detectCodeOmission(this.diffViewProvider.originalContent || "", finalContent)) {
 			this.logger(`Truncated content detected in ${relPath} at ${this.ts}`, "warn")
-			toolMsg = dedent`The content was successfully saved to ${relPath.toPosix()}. you should remember this version of the file as the latest version of the file for future operations (unless further modifications were made after this point).
+			toolMsg = `The content was successfully saved to ${relPath.toPosix()}. you should remember this version of the file as the latest version of the file for future operations (unless further modifications were made after this point).
 but some code may have been omitted. Please ensure the full content is correct.
 <file_version>${newVersion.version}</file_version>
 <file_version_timestamp>${new Date(newVersion.createdAt).toISOString()}</file_version_timestamp>

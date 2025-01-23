@@ -14,6 +14,12 @@ interface ClaudeMessagesManagerOptions {
 	stateManager: StateManager
 }
 
+export type OverwriteClaudeMessagesOptions = {
+	// Update the task history timestamp
+	updateTs?: boolean
+	updateIsDone?: boolean
+}
+
 export class ClaudeMessagesManager {
 	private stateManager: StateManager
 	private state: KoduAgentState
@@ -38,7 +44,7 @@ export class ClaudeMessagesManager {
 		return this.state.claudeMessages
 	}
 
-	public async saveClaudeMessages(updateTs = true) {
+	public async saveClaudeMessages(updateTs = true, updateIsDone = true): Promise<ClaudeMessage[]> {
 		await this.ioManager.saveClaudeMessages(this.state.claudeMessages)
 		// Update task metrics and history
 		const apiMetrics = getApiMetrics(this.state.claudeMessages)
@@ -72,7 +78,7 @@ export class ClaudeMessagesManager {
 			?.getStateManager()
 			.updateTaskHistory(
 				{
-					isCompleted: isTaskCompleted,
+					...(updateIsDone ? { isCompleted: isTaskCompleted } : {}),
 					id: this.state.taskId,
 					// ts: lastRelevantMessage?.ts,
 					...(updateTs ? { ts: lastRelevantMessage?.ts } : {}),
@@ -90,11 +96,27 @@ export class ClaudeMessagesManager {
 		return this.state.claudeMessages
 	}
 
+	public async deleteClaudeMessage(messageId: number, withFlush = true) {
+		const index = this.state.claudeMessages.findIndex((msg) => msg?.ts === messageId)
+		if (index === -1) {
+			console.error(`[ClaudeMessagesManager] deleteClaudeMessage: Message with id ${messageId} not found`)
+			return
+		}
+		// In-place deletion using splice
+		this.state.claudeMessages.splice(index, 1)
+		await this.saveClaudeMessages()
+		if (withFlush) {
+			const provider = this.safeProviderRef()
+			await provider?.getWebviewManager()?.postClaudeMessagesToWebview(this.state.claudeMessages)
+		}
+		return this.state.claudeMessages
+	}
+
 	public getMessageById(messageId: number): ClaudeMessage | undefined {
 		return this.state.claudeMessages.find((msg) => msg?.ts === messageId)
 	}
 
-	public async addToClaudeMessages(message: ClaudeMessage) {
+	public async addToClaudeMessages(message: ClaudeMessage, withFlush = true) {
 		if (isV1ClaudeMessage(message)) {
 			message.agentName = this.stateManager.subAgentManager.agentName
 			message.modelId = message.modelId ?? this.stateManager.apiManager.getModelId()
@@ -104,16 +126,17 @@ export class ClaudeMessagesManager {
 		}
 		this.state.claudeMessages.push(message)
 		await this.saveClaudeMessages()
+		if (withFlush) {
+			await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(message)
+		}
 		return message
 	}
 
 	// Refactored to use in-place modifications
 	public async overwriteClaudeMessages(
 		newMessages: ClaudeMessage[],
-		options?: {
-			// Update the task history timestamp
-			updateTs?: boolean
-		}
+		options?: OverwriteClaudeMessagesOptions,
+		withFlush = true
 	) {
 		// We do it because the newMessages might be a reference to the same array
 		const newMessagesCopy = [...newMessages]
@@ -121,12 +144,16 @@ export class ClaudeMessagesManager {
 		this.state.claudeMessages.length = 0
 		// Push the new messages into the now-empty array
 		this.state.claudeMessages.push(...newMessagesCopy)
-		await this.saveClaudeMessages(options?.updateTs)
+		await this.saveClaudeMessages(options?.updateTs, options?.updateIsDone)
+		if (withFlush) {
+			const provider = this.safeProviderRef()
+			await provider?.getWebviewManager()?.postClaudeMessagesToWebview(this.state.claudeMessages)
+		}
 		return this.state.claudeMessages
 	}
 
 	// Refactored to use in-place modification (.length)
-	public async removeEverythingAfterMessage(messageId: number) {
+	public async removeEverythingAfterMessage(messageId: number, withFlush = true) {
 		const index = this.state.claudeMessages.findIndex((msg) => msg?.ts === messageId)
 		if (index === -1) {
 			console.error(
@@ -137,10 +164,14 @@ export class ClaudeMessagesManager {
 		// In-place modification using .length:
 		this.state.claudeMessages.length = index + 1
 		await this.saveClaudeMessages()
+		if (withFlush) {
+			const provider = this.safeProviderRef()
+			await provider?.getWebviewManager()?.postClaudeMessagesToWebview(this.state.claudeMessages)
+		}
 		return this.state.claudeMessages
 	}
 
-	public async updateClaudeMessage(messageId: number, message: ClaudeMessage) {
+	public async updateClaudeMessage(messageId: number, message: ClaudeMessage, withFlush = true) {
 		const index = this.state.claudeMessages.findIndex((msg) => msg?.ts === messageId)
 		if (index === -1) {
 			console.error(`[ClaudeMessagesManager] updateClaudeMessage: Message with id ${messageId} not found`)
@@ -153,25 +184,29 @@ export class ClaudeMessagesManager {
 		// In-place update of the message object
 		this.state.claudeMessages[index] = message
 		await this.saveClaudeMessages()
+		// Update webview if requested
+		if (withFlush) {
+			this.safePostMessage(message)
+		}
 		return this.state.claudeMessages[index]
 	}
 
-	public async appendToClaudeMessage(messageId: number, text: string, withFlush = false) {
+	public async appendToClaudeMessage(messageId: number, text: string, withFlush = true) {
 		const lastMessage = this.state.claudeMessages.find((msg) => msg?.ts === messageId)
 		if (lastMessage && lastMessage.type === "say") {
 			lastMessage.text += text
-			// Update webview if requested
-			if (withFlush) {
-				await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(lastMessage)
-			}
 			await this.saveClaudeMessages()
 
+			// Update webview if requested
+			if (withFlush) {
+				this.safePostMessage(lastMessage)
+			}
 			return lastMessage
 		}
 		return undefined
 	}
 
-	public async addToClaudeAfterMessage(messageId: number, message: ClaudeMessage) {
+	public async addToClaudeAfterMessage(messageId: number, message: ClaudeMessage, withFlush = true) {
 		const index = this.state.claudeMessages.findIndex((msg) => msg?.ts === messageId)
 		if (index === -1) {
 			console.error(`[ClaudeMessagesManager] addToClaudeAfterMessage: Message with id ${messageId} not found`)
@@ -184,17 +219,34 @@ export class ClaudeMessagesManager {
 		// In-place insertion using splice
 		this.state.claudeMessages.splice(index + 1, 0, message)
 		await this.saveClaudeMessages()
+		if (withFlush) {
+			const provider = this.safeProviderRef()
+			await provider?.getWebviewManager()?.postClaudeMessageToWebview(message)
+		}
 		return message
 	}
 
-	// If you need to expose a "cleaned" version for display but don't want
-	// to modify the original, create a copy here.
-	public async getCleanedClaudeMessages(): Promise<ClaudeMessage[]> {
-		const claudeMessages = await this.getSavedClaudeMessages()
-		// Create a deep copy and redact the text in the copy
-		return claudeMessages.map((message) => ({
-			...message,
-			text: "[REDACTED]",
-		}))
+	private safeProviderRef(): ExtensionProvider | undefined {
+		try {
+			const provider = this.providerRef.deref()
+			if (!provider) {
+				throw new Error("Provider is not available")
+			}
+			return provider
+		} catch (err) {
+			console.error("Provider is not available")
+			return
+		}
+	}
+
+	private async safePostMessage(message: ClaudeMessage): Promise<void> {
+		try {
+			const provider = this.safeProviderRef()
+			if (provider) {
+				await provider.getWebviewManager().postClaudeMessageToWebview(message)
+			}
+		} catch (err) {
+			console.error("Error posting message to webview:", err)
+		}
 	}
 }

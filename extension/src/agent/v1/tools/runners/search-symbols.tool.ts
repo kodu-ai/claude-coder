@@ -10,7 +10,7 @@ import { searchSymbolPrompt } from "../../prompts/tools/search-symbol"
 export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
-		const symbolName = input.symbolName
+		let symbolName = input.symbolName
 
 		if (!symbolName) {
 			await say(
@@ -46,43 +46,71 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 				symbolName
 			)
 
-			// Get symbol definitions for each symbol
 			const symbolsWithDefinitions = await Promise.all(
 				(symbols || []).map(async (symbol) => {
-					const document = await vscode.workspace.openTextDocument(symbol.location.uri)
-					const startLine = Math.max(0, symbol.location.range.start.line - 2)
-					const endLine = Math.min(document.lineCount - 1, symbol.location.range.end.line + 2)
-
-					// Get symbol definition
-					const definitions = await vscode.commands.executeCommand<vscode.Location[]>(
-						"vscode.executeDefinitionProvider",
-						symbol.location.uri,
-						symbol.location.range.start
-					)
-
-					const context = []
-					for (let i = startLine; i <= endLine; i++) {
-						context.push(document.lineAt(i).text)
+					// If there's no location or no range, safely handle or skip
+					if (!symbol.location?.uri || !symbol.location.range) {
+						return {
+							symbol,
+							context: "",
+							definitions: [],
+						}
 					}
+
+					const document = await vscode.workspace.openTextDocument(symbol.location.uri)
+
+					// Use optional chaining and fallback values to avoid undefined errors
+					const range = symbol.location.range
+					const startLine = Math.max(0, (range.start?.line ?? 0) - 2)
+					const endLine = Math.min(document.lineCount - 1, (range.end?.line ?? 0) + 2)
+
+					// Collect context lines
+					const contextLines: string[] = []
+					for (let i = startLine; i <= endLine; i++) {
+						contextLines.push(document.lineAt(i).text)
+					}
+
+					// Get symbol definitions
+					let definitions: vscode.Location[] = []
+					try {
+						definitions =
+							(await vscode.commands.executeCommand<vscode.Location[]>(
+								"vscode.executeDefinitionProvider",
+								symbol.location.uri,
+								range.start
+							)) || []
+					} catch {
+						definitions = []
+					}
+
+					const mappedDefinitions = await Promise.all(
+						definitions.map(async (def) => {
+							if (!def.uri || !def.range) {
+								return {
+									uri: "",
+									context: "",
+								}
+							}
+							const defDoc = await vscode.workspace.openTextDocument(def.uri)
+							const defStartLine = Math.max(0, (def.range.start?.line ?? 0) - 2)
+							const defEndLine = Math.min(defDoc.lineCount - 1, (def.range.end?.line ?? 0) + 2)
+							const defContextLines: string[] = []
+
+							for (let i = defStartLine; i <= defEndLine; i++) {
+								defContextLines.push(defDoc.lineAt(i).text)
+							}
+
+							return {
+								uri: def.uri.fsPath,
+								context: defContextLines.join("\n"),
+							}
+						})
+					)
 
 					return {
 						symbol,
-						context: context.join("\n"),
-						definitions: await Promise.all(
-							(definitions || []).map(async (def) => {
-								const defDoc = await vscode.workspace.openTextDocument(def.uri)
-								const defStartLine = Math.max(0, def.range.start.line - 2)
-								const defEndLine = Math.min(defDoc.lineCount - 1, def.range.end.line + 2)
-								const defContext = []
-								for (let i = defStartLine; i <= defEndLine; i++) {
-									defContext.push(defDoc.lineAt(i).text)
-								}
-								return {
-									uri: def.uri.fsPath,
-									context: defContext.join("\n"),
-								}
-							})
-						),
+						context: contextLines.join("\n"),
+						definitions: mappedDefinitions,
 					}
 				})
 			)
@@ -90,33 +118,24 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 			// Format the results
 			const formattedResults = symbolsWithDefinitions.map((symbolData) => {
 				const { symbol, context, definitions } = symbolData
-				return dedent`
-                    <symbol>
-                        <name>${symbol.name}</name>
-                        <kind>${symbol.kind}</kind>
-                        <container>${symbol.containerName || "global scope"}</container>
-                        <location>
-                            <file>${getReadablePath(symbol.location.uri.fsPath, this.cwd)}</file>
-                            <line>${symbol.location.range.start.line + 1}</line>
-                        </location>
-                        <usage_context>
-                            ${context}
-                        </usage_context>
-                        <definitions>
-                            ${definitions
-								.map(
-									(def) => `
-                            <definition>
-                                <file>${getReadablePath(def.uri, this.cwd)}</file>
-                                <context>
-                                    ${def.context}
-                                </context>
-                            </definition>
-                            `
-								)
-								.join("\n")}
-                        </definitions>
-                    </symbol>`.trim()
+
+				// If there's no location range, guard here as well
+				const locationTag = symbol.location?.range
+					? dedent`<location><file>${getReadablePath(symbol.location.uri.fsPath, this.cwd)}</file><line>${
+							(symbol.location.range.start?.line ?? 0) + 1
+					  }</line></location>`
+					: `<location><file>Unknown</file><line>Unknown</line></location>`
+
+				return dedent`<symbol><name>${symbol.name}</name><kind>${symbol.kind}</kind><container>${
+					symbol.containerName || "global scope"
+				}</container>${locationTag}<usage_context>${context}</usage_context><definitions>${definitions
+					.map(
+						(def) =>
+							`<definition><file>${getReadablePath(def.uri, this.cwd)}</file><context>${
+								def.context
+							}</context></definition>`
+					)
+					.join("\n")}</definitions></symbol>`.trim()
 			})
 
 			const { response, text, images } = await ask(
@@ -156,7 +175,7 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 								tool: "search_symbol",
 								userFeedback: text,
 								approvalState: "rejected",
-
+								content: formattedResults.join("\n"),
 								ts: this.ts,
 								symbolName,
 							},

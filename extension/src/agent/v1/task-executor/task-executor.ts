@@ -8,7 +8,7 @@ import { ChunkProcessor } from "../chunk-proccess"
 import { StateManager } from "../state-manager"
 import { ToolExecutor } from "../tools/tool-executor"
 import { ApiHistoryItem, ToolResponseV2, UserContent } from "../types"
-import { formatImagesIntoBlocks, isTextBlock } from "../utils"
+import { cleanUIMessages, formatImagesIntoBlocks, isTextBlock } from "../utils"
 import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
 import { CustomProviderError } from "../../../api/providers/custom-provider"
 
@@ -83,7 +83,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 			.reverse()
 			.find((msg) => msg.type === "ask")?.ts
 		if (lastAskTs && lastAskTs > currentReplyId && contentToFlush.trim().length > 0) {
-			console.log(`New ask message detected, flushing buffer and pausing stream`)
 			// Create new message to maintain order
 			this._currentReplyId = await this.say("text", contentToFlush, undefined, Date.now(), {
 				isSubMessage: true,
@@ -243,16 +242,17 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 		// Update API request if exists and not done
 		if (lastApiRequest && isV1ClaudeMessage(lastApiRequest) && !lastApiRequest.isDone) {
-			const msg = await this.stateManager.claudeMessagesManager.updateClaudeMessage(lastApiRequest.ts, {
-				...lastApiRequest,
-				isDone: true,
-				isFetching: false,
-				errorText: "Request cancelled by user",
-				isError: true,
-			})
-			if (msg) {
-				await this.stateManager.providerRef.deref()?.getWebviewManager()?.postClaudeMessageToWebview(msg)
-			}
+			const msg = await this.stateManager.claudeMessagesManager.updateClaudeMessage(
+				lastApiRequest.ts,
+				{
+					...lastApiRequest,
+					isDone: true,
+					isFetching: false,
+					errorText: "Request cancelled by user",
+					isError: true,
+				},
+				true
+			)
 		}
 
 		this.ask("resume_task", {
@@ -291,6 +291,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 	public async makeClaudeRequest(): Promise<void> {
 		try {
+			const provider = this.providerRef.deref()
+			if (!provider?.koduDev) {
+				return
+			}
 			if (this.pauseNext) {
 				await this.handleWaitingForUser()
 				return
@@ -326,11 +330,11 @@ export class TaskExecutor extends TaskExecutorUtils {
 					this.consecutiveErrorCount = 0
 				}
 			}
+			//
 			this.logState("Making Claude API request")
 			// Execute hooks before making the API request
 			const startedReqId = await this.say("api_req_started")
 			this.currentStreamTs = startedReqId
-			const provider = this.providerRef.deref()
 			if (provider?.koduDev) {
 				const hookContent = await provider.koduDev.executeHooks()
 				if (hookContent) {
@@ -403,6 +407,10 @@ export class TaskExecutor extends TaskExecutorUtils {
 					await this.handleApiError(new TaskError({ type: "API_ERROR", message: error.message }))
 					return
 				}
+				if (`${error}`.includes("garbage collected")) {
+					console.log("[TaskExecutor] Provider was garbage collected, ignoring error")
+					return
+				}
 				// @ts-expect-error
 				await this.handleApiError(new TaskError({ type: "NETWORK_ERROR", message: error.message }))
 			} else {
@@ -422,7 +430,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 		try {
 			this.logState("Processing API response")
 
-			const ts = Date.now()
+			let ts = Date.now()
 
 			const apiHistoryItem: ApiHistoryItem = {
 				role: "assistant",
@@ -436,11 +444,16 @@ export class TaskExecutor extends TaskExecutorUtils {
 			}
 
 			let accumulatedText = ""
+			let accumReasoning = ""
+			let firstChunkTs: number | null = null
+
+			let reasoningLoading = false
 
 			const processor = new ChunkProcessor({
 				onStreamStart: async () => {
-					const currentReplyId = await this.say("text", "", undefined, Date.now(), { isSubMessage: true })
-					this._currentReplyId = currentReplyId
+					ts = Date.now()
+					apiHistoryItem.ts = ts
+
 					await this.stateManager.apiHistoryManager.addToApiConversationHistory(apiHistoryItem)
 				},
 				onImmediateEndOfStream: async (chunk) => {
@@ -452,47 +465,88 @@ export class TaskExecutor extends TaskExecutorUtils {
 						// console.log(`Updating chunk for API history item on chunk code 1`)
 						const { inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens } =
 							chunk.body.internal
-						const msg = await this.stateManager.claudeMessagesManager.updateClaudeMessage(startedReqId, {
-							...this.stateManager.claudeMessagesManager.getMessageById(startedReqId)!,
-							apiMetrics: {
-								cost: chunk.body.internal.cost,
-								inputTokens,
-								outputTokens,
-								inputCacheRead: cacheReadInputTokens,
-								inputCacheWrite: cacheCreationInputTokens,
+						const msg = await this.stateManager.claudeMessagesManager.updateClaudeMessage(
+							startedReqId,
+							{
+								...this.stateManager.claudeMessagesManager.getMessageById(startedReqId)!,
+								apiMetrics: {
+									cost: chunk.body.internal.cost,
+									inputTokens,
+									outputTokens,
+									inputCacheRead: cacheReadInputTokens,
+									inputCacheWrite: cacheCreationInputTokens,
+								},
+								isDone: true,
+								isFetching: false,
 							},
-							isDone: true,
-							isFetching: false,
-						})
+							true
+						)
 						// apiHistoryItem.content = chunk.body.anthropic.content
 						this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview()
-						if (msg) {
-							await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(msg)
-						}
 					}
 
 					if (chunk.code === -1) {
-						const msg = await this.stateManager.claudeMessagesManager.updateClaudeMessage(startedReqId, {
-							...this.stateManager.claudeMessagesManager.getMessageById(startedReqId)!,
-							isDone: true,
-							isFetching: false,
-							errorText: chunk.body.msg ?? "Internal Server Error",
-							isError: true,
-						})
+						const msg = await this.stateManager.claudeMessagesManager.updateClaudeMessage(
+							startedReqId,
+							{
+								...this.stateManager.claudeMessagesManager.getMessageById(startedReqId)!,
+								isDone: true,
+								isFetching: false,
+								errorText: chunk.body.msg ?? "Internal Server Error",
+								isError: true,
+							},
+							true
+						)
 						this.stateManager.providerRef.deref()?.getWebviewManager()?.postBaseStateToWebview()
-						if (msg) {
-							await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(msg)
-						}
 						throw new KoduError({ code: chunk.body.status ?? 500 })
 					}
 				},
 
 				onChunk: async (chunk) => {
+					// reset consecutive error count if data
+					if (chunk.code !== 0 && chunk.code !== -1 && this.consecutiveErrorCount > 0) {
+						this.consecutiveErrorCount = 0
+					}
 					if (this.isRequestCancelled || this.isAborting) {
 						return
 					}
-
+					/**
+					 * code 4 is for internal reasoning from the model (should not be saved to api history)
+					 */
+					if (chunk.code === 4) {
+						accumReasoning += chunk.body.reasoningDelta
+						this.updateSayPartial(startedReqId, {
+							reasoning: {
+								content: accumReasoning,
+								...(!reasoningLoading
+									? {
+											startedAt: Date.now(),
+									  }
+									: {}),
+							},
+						})
+						reasoningLoading = true
+					}
 					if (chunk.code === 2) {
+						if (!firstChunkTs) {
+							firstChunkTs = Date.now()
+							const currentReplyId = await this.say("text", "", undefined, firstChunkTs, {
+								isSubMessage: true,
+							})
+							this._currentReplyId = currentReplyId
+							if (reasoningLoading) {
+								// await this.sayWithId(reasoningTs, "reasoning", accumReasoning, undefined, {
+								// 	isFetching: false,
+								// 	completedAt: Date.now(),
+								// })
+								this.updateSayPartial(startedReqId, {
+									reasoning: {
+										finishedAt: Date.now(),
+									},
+								})
+								reasoningLoading = false
+							}
+						}
 						// Update API history first
 						if (Array.isArray(apiHistoryItem.content) && isTextBlock(apiHistoryItem.content[0])) {
 							apiHistoryItem.content[0].text =
@@ -641,7 +695,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.currentUserContent = [
 				{
 					type: "text",
-					text: "You must use a tool to proceed. Either use attempt_completion if you've completed the task, or ask_followup_question if you need more information.",
+					text: `You must use a tool to proceed. Either use attempt_completion if you've completed the task, or ask_followup_question if you need more information. you must adhere to the tool format <kodu_action><tool_name><parameter1_name>value1</parameter1_name><parameter2_name>value2</parameter2_name>... additional parameters as needed in the same format ...</tool_name></kodu_action>`,
 				},
 			]
 			await this.makeClaudeRequest()
@@ -679,60 +733,12 @@ export class TaskExecutor extends TaskExecutorUtils {
 			await this.stateManager.apiHistoryManager.deleteApiHistoryItem(lastMessage.ts)
 		}
 		const modifiedClaudeMessages = this.stateManager.state.claudeMessages.slice()
-		// update previous messages to ERROR
-		modifiedClaudeMessages.forEach((m) => {
-			if (isV1ClaudeMessage(m)) {
-				m.isDone = true
-				if (m.say === "api_req_started" && m.isFetching) {
-					m.isFetching = false
-					m.isDone = true
-					m.isError = true
-					m.errorText = error.message ?? "Task was interrupted before this API request could be completed."
-				}
-				if (m.isFetching) {
-					m.isFetching = false
-
-					m.errorText = error.message ?? "Task was interrupted before this API request could be completed."
-					// m.isAborted = "user"
-					m.isError = true
-				}
-				if (m.ask === "tool" && m.type === "ask") {
-					try {
-						const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
-						if (typeof parsedTool === "object" && parsedTool.tool === "attempt_completion") {
-							parsedTool.approvalState = "approved"
-							m.text = JSON.stringify(parsedTool)
-							return
-						}
-						if (
-							typeof parsedTool === "object" &&
-							(parsedTool.approvalState === "pending" ||
-								parsedTool.approvalState === undefined ||
-								parsedTool.approvalState === "loading")
-						) {
-							const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
-							if (toolsToSkip.includes(parsedTool.tool)) {
-								parsedTool.approvalState = "error"
-								m.text = JSON.stringify(parsedTool)
-								return
-							}
-							parsedTool.approvalState = "error"
-							parsedTool.error = "Task was interrupted before this tool call could be completed."
-							m.text = JSON.stringify(parsedTool)
-						}
-					} catch (err) {
-						m.text = "{}"
-						m.errorText = "Task was interrupted before this tool call could be completed."
-						m.isError = true
-					}
-				}
-			}
-		})
+		// clean ui messages
+		cleanUIMessages(modifiedClaudeMessages, error)
 
 		// Process state updates in parallel
 
-		await this.stateManager.claudeMessagesManager.overwriteClaudeMessages(modifiedClaudeMessages)
-		await this.stateManager.providerRef.deref()?.getWebviewManager().postClaudeMessagesToWebview()
+		await this.stateManager.claudeMessagesManager.overwriteClaudeMessages(modifiedClaudeMessages, undefined, true)
 		this.consecutiveErrorCount++
 		if (error instanceof TaskError && (error.type === "PAYMENT_REQUIRED" || error.type === "UNAUTHORIZED")) {
 			this.state = TaskState.IDLE
@@ -751,13 +757,18 @@ export class TaskExecutor extends TaskExecutorUtils {
 			return
 		}
 
+		// check if provider is available or not (this is useful to prevent adding failed error when panic exit is called)
+		const provider = this.providerRef.deref()
+		if (!provider) {
+			this.state = TaskState.COMPLETED
+			return
+		}
+
 		// Handle user response
 		const { response } = await this.ask("api_req_failed", { question: error.message })
 
 		if (response === "yesButtonTapped" || response === "messageResponse") {
 			this.state = TaskState.WAITING_FOR_API
-			// Fire and forget retried message
-			this.say("api_req_retried").catch((err) => console.error("Error sending retried message:", err))
 
 			// Start new request immediately
 			this.makeClaudeRequest()

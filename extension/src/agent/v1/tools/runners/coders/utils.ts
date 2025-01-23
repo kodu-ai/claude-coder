@@ -188,7 +188,6 @@ export class DiffBlockManager {
 			blocks.push(block)
 			blockId++
 		}
-
 		return blocks
 	}
 }

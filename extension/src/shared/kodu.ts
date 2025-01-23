@@ -165,6 +165,16 @@ export type koduSSEResponse =
 			}
 	  }
 	| {
+			code: 4
+			body: {
+				/**
+				 * internal reasoning from the model (should not be saved to api history)
+				 */
+
+				reasoningDelta: string
+			}
+	  }
+	| {
 			code: 2
 			body: {
 				/**

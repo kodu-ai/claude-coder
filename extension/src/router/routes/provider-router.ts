@@ -120,7 +120,7 @@ const providerRouter = router({
 	}),
 
 	currentObserverModel: procedure.input(z.object({})).resolve(async (ctx, input) => {
-		const observerModel = GlobalStateManager.getInstance().getGlobalState("observerModel")
+		const observerModel = GlobalStateManager.getInstance().getGlobalState("observerSettings")
 		return await getCurrentModelInfo(
 			observerModel ? { providerId: observerModel.providerId, modelId: observerModel.modelId } : undefined
 		)
@@ -129,7 +129,7 @@ const providerRouter = router({
 	selectObserverModel: procedure
 		.input(z.object({ providerId: z.string(), modelId: z.string() }))
 		.resolve(async (ctx, input) => {
-			await GlobalStateManager.getInstance().updateGlobalState("observerModel", {
+			await GlobalStateManager.getInstance().updatePartialGlobalState("observerSettings", {
 				providerId: input.providerId as ProviderId,
 				modelId: input.modelId,
 			})

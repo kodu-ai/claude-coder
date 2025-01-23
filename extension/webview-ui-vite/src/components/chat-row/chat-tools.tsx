@@ -316,27 +316,49 @@ export const ListFilesBlock: React.FC<ListFilesTool & ToolAddons> = ({
 	path,
 	recursive,
 	approvalState,
-
 	tool,
 	ts,
+	content,
 	...rest
-}) => (
-	<ToolBlock
-		{...rest}
-		ts={ts}
-		tool={tool}
-		icon={FolderTree}
-		title="List Files"
-		variant="info"
-		approvalState={approvalState}>
-		<p className="text-xs">
-			<span className="font-semibold">Folder:</span> {path}
-		</p>
-		<p className="text-xs">
-			<span className="font-semibold">Include subfolders:</span> {recursive || "No"}
-		</p>
-	</ToolBlock>
-)
+}) => {
+	const [isOpen, setIsOpen] = React.useState(false)
+
+	return (
+		<ToolBlock
+			{...rest}
+			ts={ts}
+			tool={tool}
+			icon={FolderTree}
+			title="List Files"
+			variant="info"
+			approvalState={approvalState}>
+			<p className="text-xs">
+				<span className="font-semibold">Folder:</span> {path}
+			</p>
+			<p className="text-xs">
+				<span className="font-semibold">Include subfolders:</span> {recursive || "No"}
+			</p>
+			{content && (
+				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
+					<CollapsibleTrigger asChild>
+						<Button variant="ghost" size="sm" className="flex items-center w-full justify-between">
+							<span>View Output</span>
+							{isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+						</Button>
+					</CollapsibleTrigger>
+					<CollapsibleContent className="mt-2">
+						<ScrollArea className="h-[200px] w-full rounded-md border">
+							<div className="bg-secondary/20 p-3 rounded-md text-sm">
+								<pre className="whitespace-pre-wrap text-pretty break-all">{content}</pre>
+							</div>
+							<ScrollBar orientation="vertical" />
+						</ScrollArea>
+					</CollapsibleContent>
+				</Collapsible>
+			)}
+		</ToolBlock>
+	)
+}
 
 export const ExploreRepoFolderBlock: React.FC<ExploreRepoFolderTool & ToolAddons> = ({
 	path,
@@ -364,32 +386,55 @@ export const SearchFilesBlock: React.FC<SearchFilesTool & ToolAddons> = ({
 	regex,
 	filePattern,
 	approvalState,
-
+	content: output,
 	tool,
 	ts,
 	...rest
-}) => (
-	<ToolBlock
-		{...rest}
-		ts={ts}
-		tool={tool}
-		icon={Search}
-		title="Search Files"
-		variant="info"
-		approvalState={approvalState}>
-		<p className="text-xs">
-			<span className="font-semibold">Search in:</span> {path}
-		</p>
-		<p className="text-xs">
-			<span className="font-semibold">Look for:</span> {regex}
-		</p>
-		{filePattern && (
+}) => {
+	const [isOpen, setIsOpen] = React.useState(false)
+
+	return (
+		<ToolBlock
+			{...rest}
+			ts={ts}
+			tool={tool}
+			icon={Search}
+			title="Search Files"
+			variant="info"
+			approvalState={approvalState}>
 			<p className="text-xs">
-				<span className="font-semibold">File types:</span> {filePattern}
+				<span className="font-semibold">Search in:</span> {path}
 			</p>
-		)}
-	</ToolBlock>
-)
+			<p className="text-xs">
+				<span className="font-semibold">Look for:</span> {regex}
+			</p>
+			{filePattern && (
+				<p className="text-xs">
+					<span className="font-semibold">File types:</span> {filePattern}
+				</p>
+			)}
+			{output && (
+				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
+					<CollapsibleTrigger asChild>
+						<Button variant="ghost" size="sm" className="flex items-center w-full justify-between">
+							<span>View Output</span>
+							{isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+						</Button>
+					</CollapsibleTrigger>
+					<CollapsibleContent className="mt-2">
+						<ScrollArea className="h-[200px] w-full rounded-md border">
+							<div className="bg-secondary/20 p-3 rounded-md text-sm">
+								<pre className="whitespace-pre-wrap text-pretty">{output}</pre>
+							</div>
+							<ScrollBar orientation="vertical" />
+							<ScrollBar orientation="horizontal" />
+						</ScrollArea>
+					</CollapsibleContent>
+				</Collapsible>
+			)}
+		</ToolBlock>
+	)
+}
 
 const CodeBlockMemorized = React.memo(({ content, path }: { content: string; path: string }) => {
 	return (
@@ -407,8 +452,6 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 	content,
 	tool,
 	ts,
-	pageNumber,
-	readAllPages,
 	...rest
 }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
@@ -426,16 +469,6 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 			<p className="text-xs">
 				<span className="font-semibold">File:</span> {path}
 			</p>
-			{typeof pageNumber === "number" && (
-				<p className="text-xs">
-					<span className="font-semibold">Page Number:</span> {pageNumber}
-				</p>
-			)}
-			{typeof readAllPages === "boolean" && (
-				<p className="text-xs">
-					<span className="font-semibold">Read All Pages:</span> {readAllPages ? "Yes" : "No"}
-				</p>
-			)}
 
 			{content && content.length > 0 && (
 				<Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
@@ -544,7 +577,6 @@ export const SearchSymbolBlock: React.FC<SearchSymbolsTool & ToolAddons> = ({
 	...rest
 }) => {
 	const [isOpen, setIsOpen] = React.useState(false)
-
 	return (
 		<ToolBlock
 			{...rest}
@@ -571,6 +603,7 @@ export const SearchSymbolBlock: React.FC<SearchSymbolsTool & ToolAddons> = ({
 								<pre className="whitespace-pre-wrap">{content}</pre>
 							</div>
 							<ScrollBar orientation="vertical" />
+							<ScrollBar orientation="horizontal" />
 						</ScrollArea>
 					</CollapsibleContent>
 				</Collapsible>

@@ -1,28 +1,23 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, memo, useMemo } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import UserInfoSection from "./user-info-section"
 import ExperimentalTab from "./experimental-tab"
 import AdvancedTab from "./advanced-tab"
-import AgentsTab from "./agents-tab"
+import AgentsTab from "./agents"
 import ClosePageButton from "./close-page-button"
 import { SettingsFooter } from "./settings-footer"
 import { Label } from "../ui/label"
 import { Separator } from "../ui/separator"
 import PreferencesTabNew from "./preferences/preferences-tab"
-
-const tabItems = [
-	{ value: "preferences", label: "Preferences" },
-	{ value: "experimental", label: "Experimental" },
-	{ value: "advanced", label: "Advanced" },
-	{ value: "agents", label: "Agents" },
-]
+import { useAtom } from "jotai"
+import { PreferencesTab, preferencesTabAtom, tabItems } from "./preferences/atoms"
 
 const SettingsPage: React.FC = () => {
-	const [activeTab, setActiveTab] = useState("preferences")
+	const [activeTab, setActiveTab] = useAtom(preferencesTabAtom)
 	const [isMobile, setIsMobile] = useState(false)
 
 	useEffect(() => {
@@ -32,9 +27,63 @@ const SettingsPage: React.FC = () => {
 		return () => window.removeEventListener("resize", checkMobile)
 	}, [])
 
-	const handleTabChange = (value: string) => {
+	const handleTabChange = (value: PreferencesTab) => {
 		setActiveTab(value)
 	}
+
+	const activeContent = useMemo(
+		() => (
+			<>
+				{activeTab === "preferences" && <PreferencesTabNew />}
+				{activeTab === "experimental" && <ExperimentalTab />}
+				{activeTab === "advanced" && <AdvancedTab />}
+				{activeTab === "agents" && <AgentsTab />}
+			</>
+		),
+		[activeTab]
+	)
+
+	const tabPicker = useMemo(
+		() => (
+			<>
+				{isMobile ? (
+					<div>
+						<Label>Settings</Label>
+						<Select value={activeTab} onValueChange={handleTabChange}>
+							<SelectTrigger className="w-full mb-2.5 mt-1">
+								<SelectValue placeholder="Select a tab" />
+							</SelectTrigger>
+							<SelectContent>
+								{tabItems.map((item) => (
+									<SelectItem key={item.value} value={item.value}>
+										{item.label} Tab
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						<Separator />
+					</div>
+				) : (
+					<Tabs
+						value={activeTab}
+						onValueChange={(tab: string) => {
+							if (tab === activeTab) return
+							handleTabChange(tab as PreferencesTab)
+						}}
+						className="space-y-4 mx-auto">
+						<TabsList>
+							{tabItems.map((item) => (
+								<TabsTrigger className="p-1.5 text-xs" key={item.value} value={item.value}>
+									{item.label}
+								</TabsTrigger>
+							))}
+						</TabsList>
+					</Tabs>
+				)}
+			</>
+		),
+		[activeTab, isMobile, handleTabChange]
+	)
 
 	return (
 		<div className="container mx-auto px-4 max-[280px]:px-2 py-4 max-w-[500px] flex flex-col h-full">
@@ -48,41 +97,8 @@ const SettingsPage: React.FC = () => {
 				<UserInfoSection />
 			</div>
 
-			{isMobile ? (
-				<div>
-					<Label>Settings</Label>
-					<Select value={activeTab} onValueChange={handleTabChange}>
-						<SelectTrigger className="w-full mb-2.5 mt-1">
-							<SelectValue placeholder="Select a tab" />
-						</SelectTrigger>
-						<SelectContent>
-							{tabItems.map((item) => (
-								<SelectItem key={item.value} value={item.value}>
-									{item.label} Tab
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-					<Separator />
-				</div>
-			) : (
-				<Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 mx-auto">
-					<TabsList>
-						{tabItems.map((item) => (
-							<TabsTrigger className="p-1.5 text-xs" key={item.value} value={item.value}>
-								{item.label}
-							</TabsTrigger>
-						))}
-					</TabsList>
-				</Tabs>
-			)}
-
-			<div className="mt-4">
-				{activeTab === "preferences" && <PreferencesTabNew />}
-				{activeTab === "experimental" && <ExperimentalTab />}
-				{activeTab === "advanced" && <AdvancedTab />}
-				{activeTab === "agents" && <AgentsTab />}
-			</div>
+			{tabPicker}
+			<div className="mt-4">{activeContent}</div>
 
 			<div className="mt-auto mb-2 flex w-full">
 				<SettingsFooter />
@@ -91,4 +107,4 @@ const SettingsPage: React.FC = () => {
 	)
 }
 
-export default SettingsPage
+export default memo(SettingsPage)

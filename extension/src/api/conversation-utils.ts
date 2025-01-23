@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { ApiHandler } from "."
-import { MainAgent } from "../agent/v1/main-agent"
+import { ApiHistoryItem, MainAgent } from "../agent/v1/main-agent"
 import { ClaudeMessage } from "../shared/messages/extension-message"
 import { isTextBlock } from "../shared/format-tools"
 import { truncateHalfConversation, estimateTokenCount, smartTruncation } from "../utils/context-managment"
@@ -55,12 +55,74 @@ export async function processConversationHistory(
 		history[history.length - 1] = cleanedLastMessage
 	}
 
+	// interleave the messages
+	const interleavedMessages = interleaveMessages(history)
+	history.length = 0
+	// set the interleaved messages back to the history
+	history.push(...interleavedMessages)
+
+	// remove duplicate the content
+	const dedupedMessages = removeDuplicateContent(history)
+	history.length = 0
+	history.push(...dedupedMessages)
+
 	// Enrich conversation history with environment details and critical messages
 	await enrichConversationHistory(provider, history, isLastMessageFromUser, criticalMsg)
 
 	if (autoSaveToDisk) {
 		await provider.getStateManager().apiHistoryManager.overwriteApiConversationHistory(history)
 	}
+}
+
+/**
+ * remove duplicate content from the messages
+ */
+export function removeDuplicateContent(messages: Anthropic.MessageParam[]) {
+	const newMessages: Anthropic.MessageParam[] = []
+	for (const message of messages) {
+		if (Array.isArray(message.content)) {
+			const newContent = message.content.filter((content, index, self) => {
+				if (isTextBlock(content)) {
+					return self.findIndex((c) => isTextBlock(c) && c.text === content.text) === index
+				}
+				return true
+			})
+			if (newContent.length > 0) {
+				newMessages.push({
+					...message,
+					content: newContent,
+				})
+			}
+		} else {
+			newMessages.push(message)
+		}
+	}
+	return newMessages
+}
+
+/**
+ *
+ * it interleave the user/assistant messages so we always have user > assistant > user > assistant > ...
+ */
+function interleaveMessages(messages: Anthropic.MessageParam[]) {
+	const interleavedMessages: Anthropic.MessageParam[] = []
+	let lastRole = "user"
+	for (const message of messages) {
+		if (message.role === lastRole) {
+			const lastInterleavedMessage = interleavedMessages.at(-1)
+			if (
+				lastInterleavedMessage &&
+				Array.isArray(lastInterleavedMessage.content) &&
+				Array.isArray(message.content)
+			) {
+				lastInterleavedMessage.content.push(...message.content)
+				continue
+			}
+		}
+		interleavedMessages.push(message)
+		lastRole = message.role
+	}
+	return interleavedMessages
 }
 
 /**

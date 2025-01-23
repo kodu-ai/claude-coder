@@ -19,8 +19,8 @@ export const readFileAndFormat = async (filePath: string) => {
  */
 export const formatFileToLines = (content: string) => {
 	const lines = content.split("\n")
-	const lineNumbers = lines.map((_, index) => `${index + 1}`.padStart(4, " "))
-	return lines.map((line, index) => `${lineNumbers[index]} ${line}`).join("\n")
+	const lineNumbers = lines.map((_, index) => `${index + 1}`)
+	return lines.map((line, index) => `${line}`).join("\n")
 }
 
 export async function extractTextFromFile(filePath: string): Promise<string> {

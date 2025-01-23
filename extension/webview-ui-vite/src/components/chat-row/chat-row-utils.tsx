@@ -12,7 +12,7 @@ function formatElapsedTime(ms: number): string {
 	}
 	return `${seconds}s`
 }
-import { useCollapseState } from "@/context/collapse-state-context"
+import { useCollapseState } from "@/hooks/use-collapse-state"
 import { vscode } from "@/utils/vscode"
 import { getKoduOfferUrl } from "../../../../src/shared/kodu"
 import { TextWithAttachments } from "@/utils/extract-attachments"
@@ -32,6 +32,7 @@ import { Badge } from "../ui/badge"
 import { CheckCircle, XCircle, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useSwitchToProviderManager } from "../settings-view/preferences/atoms"
+import { ReasoningRow } from "./reasoning-row"
 
 function StatusIcon({ message }: { message: V1ClaudeMessage }) {
 	if (message.isError || message.isAborted) return <XCircle className="shrink-0 h-4 w-4 text-destructive" />
@@ -164,6 +165,7 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 					/>
 				</Button>
 			</div>
+			{message.reasoning && <ReasoningRow message={message} />}
 			{message.isError && <span className="text-destructive p-2 flex">{message.errorText}</span>}
 		</>
 	)

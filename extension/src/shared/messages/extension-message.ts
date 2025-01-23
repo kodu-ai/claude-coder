@@ -199,7 +199,7 @@ export interface BaseExtensionState {
 	skipWriteAnimation?: boolean
 	autoSummarize?: boolean
 	customInstructions?: string
-	observerHookEvery?: number
+	observerSettings?: GlobalState["observerSettings"]
 	alwaysAllowReadOnly?: boolean
 	alwaysAllowWriteOnly?: boolean
 	user: GlobalState["user"]
@@ -249,6 +249,24 @@ export type V1ClaudeMessage = {
 	 */
 	isAborted?: "user" | "timeout"
 	isError?: boolean
+	/**
+	 * reasoning
+	 */
+	reasoning?: {
+		/**
+		 * the reasoning tokens
+		 */
+		content: string
+		/**
+		 * the time it started generating the reasoning
+		 */
+		startedAt: number
+		/**
+		 * the time it finished generating the reasoning
+		 */
+		finishedAt?: number
+	}
+
 	isFetching?: boolean
 	agentName?: SpawnAgentOptions
 	isExecutingCommand?: boolean
@@ -307,6 +325,9 @@ export type ClaudeSay =
 	| "completion_result"
 	| "user_feedback"
 	| "user_feedback_diff"
+	/**
+	 * @deprecated
+	 */
 	| "api_req_retried"
 	| "command_output"
 	| "tool"

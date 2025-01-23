@@ -3,6 +3,7 @@ import { HistoryItem } from "../../shared/history-item"
 import { ToolName } from "../../agent/v1/tools/types"
 import { ProviderId } from "../../api/providers/constants"
 import { ApiConfiguration } from "../../api"
+import { merge } from "lodash"
 
 type User = {
 	email: string
@@ -21,6 +22,7 @@ const defaults: Partial<GlobalState> = {
 		modelId: "claude-3-5-sonnet-20241022",
 		koduApiKey: "-",
 	},
+	disabledTools: [],
 }
 
 export type GlobalState = {
@@ -31,6 +33,7 @@ export type GlobalState = {
 	apiConfig?: Partial<ApiConfiguration>
 	gitHandlerEnabled: boolean | undefined
 	gitCommitterType: "kodu" | "user" | undefined
+	readFileMaxLines: number | undefined
 	alwaysAllowReadOnly: boolean | undefined
 	alwaysAllowWriteOnly: boolean | undefined
 	inlineEditOutputType?: "full" | "diff"
@@ -40,17 +43,31 @@ export type GlobalState = {
 	skipWriteAnimation: boolean | undefined
 	commandTimeout: number | undefined
 	activePromptName: string | undefined
-	observerModel:
+	observerSettings:
 		| {
+				/**
+				 * The model ID to use for the observer
+				 */
 				modelId: string
+				/**
+				 * The provider ID that is associated with the model
+				 */
 				providerId: ProviderId
+				/**
+				 * The number of last messages to pull to the observer for observation
+				 */
+				observePullMessages: number
+				/**
+				 * The number of requests to make before triggering the observer
+				 */
+				observeEveryXRequests: number
+				/**
+				 * Custom prompt to use for the observer
+				 */
+				observePrompt?: string
 		  }
 		| undefined
 	disabledTools: ToolName[] | undefined
-	/**
-	 * if number is set, the observer hook will be called every n-th time (which means that the hook is enabled)
-	 */
-	observerHookEvery: number | undefined
 	isMigratedTaskCompleted: boolean | undefined
 }
 
@@ -70,6 +87,12 @@ export class GlobalStateManager {
 			GlobalStateManager.instance = new GlobalStateManager(context)
 		}
 		return GlobalStateManager.instance
+	}
+
+	async updatePartialGlobalState<K extends keyof GlobalState>(key: K, value: Partial<GlobalState[K]>): Promise<void> {
+		const currentValue = this.getGlobalState(key)
+		const deepMerged = merge({}, currentValue, value)
+		await this.context.globalState.update(key, deepMerged)
 	}
 
 	async updateGlobalState<K extends keyof GlobalState>(key: K, value: GlobalState[K]): Promise<void> {

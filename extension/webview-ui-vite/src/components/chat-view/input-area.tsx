@@ -128,7 +128,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 				<div className="flex justify-between items-center px-1 pt-1">
 					<ModelDisplay />
 					<div className="flex items-center gap-2">
-						<Button
+						{/* <Button
 							tabIndex={0}
 							variant="ghost"
 							className="!p-1 h-6 w-6"
@@ -139,7 +139,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 								setInputValue(newText)
 							}}>
 							<AtSign size={16} />
-						</Button>
+						</Button> */}
 						<Button
 							tabIndex={0}
 							disabled={shouldDisableImages}

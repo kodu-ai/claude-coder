@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from "react"
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso"
 import { ChevronDown } from "lucide-react"
-import { useCollapseState } from "../../context/collapse-state-context"
+import { useCollapseState } from "@/hooks/use-collapse-state"
 import { ClaudeMessage, isV1ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/messages/extension-message"
 import { SyntaxHighlighterStyle } from "../../utils/get-syntax-highlighter-style-from-theme"
 import ChatRowV1 from "../chat-row/chat-row"

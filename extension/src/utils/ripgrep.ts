@@ -23,42 +23,29 @@ The search results include:
 - Relative file paths
 - 2 lines of context before and after each match
 - Matches formatted with pipe characters for easy reading
-
-Usage example:
-const results = await regexSearchFiles('/path/to/cwd', '/path/to/search', 'TODO:', '*.ts');
-
-rel/path/to/app.ts
-│----
-│function processData(data: any) {
-│  // Some processing logic here
-│  // TODO: Implement error handling
-│  return processedData;
-│}
-│----
-
-rel/path/to/helper.ts
-│----
-│  let result = 0;
-│  for (let i = 0; i < input; i++) {
-│    // TODO: Optimize this function for performance
-│    result += Math.pow(i, 2);
-│  }
-│----
 */
 
 const isWindows = /^win/.test(process.platform)
 const binName = isWindows ? "rg.exe" : "rg"
-
-interface SearchResult {
-	file: string
-	line: number
-	column: number
-	match: string
-	beforeContext: string[]
-	afterContext: string[]
-}
-
 const MAX_RESULTS = 300
+
+/**
+ * Directories to exclude for many common project types. You can add more if needed.
+ */
+const EXCLUDES = [
+	"node_modules",
+	".git",
+	".hg",
+	".svn",
+	"dist",
+	"build",
+	"out",
+	"__pycache__",
+	"target",
+	"bin",
+	"obj",
+	".venv",
+]
 
 async function getBinPath(vscodeAppRoot: string): Promise<string | undefined> {
 	const checkPath = async (pkgFolder: string) => {
@@ -88,12 +75,12 @@ async function execRipgrep(bin: string, args: string[]): Promise<string> {
 		// cross-platform alternative to head, which is ripgrep author's recommendation for limiting output.
 		const rl = readline.createInterface({
 			input: rgProcess.stdout,
-			crlfDelay: Infinity, // treat \r\n as a single line break even if it's split across chunks. This ensures consistent behavior across different operating systems.
+			crlfDelay: Infinity, // treat \r\n as a single line break
 		})
 
 		let output = ""
 		let lineCount = 0
-		const maxLines = MAX_RESULTS * 5 // limiting ripgrep output with max lines since there's no other way to limit results. it's okay that we're outputting as json, since we're parsing it line by line and ignore anything that's not part of a match. This assumes each result is at most 5 lines.
+		const maxLines = MAX_RESULTS * 5 // limiting lines read
 
 		rl.on("line", (line) => {
 			if (lineCount < maxLines) {
@@ -122,6 +109,15 @@ async function execRipgrep(bin: string, args: string[]): Promise<string> {
 	})
 }
 
+interface SearchResult {
+	file: string
+	line: number
+	column: number
+	match: string
+	beforeContext: string[]
+	afterContext: string[]
+}
+
 export async function regexSearchFiles(
 	cwd: string,
 	directoryPath: string,
@@ -135,7 +131,19 @@ export async function regexSearchFiles(
 		throw new Error("Could not find ripgrep binary")
 	}
 
-	const args = ["--json", "-e", regex, "--glob", filePattern || "*", "--context", "1", directoryPath]
+	// Build the ripgrep arguments
+	const args = ["--json", "-e", regex, "--context", "1"]
+
+	// If the caller provided a file pattern, add it. Otherwise default to '*'.
+	args.push("--glob", filePattern || "*")
+
+	// Add the exclude globs (e.g., `--glob '!node_modules'`)
+	EXCLUDES.forEach((exclude) => {
+		args.push("--glob", `!${exclude}`)
+	})
+
+	// Finally, add the directory path to search
+	args.push(directoryPath)
 
 	let output: string
 	try {
@@ -143,6 +151,7 @@ export async function regexSearchFiles(
 	} catch {
 		return "No results found"
 	}
+
 	const results: SearchResult[] = []
 	let currentResult: Partial<SearchResult> | null = null
 
@@ -151,6 +160,7 @@ export async function regexSearchFiles(
 			try {
 				const parsed = JSON.parse(line)
 				if (parsed.type === "match") {
+					// Push the previous result if any
 					if (currentResult) {
 						results.push(currentResult as SearchResult)
 					}
@@ -175,6 +185,7 @@ export async function regexSearchFiles(
 		}
 	})
 
+	// Push the last buffered result
 	if (currentResult) {
 		results.push(currentResult as SearchResult)
 	}
@@ -182,10 +193,17 @@ export async function regexSearchFiles(
 	return formatResults(results, cwd)
 }
 
+/**
+ * Formats the final output, grouping by file and limiting total output to MAX_OUTPUT_CHARS.
+ */
 function formatResults(results: SearchResult[], cwd: string): string {
-	const groupedResults: { [key: string]: SearchResult[] } = {}
+	// Adjust this limit as needed
+	const MAX_OUTPUT_CHARS = 100_000
 
+	const groupedResults: { [key: string]: SearchResult[] } = {}
 	let output = ""
+
+	// Indicate how many results we found (or if we only show partial)
 	if (results.length >= MAX_RESULTS) {
 		output += `Showing first ${MAX_RESULTS} of ${MAX_RESULTS}+ results. Use a more specific search if necessary.\n\n`
 	} else {
@@ -201,21 +219,70 @@ function formatResults(results: SearchResult[], cwd: string): string {
 		groupedResults[relativeFilePath].push(result)
 	})
 
+	// Track the size so we can truncate if needed
+	let currentSize = output.length
+	let shouldTruncate = false
+
 	for (const [filePath, fileResults] of Object.entries(groupedResults)) {
-		output += `${filePath}\n│----\n`
+		if (shouldTruncate) {
+			break
+		}
 
-		fileResults.forEach((result, index) => {
-			const allLines = [...result.beforeContext, result.match, ...result.afterContext]
-			allLines.forEach((line) => {
-				output += `│${line?.trimEnd() ?? ""}\n`
-			})
+		const header = `${filePath}\n│----\n`
+		if (currentSize + header.length >= MAX_OUTPUT_CHARS) {
+			shouldTruncate = true
+			break
+		}
+		output += header
+		currentSize += header.length
 
-			if (index < fileResults.length - 1) {
-				output += "│----\n"
+		for (const [resultIndex, result] of fileResults.entries()) {
+			if (shouldTruncate) {
+				break
 			}
-		})
 
-		output += "│----\n\n"
+			const allLines = [...result.beforeContext, result.match, ...result.afterContext]
+
+			for (const line of allLines) {
+				const formattedLine = `│${line?.trimEnd() ?? ""}\n`
+				if (currentSize + formattedLine.length >= MAX_OUTPUT_CHARS) {
+					shouldTruncate = true
+					break
+				}
+				output += formattedLine
+				currentSize += formattedLine.length
+			}
+
+			if (shouldTruncate) {
+				break
+			}
+
+			if (resultIndex < fileResults.length - 1) {
+				const separator = "│----\n"
+				if (currentSize + separator.length >= MAX_OUTPUT_CHARS) {
+					shouldTruncate = true
+					break
+				}
+				output += separator
+				currentSize += separator.length
+			}
+		}
+
+		if (shouldTruncate) {
+			break
+		}
+
+		const footer = "│----\n\n"
+		if (currentSize + footer.length >= MAX_OUTPUT_CHARS) {
+			shouldTruncate = true
+			break
+		}
+		output += footer
+		currentSize += footer.length
+	}
+
+	if (shouldTruncate) {
+		output += "\n[Truncated: The output exceeded the limit. Please refine your search.]\n"
 	}
 
 	return output.trim()

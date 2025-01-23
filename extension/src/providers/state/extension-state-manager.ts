@@ -32,7 +32,7 @@ export class ExtensionStateManager {
 			commandTimeout,
 			gitHandlerEnabled,
 			inlineEditOutputType,
-			observerHookEvery,
+			observerSettings,
 			apiConfig,
 			koduApiKey,
 			gitCommitterType,
@@ -50,7 +50,7 @@ export class ExtensionStateManager {
 			this.globalStateManager.getGlobalState("commandTimeout"),
 			this.globalStateManager.getGlobalState("gitHandlerEnabled"),
 			this.globalStateManager.getGlobalState("inlineEditOutputType"),
-			this.globalStateManager.getGlobalState("observerHookEvery"),
+			this.globalStateManager.getGlobalState("observerSettings"),
 			this.globalStateManager.getGlobalState("apiConfig"),
 			this.secretStateManager.getSecretState("koduApiKey"),
 			this.globalStateManager.getGlobalState("gitCommitterType"),
@@ -59,14 +59,19 @@ export class ExtensionStateManager {
 		const currentTaskId = this.context.getKoduDev()?.getStateManager()?.state.taskId
 		const currentClaudeMessage = this.context.getKoduDev()?.getStateManager()?.state.claudeMessages
 
-		const clone = [...(currentClaudeMessage ?? [])]?.slice(-24).reverse()
+		const clone = [...(currentClaudeMessage ?? [])]?.reverse()
 		const lastClaudeApiFinished = clone?.find(
 			(m) =>
-				(isV1ClaudeMessage(m) &&
-					m.type === "say" &&
-					m.say === "api_req_started" &&
-					m.apiMetrics?.outputTokens) ||
-				m.apiMetrics?.inputTokens
+				isV1ClaudeMessage(m) &&
+				m.type === "say" &&
+				m.say === "api_req_started" &&
+				!m.errorText &&
+				m.isDone &&
+				!m.isError &&
+				(m.apiMetrics?.outputTokens ||
+					m.apiMetrics?.inputTokens ||
+					m.apiMetrics?.inputCacheRead ||
+					m.apiMetrics?.inputCacheWrite)
 		) as V1ClaudeMessage | undefined
 		const tokens =
 			(lastClaudeApiFinished?.apiMetrics?.inputTokens ?? 0) +
@@ -103,7 +108,7 @@ export class ExtensionStateManager {
 			autoSummarize: autoSummarize ?? false,
 			inlineEditOutputType: inlineEditOutputType ?? "full",
 			gitHandlerEnabled: gitHandlerEnabled ?? true,
-			observerHookEvery,
+			observerSettings,
 			apiConfig,
 			gitCommitterType,
 		} satisfies ExtensionState

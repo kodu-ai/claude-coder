@@ -18,7 +18,7 @@ export interface ObserverHookOptions extends HookOptions {
 	 */
 }
 
-const prompt = dedent`
+export const observerHookDefaultPrompt = dedent`
 You're a third party observer. You're here to observe the last action the AI coding agent took and decide if it was positive, negative, or neutral in helping the user solve their coding task. Your goal is to be unbiased and provide as fair judgment as possible to help the agent self-correct and understand its actions better.
 
 You must consider the context of the last few messages, the user's coding task, and the current state of the agent's progress. Focus primarily on the **agent's most recent action or request**.
@@ -175,7 +175,10 @@ export class ObserverHook extends BaseHook {
 	protected async executeHook(): Promise<string | null> {
 		const ts = Date.now()
 		const { providerData, model } = await serverRPC().getClient().currentObserverModel({})
-
+		const { observerSettings } = await serverRPC().getClient().getObserverSettings({})
+		if (!observerSettings) {
+			throw new Error("Observer settings not found")
+		}
 		try {
 			if (!this.shouldExecute()) {
 				return null
@@ -184,15 +187,8 @@ export class ObserverHook extends BaseHook {
 			// Get current context from state
 			const currentContext = this.getCurrentContext()
 
-			this.koduDev.taskExecutor.sayHook({
-				hookName: "observer",
-				state: "pending",
-				output: "",
-				input: "",
-				ts,
-				modelId: model.id,
-			})
-			const taskHistory = [...currentContext.history]
+			// we take the last x pairs of messages
+			const taskHistory = [...currentContext.history].slice(-observerSettings.observePullMessages * 2)
 			const lastMessage = taskHistory.at(-1)
 			// must happen
 			if (lastMessage?.role === "assistant" && Array.isArray(lastMessage.content)) {
@@ -201,11 +197,7 @@ export class ObserverHook extends BaseHook {
 					content: [
 						{
 							type: "text",
-							text: prompt,
-						},
-						{
-							type: "text",
-							text: dedent`Here is a reminder of the task in hand <task>${currentContext.taskMsgText}</task>
+							text: dedent`Here is the task that the agent is trying to solve <task>${currentContext.taskMsgText}</task>
 							Now based on the agent conversation history, You must provide feedback on the last action the AI took, be critical and to the point.
 							Your response should be structured in the following format:
 							<thinkings>YOUR THOUGHTS HERE</thinkings>
@@ -224,6 +216,14 @@ export class ObserverHook extends BaseHook {
 				)
 				return null
 			}
+			this.koduDev.taskExecutor.sayHook({
+				hookName: "observer",
+				state: "pending",
+				output: "",
+				input: "",
+				ts,
+				modelId: model.id,
+			})
 			const providerSettings = {
 				providerSettings: providerData.currentProvider,
 				models: providerData.models,
@@ -233,7 +233,9 @@ export class ObserverHook extends BaseHook {
 			const thirdPartyObserver = await apiManager.createApiStreamRequest(
 				taskHistory,
 				this.koduDev.taskExecutor.abortController!,
-				undefined,
+				{
+					systemPrompt: observerSettings.observePrompt ?? observerHookDefaultPrompt,
+				},
 				true
 			)
 

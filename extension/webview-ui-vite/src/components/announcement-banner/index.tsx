@@ -48,20 +48,20 @@ export default function AnnouncementBanner() {
 
 				<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🤖 Customizable Observer Agent</p>
-						<p>✨ Quick model switching UI</p>
-						<p>⚡️ Deepseek reasoning tokens</p>
-						<p>🔄 Improved error handling</p>
+						<p>🔧 Custom Observer Agent configuration</p>
+						<p>✨ Enhanced model switching UI</p>
+						<p>🧠 Deepseek R1/Chat (v3) reasoning tokens</p>
+						<p>🚀 Mistral Codestral code model support</p>
+						<p>📝 Improved system prompts</p>
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🛠️ Enhanced system prompts</p>
-						<p>🔍 Better inline editing</p>
+						<p>⚡️ Multi-agent coordination improvements</p>
+						<p>🔄 Better inline edit conflict resolution</p>
 						<p>🐛 Fixed context memory loading</p>
-						<p>📝 Improved diagnostic performance</p>
-						<p>🛠️ Enhanced error messages</p>
-						<p>🐛 Fixed command execution issues</p>
-						<p>🔍 General stability improvements</p>
+						<p>📢 Clearer error messages</p>
+						<p>🔍 Improved commit tracking</p>
+						<p>🛠️ Enhanced diagnostic performance</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">

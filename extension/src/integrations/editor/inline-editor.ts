@@ -524,7 +524,7 @@ export class InlineEditHandler {
 				const formatted = extractedLines
 					.map((line, index) => {
 						const actualLineNumber = startContext + index + 1 // +1 to make line numbers 1-based
-						return `${actualLineNumber} ${line}`
+						return `${line}`
 					})
 					.join("\n")
 

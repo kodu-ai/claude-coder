@@ -24,7 +24,6 @@ const TokenInfo: React.FC<TokenInfoProps> = ({
 	currentContextTokens,
 	currentContextWindow,
 }) => {
-	console.log("currentContextTokens", currentContextTokens)
 	currentContextTokens = currentContextTokens ?? 0
 	const contextPercentage = currentContextWindow ? Math.round((currentContextTokens / currentContextWindow) * 100) : 0
 

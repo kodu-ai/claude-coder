@@ -1,147 +1,207 @@
-textarea:focus {
-	outline: 1.5px solid var(--vscode-focusBorder, #007fd4);
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-vscode-button::part(control):focus {
-	outline: none;
-}
+/* Base Styles */
+@layer base {
+	:root {
+		--background: 0 0% 100%;
+		--foreground: 0 0% 3.9%;
+		--card: 0 0% 100%;
+		--card-foreground: 0 0% 3.9%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 0 0% 3.9%;
+		--primary: 0 0% 9%;
+		--primary-foreground: 0 0% 98%;
+		--secondary: 0 0% 96.1%;
+		--secondary-foreground: 0 0% 9%;
+		--muted: 0 0% 96.1%;
+		--muted-foreground: 0 0% 45.1%;
+		--accent: 0 0% 96.1%;
+		--accent-foreground: 0 0% 9%;
+		--destructive: 0 84.2% 60.2%;
+		--destructive-foreground: 0 0% 98%;
+		--border: 0 0% 89.8%;
+		--input: 0 0% 89.8%;
+		--ring: 0 0% 3.9%;
+		--chart-1: 12 76% 61%;
+		--chart-2: 173 58% 39%;
+		--chart-3: 197 37% 24%;
+		--chart-4: 43 74% 66%;
+		--chart-5: 27 87% 67%;
+		--radius: 0.5rem;
+		--section-border: var(
+			--vscode-panel-border,
+			var(
+				--vscode-editorGroup-border,
+				var(--vscode-menu-separatorBackground, var(--vscode-menu-border, var(--vscode-activityBar-background)))
+			)
+		);
+	}
 
-/*
-Use vscode native scrollbar styles
-https://github.com/gitkraken/vscode-gitlens/blob/b1d71d4844523e8b2ef16f9e007068e91f46fd88/src/webviews/apps/home/home.scss
-*/
+	.dark {
+		--background: 0 0% 3.9%;
+		--foreground: 0 0% 98%;
+		--card: 0 0% 3.9%;
+		--card-foreground: 0 0% 98%;
+		--popover: 0 0% 3.9%;
+		--popover-foreground: 0 0% 98%;
+		--primary: 0 0% 98%;
+		--primary-foreground: 0 0% 9%;
+		--secondary: 0 0% 14.9%;
+		--secondary-foreground: 0 0% 98%;
+		--muted: 0 0% 14.9%;
+		--muted-foreground: 0 0% 63.9%;
+		--accent: 0 0% 14.9%;
+		--accent-foreground: 0 0% 98%;
+		--destructive: 0 62.8% 30.6%;
+		--destructive-foreground: 0 0% 98%;
+		--border: 0 0% 14.9%;
+		--input: 0 0% 14.9%;
+		--ring: 0 0% 83.1%;
+		--chart-1: 220 70% 50%;
+		--chart-2: 160 60% 45%;
+		--chart-3: 30 80% 55%;
+		--chart-4: 280 65% 60%;
+		--chart-5: 340 75% 55%;
+	}
 
-html {
-	height: 100%;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-}
+	* {
+		@apply border-border;
+	}
 
-body {
-	margin: 0;
-	font-size: var(--vscode-font-size);
-}
-body,
-body * {
-	line-height: 1.6;
-}
+	body {
+		@apply bg-background text-foreground;
+		margin: 0;
+		padding: 0;
+		font-size: var(--vscode-font-size);
+		height: 100%;
+		width: 100%;
+	}
 
-body.scrollable,
-.scrollable,
-body.code-block-scrollable,
-.code-block-scrollable {
-	border-color: transparent;
-	transition: border-color 0.7s linear;
-}
-
-body:hover.scrollable,
-body:hover .scrollable,
-body:focus-within.scrollable,
-body:focus-within .scrollable,
-body:hover.code-block-scrollable,
-body:hover .code-block-scrollable,
-body:focus-within.code-block-scrollable,
-body:focus-within .code-block-scrollable {
-	border-color: var(--vscode-scrollbarSlider-background);
-	transition: none;
-}
-
-.scrollable::-webkit-scrollbar-corner {
-	background-color: transparent !important;
-}
-
-.scrollable::-webkit-scrollbar-thumb {
-	background-color: transparent;
-	border-color: inherit;
-	border-right-style: inset;
-	border-right-width: calc(100vw + 100vh);
-	border-radius: unset !important;
-}
-
-.scrollable::-webkit-scrollbar-thumb:hover {
-	border-color: var(--vscode-scrollbarSlider-hoverBackground);
-}
-
-.scrollable::-webkit-scrollbar-thumb:active {
-	border-color: var(--vscode-scrollbarSlider-activeBackground);
-}
-
-/*
-Fix VSCode ignoring webkit scrollbar modifiers
-https://github.com/microsoft/vscode/issues/213045
-*/
-@supports selector(::-webkit-scrollbar) {
 	html {
-		scrollbar-color: unset;
+		height: 100%;
+		width: 100%;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	#root {
+		max-width: 1280px;
+		margin: 0 auto;
+		text-align: start;
+		height: 100%;
+		width: 100%;
+	}
+
+	li {
+		list-style: auto;
 	}
 }
 
-/*
-The above scrollbar styling uses some transparent background color magic to accomplish its animation. However this doesn't play nicely with SyntaxHighlighter, so we need to set a background color for the code blocks' horizontal scrollbar. This actually has the unintended consequence of always showing the scrollbar which I prefer since it makes it more obvious that there is more content to scroll to.
-*/
+/* Component Styles */
+@layer components {
+	.logo {
+		height: 6em;
+		padding: 1.5em;
+		will-change: filter;
+		transition: filter 300ms;
 
-.code-block-scrollable::-webkit-scrollbar-track {
-	background: transparent;
+		&:hover {
+			filter: drop-shadow(0 0 2em #646cffaa);
+		}
+
+		&.react:hover {
+			filter: drop-shadow(0 0 2em #61dafbaa);
+		}
+	}
+
+	.card {
+		padding: 2em;
+	}
+
+	.read-the-docs {
+		color: #888;
+	}
+
+	.task-card {
+		border: 1px solid var(--section-border);
+		padding: 16px;
+		display: grid;
+		grid-auto-rows: min-content;
+		gap: 4px;
+
+		&.is-clickable:hover {
+			cursor: pointer;
+			background-color: var(--vscode-tab-activeBackground) !important;
+		}
+	}
+
+	.dropdown-container {
+		box-sizing: border-box;
+		display: flex;
+		flex-flow: column nowrap;
+		align-items: flex-start;
+		justify-content: flex-start;
+
+		label {
+			display: block;
+			color: var(--vscode-foreground);
+			cursor: pointer;
+			font-size: var(--vscode-font-size);
+			line-height: normal;
+			margin-bottom: 2px;
+		}
+	}
+
+	.flex-line {
+		display: flex;
+		gap: 4px;
+		align-items: center;
+		justify-content: baseline;
+
+		&.wrap {
+			flex-wrap: wrap;
+		}
+
+		&.nowrap {
+			flex-wrap: nowrap;
+		}
+	}
 }
 
-.code-block-scrollable::-webkit-scrollbar-thumb {
-	background-color: var(--vscode-scrollbarSlider-background);
-	border-radius: 5px;
-	border: 2px solid transparent;
-	background-clip: content-box;
+/* Utility Styles */
+@layer utilities {
+	.text-light {
+		color: var(--vscode-breadcrumb-foreground) !important;
+	}
+
+	.text-alt {
+		color: var(--vscode-terminal-ansiBlue) !important;
+	}
+
+	.text-success {
+		color: var(--vscode-terminal-ansiGreen) !important;
+	}
+
+	.text-error {
+		color: var(--vscode-terminal-ansiRed) !important;
+	}
+
+	.text-info {
+		color: var(--vscode-terminal-ansiBlue) !important;
+	}
+
+	.uppercase {
+		text-transform: uppercase;
+	}
+
+	.flex-1 {
+		flex: 1 1 0%;
+	}
 }
 
-.code-block-scrollable::-webkit-scrollbar-thumb:hover {
-	background-color: var(--vscode-scrollbarSlider-hoverBackground);
-}
-
-.code-block-scrollable::-webkit-scrollbar-thumb:active {
-	background-color: var(--vscode-scrollbarSlider-activeBackground);
-}
-
-.code-block-scrollable::-webkit-scrollbar-corner {
-	background-color: transparent;
-}
-
-/*
-Dropdown label
-https://github.com/microsoft/vscode-webview-ui-toolkit/tree/main/src/dropdown#with-label
-*/
-.dropdown-container {
-	box-sizing: border-box;
-	display: flex;
-	flex-flow: column nowrap;
-	align-items: flex-start;
-	justify-content: flex-start;
-}
-.dropdown-container label {
-	display: block;
-	color: var(--vscode-foreground);
-	cursor: pointer;
-	font-size: var(--vscode-font-size);
-	line-height: 2.02rem;
-	line-height: normal;
-	margin-bottom: 2px;
-}
-
-/* Fix scrollbar in dropdown */
-
-vscode-dropdown::part(listbox) {
-	border-color: var(--vscode-scrollbarSlider-background);
-	transition: none;
-	scrollbar-color: var(--vscode-scrollbarSlider-background) transparent;
-}
-
-/* common styles */
-:root {
-	--section-border: var(
-		--vscode-panel-border,
-		var(
-			--vscode-editorGroup-border,
-			var(--vscode-menu-separatorBackground, var(--vscode-menu-border, var(--vscode-activityBar-background)))
-		)
-	);
-}
+/* Global Styles */
 section {
 	position: relative;
 	display: flex;
@@ -150,56 +210,14 @@ section {
 	padding: 16px;
 	border-bottom: 1px solid var(--section-border);
 }
-.flex-1 {
-	flex: 1 1 0%;
-}
-.text-light {
-	color: var(--vscode-breadcrumb-foreground) !important;
-}
-.text-alt {
-	color: var(--vscode-terminal-ansiBlue) !important;
-}
-.text-success {
-	color: var(--vscode-terminal-ansiGreen) !important;
-}
-.text-error {
-	color: var(--vscode-terminal-ansiRed) !important;
-}
-.text-info {
-	color: var(--vscode-terminal-ansiBlue) !important;
-}
+
 h3 {
 	color: var(--vscode-sideBarSectionHeader-foreground);
 	font-size: var(--vscode-editor-font-size);
 	font-weight: 600;
 	margin: 0;
 }
-.uppercase {
-	text-transform: uppercase;
-}
-.task-card {
-	border: 1px solid var(--section-border);
-	padding: 16px;
-	display: grid;
-	grid-auto-rows: min-content;
-	gap: 4px;
-}
-.task-card.is-clickable:hover {
-	cursor: pointer;
-	background-color: var(--vscode-tab-activeBackground) !important;
-}
-.flex-line {
-	display: flex;
-	gap: 4px;
-	align-items: center;
-	justify-content: baseline;
-}
-.flex-line.wrap {
-	flex-wrap: wrap;
-}
-.flex-line.nowrap {
-	flex-wrap: nowrap;
-}
+
 code:not([class*="language-"]) {
 	color: var(--vscode-foreground);
 	font-family: var(--vscode-editor-font-family, "monospace");
@@ -216,9 +234,101 @@ code:not([class*="language-"]) {
 	word-break: break-word;
 	overflow-wrap: anywhere;
 }
+
 p {
 	margin: 0;
 	white-space: pre-wrap;
 	word-break: break-word;
 	overflow-wrap: anywhere;
+}
+
+/* Animations */
+@keyframes logo-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	a:nth-of-type(2) .logo {
+		animation: logo-spin infinite 20s linear;
+	}
+}
+
+/* Scrollbar Styles */
+.scrollable,
+.code-block-scrollable {
+	border-color: transparent;
+	transition: border-color 0.7s linear;
+
+	&:hover,
+	&:focus-within {
+		border-color: var(--vscode-scrollbarSlider-background);
+		transition: none;
+	}
+
+	&::-webkit-scrollbar-corner {
+		background-color: transparent !important;
+	}
+
+	&::-webkit-scrollbar-thumb {
+		background-color: transparent;
+		border-color: inherit;
+		border-right-style: inset;
+		border-right-width: calc(100vw + 100vh);
+		border-radius: unset !important;
+
+		&:hover {
+			border-color: var(--vscode-scrollbarSlider-hoverBackground);
+		}
+
+		&:active {
+			border-color: var(--vscode-scrollbarSlider-activeBackground);
+		}
+	}
+}
+
+.code-block-scrollable {
+	&::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	&::-webkit-scrollbar-thumb {
+		background-color: var(--vscode-scrollbarSlider-background);
+		border-radius: 5px;
+		border: 2px solid transparent;
+		background-clip: content-box;
+
+		&:hover {
+			background-color: var(--vscode-scrollbarSlider-hoverBackground);
+		}
+
+		&:active {
+			background-color: var(--vscode-scrollbarSlider-activeBackground);
+		}
+	}
+}
+
+/* VSCode Specific Overrides */
+textarea:focus {
+	outline: 1.5px solid var(--vscode-focusBorder, #007fd4);
+}
+
+vscode-button::part(control):focus {
+	outline: none;
+}
+
+vscode-dropdown::part(listbox) {
+	border-color: var(--vscode-scrollbarSlider-background);
+	transition: none;
+	scrollbar-color: var(--vscode-scrollbarSlider-background) transparent;
+}
+
+@supports selector(::-webkit-scrollbar) {
+	html {
+		scrollbar-color: unset;
+	}
 }

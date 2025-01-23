@@ -5,7 +5,7 @@ import { ClaudeAskResponse } from "../../shared/messages/client-message"
 import { ApiManager } from "../../api/api-handler"
 import { ToolExecutor } from "./tools/tool-executor"
 import { MainAgentOptions, ToolResponse, UserContent } from "./types"
-import { getCwd, formatImagesIntoBlocks, formatFilesList } from "./utils"
+import { getCwd, formatImagesIntoBlocks, formatFilesList, cleanUIMessages } from "./utils"
 import { StateManager } from "./state-manager"
 import { findLastIndex } from "../../utils"
 import { amplitudeTracker } from "../../utils/amplitude"
@@ -73,7 +73,7 @@ export class MainAgent {
 		// Initialize hook manager
 		this.hookManager = new HookManager(this)
 
-		const triggerEvery = GlobalStateManager.getInstance().getGlobalState("observerHookEvery")
+		const triggerEvery = GlobalStateManager.getInstance().getGlobalState("observerSettings")?.observeEveryXRequests
 
 		// Initialize default hooks
 		if (!options.noTask && triggerEvery) {
@@ -236,56 +236,12 @@ export class MainAgent {
 		if (lastRelevantMessageIndex !== -1) {
 			modifiedClaudeMessages.splice(lastRelevantMessageIndex + 1)
 		}
-		let isFetchingInturrupted = false
 		// if there is any message that is fetching, mark it as done and remove the next messages
-		modifiedClaudeMessages.forEach((m) => {
-			if (isV1ClaudeMessage(m)) {
-				m.isDone = true
-				if (m.say === "api_req_started" && m.isFetching) {
-					isFetchingInturrupted = true
-					m.isFetching = false
-					m.isDone = true
-					m.isError = true
-					m.errorText = "Task was interrupted before this API request could be completed."
-				}
-				if (m.isFetching) {
-					m.isFetching = false
-					isFetchingInturrupted = true
-					m.errorText = "Task was interrupted before this API request could be completed."
-					m.isAborted = "user"
-					m.isError = true
-				}
-				if (m.ask === "tool" && m.type === "ask") {
-					try {
-						const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
-
-						if (
-							typeof parsedTool === "object" &&
-							(parsedTool.approvalState === "pending" ||
-								parsedTool.approvalState === undefined ||
-								parsedTool.approvalState === "loading")
-						) {
-							const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
-							if (toolsToSkip.includes(parsedTool.tool)) {
-								parsedTool.approvalState = "error"
-								m.text = JSON.stringify(parsedTool)
-								return
-							}
-							parsedTool.approvalState = "error"
-							parsedTool.error = "Task was interrupted before this tool call could be completed."
-							m.text = JSON.stringify(parsedTool)
-						}
-					} catch (err) {
-						m.text = "{}"
-						m.errorText = "Task was interrupted before this tool call could be completed."
-						m.isError = true
-					}
-				}
-			}
-		})
+		cleanUIMessages(modifiedClaudeMessages)
 		// we don't want to update the timestamp of the last message yet
 		await this.stateManager.claudeMessagesManager.overwriteClaudeMessages(modifiedClaudeMessages, {
 			updateTs: false,
+			updateIsDone: false,
 		})
 		this.stateManager.state.claudeMessages = await this.stateManager.claudeMessagesManager.getSavedClaudeMessages()
 

@@ -11,6 +11,7 @@ import { atom, useSetAtom } from "jotai"
 import { useEvent } from "react-use"
 
 export const preferencesViewAtom = atom<"select-model" | "provider-manager">("select-model")
+export const forceViewAtom = atom<"select-model" | "provider-manager">("select-model")
 
 export const providerSettingsAtom = atom<ProviderSettings | null>(null)
 
@@ -21,13 +22,28 @@ export const useSwitchView = () => {
 	}
 }
 
+export const tabItems = [
+	{ value: "preferences", label: "Preferences" },
+	{ value: "experimental", label: "Experimental" },
+	{ value: "advanced", label: "Advanced" },
+	{ value: "agents", label: "Agents" },
+] as const
+
+export type PreferencesTab = (typeof tabItems)[number]["value"]
+
+export const preferencesTabAtom = atom<PreferencesTab>("preferences")
 export const useSwitchToProviderManager = () => {
 	const setProviderSettings = useSetAtom(providerSettingsAtom)
 	const setPreferencesView = useSetAtom(preferencesViewAtom)
 	const setShowSettings = useSetAtom(showSettingsAtom)
+	const setPreferencesTab = useSetAtom(preferencesTabAtom)
+	const setForceView = useSetAtom(forceViewAtom)
 	return (providerId: ProviderId) => {
+		console.log("switching to provider manager for", providerId)
 		setShowSettings(true)
+		setPreferencesTab("preferences")
 		setProviderSettings(createDefaultSettings(providerId))
+		setForceView("provider-manager")
 		setPreferencesView("provider-manager")
 	}
 }

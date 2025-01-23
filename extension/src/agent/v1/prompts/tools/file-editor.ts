@@ -45,6 +45,7 @@ export const fileEditorPrompt: ToolPromptSchema = {
 ### Key Principles when using file_editor tool:
 1. Gather all changes first, then apply them in one comprehensive transaction to minimize file writes.
 2. Always think through your changes inside <thinking></thinking> tags **before** calling the file_editor tool
+3. Always make sure to write the most precise changes possible to avoid conflicts or unintended side effects, especially when using 'edit' mode.
 ### Key Principles for each mode
 #### Key Principles for 'whole_write' mode:
 - Provide the full content of the file in kodu_content (no omissions or placeholders).
@@ -53,77 +54,76 @@ export const fileEditorPrompt: ToolPromptSchema = {
 - Provide the exact changes you want to make in kodu_diff using standard Git conflict merge format blocks.
 - Each block should look like:
   <<<<<<< HEAD
-  (exact snippet of the current file content, including 3 lines of context above the replaced lines)
+  (exact snippet of the latest file content, including 3 lines of context above the replaced lines)
   =======
   (the fully updated content for that snippet)
   >>>>>>> updated
-- You must ensure the HEAD content matches exactly with the file’s current lines (character-for-character).
+- You must ensure the HEAD content matches exactly with the file’s latest lines content (character-for-character).
 - If you are unsure about the exact content, use read_file tool first to verify the file’s latest state.
 - **Include at least 3 lines of context** before and after your target lines in each block to ensure robust matches.
 - Bundle multiple changes into one kodu_diff if they are part of a single logical update.
 - No placeholders in the replacement section; it must be the final updated text
 #### CRITICAL RULES WHEN USING 'edit' MODE:
-1. Read the file if needed (to confirm current content).
-2. Match exactly in the HEAD block (including whitespace and indentation).
+1. CONFIRM YOU HAVE READ THE FILE AND YOU HAVE THE LATEST FILE CONTENT, YOU CAN'T USE FILE_EDITOR WITH 'edit' MODE WITHOUT HAVING THE LATEST FILE CONTENT in memory.
+2. Match exactly the latest file content based on the file timestamp that is provided in the tool response, you must have an exact match with the must up to date file content and you must write precise whitespace, indentation and tabs. (use \t and \n and other special characters as needed for exact match with proper indentation, whitespaces and escape characters)
 3. Provide a complete final version of each changed snippet in the block after =======.
-4. Combine multiple edits into a single call if they’re related, order the edits from top to bottom (as they appear in the file).
-5. Provide context lines around each snippet (at least 3 lines to allow for robust matching) only write the snippet content (including whitespace and indentation) but exclude the line number.
-6. Make sure to escape newlines and special characters in the content.
-7. absolutely make sure you are using the real content with proper indentation and spacing, this is critical for the tool to work correctly and have the search find the correct lines.
+4. Combine multiple edits into a single call if they’re related, order the edits from top to bottom (as they appear in the file), while making the most precise changes possible. You must provide context lines around each snippet (at least 3 lines to allow for robust matching) only write the snippet content (including whitespace, indentation and special characters) between <<<<<<< HEAD and ======= and between ======= and >>>>>>> updated.
+5. Make sure to escape newlines and special characters in the content, this is critical for the tool to work correctly.
+6. You must absolutely give special attention while editing python files, as python is sensitive to indentation and whitespace, make sure to match the exact indentation and whitespace, make sure to put extra thought process while editing python files this is absolutely critical step so the edited file works correctly.
 `,
 	examples: [
 		{
 			description: "Adding Imports and Removing a Function",
 			output: `<thinking>
-...
-"I need to add an import statement for 'math' and remove the factorial function. The file currently imports Flask only. I'll do both changes in one call using the 'edit' mode with Git conflict–style blocks."
-...
+I need to add a new import (datetime) and rename the existing function old_function to new_function in the same file.
+I have the latest file content, which includes the following lines:
+
+import os
+print("line A")
+print("line B")
+print("line C")
+
+def old_function():
+    print("I am old!")
+
+
+def some_other_function():
+    pass
+
+I will create two Git conflict blocks:
+1. One block to add the import datetime (with 3 lines of context).
+2. Another block to rename old_function to new_function (also with 3 lines of context).
 </thinking>
 
-<file_editor>
-<path>mathweb/flask/app.py</path>
-<mode>edit</mode>
-<commit_message>refactor(math): add math import and remove factorial function</commit_message>
-<kodu_diff>
+<kodu_action><file_editor><path>myapp/utility.py</path><mode>edit</mode><commit_message>feat(utility): add datetime import and rename old_function to new_function</commit_message><kodu_diff>
 <<<<<<< HEAD
-from flask import Flask
-# Additional context lines for matching
-def my_function():
-    pass
-
-class Example:
-    def __init__(self):
-        pass
+import os
+print("line A")
+print("line B")
+print("line C")
 =======
-import math
-from flask import Flask
-# Additional context lines for matching
-def my_function():
-    pass
-
-class Example:
-    def __init__(self):
-        pass
+import os
+import datetime
+print("line A")
+print("line B")
+print("line C")
 >>>>>>> updated
 <<<<<<< HEAD
-def factorial(n):
-    "compute factorial"
+print("line B")
+print("line C")
 
-    if n == 0:
-        return 1
-    else:
-        return n * factorial(n-1)
-
-# Context lines for better match
-def another_function():
-    print("This is a test")
+def old_function():
+    print("I am old!")
 =======
-# Context lines for better match
-def another_function():
-    print("This is a test")
+print("line B")
+print("line C")
+
+def new_function():
+    print("I am old!")
 >>>>>>> updated
 </kodu_diff>
-</file_editor>`,
+</file_editor></kodu_action>
+`,
 		},
 		{
 			description: "Multiple Related Changes in One Go",
@@ -166,7 +166,7 @@ def another_function_call():
 			description: "Complex Multi-Hunk Update",
 			output: `<thinking>
 ...
-"I have a file where I need to add a new import, update an existing export, and add a new property to a component's state. I will do it all at once using multiple Git conflict blocks."
+"I have a file where I need to add a new import, update an existing export, and add a new property to a component's state. I will do it all at once using multiple Git conflict blocks i will order the blocks from top to bottom and use the content precisely."
 ...
 </thinking>
 

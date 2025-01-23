@@ -12,6 +12,7 @@ import { ExtensionProvider } from "../../../providers/extension-provider"
 import { ChatTool } from "../../../shared/new-tools"
 import { AskManager } from "./ask-manager"
 import { merge } from "lodash"
+import { DeepPartial } from "ai"
 
 export enum TaskState {
 	IDLE = "IDLE",
@@ -99,14 +100,17 @@ export abstract class TaskExecutorUtils {
 
 			const mergedToolData = merge({}, msgToolData, data)
 
-			const askMessageLatest = await this.stateManager.claudeMessagesManager.updateClaudeMessage(askTs, {
-				...msg,
-				text: JSON.stringify(mergedToolData),
-			})
+			const askMessageLatest = await this.stateManager.claudeMessagesManager.updateClaudeMessage(
+				askTs,
+				{
+					...msg,
+					text: JSON.stringify(mergedToolData),
+				},
+				true
+			)
 			if (!askMessageLatest) {
 				return
 			}
-			await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(askMessageLatest)
 		} catch (err) {
 			console.error(err)
 		}
@@ -126,19 +130,41 @@ export abstract class TaskExecutorUtils {
 			modelId: this.getModelId(),
 		}
 		if (!this.stateManager.claudeMessagesManager.getMessageById(askTs)) {
-			await this.stateManager.claudeMessagesManager.addToClaudeMessages(askMessage)
-			await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(askMessage)
+			await this.stateManager.claudeMessagesManager.addToClaudeMessages(askMessage, true)
+
 			return
 		}
 
-		const askMessageLatest = await this.stateManager.claudeMessagesManager.updateClaudeMessage(askTs, askMessage)
-		await this.providerRef
-			.deref()
-			?.getWebviewManager()
-			.postClaudeMessageToWebview(askMessageLatest ?? askMessage)
+		const askMessageLatest = await this.stateManager.claudeMessagesManager.updateClaudeMessage(
+			askTs,
+			askMessage,
+			true
+		)
 	}
 
-	public async sayWithId(sayTs: number, type: ClaudeSay, text?: string, images?: string[]): Promise<number> {
+	public async updateSayPartial(sayTs: number, data: DeepPartial<ClaudeMessage>): Promise<void> {
+		const message = this.stateManager.claudeMessagesManager.getMessageById(sayTs)
+		if (!message) {
+			return
+		}
+		const deepMerged = merge({}, message, data)
+		const updatedMessage = await this.stateManager.claudeMessagesManager.updateClaudeMessage(
+			sayTs,
+			deepMerged,
+			true
+		)
+		if (!updatedMessage) {
+			return
+		}
+	}
+
+	public async sayWithId(
+		sayTs: number,
+		type: ClaudeSay,
+		text?: string,
+		images?: string[],
+		overrides?: Partial<ClaudeMessage>
+	): Promise<number> {
 		const sayMessage: ClaudeMessage = {
 			ts: sayTs,
 			type: "say",
@@ -148,13 +174,14 @@ export abstract class TaskExecutorUtils {
 			isFetching: type === "api_req_started",
 			v: 1,
 			modelId: this.getModelId(),
+			...overrides,
 		}
 		if (this.stateManager.claudeMessagesManager.getMessageById(sayTs)) {
-			await this.stateManager.claudeMessagesManager.updateClaudeMessage(sayTs, sayMessage)
+			await this.stateManager.claudeMessagesManager.updateClaudeMessage(sayTs, sayMessage, true)
 		} else {
-			await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage)
+			await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage, true)
 		}
-		await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(sayMessage)
+
 		return sayTs
 	}
 
@@ -190,11 +217,11 @@ export abstract class TaskExecutorUtils {
 			...rest,
 		}
 		if (this.stateManager.claudeMessagesManager.getMessageById(ts)) {
-			await this.stateManager.claudeMessagesManager.updateClaudeMessage(ts, sayMessage)
+			await this.stateManager.claudeMessagesManager.updateClaudeMessage(ts, sayMessage, true)
 		} else {
-			await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage)
+			await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage, true)
 		}
-		await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(sayMessage)
+
 		return ts
 	}
 
@@ -217,8 +244,8 @@ export abstract class TaskExecutorUtils {
 			modelId: this.getModelId(),
 		}
 
-		await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage)
-		await this.providerRef.deref()?.getWebviewManager().postClaudeMessageToWebview(sayMessage)
+		await this.stateManager.claudeMessagesManager.addToClaudeMessages(sayMessage, true)
+
 		return sayTs
 	}
 

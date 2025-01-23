@@ -2,9 +2,10 @@ import * as path from "path"
 import * as os from "os"
 import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
-import { ClaudeMessage, ClaudeSayTool } from "../../shared/messages/extension-message"
+import { ClaudeMessage, ClaudeSayTool, isV1ClaudeMessage } from "../../shared/messages/extension-message"
 import "../../utils/path-helpers"
 import { lstat } from "fs/promises"
+import { ChatTool } from "../../shared/new-tools"
 declare global {
 	interface String {
 		toPosix(): string
@@ -184,4 +185,70 @@ export const isImageBlock = (block: any): block is Anthropic.ImageBlockParam => 
 		return block.type === "image"
 	}
 	return false
+}
+
+export function cleanUIMessages(messages: ClaudeMessage[], error?: Error) {
+	const indexesToDelete: number[] = []
+
+	messages.forEach((m, index) => {
+		if (isV1ClaudeMessage(m)) {
+			m.isDone = true
+			if (m.say === "api_req_started" && m.isFetching) {
+				m.isFetching = false
+				m.isDone = true
+				m.isError = true
+				m.errorText = error?.message ?? "Task was interrupted before this API request could be completed."
+				if (m.errorText === "This operation was aborted") {
+					// better error message for user abort (this is caused by panic close)
+					m.errorText = "Task was interrupted before this API request could be completed."
+				}
+			}
+			if (m.isFetching) {
+				m.isFetching = false
+				m.isFetching = false
+				m.isAborted = "user"
+				m.errorText = error?.message ?? "Task was interrupted before this API request could be completed."
+				// m.isAborted = "user"
+				m.isError = true
+			}
+			if (m.ask === "tool" && m.type === "ask") {
+				try {
+					if (m.text === "" || m.text === "{}") {
+						throw new Error("No tool data found.")
+					}
+					const parsedTool = JSON.parse(m.text ?? "{}") as ChatTool | string
+					if (typeof parsedTool === "object" && parsedTool.tool === "attempt_completion") {
+						parsedTool.approvalState = "approved"
+						m.text = JSON.stringify(parsedTool)
+						return
+					}
+
+					if (
+						typeof parsedTool === "object" &&
+						(parsedTool.approvalState === "pending" ||
+							parsedTool.approvalState === undefined ||
+							parsedTool.approvalState === "loading")
+					) {
+						const toolsToSkip: ChatTool["tool"][] = ["ask_followup_question"]
+						if (toolsToSkip.includes(parsedTool.tool)) {
+							parsedTool.approvalState = "error"
+							m.text = JSON.stringify(parsedTool)
+							return
+						}
+						parsedTool.approvalState = "error"
+						parsedTool.error = "Task was interrupted before this tool call could be completed."
+						m.text = JSON.stringify(parsedTool)
+					}
+				} catch (err) {
+					indexesToDelete.push(index)
+					m.text = "{}"
+					m.errorText = "Task was interrupted before this tool call could be completed."
+					m.isError = true
+				}
+			}
+		}
+	})
+	indexesToDelete.forEach((index) => {
+		messages.splice(index, 1)
+	})
 }

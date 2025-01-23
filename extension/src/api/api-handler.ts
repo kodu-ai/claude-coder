@@ -120,13 +120,7 @@ ${this.customInstructions.trim()}
 			throw new Error("Provider reference has been garbage collected")
 		}
 
-		const executeRequest = async ({
-			requireInterleave,
-			shouldResetContext,
-		}: {
-			requireInterleave: boolean
-			shouldResetContext: boolean
-		}) => {
+		const executeRequest = async ({ shouldResetContext }: { shouldResetContext: boolean }) => {
 			let conversationHistory =
 				apiConversationHistory ??
 				(await provider.koduDev?.getStateManager().apiHistoryManager.getSavedApiConversationHistory())
@@ -168,9 +162,6 @@ ${this.customInstructions.trim()}
 			} else {
 				this.log("info", `Skipping conversation history processing`)
 			}
-			if (requireInterleave) {
-				conversationHistory = this.interleaveMessages(conversationHistory)
-			}
 			if (postProcessConversationCallback) {
 				await postProcessConversationCallback?.(conversationHistory)
 			}
@@ -200,10 +191,16 @@ ${this.customInstructions.trim()}
 
 		let lastMessageAt = 0
 		const TIMEOUT_MS = 20_000 // 10 seconds
+		const STARTED_AT = Date.now()
 		const checkInactivity = setInterval(() => {
 			const timeSinceLastMessage = Date.now() - lastMessageAt
+			const timeSinceStart = Date.now() - STARTED_AT
+			if (lastMessageAt === 0 && timeSinceStart > TIMEOUT_MS) {
+				abortController?.abort(new Error("Provider request timed out, no response received"))
+				return
+			}
 			if (lastMessageAt > 0 && timeSinceLastMessage > TIMEOUT_MS) {
-				abortController?.abort()
+				abortController?.abort(new Error("Provider request timed out because of inactivity"))
 				return
 			}
 		}, 1000)
@@ -218,23 +215,21 @@ ${this.customInstructions.trim()}
 			let retryAttempt = 0
 			const MAX_RETRIES = 5
 			let shouldResetContext = false
-			let requireInterleave = false
 
 			while (retryAttempt <= MAX_RETRIES) {
 				try {
 					const stream = await executeRequest({
-						requireInterleave,
 						shouldResetContext,
 					})
+					if (shouldResetContext) {
+						shouldResetContext = false
+					}
 
 					for await (const chunk of stream) {
 						if (chunk.code === 1) {
 							clearInterval(checkInactivity)
 							yield* this.processStreamChunk(chunk)
 							return
-						}
-						if (chunk.code === -1 && chunk.body.msg?.includes("interleave the user/assistant messages")) {
-							requireInterleave = true
 						}
 
 						if (
@@ -246,6 +241,7 @@ ${this.customInstructions.trim()}
 									"reduce length of context",
 									"reduce length of the messages",
 									"prompt is too long",
+									"Payload Too Large",
 								].some((msg) => chunk.body.msg?.includes(msg))) ||
 							shouldResetContext
 						) {
@@ -267,9 +263,6 @@ ${this.customInstructions.trim()}
 					if (streamError instanceof Error && streamError.message === "aborted") {
 						throw new KoduError({ code: 1 })
 					}
-					if (`${streamError}`.includes("interleave the user/assistant messages")) {
-						requireInterleave = true
-					}
 					if (
 						[
 							"maximum context length",
@@ -278,9 +271,12 @@ ${this.customInstructions.trim()}
 							"reduce length of context",
 							"reduce length of the messages",
 							"prompt is too long",
+							"Payload Too Large",
 						].some((msg) => `${streamError}`.includes(msg))
 					) {
 						shouldResetContext = true
+						// we should continue to retry
+						continue
 					}
 
 					throw streamError
@@ -386,31 +382,6 @@ ${this.customInstructions.trim()}
 		}
 
 		throw error
-	}
-
-	/**
-	 *
-	 * it interleave the user/assistant messages so we always have user > assistant > user > assistant > ...
-	 */
-	private interleaveMessages(messages: ApiHistoryItem[]) {
-		const interleavedMessages: ApiHistoryItem[] = []
-		let lastRole = "user"
-		for (const message of messages) {
-			if (message.role === lastRole) {
-				const lastInterleavedMessage = interleavedMessages.at(-1)
-				if (
-					lastInterleavedMessage &&
-					Array.isArray(lastInterleavedMessage.content) &&
-					Array.isArray(message.content)
-				) {
-					lastInterleavedMessage.content.push(...message.content)
-					continue
-				}
-			}
-			interleavedMessages.push(message)
-			lastRole = message.role
-		}
-		return interleavedMessages
 	}
 
 	private getTaskText(str: string) {

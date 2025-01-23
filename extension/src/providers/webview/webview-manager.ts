@@ -19,6 +19,7 @@ import { PromptStateManager } from "../state/prompt-state-manager"
 import { PromptManager } from "./prompt-manager"
 import { ExtensionContext } from "../../router/utils/context"
 import { ExtensionServer } from "../../router/utils/extension-server"
+import { koduConfig } from "../../api/providers/config/kodu"
 
 /**
  * Represents an item in the file tree structure.
@@ -213,7 +214,7 @@ export class WebviewManager {
 			"webview-ui-vite",
 			"build",
 			"assets",
-			"App.css",
+			"index.css",
 		])
 
 		// Updated codicons path and error handling
@@ -246,7 +247,7 @@ export class WebviewManager {
 				<meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
 				<meta name="theme-color" content="#000000">
 				<meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
-				<link rel="stylesheet" type="text/css" href="${stylesUri}">
+				<link rel="stylesheet" type="text/css" href="${stylesUri}">				
 				<link href="${codiconsUri}" rel="stylesheet" />
 				<title>Claude Coder</title>
 			  </head>
@@ -370,14 +371,6 @@ export class WebviewManager {
 						break
 					case "openExternalLink":
 						vscode.env.openExternal(vscode.Uri.parse(message.url))
-						break
-
-					case "enableObserverHook":
-						this.provider
-							.getGlobalStateManager()
-							.updateGlobalState("observerHookEvery", message.triggerEvery)
-						this.provider.getKoduDev()?.observerHookEvery(message.triggerEvery)
-						this.postBaseStateToWebview()
 						break
 
 					case "amplitude":

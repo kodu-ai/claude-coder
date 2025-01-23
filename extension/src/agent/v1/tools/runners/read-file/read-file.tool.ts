@@ -13,7 +13,7 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 	async execute() {
 		const { input, ask, say } = this.params
 
-		const { path: relPath, pageNumber, readAllPages } = input
+		const { path: relPath } = input
 
 		try {
 			const absolutePath = path.resolve(this.cwd, relPath)
@@ -27,8 +27,6 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 						path: getReadablePath(relPath, this.cwd),
 						approvalState: "pending",
 						content,
-						pageNumber,
-						readAllPages,
 						ts: this.ts,
 					},
 				},
@@ -45,8 +43,6 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 							approvalState: "rejected",
 							content,
 							userFeedback: text,
-							pageNumber,
-							readAllPages,
 							ts: this.ts,
 						},
 					},
@@ -69,8 +65,6 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 						path: getReadablePath(relPath, this.cwd),
 						approvalState: "approved",
 						content,
-						pageNumber,
-						readAllPages,
 						ts: this.ts,
 					},
 				},
@@ -80,76 +74,17 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 			if (content.trim().length === 0) {
 				return this.toolResponse(
 					"success",
-					dedent`
-						<file_read_response>
-						  <status>
-						    <result>success</result>
-						    <operation>file_read</operation>
-						    <timestamp>${new Date().toISOString()}</timestamp>
-						  </status>
-						  <file_info>
-						    <path>${relPath}</path>
-						    <state>empty</state>
-						  </file_info>
-						</file_read_response>`
+					dedent`<file_read_response><status><result>success</result><operation>file_read</operation><timestamp>${new Date().toISOString()}</timestamp></status><file_info><path>${relPath}</path><state>empty</state></file_info></file_read_response>`
 				)
 			}
 
 			// Format content into lines
 			const lines = formatFileToLines(content)
-			const linesArray = lines.split("\n")
 
-			// Pagination logic
-			const LINES_PER_PAGE = 800
-			const totalLines = linesArray.length
-			const totalPages = Math.ceil(totalLines / LINES_PER_PAGE)
-
-			let finalPageNumber = pageNumber ?? 1
-			let pageContent = ""
-			let currentPage: string | number = finalPageNumber
-
-			if (readAllPages) {
-				// Return all content if readAllPages is true
-				pageContent = lines
-				currentPage = "all"
-			} else {
-				// Ensure pageNumber is within valid range
-				if (finalPageNumber < 1) {
-					finalPageNumber = 1
-				}
-				if (finalPageNumber > totalPages) {
-					finalPageNumber = totalPages
-				}
-
-				const start = (finalPageNumber - 1) * LINES_PER_PAGE
-				const end = start + LINES_PER_PAGE
-				pageContent = linesArray.slice(start, end).join("\n")
-				currentPage = finalPageNumber
-			}
-
+			const now = new Date().toISOString()
 			return this.toolResponse(
 				"success",
-				dedent`
-					<file_read_response>
-					  <status>
-					    <result>success</result>
-					    <operation>file_read</operation>
-					    <timestamp>${new Date().toISOString()}</timestamp>
-					  </status>
-					  <file_info>
-					    <path>${relPath}</path>
-					    <content_length>${content.length}</content_length>
-					    <count_lines>${totalLines}</count_lines>
-					  </file_info>
-					  <page_info>
-					    <total_pages>${totalPages}</total_pages>
-					    <current_page>${currentPage}</current_page>
-					  </page_info>
-					  <note>Content is formatted with line numbers.</note>
-					  <content>The page content is formatted with line numbers, each line is prefixed with a line number and a space.
-					  ${pageContent}
-					  </content>
-					</file_read_response>`
+				`<file_read_response><status><result>success</result><operation>file_read</operation><timestamp>${now}</timestamp></status><content>Here is the latest file content as of (${now}):\n${content}</content></file_read_response>`
 			)
 		} catch (error) {
 			await this.params.updateAsk(
@@ -160,32 +95,16 @@ export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {
 						path: getReadablePath(relPath, this.cwd),
 						content: "Cannot read content",
 						approvalState: "error",
-						pageNumber: pageNumber ?? readAllPages ? undefined : 1,
-						readAllPages,
 						ts: this.ts,
 					},
 				},
 				this.ts
 			)
-			const errorString = dedent`
-				<file_read_response>
-				  <status>
-				    <result>error</result>
-				    <operation>file_read</operation>
-				    <timestamp>${new Date().toISOString()}</timestamp>
-				  </status>
-				  <error_details>
-				    <message>Error reading file: ${JSON.stringify(serializeError(error))}</message>
-				    <path>${relPath}</path>
-				    <help>
-				      <example_usage>
-				        <kodu_action>${readFilePrompt.examples[0].output}</kodu_action>
-				      </example_usage>
-				      <note>Please provide a valid file path. File reading operations require a valid path parameter.</note>
-				    </help>
-				  </error_details>
-				</file_read_response>
-			`
+			const errorString = dedent`<file_read_response><status><result>error</result><operation>file_read</operation><timestamp>${new Date().toISOString()}</timestamp></status><error_details><message>Error reading file: ${JSON.stringify(
+				serializeError(error)
+			)}</message><path>${relPath}</path><help><example_usage><kodu_action>${
+				readFilePrompt.examples[0].output
+			}</kodu_action></example_usage><note>Please provide a valid file path. File reading operations require a valid path parameter.</note></help></error_details></file_read_response>`
 
 			await say(
 				"error",

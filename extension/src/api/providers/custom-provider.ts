@@ -1,7 +1,7 @@
 import { CancelTokenSource } from "axios"
 import { ApiConstructorOptions, ApiHandler, ApiHandlerOptions } from ".."
 import { koduSSEResponse } from "../../shared/kodu"
-import { CoreMessage, streamText } from "ai"
+import { CoreMessage, smoothStream, streamText } from "ai"
 import { createDeepSeek } from "@ai-sdk/deepseek"
 import { createOpenAI } from "@ai-sdk/openai"
 import { createMistral } from "@ai-sdk/mistral"
@@ -11,6 +11,32 @@ import { customProviderSchema, ModelInfo } from "./types"
 import { PROVIDER_IDS } from "./constants"
 import { calculateApiCost } from "../api-utils"
 import { mistralConfig } from "./config/mistral"
+import { z } from "zod"
+import { mergeAbortSignals, SmartAbortSignal } from "../../shared/utils"
+
+type ExtractCacheTokens = {
+	cacheCreationField: string
+	cacheReadField: string
+	object: Object
+}
+
+const extractCacheTokens = ({ cacheCreationField, cacheReadField, object }: ExtractCacheTokens) => {
+	const cacheSchema = z.object({
+		[cacheCreationField]: z.number().nullable(),
+		[cacheReadField]: z.number().nullable(),
+	})
+	const cache = cacheSchema.safeParse(object)
+	if (!cache.success) {
+		return {
+			cache_creation_input_tokens: null,
+			cache_read_input_tokens: null,
+		}
+	}
+	return {
+		cache_creation_input_tokens: cache.data[cacheCreationField],
+		cache_read_input_tokens: cache.data[cacheReadField],
+	}
+}
 
 export class CustomProviderError extends Error {
 	private _providerId: string
@@ -128,6 +154,7 @@ export class CustomApiHandler implements ApiHandler {
 
 		const convertedMessagesFull = convertedMessages.concat(convertToAISDKFormat(messages))
 		const currentModel = this._options.models.find((m) => m.id === modelId) ?? this._options.model
+		// const refetchSignal = new SmartAbortSignal(5000)
 		const result = streamText({
 			model: providerToAISDKModel(this._options, modelId),
 			// prompt: `This is a test tell me a random fact about the world`,
@@ -136,10 +163,20 @@ export class CustomApiHandler implements ApiHandler {
 			topP: top_p ?? undefined,
 			stopSequences: ["</kodu_action>"],
 			abortSignal: abortSignal ?? undefined,
+			experimental_transform: smoothStream(),
+			maxRetries: 3,
 		})
 
 		let text = ""
 		for await (const part of result.fullStream) {
+			if (part.type === "reasoning") {
+				yield {
+					code: 4,
+					body: {
+						reasoningDelta: part.textDelta,
+					},
+				}
+			}
 			if (part.type === "text-delta") {
 				text += part.textDelta
 				yield {
@@ -150,6 +187,28 @@ export class CustomApiHandler implements ApiHandler {
 				}
 			}
 			if (part.type === "finish") {
+				let cache_creation_input_tokens: number | null = null
+				let cache_read_input_tokens: number | null = null
+				if (
+					this._options.providerSettings.providerId === PROVIDER_IDS.DEEPSEEK &&
+					part.experimental_providerMetadata
+				) {
+					;({ cache_creation_input_tokens, cache_read_input_tokens } = extractCacheTokens({
+						cacheCreationField: "promptCacheMissTokens",
+						cacheReadField: "promptCacheHitTokens",
+						object: part.experimental_providerMetadata["deepseek"],
+					}))
+				}
+				if (this._options.providerSettings.providerId === PROVIDER_IDS.OPENAI) {
+					const cachedPromptTokens = part.experimental_providerMetadata?.["openai"]?.cachedPromptTokens
+					if (typeof cachedPromptTokens === "number") {
+						cache_read_input_tokens = cachedPromptTokens
+						// total_tokens - cache_read_input_tokens = cache_creation_input_tokens
+						cache_creation_input_tokens = part.usage.promptTokens - cache_read_input_tokens
+					}
+				}
+				const inputTokens =
+					part.usage.promptTokens - (cache_creation_input_tokens ?? 0) - (cache_read_input_tokens ?? 0)
 				yield {
 					code: 1,
 					body: {
@@ -167,24 +226,24 @@ export class CustomApiHandler implements ApiHandler {
 							stop_sequence: "</kodu_action>",
 							model: modelId,
 							usage: {
-								input_tokens: part.usage.promptTokens,
+								input_tokens: inputTokens,
 								output_tokens: part.usage.completionTokens,
-								cache_creation_input_tokens: null,
-								cache_read_input_tokens: null,
+								cache_creation_input_tokens,
+								cache_read_input_tokens,
 							},
 						},
 						internal: {
 							cost: calculateApiCost(
 								currentModel,
-								part.usage.promptTokens,
+								inputTokens,
 								part.usage.completionTokens,
-								0,
-								0
+								cache_creation_input_tokens ?? 0,
+								cache_read_input_tokens ?? 0
 							),
-							inputTokens: part.usage.promptTokens,
+							inputTokens: inputTokens,
 							outputTokens: part.usage.completionTokens,
-							cacheCreationInputTokens: 0,
-							cacheReadInputTokens: 0,
+							cacheCreationInputTokens: cache_creation_input_tokens ?? 0,
+							cacheReadInputTokens: cache_read_input_tokens ?? 0,
 						},
 					},
 				}

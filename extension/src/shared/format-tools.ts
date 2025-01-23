@@ -53,7 +53,7 @@ export const toolResponseToAIState = (result: ToolResponseV2, isCompressed?: boo
 		}
 		blocks.push({
 			type: "text",
-			text: dedent`<toolResponse>
+			text: `<toolResponse>
 <toolName>${result.toolName}</toolName>
 <toolStatus>${result.status}</toolStatus>
 <toolResult>${toolFeedbackToMsg(result.status)(result.text)}</toolResult>
