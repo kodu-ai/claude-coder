@@ -262,6 +262,11 @@ export class InlineEditHandler {
 			return this.performReplace(content, trailingMatch.lineStart!, trailingMatch.lineEnd!, replaceContent)
 		}
 
+		const oneLinerMatch = this.findOneLinerMatch(content, searchContent, replaceContent)
+		if (oneLinerMatch.success) {
+			return oneLinerMatch
+		}
+
 		const dmpMatch = this.findDMPMatch(content, searchContent)
 		if (dmpMatch.success) {
 			return this.performReplace(content, dmpMatch.lineStart!, dmpMatch.lineEnd!, replaceContent)
@@ -323,6 +328,35 @@ export class InlineEditHandler {
 			}
 		}
 		return { success: false }
+	}
+
+	private findOneLinerMatch(content: string, searchContent: string, replaceContent: string): MatchResult {
+		const contentLines = content.split("\n")
+		const searchLines = searchContent.split("\n")
+		if (searchLines.length > 1) {
+			return { success: false }
+		}
+		const indexOfSearch = contentLines.findIndex((line) => line.includes(searchContent))
+		if (indexOfSearch === -1) {
+			return { success: false }
+		}
+		const replacedContent = contentLines[indexOfSearch].replace(searchContent, replaceContent)
+		let newContent = content
+		// we are going to remove the line if the replaced content is empty
+		if (replacedContent.length === 0) {
+			newContent = contentLines.filter((_, i) => i !== indexOfSearch).join("\n")
+		}
+		// otherwise, we are going to replace the line with the new content
+		else {
+			contentLines[indexOfSearch] = replacedContent
+			newContent = contentLines.join("\n")
+		}
+		return {
+			success: true,
+			lineStart: indexOfSearch,
+			lineEnd: indexOfSearch,
+			newContent,
+		}
 	}
 
 	private findTrailingMatch(content: string, searchContent: string): MatchResult {

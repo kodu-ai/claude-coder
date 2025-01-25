@@ -822,21 +822,13 @@ ${commitXmlInfo}`
 
 		return this.toolResponse(
 			"success",
-			dedent`<rollback_response>
-	<status>success</status>
-	<operation>rollback</operation>
-	<current_available_versions>${versions.length - 1 > 0 ? versions.length - 1 : 0}</current_available_versions>
-	<file_version_timestamp>${new Date(versionToRollback.createdAt).toISOString()}</file_version_timestamp>
-	${commitXmlInfo}
-	<critical_information>From now on, the file will be reverted to the version that was rolled back to.
-	I'm providing you the latest file content below for reference, you should only remember this file version unless further modifications were made after this point.
-	From now on file '${relPath}' content will be the content shown in <updated_file_content> field. 
-	</critical_information>
-	<updated_file_content>Here is the latest file content after the rollback you should remember this content as the latest file content unless you make further modifications.
-	${formatFileToLines(file.finalContent)}
-	</updated_file_content>
-</rollback_response>
-	`
+			`<rollback_response><status>success</status><operation>rollback</operation><current_available_versions>${
+				versions.length - 1 > 0 ? versions.length - 1 : 0
+			}</current_available_versions><file_version_timestamp>${new Date(
+				versionToRollback.createdAt
+			).toISOString()}</file_version_timestamp>${commitXmlInfo}<critical_information>From now on, the file will be reverted to the version that was rolled back to.I'm providing you the latest file content below for reference, you should only remember this file version unless further modifications were made after this point.From now on file '${relPath}' content will be the content shown in <updated_file_content> field. </critical_information><updated_file_content>Here is the latest file content after the rollback you should remember this content as the latest file content unless you make further modifications.${formatFileToLines(
+				file.finalContent
+			)}</updated_file_content></rollback_response>`
 		)
 	}
 
