@@ -8,6 +8,8 @@ import { ClaudeMessage } from "../../agent/v1/main-agent"
 import { HistoryItem } from "../../shared/history-item"
 import { isV1ClaudeMessage, V1ClaudeMessage } from "../../shared/messages/extension-message"
 import * as vscode from "vscode"
+import archiver from "archiver"
+import { createWriteStream } from "fs"
 // 2) Define some sub-routers
 //
 // Example 1: TaskRouter
@@ -134,6 +136,88 @@ const taskRouter = router({
 		await ctx.provider.getWebviewManager().postBaseStateToWebview()
 		console.log(`Marked task ${input.taskId} as done`)
 		return { success: true } as const
+	}),
+
+	exportTaskFiles: procedure.input(z.object({ taskId: z.string() })).resolve(async (ctx, input) => {
+		const taskDirPath = path.join(ctx.provider.context.globalStorageUri.fsPath, "tasks", input.taskId)
+
+		try {
+			console.log("Starting export process...")
+			console.log("Task directory path:", taskDirPath)
+
+			const taskDirExists = await fs
+				.access(taskDirPath)
+				.then(() => true)
+				.catch(() => false)
+
+			if (!taskDirExists) {
+				console.error(`Task directory not found: ${taskDirPath}`)
+				vscode.window.showErrorMessage(`Task ${input.taskId} not found`)
+				return { success: false } as const
+			}
+
+			const saveDialog = await vscode.window.showSaveDialog({
+				defaultUri: vscode.Uri.file(`${input.taskId}.zip`),
+				filters: { "Zip files": ["zip"] },
+				saveLabel: "Export",
+				title: `Export task ${input.taskId}`,
+			})
+
+			if (!saveDialog) {
+				return { success: false } as const
+			}
+
+			let savePath = saveDialog.fsPath
+			console.log("Original save path:", savePath)
+
+			// Ensure the directory exists
+			await fs
+				.mkdir(path.dirname(savePath), { recursive: true })
+				.catch((err) => console.log("Directory already exists or creation failed:", err))
+
+			return new Promise((resolve, reject) => {
+				console.log("Creating write stream to:", savePath)
+				const output = createWriteStream(savePath, { flags: "w" })
+
+				output.on("error", (err) => {
+					console.error("Write stream error:", err)
+					vscode.window.showErrorMessage(`Failed to create output file: ${err.message}`)
+					reject({ success: false } as const)
+				})
+
+				const archive = archiver("zip", { zlib: { level: 9 } })
+
+				output.on("close", () => {
+					console.log("Archive closed successfully")
+					vscode.window.showInformationMessage(`Task ${input.taskId} exported to ${savePath}`)
+					resolve({ success: true } as const)
+				})
+
+				archive.on("error", (err) => {
+					console.error("Archive error:", err)
+					vscode.window.showErrorMessage(`Export failed: ${err.message}`)
+					reject({ success: false } as const)
+				})
+
+				archive.on("warning", (err) => {
+					console.warn("Archive warning:", err)
+				})
+
+				// Pipe archive data to the file
+				archive.pipe(output)
+
+				// Add files from directory to the archive
+				console.log("Adding files to archive from:", taskDirPath)
+				archive.directory(taskDirPath, false)
+
+				console.log("Finalizing archive...")
+				archive.finalize()
+			})
+		} catch (error) {
+			console.error("Export error:", error)
+			vscode.window.showErrorMessage(`Export failed: ${error}`)
+			return { success: false } as const
+		}
 	}),
 })
 

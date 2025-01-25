@@ -132,7 +132,14 @@ const useHandleClaudeMessages = () => {
 					return []
 				}
 				const index = currentMessages.findIndex((m) => m.ts === message.claudeMessage!.ts)
+
 				if (index !== -1) {
+					if (message.claudeMessage.ask === "tool") {
+						console.log(`Received tool update at ${Date.now()} for :\n`, {
+							toolStatus: message.claudeMessage.status,
+							toolName: JSON.parse(message.claudeMessage.text || "{}").tool,
+						})
+					}
 					const messages = [...currentMessages]
 					messages[index] = message.claudeMessage
 					return messages

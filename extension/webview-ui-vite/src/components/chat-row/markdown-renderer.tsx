@@ -52,7 +52,6 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, ch
 								// This is a fenced code block with a language
 								return <CodeBlock language={match[1]}>{children}</CodeBlock>
 							} else {
-								console.log(`No language specified for code block: ${children}`)
 								// Inline code block
 								return (
 									<code className="rounded bg-gray-100 dark:bg-gray-800 px-1 py-0.5 font-mono text-sm overflow-auto">

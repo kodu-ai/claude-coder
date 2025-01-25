@@ -186,7 +186,7 @@ export class ClaudeMessagesManager {
 		await this.saveClaudeMessages()
 		// Update webview if requested
 		if (withFlush) {
-			this.safePostMessage(message)
+			await this.safePostMessage(message).catch((err) => console.error("Error posting message to webview:", err))
 		}
 		return this.state.claudeMessages[index]
 	}
@@ -199,7 +199,9 @@ export class ClaudeMessagesManager {
 
 			// Update webview if requested
 			if (withFlush) {
-				this.safePostMessage(lastMessage)
+				await this.safePostMessage(lastMessage).catch((err) =>
+					console.error("Error posting message to webview:", err)
+				)
 			}
 			return lastMessage
 		}

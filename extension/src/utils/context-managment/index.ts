@@ -59,11 +59,13 @@ export async function smartTruncation(
 	if (!Array.isArray(args[0]) || args[0].length === 0) {
 		return args[0]
 	}
+	// keep the first message as is
+	const firstMessage = args[0][0]
 	// compress from the first message to -MIN_MESSAGES_TO_KEEP
-	const beforeCompression = args[0].slice(0, -MIN_MESSAGES_TO_KEEP)
+	const beforeCompression = args[0].slice(1, -MIN_MESSAGES_TO_KEEP)
 	const recentMessages = args[0].slice(-MIN_MESSAGES_TO_KEEP)
 	const compressedMessages = await compressToolFromMsg(beforeCompression, args[1], args[2])
-	return [...compressedMessages, ...recentMessages]
+	return [firstMessage, ...compressedMessages, ...recentMessages]
 }
 
 /**

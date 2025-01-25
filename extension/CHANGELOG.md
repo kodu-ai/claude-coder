@@ -4,6 +4,18 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.2.3] - 2025-01-25
+
+### New
+
+-   Export task files (useful for debugging and loading on new computer)
+-   Add option to do one liner search and replace with file editor tool (useful for weak models)
+
+### Fixed
+
+-   Chat compression
+-   Posting webview messages would often be skipped on tool call (still investigating)
+
 ## [2.2.2] - 2025-01-24
 
 ### Fixed

@@ -16,6 +16,7 @@ import { ChevronDown, ChevronUp, FoldVertical, Clock, CheckSquare, CheckCircleIc
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { motion, AnimatePresence } from "framer-motion"
 import { rpcClient } from "@/lib/rpc-client"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu"
 
 interface TaskHeaderProps {
 	firstMsg?: ClaudeMessage
@@ -61,6 +62,7 @@ export default function TaskHeader({
 	const { mutate: markAsComplete, isPending } = rpcClient.markAsDone.useMutation()
 	const [isOpen, setIsOpen] = React.useState(true)
 	const [showTiming, setShowTiming] = React.useState(false)
+	const exportTaskFiles = rpcClient.exportTaskFiles.useMutation()
 
 	const handleDownload = () => {
 		vscode.postMessage({ type: "exportCurrentTask" })
@@ -80,9 +82,18 @@ export default function TaskHeader({
 					<VSCodeButton appearance="icon" onClick={handleRename}>
 						Rename
 					</VSCodeButton>
-					<VSCodeButton appearance="icon" onClick={handleDownload}>
-						Export
-					</VSCodeButton>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<VSCodeButton appearance="icon">Export</VSCodeButton>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent>
+							<DropdownMenuItem onClick={handleDownload}>Export</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => exportTaskFiles.mutate({ taskId: currentTaskId ?? "-" })}>
+								Export (Task Files)
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+
 					{task && currentTaskId && (
 						<>
 							<Tooltip>

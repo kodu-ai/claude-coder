@@ -104,10 +104,8 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.window.onDidChangeWindowState((windowState) => {
 			if (windowState.focused) {
-				console.log("Window is now focused")
 				startCreditFetch(sidebarProvider)
 			} else {
-				console.log("Window lost focus")
 				stopCreditFetch()
 			}
 		})

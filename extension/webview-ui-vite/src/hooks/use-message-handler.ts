@@ -323,6 +323,7 @@ export const useChatMessageHandling = (
 		if (lastMessage?.say) {
 			handleSayMessage(lastMessage)
 		} else if (lastAskMessage) {
+			console.log(lastAskMessage)
 			handleAskMessage(lastAskMessage)
 		} else if (!lastMessage && !lastAskMessage) {
 			updateState({
