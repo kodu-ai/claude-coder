@@ -245,6 +245,7 @@ ${this.customInstructions.trim()}
 								].some((msg) => chunk.body.msg?.includes(msg))) ||
 							shouldResetContext
 						) {
+							shouldResetContext = true
 							// clear the interval
 							clearInterval(checkInactivity)
 							retryAttempt++

@@ -4,6 +4,13 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.2.4] - 2025-01-25
+
+### Fixed
+
+-   fix chat compression on sonnet
+-   Posting webview messages would often be skipped on tool call
+
 ## [2.2.3] - 2025-01-25
 
 ### New

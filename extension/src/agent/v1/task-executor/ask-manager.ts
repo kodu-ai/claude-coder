@@ -219,6 +219,8 @@ export class AskManager {
 			} else {
 				await this.stateManager.claudeMessagesManager.addToClaudeMessages(message, true)
 			}
+			// double post to webview to ensure the message is updated
+			await this.webViewManager.postClaudeMessageToWebview(message)
 		} catch (error) {
 			console.error("Error in updateState:", error)
 			throw error
