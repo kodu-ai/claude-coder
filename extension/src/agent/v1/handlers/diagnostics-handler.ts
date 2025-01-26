@@ -44,33 +44,30 @@ export class DiagnosticsHandler {
 		return DiagnosticsHandler.instance
 	}
 
-	public async openFiles(paths: string[]): Promise<void> {
+	public async openFiles(paths: string[], loadDiagnostics: boolean): Promise<void> {
 		for (const filePath of paths) {
 			const fullPath = path.resolve(getCwd(), filePath)
 			const uri = vscode.Uri.file(fullPath)
 			const doc = await vscode.workspace.openTextDocument(uri)
 		}
+		if (loadDiagnostics) {
+			await Promise.allSettled(
+				paths.map((filePath) => {
+					const fullPath = path.resolve(getCwd(), filePath)
+					const uri = vscode.Uri.file(fullPath)
+					vscode.languages.getDiagnostics(uri)
+				})
+			)
+		}
 	}
 
-	public async getDiagnostics(
-		paths: string[],
-		openDocs: boolean = false
-	): Promise<{ key: string; errorString: string | null }[]> {
+	public async getDiagnostics(paths: string[]): Promise<{ key: string; errorString: string | null }[]> {
 		return Promise.all(
 			paths.map(async (filePath) => {
 				try {
 					const fullPath = path.resolve(getCwd(), filePath)
 					const uri = vscode.Uri.file(fullPath)
-					const viewColumn = vscode.window.activeTextEditor?.viewColumn
-					if (openDocs) {
-						const doc = await vscode.workspace.openTextDocument(uri)
-						await vscode.window.showTextDocument(doc, {
-							preview: false,
-							preserveFocus: true,
-							viewColumn,
-						})
-					}
-
+					await vscode.workspace.openTextDocument(uri)
 					const diagnostics = vscode.languages.getDiagnostics(uri)
 					const errors = diagnostics.filter((diag) => diag.severity === vscode.DiagnosticSeverity.Error)
 

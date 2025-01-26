@@ -21,6 +21,20 @@ export const googleGenAIConfig: ProviderConfig = {
 			provider: PROVIDER_IDS.GOOGLE_GENAI,
 		},
 		{
+			id: "gemini-2.0-flash-thinking-exp-01-21",
+			name: "Gemini 2 Flash Thinking Latest (AI Studio)",
+			contextWindow: 1_048_576,
+			maxTokens: 8192,
+			supportsImages: true,
+			inputPrice: 0, // free for now
+			outputPrice: 0, // free for now
+			cacheReadsPrice: 0, // free for now
+			cacheWritesPrice: 0, // free for now
+			supportsPromptCache: false,
+			isThinkingModel: true,
+			provider: PROVIDER_IDS.GOOGLE_GENAI,
+		},
+		{
 			id: "gemini-2.0-flash-thinking-exp-1219",
 			name: "Gemini 2 Flash Thinking (AI Studio)",
 			contextWindow: 32_767,
@@ -31,6 +45,7 @@ export const googleGenAIConfig: ProviderConfig = {
 			cacheReadsPrice: 0, // free for now
 			cacheWritesPrice: 0, // free for now
 			supportsPromptCache: false,
+			isThinkingModel: true,
 			provider: PROVIDER_IDS.GOOGLE_GENAI,
 		},
 		{

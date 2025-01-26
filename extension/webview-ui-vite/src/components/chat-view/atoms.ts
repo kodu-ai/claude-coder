@@ -20,6 +20,8 @@ export const chatStateAtom = atom<ChatState>({
 	secondaryButtonText: undefined,
 	expandedRows: {},
 	isAbortingRequest: false,
+	prevInputValue: "",
+	prevImages: [],
 })
 
 export const selectedImagesAtom = atom(

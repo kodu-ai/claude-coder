@@ -16,6 +16,7 @@ import { ToolRenderer, ChatMaxWindowBlock, ChatTruncatedBlock } from "./chat-too
 import { ChatTool } from "../../../../src/shared/new-tools"
 import { ObserverBadge } from "./tools/observer-hook"
 import { ReasoningRow } from "./reasoning-row"
+import DiagnosticRow from "./diagnostic-row"
 
 interface ChatRowProps {
 	message: V1ClaudeMessage

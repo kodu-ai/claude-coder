@@ -18,6 +18,8 @@ export interface ChatState {
 	secondaryButtonText?: string
 	expandedRows: Record<number, boolean>
 	isAbortingRequest: boolean
+	prevInputValue: string
+	prevImages: string[]
 }
 
 export interface ButtonSectionProps {

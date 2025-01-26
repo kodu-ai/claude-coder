@@ -161,6 +161,11 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 			if (e instanceof Error) {
 				this.outputChannel.appendLine(e.message)
 				vscode.window.showErrorMessage(`Api configuration must be set in the settings`)
+				const apiConfig = GlobalStateManager.getInstance().getGlobalState("apiConfig")
+				await this.webviewManager.postMessageToWebview({
+					type: "configureApiRequired",
+					providerId: apiConfig?.providerId,
+				})
 			}
 			throw e
 		}

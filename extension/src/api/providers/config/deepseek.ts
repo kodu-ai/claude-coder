@@ -18,6 +18,7 @@ export const deepseekConfig: ProviderConfig = {
 			cacheReadsPrice: 0.014, // $0.014 per 1M tokens (cache hit)
 			cacheWritesPrice: 0.14, // $0.14 per 1M tokens (same as input price)
 			supportsPromptCache: true,
+			isRecommended: true,
 			provider: PROVIDER_IDS.DEEPSEEK,
 		},
 		{
@@ -31,6 +32,8 @@ export const deepseekConfig: ProviderConfig = {
 			cacheReadsPrice: 0.14,
 			cacheWritesPrice: 0.55,
 			supportsPromptCache: true,
+			isThinkingModel: true,
+			isRecommended: true,
 			provider: PROVIDER_IDS.DEEPSEEK,
 		},
 	],

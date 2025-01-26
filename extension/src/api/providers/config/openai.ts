@@ -8,6 +8,20 @@ export const openaiConfig: ProviderConfig = {
 	baseUrl: DEFAULT_BASE_URLS[PROVIDER_IDS.OPENAI],
 	models: [
 		{
+			id: "o1",
+			name: "O1",
+			contextWindow: 200_000,
+			maxTokens: 100_000,
+			supportsImages: true,
+			supportsPromptCache: true,
+			inputPrice: 15.0,
+			outputPrice: 60.0,
+			cacheReadsPrice: 15.0 * 0.5, // 50% of input price
+			provider: PROVIDER_IDS.OPENAI,
+			cacheWritesPrice: 15.0,
+			isThinkingModel: true,
+		},
+		{
 			id: "o1-preview",
 			name: "O1 Preview",
 			contextWindow: 128000,
@@ -19,6 +33,7 @@ export const openaiConfig: ProviderConfig = {
 			cacheReadsPrice: 15.0 * 0.5, // 50% of input price
 			provider: PROVIDER_IDS.OPENAI,
 			cacheWritesPrice: 15.0,
+			isThinkingModel: true,
 		},
 		{
 			id: "o1-mini",
@@ -32,6 +47,7 @@ export const openaiConfig: ProviderConfig = {
 			cacheReadsPrice: 3.0 * 0.5, // 50% of input price
 			provider: PROVIDER_IDS.OPENAI,
 			cacheWritesPrice: 3.0,
+			isThinkingModel: true,
 		},
 		{
 			id: "gpt-4o",

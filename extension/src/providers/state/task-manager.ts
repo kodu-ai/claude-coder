@@ -141,10 +141,11 @@ export class TaskManager {
 			await this.clearTask()
 		}
 
-		const { taskDirPath, apiConversationHistoryFilePath, claudeMessagesFilePath } = await this.getTaskWithId(id)
-
-		await this.deleteTaskFiles(taskDirPath, apiConversationHistoryFilePath, claudeMessagesFilePath)
-
+		try {
+			await this.deleteTaskFilesByTaskId(id)
+		} catch (e) {
+			console.log(e)
+		}
 		await this.deleteTaskFromState(id)
 	}
 
@@ -158,6 +159,8 @@ export class TaskManager {
 		const allFolders = await fs.readdir(taskDirPath)
 		const allTasks = allFolders.filter((folder) => folder !== ".DS_Store")
 		const tasksToRestore = allTasks.filter((task) => !currenTasks?.find((t) => t.id === task))
+		// psot base state to webview to update the task list
+		await this.provider.getWebviewManager().postBaseStateToWebview()
 		console.log(`Found ${tasksToRestore.length} tasks to restore`)
 	}
 
@@ -214,6 +217,20 @@ export class TaskManager {
 			claudeMessagesFilePath,
 			apiConversationHistory,
 		}
+	}
+
+	private async deleteTaskFilesByTaskId(id: string) {
+		// find the task files
+		const taskDirPath = path.join(this.provider.getContext().globalStorageUri.fsPath, "tasks", id)
+		const isExists = await fs
+			.access(taskDirPath)
+			.then(() => true)
+			.catch(() => false)
+		if (!isExists) {
+			return
+		}
+		// delete the folder
+		await fs.rmdir(taskDirPath, { recursive: true })
 	}
 
 	private async deleteTaskFiles(

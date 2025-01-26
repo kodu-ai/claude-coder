@@ -27,6 +27,7 @@ import dedent from "dedent"
 import { formatFileToLines } from "../read-file/utils"
 import diffFixerPrompt from "../../../prompts/agents/diff-fixer.prompt"
 import * as vscode from "vscode"
+import { unlink } from "fs/promises"
 export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 	public diffViewProvider: DiffViewProvider
 	public inlineEditor: InlineEditHandler
@@ -289,6 +290,9 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 
 		this.logger(`Failed count: ${failedCount}, isAllFailed: ${isAllFailed}`, "debug")
 		if (isAnyFailed) {
+			// close the editor if all blocks failed
+			await this.inlineEditor.closeDiffEditors()
+			this.inlineEditor.dispose()
 			//// disabled for now
 			// if (allowFixed) {
 			// 	// let's show a loading vs code toast
@@ -305,7 +309,7 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 			// 	}
 			// }
 
-			const extractKoduDiff = this.params.updateAsk(
+			this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -701,6 +705,17 @@ ${commitXmlInfo}`
 	 */
 	private async saveNewFileVersion(relPath: string, content: string): Promise<FileVersion> {
 		const versions = await this.koduDev.getStateManager().getFileVersions(relPath)
+		// if we don't have any versions we only need to save the original content as the first version of the file
+		if (versions.length === 0) {
+			const newVersion: FileVersion = {
+				path: relPath,
+				version: 0,
+				createdAt: Date.now(),
+				content: this.fileState?.orignalContent ?? "",
+			}
+			await this.koduDev.getStateManager().saveFileVersion(newVersion)
+			return newVersion
+		}
 		const nextVersion = versions.length > 0 ? Math.max(...versions.map((v) => v.version)) + 1 : 1
 		const newVersion: FileVersion = {
 			path: relPath,
@@ -793,7 +808,13 @@ ${commitXmlInfo}`
 
 		// Approved
 		const file = await this.diffViewProvider.saveChanges()
-		this.koduDev.getStateManager().addErrorPath(relPath)
+		if (versionToRollback.content === "") {
+			// delete the file
+			await unlink(absolutePath)
+		} else {
+			// we want to add it to error paths if it's not empty and delete
+			this.koduDev.getStateManager().addErrorPath(relPath)
+		}
 		let commitXmlInfo = ""
 		let commitResult: GitCommitResult | undefined
 		try {

@@ -37,6 +37,7 @@ const AppContent = () => {
 	const [showHistory, setShowHistory] = useAtom(showHistoryAtom)
 	const [showPromptEditor, setShowPromptEditor] = useAtom(showPromptEditorAtom)
 	const selectedModelInfo = useModelInfo()
+	useRequiredProviderHandler()
 	const handleMessage = useCallback((e: MessageEvent) => {
 		const message: ExtensionMessage = e.data
 		switch (message.type) {

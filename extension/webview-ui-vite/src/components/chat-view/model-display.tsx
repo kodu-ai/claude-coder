@@ -18,7 +18,7 @@ export const ModelDisplay = () => {
 		}
 	)
 	const { mutate: handleModelChange } = rpcClient.selectModel.useMutation({
-		onSuccess: () => {
+		onSettled: () => {
 			refetch()
 		},
 	})

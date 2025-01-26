@@ -1,3 +1,4 @@
+import { chatStateAtom } from "@/components/chat-view/atoms"
 import { showSettingsAtom, useExtensionState } from "@/context/extension-state-context"
 import { ProviderId } from "extension/api/providers/constants"
 import {
@@ -101,11 +102,19 @@ export const useRequiredProviderHandler = () => {
 	const setPreferencesView = useSetAtom(preferencesViewAtom)
 	const setProviderSettings = useSetAtom(providerSettingsAtom)
 	const setShowSettings = useSetAtom(showSettingsAtom)
+	const setChatState = useSetAtom(chatStateAtom)
 
 	// type === configureApiRequired
 	useEvent("message", (e: MessageEvent) => {
 		const message = e.data as ExtensionMessage
 		if (message.type === "configureApiRequired") {
+			// unblock chat state
+			setChatState((prev) => ({
+				...prev,
+				inputValue: prev.prevInputValue,
+				selectedImages: prev.prevImages,
+				textAreaDisabled: false,
+			}))
 			setPreferencesView("provider-manager")
 			setProviderSettings(message.providerId ? createDefaultSettings(message.providerId) : null)
 			setShowSettings(true)

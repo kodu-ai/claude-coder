@@ -47,7 +47,7 @@ describe("DiagnosticsHandler POC Tests", () => {
 
 	it("Fetch diagnostics without opening file", async () => {
 		const handler = DiagnosticsHandler.getInstance()
-		const results = await handler.getDiagnostics([testFile], false) // no opening
+		const results = await handler.getDiagnostics([testFile])
 		console.log("Without Opening:", results)
 
 		assert.ok(Array.isArray(results))
@@ -56,7 +56,7 @@ describe("DiagnosticsHandler POC Tests", () => {
 
 	it("Fetch diagnostics after opening file", async () => {
 		const handler = DiagnosticsHandler.getInstance()
-		const results = await handler.getDiagnostics([testFile], true) // open docs first
+		const results = await handler.getDiagnostics([testFile])
 		console.log("With Opening:", results)
 
 		assert.ok(Array.isArray(results))

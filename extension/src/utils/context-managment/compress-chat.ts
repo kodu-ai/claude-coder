@@ -307,7 +307,7 @@ const processContentBlock = async (
 	}
 
 	// Handle write_to_file compression
-	if (content.text.includes("</write_to_file>") && !isToolResponse) {
+	if ((content.text.includes("</write_to_file>") || content.text.includes(`</${KODU_CONTENT}>`)) && !isToolResponse) {
 		const koduContentType = content.text.includes(`</${KODU_CONTENT}>`) ? KODU_CONTENT : "content"
 		const contentStart = content.text.indexOf(`<${koduContentType}>`)
 		const contentEnd = content.text.indexOf(`</${koduContentType}>`)

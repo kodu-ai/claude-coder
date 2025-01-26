@@ -37,7 +37,7 @@ const CreditsInfo: React.FC<CreditsInfoProps> = ({ koduCredits, vscodeUriScheme 
 				marginLeft: "10px",
 				marginRight: "10px",
 			}}>
-			<div style={{ fontWeight: "500" }}>Credits Remaining:</div>
+			<div style={{ fontWeight: "500" }}>Kodu Credits Remaining:</div>
 			<div>
 				{formatPrice(koduCredits || 0)}
 				<>

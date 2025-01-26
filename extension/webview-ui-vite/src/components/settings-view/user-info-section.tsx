@@ -53,7 +53,7 @@ const UserInfoSection: React.FC = () => {
 					</Button>
 				</div>
 				<div className="max-[280px]:mt-2">
-					<p className="text-xs font-medium">Credits remaining</p>
+					<p className="text-xs font-medium">Kodu Credits remaining</p>
 					<p className="text-lg font-bold">{formatPrice(extensionState.user?.credits || 0)}</p>
 				</div>
 			</div>

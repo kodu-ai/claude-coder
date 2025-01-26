@@ -4,6 +4,25 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.2.6] - 2025-01-26
+
+### Fixed
+
+-   Add file editor kodu content to chat compression (help small context window models)
+
+## [2.2.5] - 2025-01-25
+
+### New
+
+-   Visual indicator for diagnostic handler
+-   Better indicators for which model requires api key and how Kodu credit works
+
+### Fixed
+
+-   File rollback using the file editor tool is working as expected
+-   Inline editor properly closes if any of the edits fail
+-   Prevent switching tabs on diagnostic loading
+
 ## [2.2.4] - 2025-01-25
 
 ### Fixed

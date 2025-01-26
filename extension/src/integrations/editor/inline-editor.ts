@@ -585,7 +585,7 @@ export class InlineEditHandler {
 		return { finalContent, results, finalContentRaw }
 	}
 
-	private async closeDiffEditors() {
+	public async closeDiffEditors() {
 		const tabs = vscode.window.tabGroups.all
 			.flatMap((tg) => tg.tabs)
 			.filter(
@@ -664,6 +664,9 @@ export class InlineEditHandler {
 		const isAnyFailed = failedBlocks.length > 0
 		if (isAllFailed) {
 			this.logger("All blocks failed to apply", "warn")
+		}
+		if (isAnyFailed) {
+			this.logger(`${failedBlocks.length} blocks out of ${blocks.length} failed to apply`, "warn")
 			// close the editor if all blocks failed
 			await this.closeDiffEditors()
 			this.dispose()

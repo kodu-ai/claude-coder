@@ -421,12 +421,20 @@ export class MainAgent {
 
 		const diagnosticsHandler = DiagnosticsHandler.getInstance()
 		const files = this.stateManager.historyErrors ? Object.keys(this.stateManager.historyErrors) : []
+		let isShowingDiagnosticsTs: number | undefined
 		if (isLastMsgMutable && files.length > 0) {
+			if (this.taskExecutor.currentStreamTs) {
+				await this.taskExecutor.updateSayPartial(this.taskExecutor.currentStreamTs, {
+					diagnostics: {
+						results: [],
+						state: "pending",
+					},
+				})
+				isShowingDiagnosticsTs = this.taskExecutor.currentStreamTs
+			}
 			// proper delay to make sure that the vscode diagnostics and server logs are updated
 			// open first in memory file to make sure that the diagnostics are updated
-			await diagnosticsHandler.openFiles(files)
-			await diagnosticsHandler.getDiagnostics(files, true)
-			await delay(2_000)
+			await diagnosticsHandler.openFiles(files, true)
 		}
 		const devServers = TerminalRegistry.getAllDevServers()
 		const isDevServerRunning = devServers.length > 0
@@ -484,7 +492,10 @@ export class MainAgent {
 		details += "\n</open_tabs>\n"
 
 		// get the diagnostics errors for all files in the current task
-
+		if (isLastMsgMutable) {
+			// give it ~2 seconds to update the diagnostics
+			await delay(2000)
+		}
 		const diagnostics = await diagnosticsHandler.getDiagnostics(files)
 		const newErrors = diagnostics.filter(
 			(diag) => diag.errorString !== null && diag.errorString !== undefined && diag.errorString !== ""
@@ -497,6 +508,14 @@ export class MainAgent {
 			return acc
 		}, {} as NonNullable<typeof this.stateManager.historyErrors>)
 		this.stateManager.historyErrors = taskErrorsRecord
+		if (isShowingDiagnosticsTs) {
+			await this.taskExecutor.updateSayPartial(isShowingDiagnosticsTs, {
+				diagnostics: {
+					results: newErrors,
+					state: "completed",
+				},
+			})
+		}
 		if (newErrors.length === 0) {
 			console.log(`[ENVIRONMENT DETAILS] No errors found`)
 		} else {

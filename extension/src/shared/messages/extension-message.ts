@@ -276,6 +276,10 @@ export type V1ClaudeMessage = {
 		output: string
 		input: string
 	}
+	diagnostics?: {
+		state: "pending" | "completed"
+		results: { key: string; errorString: string | null }[]
+	}
 	errorText?: string
 	/**
 	 * should be rendered as a sub message or not

@@ -221,6 +221,8 @@ const ChatView: React.FC<ChatViewProps> = ({
 					enableButtons: false,
 					primaryButtonText: undefined,
 					secondaryButtonText: undefined,
+					prevInputValue: state.inputValue,
+					prevImages: state.selectedImages,
 				})
 				setAttachments([])
 			}

@@ -23,13 +23,17 @@ export class TaskExecutor extends TaskExecutorUtils {
 	private streamPaused: boolean = false
 	private textBuffer: string = ""
 	private _currentReplyId: number | null = null
-	private currentStreamTs: number | null = null
+	private _currentStreamTs: number | null = null
 	private pauseNext: boolean = false
 	private lastResultWithCommit: ToolResponseV2 | undefined = undefined
 
 	constructor(stateManager: StateManager, toolExecutor: ToolExecutor, providerRef: WeakRef<ExtensionProvider>) {
 		super(stateManager, providerRef)
 		this.toolExecutor = toolExecutor
+	}
+
+	get currentStreamTs(): number | null {
+		return this._currentStreamTs
 	}
 
 	get currentReplyId(): number | null {
@@ -334,7 +338,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			this.logState("Making Claude API request")
 			// Execute hooks before making the API request
 			const startedReqId = await this.say("api_req_started")
-			this.currentStreamTs = startedReqId
+			this._currentStreamTs = startedReqId
 			if (provider?.koduDev) {
 				const hookContent = await provider.koduDev.executeHooks()
 				if (hookContent) {
@@ -728,7 +732,7 @@ export class TaskExecutor extends TaskExecutorUtils {
 			}
 			await this.stateManager.apiHistoryManager.updateApiHistoryItem(lastMessage.ts, lastMessage)
 		}
-		if (lastMessage?.role === "user" && lastMessage.ts && lastMessage.ts === this.currentStreamTs) {
+		if (lastMessage?.role === "user" && lastMessage.ts && lastMessage.ts === this._currentStreamTs) {
 			// remove the last message from the history
 			await this.stateManager.apiHistoryManager.deleteApiHistoryItem(lastMessage.ts)
 		}

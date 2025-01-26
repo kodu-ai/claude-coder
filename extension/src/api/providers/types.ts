@@ -14,6 +14,7 @@ export interface ModelInfo {
 	cacheWritesPrice?: number
 	supportsPromptCache?: boolean
 	isRecommended?: boolean
+	isThinkingModel?: boolean
 	provider: ProviderId
 }
 
