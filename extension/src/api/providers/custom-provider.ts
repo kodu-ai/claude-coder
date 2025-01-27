@@ -12,7 +12,6 @@ import { PROVIDER_IDS } from "./constants"
 import { calculateApiCost } from "../api-utils"
 import { mistralConfig } from "./config/mistral"
 import { z } from "zod"
-import { mergeAbortSignals, SmartAbortSignal } from "../../shared/utils"
 
 type ExtractCacheTokens = {
 	cacheCreationField: string
@@ -154,6 +153,7 @@ export class CustomApiHandler implements ApiHandler {
 
 		const convertedMessagesFull = convertedMessages.concat(convertToAISDKFormat(messages))
 		const currentModel = this._options.models.find((m) => m.id === modelId) ?? this._options.model
+
 		// const refetchSignal = new SmartAbortSignal(5000)
 		const result = streamText({
 			model: providerToAISDKModel(this._options, modelId),
