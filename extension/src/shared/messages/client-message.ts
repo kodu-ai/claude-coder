@@ -187,6 +187,11 @@ export type clearHistoryMessage = {
 	type: "clearHistory"
 }
 
+export type McpServerMessage = {
+	type: "addMcpServer" | "configureMcpServer" | "removeMcpServer"
+	serverName?: string
+}
+
 export type WebviewMessage =
 	| EnableObserverHookMessage
 	| PromptActions
@@ -209,6 +214,7 @@ export type WebviewMessage =
 	| RenameTask
 	| DebugMessage
 	| customInstructionsMessage
+	| McpServerMessage
 	| {
 			type:
 				| "skipWriteAnimation"

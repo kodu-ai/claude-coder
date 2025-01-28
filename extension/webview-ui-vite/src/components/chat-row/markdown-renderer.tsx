@@ -37,8 +37,8 @@ function cleanMarkdown(markdown?: string) {
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, children }) => {
 	markdown = cleanMarkdown(markdown ?? children)
 	return (
-		<div className="mr-auto p-4 py-0 overflow-hidden">
-			<div className="prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none w-full space-y-1">
+		<div className="w-full px-4 py-2 overflow-hidden">
+			<div className="prose prose-base sm:prose-lg lg:prose-xl dark:prose-invert max-w-none w-full space-y-1">
 				<ReactMarkdown
 					// GFM adds support for tables, strikethrough, and task lists
 					remarkPlugins={[remarkGfm]}
@@ -54,7 +54,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, ch
 							} else {
 								// Inline code block
 								return (
-									<code className="rounded bg-gray-100 dark:bg-gray-800 px-1 py-0.5 font-mono text-sm overflow-auto">
+									<code className="rounded-md bg-gray-100 dark:bg-gray-800 px-1 py-0.5 font-mono text-sm overflow-auto">
 										{children}
 									</code>
 								)

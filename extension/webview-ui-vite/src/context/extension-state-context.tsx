@@ -54,30 +54,31 @@ const currentTaskAtom = atom<HistoryItem | undefined>((get) => {
 
 // Derived atom for the entire state
 export const extensionStateAtom = atom((get) => ({
-	version: get(versionAtom),
-	gitHandlerEnabled: get(gitHandlerEnabledAtom),
-	gitCommitterType: get(gitCommitterTypeAtom),
-	commandTimeout: get(commandTimeoutAtom),
-	terminalCompressionThreshold: get(terminalCompressionThresholdAtom),
-	claudeMessages: get(claudeMessagesAtom),
-	lastShownAnnouncementId: get(lastShownAnnouncementIdAtom),
-	taskHistory: get(taskHistoryAtom),
-	currentContextWindow: get(currentContextWindowAtom),
-	autoSummarize: get(autoSummarizeAtom),
-	currentContextTokens: get(currentContextTokensAtom),
-	currentTask: get(currentTaskAtom),
-	currentTaskId: get(currentTaskIdAtom),
-	inlineEditModeType: get(inlineEditModeTypeAtom),
-	uriScheme: get(uriSchemeAtom),
-	customInstructions: get(customInstructionsAtom),
-	skipWriteAnimation: get(skipWriteAnimationAtom),
-	alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
-	autoCloseTerminal: get(autoCloseTerminalAtom),
-	extensionName: get(extensionNameAtom),
-	apiConfig: get(apiConfigAtom),
-	themeName: get(themeNameAtom),
-	user: get(userAtom),
-	alwaysAllowWriteOnly: get(alwaysAllowApproveOnlyAtom),
+  version: get(versionAtom),
+  gitHandlerEnabled: get(gitHandlerEnabledAtom),
+  gitCommitterType: get(gitCommitterTypeAtom),
+  commandTimeout: get(commandTimeoutAtom),
+  terminalCompressionThreshold: get(terminalCompressionThresholdAtom),
+  claudeMessages: get(claudeMessagesAtom),
+  lastShownAnnouncementId: get(lastShownAnnouncementIdAtom),
+  taskHistory: get(taskHistoryAtom),
+  currentContextWindow: get(currentContextWindowAtom),
+  autoSummarize: get(autoSummarizeAtom),
+  currentContextTokens: get(currentContextTokensAtom),
+  currentTask: get(currentTaskAtom),
+  currentTaskId: get(currentTaskIdAtom),
+  inlineEditModeType: get(inlineEditModeTypeAtom),
+  uriScheme: get(uriSchemeAtom),
+  customInstructions: get(customInstructionsAtom),
+  skipWriteAnimation: get(skipWriteAnimationAtom),
+  alwaysAllowReadOnly: get(alwaysAllowReadOnlyAtom),
+  autoCloseTerminal: get(autoCloseTerminalAtom),
+  extensionName: get(extensionNameAtom),
+  apiConfig: get(apiConfigAtom),
+  themeName: get(themeNameAtom),
+  user: get(userAtom),
+  alwaysAllowWriteOnly: get(alwaysAllowApproveOnlyAtom),
+  mcpServers: get(mcpServersAtom),
 }))
 extensionStateAtom.debugLabel = "extensionState"
 
@@ -108,6 +109,9 @@ terminalCompressionThresholdAtom.debugLabel = "terminalCompressionThreshold"
 
 const apiConfigAtom = atom<GlobalState["apiConfig"] | undefined>(undefined)
 apiConfigAtom.debugLabel = "apiConfig"
+
+const mcpServersAtom = atom<GlobalState["mcpServers"]>({})
+mcpServersAtom.debugLabel = "mcpServers"
 
 const useHandleClaudeMessages = () => {
 	const setClaudeMessages = useSetAtom(claudeMessagesAtom)
@@ -178,7 +182,8 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 	const setExtensionName = useSetAtom(extensionNameAtom)
 	const setTerminalCompressionThreshold = useSetAtom(terminalCompressionThresholdAtom)
 	const setInlineEditModeType = useSetAtom(inlineEditModeTypeAtom)
-
+	const setMcpServers = useSetAtom(mcpServersAtom)
+	
 	const handleMessage = (event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
 
@@ -194,6 +199,7 @@ export const ExtensionStateProvider: React.FC<{ children: React.ReactNode }> = (
 			setTerminalCompressionThreshold(message.state.terminalCompressionThreshold)
 			setAutoSummarize(!!message.state.autoSummarize)
 			setInlineEditModeType(message.state.inlineEditOutputType ?? "full")
+			setMcpServers(message.state.mcpServers ?? {})
 			setLastShownAnnouncementId(message.state.lastShownAnnouncementId)
 			setTaskHistory(message.state.taskHistory)
 			setCurrentContextTokens(message.state.currentContextTokens)

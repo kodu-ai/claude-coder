@@ -18,7 +18,7 @@ export const CodeBlock: React.FC<{ children: string | React.ReactNode; language:
 			// PreTag="div"
 			// CodeTag="code"
 			// // Tailwind classes for spacing, background, rounding
-			className="my-4 overflow-auto w-full p-4 font-mono text-sm"
+			className="my-4 mx-4 overflow-auto w-[calc(100%-2rem)] p-4 font-mono text-base rounded-lg"
 			wrapLines={false}
 			language={language}
 			style={syntaxHighlighter}

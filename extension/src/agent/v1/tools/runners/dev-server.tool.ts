@@ -595,4 +595,15 @@ export class DevServerTool extends BaseAgentTool<ServerRunnerToolParams> {
 			</server_info>
 		</server_tool_response>`
 	}
+
+	async loadMcpServerIcon(url: string): Promise<Buffer> {
+		const browserManager = this.koduDev.browserManager;
+		await browserManager.launchBrowser();
+
+		try {
+			return await browserManager.loadMcpServerIcon(url);
+		} finally {
+			await browserManager.closeBrowser();
+		}
+	}
 }

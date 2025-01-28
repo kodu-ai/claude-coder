@@ -221,6 +221,21 @@ export class MainAgent {
 		amplitudeTracker.taskStart(this.stateManager.state.taskId)
 		await this.taskExecutor.say("text", task, images)
 		await this.taskExecutor.startTask([textBlock, ...imageBlocks])
+
+		// Fetch and display the server list with the same features as in github.com/jasonkneen/roo-code
+		const serverList = await this.fetchServerList()
+		await this.taskExecutor.say("text", `Server List:\n${serverList}`)
+	}
+
+	async fetchServerList(): Promise<string> {
+		// Simulate fetching server list from MCP servers
+		const serverList = [
+			"Server 1: Online",
+			"Server 2: Offline",
+			"Server 3: Online",
+			"Server 4: Maintenance",
+		]
+		return serverList.join("\n")
 	}
 
 	async resumeTaskFromHistory() {

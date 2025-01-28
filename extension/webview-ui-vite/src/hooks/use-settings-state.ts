@@ -3,6 +3,13 @@ import { GlobalState } from "../../../src/providers/state/global-state-manager"
 import { useExtensionState } from "../context/extension-state-context"
 import { vscode } from "../utils/vscode"
 
+interface McpServer {
+	command: string
+	args?: string[]
+	env?: Record<string, string>
+	disabled?: boolean
+}
+
 export function useSettingsState() {
 	const extensionState = useExtensionState()
 	const [readOnly, setReadOnly] = useState(extensionState.alwaysAllowReadOnly || false)
@@ -18,6 +25,7 @@ export function useSettingsState() {
 	const [inlineEditingType, setInlineEditingType] = useState(extensionState.inlineEditModeType || "full")
 	const [customInstructions, setCustomInstructions] = useState(extensionState.customInstructions || "")
 	const [autoSkipWrite, setAutoSkipWrite] = useState(extensionState.skipWriteAnimation || false)
+	const [mcpServers, setMcpServers] = useState<Record<string, McpServer>>(extensionState.mcpServers || {})
 
 	const [terminalCompressionThreshold, setTerminalCompressionThreshold] = useState<number | undefined>(
 		extensionState.terminalCompressionThreshold
@@ -99,6 +107,29 @@ export function useSettingsState() {
 		vscode.postMessage({ type: "terminalCompressionThreshold", value: val })
 	}, [])
 
+	const handleAddMcpServer = useCallback(() => {
+		vscode.postMessage({ type: "addMcpServer" })
+	}, [])
+
+	const handleConfigureMcpServer = useCallback((serverName: string) => {
+		vscode.postMessage({
+			type: "configureMcpServer",
+			serverName
+		})
+	}, [])
+
+	const handleRemoveMcpServer = useCallback((serverName: string) => {
+		vscode.postMessage({
+			type: "removeMcpServer",
+			serverName
+		})
+		setMcpServers(prev => {
+			const next = { ...prev }
+			delete next[serverName]
+			return next
+		})
+	}, [])
+
 	return {
 		readOnly,
 		autoCloseTerminal,
@@ -110,6 +141,7 @@ export function useSettingsState() {
 		terminalCompressionThreshold,
 		inlineEditingType,
 		commandTimeout,
+		mcpServers,
 		handleCommandTimeout,
 		handleInlineEditingTypeChange,
 		handleTerminalCompressionThresholdChange,
@@ -120,5 +152,8 @@ export function useSettingsState() {
 		handleSetGitHandlerEnabled,
 		handleSetGitCommitterType,
 		handleCustomInstructionsChange,
+		handleAddMcpServer,
+		handleConfigureMcpServer,
+		handleRemoveMcpServer,
 	}
 }

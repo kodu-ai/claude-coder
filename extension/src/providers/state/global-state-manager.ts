@@ -22,12 +22,21 @@ const defaults: Partial<GlobalState> = {
 		modelId: "claude-3-5-sonnet-20241022",
 		koduApiKey: "-",
 	},
+	mcpServers: {},
 	disabledTools: [],
+}
+
+export interface McpServer {
+	command: string
+	args?: string[]
+	env?: Record<string, string>
+	disabled?: boolean
 }
 
 export type GlobalState = {
 	user: User | undefined | null
 	terminalCompressionThreshold: number | undefined
+	mcpServers: Record<string, McpServer>
 	lastShownAnnouncementId: string | undefined
 	customInstructions: string | undefined
 	apiConfig?: Partial<ApiConfiguration>
@@ -99,7 +108,7 @@ export class GlobalStateManager {
 		await this.context.globalState.update(key, value)
 	}
 
-	getGlobalState<K extends keyof GlobalState>(key: K): GlobalState[K] {
+	getGlobalState<K extends keyof GlobalState>(key: K): GlobalState[K] | undefined {
 		const keyData = this.context.globalState.get(key)
 		if (keyData === undefined) {
 			return this.getKeyDefaultValue(key)
@@ -113,7 +122,7 @@ export class GlobalStateManager {
 			await this.context.globalState.update(key, undefined)
 		}
 	}
-	private getKeyDefaultValue<K extends keyof GlobalState>(key: K): GlobalState[K] {
+	private getKeyDefaultValue<K extends keyof GlobalState>(key: K): GlobalState[K] | undefined {
 		if (key in defaults) {
 			return defaults[key] as GlobalState[K]
 		}

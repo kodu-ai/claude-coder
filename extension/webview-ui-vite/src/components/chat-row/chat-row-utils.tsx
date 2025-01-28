@@ -70,8 +70,8 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 		<>
 			<div
 				className={cn(
-					"flex items-center w-full text-sm gap-2 overflow-hidden group",
-					"px-2 py-1 bg-card text-card-foreground rounded-sm",
+					"flex items-center w-full text-base gap-2 overflow-hidden group",
+					"px-4 py-2 bg-card text-card-foreground rounded-lg mx-4",
 					"hover:bg-card/80 transition-colors"
 				)}
 				style={{ maxWidth: "100%" }}>
@@ -143,9 +143,9 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 						</TooltipContent>
 						<div className="flex w-full overflow-hidden ml-auto justify-end">
 							<TooltipTrigger
-								className="text-[11px] truncate flex" // w-32 or some fixed width class
+								className="text-sm truncate flex" // w-32 or some fixed width class
 							>
-								<Badge variant="secondary" className="text-[11px] truncate flex">
+								<Badge variant="secondary" className="text-sm truncate flex">
 									<span className="truncate">{agentModelText}</span>
 									{/* {agentModelText} */}
 								</Badge>
@@ -180,7 +180,7 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 	)
 })
 export const TextMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => (
-	<div className="flex text-wrap flex-wrap gap-2">
+	<div className="flex text-wrap flex-wrap gap-2 mx-4">
 		<MarkdownRenderer markdown={message.text || ""} />
 	</div>
 ))
@@ -216,7 +216,7 @@ export const UserFeedbackDiffMessage: React.FC<{
 		<div
 			style={{
 				backgroundColor: "var(--vscode-editor-inactiveSelectionBackground)",
-				borderRadius: "3px",
+				borderRadius: "0.75rem",
 				padding: "8px",
 				whiteSpace: "pre-line",
 				wordWrap: "break-word",
@@ -245,15 +245,15 @@ export const UserFeedbackDiffMessage: React.FC<{
 export function CustomProviderSettingRequired({ text }: { text: string }) {
 	const switchToProvider = useSwitchToProviderManager()
 	return (
-		<div className="border border-destructive/50 rounded-md p-4 max-w-[360px] mx-auto bg-background/5">
+		<div className="border border-destructive/50 rounded-lg p-4 max-w-[360px] mx-4 bg-background/5">
 			<div className="flex items-center space-x-2 text-destructive">
 				<AlertCircle className="h-4 w-4" />
-				<h4 className="font-semibold text-sm">Provider Configuration Required</h4>
+				<h4 className="font-semibold text-base">Provider Configuration Required</h4>
 			</div>
-			<p className="text-destructive/90 text-xs mt-2">
+			<p className="text-destructive/90 text-sm mt-2">
 				Yikes! Looks like you need to configure a custom provider to use this feature.
 			</p>
-			<button className="w-full mt-3 py-1 px-2 text-xs border border-destructive/50 rounded hover:bg-destructive/10 transition-colors">
+			<button className="w-full mt-3 py-1 px-2 text-sm border border-destructive/50 rounded hover:bg-destructive/10 transition-colors">
 				<span
 					onClick={() => {
 						let providerSettings: {
@@ -278,14 +278,14 @@ export function CustomProviderSettingRequired({ text }: { text: string }) {
 export function ErrorMsgComponent({ type }: { type: "unauthorized" | "payment_required" }) {
 	const { uriScheme, extensionName } = useExtensionState()
 	return (
-		<div className="border border-destructive/50 rounded-md p-4 max-w-[360px] mx-auto bg-background/5">
+		<div className="border border-destructive/50 rounded-lg p-4 max-w-[360px] mx-4 bg-background/5">
 			<div className="flex items-center space-x-2 text-destructive">
 				<AlertCircle className="h-4 w-4" />
-				<h4 className="font-semibold text-sm">
+				<h4 className="font-semibold text-base">
 					{type === "unauthorized" ? "Unauthorized Access" : "Payment Required"}
 				</h4>
 			</div>
-			<p className="text-destructive/90 text-xs mt-2">
+			<p className="text-destructive/90 text-sm mt-2">
 				{type === "unauthorized"
 					? "You are not authorized to run this command. Please log in or contact your administrator."
 					: "You have run out of credits. Please contact your administrator."}
