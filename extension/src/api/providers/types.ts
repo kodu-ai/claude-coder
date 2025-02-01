@@ -15,6 +15,7 @@ export interface ModelInfo {
 	supportsPromptCache?: boolean
 	isRecommended?: boolean
 	isThinkingModel?: boolean
+	reasoningEffort?: "low" | "medium" | "high"
 	provider: ProviderId
 }
 

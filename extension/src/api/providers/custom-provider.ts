@@ -76,10 +76,16 @@ const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) 
 			if (!settings.providerSettings.apiKey) {
 				throw new CustomProviderError("OpenAI Missing API key", settings.providerSettings.providerId, modelId)
 			}
+			const openaiModelId = modelId.includes("o3-mini") ? "o3-mini" : modelId
+			const reasoningEffort = modelId.includes("o3-mini")
+				? {
+						reasoningEffort: modelId.includes("high") ? ("high" as const) : ("medium" as const),
+				  }
+				: undefined
 			return createOpenAI({
 				apiKey: settings.providerSettings.apiKey,
 				compatibility: "strict",
-			}).languageModel(modelId)
+			}).languageModel(openaiModelId, reasoningEffort)
 		case PROVIDER_IDS.GOOGLE_GENAI:
 			if (!settings.providerSettings.apiKey) {
 				throw new CustomProviderError(

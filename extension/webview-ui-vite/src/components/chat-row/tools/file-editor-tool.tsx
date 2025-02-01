@@ -21,6 +21,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import MarkdownRenderer from "../markdown-renderer"
 import { getLanguageFromPath } from "@/utils/get-language-from-path"
 import { CodeBlock } from "../code-block"
+import { rpcClient } from "@/lib/rpc-client"
 
 type ApprovalState = ToolAddons["approvalState"]
 
@@ -110,7 +111,16 @@ export const FileEditorTool: React.FC<FileEditorToolParams & ToolAddons> = memo(
 				<div className="flex flex-col space-y-2">
 					<div className="flex items-center gap-2 flex-wrap">
 						<p className="text-xs">
-							<span className="font-semibold">File:</span> {path}
+							<span className="font-semibold">File:</span>
+							<Button
+								onClick={() => {
+									rpcClient.openFile.use({ filePath: path })
+								}}
+								variant="link"
+								size="sm"
+								className="ml-1">
+								{path}
+							</Button>
 						</p>
 						<Badge variant="outline">{modeLabel}</Badge>
 						{notAppliedCount > 0 && (

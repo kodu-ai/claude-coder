@@ -4,6 +4,13 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.2.7] - 2025-02-01
+
+### Added
+
+-   Quick link to open files (edit / read)
+-   o3-mini (high and med) reasoning effort models
+
 ## [2.2.6] - 2025-01-26
 
 ### Fixed
