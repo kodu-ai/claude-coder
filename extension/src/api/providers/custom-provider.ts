@@ -11,6 +11,7 @@ import { customProviderSchema, ModelInfo } from "./types"
 import { PROVIDER_IDS } from "./constants"
 import { calculateApiCost } from "../api-utils"
 import { mistralConfig } from "./config/mistral"
+import { version } from "../../../package.json"
 import { z } from "zod"
 
 type ExtractCacheTokens = {
@@ -111,6 +112,9 @@ const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) 
 				compatibility: "compatible",
 				baseURL: providerSettings.data.baseUrl,
 				name: providerSettings.data.modelId,
+				headers: {
+					"User-Agent": `Kodu/${version}`
+				}
 			}).languageModel(modelId)
 
 		default:
