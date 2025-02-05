@@ -2,13 +2,14 @@ import { ToolPromptSchema } from "../utils/utils"
 
 export const spawnAgentPrompt: ToolPromptSchema = {
 	name: "spawn_agent",
-	description:
-		"Request to spawn a sub task agent with specific instructions and capabilities. This tool allows you to create specialized agents for specific sub tasks like planning, installing dependencies and running unit tests or even exploring the repo and reporting back. The tool requires user approval before creating the agent.",
+	description: `
+		Request to spawn a sub task agent with specific instructions and capabilities. This tool allows you to create specialized agents for specific sub tasks like planning, debugging, installing dependencies and running unit tests or even exploring the repo and reporting back. The tool requires user approval before creating the agent.`,
 	parameters: {
 		agentName: {
 			type: "string",
-			description:
-				"The type of agent to spawn. Must be one of: 'sub_task'. Each type is specialized for different tasks:\n- sub_task: For handling specific sub-components of a larger task",
+			description: `The type of agent to spawn. Must be one of: 'sub_task' or 'print_debugger'. Each type is specialized for different tasks:
+				- sub_task: For handling specific sub-components of a larger task
+				- print_debugger: Specialized for debugging and reporting back the results with a detailed root cause analysis and suggestions`,
 			required: true,
 		},
 		instructions: {
@@ -39,10 +40,10 @@ export const spawnAgentPrompt: ToolPromptSchema = {
 </spawn_agent>`,
 		},
 		{
-			description: "Spawn a planner agent to break down a task",
+			description: "Spawn a print debugger agent to identify the root cause of a bug in the code",
 			output: `<spawn_agent>
-<agentName>planner</agentName>
-<instructions>Create a detailed plan for implementing a new user dashboard feature. Break down the requirements into manageable sub-tasks and identify dependencies.</instructions>
+<agentName>print_debugger</agentName>
+<instructions>...The instructions about the problem, the steps to reproduce, command to execute the code> ...</instructions>
 </spawn_agent>`,
 		},
 	],

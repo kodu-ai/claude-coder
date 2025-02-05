@@ -1,4 +1,5 @@
 import { PLANNER_SYSTEM_PROMPT } from "../../../prompts/agents/planner.prompt"
+import { PRINT_DEBUGGER_SYSTEM_PROMPT } from "../../../prompts/agents/print-debugger.prompt"
 import { SUBTASK_SYSTEM_PROMPT } from "../../../prompts/agents/subtask.prompt"
 import { BaseAgentTool } from "../../base-agent.tool"
 import { SpawnAgentToolParams } from "../../schema/agents/agent-spawner"
@@ -69,6 +70,9 @@ export class SpawnAgentTool extends BaseAgentTool<SpawnAgentToolParams> {
 				break
 			case "sub_task":
 				systemPrompt = SUBTASK_SYSTEM_PROMPT(this.koduDev.getApiManager().getModelInfo()?.supportsImages)
+				break
+			case "print_debugger":
+				systemPrompt = PRINT_DEBUGGER_SYSTEM_PROMPT(this.koduDev.getApiManager().getModelInfo()?.supportsImages)
 				break
 		}
 

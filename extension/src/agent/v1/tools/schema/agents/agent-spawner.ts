@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-export const SpawnAgentOptions = ["coder", "planner", "sub_task"] as const
+export const SpawnAgentOptions = ["coder", "planner", "sub_task", "print_debugger"] as const
 export type SpawnAgentOptions = (typeof SpawnAgentOptions)[number]
 const schema = z.object({
 	agentName: z.enum(SpawnAgentOptions).describe("Name of the sub-agent for identification"),
