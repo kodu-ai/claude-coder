@@ -475,7 +475,7 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 					}}
 					variant="link"
 					size="sm"
-					className="ml-1">
+					className="ml-1 text-start">
 					{path}
 				</Button>
 			</p>

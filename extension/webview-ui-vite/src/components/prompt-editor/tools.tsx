@@ -37,6 +37,8 @@ export const ToolCards = () => {
 		}
 	})
 
+	console.log("tools", tools)
+
 	return (
 		<ScrollArea className="h-[400px] w-full rounded-md border">
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">

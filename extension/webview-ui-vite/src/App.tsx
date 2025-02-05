@@ -12,7 +12,6 @@ import ChatView from "./components/chat-view/chat-view"
 import HistoryView from "./components/history-view/history-view"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import OutOfCreditDialog from "./components/dialogs/out-of-credit-dialog"
 import SettingsPage from "./components/settings-view/settings-tabs"
 import { useAtom } from "jotai"
 import { rpcClient, RPCClientProvider } from "./lib/rpc-client"
@@ -104,7 +103,6 @@ const App = () => {
 							<AppContent />
 						</TooltipProvider>
 					</QueryClientProvider>
-					<OutOfCreditDialog />
 					{/* </Popover> */}
 				</ExtensionStateProvider>
 			</RPCClientProvider>

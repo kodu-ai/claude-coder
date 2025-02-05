@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react"
+import { vscode } from "@/utils/vscode"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Save, Copy, RefreshCw, FolderOpen, X, Fullscreen, FileEdit } from "lucide-react"
@@ -250,6 +251,10 @@ export const PromptEditor: React.FC<PromptEditorProps> = () => {
 	useEffect(() => {
 		// Load the template list on mount
 		promptActions.listTemplates()
+	}, [])
+
+	useEffect(() => {
+		vscode.postMessage({ type: "promptEditorLoaded" })
 	}, [])
 
 	// 7) Save / Load

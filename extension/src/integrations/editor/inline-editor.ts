@@ -73,6 +73,7 @@ export class InlineEditHandler {
 	protected currentDocumentState: DocumentState | undefined
 	private modifiedUri?: vscode.Uri
 	private originalUri?: vscode.Uri
+	private isDisposed: boolean = false
 	private static modifiedContentProvider: ModifiedContentProvider | undefined
 
 	constructor() {
@@ -96,6 +97,10 @@ export class InlineEditHandler {
 
 	public async open(id: string, filePath: string, searchContent: string): Promise<void> {
 		this.logger(`Opening file ${filePath} with id ${id}`, "debug")
+		if (this.isDisposed) {
+			this.logger(`Editor has been disposed, cannot open file`, "error")
+			return
+		}
 		try {
 			if (this.currentDocumentState) {
 				this.logger(`Document already open, no need to open again`, "debug")
@@ -159,7 +164,7 @@ export class InlineEditHandler {
 			`${fileName}: Original ↔ Changes`,
 			{
 				preview: false,
-				preserveFocus: false,
+				preserveFocus: true,
 				viewColumn: vscode.ViewColumn.Active,
 			}
 		)
@@ -540,6 +545,8 @@ export class InlineEditHandler {
 		// open the file itself in a new editor
 		const finalEditor = await vscode.window.showTextDocument(finalDoc, {
 			preview: false,
+			preserveFocus: true,
+
 			viewColumn: vscode.ViewColumn.Active,
 		})
 		// get the content after document is saved to make sure the content is up-to-date + formatted
@@ -596,7 +603,7 @@ export class InlineEditHandler {
 			)
 		for (const tab of tabs) {
 			if (!tab.isDirty) {
-				await vscode.window.tabGroups.close(tab)
+				await vscode.window.tabGroups.close(tab, true)
 			}
 		}
 	}
@@ -684,6 +691,7 @@ export class InlineEditHandler {
 		this.currentDocumentState = undefined
 		this.modifiedUri = undefined
 		this.originalUri = undefined
+		this.isDisposed = true
 	}
 
 	private logger(message: string, level: "info" | "debug" | "warn" | "error" = "debug") {

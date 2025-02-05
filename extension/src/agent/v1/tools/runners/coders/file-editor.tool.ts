@@ -291,8 +291,8 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		this.logger(`Failed count: ${failedCount}, isAllFailed: ${isAllFailed}`, "debug")
 		if (isAnyFailed) {
 			// close the editor if all blocks failed
-			await this.inlineEditor.closeDiffEditors()
 			this.inlineEditor.dispose()
+			await this.inlineEditor.closeDiffEditors()
 			//// disabled for now
 			// if (allowFixed) {
 			// 	// let's show a loading vs code toast

@@ -172,7 +172,7 @@ export class DiffViewProvider {
 			`${fileName}: ${this.originalContent ? "Original ↔ Kodu's Changes" : "New File"} (Editable)`,
 			{
 				preview: true,
-				preserveFocus: false,
+				preserveFocus: true,
 				viewColumn: vscode.ViewColumn.Active,
 				tabOptions: {
 					readonly: true, // Makes the entire diff read-only
@@ -437,7 +437,10 @@ export class DiffViewProvider {
 						await doc.save()
 					}
 					// Show the document to ensure it’s the active editor
-					const editor = await vscode.window.showTextDocument(doc)
+					const editor = await vscode.window.showTextDocument(doc, {
+						preserveFocus: true,
+						preview: false,
+					})
 					// Close the active editor
 					await vscode.commands.executeCommand("workbench.action.closeActiveEditor")
 				} catch (e) {
@@ -452,7 +455,10 @@ export class DiffViewProvider {
 				// we save the file after writing to it
 				await vscode.workspace.save(uri)
 				const finalDoc = await vscode.workspace.openTextDocument(uri)
-				await vscode.window.showTextDocument(finalDoc)
+				await vscode.window.showTextDocument(finalDoc, {
+					preserveFocus: true,
+					preview: false,
+				})
 				finalContent = finalDoc.getText()
 			} catch (error) {
 				throw new Error(`Failed to write file: ${error instanceof Error ? error.message : String(error)}`)
@@ -462,7 +468,10 @@ export class DiffViewProvider {
 			await this.closeAllDiffViews()
 
 			// open document again
-			await vscode.window.showTextDocument(uri)
+			await vscode.window.showTextDocument(uri, {
+				preserveFocus: true,
+				preview: false,
+			})
 
 			// Compare contents and create patch if needed
 			const normalizedEditedContent = finalContentBeforeSave.replace(/\r\n|\n/g, "\n").trimEnd() + "\n"
@@ -507,7 +516,7 @@ export class DiffViewProvider {
 			)
 		for (const tab of tabs) {
 			if (!tab.isDirty) {
-				await vscode.window.tabGroups.close(tab)
+				await vscode.window.tabGroups.close(tab, true)
 			}
 		}
 	}

@@ -264,6 +264,16 @@ ${this.customInstructions.trim()}
 					if (streamError instanceof Error && streamError.message === "aborted") {
 						throw new KoduError({ code: 1 })
 					}
+					if (streamError instanceof AxiosError && streamError.response?.status === 401) {
+						throw new KoduError({ code: 401 })
+					}
+					if (streamError instanceof AxiosError && streamError.response?.status === 402) {
+						throw new KoduError({ code: 402 })
+					}
+					if (streamError instanceof AxiosError) {
+						// convert axios error to kodu error
+						throw new KoduError({ code: streamError.response?.status || 500 })
+					}
 					if (
 						[
 							"maximum context length",

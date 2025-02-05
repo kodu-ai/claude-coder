@@ -46,9 +46,14 @@ export class DiagnosticsHandler {
 
 	public async openFiles(paths: string[], loadDiagnostics: boolean): Promise<void> {
 		for (const filePath of paths) {
-			const fullPath = path.resolve(getCwd(), filePath)
-			const uri = vscode.Uri.file(fullPath)
-			const doc = await vscode.workspace.openTextDocument(uri)
+			try {
+				const fullPath = path.resolve(getCwd(), filePath)
+				const uri = vscode.Uri.file(fullPath)
+				const doc = await vscode.workspace.openTextDocument(uri)
+			} catch (err) {
+				//this might error if the file is deleted
+				console.error(err)
+			}
 		}
 		if (loadDiagnostics) {
 			await Promise.allSettled(
@@ -67,6 +72,11 @@ export class DiagnosticsHandler {
 				try {
 					const fullPath = path.resolve(getCwd(), filePath)
 					const uri = vscode.Uri.file(fullPath)
+					// first access the document to ensure the path actually exists
+					const fileExists = fs.existsSync(uri.fsPath)
+					if (!fileExists) {
+						return { key: filePath, errorString: null }
+					}
 					await vscode.workspace.openTextDocument(uri)
 					const diagnostics = vscode.languages.getDiagnostics(uri)
 					const errors = diagnostics.filter((diag) => diag.severity === vscode.DiagnosticSeverity.Error)

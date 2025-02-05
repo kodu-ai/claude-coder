@@ -4,6 +4,19 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.2.8] - 2025-02-06
+
+### Added
+
+-   Added latest Gemini models (Flash 2, Pro 2)
+
+### Fixed
+
+-   Improved focus retention on file edits
+-   Improved error logging and error messages on UI
+-   Bug fixed prompt editor onload
+-   Bug fixed diagnostic handler with deleted files
+
 ## [2.2.7] - 2025-02-01
 
 ### Added
