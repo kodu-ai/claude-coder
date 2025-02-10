@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from "react"
 import { useEvent } from "react-use"
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
-import { ClaudeMessage, ExtensionMessage } from "../../../src/shared/messages/extension-message"
+import { ClaudeMessage, ExtensionMessage } from "extension/shared/messages/extension-message"
 import { vscode } from "../utils/vscode"
-import { HistoryItem } from "../../../src/shared/history-item"
-import type { GlobalState } from "../../../src/providers/state/global-state-manager"
+import { HistoryItem } from "extension/shared/history-item"
+import type { GlobalState } from "extension/providers/state/global-state-manager"
 import { useState } from "react"
 
 // Define atoms for each piece of state

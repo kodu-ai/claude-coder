@@ -8,7 +8,6 @@
 		Please try again with the correct query, you are not allowed to search without a query.`
 		return this.toolResponse("error", errorMsg)
 =======
->>>>>>> updated
 		const errorMsg = `
 		<consultant_tool_response>
 			<status>
@@ -31,12 +30,11 @@
 			</error_details>
 		</consultant_tool_response>`
 		return this.toolResponse("error", errorMsg)
-=======
+>>>>>>> updated
 <<<<<<< HEAD
 				const errorMsg = `Consultant failed to answer your question.`
 				return this.toolResponse("error", errorMsg)
 =======
->>>>>>> updated
 				const errorMsg = `
 				<consultant_tool_response>
 					<status>
@@ -54,12 +52,11 @@
 					</error_details>
 				</consultant_tool_response>`
 				return this.toolResponse("error", errorMsg)
-=======
+>>>>>>> updated
 <<<<<<< HEAD
 			const result = `This is the advice from the consultant: ${response.result}`
 			return this.toolResponse("success", result)
 =======
->>>>>>> updated
 			const result = `
 			<consultant_tool_response>
 				<status>
@@ -79,12 +76,11 @@
 				</interaction>
 			</consultant_tool_response>`
 			return this.toolResponse("success", result)
-=======
+>>>>>>> updated
 <<<<<<< HEAD
 			const errorMsg = `Consultant failed to answer your question with the error: ${err}`
 			return this.toolResponse("error", errorMsg)
 =======
->>>>>>> updated
 			const errorMsg = `
 			<consultant_tool_response>
 				<status>
@@ -103,11 +99,10 @@
 				</error_details>
 			</consultant_tool_response>`
 			return this.toolResponse("error", errorMsg)
-=======
+>>>>>>> updated
 <<<<<<< HEAD
 			return this.toolResponse("feedback", this.formatGenericToolFeedback(text), images)
 =======
->>>>>>> updated
 			return this.toolResponse(
 				"feedback",
 				`<consultant_tool_response>
@@ -124,11 +119,10 @@
 				</consultant_tool_response>`,
 				images
 			)
-=======
+>>>>>>> updated
 <<<<<<< HEAD
 		return this.toolResponse("rejected", this.formatGenericToolFeedback())
 =======
->>>>>>> updated
 		return this.toolResponse(
 			"rejected",
 			`<consultant_tool_response>
@@ -143,3 +137,4 @@
 				</rejection_details>
 			</consultant_tool_response>`
 		)
+>>>>>>> updated

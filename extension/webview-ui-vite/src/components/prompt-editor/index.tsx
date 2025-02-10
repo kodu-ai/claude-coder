@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
 import ToolCards from "./tools"
 import { useAtom } from "jotai"
 import { currentPromptContentAtom, isCurrentPreviewAtom } from "./utils"
-import { editorVariable, TEMPLATE_PLACEHOLDERS, TemplateInfo } from "../../../../src/shared/agent/prompt"
+import { editorVariable, TEMPLATE_PLACEHOLDERS, TemplateInfo } from "extension/shared/agent/prompt"
 
 // 1) REGISTER YOUR CUSTOM LANGUAGE (without defining a theme).
 //    This still enables syntax highlighting for your placeholders.

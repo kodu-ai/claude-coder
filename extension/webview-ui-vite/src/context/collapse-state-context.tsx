@@ -1,5 +1,5 @@
 import React, { createContext, useState, useCallback } from "react"
-import { ClaudeMessage, isV1ClaudeMessage } from "../../../src/shared/messages/extension-message"
+import { ClaudeMessage, isV1ClaudeMessage } from "extension/shared/messages/extension-message"
 
 interface CollapseContextType {
 	collapsedMessages: Set<number>

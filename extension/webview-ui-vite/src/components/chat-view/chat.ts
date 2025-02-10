@@ -1,4 +1,4 @@
-import { ClaudeAsk } from "../../../../src/shared/messages/extension-message"
+import { ClaudeAsk } from "extension/shared/messages/extension-message"
 
 export interface ChatViewProps {
 	isHidden: boolean

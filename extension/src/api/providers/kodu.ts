@@ -1,5 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import axios, { CancelTokenSource } from "axios"
+import axios from "axios"
 import { ApiConstructorOptions, ApiHandler, ApiHandlerOptions, withoutImageData } from ".."
 import {
 	KODU_ERROR_CODES,
@@ -38,7 +38,7 @@ export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 
 export class KoduHandler implements ApiHandler {
 	private _options: ApiConstructorOptions
-	private cancelTokenSource: CancelTokenSource | null = null
+	private abortController: AbortController | null = null
 
 	get options() {
 		return this._options
@@ -49,9 +49,9 @@ export class KoduHandler implements ApiHandler {
 	}
 
 	async abortRequest(): Promise<void> {
-		if (this.cancelTokenSource) {
-			this.cancelTokenSource.cancel("Request aborted by user")
-			this.cancelTokenSource = null
+		if (this.abortController) {
+			this.abortController.abort("Request aborted by user")
+			this.abortController = null
 		}
 	}
 
@@ -133,7 +133,7 @@ export class KoduHandler implements ApiHandler {
 			top_p: top_p ?? undefined,
 			stop_sequences: ["</kodu_action>"],
 		}
-		this.cancelTokenSource = axios.CancelToken.source()
+		this.abortController = new AbortController()
 
 		const response = await axios.post(
 			getKoduInferenceUrl(),
@@ -147,7 +147,7 @@ export class KoduHandler implements ApiHandler {
 					"continue-generation": "true",
 				},
 				responseType: "stream",
-				signal: abortSignal ?? undefined,
+				signal: abortSignal ?? this.abortController.signal,
 				timeout: 60_000,
 			}
 		)
@@ -222,51 +222,6 @@ export class KoduHandler implements ApiHandler {
 		return {
 			id: this._options.model.id,
 			info: this._options.model,
-		}
-	}
-
-	async *sendWebSearchRequest(
-		searchQuery: string,
-		baseLink?: string,
-		browserModel?: string,
-		browserMode?: string,
-		abortSignal?: AbortSignal
-	): AsyncIterable<WebSearchResponseDto> {
-		const response = await axios.post(
-			getKoduWebSearchUrl(),
-			{
-				searchQuery,
-				baseLink,
-				browserModel,
-				browserMode,
-			},
-			{
-				headers: {
-					"Content-Type": "application/json",
-					"x-api-key": this._options.providerSettings.apiKey || "",
-				},
-				timeout: 60_000,
-				responseType: "stream",
-				signal: abortSignal ?? undefined,
-			}
-		)
-
-		if (response.data) {
-			const reader = response.data
-			const decoder = new TextDecoder("utf-8")
-			let buffer = ""
-
-			for await (const chunk of reader) {
-				buffer += decoder.decode(chunk, { stream: true })
-				const lines = buffer.split("\n\n")
-				buffer = lines.pop() || ""
-				for (const line of lines) {
-					if (line.startsWith("data: ")) {
-						const eventData = JSON.parse(line.slice(6)) as WebSearchResponseDto
-						yield eventData
-					}
-				}
-			}
 		}
 	}
 }

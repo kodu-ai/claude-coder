@@ -9,7 +9,7 @@ import { Virtuoso } from "react-virtuoso"
 import Fuse, { FuseResult } from "fuse.js"
 import HistoryItem from "./history-item"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
-import { type HistoryItem as HistoryItemT } from "../../../../src/shared/history-item"
+import { type HistoryItem as HistoryItemT } from "extension/shared/history-item"
 import {
 	Dialog,
 	DialogClose,
@@ -20,7 +20,6 @@ import {
 	DialogTrigger,
 } from "../ui/dialog"
 import { ArchiveRestore } from "lucide-react"
-import { WebviewTransport, createAppClient } from "../../../../src/shared/rpc-client"
 import { rpcClient } from "@/lib/rpc-client"
 type SortOption = "newest" | "oldest" | "mostExpensive" | "mostTokens" | "mostRelevant"
 
@@ -84,63 +83,118 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 	// Create a typed client *only using the type* AppRouter
 	const { taskHistory } = useExtensionState()
 	const [searchQuery, setSearchQuery] = useState("")
+	const [debouncedQuery, setDebouncedQuery] = useState("")
+
+	// Debounce search input
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setDebouncedQuery(searchQuery)
+		}, 100) // 100ms debounce
+
+		return () => clearTimeout(timer)
+	}, [searchQuery])
 	const [sortOption, setSortOption] = useState<SortOption>("newest")
 	const [lastNonRelevantSort, setLastNonRelevantSort] = useState<SortOption | null>("newest")
 	const { mutate: restoreTaskFromDisk } = rpcClient.restoreTaskFromDisk.useMutation({})
 
 	useEffect(() => {
-		if (searchQuery && sortOption !== "mostRelevant" && !lastNonRelevantSort) {
+		if (debouncedQuery && sortOption !== "mostRelevant" && !lastNonRelevantSort) {
 			setLastNonRelevantSort(sortOption)
 			setSortOption("mostRelevant")
-		} else if (!searchQuery && sortOption === "mostRelevant" && lastNonRelevantSort) {
+		} else if (!debouncedQuery && sortOption === "mostRelevant" && lastNonRelevantSort) {
 			setSortOption(lastNonRelevantSort)
 			setLastNonRelevantSort(null)
 		}
-	}, [searchQuery, sortOption, lastNonRelevantSort])
+	}, [debouncedQuery, sortOption, lastNonRelevantSort])
 
 	const presentableTasks = useMemo(() => {
 		return taskHistory.filter((item) => item.ts && item.task)
 	}, [taskHistory])
 
 	const fuse = useMemo(() => {
-		return new Fuse(presentableTasks, {
-			keys: ["task", "name"],
-			threshold: 0.7,
-			shouldSort: true,
+		// Pre-process tasks to create searchable text
+		const processedTasks = presentableTasks.map((task) => ({
+			...task,
+			searchText: `${task.task} ${task.name || ""}`.toLowerCase(),
+		}))
+
+		return new Fuse(processedTasks, {
+			keys: ["searchText"],
+			threshold: 0.3,
+			shouldSort: false,
 			isCaseSensitive: false,
-			ignoreLocation: false,
+			ignoreLocation: true,
 			includeMatches: true,
-			minMatchCharLength: 1,
+			minMatchCharLength: 2,
+			distance: 20, // Reduced distance for better performance
 		})
 	}, [presentableTasks])
 
 	const taskHistorySearchResults = useMemo(() => {
-		const results = searchQuery ? highlight(fuse.search(searchQuery)) : presentableTasks
+		const trimmedQuery = debouncedQuery.trim().toLowerCase()
+		let results: HistoryItemT[] = []
 
-		results.sort((a, b) => {
-			switch (sortOption) {
-				case "oldest":
-					return a.ts - b.ts
-				case "mostExpensive":
-					return (b.totalCost || 0) - (a.totalCost || 0)
-				case "mostTokens":
-					return (
-						(b.tokensIn || 0) +
-						(b.tokensOut || 0) +
-						(b.cacheWrites || 0) +
-						(b.cacheReads || 0) -
-						((a.tokensIn || 0) + (a.tokensOut || 0) + (a.cacheWrites || 0) + (a.cacheReads || 0))
-					)
-				case "mostRelevant":
-					return searchQuery ? 0 : b.ts - a.ts
-				case "newest":
-				default:
-					return b.ts - a.ts
+		if (trimmedQuery) {
+			// Quick exact match check first
+			const exactMatches = presentableTasks.filter(
+				(task) =>
+					task.task.toLowerCase().includes(trimmedQuery) ||
+					(task.name && task.name.toLowerCase().includes(trimmedQuery))
+			)
+
+			if (exactMatches.length > 0) {
+				results = exactMatches
+			} else {
+				// Fall back to fuzzy search with limit
+				const searchResults = fuse.search(trimmedQuery).slice(0, 50) // Limit results after search
+				results = highlight(searchResults)
 			}
-		})
+
+			// Apply relevance sorting if needed
+			if (sortOption === "mostRelevant") {
+				results.sort((a, b) => {
+					// Prioritize exact matches in task or name
+					const aTaskMatch = a.task.toLowerCase().includes(trimmedQuery)
+					const bTaskMatch = b.task.toLowerCase().includes(trimmedQuery)
+					const aNameMatch = (a.name || "").toLowerCase().includes(trimmedQuery)
+					const bNameMatch = (b.name || "").toLowerCase().includes(trimmedQuery)
+
+					if (aTaskMatch !== bTaskMatch) return aTaskMatch ? -1 : 1
+					if (aNameMatch !== bNameMatch) return aNameMatch ? -1 : 1
+
+					// Then by timestamp for equal matches
+					return (b.ts ?? 0) - (a.ts ?? 0)
+				})
+			}
+		} else {
+			results = [...presentableTasks]
+		}
+
+		// Apply standard sorting if not using relevance or no search query
+		if (sortOption !== "mostRelevant" || !trimmedQuery) {
+			results.sort((a, b) => {
+				switch (sortOption) {
+					case "oldest":
+						return a.ts - b.ts
+					case "mostExpensive":
+						return (b.totalCost ?? 0) - (a.totalCost ?? 0)
+					case "mostTokens": {
+						const getTokenCount = (item: HistoryItemT) =>
+							(item.tokensIn ?? 0) +
+							(item.tokensOut ?? 0) +
+							(item.cacheWrites ?? 0) +
+							(item.cacheReads ?? 0)
+						return getTokenCount(b) - getTokenCount(a)
+					}
+					case "newest":
+					default:
+						return b.ts - a.ts
+				}
+			})
+		}
 
 		return results
-	}, [presentableTasks, searchQuery, fuse, sortOption])
+	}, [presentableTasks, debouncedQuery, fuse, sortOption])
 
 	return (
 		<div className="fixed inset-0 flex flex-col overflow-hidden">

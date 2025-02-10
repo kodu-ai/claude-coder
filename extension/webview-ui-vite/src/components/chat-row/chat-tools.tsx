@@ -42,7 +42,7 @@ import {
 	ServerRunnerTool,
 	UrlScreenshotTool,
 	SubmitReviewTool,
-} from "../../../../src/shared/new-tools"
+} from "extension/shared/new-tools"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"

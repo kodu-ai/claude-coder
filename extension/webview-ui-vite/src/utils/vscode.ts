@@ -1,4 +1,4 @@
-import { AmplitudeWebviewMessage, WebviewMessage } from "../../../src/shared/messages/client-message"
+import { AmplitudeWebviewMessage, WebviewMessage } from "extension/shared/messages/client-message"
 import type { WebviewApi } from "vscode-webview"
 
 /**

@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Resource } from "../../../../src/shared/messages/client-message"
+import { Resource } from "extension/shared/messages/client-message"
 
 type AttachedResourcesProps = {
 	resources: Resource[]

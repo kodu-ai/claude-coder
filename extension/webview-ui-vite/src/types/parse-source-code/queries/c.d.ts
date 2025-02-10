@@ -1,0 +1,2 @@
+declare const _default: "\n(struct_specifier name: (type_identifier) @name.definition.class body:(_)) @definition.class\n\n(declaration type: (union_specifier name: (type_identifier) @name.definition.class)) @definition.class\n\n(function_declarator declarator: (identifier) @name.definition.function) @definition.function\n\n(type_definition declarator: (type_identifier) @name.definition.type) @definition.type\n";
+export default _default;

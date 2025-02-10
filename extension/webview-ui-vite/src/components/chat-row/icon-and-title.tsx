@@ -1,5 +1,5 @@
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react"
-import { ClaudeAsk, ClaudeSay } from "../../../../src/shared/messages/extension-message"
+import { ClaudeAsk, ClaudeSay } from "extension/shared/messages/extension-message"
 
 interface IconAndTitleProps {
 	type: ClaudeAsk | ClaudeSay | undefined

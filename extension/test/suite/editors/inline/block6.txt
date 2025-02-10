@@ -11,7 +11,6 @@ import os
 
 def get_user_info():
 =======
->>>>>>> updated
 """
 Interactive Personality Greeter and CTF Challenge
 
@@ -62,7 +61,7 @@ def get_user_info():
         - Question order is deterministic per installation
         - All outputs are flushed to ensure reliable interaction
     """
-=======
+>>>>>>> updated
 <<<<<<< HEAD
     # Ask all questions in our determined order
     for question, q_type in questions:
@@ -88,7 +87,6 @@ def get_user_info():
                         print("Your wisdom and experience are valuable!", flush=True)
                     break
 =======
->>>>>>> updated
     # Ask all questions in our determined order
     for question, q_type in questions:
         # Ask the question and ensure proper output flushing
@@ -128,7 +126,7 @@ def get_user_info():
                         print("🌟 A lifetime of wisdom! You've collected so many amazing stories,", flush=True)
                         print("and there's still so much more to explore! 🎨", flush=True)
                     break
-=======
+>>>>>>> updated
 <<<<<<< HEAD
         else:
             # Generic response for other questions
@@ -136,7 +134,6 @@ def get_user_info():
         
         sys.stdout.flush()
 =======
->>>>>>> updated
         else:
             # Enhanced responses for other questions
             if q_type == "color":
@@ -150,3 +147,4 @@ def get_user_info():
                 print("Thank you for sharing a piece of your world with me! ✨", flush=True)
         
         sys.stdout.flush()
+>>>>>>> updated

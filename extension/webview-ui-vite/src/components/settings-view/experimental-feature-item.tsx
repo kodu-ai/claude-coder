@@ -2,17 +2,8 @@ import React from "react"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
-import { GlobalState } from "../../../../src/providers/state/global-state-manager"
 import { cn } from "@/lib/utils"
-
-interface ExperimentalFeature {
-	id: keyof GlobalState
-	label: string
-	description: string
-	disabled?: boolean
-	comingSoon?: boolean
-	dangerous?: string
-}
+import { ExperimentalFeature } from "./types"
 
 interface ExperimentalFeatureItemProps {
 	feature: ExperimentalFeature

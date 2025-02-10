@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { VSCodeButton, VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 import { formatPrice } from "../settings-view/utils"
-import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
+import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduReferUrl, getKoduSignInUrl } from "extension/shared/kodu"
 import { useExtensionState } from "@/context/extension-state-context"
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover"
 import { Button } from "../ui/button"

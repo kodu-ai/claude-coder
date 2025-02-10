@@ -1,15 +1,13 @@
 "use client"
 
-import React, { memo, useEffect, useState } from "react"
+import React, { memo } from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 
-import { useSettingsState } from "../../../hooks/use-settings-state"
 import { ModelSelector } from "./model-picker"
 import { rpcClient } from "@/lib/rpc-client"
 import ProviderManager from "./provider-manager"
 import { useAtom, useAtomValue } from "jotai"
 import { preferencesViewAtom } from "./atoms"
-import { useUnmount } from "@/hooks/use-unmount"
 
 /**
  * PreferencesTab

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useEvent } from "react-use"
-import { ExtensionMessage } from "../../src/shared/messages/extension-message"
+import { ExtensionMessage } from "extension/shared/messages/extension-message"
 import {
 	ExtensionStateProvider,
 	showSettingsAtom,

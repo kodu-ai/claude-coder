@@ -1,4 +1,3 @@
-import { CancelTokenSource } from "axios"
 import { ApiConstructorOptions, ApiHandler, ApiHandlerOptions } from ".."
 import { koduSSEResponse } from "../../shared/kodu"
 import { CoreMessage, smoothStream, streamText } from "ai"
@@ -113,8 +112,8 @@ const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) 
 				baseURL: providerSettings.data.baseUrl,
 				name: providerSettings.data.modelId,
 				headers: {
-					"User-Agent": `Kodu/${version}`
-				}
+					"User-Agent": `Kodu/${version}`,
+				},
 			}).languageModel(modelId)
 
 		default:
@@ -124,7 +123,7 @@ const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) 
 
 export class CustomApiHandler implements ApiHandler {
 	private _options: ApiConstructorOptions
-	private cancelTokenSource: CancelTokenSource | null = null
+	private abortController: AbortController | null = null
 
 	get options() {
 		return this._options
@@ -135,9 +134,9 @@ export class CustomApiHandler implements ApiHandler {
 	}
 
 	async abortRequest(): Promise<void> {
-		if (this.cancelTokenSource) {
-			this.cancelTokenSource.cancel("Request aborted by user")
-			this.cancelTokenSource = null
+		if (this.abortController) {
+			this.abortController.abort("Request aborted by user")
+			this.abortController = null
 		}
 	}
 

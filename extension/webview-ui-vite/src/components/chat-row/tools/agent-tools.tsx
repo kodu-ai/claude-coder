@@ -1,5 +1,5 @@
 import React from "react"
-import { SpawnAgentTool, ExitAgentTool } from "../../../../../src/shared/new-tools"
+import { SpawnAgentTool, ExitAgentTool } from "extension/shared/new-tools"
 import { ToolAddons, ToolBlock } from "../chat-tools"
 import { Bot, LogOut } from "lucide-react"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"

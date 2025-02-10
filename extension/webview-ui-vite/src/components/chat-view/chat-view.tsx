@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { ChatState, ChatViewProps } from "./chat"
-import { isV1ClaudeMessage } from "../../../../src/shared/messages/extension-message"
+import { isV1ClaudeMessage } from "extension/shared/messages/extension-message"
 import { useAtom } from "jotai"
 import { attachmentsAtom, chatStateAtom, syntaxHighlighterAtom } from "./atoms"
 import { useExtensionState } from "@/context/extension-state-context"

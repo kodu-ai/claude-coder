@@ -4,7 +4,7 @@
  * token calculations, and conversation history management.
  */
 
-import { AxiosError } from "axios"
+import axios from "axios"
 import { ApiConstructorOptions, ApiHandler, buildApiHandler } from "."
 import { ExtensionProvider } from "../providers/extension-provider"
 import { KoduError, koduSSEResponse } from "../shared/kodu"
@@ -13,7 +13,6 @@ import { ApiHistoryItem } from "../agent/v1/types"
 import { isTextBlock } from "../agent/v1/utils"
 
 // Imported utility functions
-import { calculateApiCost } from "./api-utils"
 import { processConversationHistory, manageContextWindow } from "./conversation-utils"
 import { mainPrompts } from "../agent/v1/prompts/main.prompt"
 import dedent from "dedent"
@@ -190,7 +189,7 @@ ${this.customInstructions.trim()}
 		}
 
 		let lastMessageAt = 0
-		const TIMEOUT_MS = 20_000 // 10 seconds
+		const TIMEOUT_MS = 60_000 // 60 seconds
 		const STARTED_AT = Date.now()
 		const checkInactivity = setInterval(() => {
 			const timeSinceLastMessage = Date.now() - lastMessageAt
@@ -264,13 +263,13 @@ ${this.customInstructions.trim()}
 					if (streamError instanceof Error && streamError.message === "aborted") {
 						throw new KoduError({ code: 1 })
 					}
-					if (streamError instanceof AxiosError && streamError.response?.status === 401) {
-						throw new KoduError({ code: 401 })
-					}
-					if (streamError instanceof AxiosError && streamError.response?.status === 402) {
-						throw new KoduError({ code: 402 })
-					}
-					if (streamError instanceof AxiosError) {
+					if (axios.isAxiosError(streamError)) {
+						if (streamError.response?.status === 401) {
+							throw new KoduError({ code: 401 })
+						}
+						if (streamError.response?.status === 402) {
+							throw new KoduError({ code: 402 })
+						}
 						// convert axios error to kodu error
 						throw new KoduError({ code: streamError.response?.status || 500 })
 					}
@@ -300,7 +299,7 @@ ${this.customInstructions.trim()}
 			if (error instanceof Error && error.message === "aborted") {
 				error = new KoduError({ code: 1 })
 			}
-			if (error instanceof AxiosError) {
+			if (axios.isAxiosError(error)) {
 				error = new KoduError({ code: 1 })
 			}
 			this.handleStreamError(error)
@@ -386,7 +385,7 @@ ${this.customInstructions.trim()}
 			throw error
 		}
 
-		if (error instanceof AxiosError) {
+		if (axios.isAxiosError(error)) {
 			throw new KoduError({
 				code: error.response?.status || 500,
 			})

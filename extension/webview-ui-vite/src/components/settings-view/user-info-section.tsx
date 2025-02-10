@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { useExtensionState } from "../../context/extension-state-context"
 import { vscode } from "@/utils/vscode"
 import { formatPrice } from "./utils"
-import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduSignInUrl } from "../../../../src/shared/kodu"
+import { getKoduAddCreditsUrl, getKoduOfferUrl, getKoduSignInUrl } from "extension/shared/kodu"
 import { GiftIcon, KeyIcon } from "lucide-react"
 
 const UserInfoSection: React.FC = () => {
