@@ -65,7 +65,7 @@ export const fileEditorPrompt: ToolPromptSchema = {
     1. **Gather all changes first**: Apply them in a single transaction to reduce file writes.
     2. **Think carefully before calling the tool**: Plan your edits in <thinking>...</thinking> to confirm exactly what lines to change.
     3. **No placeholders** in the final snippets for "edit" or "whole_write" modes. Provide exact text.
-	4. **Think carefully about the file content and type**: You should think carefully about the type of file we are editing and match the editing accordingly.
+	4. **Think carefully about the file content and file type**: You should think carefully about the type of file we are editing and match the editing accordingly.
 	For example for typescript files, you should be careful about the syntax and indentatio and typing.
 	For python files, you should be careful about the syntax and indentation, python is very sensitive to indentation and whitespace and can break if misaligned or misused.
 	For react files, you should be careful about the syntax and indentation and the JSX syntax, remember to close all tags and use the correct syntax, don't forget the best practices and the react hooks.

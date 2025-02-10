@@ -4,6 +4,14 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.2.9] - 2025-02-10
+
+### Changed
+
+-   adjust file editor system prompt to write better inline edits
+-   adjust file editor inline editor algorithm and testing
+-   adjust task history search algorithm
+
 ## [2.2.8] - 2025-02-06
 
 ### Added
