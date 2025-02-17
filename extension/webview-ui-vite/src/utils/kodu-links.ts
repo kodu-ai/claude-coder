@@ -1,4 +1,4 @@
-import { getKoduSignInUrl } from "../../../src/shared/kodu"
+import { getKoduSignInUrl } from "extension/shared/kodu"
 import { vscode } from "./vscode"
 
 export const loginKodu = (props: { uriScheme: string; extensionName: string; isPostTrial?: boolean }) => {

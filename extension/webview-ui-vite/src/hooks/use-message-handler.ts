@@ -5,9 +5,9 @@ import {
 	ClaudeSay,
 	ExtensionMessage,
 	isV1ClaudeMessage,
-} from "../../../src/shared/messages/extension-message"
-import { ChatTool } from "../../../src/shared/new-tools"
-import { Resource } from "../../../src/shared/messages/client-message"
+} from "extension/shared/messages/extension-message"
+import { ChatTool } from "extension/shared/new-tools"
+import { Resource } from "extension/shared/messages/client-message"
 import { useEvent } from "react-use"
 
 export const useChatMessageHandling = (

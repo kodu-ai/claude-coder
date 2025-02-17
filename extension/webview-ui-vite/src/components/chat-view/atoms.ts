@@ -2,7 +2,7 @@
 import { atom, PrimitiveAtom } from "jotai"
 
 import vsDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus"
-import { Resource } from "../../../../src/shared/messages/client-message"
+import { Resource } from "extension/shared/messages/client-message"
 import { ChatState } from "./chat"
 import { SetStateAction } from "react"
 

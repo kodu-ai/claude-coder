@@ -429,3 +429,25 @@ export class ToolParser {
 }
 
 export default ToolParser
+// const parser = new ToolParser(
+// 	tools.map((t) => t.schema),
+// 	{
+// 		onToolUpdate: async (id, toolName, params, ts) => {
+// 			console.log(params.content)
+// 		},
+// 		onToolEnd: async (id, toolName, params, ts) => {
+// 			console.log("End:", { id, toolName, params, ts })
+// 		},
+// 		onToolError: async (id, toolName, error, ts) => {
+// 			console.error("Error:", { id, toolName, error, ts })
+// 		},
+// 		onToolClosingError: async (error) => {
+// 			console.error("Closing Error:", error)
+// 		},
+// 	}
+// )
+
+// const input = `<kodu_action><attempt_completion><result>**Warning:** CodeGate detected one or more malicious, deprecated or archived packages.\n- Pkg 1: [https://www.insight.stacklok.com/report/pypi/malicious-pypi-dummy](https://www.insight.stacklok.com/report/pypi/malicious-pypi-dummy?utm_source=codegate)\n\nYou should not use the \`malicious-pypi-dummy\` package as it has been identified as malicious. Using such packages can expose your application to security vulnerabilities and potential risks. It is advisable to look for alternative packages that are well-reviewed and maintained.</result></attempt_completion></kodu_action>`
+
+// parser.appendText(input)
+// parser.endParsing()

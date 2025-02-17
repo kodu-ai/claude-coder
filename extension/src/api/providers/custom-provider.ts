@@ -1,4 +1,3 @@
-import { CancelTokenSource } from "axios"
 import { ApiConstructorOptions, ApiHandler, ApiHandlerOptions } from ".."
 import { koduSSEResponse } from "../../shared/kodu"
 import { CoreMessage, smoothStream, streamText } from "ai"
@@ -11,6 +10,7 @@ import { customProviderSchema, ModelInfo } from "./types"
 import { PROVIDER_IDS } from "./constants"
 import { calculateApiCost } from "../api-utils"
 import { mistralConfig } from "./config/mistral"
+import { version } from "../../../package.json"
 import { z } from "zod"
 
 type ExtractCacheTokens = {
@@ -76,10 +76,16 @@ const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) 
 			if (!settings.providerSettings.apiKey) {
 				throw new CustomProviderError("OpenAI Missing API key", settings.providerSettings.providerId, modelId)
 			}
+			const openaiModelId = modelId.includes("o3-mini") ? "o3-mini" : modelId
+			const reasoningEffort = modelId.includes("o3-mini")
+				? {
+						reasoningEffort: modelId.includes("high") ? ("high" as const) : ("medium" as const),
+				  }
+				: undefined
 			return createOpenAI({
 				apiKey: settings.providerSettings.apiKey,
 				compatibility: "strict",
-			}).languageModel(modelId)
+			}).languageModel(openaiModelId, reasoningEffort)
 		case PROVIDER_IDS.GOOGLE_GENAI:
 			if (!settings.providerSettings.apiKey) {
 				throw new CustomProviderError(
@@ -105,6 +111,9 @@ const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) 
 				compatibility: "compatible",
 				baseURL: providerSettings.data.baseUrl,
 				name: providerSettings.data.modelId,
+				headers: {
+					"User-Agent": `Kodu/${version}`,
+				},
 			}).languageModel(modelId)
 
 		default:
@@ -114,7 +123,7 @@ const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) 
 
 export class CustomApiHandler implements ApiHandler {
 	private _options: ApiConstructorOptions
-	private cancelTokenSource: CancelTokenSource | null = null
+	private abortController: AbortController | null = null
 
 	get options() {
 		return this._options
@@ -125,9 +134,9 @@ export class CustomApiHandler implements ApiHandler {
 	}
 
 	async abortRequest(): Promise<void> {
-		if (this.cancelTokenSource) {
-			this.cancelTokenSource.cancel("Request aborted by user")
-			this.cancelTokenSource = null
+		if (this.abortController) {
+			this.abortController.abort("Request aborted by user")
+			this.abortController = null
 		}
 	}
 

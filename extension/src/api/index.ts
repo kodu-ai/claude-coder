@@ -58,14 +58,6 @@ export interface ApiHandler {
 	get options(): ApiConstructorOptions
 
 	getModel(): { id: string; info: ModelInfo }
-
-	sendWebSearchRequest?(
-		searchQuery: string,
-		baseLink?: string,
-		browserModel?: string,
-		browserMode?: string,
-		abortSignal?: AbortSignal
-	): AsyncIterable<WebSearchResponseDto>
 }
 
 export function buildApiHandler(configuration: ApiConstructorOptions): ApiHandler {

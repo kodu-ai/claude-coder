@@ -4,6 +4,34 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.2.9] - 2025-02-10
+
+### Changed
+
+-   adjust file editor system prompt to write better inline edits
+-   adjust file editor inline editor algorithm and testing
+-   adjust task history search algorithm
+
+## [2.2.8] - 2025-02-06
+
+### Added
+
+-   Added latest Gemini models (Flash 2, Pro 2)
+
+### Fixed
+
+-   Improved focus retention on file edits
+-   Improved error logging and error messages on UI
+-   Bug fixed prompt editor onload
+-   Bug fixed diagnostic handler with deleted files
+
+## [2.2.7] - 2025-02-01
+
+### Added
+
+-   Quick link to open files (edit / read)
+-   o3-mini (high and med) reasoning effort models
+
 ## [2.2.6] - 2025-01-26
 
 ### Fixed

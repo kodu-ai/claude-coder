@@ -52,6 +52,8 @@ export interface ToolParameter {
 export interface ToolExample {
 	description: string
 	output: string
+	memory?: string
+	thinking?: string
 }
 
 // Tool definition

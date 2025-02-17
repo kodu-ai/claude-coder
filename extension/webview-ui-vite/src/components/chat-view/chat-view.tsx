@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { ChatState, ChatViewProps } from "./chat"
-import { isV1ClaudeMessage } from "../../../../src/shared/messages/extension-message"
+import { isV1ClaudeMessage } from "extension/shared/messages/extension-message"
 import { useAtom } from "jotai"
 import { attachmentsAtom, chatStateAtom, syntaxHighlighterAtom } from "./atoms"
 import { useExtensionState } from "@/context/extension-state-context"
@@ -17,7 +17,6 @@ import ChatScreen from "./chat-screen"
 import HistoryPreview from "../history-preview/history-preview"
 import ChatMessages from "./chat-messages"
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
-import { useOutOfCreditDialog } from "../dialogs/out-of-credit-dialog"
 import TaskHeader from "../task-header/task-header"
 import { Button } from "../ui/button"
 import { AlertCircle } from "lucide-react"
@@ -29,7 +28,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 	selectedModelSupportsPromptCache,
 	showHistoryView,
 }) => {
-	const { openOutOfCreditDialog, shouldOpenOutOfCreditDialog } = useOutOfCreditDialog()
 	const [state, setState] = useAtom(chatStateAtom)
 	const [isMaxContextReached, setIsMaxContextReached] = useState(false)
 
@@ -184,11 +182,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	const handleSendMessage = useCallback(
 		(input?: string) => {
-			if (shouldOpenOutOfCreditDialog) {
-				openOutOfCreditDialog()
-				return
-			}
-
 			let text = state.inputValue?.trim()
 			if (!!input && input.length > 1) {
 				text = input?.trim()
@@ -228,11 +221,9 @@ const ChatView: React.FC<ChatViewProps> = ({
 			}
 		},
 		[
-			shouldOpenOutOfCreditDialog,
 			state.inputValue,
 			state.selectedImages,
 			state.claudeAsk,
-			openOutOfCreditDialog,
 			messages.length,
 			updateState,
 			setAttachments,
@@ -259,10 +250,6 @@ const ChatView: React.FC<ChatViewProps> = ({
 				if (state.claudeAsk === "tool") {
 					return
 				}
-				if (shouldOpenOutOfCreditDialog) {
-					openOutOfCreditDialog()
-					return
-				}
 				break
 			case "completion_result":
 			case "resume_completed_task":
@@ -276,7 +263,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 			secondaryButtonText: undefined,
 			enableButtons: false,
 		})
-	}, [state.claudeAsk, shouldOpenOutOfCreditDialog, openOutOfCreditDialog, updateState])
+	}, [state.claudeAsk, updateState])
 
 	const handleSecondaryButtonClick = useCallback(() => {
 		switch (state.claudeAsk) {

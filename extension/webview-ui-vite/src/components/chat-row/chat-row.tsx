@@ -1,5 +1,5 @@
 import React from "react"
-import { isV1ClaudeMessage, V1ClaudeMessage } from "../../../../src/shared/messages/extension-message"
+import { ClaudeSay, isV1ClaudeMessage, V1ClaudeMessage } from "extension/shared/messages/extension-message"
 import { SyntaxHighlighterStyle } from "../../utils/get-syntax-highlighter-style-from-theme"
 import IconAndTitle from "./icon-and-title"
 import { cn } from "../../lib/utils"
@@ -13,7 +13,7 @@ import {
 	CustomProviderSettingRequired,
 } from "./chat-row-utils"
 import { ToolRenderer, ChatMaxWindowBlock, ChatTruncatedBlock } from "./chat-tools"
-import { ChatTool } from "../../../../src/shared/new-tools"
+import { ChatTool } from "extension/shared/new-tools"
 import { ObserverBadge } from "./tools/observer-hook"
 import { ReasoningRow } from "./reasoning-row"
 import DiagnosticRow from "./diagnostic-row"
@@ -33,6 +33,15 @@ interface ChatRowProps {
 const removeThinking = (text?: string) => {
 	return text?.replace(/<thinking>|<\/thinking>/g, "")
 }
+
+const subMsgSayList: ClaudeSay[] = [
+	"unauthorized",
+	"payment_required",
+	"custom_provider_error",
+	"chat_finished",
+	"chat_truncated",
+	"hook",
+]
 
 const ChatRowV1: React.FC<ChatRowProps> = ({ message, isFirst, nextMessage }) => {
 	message.text = removeThinking(message.text!)
@@ -195,7 +204,7 @@ const ChatRowV1: React.FC<ChatRowProps> = ({ message, isFirst, nextMessage }) =>
 					isFirst && "!border-none",
 					"!border-b-0 border-t-border border-t-2 my-2 !py-0",
 					(message.text?.includes('"tool":"') || message.isSubMessage) && "!hidden",
-					message.isSubMessage && "!py-0"
+					message.say && subMsgSayList.includes(message.say) && "hidden"
 				)}
 			/>
 			{/* Text content container */}

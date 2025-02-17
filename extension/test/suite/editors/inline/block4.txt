@@ -15,16 +15,6 @@ const useUdiffAtom = atom(false)
 useUdiffAtom.debugLabel = "useUdiff"
 >>>>>>> updated
 <<<<<<< HEAD
-			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
-			setUser(message.state.user)
-			setExtensionName(message.state.extensionName)
-=======
-			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
-			setGitHandlerEnabled(message.state.gitHandlerEnabled ?? true)
-			setUser(message.state.user)
-			setExtensionName(message.state.extensionName)
->>>>>>> updated
-<<<<<<< HEAD
 export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
 	commandTimeout: get(commandTimeoutAtom),
@@ -33,6 +23,16 @@ export const extensionStateAtom = atom((get) => ({
 	version: get(versionAtom),
 	gitHandlerEnabled: get(gitHandlerEnabledAtom),
 	commandTimeout: get(commandTimeoutAtom),
+>>>>>>> updated
+<<<<<<< HEAD
+			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
+			setUser(message.state.user)
+			setExtensionName(message.state.extensionName)
+=======
+			setAutoCloseTerminal(!!message.state.autoCloseTerminal)
+			setGitHandlerEnabled(message.state.gitHandlerEnabled ?? true)
+			setUser(message.state.user)
+			setExtensionName(message.state.extensionName)
 >>>>>>> updated
 <<<<<<< HEAD
 	const setAutoCloseTerminal = useSetAtom(autoCloseTerminalAtom)

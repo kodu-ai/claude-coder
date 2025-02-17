@@ -14,13 +14,14 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { Edit, Undo2, ExternalLink, AlertTriangle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { vscode } from "@/utils/vscode"
-import { FileEditorTool as FileEditorToolParams } from "../../../../../src/shared/new-tools"
+import { FileEditorTool as FileEditorToolParams } from "extension/shared/new-tools"
 import { ToolAddons, ToolBlock } from "../chat-tools"
 import { memo } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import MarkdownRenderer from "../markdown-renderer"
 import { getLanguageFromPath } from "@/utils/get-language-from-path"
 import { CodeBlock } from "../code-block"
+import { rpcClient } from "@/lib/rpc-client"
 
 type ApprovalState = ToolAddons["approvalState"]
 
@@ -110,7 +111,16 @@ export const FileEditorTool: React.FC<FileEditorToolParams & ToolAddons> = memo(
 				<div className="flex flex-col space-y-2">
 					<div className="flex items-center gap-2 flex-wrap">
 						<p className="text-xs">
-							<span className="font-semibold">File:</span> {path}
+							<span className="font-semibold">File:</span>
+							<Button
+								onClick={() => {
+									rpcClient.openFile.use({ filePath: path })
+								}}
+								variant="link"
+								size="sm"
+								className="ml-1 text-start">
+								{path}
+							</Button>
 						</p>
 						<Badge variant="outline">{modeLabel}</Badge>
 						{notAppliedCount > 0 && (

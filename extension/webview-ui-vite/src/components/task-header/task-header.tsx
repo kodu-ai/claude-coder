@@ -1,6 +1,6 @@
 import React from "react"
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
-import { ClaudeMessage } from "../../../../src/shared/messages/extension-message"
+import { ClaudeMessage } from "extension/shared/messages/extension-message"
 import { Button } from "../ui/button"
 import { vscode } from "../../utils/vscode"
 import { cn } from "@/lib/utils"

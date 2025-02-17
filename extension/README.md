@@ -23,19 +23,6 @@ All you need to is tell Claude what's your task and Claude will take care of it 
 -   🔍 **Search The Web**: Take inspiration from existing content, or ask claude to do it's own research to adapt his knowledge for your needings.
 -   🔍 **Deploy and Publish**: Claude can help you publish your project online, using existings tools without you breaking your head how to get your awesome project online.
 
-## 🎬 See it in action
-
-Here's a real time demo of Claude Coder helping Joy create her landing page for her business in Tokyo under 5 minutes:
-[Joy Coffee Shop Preview](https://joy-coffee-shop.vercel.app)
-
-<p align="center">
-<video src="https://res.cloudinary.com/ddqtnp0ic/video/upload/v1727891486/demo_ptdpeh.mp4" width="500" />
-</p>
-
-<p align="center">
-<img src="https://res.cloudinary.com/ddqtnp0ic/image/upload/v1727892212/50888505-4eb097dc4d688fd44252eafcae7c152e_mebjvs.webp" alt="Joy Website Preview">
-</p>
-
 ## 🛠 Getting Started
 
 1. **Install VS Code**: If you haven't already, [download it here](https://code.visualstudio.com/).

@@ -233,6 +233,7 @@ export type WebviewMessage =
 				| "showTaskWithId"
 				| "deleteTaskWithId"
 				| "exportTaskWithId"
+				| "promptEditorLoaded"
 				| "didClickKoduSignOut"
 				| "fetchKoduCredits"
 				| "resetState"

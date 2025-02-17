@@ -12,38 +12,7 @@ import {
 } from "./decoration-controller"
 import { createPatch } from "diff"
 import { formatFileToLines } from "../../agent/v1/tools/runners/read-file/utils"
-
-interface MatchResult {
-	success: boolean
-	newContent?: string
-	lineStart?: number
-	lineEnd?: number
-	failureReason?: string
-}
-
-interface EditBlock {
-	id: string
-	searchContent: string
-	currentContent: string
-	finalContent?: string
-	status: "pending" | "streaming" | "final"
-	matchedLocation?: {
-		lineStart: number
-		lineEnd: number
-	}
-	dmpAttempted?: boolean
-}
-
-export interface BlockResult {
-	id: string
-	searchContent: string
-	replaceContent: string
-	wasApplied: boolean
-	failureReason?: string
-	lineStart?: number
-	lineEnd?: number
-	formattedSavedArea?: string
-}
+import { BlockResult, EditBlock, findAndReplace } from "./utils"
 
 interface DocumentState {
 	uri: vscode.Uri
@@ -73,6 +42,7 @@ export class InlineEditHandler {
 	protected currentDocumentState: DocumentState | undefined
 	private modifiedUri?: vscode.Uri
 	private originalUri?: vscode.Uri
+	private isDisposed: boolean = false
 	private static modifiedContentProvider: ModifiedContentProvider | undefined
 
 	constructor() {
@@ -96,6 +66,10 @@ export class InlineEditHandler {
 
 	public async open(id: string, filePath: string, searchContent: string): Promise<void> {
 		this.logger(`Opening file ${filePath} with id ${id}`, "debug")
+		if (this.isDisposed) {
+			this.logger(`Editor has been disposed, cannot open file`, "error")
+			return
+		}
 		try {
 			if (this.currentDocumentState) {
 				this.logger(`Document already open, no need to open again`, "debug")
@@ -159,7 +133,7 @@ export class InlineEditHandler {
 			`${fileName}: Original ↔ Changes`,
 			{
 				preview: false,
-				preserveFocus: false,
+				preserveFocus: true,
 				viewColumn: vscode.ViewColumn.Active,
 			}
 		)
@@ -241,174 +215,6 @@ export class InlineEditHandler {
 		return !!this.currentDocumentState
 	}
 
-	private findAndReplace(content: string, searchContent: string, replaceContent: string): MatchResult {
-		// Ensure all strings use LF
-		content = content.replace(/\r\n/g, "\n")
-		searchContent = searchContent.replace(/\r\n/g, "\n")
-		replaceContent = replaceContent.replace(/\r\n/g, "\n")
-
-		const perfectMatch = this.findPerfectMatch(content, searchContent)
-		if (perfectMatch.success) {
-			return this.performReplace(content, perfectMatch.lineStart!, perfectMatch.lineEnd!, replaceContent)
-		}
-
-		const whitespaceMatch = this.findWhitespaceMatch(content, searchContent)
-		if (whitespaceMatch.success) {
-			return this.performReplace(content, whitespaceMatch.lineStart!, whitespaceMatch.lineEnd!, replaceContent)
-		}
-
-		const trailingMatch = this.findTrailingMatch(content, searchContent)
-		if (trailingMatch.success) {
-			return this.performReplace(content, trailingMatch.lineStart!, trailingMatch.lineEnd!, replaceContent)
-		}
-
-		const oneLinerMatch = this.findOneLinerMatch(content, searchContent, replaceContent)
-		if (oneLinerMatch.success) {
-			return oneLinerMatch
-		}
-
-		const dmpMatch = this.findDMPMatch(content, searchContent)
-		if (dmpMatch.success) {
-			return this.performReplace(content, dmpMatch.lineStart!, dmpMatch.lineEnd!, replaceContent)
-		}
-
-		return { success: false }
-	}
-
-	private performReplace(content: string, startLine: number, endLine: number, replaceContent: string): MatchResult {
-		const contentLines = content.split("\n")
-		const replaceLines = replaceContent.split("\n")
-
-		const newContentLines = [
-			...contentLines.slice(0, startLine),
-			...replaceLines,
-			...contentLines.slice(endLine + 1),
-		]
-
-		return {
-			success: true,
-			newContent: newContentLines.join("\n"),
-			lineStart: startLine,
-			lineEnd: startLine + replaceLines.length - 1,
-		}
-	}
-
-	private findPerfectMatch(content: string, searchContent: string): MatchResult {
-		const contentLines = content.split("\n")
-		const searchLines = searchContent.split("\n")
-
-		for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
-			if (contentLines.slice(i, i + searchLines.length).join("\n") === searchLines.join("\n")) {
-				return {
-					success: true,
-					lineStart: i,
-					lineEnd: i + searchLines.length - 1,
-				}
-			}
-		}
-		return { success: false }
-	}
-
-	private findWhitespaceMatch(content: string, searchContent: string): MatchResult {
-		const contentLines = content.split("\n")
-		const searchLines = searchContent.split("\n")
-
-		for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
-			const matches = searchLines.every((searchLine, j) => {
-				const contentLine = contentLines[i + j]
-				return contentLine.replace(/\s+/g, " ") === searchLine.replace(/\s+/g, " ")
-			})
-
-			if (matches) {
-				return {
-					success: true,
-					lineStart: i,
-					lineEnd: i + searchLines.length - 1,
-				}
-			}
-		}
-		return { success: false }
-	}
-
-	private findOneLinerMatch(content: string, searchContent: string, replaceContent: string): MatchResult {
-		const contentLines = content.split("\n")
-		const searchLines = searchContent.split("\n")
-		if (searchLines.length > 1) {
-			return { success: false }
-		}
-		const indexOfSearch = contentLines.findIndex((line) => line.includes(searchContent))
-		if (indexOfSearch === -1) {
-			return { success: false }
-		}
-		const replacedContent = contentLines[indexOfSearch].replace(searchContent, replaceContent)
-		let newContent = content
-		// we are going to remove the line if the replaced content is empty
-		if (replacedContent.length === 0) {
-			newContent = contentLines.filter((_, i) => i !== indexOfSearch).join("\n")
-		}
-		// otherwise, we are going to replace the line with the new content
-		else {
-			contentLines[indexOfSearch] = replacedContent
-			newContent = contentLines.join("\n")
-		}
-		return {
-			success: true,
-			lineStart: indexOfSearch,
-			lineEnd: indexOfSearch,
-			newContent,
-		}
-	}
-
-	private findTrailingMatch(content: string, searchContent: string): MatchResult {
-		const contentLines = content.split("\n")
-		const searchLines = searchContent.split("\n")
-
-		for (let i = 0; i <= contentLines.length - searchLines.length; i++) {
-			const matches = searchLines.every((searchLine, j) => {
-				const contentLine = contentLines[i + j]
-				return contentLine.trimEnd() === searchLine.trimEnd()
-			})
-
-			if (matches) {
-				return {
-					success: true,
-					lineStart: i,
-					lineEnd: i + searchLines.length - 1,
-				}
-			}
-		}
-		return { success: false }
-	}
-
-	private findDMPMatch(content: string, searchContent: string): MatchResult {
-		const dmp = new DMP.diff_match_patch()
-		const diffs = dmp.diff_main(content, searchContent)
-		dmp.diff_cleanupSemantic(diffs)
-
-		let bestMatch = { start: -1, end: -1, length: 0 }
-		let currentPos = 0
-
-		for (const [type, text] of diffs) {
-			if (type === 0 && text.length > bestMatch.length) {
-				bestMatch = {
-					start: currentPos,
-					end: currentPos + text.length,
-					length: text.length,
-				}
-			}
-			currentPos += text.length
-		}
-
-		if (bestMatch.length > searchContent.length * 0.7) {
-			const startLine = content.substr(0, bestMatch.start).split("\n").length - 1
-			const endLine = startLine + searchContent.split("\n").length - 1
-
-			return { success: true, lineStart: startLine, lineEnd: endLine }
-		}
-
-		return { success: false }
-	}
-
 	private async updateFileContent(): Promise<void> {
 		this.validateDocumentState()
 
@@ -417,7 +223,9 @@ export class InlineEditHandler {
 		let latestAppliedBlockIndex = -1
 		let latestAppliedBlockLineEnd: number | undefined
 
-		// Process blocks in insertion order
+		// NEW: We'll track where to start searching for each new block
+		let searchStartLine = 0
+
 		const blocksInInsertionOrder = [...this.currentDocumentState.editBlocks.entries()]
 			.sort((a, b) => {
 				const indexA = this.currentDocumentState.editBlocksInsertionIndex.get(a[0]) ?? -1
@@ -427,7 +235,8 @@ export class InlineEditHandler {
 			.map(([, block]) => block)
 
 		for (const block of blocksInInsertionOrder) {
-			const matchResult = this.findAndReplace(newContent, block.searchContent, block.currentContent)
+			// Pass searchStartLine so we only search after the last replacement
+			const matchResult = findAndReplace(newContent, block.searchContent, block.currentContent, searchStartLine)
 
 			if (matchResult.success && matchResult.newContent) {
 				newContent = matchResult.newContent
@@ -439,12 +248,20 @@ export class InlineEditHandler {
 					lineStart: matchResult.lineStart,
 					lineEnd: matchResult.lineEnd,
 				})
+
+				// Update searchStartLine for the next block
+				// i.e., skip everything up to lineEnd for future searches
+				if (typeof matchResult.lineEnd === "number") {
+					searchStartLine = matchResult.lineEnd + 1
+					latestAppliedBlockLineEnd = matchResult.lineEnd
+				}
+
 				const insertionIndex = this.currentDocumentState.editBlocksInsertionIndex.get(block.id) ?? -1
 				if (insertionIndex > latestAppliedBlockIndex) {
 					latestAppliedBlockIndex = insertionIndex
-					latestAppliedBlockLineEnd = matchResult.lineEnd
 				}
 			} else {
+				// If the block fails to apply, record failure and keep going or stop
 				results.push({
 					id: block.id,
 					searchContent: block.searchContent,
@@ -468,9 +285,7 @@ export class InlineEditHandler {
 				new TextEncoder().encode(newContent),
 				{ create: false, overwrite: true }
 			)
-
-			// small delay to ensure doc updates in the editor
-			await delay(50)
+			// await delay(50) // small delay for stability
 		}
 
 		this.currentDocumentState.currentContent = newContent
@@ -540,6 +355,8 @@ export class InlineEditHandler {
 		// open the file itself in a new editor
 		const finalEditor = await vscode.window.showTextDocument(finalDoc, {
 			preview: false,
+			preserveFocus: true,
+
 			viewColumn: vscode.ViewColumn.Active,
 		})
 		// get the content after document is saved to make sure the content is up-to-date + formatted
@@ -596,7 +413,7 @@ export class InlineEditHandler {
 			)
 		for (const tab of tabs) {
 			if (!tab.isDirty) {
-				await vscode.window.tabGroups.close(tab)
+				await vscode.window.tabGroups.close(tab, true)
 			}
 		}
 	}
@@ -684,6 +501,8 @@ export class InlineEditHandler {
 		this.currentDocumentState = undefined
 		this.modifiedUri = undefined
 		this.originalUri = undefined
+		this.isAutoScrollEnabled = true
+		this.isDisposed = true
 	}
 
 	private logger(message: string, level: "info" | "debug" | "warn" | "error" = "debug") {

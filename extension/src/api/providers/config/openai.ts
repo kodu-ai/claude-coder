@@ -8,6 +8,36 @@ export const openaiConfig: ProviderConfig = {
 	baseUrl: DEFAULT_BASE_URLS[PROVIDER_IDS.OPENAI],
 	models: [
 		{
+			id: "o3-mini-high",
+			name: "O3 Mini (High Reasoning)",
+			contextWindow: 200_000,
+			maxTokens: 100_000,
+			supportsImages: false,
+			supportsPromptCache: true,
+			inputPrice: 1.1,
+			outputPrice: 4.4,
+			cacheReadsPrice: 1.1 * 0.5, // 50% of input price
+			cacheWritesPrice: 1.1,
+			provider: PROVIDER_IDS.OPENAI,
+			isThinkingModel: true,
+			reasoningEffort: "high",
+		},
+		{
+			id: "o3-mini-medium",
+			name: "O3 Mini (Medium Reasoning)",
+			contextWindow: 200_000,
+			maxTokens: 100_000,
+			supportsImages: false,
+			supportsPromptCache: true,
+			inputPrice: 1.1,
+			outputPrice: 4.4,
+			cacheReadsPrice: 1.1 * 0.5, // 50% of input price
+			cacheWritesPrice: 1.1,
+			provider: PROVIDER_IDS.OPENAI,
+			isThinkingModel: true,
+			reasoningEffort: "medium",
+		},
+		{
 			id: "o1",
 			name: "O1",
 			contextWindow: 200_000,

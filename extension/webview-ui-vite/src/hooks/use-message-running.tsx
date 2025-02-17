@@ -4,7 +4,7 @@ import {
 	ExtensionMessage,
 	isV1ClaudeMessage,
 	V1ClaudeMessage,
-} from "../../../src/shared/messages/extension-message"
+} from "extension/shared/messages/extension-message"
 import { useEvent } from "react-use"
 
 export const useMessageRunning = (messages: ClaudeMessage[]) => {

@@ -146,9 +146,20 @@ export class PromptManager {
 		} else {
 			await this.createPromptEditorPanel()
 		}
+		console.log(`showPromptEditor loaded`)
+		// Wait for webview to signal it is ready
+		await new Promise<void>((resolve) => {
+			const disposable = this.promptEditorPanel!.webview.onDidReceiveMessage((msg) => {
+				if (msg && msg.type === "promptEditorLoaded") {
+					disposable.dispose()
+					resolve()
+				}
+			})
+		})
 		// now post the first prompt to the webview
 		const promptManager = await PromptStateManager.getInstance()
 		const content = (await promptManager.getActivePromptContent()) ?? promptManager.getDefaultPromptContent()
+		const disabledTools = (await GlobalStateManager.getInstance().getGlobalState("disabledTools")) ?? []
 		await Promise.all([
 			this.postMessageToWebview({
 				type: "load_prompt_template",
@@ -157,7 +168,7 @@ export class PromptManager {
 			}),
 			this.postMessageToWebview({
 				type: "disabledTools",
-				tools: (await GlobalStateManager.getInstance().getGlobalState("disabledTools")) ?? [],
+				tools: disabledTools,
 			}),
 		])
 	}

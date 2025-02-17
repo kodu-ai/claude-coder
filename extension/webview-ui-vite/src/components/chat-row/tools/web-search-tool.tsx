@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react"
 
 import { ToolAddons, ToolBlock } from "../chat-tools"
 
-import { WebSearchTool } from "../../../../../src/shared/new-tools"
+import { WebSearchTool } from "extension/shared/new-tools"
 
 type EnhancedWebSearchBlockProps = WebSearchTool & ToolAddons
 

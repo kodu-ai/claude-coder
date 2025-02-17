@@ -11,8 +11,8 @@ import {
 	GoogleVertexSettings,
 	AmazonBedrockSettings,
 	OpenAICompatibleSettings,
-} from "../../../../../src/api/providers/types"
-import { customProvidersConfigs as providers } from "../../../../../src/api/providers/config/index"
+} from "extension/api/providers/types"
+import { customProvidersConfigs as providers } from "extension/api/providers/config/index"
 import { rpcClient } from "@/lib/rpc-client"
 import { useAtom } from "jotai"
 import { createDefaultSettings, providerSettingsAtom, useSwitchView } from "./atoms"

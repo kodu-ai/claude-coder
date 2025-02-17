@@ -161,6 +161,10 @@ type ConfgiureApiRequiredMessage = {
 	type: "configureApiRequired"
 }
 
+type PromptEditorLoadedMessage = {
+	type: "promptEditorLoaded"
+}
+
 export type ExtensionMessage =
 	| ConfgiureApiRequiredMessage
 	| DisabledToolsMessage
@@ -181,6 +185,7 @@ export type ExtensionMessage =
 	| HideCommandBlockMessage
 	| RequestStatus
 	| PostClaudeMessage
+	| PromptEditorLoadedMessage
 
 type NonPartial<T> = {
 	[P in keyof T]: T[P]

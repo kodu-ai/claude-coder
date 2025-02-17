@@ -3,13 +3,13 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Switch } from "@/components/ui/switch"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { ToolName } from "../../../../src/agent/v1/tools/types"
-import { ToolPromptSchema } from "../../../../src/agent/v1/prompts/utils/utils"
-import { toolPrompts } from "../../../../src/agent/v1/prompts/tools"
+import { ToolName } from "extension/agent/v1/tools/types"
+import { ToolPromptSchema } from "extension/agent/v1/prompts/utils/utils"
+import { toolPrompts } from "extension/agent/v1/prompts/tools"
 import { currentPromptContentAtom, disabledToolsAtom, isCurrentPreviewAtom, tools } from "./utils"
 import { useAtom, useAtomValue } from "jotai"
 import { useEvent } from "react-use"
-import { ExtensionMessage } from "../../../../src/shared/messages/extension-message"
+import { ExtensionMessage } from "extension/shared/messages/extension-message"
 import { vscode } from "@/utils/vscode"
 import { PromptActions } from "./prompt-actions"
 
@@ -36,6 +36,8 @@ export const ToolCards = () => {
 			setDisabledTools(new Set(message.tools))
 		}
 	})
+
+	console.log("tools", tools)
 
 	return (
 		<ScrollArea className="h-[400px] w-full rounded-md border">

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { formatDate } from "@/utils/dateFormatter"
-import { type HistoryItem } from "../../../../src/shared/history-item"
+import { type HistoryItem } from "extension/shared/history-item"
 import { CheckCircle2, Clock, Loader2, Trash2 } from "lucide-react"
 import { useState } from "react"
 

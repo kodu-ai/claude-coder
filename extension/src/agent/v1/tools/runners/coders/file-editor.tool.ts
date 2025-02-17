@@ -15,7 +15,7 @@ import {
 	SEPARATOR,
 	REPLACE_HEAD,
 } from "./utils"
-import { BlockResult, InlineEditHandler } from "../../../../../integrations/editor/inline-editor"
+import { InlineEditHandler } from "../../../../../integrations/editor/inline-editor"
 import { ToolResponseV2 } from "../../../types"
 import PQueue from "p-queue"
 
@@ -291,8 +291,8 @@ export class FileEditorTool extends BaseAgentTool<FileEditorToolParams> {
 		this.logger(`Failed count: ${failedCount}, isAllFailed: ${isAllFailed}`, "debug")
 		if (isAnyFailed) {
 			// close the editor if all blocks failed
-			await this.inlineEditor.closeDiffEditors()
 			this.inlineEditor.dispose()
+			await this.inlineEditor.closeDiffEditors()
 			//// disabled for now
 			// if (allowFixed) {
 			// 	// let's show a loading vs code toast
@@ -851,96 +851,5 @@ ${commitXmlInfo}`
 				file.finalContent
 			)}</updated_file_content></rollback_response>`
 		)
-	}
-
-	private async inlineFixRetry(blocks: BlockResult[]): Promise<string | undefined> {
-		if (!this.fileState?.orignalContent) {
-			return
-		}
-		const originalContent = await fs.readFileSync(this.fileState.absolutePath, "utf8")
-		const fileToLines = formatFileToLines(originalContent)
-
-		const systemPrompt = diffFixerPrompt()
-
-		const stream = await this.koduDev
-			.getApiManager()
-			.getApi()
-			.createMessageStream({
-				systemPrompt: [systemPrompt],
-				messages: [
-					{
-						role: "user",
-						content: [
-							{
-								type: "text",
-								text: dedent`You're required to view the live current file content with the line numbers and the search and replace blocks.
-After you view both of them and understand the context, you should be able to identify the correct block of code that needs to be replaced and apply the correct changes to the file content.
-You must call file_editor tool again with the correct search and replace blocks to apply the changes to the file content, fix any missing content or incorrect search blocks.
-current file content is shown below with line numbers.
-current search and replace blocks are shown below.
-<search_replace_blocks>
-${blocks.map(
-	(block) =>
-		dedent`
-<search_replace_block>
-<search_content>
-${block.searchContent}
-</search_content>
-<replace_content>
-${block.replaceContent}
-</replace_content>
-</search_replace_block>
-`
-)}
-</search_replace_blocks>
-HERE IS THE LATEST FRESH FILE CONTENT WITH LINE NUMBERS YOU MUST TAKE THIS AS THE SOURCE OF TRUTH FOR THE FILE CONTENT NOT THE SEARCH AND REPLACE BLOCKS.
-<file_content>
-<file_path>${this.fileState.absolutePath}</file_path>
-Here is the latest file content with line numbers:
-<lastest_file_content>
-${fileToLines}
-</lastest_file_content>
-</file_content>
-NOW TRY TO FIGURE OTU THE CORRECT search_content based on the latest file content and apply the corrected search and replace blocks to the file content.
-ALWAYS ALWAYS TAKE THE FILE CONTENT AS THE SOURCE OF TRUTH FOR THE FILE CONTENT, you must adjust the search and replace blocks based on the file content, don't rely on the search and replace blocks as the source of truth.
-NOW use the file_editor tool again with the corrected search and replace blocks to apply the changes to the file content.
-
-YOU MUST CALL FILE_EDITOR TOOL AND THE OUTPUT MUST BE STRUCUTRED AS FOLLOWS:
-<thinking>after reviewing the file content and the search and replace blocks i found the following problems:
-... list of findings ...</thinking>
-Now let me fix the search and replace blocks and apply the changes to the file content.
-<file_editor>
-<mode>edit</mode>
-<path>${this.fileState.absolutePath}</path>
-<kodu_diff>
-... corrected search and replace blocks content ...
-</kodu_diff>
-</file_editor>
-
-YOU ABSOLUTELY MUST CALL FILE_EDITOR TOOL AGAIN WITH THE CORRECTED SEARCH AND REPLACE BLOCKS TO APPLY THE CHANGES TO THE FILE CONTENT, DON"T ASK ME TO DO IT FOR YOU, YOU MUST DO IT. AND YOU MUST FIX THE 'kodu_diff' content based on the original intent and live content of the file.`,
-							},
-						],
-					},
-				],
-				modelId: this.koduDev.getApiManager().getApi().getModel().id,
-				abortSignal: this.AbortController?.signal,
-			})
-
-		let finalContent: null | string = null
-		for await (const message of stream) {
-			if (message.code === 1) {
-				if (isTextBlock(message.body.anthropic.content[0])) {
-					// let's try to extract kodu_diff from the message
-					const diffBlock = message.body.anthropic.content[0]
-					const [startTag, endTag] = ["<kodu_diff>", "</kodu_diff>"]
-					const [startIdx, endIdx] = [
-						diffBlock.text.indexOf(startTag) + startTag.length,
-						diffBlock.text.indexOf(endTag),
-					]
-					return diffBlock.text.slice(startIdx, endIdx)
-				}
-			}
-		}
-		return undefined
 	}
 }

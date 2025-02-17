@@ -1,5 +1,5 @@
 import { vscode } from "@/utils/vscode"
-import { ClientForRouter, createAppClient, WebviewTransport } from "../../../src/shared/rpc-client"
+import { ClientForRouter, createAppClient, WebviewTransport } from "extension/shared/rpc-client"
 import { useEvent } from "react-use"
 import { useCallback } from "react"
 import { useMutation, useQuery, type UseMutationOptions, type UseQueryOptions } from "@tanstack/react-query"

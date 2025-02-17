@@ -5,9 +5,9 @@ import {
 	loadPromptTemplateMessage,
 	setActivePromptMessage,
 	ActionMessage,
-} from "../../../../src/shared/messages/client-message"
-import { ExtensionMessage } from "../../../../src/shared/messages/extension-message"
-import { ToolName } from "../../../../src/agent/v1/tools/types"
+} from "extension/shared/messages/client-message"
+import { ExtensionMessage } from "extension/shared/messages/extension-message"
+import { ToolName } from "extension/agent/v1/tools/types"
 
 interface MessageCallbacks {
 	onTemplateSaved?: (templateName: string) => void

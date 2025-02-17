@@ -14,6 +14,23 @@ import { createWriteStream } from "fs"
 //
 // Example 1: TaskRouter
 const taskRouter = router({
+	openFile: procedure.input(z.object({ filePath: z.string() })).resolve(async (ctx, input) => {
+		// try tp fs access the file
+		const rootPath = vscode.workspace.workspaceFolders?.[0].uri.fsPath
+		const joinedPath = path.join(rootPath ?? "", input.filePath)
+		const isAvailable = await vscode.workspace.fs.stat(vscode.Uri.file(joinedPath)).then(
+			() => true,
+			() => false
+		)
+		if (!isAvailable) {
+			vscode.window.showErrorMessage(
+				`File not found, please make sure the correct task workspace is open and the file exists.`
+			)
+			return { success: false } as const
+		}
+		await vscode.window.showTextDocument(vscode.Uri.file(joinedPath))
+		return { success: true } as const
+	}),
 	renameTask: procedure.input(z.object({ taskId: z.string(), newName: z.string() })).resolve((ctx, input) => {
 		// ctx.provider?.getTaskManager()?.renameTask({
 		// 	taskId: input.taskId,

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react"
+import { vscode } from "@/utils/vscode"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Save, Copy, RefreshCw, FolderOpen, X, Fullscreen, FileEdit } from "lucide-react"
@@ -14,7 +15,7 @@ import { cn } from "@/lib/utils"
 import ToolCards from "./tools"
 import { useAtom } from "jotai"
 import { currentPromptContentAtom, isCurrentPreviewAtom } from "./utils"
-import { editorVariable, TEMPLATE_PLACEHOLDERS, TemplateInfo } from "../../../../src/shared/agent/prompt"
+import { editorVariable, TEMPLATE_PLACEHOLDERS, TemplateInfo } from "extension/shared/agent/prompt"
 
 // 1) REGISTER YOUR CUSTOM LANGUAGE (without defining a theme).
 //    This still enables syntax highlighting for your placeholders.
@@ -250,6 +251,10 @@ export const PromptEditor: React.FC<PromptEditorProps> = () => {
 	useEffect(() => {
 		// Load the template list on mount
 		promptActions.listTemplates()
+	}, [])
+
+	useEffect(() => {
+		vscode.postMessage({ type: "promptEditorLoaded" })
 	}, [])
 
 	// 7) Save / Load

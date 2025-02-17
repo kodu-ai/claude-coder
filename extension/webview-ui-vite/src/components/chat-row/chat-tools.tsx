@@ -42,7 +42,7 @@ import {
 	ServerRunnerTool,
 	UrlScreenshotTool,
 	SubmitReviewTool,
-} from "../../../../src/shared/new-tools"
+} from "extension/shared/new-tools"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import { ScrollArea, ScrollBar } from "../ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
@@ -52,6 +52,7 @@ import { SpawnAgentBlock, ExitAgentBlock } from "./tools/agent-tools"
 import MarkdownRenderer from "./markdown-renderer"
 import { CodeBlock } from "./code-block"
 import { getLanguageFromPath } from "@/utils/get-language-from-path"
+import { rpcClient } from "@/lib/rpc-client"
 
 type ApprovalState = ToolStatus
 export type ToolAddons = {
@@ -467,7 +468,16 @@ export const ReadFileBlock: React.FC<ReadFileTool & ToolAddons> = ({
 			variant="primary"
 			approvalState={approvalState}>
 			<p className="text-xs">
-				<span className="font-semibold">File:</span> {path}
+				<span className="font-semibold">File:</span>
+				<Button
+					onClick={() => {
+						rpcClient.openFile.use({ filePath: path })
+					}}
+					variant="link"
+					size="sm"
+					className="ml-1 text-start">
+					{path}
+				</Button>
 			</p>
 
 			{content && content.length > 0 && (

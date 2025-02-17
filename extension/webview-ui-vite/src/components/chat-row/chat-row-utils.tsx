@@ -1,4 +1,4 @@
-import { AlertCircle, LogIn, CreditCard, CircleX, X, ChevronDown, ChevronRight, Settings } from "lucide-react"
+import { AlertCircle, LogIn, CreditCard, CircleX, X, ChevronDown, ChevronRight, Settings, Gift } from "lucide-react"
 import { loginKodu } from "@/utils/kodu-links"
 import { useExtensionState } from "@/context/extension-state-context"
 
@@ -14,12 +14,12 @@ function formatElapsedTime(ms: number): string {
 }
 import { useCollapseState } from "@/hooks/use-collapse-state"
 import { vscode } from "@/utils/vscode"
-import { getKoduOfferUrl } from "../../../../src/shared/kodu"
+import { getKoduAddCreditsUrl, getKoduOfferUrl } from "extension/shared/kodu"
 import { TextWithAttachments } from "@/utils/extract-attachments"
 import { SyntaxHighlighterStyle } from "@/utils/get-syntax-highlighter-style-from-theme"
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
 import React from "react"
-import { V1ClaudeMessage, ClaudeSayTool } from "../../../../src/shared/messages/extension-message"
+import { V1ClaudeMessage, ClaudeSayTool } from "extension/shared/messages/extension-message"
 import CodeBlock from "../code-block/code-block"
 import Thumbnails from "../thumbnails/thumbnails"
 import IconAndTitle from "./icon-and-title"
@@ -275,6 +275,8 @@ export function CustomProviderSettingRequired({ text }: { text: string }) {
 	)
 }
 
+const buttonStyles =
+	"w-full py-1 px-2 text-xs border border-destructive/50 rounded hover:bg-destructive/10 transition-colors"
 export function ErrorMsgComponent({ type }: { type: "unauthorized" | "payment_required" }) {
 	const { uriScheme, extensionName } = useExtensionState()
 	return (
@@ -290,26 +292,44 @@ export function ErrorMsgComponent({ type }: { type: "unauthorized" | "payment_re
 					? "You are not authorized to run this command. Please log in or contact your administrator."
 					: "You have run out of credits. Please contact your administrator."}
 			</p>
-			<button className="w-full mt-3 py-1 px-2 text-xs border border-destructive/50 rounded hover:bg-destructive/10 transition-colors">
+			<div className="flex flex-col gap-2 mt-3">
 				{type === "unauthorized" ? (
-					<span
-						onClick={() => loginKodu({ uriScheme: uriScheme!, extensionName: extensionName! })}
-						className="flex items-center justify-center">
-						<LogIn className="mr-2 h-3 w-3" /> Log In
-					</span>
-				) : (
-					<a className="!text-foreground" href={getKoduOfferUrl(uriScheme)}>
+					<button className={buttonStyles}>
 						<span
-							onClick={() => {
-								vscode.postTrackingEvent("OfferwallView")
-								vscode.postTrackingEvent("ExtensionCreditAddSelect", "offerwall")
-							}}
+							onClick={() => loginKodu({ uriScheme: uriScheme!, extensionName: extensionName! })}
 							className="flex items-center justify-center">
-							<CreditCard className="mr-2 h-3 w-3" /> FREE Credits
+							<LogIn className="mr-2 h-3 w-3" /> Log In
 						</span>
-					</a>
+					</button>
+				) : (
+					<>
+						<button className={buttonStyles}>
+							<a className="!text-foreground" href={getKoduOfferUrl(uriScheme)}>
+								<span
+									onClick={() => {
+										vscode.postTrackingEvent("OfferwallView")
+										vscode.postTrackingEvent("ExtensionCreditAddSelect", "offerwall")
+									}}
+									className="flex items-center justify-center">
+									<Gift className="mr-2 h-3 w-3" /> FREE Credits
+								</span>
+							</a>
+						</button>
+						<button className={buttonStyles}>
+							<a className="!text-foreground" href={getKoduAddCreditsUrl(uriScheme)}>
+								<span
+									onClick={() => {
+										vscode.postTrackingEvent("ExtensionCreditAddOpen")
+										vscode.postTrackingEvent("ExtensionCreditAddSelect", "purchase")
+									}}
+									className="flex items-center justify-center">
+									<CreditCard className="mr-2 h-3 w-3" /> Buy Credits
+								</span>
+							</a>
+						</button>
+					</>
 				)}
-			</button>
+			</div>
 		</div>
 	)
 }
