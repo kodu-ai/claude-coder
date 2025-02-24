@@ -13,6 +13,7 @@ import { calculateApiCost } from "../api-utils"
 import { mistralConfig } from "./config/mistral"
 import { version } from "../../../package.json"
 import { z } from "zod"
+import { GlobalState, GlobalStateManager } from "../../providers/state/global-state-manager"
 
 type ExtractCacheTokens = {
 	cacheCreationField: string
@@ -163,7 +164,26 @@ export class CustomApiHandler implements ApiHandler {
 		updateAfterCacheInserts,
 	}: Parameters<ApiHandler["createMessageStream"]>[0]): AsyncIterableIterator<koduSSEResponse> {
 		const convertedMessages: CoreMessage[] = []
-
+		let thinkingConfig: GlobalState["thinking"] | undefined
+		if (modelId === "claude-3-7-sonnet-20250219") {
+			const globalStateManager = GlobalStateManager.getInstance()
+			const thinking = globalStateManager.getGlobalState("thinking")
+			if (thinking) {
+				// If thinking is enabled, set tempature to 1 CAN'T BE CHANGED
+				tempature = 1
+				thinkingConfig = thinking
+				if (thinkingConfig.type === "enabled") {
+					thinking.budget_tokens = thinking.budget_tokens ?? 32_000
+				}
+				// we also going to add a message in the system prompt to tell the model to leave a reasoning trace with a couple of lines
+				systemPrompt.push(`Please don't forget to leave a reasoning trace in your output under <thinking></thinking> tags.
+					This should include a couple of lines to help you recall your internal thoughts and reasoning.
+					This should be details about your inner thoughts, finding and reasoning summarized shortly that will be useful for recalling and letting you self correct your thoughts or understand why you chose a particular path or tool call
+					It can also include your observations, hypothesis, and conclusions.
+					Please make sure to include this in your output, short, concise and to the point.
+					`)
+			}
+		}
 		for (const systemMsg of systemPrompt) {
 			convertedMessages.push({
 				role: "system",
@@ -210,6 +230,12 @@ export class CustomApiHandler implements ApiHandler {
 
 		// const refetchSignal = new SmartAbortSignal(5000)
 		const result = streamText({
+			// ...(thinkingConfig ? { providerOptions: { anthropic: { thinking: thinkingConfig } } } : {}),
+			providerOptions: {
+				anthropic: {
+					thinking: { type: "enabled", budgetTokens: 12000 },
+				},
+			},
 			model: providerToAISDKModel(this._options, modelId),
 			// prompt: `This is a test tell me a random fact about the world`,
 			messages: convertedMessagesFull,
@@ -312,7 +338,7 @@ export class CustomApiHandler implements ApiHandler {
 			}
 			if (part.type === "error") {
 				console.error(part.error)
-				throw part.error
+				// throw part.error
 				// if (part.error instanceof Error) {
 				// 	yield {
 				// 		code: -1,

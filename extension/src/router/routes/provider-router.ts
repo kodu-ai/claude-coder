@@ -104,6 +104,15 @@ export async function getCurrentModelInfo(apiConfig?: GlobalState["apiConfig"]) 
 }
 
 const providerRouter = router({
+	getGlobalState: procedure.input(z.object({ key: z.string() })).resolve(async (ctx, input) => {
+		return GlobalStateManager.getInstance().getGlobalState(input.key as keyof GlobalState)
+	}),
+
+	updateGlobalState: procedure.input(z.object({ key: z.string(), value: z.any() })).resolve(async (ctx, input) => {
+		await GlobalStateManager.getInstance().updateGlobalState(input.key as keyof GlobalState, input.value)
+		return { success: true }
+	}),
+
 	listModels: procedure.input(z.object({})).resolve(async (ctx, input) => {
 		const { providers } = await listProviders()
 		const customModels = providers

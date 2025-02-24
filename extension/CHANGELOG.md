@@ -4,6 +4,17 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.3.0] - 2025-02-24
+
+### Added
+
+-   Added Claude 3.7 Sonnet - New SOTA coding agent highly recommended as daily driver
+-   Added option to customize Sonnet thinking tokens budget
+
+### Fixed
+
+-   Bug fixes across board
+
 ## [2.2.10] - 2025-02-20
 
 ### Added

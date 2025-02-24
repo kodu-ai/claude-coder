@@ -241,6 +241,7 @@ ${this.customInstructions.trim()}
 									"reduce length of the messages",
 									"prompt is too long",
 									"Payload Too Large",
+									"exceed context limit",
 								].some((msg) => chunk.body.msg?.includes(msg))) ||
 							shouldResetContext
 						) {
@@ -282,6 +283,7 @@ ${this.customInstructions.trim()}
 							"reduce length of the messages",
 							"prompt is too long",
 							"Payload Too Large",
+							"exceed context limit",
 						].some((msg) => `${streamError}`.includes(msg))
 					) {
 						shouldResetContext = true

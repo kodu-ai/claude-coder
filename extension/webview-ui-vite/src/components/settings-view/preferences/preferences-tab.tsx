@@ -4,6 +4,7 @@ import React, { memo } from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 
 import { ModelSelector } from "./model-picker"
+import { ThinkingConfigComponent } from "./thinking-config"
 import { rpcClient } from "@/lib/rpc-client"
 import ProviderManager from "./provider-manager"
 import { useAtom, useAtomValue } from "jotai"
@@ -51,13 +52,16 @@ const PreferencesTabNew: React.FC = () => {
 				{viewMode === "provider-manager" ? (
 					<ProviderManager />
 				) : (
-					<ModelSelector
-						models={data.models ?? []}
-						modelId={selectedModelId ?? null}
-						providerId={providerId ?? null}
-						onChangeModel={handleModelChange}
-						showDetails={true}
-					/>
+					<>
+						<ModelSelector
+							models={data.models ?? []}
+							modelId={selectedModelId ?? null}
+							providerId={providerId ?? null}
+							onChangeModel={handleModelChange}
+							showDetails={true}
+						/>
+						<ThinkingConfigComponent modelId={selectedModelId ?? undefined} />
+					</>
 				)}
 			</CardContent>
 

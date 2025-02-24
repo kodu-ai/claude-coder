@@ -1,5 +1,5 @@
 // Define conditional blocks
-export const conditionalBlocks = ["vision"] as const
+export const conditionalBlocks = ["vision", "thinking"] as const
 export const templatePlaceHolder = [
 	"agentName",
 	"osName",
@@ -31,6 +31,9 @@ export interface TemplateHighlighterProps {
 }
 
 export const TEMPLATE_PLACEHOLDERS: Record<PlaceHolderName, TemplatePlaceholder> = {
+	thinking: {
+		description: "Insert a thinking block if the agent is has reasoning capabilities enabled",
+	},
 	vision: {
 		description: "Insert a vision block for image analysis capabilities",
 	},

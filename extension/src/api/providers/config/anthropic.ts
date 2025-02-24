@@ -8,7 +8,7 @@ export const anthropicConfig: ProviderConfig = {
 	baseUrl: DEFAULT_BASE_URLS[PROVIDER_IDS.ANTHROPIC],
 	models: [
 		{
-			id: "anthropic/claude-3.7-sonnet-beta",
+			id: "claude-3-7-sonnet-20250219",
 			maxTokens: 8192,
 			contextWindow: 200_000,
 			supportsImages: true,
@@ -18,7 +18,7 @@ export const anthropicConfig: ProviderConfig = {
 			outputPrice: 15.0,
 			cacheWritesPrice: 3.75,
 			cacheReadsPrice: 0.3,
-			name: "Claude 3.5 Sonnet (New)",
+			name: "Claude 3.7 Sonnet - Anthropic Direct",
 			provider: PROVIDER_IDS.ANTHROPIC,
 		},
 		{

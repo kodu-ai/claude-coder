@@ -53,8 +53,9 @@ export class AttemptCompletionTool extends BaseAgentTool<AttemptCompletionToolPa
 				.deref()
 				?.getTaskManager()
 				?.markTaskAsCompleted(this.koduDev.getStateManager().taskId, {
-					manual: false,
+					manual: true,
 				})
+
 			await this.params.updateAsk(
 				"tool",
 				{

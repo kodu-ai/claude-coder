@@ -34,7 +34,7 @@ export default function AnnouncementBanner() {
 				<div className="flex items-start justify-between">
 					<div className="flex items-center gap-2">
 						<AlertCircle className="h-5 w-5 text-primary" />
-						<h2 className="text-sm font-semibold">Latest Updates (v2.2.0)</h2>
+						<h2 className="text-sm font-semibold">Latest Updates (v2.3.0)</h2>
 					</div>
 					<Button
 						variant="ghost"
@@ -48,20 +48,15 @@ export default function AnnouncementBanner() {
 
 				<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
 					<div className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>🔧 Custom Observer Agent configuration</p>
-						<p>✨ Enhanced model switching UI</p>
-						<p>🧠 Deepseek R1/Chat (v3) reasoning tokens</p>
-						<p>🚀 Mistral Codestral code model support</p>
-						<p>📝 Improved system prompts</p>
+						<p>🚀 Added Claude 3.7 Sonnet - New SOTA coding agent highly recommended as daily driver</p>
+						<p>⚙️ Added option to customize Sonnet thinking tokens budget</p>
+						<p>🔧 Direct connection to Anthropic using your own API key</p>
 					</div>
 
 					<CollapsibleContent className="mt-2 text-sm text-card-foreground space-y-2">
-						<p>⚡️ Multi-agent coordination improvements</p>
-						<p>🔄 Better inline edit conflict resolution</p>
-						<p>🐛 Fixed context memory loading</p>
-						<p>📢 Clearer error messages</p>
-						<p>🔍 Improved commit tracking</p>
-						<p>🛠️ Enhanced diagnostic performance</p>
+						<p>🧠 Fine-tune Sonnet's thinking budget for your specific needs</p>
+						<p>⚡️ Enhanced performance with the latest Claude 3.7 model</p>
+						<p>🔧 General stability improvements</p>
 					</CollapsibleContent>
 
 					<div className="mt-3 flex items-center gap-4">

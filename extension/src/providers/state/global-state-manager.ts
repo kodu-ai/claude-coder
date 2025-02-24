@@ -43,6 +43,10 @@ export type GlobalState = {
 	skipWriteAnimation: boolean | undefined
 	commandTimeout: number | undefined
 	activePromptName: string | undefined
+	thinking?: {
+		type?: "enabled" | undefined
+		budget_tokens?: undefined | number
+	}
 	observerSettings:
 		| {
 				/**

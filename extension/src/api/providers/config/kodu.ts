@@ -8,8 +8,8 @@ export const koduConfig: ProviderConfig = {
 	baseUrl: DEFAULT_BASE_URLS[PROVIDER_IDS.KODU],
 	models: [
 		{
-			id: "claude-3-7-sonnet-latest",
-			maxTokens: 8192,
+			id: "claude-3-7-sonnet-20250219",
+			maxTokens: 64_000,
 			contextWindow: 200_000,
 			supportsImages: true,
 			supportsPromptCache: true,
@@ -18,7 +18,7 @@ export const koduConfig: ProviderConfig = {
 			outputPrice: 15.0,
 			cacheWritesPrice: 3.75,
 			cacheReadsPrice: 0.3,
-			name: "Claude 3.7 Sonnet (New)",
+			name: "Claude 3.7 Sonnet - Kodu Tunnel",
 			isRecommended: true,
 			provider: PROVIDER_IDS.KODU,
 		},
