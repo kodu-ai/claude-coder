@@ -49,7 +49,13 @@ export class AttemptCompletionTool extends BaseAgentTool<AttemptCompletionToolPa
 			true
 		)
 		if (response === "yesButtonTapped") {
-			this.params.updateAsk(
+			await this.koduDev.providerRef
+				.deref()
+				?.getTaskManager()
+				?.markTaskAsCompleted(this.koduDev.getStateManager().taskId, {
+					manual: false,
+				})
+			await this.params.updateAsk(
 				"tool",
 				{
 					tool: {
@@ -79,7 +85,7 @@ export class AttemptCompletionTool extends BaseAgentTool<AttemptCompletionToolPa
 			)
 		}
 
-		this.params.updateAsk(
+		await this.params.updateAsk(
 			"tool",
 			{
 				tool: {
@@ -105,9 +111,12 @@ export class AttemptCompletionTool extends BaseAgentTool<AttemptCompletionToolPa
 				<feedback_details>
 					<state>needs_improvement</state>
 					<message>The user is not pleased with the results</message>
-					<action_required>Use the feedback provided to complete the task and attempt completion again</action_required>
-					<user_feedback>${text || "No specific feedback provided"}</user_feedback>
+					<action_required>Use the feedback provided to complete the task, YOU MUST GIVE IT A HIGH PRIORITY</action_required>
+					<user_feedback>Here is the user feedback please put an extra care to it and make sure to adhere to it even if it means changing your plan:\`\`\`
+					${text || "No specific feedback provided"}
 					${images ? `<has_images>true</has_images>` : "<has_images>false</has_images>"}
+					\`\`\`
+					</user_feedback>
 				</feedback_details>
 			</completion_tool_response>`,
 			images

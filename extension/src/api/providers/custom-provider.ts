@@ -1,9 +1,10 @@
 import { ApiConstructorOptions, ApiHandler, ApiHandlerOptions } from ".."
 import { koduSSEResponse } from "../../shared/kodu"
-import { CoreMessage, smoothStream, streamText } from "ai"
+import { CoreMessage, LanguageModel, LanguageModelV1, smoothStream, streamText } from "ai"
 import { createDeepSeek } from "@ai-sdk/deepseek"
 import { createOpenAI } from "@ai-sdk/openai"
 import { createMistral } from "@ai-sdk/mistral"
+import { createAnthropic } from "@ai-sdk/anthropic"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { convertToAISDKFormat } from "../../utils/ai-sdk-format"
 import { customProviderSchema, ModelInfo } from "./types"
@@ -55,8 +56,19 @@ export class CustomProviderError extends Error {
 	}
 }
 
-const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) => {
+const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string): LanguageModelV1 => {
 	switch (settings.providerSettings.providerId) {
+		case PROVIDER_IDS.ANTHROPIC:
+			if (!settings.providerSettings.apiKey) {
+				throw new CustomProviderError(
+					"Anthropic Missing API key",
+					settings.providerSettings.providerId,
+					modelId
+				)
+			}
+			return createAnthropic({
+				apiKey: settings.providerSettings.apiKey,
+			}).languageModel(modelId)
 		case PROVIDER_IDS.DEEPSEEK:
 			if (!settings.providerSettings.apiKey) {
 				throw new CustomProviderError("Deepseek Missing API key", settings.providerSettings.providerId, modelId)
@@ -163,6 +175,39 @@ export class CustomApiHandler implements ApiHandler {
 		const convertedMessagesFull = convertedMessages.concat(convertToAISDKFormat(messages))
 		const currentModel = this._options.models.find((m) => m.id === modelId) ?? this._options.model
 
+		if (currentModel.supportsPromptCache && currentModel.provider === "anthropic") {
+			// we want to add prompt caching
+			let index = 0
+			let lastSystemIndex = -1
+			let lastUserIndex = -1
+			let secondLastUserIndex = -1
+			for (const msg of convertedMessagesFull) {
+				// first find the last system message
+				if (msg.role === "system") {
+					lastSystemIndex = index
+				}
+				// find the last user message
+				if (msg.role === "user") {
+					secondLastUserIndex = lastUserIndex
+					lastUserIndex = index
+				}
+
+				index++
+			}
+			// now find all the indexes and add cache control
+			const addCacheControl = (indexs: number[]) => {
+				for (const index of indexs) {
+					const item = convertedMessagesFull[index]
+					if (item) {
+						item.providerOptions = {
+							anthropic: { cacheControl: { type: "ephemeral" } },
+						}
+					}
+				}
+			}
+			addCacheControl([lastSystemIndex, lastUserIndex, secondLastUserIndex])
+		}
+
 		// const refetchSignal = new SmartAbortSignal(5000)
 		const result = streamText({
 			model: providerToAISDKModel(this._options, modelId),
@@ -198,26 +243,34 @@ export class CustomApiHandler implements ApiHandler {
 			if (part.type === "finish") {
 				let cache_creation_input_tokens: number | null = null
 				let cache_read_input_tokens: number | null = null
-				if (
-					this._options.providerSettings.providerId === PROVIDER_IDS.DEEPSEEK &&
-					part.experimental_providerMetadata
-				) {
+				if (this._options.providerSettings.providerId === PROVIDER_IDS.DEEPSEEK && part.providerMetadata) {
 					;({ cache_creation_input_tokens, cache_read_input_tokens } = extractCacheTokens({
 						cacheCreationField: "promptCacheMissTokens",
 						cacheReadField: "promptCacheHitTokens",
-						object: part.experimental_providerMetadata["deepseek"],
+						object: part.providerMetadata["deepseek"],
 					}))
 				}
 				if (this._options.providerSettings.providerId === PROVIDER_IDS.OPENAI) {
-					const cachedPromptTokens = part.experimental_providerMetadata?.["openai"]?.cachedPromptTokens
+					const cachedPromptTokens = part.providerMetadata?.["openai"]?.cachedPromptTokens
 					if (typeof cachedPromptTokens === "number") {
 						cache_read_input_tokens = cachedPromptTokens
 						// total_tokens - cache_read_input_tokens = cache_creation_input_tokens
 						cache_creation_input_tokens = part.usage.promptTokens - cache_read_input_tokens
 					}
 				}
-				const inputTokens =
+				let inputTokens =
 					part.usage.promptTokens - (cache_creation_input_tokens ?? 0) - (cache_read_input_tokens ?? 0)
+				if (this._options.providerSettings.providerId === PROVIDER_IDS.ANTHROPIC) {
+					// Anthropic has a different way of caching
+					part.usage.promptTokens = part.usage.promptTokens ?? 0
+					const cachedCreationTokens = part.providerMetadata?.["anthropic"]?.cacheCreationInputTokens
+					const cachedPromptTokensRead = part.providerMetadata?.["anthropic"]?.cacheReadInputTokens
+					if (typeof cachedPromptTokensRead === "number" && typeof cachedCreationTokens === "number") {
+						cache_read_input_tokens = cachedPromptTokensRead ?? 0
+						// total_tokens - cache_read_input_tokens = cache_creation_input_tokens
+						cache_creation_input_tokens = cachedCreationTokens
+					}
+				}
 				yield {
 					code: 1,
 					body: {

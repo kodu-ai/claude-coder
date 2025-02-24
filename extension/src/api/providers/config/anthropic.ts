@@ -1,26 +1,25 @@
-// providers/deepseek.ts
+// providers/anthropic.ts
 import { ProviderConfig } from "../types"
 import { DEFAULT_BASE_URLS, PROVIDER_IDS, PROVIDER_NAMES } from "../constants"
 
-export const koduConfig: ProviderConfig = {
-	id: PROVIDER_IDS.KODU,
-	name: PROVIDER_NAMES[PROVIDER_IDS.KODU],
-	baseUrl: DEFAULT_BASE_URLS[PROVIDER_IDS.KODU],
+export const anthropicConfig: ProviderConfig = {
+	id: PROVIDER_IDS.ANTHROPIC,
+	name: PROVIDER_NAMES[PROVIDER_IDS.ANTHROPIC],
+	baseUrl: DEFAULT_BASE_URLS[PROVIDER_IDS.ANTHROPIC],
 	models: [
 		{
-			id: "claude-3-7-sonnet-latest",
+			id: "anthropic/claude-3.7-sonnet-beta",
 			maxTokens: 8192,
 			contextWindow: 200_000,
 			supportsImages: true,
-			supportsPromptCache: true,
 			isThinkingModel: true,
+			supportsPromptCache: true,
 			inputPrice: 3.0,
 			outputPrice: 15.0,
 			cacheWritesPrice: 3.75,
 			cacheReadsPrice: 0.3,
-			name: "Claude 3.7 Sonnet (New)",
-			isRecommended: true,
-			provider: PROVIDER_IDS.KODU,
+			name: "Claude 3.5 Sonnet (New)",
+			provider: PROVIDER_IDS.ANTHROPIC,
 		},
 		{
 			id: "claude-3-5-sonnet-20241022",
@@ -33,7 +32,7 @@ export const koduConfig: ProviderConfig = {
 			cacheWritesPrice: 3.75,
 			cacheReadsPrice: 0.3,
 			name: "Claude 3.5 Sonnet (New)",
-			provider: PROVIDER_IDS.KODU,
+			provider: PROVIDER_IDS.ANTHROPIC,
 		},
 		{
 			id: "claude-3-5-sonnet-20240620",
@@ -46,7 +45,7 @@ export const koduConfig: ProviderConfig = {
 			cacheWritesPrice: 3.75,
 			cacheReadsPrice: 0.3,
 			name: "Claude 3.5 Sonnet (Old)",
-			provider: PROVIDER_IDS.KODU,
+			provider: PROVIDER_IDS.ANTHROPIC,
 		},
 		{
 			id: "claude-3-opus-20240229",
@@ -59,7 +58,7 @@ export const koduConfig: ProviderConfig = {
 			cacheWritesPrice: 18.75,
 			cacheReadsPrice: 1.5,
 			name: "Claude 3 Opus",
-			provider: PROVIDER_IDS.KODU,
+			provider: PROVIDER_IDS.ANTHROPIC,
 		},
 		{
 			id: "claude-3-haiku-20240307",
@@ -72,7 +71,7 @@ export const koduConfig: ProviderConfig = {
 			cacheWritesPrice: 0.3,
 			cacheReadsPrice: 0.03,
 			name: "Claude 3 Haiku",
-			provider: PROVIDER_IDS.KODU,
+			provider: PROVIDER_IDS.ANTHROPIC,
 		},
 		{
 			id: "claude-3-5-haiku-20241022",
@@ -85,33 +84,8 @@ export const koduConfig: ProviderConfig = {
 			cacheWritesPrice: 1.25,
 			cacheReadsPrice: 0.1,
 			name: "Claude 3.5 Haiku",
-			provider: PROVIDER_IDS.KODU,
+			provider: PROVIDER_IDS.ANTHROPIC,
 		},
-		// {
-		// 	id: "deepseek-v3-platform",
-		// 	maxTokens: 8192,
-		// 	contextWindow: 64_000,
-		// 	supportsImages: true,
-		// 	supportsPromptCache: true,
-		// 	inputPrice: 0.14,
-		// 	outputPrice: 0.28,
-		// 	cacheWritesPrice: 0.14,
-		// 	cacheReadsPrice: 0.014,
-		// 	name: "DeepSeek V3 (Deepseek Platform)",
-		// 	isRecommended: true,
-		// 	provider: PROVIDER_IDS.KODU,
-		// },
-		// {
-		// 	id: "deepseek-v3-fireworks-ai",
-		// 	maxTokens: 8192,
-		// 	contextWindow: 128_000,
-		// 	supportsImages: true,
-		// 	supportsPromptCache: true,
-		// 	inputPrice: 0.9,
-		// 	outputPrice: 0.9,
-		// 	name: "DeepSeek V3 (Fireworks.ai)",
-		// 	provider: PROVIDER_IDS.KODU,
-		// },
 	],
 	requiredFields: ["apiKey"],
 }

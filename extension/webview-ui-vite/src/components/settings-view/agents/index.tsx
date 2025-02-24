@@ -1,17 +1,9 @@
-import React, { useState, useCallback } from "react"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+import React from "react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Slider } from "@/components/ui/slider"
-import { useExtensionState } from "@/context/extension-state-context"
-import { vscode } from "@/utils/vscode"
 import _ from "lodash"
 import { Badge } from "../../ui/badge"
-import { ModelSelector } from "../preferences/model-picker"
-import { ChevronDown } from "lucide-react"
-import { rpcClient } from "@/lib/rpc-client"
 import { ObserverAgentCard } from "./observer-agent-card"
 
 const AgentsTab: React.FC = () => {

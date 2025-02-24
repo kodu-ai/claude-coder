@@ -16,12 +16,14 @@ import { useSwitchToProviderManager } from "./atoms"
  * ModelSelector Props
  *
  * @param modelId        The currently selected model ID (string)
+ * @param providerId     The currently selected provider ID (string)
  * @param onChangeModel  Handler to set the new model ID when a user selects a model from the list
  * @param models         Optional record of models; defaults to koduModels
  * @param showDetails    Whether to show the selected model's details (CPM, contextWindow, output limit, badges) below the popover
  */
 interface ModelSelectorProps {
-	modelId?: string
+	modelId: string | null
+	providerId: string | null
 	onChangeModel: ReturnType<typeof rpcClient.selectModel.useMutation>["mutate"]
 	models: ModelInfo[]
 	showDetails?: boolean
@@ -37,6 +39,7 @@ interface ModelSelectorProps {
  */
 export const ModelSelector: FC<ModelSelectorProps> = ({
 	modelId,
+	providerId,
 	onChangeModel,
 	models,
 	showDetails = true,
@@ -45,7 +48,9 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 	// Popover open/close state
 	const [open, setOpen] = useState(false)
 	// Currently selected model info
-	const selectedModel: ModelInfo | undefined = models.find((model) => model.id === modelId)
+	const selectedModel: ModelInfo | undefined = models.find(
+		(model) => model.id === modelId && model.provider === providerId
+	)
 	const switchToProvider = useSwitchToProviderManager()
 
 	const {
@@ -139,7 +144,7 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 							<CommandEmpty>No models found.</CommandEmpty>
 							<CommandGroup>
 								{models.map((model) => {
-									const isSelected = model.id === modelId
+									const isSelected = model.id === modelId && model.provider === providerId
 									return (
 										<CommandItem
 											value={model.name}

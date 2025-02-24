@@ -1,18 +1,11 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "outDir": "./webview-ui-vite/src/types",
-    "rootDir": "./src"
-  },
-  "include": [
-    "src/shared/**/*",
-    "src/api/providers/types.ts",
-    "src/api/providers/constants.ts"
-  ],
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.spec.ts"
-  ]
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"outDir": "./webview-ui-vite/src/types",
+		"rootDir": "./src"
+	},
+	"include": ["src/shared/**/*", "src/api/providers/types.ts", "src/api/providers/constants.ts"],
+	"exclude": ["**/*.test.ts", "**/*.spec.ts"]
 }

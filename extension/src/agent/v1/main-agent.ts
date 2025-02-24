@@ -393,6 +393,11 @@ export class MainAgent {
 		}
 	}
 
+	async markAsUncompleted() {
+		await this.providerRef.deref()?.getTaskManager().markTaskAsUncompleted(this.stateManager.taskId)
+		await this.providerRef.deref()?.getWebviewManager().postBaseStateToWebview()
+	}
+
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {
 		let details = ""
 		const lastTwoMsgs = this.stateManager.state.apiConversationHistory.slice(-2)

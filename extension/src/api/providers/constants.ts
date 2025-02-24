@@ -10,6 +10,7 @@ export const PROVIDER_IDS = {
 	DEEPSEEK: "deepseek",
 	DEEPINFRA: "deepinfra",
 	MISTRAL: "mistral",
+	ANTHROPIC: "anthropic",
 	OPENAICOMPATIBLE: "openai-compatible",
 } as const
 
@@ -25,6 +26,7 @@ export const PROVIDER_NAMES = {
 	[PROVIDER_IDS.DEEPSEEK]: "DeepSeek",
 	[PROVIDER_IDS.DEEPINFRA]: "DeepInfra",
 	[PROVIDER_IDS.OPENAICOMPATIBLE]: "OpenAI Compatible",
+	[PROVIDER_IDS.ANTHROPIC]: "Anthropic",
 } as const
 
 export const DEFAULT_BASE_URLS = {
@@ -37,6 +39,7 @@ export const DEFAULT_BASE_URLS = {
 	[PROVIDER_IDS.DEEPINFRA]: "https://api.deepinfra.com/v1/openai",
 	[PROVIDER_IDS.OPENAICOMPATIBLE]: "http://localhost:1234",
 	[PROVIDER_IDS.MISTRAL]: "https://codestral.mistral.ai/v1",
+	[PROVIDER_IDS.ANTHROPIC]: "https://api.anthropic.com/v1",
 } as const
 
 // For type safety when using provider IDs

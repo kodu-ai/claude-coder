@@ -340,6 +340,9 @@ export class TaskExecutor extends TaskExecutorUtils {
 			const startedReqId = await this.say("api_req_started")
 			this._currentStreamTs = startedReqId
 			if (provider?.koduDev) {
+				// mark the task as uncompleted
+				await provider.koduDev.markAsUncompleted()
+
 				const hookContent = await provider.koduDev.executeHooks()
 				if (hookContent) {
 					// Add hook content to the user content

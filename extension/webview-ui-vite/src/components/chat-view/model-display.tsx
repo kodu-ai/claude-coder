@@ -41,7 +41,8 @@ export const ModelDisplay = () => {
 	return (
 		<ModelSelector
 			models={modelListData?.models ?? []}
-			modelId={data.model.id}
+			modelId={data.model.id ?? null}
+			providerId={data.model.provider ?? null}
 			onChangeModel={handleModelChange}
 			showDetails={false}>
 			<Button variant="ghost" className="text-xs flex items-center gap-1 h-6 px-2 hover:bg-accent">

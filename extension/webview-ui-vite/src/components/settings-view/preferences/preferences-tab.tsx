@@ -16,13 +16,14 @@ import { preferencesViewAtom } from "./atoms"
 const PreferencesTabNew: React.FC = () => {
 	// const { model: selectedModelId, handleModelChange } = useSettingsState()
 	const forcedView = useAtomValue(preferencesViewAtom)
-	const { data: { modelId: selectedModelId } = { modelId: "" }, refetch } = rpcClient.currentModel.useQuery(
-		{},
-		{
-			refetchInterval: 5000,
-			refetchIntervalInBackground: true,
-		}
-	)
+	const { data: { modelId: selectedModelId, providerId } = { modelId: null, providerId: null }, refetch } =
+		rpcClient.currentModel.useQuery(
+			{},
+			{
+				refetchInterval: 5000,
+				refetchIntervalInBackground: true,
+			}
+		)
 	const { mutate: handleModelChange } = rpcClient.selectModel.useMutation({
 		onSuccess: () => {
 			refetch()
@@ -52,7 +53,8 @@ const PreferencesTabNew: React.FC = () => {
 				) : (
 					<ModelSelector
 						models={data.models ?? []}
-						modelId={selectedModelId}
+						modelId={selectedModelId ?? null}
+						providerId={providerId ?? null}
 						onChangeModel={handleModelChange}
 						showDetails={true}
 					/>

@@ -40,7 +40,7 @@ export class ToolParser {
 	private isInTag: boolean = false
 	private isInTool: boolean = false
 	private nonToolBuffer: string = ""
-
+	private isInCodeBlock: boolean = false
 	/**
 	 * Character-based threshold for partial updates
 	 */
@@ -122,6 +122,17 @@ export class ToolParser {
 	}
 
 	private processNonToolChar(char: string): void {
+		if (char === "`") {
+			this.isInCodeBlock = !this.isInCodeBlock
+			this.nonToolBuffer += char
+			return
+		}
+
+		if (this.isInCodeBlock) {
+			this.nonToolBuffer += char
+			return
+		}
+
 		if (char === "<") {
 			this.isInTag = true
 			this.buffer = char
@@ -425,10 +436,12 @@ export class ToolParser {
 		this.isInTool = false
 		this.nonToolBuffer = ""
 		this.lastFlushTime = 0
+		this.isInCodeBlock = false
 	}
 }
 
 export default ToolParser
+
 // const parser = new ToolParser(
 // 	tools.map((t) => t.schema),
 // 	{
@@ -447,7 +460,160 @@ export default ToolParser
 // 	}
 // )
 
+// const input = `<thinking>
+// I understand this is a test task to demonstrate the difference between incorrect and correct TypeScript generic syntax. The task shows:
+
+// 1. An incorrect syntax using square brackets: \`Promise<EnvironmentResponse[ApprovalResponse]>\`
+// 2. The correct syntax using angle brackets: \`Promise<EnvironmentResponse<ApprovalResponse>>\`
+
+// The key difference is that in TypeScript:
+// - Square brackets \`[]\` are used for array/index access
+// - Angle brackets \`<>\` are used for generic type parameters
+
+// Since this appears to be a self-test task to demonstrate understanding of TypeScript generic syntax, I should use attempt_completion to present this understanding.
+// </thinking>
+// <kodu_action><attempt_completion>
+// <result>
+// The example demonstrates correct vs incorrect TypeScript generic type syntax:
+
+// 1. Incorrect syntax:
+// Promise<EnvironmentResponse[ApprovalResponse]>
+// - Uses square brackets [] which are for array/index access
+// - This would try to access ApprovalResponse as an index of EnvironmentResponse
+
+// 2. Correct syntax:
+// Promise<EnvironmentResponse<ApprovalResponse>>
+// - Uses angle brackets <> for generic type parameters
+// - Properly nests the generic types: Promise containing EnvironmentResponse containing ApprovalResponse
+// </result>
+// </attempt_completion></kodu_action>`
+
+// function processAsChunksStream(input: string, delay: number) {
+// 	let i = 0
+// 	let accumlatedText = ""
+// 	const interval = setInterval(() => {
+// 		if (i >= input.length) {
+// 			clearInterval(interval)
+// 			parser.endParsing()
+// 			return
+// 		}
+// 		const d = parser.appendText(input[i])
+// 		if (d) {
+// 			accumlatedText += d
+// 			console.log("Accumulated:", accumlatedText)
+// 		}
+// 		i++
+// 	}, delay)
+// }
+// // parser.appendText(input)
+// // parser.endParsing()
+
+// processAsChunksStream(input, 2)
+
 // const input = `<kodu_action><attempt_completion><result>**Warning:** CodeGate detected one or more malicious, deprecated or archived packages.\n- Pkg 1: [https://www.insight.stacklok.com/report/pypi/malicious-pypi-dummy](https://www.insight.stacklok.com/report/pypi/malicious-pypi-dummy?utm_source=codegate)\n\nYou should not use the \`malicious-pypi-dummy\` package as it has been identified as malicious. Using such packages can expose your application to security vulnerabilities and potential risks. It is advisable to look for alternative packages that are well-reviewed and maintained.</result></attempt_completion></kodu_action>`
+
+// parser.appendText(input)
+// parser.endParsing()
+
+// const input = `<thinking>
+// I need to create a markdown file explaining the 5 most commonly used HTML tags and their use cases. This will be helpful for beginners learning HTML.
+
+// Current step: Create a new markdown file with clear explanations of HTML tags
+// Next step: Write comprehensive content about the most used HTML tags
+
+// Questions before writing:
+// - Did i read the file before writing to it? No (file doesn\'t exist yet)
+// - Did i write to the file before? No
+// - Did the user provide the content of the file? No
+// - Do i have the last content of the file? No, this is a new file
+
+// The file will be created at: /home/matan/code/test-3/kodu/test/html.md
+// </thinking>
+
+// <write_to_file>
+// <path>html.md</path>
+// <content># 5 Most Used HTML Tags and Their Use Cases
+
+// ## 1. \`<div>\` - Division/Container Tag
+// The \`<div>\` tag is a container element used to group other HTML elements together. It\'s the most versatile block-level element.
+
+// **Use Cases:**
+// - Creating sections in a webpage
+// - Grouping elements for styling
+// - Building layout structures
+// - Organizing content into logical divisions
+
+// ## 2. \`<p>\` - Paragraph Tag
+// The \`<p>\` tag defines a paragraph of text. It automatically adds space before and after the content.
+
+// **Use Cases:**
+// - Writing text content
+// - Creating readable blocks of content
+// - Separating text into logical paragraphs
+// - Maintaining proper text spacing
+
+// ## 3. \`<a>\` - Anchor Tag
+// The \`<a>\` tag creates hyperlinks to other web pages, files, or locations within the same page.
+
+// **Use Cases:**
+// - Creating links to other websites
+// - Making email links
+// - Creating internal page navigation
+// - Downloading files
+// \`\`\`html
+// <a href="https://example.com">Visit Example</a>
+// \`\`\`
+
+// ## 4. \`<img>\` - Image Tag
+// The \`<img>\` tag embeds images into your webpage. It\'s a self-closing tag that requires a source attribute.
+
+// **Use Cases:**
+// - Displaying photos and illustrations
+// - Adding logos and icons
+// - Showing product images
+// - Creating visual content
+// \`\`\`html
+// <img src="image.jpg" alt="Description of image">
+// \`\`\`
+
+// ## 5. \`<h1>\` to \`<h6>\` - Heading Tags
+// Heading tags define different levels of headings, with \`<h1>\` being the most important and \`<h6>\` the least.
+
+// **Use Cases:**
+// - Creating page titles
+// - Organizing content hierarchy
+// - Improving SEO
+// - Structuring document sections
+// \`\`\`html
+// <h1>Main Title</h1>
+// <h2>Subtitle</h2>
+// \`\`\`
+
+// These tags form the foundation of HTML document structure and are essential for creating well-organized, semantic web content.</content>
+// </write_to_file>
+
+// <thinking>
+// I have created a comprehensive markdown file that:
+// 1. Lists the 5 most commonly used HTML tags
+// 2. Provides clear explanations for each tag
+// 3. Includes specific use cases for each tag
+// 4. Added code examples where relevant
+// 5. Formatted the content in a clean, readable way using markdown
+
+// Now that the file has been created with complete content, I can attempt to complete the task.
+// </thinking>
+
+// <attempt_completion>
+// <result>
+// I have created the html.md file with detailed explanations of the 5 most commonly used HTML tags. The file includes:
+// - Comprehensive descriptions of each tag
+// - Specific use cases for each tag
+// - Code examples where appropriate
+// - Clear markdown formatting for readability
+
+// The file has been written to /home/matan/code/test-3/kodu/test/html.md
+// </result>
+// </attempt_completion>`
 
 // parser.appendText(input)
 // parser.endParsing()

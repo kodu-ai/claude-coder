@@ -142,7 +142,7 @@ const providerRouter = router({
 
 	currentModel: procedure.input(z.object({})).resolve(async (ctx, input) => {
 		const apiConfig = GlobalStateManager.getInstance().getGlobalState("apiConfig")
-		return { modelId: apiConfig?.modelId }
+		return { modelId: apiConfig?.modelId, providerId: apiConfig?.providerId }
 	}),
 
 	currentModelInfo: procedure.input(z.object({})).resolve(async (ctx, input) => {

@@ -142,18 +142,9 @@ export class ExtensionStateManager {
 		const history = (await this.globalStateManager.getGlobalState("taskHistory")) ?? []
 		const existingItemIndex = history.findIndex((h) => h.id === item.id)
 		if (existingItemIndex !== -1) {
-			const manuallyMarkedTs = history[existingItemIndex].manuallyMarkedCompletedAt
 			history[existingItemIndex] = {
 				...history[existingItemIndex],
 				...item,
-			}
-
-			if (manuallyMarkedTs && metadata?.lastMessageAt && manuallyMarkedTs > metadata.lastMessageAt) {
-				history[existingItemIndex].manuallyMarkedCompletedAt = manuallyMarkedTs
-				history[existingItemIndex].isCompleted = true
-			}
-			if (manuallyMarkedTs && metadata?.lastMessageAt && metadata?.lastMessageAt > manuallyMarkedTs) {
-				history[existingItemIndex].isCompleted = false
 			}
 		} else {
 			if (isSatifiesHistoryItem(item)) {
