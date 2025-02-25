@@ -423,9 +423,9 @@ export class MainAgent {
 			"edit_file_blocks",
 			"file_editor",
 		]
-		const isLastMsgMutable = lastTwoMsgs.some((msg) => {
+		const isLastMsgMutable = lastTwoMsgs.some((msg: any) => {
 			if (Array.isArray(msg.content)) {
-				return msg.content.some((block) => {
+				return msg.content.some((block: any) => {
 					if (block.type === "text") {
 						const isInclude = awaitRequierdTools.some((i) => block.text.includes(`<${i}>`))
 						return isInclude
@@ -434,7 +434,7 @@ export class MainAgent {
 				})
 			}
 			if (typeof msg.content === "string") {
-				return awaitRequierdTools.map((i) => `<${i}>`).some((i) => `${msg.content}`.includes(i))
+				return awaitRequierdTools.map((i) => `<${i}>`).some((i: any) => `${msg.content}`.includes(i))
 			}
 			return false
 		})
