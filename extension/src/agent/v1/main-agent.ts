@@ -532,9 +532,9 @@ export class MainAgent {
 		}
 		const diagnostics = await diagnosticsHandler.getDiagnostics(files)
 		const newErrors = diagnostics.filter(
-			(diag) => diag.errorString !== null && diag.errorString !== undefined && diag.errorString !== ""
+			(diag: any) => diag.errorString !== null && diag.errorString !== undefined && diag.errorString !== ""
 		)
-		const taskErrorsRecord = newErrors.reduce((acc, curr) => {
+		const taskErrorsRecord = newErrors.reduce((acc: any, curr: any) => {
 			acc[curr.key] = {
 				lastCheckedAt: Date.now(),
 				error: curr.errorString!,
