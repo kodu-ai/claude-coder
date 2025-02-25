@@ -360,7 +360,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 							handleSecondaryButtonClick={handleSecondaryButtonClick}
 						/>
 					)}
-
+					<Button onClick={() => vscode.postMessage({ type: "command", command: "kodu-claude-coder-main.newFeature" })}>New Feature</Button>
 					<ChatInput
 						state={state}
 						updateState={updateState}
