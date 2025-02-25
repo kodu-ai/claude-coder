@@ -100,8 +100,15 @@ export function activate(context: vscode.ExtensionContext) {
 	outputChannel.appendLine("Kodu extension activated")
 	const sidebarProvider = new ExtensionProvider(context, outputChannel)
 
-	// Inicjalizacja bota nauczającego
-	const mainChatbot = sidebarProvider.getApiManager().getApiHandler()
+	// Initialize teaching bot
+	let apiConfig
+	try {
+		apiConfig = await sidebarProvider.getCurrentApiSettings()
+	} catch (e: any) {
+		console.error(e)
+		apiConfig = {}
+	}
+	const mainChatbot = sidebarProvider.getApiManager()
 	const teachingBot = new TeachingBotHandler(mainChatbot.options, mainChatbot)
 	const teachingBotHandler = new TeachingBotMessageHandler(
 		teachingBot,
