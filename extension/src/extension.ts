@@ -108,7 +108,7 @@ export function activate(context: vscode.ExtensionContext) {
 		console.error(e);
 		apiConfig = {};
 	}
-	const mainChatbot = sidebarProvider.getApiManager().getApiHandler();
+	const mainChatbot = sidebarProvider.getApiManager();
 	const teachingBot = new TeachingBotHandler(mainChatbot.options, mainChatbot);
 	const teachingBotHandler = new TeachingBotMessageHandler(
 		teachingBot,
