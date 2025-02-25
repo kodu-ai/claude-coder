@@ -73,9 +73,15 @@ export class DiagnosticsHandler {
 					const fullPath = path.resolve(getCwd(), filePath)
 					const uri = vscode.Uri.file(fullPath)
 					// first access the document to ensure the path actually exists
-					const fileExists = fs.existsSync(uri.fsPath)
+					let fileExists = false;
+					try {
+						fileExists = fs.existsSync(uri.fsPath);
+					} catch (e) {
+						console.error(`Error checking if file exists: ${uri.fsPath}`, e);
+						return { key: filePath, errorString: null };
+					}
 					if (!fileExists) {
-						return { key: filePath, errorString: null }
+						return { key: filePath, errorString: null };
 					}
 					await vscode.workspace.openTextDocument(uri)
 					const diagnostics = vscode.languages.getDiagnostics(uri)
