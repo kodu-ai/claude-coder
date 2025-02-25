@@ -4,16 +4,14 @@ import { ToolPromptSchema } from "../utils/utils"
 export const fileEditorPrompt: ToolPromptSchema = {
 	name: "file_editor",
 	description:
-		"Requests to create, edit, or roll back a specific file. This tool is your one-stop shop for interacting with files, from making precise edits to rewriting files completely or undoing the last edit you made.",
+		"Requests to create or edit a specific file. Edit mode for precise changes, whole_write mode for full content replacement",
 	parameters: {
 		mode: {
 			type: "string",
 			description: dedent`
         The operation mode of the file_editor tool:
         - "whole_write": create or completely rewrite a file.
-        - "edit": make precise edits to an existing file.
-        - "rollback": undo the most recent edit made to the file.
-      `,
+        - "edit": make precise edits to an existing file.`,
 			required: true,
 		},
 		path: {
@@ -32,32 +30,28 @@ export const fileEditorPrompt: ToolPromptSchema = {
 		},
 		kodu_diff: {
 			type: "string",
-			description: dedent`
-        Required if "mode" is "edit". Must use standard Git conflict merge format:
-        
-        <<<<<<< HEAD
-        (the exact lines from the file, including 3 lines of context before and 3 lines of context after the replaced lines)
-        =======
-        (the new lines that will replace the old ones; must be final, no placeholders)
-        >>>>>>> updated
-        
-        You may include up to 5 such blocks if multiple edits are needed, ordered from top to bottom in the file. Each block must have at least 3 lines of unchanged context before the snippet you want to replace. 
-        The content between <<<<<<< HEAD and ======= must exactly match the file's current content, including whitespace and indentation. The content between ======= and >>>>>>> updated is the fully updated version.
+			description: dedent`it is required to make a precise kodu_diff if "mode" is "edit".
+Must use standard Git conflict merge format as follows:
+<<<<<<< HEAD
+(the exact lines from the file, including 3 lines of context before and 3 lines of context after the replaced lines)
+=======
+(the new lines that will replace the old ones; must be final, no placeholders)
+>>>>>>> updated
+You may include up to 5 such blocks if multiple edits are needed, ordered from the top of the file to the bottom of the file (line numbers). Each block must have at least 3 lines of unchanged context before the snippet you want to replace. 
+The content between <<<<<<< HEAD and ======= must exactly match the file's current content, including whitespace and indentation. The content between ======= and >>>>>>> updated is the fully updated version.
       `,
 			required: 'Required for "edit" mode',
 		},
 		kodu_content: {
 			type: "string",
 			description: dedent`
-        Required if "mode" is "whole_write". This must be the complete, final content of the file with no placeholders or omissions. It overwrites the file if it already exists or creates a new one if it does not.
-      `,
+        Required if "mode" is "whole_write". This must be the complete, final content of the file with no placeholders or omissions. It overwrites the file if it already exists or creates a new one if it does not.`,
 			required: 'Required for "whole_write" mode',
 		},
 	},
 	capabilities: [
 		"Use 'whole_write' to replace the entire file content or create a new file.",
-		"Use 'edit' with kodu_diff in Git conflict format to modify an existing file precisely.",
-		"Use 'rollback' to revert the most recent edit you made to the file.",
+		"Use 'edit' with kodu_diff, it will alow you to make precise changes to the file using Git conflict format (up to 5 blocks per call).",
 	],
 	extraDescriptions: dedent`
     ### Key Principles When Using file_editor
@@ -78,12 +72,13 @@ export const fileEditorPrompt: ToolPromptSchema = {
     - Must include a valid commit_message.
 
     **'edit' Mode**:
-    - Provide the precise changes via 'kodu_diff' using standard Git conflict markers.
+    - Provide the precise changes via 'kodu_diff' using standard Git conflict markers, up to 5 blocks per call, in top-to-bottom file order while maintaining indentation and whitespace.
     - Each block must have at least 3 lines of exact context before (and ideally after) the snippet being replaced.
     - The content in <<<<<<< HEAD ... ======= must exactly match the file’s current lines.
     - The content in ======= ... >>>>>>> updated is your fully updated replacement with no placeholders.
     - If multiple snippets need editing, combine them into one 'kodu_diff' string with multiple blocks, in top-to-bottom file order.
     - Must include a valid commit_message.
+	- Must use precise changes and find the code block boundaries and edit only the needed lines.
 
     **CRITICAL RULES FOR 'edit' MODE**:
     1. You must have read the file (latest version) before editing. No guesswork; the HEAD section must match character-for-character.
@@ -91,10 +86,7 @@ export const fileEditorPrompt: ToolPromptSchema = {
     3. Provide at least 3 lines of unchanged context around each replaced snippet.
     4. Write the changes from top to bottom, ensuring the blocks appear in the same order as they do in the file.
     5. Escape special characters (\t, \n, etc.) properly if needed.
-
-    ### Examples
-    
-    (See the provided examples below for typical usage of 'whole_write', 'edit', and 'rollback' modes.)
+	6. You should try to aim for a precise edit while using only the nessesary lines to be changed, find the code block boundaries and edit only the needed lines.
   `,
 	examples: [
 		{
@@ -126,7 +118,11 @@ export const fileEditorPrompt: ToolPromptSchema = {
 <mode>edit</mode>
 <commit_message>fix(math): update factorial call and add debug log</commit_message>
 <kodu_diff>
-(One conflict block containing at least 3 lines of context above the snippet)
+<<<<<<< HEAD
+(3 lines of exact context)
+=======
+(3 lines of exact context + updated function call + added debug log)
+>>>>>>> updated
 </kodu_diff>
 </file_editor>`,
 		},
@@ -140,14 +136,6 @@ export const fileEditorPrompt: ToolPromptSchema = {
 <kodu_content>
 // Full file content here...
 </kodu_content>
-</file_editor>`,
-		},
-		{
-			description: "Rollback Last Changes",
-			thinking: `<thinking>The last changes caused a regression; revert them.</thinking>`,
-			output: `<file_editor>
-<path>src/components/UserProfile.tsx</path>
-<mode>rollback</mode>
 </file_editor>`,
 		},
 	],

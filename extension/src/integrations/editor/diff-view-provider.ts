@@ -18,6 +18,7 @@ import {
 	MODIFIED_URI_SCHEME,
 	DIFF_VIEW_URI_SCHEME,
 } from "./decoration-controller"
+import { readFile } from "../../agent/v1/tools/format-content"
 
 export class DiffViewProvider {
 	private updateQueue = new PQueue({ concurrency: 1 })
@@ -82,7 +83,7 @@ export class DiffViewProvider {
 		try {
 			const uri = vscode.Uri.file(absolutePath)
 			const now = Date.now()
-			const contentBuffer = await vscode.workspace.fs.readFile(uri)
+			const contentBuffer = await readFile(relPath)
 			this.logger(
 				`[${now}] opened file [function open]: ${relPath} with content length ${contentBuffer.length}`,
 				"info"

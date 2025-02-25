@@ -13,6 +13,7 @@ import {
 import { createPatch } from "diff"
 import { formatFileToLines } from "../../agent/v1/tools/runners/read-file/utils"
 import { BlockResult, EditBlock, findAndReplace } from "./utils"
+import { readFile } from "../../agent/v1/tools/format-content"
 
 interface DocumentState {
 	uri: vscode.Uri
@@ -76,7 +77,7 @@ export class InlineEditHandler {
 				return
 			}
 			const uri = vscode.Uri.file(filePath)
-			let documentBuffer = await vscode.workspace.fs.readFile(uri)
+			let documentBuffer = await readFile(filePath)
 			let documentContent = Buffer.from(documentBuffer).toString("utf8")
 
 			// Normalize line endings to LF to ensure consistency across OS

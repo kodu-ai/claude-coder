@@ -183,6 +183,7 @@ export class SearchSymbolsTool extends BaseAgentTool<SearchSymbolsToolParams> {
 						this.ts
 					)
 					await this.params.say("user_feedback", text ?? "The user denied this operation.", images)
+
 					return this.toolResponse(
 						"feedback",
 						`<search_symbol_response>

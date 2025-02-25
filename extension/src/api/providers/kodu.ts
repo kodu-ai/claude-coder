@@ -97,16 +97,6 @@ export class KoduHandler implements ApiHandler {
 				// If thinking is enabled, set tempature to 1 CAN'T BE CHANGED
 				tempature = 1
 				thinkingConfig = thinking
-				// we also going to add a message in the system prompt to tell the model to leave a reasoning trace with a couple of lines
-				system.push({
-					type: "text",
-					text: `Please don't forget to leave a reasoning trace in your output under <thinking></thinking> tags.
-					This should include a couple of lines to help you recall your internal thoughts and reasoning.
-					This should be details about your inner thoughts, finding and reasoning summarized shortly that will be useful for recalling and letting you self correct your thoughts or understand why you chose a particular path or tool call
-					It can also include your observations, hypothesis, and conclusions.
-					Please make sure to include this in your output, short, concise and to the point.
-					`,
-				})
 			}
 		}
 		// Prepare messages up to the last user message

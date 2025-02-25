@@ -178,6 +178,11 @@ const providerRouter = router({
 			if (!modelExists) {
 				throw new Error(`Invalid model for provider ${input.providerId}: ${input.modelId}`)
 			}
+			let thinkingConfig: GlobalState["thinking"] | undefined
+			if (input.modelId === "claude-3-7-sonnet-20250219") {
+				thinkingConfig = { type: "enabled", budget_tokens: 32_000 }
+				await GlobalStateManager.getInstance().updateGlobalState("thinking", thinkingConfig)
+			}
 
 			await GlobalStateManager.getInstance().updateGlobalState("apiConfig", {
 				providerId: input.providerId as ProviderId,

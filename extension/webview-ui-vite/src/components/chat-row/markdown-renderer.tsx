@@ -23,7 +23,7 @@ type MarkdownRendererProps =
 
 function cleanMarkdown(markdown?: string) {
 	if (!markdown) return ""
-	const tags = ["kodu_action", "thinking", "observation"]
+	const tags = ["kodu_action", "thinking", "observation", "thinking_summary", "execution_plan"]
 
 	for (const tag of tags) {
 		const openTag = `<${tag}>`

@@ -1,16 +1,17 @@
 import * as path from "path"
 import * as vscode from "vscode"
 import { Resource } from "../../../shared/messages/client-message"
-
-async function readFile(fileName: string): Promise<string> {
-	const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
-	if (!workspaceFolder) {
-		throw new Error("No workspace folder is open")
+import * as fs from "fs/promises"
+import { getCwd } from "../utils"
+export async function readFile(relPath: string): Promise<string> {
+	// check if this is already absolute path
+	if (path.isAbsolute(relPath)) {
+		const fileContent = await fs.readFile(relPath)
+		return Buffer.from(fileContent).toString("utf8")
 	}
-
-	const filePath = path.join(workspaceFolder.uri.fsPath, fileName)
-	const fileUri = vscode.Uri.file(filePath)
-	const fileContent = await vscode.workspace.fs.readFile(fileUri)
+	const filePath = path.join(getCwd(), relPath)
+	const absolutePath = path.resolve(filePath)
+	const fileContent = await fs.readFile(absolutePath)
 	return Buffer.from(fileContent).toString("utf8")
 }
 
