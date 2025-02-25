@@ -357,12 +357,12 @@ const ChatView: React.FC<ChatViewProps> = ({
 							enableButtons={state.enableButtons}
 							isRequestRunning={isMessageRunning}
 							handlePrimaryButtonClick={handlePrimaryButtonClick}
-							handleSecondaryButtonClick={handleSecondaryButtonClick}
-						/>
-					)}
-					<Button onClick={() => vscode.postMessage({ type: "action", action: "newFeature" })}>New Feature</Button>
-					<ChatInput
-						state={state}
+						handleSecondaryButtonClick={handleSecondaryButtonClick}
+					/>
+				)}
+				{/* <Button onClick={() => vscode.postMessage({ type: "action", action: newFeature })}>New Feature</Button> */}
+				<ChatInput
+					state={state}
 						updateState={updateState}
 						onSendMessage={handleSendMessage}
 						shouldDisableImages={shouldDisableImages}
