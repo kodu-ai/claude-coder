@@ -31,6 +31,7 @@ function getFreeColumn(): vscode.ViewColumn {
 			return vscode.ViewColumn.One
 	}
 }
+// trigger extension reload
 
 export class DiagnosticsHandler {
 	private static instance: DiagnosticsHandler
