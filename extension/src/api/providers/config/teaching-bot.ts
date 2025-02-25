@@ -1,8 +1,10 @@
 import { ProviderConfig } from "../types"
 
+import { PROVIDER_IDS, PROVIDER_NAMES } from "../constants"
+
 export const teachingBotConfig: ProviderConfig = {
-    id: "teaching-bot" as const,
-    name: "Teaching Bot",
+    id: PROVIDER_IDS.TEACHING_BOT,
+    name: PROVIDER_NAMES[PROVIDER_IDS.TEACHING_BOT],
     baseUrl: "https://api.anthropic.com/v1",
     models: [
         {
@@ -13,7 +15,7 @@ export const teachingBotConfig: ProviderConfig = {
             supportsImages: true,
             inputPrice: 0.5,
             outputPrice: 1.5,
-            provider: "teaching-bot"
+            provider: PROVIDER_IDS.TEACHING_BOT
         }
     ],
     requiredFields: ["apiKey"]

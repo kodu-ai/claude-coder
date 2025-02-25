@@ -1,7 +1,7 @@
 import { TeachingBotHandler } from "./teaching-bot"
-import { TeachingBotMessage, TeachingBotResponse } from "./types/teaching-bot"
 import { WebviewManager } from "../../webview/webview-manager"
 import { ApiHandler } from "./types"
+import { TeachingBotMessage, TeachingBotResponse, TeachingBotMessageType } from "./types/teaching-bot"
 
 export class TeachingBotMessageHandler {
     private teachingBot: TeachingBotHandler
@@ -15,29 +15,58 @@ export class TeachingBotMessageHandler {
     }
 
     async handleMessage(message: TeachingBotMessage): Promise<void> {
-        let response: TeachingBotResponse = {
-            type: "teachingBotResponse",
-            message: ""
-        }
+        try {
+            // Walidacja wejścia
+            if (!message || typeof message.message !== 'string') {
+                throw new Error('Invalid message format')
+            }
 
-        switch (message.message) {
-            case "start_new_session":
-                response = await this.handleStartNewSession()
-                break
-            case "end_session":
-                response = await this.handleEndSession()
-                break
-            case "next_topic":
-                response = await this.handleNextTopic()
-                break
-            case "review_topic":
-                response = await this.handleReviewTopic()
-                break
-            default:
-                response = await this.handleCustomMessage(message)
-        }
+            let response: TeachingBotResponse = {
+                type: "teachingBotResponse",
+                message: ""
+            }
 
-        this.webviewManager.postMessageToWebview(response)
+            // Logowanie otrzymanej wiadomości
+            console.log('Received teaching bot message:', message)
+
+            switch (message.message as TeachingBotMessageType) {
+                case "start_new_session":
+                    response = await this.handleStartNewSession()
+                    break
+                case "end_session":
+                    response = await this.handleEndSession()
+                    break
+                case "next_topic":
+                    response = await this.handleNextTopic()
+                    break
+                case "review_topic":
+                    response = await this.handleReviewTopic()
+                    break
+                default:
+                    response = await this.handleCustomMessage(message)
+            }
+
+            // Walidacja odpowiedzi
+            if (!response || !response.message) {
+                throw new Error('Invalid response format')
+            }
+
+            // Logowanie odpowiedzi
+            console.log('Sending teaching bot response:', response)
+
+            this.webviewManager.postMessageToWebview(response)
+        } catch (error) {
+            console.error('Error handling teaching bot message:', error)
+
+            // Wysłanie informacji o błędzie do interfejsu
+            const errorResponse: TeachingBotResponse = {
+                type: "teachingBotResponse",
+                message: "An error occurred while processing your request. Please try again.",
+                progress: -1 // Oznaczenie błędu
+            }
+
+            this.webviewManager.postMessageToWebview(errorResponse)
+        }
     }
 
     private async handleStartNewSession(): Promise<TeachingBotResponse> {

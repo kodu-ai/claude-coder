@@ -1,14 +1,12 @@
 import { ApiHandler, ApiConstructorOptions, koduSSEResponse } from "../types"
 import { GlobalStateManager } from "../../shared/global-state-manager"
-import { delay } from "../../utils/delay"
-import { Anthropic } from "@anthropic-ai/sdk"
 import { streamText } from "ai-sdk"
 import { convertToAISDKFormat } from "../utils/convert-to-ai-sdk-format"
 import { providerToAISDKModel } from "../utils/provider-to-ai-sdk-model"
 import { smoothStream } from "../utils/smooth-stream"
 import { calculateApiCost } from "../utils/calculate-api-cost"
-import { extractCacheTokens } from "../utils/extract-cache-tokens"
 import { PROVIDER_IDS } from "../config"
+import { nanoid } from 'nanoid'
 
 export class TeachingBotHandler implements ApiHandler {
     private _options: ApiConstructorOptions
@@ -141,7 +139,7 @@ export class TeachingBotHandler implements ApiHandler {
                                     text,
                                 },
                             ],
-                            id: "teaching-1",
+                            id: `teaching-${nanoid()}`,
                             role: "assistant",
                             stop_reason: "stop_sequence",
                             type: "message",
@@ -249,12 +247,32 @@ export class TeachingBotHandler implements ApiHandler {
 
     // Metoda do wyszukiwania dodatkowych zasobów
     async searchResources(topic: string): Promise<string[]> {
-        // Tutaj możemy zaimplementować wyszukiwanie w internecie
-        // Na razie zwracamy przykładowe zasoby
-        return [
-            `Documentation for ${topic}`,
-            `Tutorial for ${topic}`,
-            `Best practices for ${topic}`
-        ]
+        try {
+            // Użyj mainChatbot do wyszukania zasobów
+            const query = `Find learning resources for topic: ${topic}. Return only URLs to documentation, tutorials and best practices.`
+            const response = await this.communicateWithMainBot(query)
+
+            // Parsuj odpowiedź, zakładając że zawiera linki
+            const urls = response.match(/https?:\/\/[^\s)]+/g) || []
+
+            // Jeśli nie znaleziono linków, zwróć podstawowe zasoby
+            if (urls.length === 0) {
+                return [
+                    `Documentation for ${topic}`,
+                    `Tutorial for ${topic}`,
+                    `Best practices for ${topic}`
+                ]
+            }
+
+            return urls
+        } catch (error) {
+            console.error('Error searching resources:', error)
+            // W przypadku błędu zwróć podstawowe zasoby
+            return [
+                `Documentation for ${topic}`,
+                `Tutorial for ${topic}`,
+                `Best practices for ${topic}`
+            ]
+        }
     }
 }

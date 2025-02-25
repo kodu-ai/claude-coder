@@ -113,6 +113,12 @@ export interface MistralSettings extends BaseProviderSettings {
 	apiKey: string
 }
 
+export interface TeachingBotSettings extends BaseProviderSettings {
+	providerId: "teaching-bot"
+	apiKey: string
+	baseUrl?: string
+}
+
 export type ProviderSettings =
 	| KoduSettings
 	| GoogleGenAISettings
@@ -124,6 +130,7 @@ export type ProviderSettings =
 	| DeepseekSettings
 	| DeepInfraSettings
 	| OpenAICompatibleSettings
+	| TeachingBotSettings
 
 export interface ProviderWithModel {
 	settings: ProviderSettings

@@ -1,11 +1,4 @@
 import { teachingBotConfig } from "./teaching-bot"
-import { PROVIDER_IDS } from "../constants"
-import { ProviderConfig } from "../types"
-
-export const providerConfigs: Record<string, ProviderConfig> = {
-    [PROVIDER_IDS.TEACHING_BOT]: teachingBotConfig,
-    // ... inne konfiguracje
-}// providers/index.ts
 import { deepseekConfig } from "./deepseek"
 import { openaiConfig } from "./openai"
 import { koduConfig } from "./kodu"
@@ -24,6 +17,7 @@ export const providerConfigs: Record<string, ProviderConfig> = {
 	[PROVIDER_IDS.OPENAICOMPATIBLE]: openaiCompatible,
 	[PROVIDER_IDS.MISTRAL]: mistralConfig,
 	[PROVIDER_IDS.ANTHROPIC]: anthropicConfig,
+	[PROVIDER_IDS.TEACHING_BOT]: teachingBotConfig,
 	// Add other providers here as they're created
 }
 
