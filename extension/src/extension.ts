@@ -297,6 +297,12 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand(`${extensionName}.openInNewTab`, openExtensionInNewTab))
 
 	context.subscriptions.push(
+		vscode.commands.registerCommand(`${extensionName}.newFeature`, () => {
+			outputChannel.appendLine("New feature button tapped!")
+		})
+	)
+
+	context.subscriptions.push(
 		vscode.commands.registerCommand(`${extensionName}.settingsButtonTapped`, () => {
 			//const message = "kodu-claude-coder-main.settingsButtonTapped!"
 			//vscode.window.showInformationMessage(message)
