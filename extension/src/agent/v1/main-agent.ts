@@ -626,5 +626,5 @@ ${details.trim()}
 	}
 }
 
-export * from "./types"
+export * from "./types" 
 // trigger extension reload
