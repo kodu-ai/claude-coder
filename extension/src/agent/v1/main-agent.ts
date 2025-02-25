@@ -364,16 +364,32 @@ export class MainAgent {
 		this.isAborting = true
 		try {
 			// First abort the task executor
-			await this.taskExecutor.abortTask()
+			try {
+				await this.taskExecutor.abortTask()
+			} catch (error) {
+				console.error("Error aborting task executor:", error)
+			}
 
 			// Then close the browser
-			await this.browserManager.closeBrowser()
+			try {
+				await this.browserManager.closeBrowser()
+			} catch (error) {
+				console.error("Error closing browser:", error)
+			}
 
 			// Then dispose terminals
-			await this.terminalManager.disposeAll()
+			try {
+				await this.terminalManager.disposeAll()
+			} catch (error) {
+				console.error("Error disposing terminals:", error)
+			}
 
 			// Finally clear dev servers
-			await TerminalRegistry.clearAllDevServers()
+			try {
+				await TerminalRegistry.clearAllDevServers()
+			} catch (error) {
+				console.error("Error clearing dev servers:", error)
+			}
 		} finally {
 			this.isAborting = false
 		}
