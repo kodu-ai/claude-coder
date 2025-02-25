@@ -118,10 +118,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Rejestracja handlera wiadomości od bota nauczającego
 	context.subscriptions.push(
-		vscode.commands.registerCommand(`${extensionName}.teachingBotMessage`, (message) => {
-			teachingBotHandler.handleMessage(message);
+		vscode.commands.registerCommand(`${extensionName}.teachingBotMessage`, (message: any) => {
+			teachingBotHandler.handleMessage(message)
 		})
-	);
+	)
 
 	context.subscriptions.push(outputChannel)
 	console.log(`Kodu extension activated`)

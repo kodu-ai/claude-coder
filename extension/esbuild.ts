@@ -176,6 +176,8 @@ const extensionConfig: BuildOptions = {
 	external: [
 		"vscode",
 		"chromium-bidi",
+		"yazl",
+		"buffer-crc32",
 		// Add more if you want to fully externalize @libsql
 		// e.g., "@libsql/client", "@libsql/win32-x64-msvc", etc.
 		// "@libsql/win32-x64-msvc",
