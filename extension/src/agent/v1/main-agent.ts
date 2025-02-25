@@ -434,7 +434,7 @@ export class MainAgent {
 				})
 			}
 			if (typeof msg.content === "string") {
-				return awaitRequierdTools.map((i) => `<${i}>`).some((i) => `${msg.content}`.includes(i))
+				return awaitRequierdTools.map((i) => `<${i}>`).some((i: string) => `${msg.content}`.includes(i))
 			}
 			return false
 		})
