@@ -485,36 +485,50 @@ export class MainAgent {
 		details += devServerSection
 		// It could be useful for cline to know if the user went from one or no file to another between messages, so we always include this context
 		details += "<visible_files>\n"
-		const visibleFiles = vscode.window.visibleTextEditors
-			?.map((editor) => editor.document?.uri?.fsPath)
-			.filter(Boolean)
-			.map((absolutePath) => path.relative(getCwd(), absolutePath).toPosix())
-			.join("\n")
-		if (visibleFiles) {
-			details += `${visibleFiles}`
-		} else {
-			details += "(No visible files)"
+		try {
+			const visibleFiles = vscode.window.visibleTextEditors
+				?.map((editor) => editor.document?.uri?.fsPath)
+				.filter(Boolean)
+				.map((absolutePath) => path.relative(getCwd(), absolutePath).toPosix())
+				.join("\n")
+			if (visibleFiles) {
+				details += `${visibleFiles}`
+			} else {
+				details += "(No visible files)"
+			}
+		} catch (error) {
+			console.error("Error getting visible files:", error)
+			details += "(Error getting visible files)"
 		}
 		details += "\n</visible_files>\n"
 
 		details += "<open_tabs>\n"
-		const openTabs = vscode.window.tabGroups.all
-			.flatMap((group) => group.tabs)
-			.map((tab) => (tab.input as vscode.TabInputText)?.uri?.fsPath)
-			.filter(Boolean)
-			.map((absolutePath) => path.relative(getCwd(), absolutePath).toPosix())
-			.join("\n")
-		if (openTabs) {
-			details += `${openTabs}`
-		} else {
-			details += "(No open tabs)"
+		try {
+			const openTabs = vscode.window.tabGroups.all
+				.flatMap((group) => group.tabs)
+				.map((tab) => (tab.input as vscode.TabInputText)?.uri?.fsPath)
+				.filter(Boolean)
+				.map((absolutePath) => path.relative(getCwd(), absolutePath).toPosix())
+				.join("\n")
+			if (openTabs) {
+				details += `${openTabs}`
+			} else {
+				details += "(No open tabs)"
+			}
+		} catch (error) {
+			console.error("Error getting open tabs:", error)
+			details += "(Error getting open tabs)"
 		}
 		details += "\n</open_tabs>\n"
 
 		// get the diagnostics errors for all files in the current task
 		if (isLastMsgMutable) {
 			// give it ~2 seconds to update the diagnostics
-			await delay(2000)
+			try {
+				await delay(2000)
+			} catch (error) {
+				console.error("Error delaying:", error)
+			}
 		}
 		const diagnostics = await diagnosticsHandler.getDiagnostics(files)
 		const newErrors = diagnostics.filter(
@@ -572,10 +586,15 @@ export class MainAgent {
 				// don't want to immediately access desktop since it would show permission popup
 				details += "(Desktop files not shown automatically. Use list_files to explore if needed.)"
 			} else {
-				const [files, didHitLimit] = await listFiles(getCwd(), true, 1_000)
-				const result = await formatFilesList(getCwd(), files, didHitLimit)
+				try {
+					const [files, didHitLimit] = await listFiles(getCwd(), true, 1_000)
+					const result = await formatFilesList(getCwd(), files, didHitLimit)
 
-				details += result
+					details += result
+				} catch (error) {
+					console.error("Error getting file list:", error)
+					details += "(Error getting file list)"
+				}
 			}
 		}
 
