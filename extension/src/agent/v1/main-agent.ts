@@ -627,3 +627,4 @@ ${details.trim()}
 }
 
 export * from "./types"
+// trigger extension reload
