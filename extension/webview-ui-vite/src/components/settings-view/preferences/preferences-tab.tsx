@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 
 import { ModelSelector } from "./model-picker"
 import { ThinkingConfigComponent } from "./thinking-config"
+import { DialectSelector } from "./dialect-selector"
 import { rpcClient } from "@/lib/rpc-client"
 import ProviderManager from "./provider-manager"
 import { useAtom, useAtomValue } from "jotai"
@@ -61,6 +62,7 @@ const PreferencesTabNew: React.FC = () => {
 							showDetails={true}
 						/>
 						<ThinkingConfigComponent modelId={selectedModelId ?? undefined} />
+						<DialectSelector modelId={selectedModelId ?? undefined} />
 					</>
 				)}
 			</CardContent>

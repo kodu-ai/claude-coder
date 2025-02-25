@@ -23,6 +23,20 @@ const defaults: Partial<GlobalState> = {
 		koduApiKey: "-",
 	},
 	disabledTools: [],
+	toolParserDialect: "xml", // Default to XML dialect for tool parsing
+}
+
+/**
+ * Tool definition for Anthropic native tool calling
+ */
+export interface AnthropicToolDefinition {
+	name: string
+	description: string
+	input_schema: {
+		type: string
+		properties: Record<string, any>
+		required?: string[]
+	}
 }
 
 export type GlobalState = {
@@ -47,6 +61,14 @@ export type GlobalState = {
 		type?: "enabled" | undefined
 		budget_tokens?: undefined | number
 	}
+	/**
+	 * The dialect to use for parsing tools (xml, json, or anthropic-json)
+	 */
+	toolParserDialect?: "xml" | "json" | "anthropic-json"
+	/**
+	 * Tool definitions for Anthropic native tool calling
+	 */
+	toolDefinitions?: AnthropicToolDefinition[]
 	observerSettings:
 		| {
 				/**

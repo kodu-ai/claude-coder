@@ -28,6 +28,7 @@ import { DevServerTool } from "./runners/dev-server.tool"
 import { SpawnAgentTool } from "./runners/agents/spawn-agent.tool"
 import { ExitAgentTool } from "./runners/agents/exit-agent.tool"
 import { SubmitReviewTool } from "./runners/submit-review.tool"
+import { GlobalStateManager } from "../../../providers/state/global-state-manager"
 
 /**
  * Represents the context and state of a tool during its lifecycle
@@ -76,15 +77,159 @@ export class ToolExecutor {
 		this.koduDev = options.koduDev
 		this.queue = new PQueue({ concurrency: 1 })
 
+		// Get the global state manager to retrieve dialect configuration
+		const globalStateManager = GlobalStateManager.getInstance()
+		const configuredDialect = globalStateManager.getGlobalState("toolParserDialect") || "xml"
+
+		// Configure the tool parser with the specified dialect
 		this.toolParser = new ToolParser(
 			tools.map((tool) => tool.schema),
 			{
-				dialect: "xml", // Use XML dialect by default for backward compatibility
+				dialect: configuredDialect, // Use configured dialect or fall back to XML
 				onToolUpdate: this.handleToolUpdate.bind(this),
 				onToolEnd: this.handleToolEnd.bind(this),
 				onToolError: this.handleToolError.bind(this),
 			}
 		)
+
+		// If using anthropic-json dialect, set up the tool definitions
+		if (configuredDialect === "anthropic-json") {
+			this.setupAnthropicToolDefinitions()
+		}
+	}
+
+	/**
+	 * Sets up Anthropic tool definitions based on the available tools
+	 * This converts our internal tool schemas to Anthropic's format
+	 */
+	private setupAnthropicToolDefinitions(): void {
+		try {
+			// Get the global state manager
+			const globalStateManager = GlobalStateManager.getInstance()
+
+			// Convert our tool schemas to Anthropic's format
+			const anthropicTools = tools
+				.map((tool) => {
+					// Extract the tool name from the schema
+					const toolName = tool.schema.name
+
+					// Skip tools that aren't compatible with Anthropic's native tool calling
+					// like spawn_agent, exit_agent or other internal-only tools
+					if (["spawn_agent", "exit_agent"].includes(toolName)) {
+						return null
+					}
+
+					// Convert our schema to Anthropic's format
+					return {
+						name: toolName,
+						// Use a generic description since we don't have direct access to descriptions
+						description: `Tool for ${toolName}`,
+						input_schema: {
+							type: "object",
+							properties: this.convertZodToAnthropicSchema(tool.schema.schema),
+							required: this.extractRequiredFields(tool.schema.schema),
+						},
+					}
+				})
+				.filter((tool): tool is NonNullable<typeof tool> => tool !== null) // Type guard to remove null values
+
+			// Save the tool definitions to global state
+			globalStateManager.updateGlobalState("toolDefinitions", anthropicTools)
+		} catch (error) {
+			console.error("Error setting up Anthropic tool definitions:", error)
+		}
+	}
+
+	/**
+	 * Converts a Zod schema to an Anthropic-compatible schema format
+	 */
+	private convertZodToAnthropicSchema(zodSchema: any): Record<string, any> {
+		// This is a simplified conversion - a full implementation would need to handle
+		// all the various Zod schema types and nested structures
+		try {
+			const shape = zodSchema.shape || {}
+			const result: Record<string, any> = {}
+
+			for (const [key, value] of Object.entries(shape)) {
+				// Safe access to value properties with type checking
+				const anyValue = value as any
+				const typeName = anyValue?._def?.typeName
+				const description = anyValue?._def?.description
+
+				// Basic conversion of common types
+				if (typeName === "ZodString") {
+					result[key] = {
+						type: "string",
+						description: description || `Parameter ${key}`,
+					}
+				} else if (typeName === "ZodNumber") {
+					result[key] = {
+						type: "number",
+						description: description || `Parameter ${key}`,
+					}
+				} else if (typeName === "ZodBoolean") {
+					result[key] = {
+						type: "boolean",
+						description: description || `Parameter ${key}`,
+					}
+				} else if (typeName === "ZodArray") {
+					result[key] = {
+						type: "array",
+						items: { type: "string" }, // Simplified - would need to analyze element type
+						description: description || `Parameter ${key}`,
+					}
+				} else if (typeName === "ZodObject") {
+					result[key] = {
+						type: "object",
+						properties: this.convertZodToAnthropicSchema(anyValue),
+						description: description || `Parameter ${key}`,
+					}
+				} else if (typeName === "ZodEnum") {
+					result[key] = {
+						type: "string",
+						enum: anyValue?._def?.values || [],
+						description: description || `Parameter ${key}`,
+					}
+				} else {
+					// Default to string for unknown types
+					result[key] = {
+						type: "string",
+						description: `Parameter ${key}`,
+					}
+				}
+			}
+
+			return result
+		} catch (error) {
+			console.error("Error converting Zod schema:", error)
+			return {}
+		}
+	}
+
+	/**
+	 * Extracts required fields from a Zod schema
+	 */
+	private extractRequiredFields(zodSchema: any): string[] {
+		try {
+			const shape = zodSchema.shape || {}
+			const required: string[] = []
+
+			for (const [key, value] of Object.entries(shape)) {
+				// Safe access with type checking
+				const anyValue = value as any
+				const isOptional = anyValue?._def?.isOptional
+
+				// Check if the field is required (doesn't have .optional() called on it)
+				if (isOptional !== true) {
+					required.push(key)
+				}
+			}
+
+			return required
+		} catch (error) {
+			console.error("Error extracting required fields:", error)
+			return []
+		}
 	}
 
 	/**
@@ -224,6 +369,20 @@ export class ToolExecutor {
 		}
 		const res = this.toolParser.appendText(text)
 		return res
+	}
+
+	/**
+	 * Process a parsed event object directly (for Anthropic JSON dialect)
+	 * This method forwards the event to the dialect parser if it supports event streams
+	 *
+	 * @param event The parsed event object from Anthropic
+	 * @returns Non-tool content or empty string
+	 */
+	public appendParsedEvent(event: unknown): string {
+		if (this.isAborting) {
+			return ""
+		}
+		return this.toolParser.appendParsedEvent(event)
 	}
 
 	/**

@@ -148,6 +148,13 @@ type DisabledToolsMessage = {
 	tools: ToolName[]
 }
 
+type ToolParserDialectSetMessage = {
+	type: "toolParserDialectSet"
+	dialect: string
+	success: boolean
+	error?: string
+}
+
 type PromptActionMessage =
 	| PreviewPromptMessage
 	| ListPromptTemplatesMessage
@@ -155,6 +162,7 @@ type PromptActionMessage =
 	| LoadPromptTemplateMessage
 	| SetActivePromptMessage
 	| DeletePromptTemplateMessage
+	| ToolParserDialectSetMessage
 
 type ConfgiureApiRequiredMessage = {
 	providerId?: ProviderId
@@ -186,6 +194,7 @@ export type ExtensionMessage =
 	| RequestStatus
 	| PostClaudeMessage
 	| PromptEditorLoadedMessage
+	| ToolParserDialectSetMessage
 
 type NonPartial<T> = {
 	[P in keyof T]: T[P]

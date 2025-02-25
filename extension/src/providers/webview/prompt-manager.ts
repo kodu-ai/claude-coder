@@ -357,6 +357,39 @@ export class PromptManager {
 				}
 				await Promise.all(promises)
 				break
+
+			case "setToolParserDialect":
+				// Update the tool parser dialect in global state
+				const globalStateManager = GlobalStateManager.getInstance()
+
+				// Only accept valid dialect values
+				if (message.dialect && ["xml", "json", "anthropic-json"].includes(message.dialect)) {
+					await globalStateManager.updateGlobalState("toolParserDialect", message.dialect)
+
+					// If using anthropic-json dialect, ensure tool definitions are updated
+					if (message.dialect === "anthropic-json") {
+						// We need to trigger the tool definition creation
+						// Note: This will be properly populated next time the agent is created
+						// but we can set an empty array as a placeholder
+						await globalStateManager.updateGlobalState("toolDefinitions", [])
+					}
+
+					// Confirm the dialect was set
+					await this.postMessageToWebview({
+						type: "toolParserDialectSet",
+						dialect: message.dialect,
+						success: true,
+					})
+				} else {
+					// Invalid dialect, reject the change
+					await this.postMessageToWebview({
+						type: "toolParserDialectSet",
+						dialect: message.dialect,
+						success: false,
+						error: "Invalid dialect specified. Must be one of: xml, json, anthropic-json",
+					})
+				}
+				break
 		}
 	}
 }

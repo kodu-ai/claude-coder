@@ -88,15 +88,28 @@ export class KoduHandler implements ApiHandler {
 		const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 		const firstUserMsgIndex = userMsgIndices[0] ?? -1
 		const cleanMsgs = cloneDeep(messages)
-		// Get thinking configuration from global state if model is claude-3-7-sonnet-20250219
+		// Configure native thinking for supported models
+		const globalStateManager = GlobalStateManager.getInstance()
 		let thinkingConfig = undefined
+		let usingAnthropicDialect = false
+
+		// Check if we're using the anthropic-json dialect
+		const toolParserDialect = (globalStateManager.getGlobalState("toolParserDialect") as string) || "xml"
+		usingAnthropicDialect = toolParserDialect === "anthropic-json"
+
+		// Get thinking configuration if model supports it
+		// Claude 3.7 Sonnet has native thinking support via Anthropic's API
 		if (modelId === "claude-3-7-sonnet-20250219") {
-			const globalStateManager = GlobalStateManager.getInstance()
 			const thinking = globalStateManager.getGlobalState("thinking")
 			if (thinking) {
-				// If thinking is enabled, set tempature to 1 CAN'T BE CHANGED
+				// If thinking is enabled, set temperature to 1 (required for thinking)
 				tempature = 1
 				thinkingConfig = thinking
+
+				// If using anthropic-json dialect, ensure we're properly configured
+				if (usingAnthropicDialect) {
+					console.log("Using Anthropic JSON dialect with native thinking")
+				}
 			}
 		}
 		// Prepare messages up to the last user message
@@ -132,18 +145,30 @@ export class KoduHandler implements ApiHandler {
 			;[messagesToCache, system] = await updateAfterCacheInserts(messagesToCache, system)
 		}
 
-		// Build request body
-		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
+		// Build request body with proper configuration for native tool use and thinking
+		let requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
 			model: modelId,
-			// max_tokens: 1800,
 			max_tokens: this.getModel().info.maxTokens,
 			system,
 			messages: messagesToCache,
 			temperature: tempature ?? 0.1,
 			top_p: top_p ?? undefined,
-			// temporaily turn off stop_sequence
-			// stop_sequences: ["</kodu_action>"],
 			...(thinkingConfig ? { thinking: thinkingConfig } : {}),
+		}
+
+		// If using anthropic-json dialect, add tool configuration to the request
+		if (usingAnthropicDialect) {
+			// Fetch tool definitions from the global state or use defaults
+			const toolDefinitions = (globalStateManager.getGlobalState("toolDefinitions") as any[]) || []
+
+			// Only add tools if there are definitions available
+			if (toolDefinitions && toolDefinitions.length > 0) {
+				requestBody = {
+					...requestBody,
+					tools: toolDefinitions,
+					tool_choice: { type: "auto" }, // Let Claude decide when to use tools
+				}
+			}
 		}
 		this.abortController = new AbortController()
 

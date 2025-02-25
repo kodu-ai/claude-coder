@@ -141,6 +141,11 @@ export type DisableToolMessage = {
 	content?: string
 }
 
+export type SetToolParserDialectMessage = {
+	type: "setToolParserDialect"
+	dialect: "xml" | "json" | "anthropic-json"
+}
+
 export type PromptActions =
 	| PreviewPromptMessage
 	| DisableToolMessage
@@ -151,6 +156,7 @@ export type PromptActions =
 	| setActivePromptMessage
 	| deletePromptTemplateMessage
 	| ClosePromptEditorMessage
+	| SetToolParserDialectMessage
 
 export type ActionMessage = {
 	type: "action"
@@ -209,6 +215,7 @@ export type WebviewMessage =
 	| RenameTask
 	| DebugMessage
 	| customInstructionsMessage
+	| SetToolParserDialectMessage
 	| {
 			type:
 				| "skipWriteAnimation"

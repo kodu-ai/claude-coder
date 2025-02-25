@@ -11,6 +11,7 @@ import { ApiHistoryItem, ToolResponseV2, UserContent } from "../types"
 import { cleanUIMessages, formatImagesIntoBlocks, isTextBlock } from "../utils"
 import { TaskError, TaskExecutorUtils, TaskState } from "./utils"
 import { CustomProviderError } from "../../../api/providers/custom-provider"
+import { GlobalStateManager } from "../../../providers/state/global-state-manager"
 
 export class TaskExecutor extends TaskExecutorUtils {
 	public state: TaskState = TaskState.IDLE
@@ -456,6 +457,14 @@ export class TaskExecutor extends TaskExecutorUtils {
 
 			let reasoningLoading = false
 
+			// Check if we're using the anthropic-json dialect
+			// Get global state manager instance directly
+			const globalStateManager = GlobalStateManager.getInstance()
+			const dialectConfig = (globalStateManager.getGlobalState("toolParserDialect") as string) || "xml"
+			const isUsingAnthropicDialect = dialectConfig === "anthropic-json"
+
+			console.log("Using dialect:", isUsingAnthropicDialect ? "anthropic-json" : "standard")
+
 			const processor = new ChunkProcessor({
 				onStreamStart: async () => {
 					ts = Date.now()
@@ -517,24 +526,76 @@ export class TaskExecutor extends TaskExecutorUtils {
 					if (this.isRequestCancelled || this.isAborting) {
 						return
 					}
-					/**
-					 * code 4 is for internal reasoning from the model (should not be saved to api history)
-					 */
-					if (chunk.code === 4) {
-						accumReasoning += chunk.body.reasoningDelta
-						this.updateSayPartial(startedReqId, {
-							reasoning: {
-								content: accumReasoning,
-								...(!reasoningLoading
-									? {
-											startedAt: Date.now(),
-									  }
-									: {}),
-							},
-						})
-						reasoningLoading = true
-					}
-					if (chunk.code === 2) {
+
+					// Handle different chunk types based on dialect
+					if (chunk.code === 5 && isUsingAnthropicDialect) {
+						// Code 5 is for Anthropic native events (JSON dialect)
+						// Use type assertion to access the event
+						const anthropicEvent = chunk.body.chunk
+						console.log("Received Anthropic event chunk (code 5):", anthropicEvent)
+
+						if (anthropicEvent) {
+							// Pass the event directly to the tool executor for processing
+							try {
+								// The tool executor will forward to the anthropic-json dialect parser
+								await this.toolExecutor.appendParsedEvent(anthropicEvent)
+
+								// If tool processing started, pause the stream
+								if (this.toolExecutor.hasActiveTools()) {
+									this.pauseStream()
+									await this.toolExecutor.waitForToolProcessing()
+									this.textBuffer = ""
+									await this.resumeStream()
+								}
+							} catch (error) {
+								console.error("Error processing Anthropic event:", error)
+							}
+						}
+					} else if (chunk.code === 4) {
+						// Code 4 is for internal reasoning
+						if (isUsingAnthropicDialect) {
+							// Use type assertion to safely access event properties
+							const reasoningEvent = (chunk.body as any).event
+							const isNativeThinking =
+								reasoningEvent?.type === "content_block_start" &&
+								reasoningEvent.content_block?.type === "thinking"
+
+							if (isNativeThinking) {
+								// With anthropic-json dialect, native thinking is already handled by the parser
+								// We don't need to do anything extra here
+								console.log("Native thinking block handled by anthropic-json parser")
+							} else {
+								// Even with anthropic-json dialect, handle legacy reasoning format
+								accumReasoning += chunk.body.reasoningDelta
+								this.updateSayPartial(startedReqId, {
+									reasoning: {
+										content: accumReasoning,
+										...(!reasoningLoading
+											? {
+													startedAt: Date.now(),
+											  }
+											: {}),
+									},
+								})
+								reasoningLoading = true
+							}
+						} else {
+							// Standard handling for reasoning in non-Anthropic dialects
+							accumReasoning += chunk.body.reasoningDelta
+							this.updateSayPartial(startedReqId, {
+								reasoning: {
+									content: accumReasoning,
+									...(!reasoningLoading
+										? {
+												startedAt: Date.now(),
+										  }
+										: {}),
+								},
+							})
+							reasoningLoading = true
+						}
+					} else if (chunk.code === 2) {
+						// Handle text content chunks
 						if (!firstChunkTs) {
 							firstChunkTs = Date.now()
 							const currentReplyId = await this.say("text", "", undefined, firstChunkTs, {
@@ -542,10 +603,6 @@ export class TaskExecutor extends TaskExecutorUtils {
 							})
 							this._currentReplyId = currentReplyId
 							if (reasoningLoading) {
-								// await this.sayWithId(reasoningTs, "reasoning", accumReasoning, undefined, {
-								// 	isFetching: false,
-								// 	completedAt: Date.now(),
-								// })
 								this.updateSayPartial(startedReqId, {
 									reasoning: {
 										finishedAt: Date.now(),
@@ -554,47 +611,62 @@ export class TaskExecutor extends TaskExecutorUtils {
 								reasoningLoading = false
 							}
 						}
-						// Update API history first
-						if (Array.isArray(apiHistoryItem.content) && isTextBlock(apiHistoryItem.content[0])) {
-							apiHistoryItem.content[0].text =
-								apiHistoryItem.content[0].text ===
-								"the response was interrupted in the middle of processing"
-									? chunk.body.text
-									: apiHistoryItem.content[0].text + chunk.body.text
-							await this.stateManager.apiHistoryManager.updateApiHistoryItem(ts, apiHistoryItem)
+
+						// Handle text content with special cases for anthropic-json dialect
+						let shouldSkipTextProcessing = false
+
+						// Skip content processing for anthropic-json dialect if the chunk contains event data
+						if (isUsingAnthropicDialect && (chunk.body as any).anthropicEvent) {
+							console.log("Skipping text processing for anthropic-json event in text chunk")
+							shouldSkipTextProcessing = true
 						}
 
-						// Process chunk only if stream is not paused
-						if (!this.streamPaused) {
-							// Accumulate text until we have a complete XML tag or enough non-XML content
-							accumulatedText += chunk.body.text
-							// check if this chunk is inside tool
-							const isChunkInsideTool = this.toolExecutor.isParserInToolTag()
-
-							// Process for tool use and get non-XML text
-							const nonXMLText = await this.toolExecutor.processToolUse(accumulatedText)
-							// If we were in a tool and now we're not, the chunk contained a closing tag
-							if (isChunkInsideTool && !this.toolExecutor.hasActiveTools()) {
-								// Extract text after the closing tag
-								const afterClosingTag = accumulatedText.split("</")[1]?.split(">")[1]
-								if (afterClosingTag) {
-									this.textBuffer += afterClosingTag
-									await this.flushTextBuffer(this._currentReplyId)
-								}
-							} else if (!this.toolExecutor.hasActiveTools() && nonXMLText) {
-								// Handle normal text chunks
-								this.textBuffer += nonXMLText
-								await this.flushTextBuffer(this._currentReplyId)
+						// Only process text if we shouldn't skip it
+						if (!shouldSkipTextProcessing) {
+							// Update API history first
+							if (Array.isArray(apiHistoryItem.content) && isTextBlock(apiHistoryItem.content[0])) {
+								apiHistoryItem.content[0].text =
+									apiHistoryItem.content[0].text ===
+									"the response was interrupted in the middle of processing"
+										? chunk.body.text
+										: apiHistoryItem.content[0].text + chunk.body.text
+								await this.stateManager.apiHistoryManager.updateApiHistoryItem(ts, apiHistoryItem)
 							}
 
-							accumulatedText = "" // Clear accumulated text after processing
+							// Process chunk only if stream is not paused
+							if (!this.streamPaused) {
+								// Accumulate text until we have a complete tag or enough non-tool content
+								accumulatedText += chunk.body.text
 
-							// If tool processing started, pause the stream
-							if (this.toolExecutor.hasActiveTools()) {
-								this.pauseStream()
-								await this.toolExecutor.waitForToolProcessing()
-								this.textBuffer = ""
-								await this.resumeStream()
+								// Check if this chunk is inside tool
+								const isChunkInsideTool = this.toolExecutor.isParserInToolTag()
+
+								// Process for tool use and get non-tool text
+								const nonToolText = await this.toolExecutor.processToolUse(accumulatedText)
+
+								// If we were in a tool and now we're not, the chunk contained a closing tag
+								if (isChunkInsideTool && !this.toolExecutor.hasActiveTools()) {
+									// Extract text after the closing tag
+									const afterClosingTag = accumulatedText.split("</")[1]?.split(">")[1]
+									if (afterClosingTag) {
+										this.textBuffer += afterClosingTag
+										await this.flushTextBuffer(this._currentReplyId)
+									}
+								} else if (!this.toolExecutor.hasActiveTools() && nonToolText) {
+									// Handle normal text chunks
+									this.textBuffer += nonToolText
+									await this.flushTextBuffer(this._currentReplyId)
+								}
+
+								accumulatedText = "" // Clear accumulated text after processing
+
+								// If tool processing started, pause the stream
+								if (this.toolExecutor.hasActiveTools()) {
+									this.pauseStream()
+									await this.toolExecutor.waitForToolProcessing()
+									this.textBuffer = ""
+									await this.resumeStream()
+								}
 							}
 						}
 					}
