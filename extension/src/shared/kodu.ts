@@ -151,6 +151,15 @@ export type koduSSEResponse =
 			body: undefined
 	  }
 	| {
+			code: 5
+			body: {
+				/**
+				 * Original chunk
+				 */
+				chunk: Anthropic.Messages.MessageStartEvent
+			}
+	  }
+	| {
 			code: 1
 			body: {
 				anthropic: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaMessage

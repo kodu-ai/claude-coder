@@ -79,6 +79,7 @@ export class ToolExecutor {
 		this.toolParser = new ToolParser(
 			tools.map((tool) => tool.schema),
 			{
+				dialect: "xml", // Use XML dialect by default for backward compatibility
 				onToolUpdate: this.handleToolUpdate.bind(this),
 				onToolEnd: this.handleToolEnd.bind(this),
 				onToolError: this.handleToolError.bind(this),
