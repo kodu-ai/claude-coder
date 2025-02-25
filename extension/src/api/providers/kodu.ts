@@ -165,6 +165,11 @@ export class KoduHandler implements ApiHandler {
 		)
 
 		if (response.status !== 200) {
+			// Skip credit check errors (402)
+			if (response.status === 402) {
+				console.log("Insufficient credits - continuing anyway");
+				return;
+			}
 			if (response.status in koduErrorMessages) {
 				throw new KoduError({
 					code: response.status as keyof typeof koduErrorMessages,

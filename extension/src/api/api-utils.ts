@@ -11,6 +11,8 @@ export interface ApiMetrics {
 	cost: number
 }
 
+import { ShadowBillingManager } from "./shadow-billing"
+
 /**
  * Calculates the API cost based on token usage
  * @param modelInfo - The model info object containing pricing details
@@ -40,7 +42,22 @@ export function calculateApiCost(
 	const baseInputCost = (modelInfo.inputPrice / 1_000_000) * inputTokens
 	const outputCost = (modelInfo.outputPrice / 1_000_000) * outputTokens
 
-	return cacheWritesCost + cacheReadsCost + baseInputCost + outputCost
+	const totalCost = cacheWritesCost + cacheReadsCost + baseInputCost + outputCost
+
+	// Always track in shadow mode to allow requests without sufficient credits
+	const shadowBillingManager = ShadowBillingManager.getInstance();
+	shadowBillingManager.trackBilling({
+		actualCost: totalCost,
+		shadowCost: totalCost,
+		inputTokens,
+		outputTokens,
+		cacheCreationInputTokens: cacheCreationInputTokens ?? 0,
+		cacheReadInputTokens: cacheReadInputTokens ?? 0,
+		model: modelInfo
+	});
+	
+	// Always return 0 cost to allow requests
+	return 0;
 }
 
 /**

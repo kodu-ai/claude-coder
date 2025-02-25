@@ -3,6 +3,8 @@ import { ChatState, ChatViewProps } from "./chat"
 import { isV1ClaudeMessage } from "extension/shared/messages/extension-message"
 import { useAtom } from "jotai"
 import { attachmentsAtom, chatStateAtom, syntaxHighlighterAtom } from "./atoms"
+import { teachingStateAtom } from "../teaching-view/atoms"
+import TeachingView from "../teaching-view/teaching-view"
 import { useExtensionState } from "@/context/extension-state-context"
 import { CollapseProvider } from "@/context/collapse-state-context"
 import { useChatMessageHandling } from "@/hooks/use-message-handler"
@@ -43,6 +45,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	const [attachments, setAttachments] = useAtom(attachmentsAtom)
 	const [syntaxHighlighterStyle, setSyntaxHighlighterStyle] = useAtom(syntaxHighlighterAtom)
+	const [teachingState, setTeachingState] = useAtom(teachingStateAtom)
 
 	const { claudeMessages: messages, themeName: vscodeThemeName, uriScheme, user, currentTask } = useExtensionState()
 
@@ -298,6 +301,17 @@ const ChatView: React.FC<ChatViewProps> = ({
 					overflowY: "auto",
 				}}>
 				<AnnouncementBanner />
+				{/* Teaching Bot View */}
+				{teachingState.isActive ? (
+					<TeachingView isHidden={isHidden} />
+				) : (
+					<Button
+						className="m-4"
+						onClick={() => setTeachingState(prev => ({ ...prev, isActive: true }))}
+					>
+						Start Teaching Mode
+					</Button>
+				)}
 				{!!currentTask && firstTaskMsg ? (
 					<>
 						<CollapseProvider>

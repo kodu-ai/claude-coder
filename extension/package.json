@@ -38,10 +38,6 @@
 		"productivity",
 		"automation",
 		"chatgpt",
-		"ai",
-		"chatgpt",
-		"claude",
-		"codegpt",
 		"codestrall",
 		"copilot",
 		"github",
@@ -53,8 +49,7 @@
 		"sonnet",
 		"claude dev",
 		"aider",
-		"code with claude",
-		"codegpt"
+		"code with claude"
 	],
 	"activationEvents": [
 		"onUri"
@@ -87,6 +82,14 @@
 		},
 		"commands": [
 			{
+				"command": "kodu.toggleShadowBilling",
+				"title": "Kodu.AI: Toggle Shadow Billing Mode"
+			},
+			{
+				"command": "kodu.viewShadowBillingStats",
+				"title": "Kodu.AI: View Shadow Billing Statistics"
+			},
+			{
 				"command": "kodu-claude-coder-main.setApiKey",
 				"title": "Kodu.AI: Set API Key"
 			},
@@ -117,6 +120,11 @@
 			{
 				"command": "kodu-claude-coder-main.openInNewTab",
 				"title": "Open In New Tab",
+				"category": "Kodu"
+			},
+			{
+				"command": "kodu-claude-coder-main.newFeature",
+				"title": "New Feature",
 				"category": "Kodu"
 			}
 		],
@@ -194,22 +202,22 @@
 		"eslint": "^9.20.1",
 		"tar": "^7.4.3",
 		"tsx": "^4.19.3",
-		"typescript": "^5.7.3"
+		"typescript": "^5.4.2"
 	},
 	"dependencies": {
-		"@ai-sdk/amazon-bedrock": "^2.0.4",
-		"@ai-sdk/anthropic": "^1.1.10",
-		"@ai-sdk/deepseek": "^0.1.12",
-		"@ai-sdk/fireworks": "^0.1.12",
-		"@ai-sdk/google": "^1.1.17",
-		"@ai-sdk/google-vertex": "^2.1.18",
-		"@ai-sdk/mistral": "^1.1.13",
-		"@ai-sdk/openai": "^1.1.14",
-		"@ai-sdk/openai-compatible": "^0.1.12",
-		"@ai-sdk/provider": "^1.0.9",
+		"@ai-sdk/amazon-bedrock": "^2.1.0",
+		"@ai-sdk/anthropic": "^1.2.0",
+		"@ai-sdk/deepseek": "^0.2.0",
+		"@ai-sdk/fireworks": "^0.2.0",
+		"@ai-sdk/google": "^1.2.0",
+		"@ai-sdk/google-vertex": "^2.2.0",
+		"@ai-sdk/mistral": "^1.2.0",
+		"@ai-sdk/openai": "^1.1.0",
+		"@ai-sdk/openai-compatible": "^0.2.0",
+		"@ai-sdk/provider": "^1.2.0",
 		"@amplitude/analytics-browser": "^2.11.12",
 		"@amplitude/analytics-node": "^1.3.6",
-		"@anthropic-ai/sdk": "^0.26.1",
+		"@anthropic-ai/sdk": "^0.18.0",
 		"@ewoudenberg/difflib": "^0.1.0",
 		"@libsql/client": "^0.14.0",
 		"@types/clone-deep": "^4.0.4",

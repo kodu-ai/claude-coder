@@ -13,6 +13,8 @@ import {
 } from "./integrations/editor/decoration-controller"
 import { PromptStateManager } from "./providers/state/prompt-state-manager"
 import DB from "./db"
+import { TeachingBotHandler } from "./api/providers/teaching-bot"
+import { TeachingBotMessageHandler } from "./api/providers/teaching-bot-handler"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -97,8 +99,62 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	outputChannel.appendLine("Kodu extension activated")
 	const sidebarProvider = new ExtensionProvider(context, outputChannel)
+	
+	// Inicjalizacja bota nauczającego
+	const mainChatbot = sidebarProvider.getApiManager().getApiHandler()
+	const teachingBot = new TeachingBotHandler(mainChatbot.options, mainChatbot)
+	const teachingBotHandler = new TeachingBotMessageHandler(
+		teachingBot,
+		sidebarProvider.getWebviewManager(),
+		mainChatbot
+	)
+
+	// Rejestracja handlera wiadomości od bota nauczającego
+	context.subscriptions.push(
+		vscode.commands.registerCommand(`${extensionName}.teachingBotMessage`, (message) => {
+			teachingBotHandler.handleMessage(message)
+		})
+	)
+
 	context.subscriptions.push(outputChannel)
 	console.log(`Kodu extension activated`)
+
+	// Register shadow billing commands
+	const { registerToggleShadowBillingCommand } = require('./commands/toggle-shadow-billing')
+	const { registerViewShadowBillingStatsCommand } = require('./commands/view-shadow-billing-stats')
+	registerToggleShadowBillingCommand(context)
+	registerViewShadowBillingStatsCommand(context)
+
+	// Create status bar item for shadow billing
+	const shadowBillingStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100)
+	shadowBillingStatusBarItem.command = 'kodu.toggleShadowBilling'
+	context.subscriptions.push(shadowBillingStatusBarItem)
+
+	// Update status bar when shadow billing state changes
+	const shadowBillingManager = require('./api/shadow-billing').ShadowBillingManager.getInstance()
+	const { shadowBillingStateEmitter } = require('./commands/toggle-shadow-billing')
+	
+	const updateStatusBar = () => {
+		if (shadowBillingManager.isShadowModeEnabled()) {
+			shadowBillingStatusBarItem.text = "$(eye) Shadow Billing"
+			shadowBillingStatusBarItem.tooltip = "Shadow Billing Mode Enabled - Click to disable"
+			shadowBillingStatusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground')
+			shadowBillingStatusBarItem.show()
+		} else {
+			shadowBillingStatusBarItem.text = "$(eye-closed) Normal Billing"
+			shadowBillingStatusBarItem.tooltip = "Normal Billing Mode - Click to enable shadow billing"
+			shadowBillingStatusBarItem.backgroundColor = undefined
+			shadowBillingStatusBarItem.show()
+		}
+	}
+	updateStatusBar() // Initial update
+
+	// Listen for shadow billing state changes
+	context.subscriptions.push(
+		shadowBillingStateEmitter.event(() => {
+			updateStatusBar()
+		})
+	)
 
 	// Set up the window state change listener
 	context.subscriptions.push(

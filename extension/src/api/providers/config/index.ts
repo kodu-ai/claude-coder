@@ -1,4 +1,11 @@
-// providers/index.ts
+import { teachingBotConfig } from "./teaching-bot"
+import { PROVIDER_IDS } from "../constants"
+import { ProviderConfig } from "../types"
+
+export const providerConfigs: Record<string, ProviderConfig> = {
+    [PROVIDER_IDS.TEACHING_BOT]: teachingBotConfig,
+    // ... inne konfiguracje
+}// providers/index.ts
 import { deepseekConfig } from "./deepseek"
 import { openaiConfig } from "./openai"
 import { koduConfig } from "./kodu"

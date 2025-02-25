@@ -38,6 +38,8 @@ interface DocumentState {
  * - Removed usage of `vscode.workspace.asRelativePath` for the diff title to reduce path issues on Windows.
  * - Added small delays to help ensure updates propagate in environments where timing is an issue.
  */
+import * as crypto from 'crypto';
+
 export class InlineEditHandler {
 	private isAutoScrollEnabled: boolean = true
 	protected currentDocumentState: DocumentState | undefined
@@ -45,6 +47,7 @@ export class InlineEditHandler {
 	private originalUri?: vscode.Uri
 	private isDisposed: boolean = false
 	private static modifiedContentProvider: ModifiedContentProvider | undefined
+	private originalChecksum?: string
 
 	constructor() {
 		this.logger("InlineEditHandler initialized", "debug")
@@ -82,6 +85,9 @@ export class InlineEditHandler {
 
 			// Normalize line endings to LF to ensure consistency across OS
 			documentContent = documentContent.replace(/\r\n/g, "\n")
+			
+			// Calculate checksum of original content
+			this.originalChecksum = this.calculateChecksum(documentContent)
 
 			this.currentDocumentState = {
 				uri: uri,
@@ -326,6 +332,12 @@ export class InlineEditHandler {
 		this.logger("Saving changes", "debug")
 		this.validateDocumentState()
 
+		// Verify checksum before saving
+		if (!this.verifyChecksum(this.currentDocumentState.originalContent)) {
+			this.logger("Original file content has been modified externally", "error")
+			throw new Error("Original file content has been modified externally. Please refresh and try again.")
+		}
+
 		const results = this.currentDocumentState.lastUpdateResults || []
 		const finalStreamedContent = this.currentDocumentState.currentContent
 
@@ -510,5 +522,23 @@ export class InlineEditHandler {
 		const timestamp = new Date().toISOString()
 		const isEditorOpen = this.isOpen()
 		console[level](`[InlineEditHandler] ${timestamp} | Editor: ${isEditorOpen ? "open" : "closed"} | ${message}`)
+	}
+
+	/**
+	 * Calculate SHA-256 checksum of content
+	 */
+	private calculateChecksum(content: string): string {
+		return crypto.createHash('sha256').update(content).digest('hex');
+	}
+
+	/**
+	 * Verify if content matches original checksum
+	 */
+	private verifyChecksum(content: string): boolean {
+		if (!this.originalChecksum) {
+			return true; // No checksum to verify against
+		}
+		const currentChecksum = this.calculateChecksum(content);
+		return currentChecksum === this.originalChecksum;
 	}
 }
