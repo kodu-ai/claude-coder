@@ -6,7 +6,7 @@ import { createOpenAI } from "@ai-sdk/openai"
 import { createMistral } from "@ai-sdk/mistral"
 import { createAnthropic } from "@ai-sdk/anthropic"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
-import { createOpenRouter } from "../../../package/src"
+import { createOpenRouter } from "@openrouter/ai-sdk-provider"
 import { convertToAISDKFormat } from "../../utils/ai-sdk-format"
 import { customProviderSchema, ModelInfo } from "./types"
 import { PROVIDER_IDS } from "./constants"
@@ -329,11 +329,17 @@ export class CustomApiHandler implements ApiHandler {
 				)
 				if (currentModel.provider === "openrouter") {
 					// we need to fetch to get the actual generation cost
-					const data = await getOpenrouterGenerationData(
-						part.response.id,
-						this._options.providerSettings.apiKey!
-					)
-					cost = data.total_cost
+					try {
+						const data = await getOpenrouterGenerationData(
+							part.response.id,
+							this._options.providerSettings.apiKey!
+						)
+
+						cost = data.total_cost
+					} catch (e) {
+						console.error(e)
+						cost = 0
+					}
 				}
 
 				yield {

@@ -54,8 +54,8 @@ importers:
         specifier: ^0.14.0
         version: 0.14.0
       '@openrouter/ai-sdk-provider':
-        specifier: file:package
-        version: file:package(zod@3.24.2)
+        specifier: https://github.com/kodu-ai/ai-sdk-provider-openrouter.git
+        version: https://codeload.github.com/kodu-ai/ai-sdk-provider-openrouter/tar.gz/b44b5fe8e2d12b36f7fc8597add9cb5c9ed53229(zod@3.24.2)
       '@types/clone-deep':
         specifier: ^4.0.4
         version: 4.0.4
@@ -1424,8 +1424,9 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@openrouter/ai-sdk-provider@file:package':
-    resolution: {directory: package, type: directory}
+  '@openrouter/ai-sdk-provider@https://codeload.github.com/kodu-ai/ai-sdk-provider-openrouter/tar.gz/b44b5fe8e2d12b36f7fc8597add9cb5c9ed53229':
+    resolution: {tarball: https://codeload.github.com/kodu-ai/ai-sdk-provider-openrouter/tar.gz/b44b5fe8e2d12b36f7fc8597add9cb5c9ed53229}
+    version: 0.3.4
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.0.0
@@ -5750,7 +5751,7 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.19.0
 
-  '@openrouter/ai-sdk-provider@file:package(zod@3.24.2)':
+  '@openrouter/ai-sdk-provider@https://codeload.github.com/kodu-ai/ai-sdk-provider-openrouter/tar.gz/b44b5fe8e2d12b36f7fc8597add9cb5c9ed53229(zod@3.24.2)':
     dependencies:
       '@ai-sdk/provider': 1.0.9
       '@ai-sdk/provider-utils': 2.1.10(zod@3.24.2)
