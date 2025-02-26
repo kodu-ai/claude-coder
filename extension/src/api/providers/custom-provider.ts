@@ -331,6 +331,11 @@ export class CustomApiHandler implements ApiHandler {
 			}
 			if (part.type === "error") {
 				console.error(part.error)
+				if (`${part.error}`.includes(`exceed context limit:`)) {
+					throw new Error(
+						"The context limit has been exceeded. Please try again with a shorter prompt. (context window exceeded)"
+					)
+				}
 				// throw part.error
 				// if (part.error instanceof Error) {
 				// 	yield {
