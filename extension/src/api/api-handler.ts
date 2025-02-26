@@ -133,6 +133,27 @@ ${this.customInstructions.trim()}
 					baseSystem = [customSystemPrompt.systemPrompt]
 				}
 			}
+			if (this.getModelId() === "claude-3-7-sonnet-20250219") {
+				const globalStateManager = GlobalStateManager.getInstance()
+				const thinking = globalStateManager.getGlobalState("thinking")
+				// we are going to add more critical instructions to the system prompt
+				if (thinking?.type === "enabled") {
+					baseSystem.push(`<critical_instructions>
+				In every message output you should document your current step, finalized reasoning and thoughts, your next steps, and any other relevant information.
+				This must be present in every message and should be concise and to the point.
+				You don't need to write <thinking> tags. instead you should write <thinking_summary> and <execution_plan> tags in every message.
+				so format every response as following:
+				<thinking_summary>
+				A summary of your current thoughts, reasoning, and next steps.
+				</thinking_summary>
+				<execution_plan>
+				Your plan of execution, what you are going to do next, and how you are going to do it.
+				</execution_plan>
+				<kodu_action>...the best tool call for this step...</kodu_action>
+				</critical_instructions>`)
+				}
+			}
+
 			let criticalMsg: string | undefined = mainPrompts.criticalMsg
 			if (customSystemPrompt) {
 				criticalMsg = customSystemPrompt.automaticReminders
@@ -145,26 +166,6 @@ ${this.customInstructions.trim()}
 					: firstRequest
 				if (firstRequestTextBlock && criticalMsg.includes("{{task}}")) {
 					criticalMsg = criticalMsg.replace("{{task}}", this.getTaskText(firstRequestTextBlock))
-				}
-
-				if (this.getModelId() === "claude-3-7-sonnet-20250219") {
-					const globalStateManager = GlobalStateManager.getInstance()
-					const thinking = globalStateManager.getGlobalState("thinking")
-					// we are going to add more critical instructions to the system prompt
-					if (thinking?.type === "enabled") {
-						baseSystem.push(`<critical_instructions>
-					In every message output you should document your current step, finalized reasoning and thoughts, your next steps, and any other relevant information.
-					This must be present in every message and should be concise and to the point.
-					so format every response as following:
-					<thinking_summary>
-					A summary of your current thoughts, reasoning, and next steps.
-					</thinking_summary>
-					<execution_plan>
-					Your plan of execution, what you are going to do next, and how you are going to do it.
-					</execution_plan>
-					<kodu_action>...the best tool call for this step...</kodu_action>
-					</critical_instructions>`)
-					}
 				}
 			}
 			if (shouldResetContext) {
@@ -184,33 +185,6 @@ ${this.customInstructions.trim()}
 			}
 			if (postProcessConversationCallback) {
 				await postProcessConversationCallback?.(conversationHistory)
-			}
-			const lastUserMsgIndex = conversationHistory.reduce(
-				(acc, msg, index) => (msg.role === "user" ? index : acc),
-				-1
-			)
-			if (this.getModelId() === "claude-3-7-sonnet-20250219") {
-				const globalStateManager = GlobalStateManager.getInstance()
-				const thinking = globalStateManager.getGlobalState("thinking")
-				const msg = conversationHistory.at(lastUserMsgIndex)?.content
-				// we are going to add more critical instructions to the system prompt
-				if (thinking?.type === "enabled" && msg && Array.isArray(msg)) {
-					msg.push({
-						type: "text",
-						text: `<critical_instructions>
-					In every message you should document your current step, finalized reasoning and thoughts, your next steps, and any other relevant information.
-					This must be present in every message and should be concise and to the point.
-					so format every response as following:
-					<thinking_summary>
-					A summary of your current thoughts, reasoning, and next steps.
-					</thinking_summary>
-					<execution_plan>
-					Your plan of execution, what you are going to do next, and how you are going to do it.
-					</execution_plan>
-					<kodu_action>...the best tool call for this step...</kodu_action>
-					</critical_instructions>`,
-					})
-				}
 			}
 			// log the last 2 messages
 			this.log("info", `Last 2 messages:`, conversationHistory.slice(-2))
