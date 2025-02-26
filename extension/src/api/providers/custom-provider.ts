@@ -6,6 +6,7 @@ import { createOpenAI } from "@ai-sdk/openai"
 import { createMistral } from "@ai-sdk/mistral"
 import { createAnthropic } from "@ai-sdk/anthropic"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
+import { createOpenRouter } from "../../../package/src"
 import { convertToAISDKFormat } from "../../utils/ai-sdk-format"
 import { customProviderSchema, ModelInfo } from "./types"
 import { PROVIDER_IDS } from "./constants"
@@ -14,6 +15,9 @@ import { mistralConfig } from "./config/mistral"
 import { version } from "../../../package.json"
 import { z } from "zod"
 import { GlobalState, GlobalStateManager } from "../../providers/state/global-state-manager"
+import { OpenRouterModelCache } from "./config/openrouter-cache"
+import { getOpenrouterGenerationData } from "./config/openrouter"
+import delay from "delay"
 
 type ExtractCacheTokens = {
 	cacheCreationField: string
@@ -59,6 +63,17 @@ export class CustomProviderError extends Error {
 
 const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string): LanguageModelV1 => {
 	switch (settings.providerSettings.providerId) {
+		case PROVIDER_IDS.OPENROUTER:
+			if (!settings.providerSettings.apiKey) {
+				throw new CustomProviderError(
+					"OpenRouter Missing API key",
+					settings.providerSettings.providerId,
+					modelId
+				)
+			}
+			return createOpenRouter({
+				apiKey: settings.providerSettings.apiKey,
+			}).languageModel(modelId)
 		case PROVIDER_IDS.ANTHROPIC:
 			if (!settings.providerSettings.apiKey) {
 				throw new CustomProviderError(
@@ -168,7 +183,11 @@ export class CustomApiHandler implements ApiHandler {
 		if (abortSignal?.aborted) {
 			throw new Error("Request aborted by user")
 		}
-		if (modelId === "claude-3-7-sonnet-20250219") {
+		if (
+			modelId.includes("claude-3-7") ||
+			modelId.includes("claude-3.7") ||
+			modelId === "anthropic/claude-3.7-sonnet:thinking"
+		) {
 			const globalStateManager = GlobalStateManager.getInstance()
 			const thinking = globalStateManager.getGlobalState("thinking")
 			if (thinking) {
@@ -191,7 +210,10 @@ export class CustomApiHandler implements ApiHandler {
 		const convertedMessagesFull = convertedMessages.concat(convertToAISDKFormat(messages))
 		const currentModel = this._options.models.find((m) => m.id === modelId) ?? this._options.model
 
-		if (currentModel.supportsPromptCache && currentModel.provider === "anthropic") {
+		if (
+			currentModel.supportsPromptCache &&
+			(currentModel.provider === "anthropic" || currentModel.id.includes("anthropic"))
+		) {
 			// we want to add prompt caching
 			let index = 0
 			let lastSystemIndex = -1
@@ -227,11 +249,11 @@ export class CustomApiHandler implements ApiHandler {
 		// const refetchSignal = new SmartAbortSignal(5000)
 		const result = streamText({
 			// ...(thinkingConfig ? { providerOptions: { anthropic: { thinking: thinkingConfig } } } : {}),
-			providerOptions: {
-				anthropic: {
-					thinking: { type: "enabled", budgetTokens: 12000 },
-				},
-			},
+			// providerOptions: {
+			// 	anthropic: {
+			// 		thinking: { type: "enabled", budgetTokens: 12000 },
+			// 	},
+			// },
 			model: providerToAISDKModel(this._options, modelId),
 			// prompt: `This is a test tell me a random fact about the world`,
 			messages: convertedMessagesFull,
@@ -241,6 +263,11 @@ export class CustomApiHandler implements ApiHandler {
 			abortSignal: abortSignal ?? undefined,
 			experimental_transform: smoothStream(),
 			maxRetries: 3,
+			providerOptions: {
+				openrouter: {
+					cacheControl: { type: "ephemeral" },
+				},
+			},
 		})
 
 		let text = ""
@@ -293,6 +320,22 @@ export class CustomApiHandler implements ApiHandler {
 						cache_creation_input_tokens = cachedCreationTokens
 					}
 				}
+				let cost = calculateApiCost(
+					currentModel,
+					inputTokens,
+					part.usage.completionTokens,
+					cache_creation_input_tokens ?? 0,
+					cache_read_input_tokens ?? 0
+				)
+				if (currentModel.provider === "openrouter") {
+					// we need to fetch to get the actual generation cost
+					const data = await getOpenrouterGenerationData(
+						part.response.id,
+						this._options.providerSettings.apiKey!
+					)
+					cost = data.total_cost
+				}
+
 				yield {
 					code: 1,
 					body: {
@@ -317,13 +360,7 @@ export class CustomApiHandler implements ApiHandler {
 							},
 						},
 						internal: {
-							cost: calculateApiCost(
-								currentModel,
-								inputTokens,
-								part.usage.completionTokens,
-								cache_creation_input_tokens ?? 0,
-								cache_read_input_tokens ?? 0
-							),
+							cost: cost,
 							inputTokens: inputTokens,
 							outputTokens: part.usage.completionTokens,
 							cacheCreationInputTokens: cache_creation_input_tokens ?? 0,

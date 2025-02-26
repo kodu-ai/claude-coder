@@ -8,6 +8,7 @@ import { GlobalState, GlobalStateManager } from "../../providers/state/global-st
 import { ProviderId } from "../../api/providers/constants"
 import { ApiConstructorOptions, ProviderSettings, providerSettingsSchema } from "../../api"
 import { OpenAICompatibleSettings, ProviderConfig } from "../../api/providers/types"
+import { openRouterConfig } from "../../api/providers/config/openrouter"
 
 export async function getProvider(id: string) {
 	if (id === "kodu") {
@@ -57,6 +58,10 @@ export async function getModelProviderData(providerId: string) {
 	const providers = z.array(providerSettingsSchema).safeParse(JSON.parse(providersData || "[]")).data ?? []
 	const currentProvider = providers.find((p) => p.providerId === providerId) as ProviderSettings
 	let models: ProviderConfig["models"] = providerConfigs[providerId].models
+	if (providerId === "openrouter") {
+		const openrouterModels = await openRouterConfig.getModels?.()
+		models = openrouterModels ?? []
+	}
 	if (providerId === "openai-compatible") {
 		const providerData = await getProvider(providerId)
 		models = [openaiCompatibleModel(providerData.provider as OpenAICompatibleSettings)]
@@ -123,8 +128,9 @@ const providerRouter = router({
 				return null
 			})
 			.filter((m) => m !== null)
+		const openrouterModels = await openRouterConfig.getModels?.()
 		return {
-			models: [...models, ...customModels],
+			models: [...models, ...customModels, ...(openrouterModels ?? [])],
 		}
 	}),
 
@@ -172,6 +178,9 @@ const providerRouter = router({
 				const providerData = await getProvider(providerConfig.id)
 				const model = openaiCompatibleModel(providerData.provider as OpenAICompatibleSettings)
 				modelExists = model.id === input.modelId
+			} else if (providerConfig.id === "openrouter") {
+				const models = await openRouterConfig.getModels?.()
+				modelExists = models?.some((m) => m.id === input.modelId) ?? false
 			} else {
 				modelExists = providerConfig.models.some((m) => m.id === input.modelId)
 			}
@@ -179,7 +188,7 @@ const providerRouter = router({
 				throw new Error(`Invalid model for provider ${input.providerId}: ${input.modelId}`)
 			}
 			let thinkingConfig: GlobalState["thinking"] | undefined
-			if (input.modelId === "claude-3-7-sonnet-20250219") {
+			if (input.modelId.includes("claude-3-7-sonnet")) {
 				thinkingConfig = { type: "enabled", budget_tokens: 32_000 }
 				await GlobalStateManager.getInstance().updateGlobalState("thinking", thinkingConfig)
 			}

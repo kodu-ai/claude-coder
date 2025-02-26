@@ -1,0 +1,73 @@
+{
+  "name": "@openrouter/ai-sdk-provider",
+  "version": "0.3.3",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "internal/dist/**/*"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "clean": "rm -rf dist && rm -rf internal/dist",
+    "dev": "tsup --watch",
+    "lint": "eslint \"./**/*.ts*\"",
+    "type-check": "tsc --noEmit",
+    "prettier-check": "prettier --check \"./**/*.ts*\"",
+    "prepublish": "pnpm run build",
+    "test": "pnpm test:node && pnpm test:edge",
+    "test:edge": "vitest --config vitest.edge.config.js --run",
+    "test:node": "vitest --config vitest.node.config.js --run"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./internal": {
+      "types": "./internal/dist/index.d.ts",
+      "import": "./internal/dist/index.mjs",
+      "module": "./internal/dist/index.mjs",
+      "require": "./internal/dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@ai-sdk/provider": "1.0.9",
+    "@ai-sdk/provider-utils": "2.1.10"
+  },
+  "devDependencies": {
+    "@edge-runtime/vm": "5.0.0",
+    "@types/jest": "29.5.14",
+    "@types/node": "22.13.5",
+    "tsup": "8.4.0",
+    "typescript": "5.7.3",
+    "vitest": "3.0.7",
+    "zod": "3.24.2"
+  },
+  "peerDependencies": {
+    "zod": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/OpenRouterTeam/ai-sdk-provider",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OpenRouterTeam/ai-sdk-provider.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OpenRouterTeam/ai-sdk-provider/issues"
+  },
+  "keywords": [
+    "ai"
+  ],
+  "packageManager": "pnpm@9.15.0+sha512.76e2379760a4328ec4415815bcd6628dee727af3779aaa4c914e3944156c4299921a89f976381ee107d41f12cfa4b66681ca9c718f0668fa0831ed4c6d8ba56c"
+}

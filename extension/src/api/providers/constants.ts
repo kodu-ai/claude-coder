@@ -12,6 +12,7 @@ export const PROVIDER_IDS = {
 	MISTRAL: "mistral",
 	ANTHROPIC: "anthropic",
 	OPENAICOMPATIBLE: "openai-compatible",
+	OPENROUTER: "openrouter",
 } as const
 
 export const PROVIDER_NAMES = {
@@ -27,6 +28,7 @@ export const PROVIDER_NAMES = {
 	[PROVIDER_IDS.DEEPINFRA]: "DeepInfra",
 	[PROVIDER_IDS.OPENAICOMPATIBLE]: "OpenAI Compatible",
 	[PROVIDER_IDS.ANTHROPIC]: "Anthropic",
+	[PROVIDER_IDS.OPENROUTER]: "OpenRouter",
 } as const
 
 export const DEFAULT_BASE_URLS = {
@@ -40,6 +42,7 @@ export const DEFAULT_BASE_URLS = {
 	[PROVIDER_IDS.OPENAICOMPATIBLE]: "http://localhost:1234",
 	[PROVIDER_IDS.MISTRAL]: "https://codestral.mistral.ai/v1",
 	[PROVIDER_IDS.ANTHROPIC]: "https://api.anthropic.com/v1",
+	[PROVIDER_IDS.OPENROUTER]: "https://openrouter.ai/api/v1",
 } as const
 
 // For type safety when using provider IDs

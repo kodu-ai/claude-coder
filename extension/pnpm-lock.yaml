@@ -53,6 +53,9 @@ importers:
       '@libsql/client':
         specifier: ^0.14.0
         version: 0.14.0
+      '@openrouter/ai-sdk-provider':
+        specifier: file:package
+        version: file:package(zod@3.24.2)
       '@types/clone-deep':
         specifier: ^4.0.4
         version: 4.0.4
@@ -223,7 +226,7 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5
       '@types/vscode':
-        specifier: ^1.97.0
+        specifier: ^1.96.0
         version: 1.97.0
       '@types/write-file-atomic':
         specifier: ^4.0.3
@@ -1420,6 +1423,12 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
+
+  '@openrouter/ai-sdk-provider@file:package':
+    resolution: {directory: package, type: directory}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.0.0
 
   '@opentelemetry/api@1.9.0':
     resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
@@ -5740,6 +5749,12 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.19.0
+
+  '@openrouter/ai-sdk-provider@file:package(zod@3.24.2)':
+    dependencies:
+      '@ai-sdk/provider': 1.0.9
+      '@ai-sdk/provider-utils': 2.1.10(zod@3.24.2)
+      zod: 3.24.2
 
   '@opentelemetry/api@1.9.0': {}
 

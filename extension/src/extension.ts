@@ -13,6 +13,7 @@ import {
 } from "./integrations/editor/decoration-controller"
 import { PromptStateManager } from "./providers/state/prompt-state-manager"
 import DB from "./db"
+import { OpenRouterModelCache } from "./api/providers/config/openrouter-cache"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -81,6 +82,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const getCurrentUser = () => {
 		return context.globalState.get("user") as { email: string; credits: number; id: string } | undefined
 	}
+	OpenRouterModelCache.getInstance(context)
 
 	// DB.init(path.join(context.globalStorageUri.fsPath, "db", "kodu.db"), context)
 
