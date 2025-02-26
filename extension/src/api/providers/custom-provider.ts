@@ -165,6 +165,9 @@ export class CustomApiHandler implements ApiHandler {
 	}: Parameters<ApiHandler["createMessageStream"]>[0]): AsyncIterableIterator<koduSSEResponse> {
 		const convertedMessages: CoreMessage[] = []
 		let thinkingConfig: GlobalState["thinking"] | undefined
+		if (abortSignal?.aborted) {
+			throw new Error("Request aborted by user")
+		}
 		if (modelId === "claude-3-7-sonnet-20250219") {
 			const globalStateManager = GlobalStateManager.getInstance()
 			const thinking = globalStateManager.getGlobalState("thinking")
