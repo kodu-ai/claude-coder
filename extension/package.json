@@ -2,7 +2,7 @@
 	"name": "claude-dev-experimental",
 	"displayName": "Claude Coder",
 	"description": "Claude Coder: Your AI pair programmer in VSCode. Powered by Anthropic's Claude, it assists both beginners and pros in coding, debugging, and more. Create/edit files and execute commands with AI guidance. Perfect for no-coders to senior devs. Enjoy free credits to supercharge your coding experience. Let Claude Coder transform your IDE into a collaborative AI workspace.",
-	"version": "2.3.8",
+	"version": "2.3.9",
 	"icon": "assets/icon.png",
 	"engines": {
 		"vscode": "^1.96.0"

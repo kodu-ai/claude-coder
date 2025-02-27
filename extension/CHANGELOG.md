@@ -4,6 +4,16 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.3.9] - 2025-02-27
+
+### Added
+
+-   Openrouter native support
+
+### Fixed
+
+-   Bug fixes across board (task abort, incorrect context handling)
+
 ## [2.3.0] - 2025-02-24
 
 ### Added

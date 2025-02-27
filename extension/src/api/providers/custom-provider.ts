@@ -248,12 +248,12 @@ export class CustomApiHandler implements ApiHandler {
 
 		// const refetchSignal = new SmartAbortSignal(5000)
 		const result = streamText({
-			// ...(thinkingConfig ? { providerOptions: { anthropic: { thinking: thinkingConfig } } } : {}),
-			// providerOptions: {
-			// 	anthropic: {
-			// 		thinking: { type: "enabled", budgetTokens: 12000 },
-			// 	},
-			// },
+			...(thinkingConfig ? { providerOptions: { anthropic: { thinking: thinkingConfig } } } : {}),
+			providerOptions: {
+				anthropic: {
+					thinking: { type: "enabled", budgetTokens: 12000 },
+				},
+			},
 			model: providerToAISDKModel(this._options, modelId),
 			// prompt: `This is a test tell me a random fact about the world`,
 			messages: convertedMessagesFull,
@@ -263,11 +263,6 @@ export class CustomApiHandler implements ApiHandler {
 			abortSignal: abortSignal ?? undefined,
 			experimental_transform: smoothStream(),
 			maxRetries: 3,
-			providerOptions: {
-				openrouter: {
-					cacheControl: { type: "ephemeral" },
-				},
-			},
 		})
 
 		let text = ""
