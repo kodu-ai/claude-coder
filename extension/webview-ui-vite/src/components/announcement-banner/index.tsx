@@ -29,7 +29,7 @@ export default function AnnouncementBanner() {
 	if (!isNewVersion || isDismissed) return null
 
 	return (
-		<Card className="rounded-none sticky top-0">
+		<Card className="rounded-md border-gray-700 sticky top-0 m-8">
 			<CardContent className="p-4 rounded-none">
 				<div className="flex items-start justify-between">
 					<div className="flex items-center gap-2">
