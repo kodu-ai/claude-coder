@@ -25,6 +25,7 @@ interface BaseProviderConfig {
 	baseUrl: string
 	models: ModelInfo[]
 	requiredFields: string[]
+	getModels?: () => Promise<ModelInfo[]>
 }
 
 interface ProviderConfigWithCustomSchema {

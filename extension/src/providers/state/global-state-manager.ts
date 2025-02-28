@@ -19,7 +19,7 @@ const defaults: Partial<GlobalState> = {
 	gitCommitterType: "kodu",
 	apiConfig: {
 		providerId: "kodu",
-		modelId: "claude-3-5-sonnet-20241022",
+		modelId: "claude-3-7-sonnet-20250219",
 		koduApiKey: "-",
 	},
 	mcpServers: {},
@@ -52,6 +52,10 @@ export type GlobalState = {
 	skipWriteAnimation: boolean | undefined
 	commandTimeout: number | undefined
 	activePromptName: string | undefined
+	thinking?: {
+		type?: "enabled" | undefined
+		budget_tokens?: undefined | number
+	}
 	observerSettings:
 		| {
 				/**

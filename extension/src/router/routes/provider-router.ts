@@ -8,6 +8,7 @@ import { GlobalState, GlobalStateManager } from "../../providers/state/global-st
 import { ProviderId } from "../../api/providers/constants"
 import { ApiConstructorOptions, ProviderSettings, providerSettingsSchema } from "../../api"
 import { OpenAICompatibleSettings, ProviderConfig } from "../../api/providers/types"
+import { openRouterConfig } from "../../api/providers/config/openrouter"
 
 export async function getProvider(id: string) {
 	if (id === "kodu") {
@@ -57,6 +58,10 @@ export async function getModelProviderData(providerId: string) {
 	const providers = z.array(providerSettingsSchema).safeParse(JSON.parse(providersData || "[]")).data ?? []
 	const currentProvider = providers.find((p) => p.providerId === providerId) as ProviderSettings
 	let models: ProviderConfig["models"] = providerConfigs[providerId].models
+	if (providerId === "openrouter") {
+		const openrouterModels = await openRouterConfig.getModels?.()
+		models = openrouterModels ?? []
+	}
 	if (providerId === "openai-compatible") {
 		const providerData = await getProvider(providerId)
 		models = [openaiCompatibleModel(providerData.provider as OpenAICompatibleSettings)]
@@ -104,6 +109,15 @@ export async function getCurrentModelInfo(apiConfig?: GlobalState["apiConfig"]) 
 }
 
 const providerRouter = router({
+	getGlobalState: procedure.input(z.object({ key: z.string() })).resolve(async (ctx, input) => {
+		return GlobalStateManager.getInstance().getGlobalState(input.key as keyof GlobalState)
+	}),
+
+	updateGlobalState: procedure.input(z.object({ key: z.string(), value: z.any() })).resolve(async (ctx, input) => {
+		await GlobalStateManager.getInstance().updateGlobalState(input.key as keyof GlobalState, input.value)
+		return { success: true }
+	}),
+
 	listModels: procedure.input(z.object({})).resolve(async (ctx, input) => {
 		const { providers } = await listProviders()
 		const customModels = providers
@@ -114,8 +128,9 @@ const providerRouter = router({
 				return null
 			})
 			.filter((m) => m !== null)
+		const openrouterModels = await openRouterConfig.getModels?.()
 		return {
-			models: [...models, ...customModels],
+			models: [...models, ...customModels, ...(openrouterModels ?? [])],
 		}
 	}),
 
@@ -142,7 +157,7 @@ const providerRouter = router({
 
 	currentModel: procedure.input(z.object({})).resolve(async (ctx, input) => {
 		const apiConfig = GlobalStateManager.getInstance().getGlobalState("apiConfig")
-		return { modelId: apiConfig?.modelId }
+		return { modelId: apiConfig?.modelId, providerId: apiConfig?.providerId }
 	}),
 
 	currentModelInfo: procedure.input(z.object({})).resolve(async (ctx, input) => {
@@ -163,11 +178,19 @@ const providerRouter = router({
 				const providerData = await getProvider(providerConfig.id)
 				const model = openaiCompatibleModel(providerData.provider as OpenAICompatibleSettings)
 				modelExists = model.id === input.modelId
+			} else if (providerConfig.id === "openrouter") {
+				const models = await openRouterConfig.getModels?.()
+				modelExists = models?.some((m) => m.id === input.modelId) ?? false
 			} else {
 				modelExists = providerConfig.models.some((m) => m.id === input.modelId)
 			}
 			if (!modelExists) {
 				throw new Error(`Invalid model for provider ${input.providerId}: ${input.modelId}`)
+			}
+			let thinkingConfig: GlobalState["thinking"] | undefined
+			if (input.modelId.includes("claude-3-7-sonnet")) {
+				thinkingConfig = { type: "enabled", budget_tokens: 32_000 }
+				await GlobalStateManager.getInstance().updateGlobalState("thinking", thinkingConfig)
 			}
 
 			await GlobalStateManager.getInstance().updateGlobalState("apiConfig", {

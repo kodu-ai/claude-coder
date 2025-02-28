@@ -144,7 +144,8 @@ export const ObserverAgentCard = () => {
 							</div>
 							<ModelSelector
 								models={modelListData?.models ?? []}
-								modelId={observerSettings.modelId}
+								modelId={observerSettings.modelId ?? null}
+								providerId={observerSettings.providerId ?? null}
 								onChangeModel={selectModel}
 								showDetails={false}>
 								<Button

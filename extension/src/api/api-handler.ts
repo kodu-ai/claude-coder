@@ -20,6 +20,7 @@ import { PromptStateManager } from "../providers/state/prompt-state-manager"
 import { buildPromptFromTemplate } from "../agent/v1/prompts/utils/utils"
 import { CustomProviderError } from "./providers/custom-provider"
 import { getCurrentApiSettings } from "../router/routes/provider-router"
+import { GlobalStateManager } from "../providers/state/global-state-manager"
 
 /**
  * Main API Manager class that handles all Claude API interactions
@@ -132,6 +133,27 @@ ${this.customInstructions.trim()}
 					baseSystem = [customSystemPrompt.systemPrompt]
 				}
 			}
+			if (this.getModelId() === "claude-3-7-sonnet-20250219") {
+				const globalStateManager = GlobalStateManager.getInstance()
+				const thinking = globalStateManager.getGlobalState("thinking")
+				// we are going to add more critical instructions to the system prompt
+				if (thinking?.type === "enabled") {
+					baseSystem.push(`<critical_instructions>
+				In every message output you should document your current step, finalized reasoning and thoughts, your next steps, and any other relevant information.
+				This must be present in every message and should be concise and to the point.
+				You don't need to write <thinking> tags. instead you should write <thinking_summary> and <execution_plan> tags in every message.
+				so format every response as following:
+				<thinking_summary>
+				A summary of your current thoughts, reasoning, and next steps.
+				</thinking_summary>
+				<execution_plan>
+				Your plan of execution, what you are going to do next, and how you are going to do it.
+				</execution_plan>
+				<kodu_action>...the best tool call for this step...</kodu_action>
+				</critical_instructions>`)
+				}
+			}
+
 			let criticalMsg: string | undefined = mainPrompts.criticalMsg
 			if (customSystemPrompt) {
 				criticalMsg = customSystemPrompt.automaticReminders
@@ -241,6 +263,8 @@ ${this.customInstructions.trim()}
 									"reduce length of the messages",
 									"prompt is too long",
 									"Payload Too Large",
+									"exceed context limit:",
+									"exceed context limit",
 								].some((msg) => chunk.body.msg?.includes(msg))) ||
 							shouldResetContext
 						) {
@@ -282,6 +306,8 @@ ${this.customInstructions.trim()}
 							"reduce length of the messages",
 							"prompt is too long",
 							"Payload Too Large",
+							"exceed context limit:",
+							"exceed context limit",
 						].some((msg) => `${streamError}`.includes(msg))
 					) {
 						shouldResetContext = true

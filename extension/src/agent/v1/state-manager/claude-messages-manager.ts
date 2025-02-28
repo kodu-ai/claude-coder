@@ -78,7 +78,6 @@ export class ClaudeMessagesManager {
 			?.getStateManager()
 			.updateTaskHistory(
 				{
-					...(updateIsDone ? { isCompleted: isTaskCompleted } : {}),
 					id: this.state.taskId,
 					// ts: lastRelevantMessage?.ts,
 					...(updateTs ? { ts: lastRelevantMessage?.ts } : {}),

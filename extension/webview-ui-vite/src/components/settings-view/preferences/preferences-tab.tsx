@@ -4,6 +4,7 @@ import React, { memo } from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 
 import { ModelSelector } from "./model-picker"
+import { ThinkingConfigComponent } from "./thinking-config"
 import { rpcClient } from "@/lib/rpc-client"
 import ProviderManager from "./provider-manager"
 import { useAtom, useAtomValue } from "jotai"
@@ -16,13 +17,14 @@ import { preferencesViewAtom } from "./atoms"
 const PreferencesTabNew: React.FC = () => {
 	// const { model: selectedModelId, handleModelChange } = useSettingsState()
 	const forcedView = useAtomValue(preferencesViewAtom)
-	const { data: { modelId: selectedModelId } = { modelId: "" }, refetch } = rpcClient.currentModel.useQuery(
-		{},
-		{
-			refetchInterval: 5000,
-			refetchIntervalInBackground: true,
-		}
-	)
+	const { data: { modelId: selectedModelId, providerId } = { modelId: null, providerId: null }, refetch } =
+		rpcClient.currentModel.useQuery(
+			{},
+			{
+				refetchInterval: 5000,
+				refetchIntervalInBackground: true,
+			}
+		)
 	const { mutate: handleModelChange } = rpcClient.selectModel.useMutation({
 		onSuccess: () => {
 			refetch()
@@ -50,12 +52,16 @@ const PreferencesTabNew: React.FC = () => {
 				{viewMode === "provider-manager" ? (
 					<ProviderManager />
 				) : (
-					<ModelSelector
-						models={data.models ?? []}
-						modelId={selectedModelId}
-						onChangeModel={handleModelChange}
-						showDetails={true}
-					/>
+					<>
+						<ModelSelector
+							models={data.models ?? []}
+							modelId={selectedModelId ?? null}
+							providerId={providerId ?? null}
+							onChangeModel={handleModelChange}
+							showDetails={true}
+						/>
+						<ThinkingConfigComponent modelId={selectedModelId ?? undefined} />
+					</>
 				)}
 			</CardContent>
 

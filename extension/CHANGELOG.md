@@ -4,6 +4,43 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.3.9] - 2025-02-27
+
+### Added
+
+-   Openrouter native support
+
+### Fixed
+
+-   Bug fixes across board (task abort, incorrect context handling)
+
+## [2.3.0] - 2025-02-24
+
+### Added
+
+-   Added Claude 3.7 Sonnet - New SOTA coding agent highly recommended as daily driver
+-   Added option to customize Sonnet thinking tokens budget
+
+### Fixed
+
+-   Bug fixes across board
+
+## [2.2.10] - 2025-02-20
+
+### Added
+
+-   Direct link to anthropic api
+
+### Changed
+
+-   UI Theme (better support light and dark mode)
+
+### Fixed
+
+-   Terminal commands with long output may take forever to process or crash
+-   Incorrect rendering of codeblocks in the UI
+-   Mark as completed
+
 ## [2.2.9] - 2025-02-10
 
 ### Changed

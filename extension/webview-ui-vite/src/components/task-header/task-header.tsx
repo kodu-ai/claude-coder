@@ -31,6 +31,7 @@ interface TaskHeaderProps {
 	koduCredits?: number
 	vscodeUriScheme?: string
 	elapsedTime?: number
+	lastMessageAt?: number
 }
 
 function formatElapsedTime(ms: number): string {
@@ -45,7 +46,7 @@ function formatElapsedTime(ms: number): string {
 }
 
 export default function TaskHeader({
-	firstMsg: task,
+	firstMsg,
 	tokensIn,
 	tokensOut,
 	doesModelSupportPromptCache,
@@ -56,6 +57,7 @@ export default function TaskHeader({
 	koduCredits,
 	vscodeUriScheme,
 	elapsedTime,
+	lastMessageAt,
 }: TaskHeaderProps) {
 	const { currentTaskId, currentTask, currentContextTokens, currentContextWindow } = useExtensionState()
 	const { collapseAll, isAllCollapsed } = useCollapseState()
@@ -94,7 +96,7 @@ export default function TaskHeader({
 						</DropdownMenuContent>
 					</DropdownMenu>
 
-					{task && currentTaskId && (
+					{firstMsg && currentTaskId && (
 						<>
 							<Tooltip>
 								<TooltipTrigger asChild>
@@ -150,8 +152,8 @@ export default function TaskHeader({
 						</TooltipContent>
 					</Tooltip>
 					<div className="basis-full flex">
-						<div key={currentTask?.name ?? currentTask?.task ?? task?.text} className="w-full">
-							<TaskText text={currentTask?.name ?? currentTask?.task ?? task?.text} />
+						<div key={currentTask?.name ?? currentTask?.task ?? firstMsg?.text} className="w-full">
+							<TaskText text={currentTask?.name ?? currentTask?.task ?? firstMsg?.text} />
 						</div>
 					</div>
 				</div>
@@ -159,8 +161,8 @@ export default function TaskHeader({
 				<CollapsibleContent className="flex flex-col pt-1 gap-2">
 					<div
 						className="flex flex-col pt-1 gap-2 w-full"
-						key={currentTask?.name ?? currentTask?.task ?? task?.text}>
-						{task?.images && task.images.length > 0 && <Thumbnails images={task.images} />}
+						key={currentTask?.name ?? currentTask?.task ?? firstMsg?.text}>
+						{firstMsg?.images && firstMsg.images.length > 0 && <Thumbnails images={firstMsg.images} />}
 						<TokenInfo
 							tokensIn={currentTask?.tokensIn ?? tokensIn}
 							tokensOut={currentTask?.tokensOut ?? tokensOut}
@@ -171,7 +173,7 @@ export default function TaskHeader({
 							currentContextTokens={currentContextTokens}
 							currentContextWindow={currentContextWindow}
 						/>
-						{task && showTiming && (
+						{firstMsg && showTiming && (
 							<div className="flex flex-col gap-1 text-xs text-muted-foreground mt-2">
 								<AnimatePresence>
 									<motion.div
@@ -182,19 +184,17 @@ export default function TaskHeader({
 										className="overflow-hidden">
 										<div className="border border-border/40 rounded-sm p-2">
 											<div className="flex items-center justify-between">
-												<span>Started:</span>
-												<span>{new Date(task.ts).toLocaleTimeString()}</span>
+												<span>Started At:</span>
+												<span>{new Date(firstMsg.ts).toLocaleString()}</span>
 											</div>
-											{elapsedTime !== undefined && (
+											{elapsedTime !== undefined && lastMessageAt && (
 												<>
 													<div className="flex items-center justify-between">
-														<span>Completed:</span>
-														<span>
-															{new Date(task.ts + elapsedTime).toLocaleTimeString()}
-														</span>
+														<span>Ended At:</span>
+														<span>{new Date(lastMessageAt).toLocaleString()}</span>
 													</div>
 													<div className="flex items-center justify-between border-t border-border/40 pt-1 mt-1 font-medium">
-														<span>Total Time:</span>
+														<span>Total Working Time:</span>
 														<span>{formatElapsedTime(elapsedTime)}</span>
 													</div>
 												</>

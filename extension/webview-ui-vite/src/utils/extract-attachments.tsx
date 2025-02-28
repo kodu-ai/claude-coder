@@ -77,9 +77,7 @@ export const TextWithAttachments = ({ text }: { text?: string }) => {
 
 	return (
 		<div className="flex w-full max-w-[100vw]">
-			<span className="whitespace-pre-wrap max-w-full" style={{ lineBreak: "anywhere" }}>
-				{mainContent}
-			</span>
+			<span className="w-full max-w-md break-words">{mainContent}</span>
 			<AttachmentsList files={files} urls={urls} />
 		</div>
 	)

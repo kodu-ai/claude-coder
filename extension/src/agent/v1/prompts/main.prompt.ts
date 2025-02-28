@@ -85,7 +85,8 @@ Tool use is formatted using XML-style tags. The tool name is enclosed in opening
 
 
 Always adhere to this format for the tool use to ensure proper parsing and execution, this is a strict rule and must be followed at all times.
-You must always place tool call inside of a single action and you must always end your response at </kodu_action> it should look like this: <kodu_action><tool_name><parameter1_name>value1</parameter1_name></tool_name></kodu_action>
+Always close your parameters and make sure that you don't leave any nested parameters open. remember this is absolutely critical to truly understand the tool parameters and usage.
+Lastly you must always place tool call inside of a single action and you must always end your response at </kodu_action> it should look like this: <kodu_action><tool_name><parameter1_name>value1</parameter1_name></tool_name></kodu_action>
 
 # Available Tools
 
@@ -160,23 +161,14 @@ Default Shell: ${b.defaultShell}
 Home Directory: ${b.homeDir}
 Current Working Directory: ${b.cwd}
 
-# OUTPUT FORMAT
-
-You must structure your output with the following xml tags:
-If there is any tool call response / action response you should write <observation></observation>, this should be a detailed analysis of the tool output and how it will help you to accomplish the task, you should provide a detailed analysis of the tool output and how it will help you to accomplish the task.
-<thinking></thinking> for your thought process, this should be your inner monlogue where you think about the task and how you plan to accomplish it, it should be detailed and provide a clear path to accomplishing the task.
-<kodu_action></kodu_action> for writing the tool call themself, you should write the xml tool call inside the action tags, this is where you call the tools to accomplish the task, remember you can only call one action and one tool per output, the tool use must follow the tool guidelines and format 1 to 1 with proper parameters and values, opening and closing tags.
-
-And example of the output format is as follows:
-<observation>... detailed analysis of the tool output and how it will help you to accomplish the task ...</observation>
-<thinking>... detailed thought process on how you plan to accomplish the task based on observation and environment details...</thinking>
-<kodu_action><tool_name><parameter1_name>value1</parameter1_name></tool_name></kodu_action>
+# Final notes
 
 You should first observe the results of the tool output and the environmen details and analyze it to see how it will help you to accomplish the task.
 Then you should think deeply about the task, potentinal missing content, root cause of problem/problems and how you can accomplish the task based on the observation and environment details.
 After you finished observing and thinking you should call an action with a tool call that will help you to accomplish the task, you should only call one tool per action and you should wait for the user's approval before proceeding with the next tool call.
 
-Be sure to always prioritize the user's task and provide clear, concise, and accurate responses to help them achieve their goals effectively, don't go one side quests or try to doing random or some what related tasks, you should only focus on the user's task and provide the best possible solution idealy by making minimal changes to the codebase that relate to the user's task and accomplish it in the most accurate way.`
+Be sure to always prioritize the user's task and provide clear, concise, and accurate responses to help them achieve their goals effectively, don't go one side quests or try to doing random or some what related tasks, you should only focus on the user's task and provide the best possible solution idealy by making minimal changes to the codebase that relate to the user's task and accomplish it in the most accurate way.
+`
 )
 export const BASE_SYSTEM_PROMPT = (supportsImages: boolean) => {
 	const config: PromptConfig = {
@@ -196,6 +188,7 @@ export const BASE_SYSTEM_PROMPT = (supportsImages: boolean) => {
 
 export const criticalMsg = dedent`
 <automatic_reminders>
+Here is a note about important rules and guidelines to follow when using the tools and interacting with the user (this is not user written, it's a system message to remind you of the important rules and guidelines to follow when using the tools and interacting with the user).
 # PLANNING AND EXECUTION:
 - Always start by thoroughly analyzing the user's request in <thinking></thinking> tags.
 - Explore multiple possible solutions in your reasoning before settling on one. Consider trade-offs and pick the best solution.
@@ -204,7 +197,6 @@ export const criticalMsg = dedent`
 - Always only read what is necessary avoid gathering unrelated information or garbage data, we have a clear rule GARABAGE IN GARBAGE OUT, so always read what is necessary to accomplish the user's task.
 - Don't jump to conclusions, always think deeply about the task and the context before proposing changes, always think about the impact of the changes and how they will help you to accomplish the user's task.
 - If you are missing context go gather it before doing changes, use the available tools such as read_file, search_files, list_files, explore_repo_folder, search_symbol to cordinate your actions and gather the context you need to accomplish the user's task.
-- If you made a bad edit using the file_editor tool, you should rollback the changes using the rollback tool, you should always think about the impact of the changes and how they will help you to accomplish the user's task.
 
 
 # STRUCTURE AND FORMATTING:
@@ -218,6 +210,16 @@ export const criticalMsg = dedent`
 - Think about the context and if there is potential missing context that you need to gather before proceeding with the task, always think about the context and the impact of the changes you are proposing.
 
 # TOOL REMINDERS:
+Remember tool execution must follow xml like format, the to call a tool you must use the following format:
+<kodu_action>
+<tool_name>
+<parameter1_name>value1</parameter1_name>
+<parameter2_name>value2</parameter2_name>
+... additional parameters as needed in the same format ...
+</tool_name>
+</kodu_action>
+
+It is mandatory to start a tool call with <kodu_action> tag and end with </kodu_action> tag, you must always place tool call inside of a single action and you must always end your response at </kodu_action> don't forget to close the action tags at the end of the tool and don't forget to follow the tool guidelines and format 1 to 1 with proper parameters and values, opening and closing tags.
 <read_file_reminders>
 when reading a file, you should never read it again unless you forgot it.
 the file content will be updated to your file_editor tool call, you should not read the file again unless the user tells you the content has changed.
@@ -235,7 +237,6 @@ so the command should be: cd frontend && command to execute resulting in the fol
 <file_editor_reminders>
 When proposing file changes, you should always think about the impact of the changes and how they will help you to accomplish the user's task.
 You should always propose changes that are correct and will help you make progress towards accomplishing the user's task.
-You should always think about the current progress you made and are you repeating the same approximate edits without making any progress or making very little progress, if so you should avoid an edit and try to find a different approach to make progress towards accomplishing the user's task, this might be taking a step back and gathering more context, this might be taking a complete different approach or even starting again from scratch with a rollbacked version of the file.
 You should always think about the context and the impact of the changes you are proposing, the more context you have the better you can propose changes that are correct and will help you make progress towards accomplishing the user's task.
 You should prefer to use file_editor with mode equal to 'edit', use file_editor with mode equal to 'whole_write' when you are creating a new file or overwriting an existing file or rewriting a file.
 You must always use the latest file version and timestamp as your reference point when proposing changes, file_editor tool will always provide you with the latest file version and timestamp, you should always base your new proposed changes on the latest file version and timestamp.
@@ -278,7 +279,8 @@ Key notes:
 </error_handling>
 
 # COMPLETION:
-- When confident the solution is correct, use \`attempt_completion\` to finalize the task.
+- When confident the solution is correct, use \`attempt_completion\` to finalize the task, but remember to never be eager to finish the task, always make sure you listened to the entire instructions and user feedback before calling attempt_completion.
+- It is critical to full solve the user's task, if you are not sure about the solution, you should ask the user a follow-up question to get more information, you should never call attempt_completion if you are not sure about the solution or it's half baked.
 
 </automatic_reminders>
 `.trim()

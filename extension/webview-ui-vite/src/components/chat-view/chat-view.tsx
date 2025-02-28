@@ -106,16 +106,12 @@ const ChatView: React.FC<ChatViewProps> = ({
 
 	const elapsedTime = useMemo(() => {
 		if (!firstTaskMsg) return undefined
-		const lastCompletedMessage = messages
-			.filter((msg) => isV1ClaudeMessage(msg) && msg.completedAt)
-			.sort(
-				(a, b) => (isV1ClaudeMessage(b) ? b.completedAt! : 0) - (isV1ClaudeMessage(a) ? a.completedAt! : 0)
-			)[0]
-
-		if (lastCompletedMessage && isV1ClaudeMessage(lastCompletedMessage) && lastCompletedMessage.completedAt) {
-			return lastCompletedMessage.completedAt - firstTaskMsg.ts
-		}
-		return undefined
+		return messages.reduce((acc, msg) => {
+			if (isV1ClaudeMessage(msg) && msg.completedAt) {
+				return acc + msg.completedAt - msg.ts
+			}
+			return acc
+		}, 0)
 	}, [messages, firstTaskMsg])
 
 	const isMessageRunning = useMessageRunning(messages)
@@ -172,13 +168,12 @@ const ChatView: React.FC<ChatViewProps> = ({
 	}, [visibleMessages])
 
 	useEffect(() => {
-		setSyntaxHighlighterStyle(vscDarkPlus)
 		if (!vscodeThemeName) return
 		const theme = getSyntaxHighlighterStyleFromTheme(vscodeThemeName)
 		if (theme) {
 			setSyntaxHighlighterStyle(theme)
 		}
-	}, [vscodeThemeName, setSyntaxHighlighterStyle])
+	}, [vscodeThemeName])
 
 	const handleSendMessage = useCallback(
 		(input?: string) => {
@@ -318,6 +313,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 								totalCost={currentTask.totalCost}
 								onClose={() => vscode.postMessage({ type: "clearTask" })}
 								isHidden={isHidden}
+								lastMessageAt={currentTask.ts}
 								koduCredits={user?.credits ?? 0}
 								vscodeUriScheme={uriScheme}
 							/>

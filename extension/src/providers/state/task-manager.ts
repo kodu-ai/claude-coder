@@ -277,6 +277,7 @@ export class TaskManager {
 			return task
 		})
 		await this.provider.getGlobalStateManager().updateGlobalState("taskHistory", updatedTaskHistory)
+		await this.provider.getWebviewManager().postBaseStateToWebview()
 	}
 
 	public async markTasksAsCompleted(ids: string[]) {

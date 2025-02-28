@@ -57,7 +57,10 @@ export function CollapseProvider({ children }: { children: React.ReactNode }) {
 			let previousApiRequest: ClaudeMessage | undefined
 			for (let i = messageIndex - 1; i >= 0; i--) {
 				const msg = messages[i]
-				if (isV1ClaudeMessage(msg) && msg.say === "api_req_started") {
+				if (
+					isV1ClaudeMessage(msg) &&
+					(msg.say === "api_req_started" || msg.say === "user_feedback" || msg.say === "info")
+				) {
 					previousApiRequest = msg
 					break
 				}
@@ -65,6 +68,11 @@ export function CollapseProvider({ children }: { children: React.ReactNode }) {
 
 			// If there's no previous API request or it's not collapsed, show the message
 			if (!previousApiRequest || !collapsedMessages.has(previousApiRequest.ts)) {
+				return true
+			}
+
+			// Always show user feedback messages, even when collapsed
+			if (message.say === "user_feedback") {
 				return true
 			}
 
@@ -84,7 +92,13 @@ export function CollapseProvider({ children }: { children: React.ReactNode }) {
 			setCollapsedMessages(
 				new Set(
 					messages
-						.filter((message) => isV1ClaudeMessage(message) && message.say === "api_req_started")
+						.filter(
+							(message) =>
+								isV1ClaudeMessage(message) &&
+								(message.say === "api_req_started" ||
+									message.say === "user_feedback" ||
+									message.say === "info")
+						)
 						.map((message) => message.ts)
 				)
 			)

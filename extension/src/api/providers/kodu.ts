@@ -15,6 +15,8 @@ import { ApiHistoryItem } from "../../agent/v1/main-agent"
 import { cloneDeep } from "lodash"
 import delay from "delay"
 import { ModelInfo } from "./types"
+import { GlobalStateManager } from "../../providers/state/global-state-manager"
+import * as vscode from "vscode"
 
 export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 	const response = await axios.get(getKoduCurrentUser(), {
@@ -86,6 +88,17 @@ export class KoduHandler implements ApiHandler {
 		const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 		const firstUserMsgIndex = userMsgIndices[0] ?? -1
 		const cleanMsgs = cloneDeep(messages)
+		// Get thinking configuration from global state if model is claude-3-7-sonnet-20250219
+		let thinkingConfig = undefined
+		if (modelId === "claude-3-7-sonnet-20250219") {
+			const globalStateManager = GlobalStateManager.getInstance()
+			const thinking = globalStateManager.getGlobalState("thinking")
+			if (thinking) {
+				// If thinking is enabled, set tempature to 1 CAN'T BE CHANGED
+				tempature = 1
+				thinkingConfig = thinking
+			}
+		}
 		// Prepare messages up to the last user message
 		let messagesToCache: ApiHistoryItem[] = cleanMsgs.map((msg, index) => {
 			const { ts, commitHash, branch, preCommitHash, ...message } = msg
@@ -119,9 +132,6 @@ export class KoduHandler implements ApiHandler {
 			;[messagesToCache, system] = await updateAfterCacheInserts(messagesToCache, system)
 		}
 
-		// randomMaxTokens between 2200 and 3000
-		// const rnd = Math.floor(Math.random() * 800) + 2200
-
 		// Build request body
 		const requestBody: Anthropic.Beta.PromptCaching.Messages.MessageCreateParamsNonStreaming = {
 			model: modelId,
@@ -131,7 +141,9 @@ export class KoduHandler implements ApiHandler {
 			messages: messagesToCache,
 			temperature: tempature ?? 0.1,
 			top_p: top_p ?? undefined,
-			stop_sequences: ["</kodu_action>"],
+			// temporaily turn off stop_sequence
+			// stop_sequences: ["</kodu_action>"],
+			...(thinkingConfig ? { thinking: thinkingConfig } : {}),
 		}
 		this.abortController = new AbortController()
 

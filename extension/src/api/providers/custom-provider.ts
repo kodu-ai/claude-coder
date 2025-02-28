@@ -1,10 +1,12 @@
 import { ApiConstructorOptions, ApiHandler, ApiHandlerOptions } from ".."
 import { koduSSEResponse } from "../../shared/kodu"
-import { CoreMessage, smoothStream, streamText } from "ai"
+import { CoreMessage, LanguageModel, LanguageModelV1, smoothStream, streamText } from "ai"
 import { createDeepSeek } from "@ai-sdk/deepseek"
 import { createOpenAI } from "@ai-sdk/openai"
 import { createMistral } from "@ai-sdk/mistral"
+import { createAnthropic } from "@ai-sdk/anthropic"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
+import { createOpenRouter } from "@openrouter/ai-sdk-provider"
 import { convertToAISDKFormat } from "../../utils/ai-sdk-format"
 import { customProviderSchema, ModelInfo } from "./types"
 import { PROVIDER_IDS } from "./constants"
@@ -12,6 +14,10 @@ import { calculateApiCost } from "../api-utils"
 import { mistralConfig } from "./config/mistral"
 import { version } from "../../../package.json"
 import { z } from "zod"
+import { GlobalState, GlobalStateManager } from "../../providers/state/global-state-manager"
+import { OpenRouterModelCache } from "./config/openrouter-cache"
+import { getOpenrouterGenerationData } from "./config/openrouter"
+import delay from "delay"
 
 type ExtractCacheTokens = {
 	cacheCreationField: string
@@ -55,8 +61,30 @@ export class CustomProviderError extends Error {
 	}
 }
 
-const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string) => {
+const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string): LanguageModelV1 => {
 	switch (settings.providerSettings.providerId) {
+		case PROVIDER_IDS.OPENROUTER:
+			if (!settings.providerSettings.apiKey) {
+				throw new CustomProviderError(
+					"OpenRouter Missing API key",
+					settings.providerSettings.providerId,
+					modelId
+				)
+			}
+			return createOpenRouter({
+				apiKey: settings.providerSettings.apiKey,
+			}).languageModel(modelId)
+		case PROVIDER_IDS.ANTHROPIC:
+			if (!settings.providerSettings.apiKey) {
+				throw new CustomProviderError(
+					"Anthropic Missing API key",
+					settings.providerSettings.providerId,
+					modelId
+				)
+			}
+			return createAnthropic({
+				apiKey: settings.providerSettings.apiKey,
+			}).languageModel(modelId)
 		case PROVIDER_IDS.DEEPSEEK:
 			if (!settings.providerSettings.apiKey) {
 				throw new CustomProviderError("Deepseek Missing API key", settings.providerSettings.providerId, modelId)
@@ -151,7 +179,26 @@ export class CustomApiHandler implements ApiHandler {
 		updateAfterCacheInserts,
 	}: Parameters<ApiHandler["createMessageStream"]>[0]): AsyncIterableIterator<koduSSEResponse> {
 		const convertedMessages: CoreMessage[] = []
-
+		let thinkingConfig: GlobalState["thinking"] | undefined
+		if (abortSignal?.aborted) {
+			throw new Error("Request aborted by user")
+		}
+		if (
+			modelId.includes("claude-3-7") ||
+			modelId.includes("claude-3.7") ||
+			modelId === "anthropic/claude-3.7-sonnet:thinking"
+		) {
+			const globalStateManager = GlobalStateManager.getInstance()
+			const thinking = globalStateManager.getGlobalState("thinking")
+			if (thinking) {
+				// If thinking is enabled, set tempature to 1 CAN'T BE CHANGED
+				tempature = 1
+				thinkingConfig = thinking
+				if (thinkingConfig.type === "enabled") {
+					thinking.budget_tokens = thinking.budget_tokens ?? 32_000
+				}
+			}
+		}
 		for (const systemMsg of systemPrompt) {
 			convertedMessages.push({
 				role: "system",
@@ -163,8 +210,50 @@ export class CustomApiHandler implements ApiHandler {
 		const convertedMessagesFull = convertedMessages.concat(convertToAISDKFormat(messages))
 		const currentModel = this._options.models.find((m) => m.id === modelId) ?? this._options.model
 
+		if (
+			currentModel.supportsPromptCache &&
+			(currentModel.provider === "anthropic" || currentModel.id.includes("anthropic"))
+		) {
+			// we want to add prompt caching
+			let index = 0
+			let lastSystemIndex = -1
+			let lastUserIndex = -1
+			let secondLastUserIndex = -1
+			for (const msg of convertedMessagesFull) {
+				// first find the last system message
+				if (msg.role === "system") {
+					lastSystemIndex = index
+				}
+				// find the last user message
+				if (msg.role === "user") {
+					secondLastUserIndex = lastUserIndex
+					lastUserIndex = index
+				}
+
+				index++
+			}
+			// now find all the indexes and add cache control
+			const addCacheControl = (indexs: number[]) => {
+				for (const index of indexs) {
+					const item = convertedMessagesFull[index]
+					if (item) {
+						item.providerOptions = {
+							anthropic: { cacheControl: { type: "ephemeral" } },
+						}
+					}
+				}
+			}
+			addCacheControl([lastSystemIndex, lastUserIndex, secondLastUserIndex])
+		}
+
 		// const refetchSignal = new SmartAbortSignal(5000)
 		const result = streamText({
+			...(thinkingConfig ? { providerOptions: { anthropic: { thinking: thinkingConfig } } } : {}),
+			providerOptions: {
+				anthropic: {
+					thinking: { type: "enabled", budgetTokens: 12000 },
+				},
+			},
 			model: providerToAISDKModel(this._options, modelId),
 			// prompt: `This is a test tell me a random fact about the world`,
 			messages: convertedMessagesFull,
@@ -198,26 +287,56 @@ export class CustomApiHandler implements ApiHandler {
 			if (part.type === "finish") {
 				let cache_creation_input_tokens: number | null = null
 				let cache_read_input_tokens: number | null = null
-				if (
-					this._options.providerSettings.providerId === PROVIDER_IDS.DEEPSEEK &&
-					part.experimental_providerMetadata
-				) {
+				if (this._options.providerSettings.providerId === PROVIDER_IDS.DEEPSEEK && part.providerMetadata) {
 					;({ cache_creation_input_tokens, cache_read_input_tokens } = extractCacheTokens({
 						cacheCreationField: "promptCacheMissTokens",
 						cacheReadField: "promptCacheHitTokens",
-						object: part.experimental_providerMetadata["deepseek"],
+						object: part.providerMetadata["deepseek"],
 					}))
 				}
 				if (this._options.providerSettings.providerId === PROVIDER_IDS.OPENAI) {
-					const cachedPromptTokens = part.experimental_providerMetadata?.["openai"]?.cachedPromptTokens
+					const cachedPromptTokens = part.providerMetadata?.["openai"]?.cachedPromptTokens
 					if (typeof cachedPromptTokens === "number") {
 						cache_read_input_tokens = cachedPromptTokens
 						// total_tokens - cache_read_input_tokens = cache_creation_input_tokens
 						cache_creation_input_tokens = part.usage.promptTokens - cache_read_input_tokens
 					}
 				}
-				const inputTokens =
+				let inputTokens =
 					part.usage.promptTokens - (cache_creation_input_tokens ?? 0) - (cache_read_input_tokens ?? 0)
+				if (this._options.providerSettings.providerId === PROVIDER_IDS.ANTHROPIC) {
+					// Anthropic has a different way of caching
+					part.usage.promptTokens = part.usage.promptTokens ?? 0
+					const cachedCreationTokens = part.providerMetadata?.["anthropic"]?.cacheCreationInputTokens
+					const cachedPromptTokensRead = part.providerMetadata?.["anthropic"]?.cacheReadInputTokens
+					if (typeof cachedPromptTokensRead === "number" && typeof cachedCreationTokens === "number") {
+						cache_read_input_tokens = cachedPromptTokensRead ?? 0
+						// total_tokens - cache_read_input_tokens = cache_creation_input_tokens
+						cache_creation_input_tokens = cachedCreationTokens
+					}
+				}
+				let cost = calculateApiCost(
+					currentModel,
+					inputTokens,
+					part.usage.completionTokens,
+					cache_creation_input_tokens ?? 0,
+					cache_read_input_tokens ?? 0
+				)
+				if (currentModel.provider === "openrouter") {
+					// we need to fetch to get the actual generation cost
+					try {
+						const data = await getOpenrouterGenerationData(
+							part.response.id,
+							this._options.providerSettings.apiKey!
+						)
+
+						cost = data.total_cost
+					} catch (e) {
+						console.error(e)
+						cost = 0
+					}
+				}
+
 				yield {
 					code: 1,
 					body: {
@@ -242,13 +361,7 @@ export class CustomApiHandler implements ApiHandler {
 							},
 						},
 						internal: {
-							cost: calculateApiCost(
-								currentModel,
-								inputTokens,
-								part.usage.completionTokens,
-								cache_creation_input_tokens ?? 0,
-								cache_read_input_tokens ?? 0
-							),
+							cost: cost,
 							inputTokens: inputTokens,
 							outputTokens: part.usage.completionTokens,
 							cacheCreationInputTokens: cache_creation_input_tokens ?? 0,
@@ -259,7 +372,12 @@ export class CustomApiHandler implements ApiHandler {
 			}
 			if (part.type === "error") {
 				console.error(part.error)
-				throw part.error
+				if (`${part.error}`.includes(`exceed context limit:`)) {
+					throw new Error(
+						"The context limit has been exceeded. Please try again with a shorter prompt. (context window exceeded)"
+					)
+				}
+				// throw part.error
 				// if (part.error instanceof Error) {
 				// 	yield {
 				// 		code: -1,

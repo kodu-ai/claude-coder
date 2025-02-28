@@ -21,12 +21,12 @@ export const DiagnosticRow: React.FC<DiagnosticRowProps> = ({ state, diagnostics
 						className={cn(
 							"inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
 							"border border-border/40 hover:border-border/80",
-							"transition-all duration-300 ease-in-out transform hover:scale-[1.02]",
+							"transition ease-in-out transform cursor-help",
 							state === "loading"
 								? "bg-muted/50 text-muted-foreground"
 								: hasErrors
 								? "bg-destructive/10 text-destructive hover:bg-destructive/20"
-								: "bg-success/10 text-success hover:bg-success/20"
+								: "bg-success/10 text-success hover:bg-success/40"
 						)}>
 						<div className="flex items-center space-x-2">
 							<div

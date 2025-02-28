@@ -379,16 +379,26 @@ export class MainAgent {
 		this.isAborting = true
 		try {
 			// First abort the task executor
-			await this.taskExecutor.abortTask()
-
-			// Then close the browser
-			await this.browserManager.closeBrowser()
-
-			// Then dispose terminals
-			await this.terminalManager.disposeAll()
-
-			// Finally clear dev servers
-			await TerminalRegistry.clearAllDevServers()
+			try {
+				await this.taskExecutor.abortTask()
+			} catch (e) {
+				console.error(`[ABORT TASK] Error while aborting the task executor`, e)
+			}
+			try {
+				await this.browserManager.closeBrowser()
+			} catch (e) {
+				console.error(`[ABORT TASK] Error while closing the browser`, e)
+			}
+			try {
+				await this.terminalManager.disposeAll()
+			} catch (e) {
+				console.error(`[ABORT TASK] Error while disposing terminals`, e)
+			}
+			try {
+				await TerminalRegistry.clearAllDevServers()
+			} catch (e) {
+				console.error(`[ABORT TASK] Error while clearing dev servers`, e)
+			}
 		} finally {
 			this.isAborting = false
 		}
@@ -406,6 +416,11 @@ export class MainAgent {
 		} else {
 			this.hookManager.registerHook(ObserverHook, { hookName: "observer", triggerEvery: value })
 		}
+	}
+
+	async markAsUncompleted() {
+		await this.providerRef.deref()?.getTaskManager().markTaskAsUncompleted(this.stateManager.taskId)
+		await this.providerRef.deref()?.getWebviewManager().postBaseStateToWebview()
 	}
 
 	async getEnvironmentDetails(includeFileDetails: boolean = true) {

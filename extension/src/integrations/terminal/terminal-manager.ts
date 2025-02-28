@@ -576,7 +576,7 @@ export class TerminalProcess extends EventEmitter<TerminalProcessEvents> {
 				this.emit("line", line)
 				this.fullOutput.push(line)
 				TerminalRegistry.addOutput(terminalId, line + "\n")
-				await new Promise((resolve) => setTimeout(resolve, 0))
+				// await new Promise((resolve) => setTimeout(resolve, 0))
 			}
 		} finally {
 			this.processingOutput = false

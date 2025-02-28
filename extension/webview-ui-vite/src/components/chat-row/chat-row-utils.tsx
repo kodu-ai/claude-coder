@@ -24,6 +24,7 @@ import CodeBlock from "../code-block/code-block"
 import Thumbnails from "../thumbnails/thumbnails"
 import IconAndTitle from "./icon-and-title"
 import MarkdownRenderer from "./markdown-renderer"
+import { ThinkingSummaryRow, ExecutionPlanRow } from "./thinking-summary-row"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip"
 import { Button } from "../ui/button"
 import { AnimatePresence, m, motion } from "framer-motion"
@@ -179,11 +180,92 @@ export const APIRequestMessage: React.FC<{ message: V1ClaudeMessage }> = React.m
 		</>
 	)
 })
-export const TextMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => (
-	<div className="flex text-wrap flex-wrap gap-2 mx-4">
-		<MarkdownRenderer markdown={message.text || ""} />
-	</div>
-))
+/**
+ * Extract content from tags in the message text, handling streaming content
+ * that may not have a closing tag yet
+ *
+ * This improved version handles both streaming and completed cases to ensure
+ * content is always extracted properly for display, even when a task is reopened.
+ */
+const extractTagContent = (
+	text: string,
+	tagName: string
+): { content: string; remaining: string; hasOpenTag: boolean } => {
+	const openTag = `<${tagName}>`
+	const closeTag = `</${tagName}>`
+
+	let remaining = text
+	let content = ""
+	let hasOpenTag = false
+
+	const startIndex = remaining.indexOf(openTag)
+	if (startIndex !== -1) {
+		hasOpenTag = true
+		const endIndex = remaining.indexOf(closeTag, startIndex)
+
+		if (endIndex !== -1 && endIndex > startIndex) {
+			// Complete tag with opening and closing
+			content = remaining.substring(startIndex + openTag.length, endIndex).trim()
+			remaining =
+				remaining.substring(0, startIndex).trim() + remaining.substring(endIndex + closeTag.length).trim()
+		} else {
+			// Only opening tag found (streaming case)
+			content = remaining.substring(startIndex + openTag.length).trim()
+			remaining = remaining.substring(0, startIndex).trim()
+		}
+	}
+
+	return { content, remaining, hasOpenTag }
+}
+
+export const TextMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => {
+	const { isCollapsed } = useCollapseState()
+	const isParentCollapsed = isCollapsed(message.ts)
+	const text = message.text || ""
+
+	// Extract thinking summary
+	const {
+		content: thinkingSummary,
+		remaining: afterThinking,
+		hasOpenTag: hasThinkingTag,
+	} = extractTagContent(text, "thinking_summary")
+
+	// Extract execution plan from remaining text
+	const {
+		content: executionPlan,
+		remaining: finalRemaining,
+		hasOpenTag: hasExecutionTag,
+	} = extractTagContent(afterThinking, "execution_plan")
+
+	// For thinking and execution plan, we only check if content was found
+	// This ensures content continues to display when reopening a task
+	const hasThinkingContent = thinkingSummary.length > 0
+	const hasExecutionContent = executionPlan.length > 0
+
+	// Display remaining content only if we have text after extracting special content
+	const displayRemaining = finalRemaining && finalRemaining.trim().length > 0
+
+	// Create unique identifiers for each component's collapse state
+	// This ensures they can be collapsed independently
+	const thinkingTs = message.ts + 1 // Add 1 to make it unique
+	const executionTs = message.ts + 2 // Add 2 to make it unique
+
+	return (
+		<div className="flex text-wrap flex-wrap w-full flex-col">
+			{hasThinkingContent && (
+				<ThinkingSummaryRow
+					content={thinkingSummary}
+					messageTs={thinkingTs}
+					forceCollapsed={isParentCollapsed}
+				/>
+			)}
+			{hasExecutionContent && (
+				<ExecutionPlanRow content={executionPlan} messageTs={executionTs} forceCollapsed={isParentCollapsed} />
+			)}
+			{displayRemaining && <MarkdownRenderer markdown={finalRemaining} />}
+		</div>
+	)
+})
 
 export const UserFeedbackMessage: React.FC<{ message: V1ClaudeMessage }> = React.memo(({ message }) => {
 	return (

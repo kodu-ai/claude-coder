@@ -2,8 +2,8 @@ import { useAtomValue } from "jotai"
 import React from "react"
 import { syntaxHighlighterAtom } from "../chat-view/atoms"
 import { syntaxHighlighterCustomStyle } from "../code-block/utils"
-import SyntaxHighlighter from "react-syntax-highlighter"
-import { oneDark, vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
+import { vscDarkPlus, vs } from "react-syntax-highlighter/dist/esm/styles/prism"
 
 export const CodeBlock: React.FC<{ children: string | React.ReactNode; language: string }> = ({
 	children,
@@ -13,18 +13,12 @@ export const CodeBlock: React.FC<{ children: string | React.ReactNode; language:
 
 	return (
 		<SyntaxHighlighter
-			// language={codeLanguage ?? match?.[1]}
-			// style={syntaxHighlighter}
-			// PreTag="div"
-			// CodeTag="code"
-			// // Tailwind classes for spacing, background, rounding
-			className="my-4 mx-4 overflow-auto w-[calc(100%-2rem)] p-4 font-mono text-base rounded-lg"
+			className="my-4 overflow-auto w-full p-4 font-mono text-sm"
 			wrapLines={false}
-			language={language}
-			style={syntaxHighlighter}
+			language={language || "text"} // Fallback to "text" if undefined
+			style={syntaxHighlighter} // Fallback to vscDarkPlus
 			customStyle={syntaxHighlighterCustomStyle}
-			// PreTag="div"
-			// CodeTag="code"
+			CodeTag="code"
 			wrapLongLines
 			showLineNumbers={true}>
 			{String(children).replace(/\n$/, "")}

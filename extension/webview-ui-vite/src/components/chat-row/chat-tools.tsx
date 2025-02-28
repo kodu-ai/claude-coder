@@ -545,7 +545,7 @@ export const AttemptCompletionBlock: React.FC<AttemptCompletionTool & ToolAddons
 				<span className="text-success">$</span> {command}
 			</div>
 		)} */}
-		<div className="bg-success/20 text-success-foreground p-2 rounded text-xs w-full flex">
+		<div className="bg-background text-foreground p-2 rounded text-xs w-full flex">
 			<MarkdownRenderer markdown={result?.trim()} />
 		</div>
 	</ToolBlock>
