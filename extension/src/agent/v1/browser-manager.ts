@@ -97,4 +97,19 @@ export class BrowserManager {
 
 		return { buffer: screenshotBuffer, logs }
 	}
+
+	async loadMcpServerIcon(url: string): Promise<Buffer> {
+		if (!this.page) {
+			throw new Error("Browser not initialized")
+		}
+
+		await this.page.goto(url, { timeout: 8000, waitUntil: "domcontentloaded" })
+
+		const iconBuffer = await this.page.screenshot({
+			fullPage: false,
+			type: "png",
+		})
+
+		return Buffer.from(iconBuffer)
+	}
 }

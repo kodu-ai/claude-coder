@@ -36,9 +36,9 @@ const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>((props
 			style={{
 				width: "100%",
 				boxSizing: "border-box",
-				backgroundColor: "var(--vscode-input-background)",
+				backgroundColor: "var(--vscode-background)",
 				color: "var(--vscode-input-foreground)",
-				borderRadius: 2,
+				borderRadius: 2	,
 				fontFamily: "var(--vscode-font-family)",
 				fontSize: "var(--vscode-editor-font-size)",
 				lineHeight: "var(--vscode-editor-line-height)",

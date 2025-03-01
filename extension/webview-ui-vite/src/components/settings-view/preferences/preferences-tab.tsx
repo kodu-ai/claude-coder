@@ -41,7 +41,7 @@ const PreferencesTabNew: React.FC = () => {
 
 	if (!data) return null
 	return (
-		<Card className="max-w-md w-full mx-auto">
+		<Card className="w-full mx-auto">
 			<CardHeader>
 				<CardTitle className="text-base sm:text-lg">Main Architecture Model</CardTitle>
 				<CardDescription className="text-sm">Choose your default code-completion model</CardDescription>

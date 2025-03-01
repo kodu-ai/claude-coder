@@ -28,9 +28,15 @@ export const serverRunnerPrompt: ToolPromptSchema = {
 				"The number of lines to retrieve from the server logs. This is only required when the commandType is 'getLogs'.",
 			required: "Required when commandType is 'getLogs'",
 		},
+		url: {
+			type: "string",
+			description: "The URL of the MCP server to load the icon from.",
+			required: false,
+		},
 	},
 	capabilities: [
 		"You can use server_runner tool to start, stop, restart, or get logs from a server instance while keeping it in memory for future use, it's extremely useful for running web applications locally, backend server, or any type of server instance.",
+		"You can use server_runner tool to load icons for MCP servers by providing the URL of the MCP server.",
 	],
 
 	examples: [
@@ -48,6 +54,14 @@ export const serverRunnerPrompt: ToolPromptSchema = {
 <commandType>getLogs</commandType>
 <serverName>frontend</serverName>
 <lines>50</lines>
+</server_runner>`,
+		},
+		{
+			description: "load an icon for an MCP server",
+			output: `<server_runner>
+<commandType>loadIcon</commandType>
+<serverName>mcpServer</serverName>
+<url>http://mcp-server-url/icon</url>
 </server_runner>`,
 		},
 	],

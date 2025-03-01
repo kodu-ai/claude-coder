@@ -190,6 +190,8 @@ export type ExtensionMessage =
 type NonPartial<T> = {
 	[P in keyof T]: T[P]
 }
+import { McpServer } from "../../providers/state/global-state-manager"
+
 export interface BaseExtensionState {
 	version: string
 	maxRequestsPerTask?: number
@@ -216,6 +218,7 @@ export interface BaseExtensionState {
 	shouldShowAnnouncement: boolean
 	autoCloseTerminal: boolean
 	apiConfig?: GlobalState["apiConfig"]
+	mcpServers?: Record<string, McpServer>
 }
 
 export interface ExtensionState extends BaseExtensionState {

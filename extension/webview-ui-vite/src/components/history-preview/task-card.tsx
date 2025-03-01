@@ -28,7 +28,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
 	isCompleted,
 }) => (
 	<div
-		className={`group relative p-4 bg-card hover:bg-accent/50 border border-border/50 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
+		className={`group relative m-0 mb-4 p-4 bg-card hover:bg-accent/50 border border-gray-700 rounded-md shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
 			isCompleted ? "hover:border-success/50" : "hover:border-info/50"
 		}`}
 		onClick={() => onSelect(id)}>
