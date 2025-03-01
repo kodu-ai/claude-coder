@@ -26,7 +26,7 @@ const HistoryPreview: React.FC<HistoryPreviewProps> = ({ showHistoryView }) => {
 				.filter((item) => item.ts && item.task)
 				.slice(0, 4)
 				.map((item) => (
-					<TaskCard class="rounded-md"
+					<TaskCard
 						key={item.id}
 						id={item.id}
 						task={item.name ?? item.task}

@@ -64,7 +64,7 @@ const InputArea: React.FC<InputAreaProps> = ({
 	const [handleAbort, isAborting] = useHandleAbort(isRequestRunning)
 	return (
 		<>
-			<div className="flex flex-col ml-8 mr-10 mt-0 mb-4 rounded-md border border-gray-700" style={{ padding: "8px 16px 16px 16px", position: "relative" }}>
+			<div className="flex flex-col m-4 rounded-md border border-gray-700" style={{ padding: "8px 8px 16px 8px", position: "relative" }}>
 				<div className="relative">
 					<InputV1
 						isRequestRunning={isRequestRunning}
