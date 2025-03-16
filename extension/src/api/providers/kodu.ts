@@ -22,6 +22,9 @@ export async function fetchKoduUser({ apiKey }: { apiKey: string }) {
 	const response = await axios.get(getKoduCurrentUser(), {
 		headers: {
 			"x-api-key": apiKey,
+			"Cache-Control": "no-cache, no-store, must-revalidate",
+			Pragma: "no-cache",
+			Expires: "0",
 		},
 		timeout: 5000,
 	})
@@ -67,6 +70,7 @@ export class KoduHandler implements ApiHandler {
 		appendAfterCacheToLastMessage,
 		updateAfterCacheInserts,
 	}: Parameters<ApiHandler["createMessageStream"]>[0]): AsyncIterableIterator<koduSSEResponse> {
+		// first rebuild the api handler
 		let system: Anthropic.Beta.PromptCaching.Messages.PromptCachingBetaTextBlockParam[] = []
 
 		let index = 0

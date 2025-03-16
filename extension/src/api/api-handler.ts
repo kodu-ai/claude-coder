@@ -119,6 +119,8 @@ ${this.customInstructions.trim()}
 		if (!provider || !provider.koduDev) {
 			throw new Error("Provider reference has been garbage collected")
 		}
+		// first pull latest api settings
+		await this.pullLatestApi()
 
 		const executeRequest = async ({ shouldResetContext }: { shouldResetContext: boolean }) => {
 			let conversationHistory =

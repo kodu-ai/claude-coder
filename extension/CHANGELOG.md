@@ -4,6 +4,14 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.3.10] - 2025-03-16
+
+### Fixed
+
+-   VScode terminal race condition
+-   API not getting the latest settings
+-   UI Optimization to reduce memory footprint
+
 ## [2.3.9] - 2025-02-27
 
 ### Added
