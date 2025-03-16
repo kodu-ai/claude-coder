@@ -267,6 +267,17 @@ export class CustomApiHandler implements ApiHandler {
 
 		let text = ""
 		for await (const part of result.fullStream) {
+			if (part.type === "error") {
+				if (part.error instanceof Error) {
+					yield {
+						code: -1,
+						body: {
+							msg: part.error.message ?? "Unknown error",
+							status: 500,
+						},
+					}
+				}
+			}
 			if (part.type === "reasoning") {
 				yield {
 					code: 4,

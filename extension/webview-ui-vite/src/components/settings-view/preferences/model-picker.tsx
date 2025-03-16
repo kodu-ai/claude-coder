@@ -166,13 +166,7 @@ export const ModelSelector: FC<ModelSelectorProps> = ({
 
 				{/* The popover content: up to 80vw on sm: screens, max 24rem */}
 				<PopoverContent className="w-full p-0">
-					<Command
-						shouldFilter={false}
-						// filter={() => {
-						// 	// Return 1 for all items, as we're handling filtering with filteredModels
-						// 	return 1
-						// }}
-						style={{ width: "80vw", maxWidth: "400px" }}>
+					<Command shouldFilter={false} style={{ width: "80vw", maxWidth: "400px" }}>
 						<CommandInput
 							placeholder="Search models..."
 							value={searchQuery}

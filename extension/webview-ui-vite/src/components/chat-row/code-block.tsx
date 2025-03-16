@@ -5,10 +5,7 @@ import { syntaxHighlighterCustomStyle } from "../code-block/utils"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { vscDarkPlus, vs } from "react-syntax-highlighter/dist/esm/styles/prism"
 
-export const CodeBlock: React.FC<{ children: string | React.ReactNode; language: string }> = ({
-	children,
-	language,
-}) => {
+const CodeBlockBase: React.FC<{ children: string | React.ReactNode; language: string }> = ({ children, language }) => {
 	const syntaxHighlighter = useAtomValue(syntaxHighlighterAtom)
 
 	return (
@@ -25,3 +22,5 @@ export const CodeBlock: React.FC<{ children: string | React.ReactNode; language:
 		</SyntaxHighlighter>
 	)
 }
+
+export const CodeBlock = React.memo(CodeBlockBase)

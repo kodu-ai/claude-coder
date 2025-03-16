@@ -34,7 +34,7 @@ function cleanMarkdown(markdown?: string) {
 	return markdown
 }
 
-export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, children }) => {
+const MarkdownRendererBase: React.FC<MarkdownRendererProps> = ({ markdown, children }) => {
 	markdown = cleanMarkdown(markdown ?? children)
 	return (
 		<div className="mr-auto p-4 py-0 overflow-hidden">
@@ -92,5 +92,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown, ch
 		</div>
 	)
 }
+
+export const MarkdownRenderer = React.memo(MarkdownRendererBase)
 
 export default MarkdownRenderer

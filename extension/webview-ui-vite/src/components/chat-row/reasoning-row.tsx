@@ -101,7 +101,8 @@ export const ReasoningRow: React.FC<ReasoningRowProps> = ({ message }) => {
 									maxHeight: 240,
 								},
 							}}>
-							<ScrollBar forceMount />
+							<ScrollBar forceMount orientation="vertical" />
+							<ScrollBar orientation="horizontal" forceMount />
 							<div className="flex text-wrap flex-wrap gap-2">
 								<MarkdownRenderer markdown={message.reasoning.content || ""} />
 							</div>{" "}
