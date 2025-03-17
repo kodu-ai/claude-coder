@@ -4,6 +4,12 @@ All notable changes to the "claude-coder" extension will be documented in this f
 
 <!-- Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file. -->
 
+## [2.3.11] - 2025-03-17
+
+### Fixed
+
+-   Edge case login routing
+
 ## [2.3.10] - 2025-03-16
 
 ### Fixed

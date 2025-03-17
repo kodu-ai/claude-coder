@@ -14,6 +14,9 @@ import {
 import { PromptStateManager } from "./providers/state/prompt-state-manager"
 import DB from "./db"
 import { OpenRouterModelCache } from "./api/providers/config/openrouter-cache"
+import { SecretStateManager } from "./providers/state/secret-state-manager"
+import { fetchKoduUser } from "./api/providers/kodu"
+import { GlobalStateManager } from "./providers/state/global-state-manager"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -149,14 +152,30 @@ export function activate(context: vscode.ExtensionContext) {
 						async (progress) => {
 							try {
 								progress.report({ increment: 0, message: "Saving API key..." })
-								await sidebarProvider.getApiManager().saveKoduApiKey(apiKey)
+								await SecretStateManager.getInstance(context).updateSecretState("koduApiKey", apiKey)
+								console.log("[SetApiKey Command]: Saved Kodu API key")
 
 								progress.report({ increment: 50, message: "Verifying credentials..." })
 								// Attempt to verify the API key by fetching user data
-								const user = await sidebarProvider.getStateManager().fetchKoduUser()
+								const user = await fetchKoduUser({ apiKey })
+								// If the user data is returned, the API key is valid
 
 								if (user) {
 									progress.report({ increment: 50, message: "Authentication successful!" })
+									// set the new users params
+									await GlobalStateManager.getInstance(context).updateGlobalState("user", user)
+									console.log("[SetApiKey Command]: Saved New user data: ", user)
+									// Post the new user data to the webview
+									await sidebarProvider.getWebviewManager().postBaseStateToWebview()
+									console.log(
+										"[SetApiKey Command]: Posted state to webview after saving Kodu API key"
+									)
+									// Post the new user data to the webview
+									await sidebarProvider.getWebviewManager().postMessageToWebview({
+										type: "action",
+										action: "koduAuthenticated",
+									})
+									console.log("[SetApiKey Command]: Posted message to action: koduAuthenticated")
 
 									// Wait a moment for the success message to be visible
 									await new Promise((resolve) => setTimeout(resolve, 500))
@@ -178,7 +197,7 @@ export function activate(context: vscode.ExtensionContext) {
 									throw new Error("Invalid API key")
 								}
 							} catch (error) {
-								console.error("Error setting API key:", error)
+								console.error("[SetApiKey Command]: Error setting API key:", error)
 								throw error // Re-throw to show error message after progress closes
 							}
 						}
@@ -319,19 +338,59 @@ export function activate(context: vscode.ExtensionContext) {
 	// URI Handler
 	const handleUri = async (uri: vscode.Uri) => {
 		const query = new URLSearchParams(uri.query.replace(/\+/g, "%2B"))
-		const token = query.get("token")
+		const apiKey = query.get("token")
 		const postTrial = query.get("postTrial")
 		const email = query.get("email")
 		// toast login success
 		vscode.window.showInformationMessage(`Logged in as ${email} successfully!`)
-		if (token) {
+		if (apiKey) {
 			amplitudeTracker.authSuccess()
-			console.log(`Received token: ${token}`)
+			console.log(`Received token: ${apiKey}`)
+			try {
+				await SecretStateManager.getInstance(context).updateSecretState("koduApiKey", apiKey)
+				console.log("[HandleURI Command]: Saved Kodu API key")
+				// Attempt to verify the API key by fetching user data
+				const user = await fetchKoduUser({ apiKey })
+				// If the user data is returned, the API key is valid
+
+				if (user) {
+					// set the new users params
+					await GlobalStateManager.getInstance(context).updateGlobalState("user", user)
+					console.log("[HandleURI Command]: Saved New user data: ", user)
+					// Post the new user data to the webview
+					await sidebarProvider.getWebviewManager().postBaseStateToWebview()
+					console.log("[HandleURI Command]: Posted state to webview after saving Kodu API key")
+					// Post the new user data to the webview
+					await sidebarProvider.getWebviewManager().postMessageToWebview({
+						type: "action",
+						action: "koduAuthenticated",
+					})
+					console.log("[HandleURI Command]: Posted message to action: koduAuthenticated")
+
+					// Wait a moment for the success message to be visible
+					await new Promise((resolve) => setTimeout(resolve, 500))
+
+					amplitudeTracker.authSuccess()
+
+					// Update credits and UI
+					sidebarProvider.getStateManager().updateKoduCredits(user.credits)
+					sidebarProvider.getWebviewManager().postMessageToWebview({
+						type: "action",
+						action: "koduCreditsFetched",
+						user,
+					})
+
+					// Focus the sidebar
+					await vscode.commands.executeCommand(`${extensionName}.SidebarProvider.focus`)
+				} else {
+					throw new Error("Invalid API key")
+				}
+			} catch (e) {
+				console.error("[HandleURI Command]: Error setting API key:", e)
+			}
 			if (postTrial) {
 				amplitudeTracker.trialUpsellSuccess()
 			}
-			await vscode.commands.executeCommand(`${extensionName}.SidebarProvider.focus`)
-			await sidebarProvider.getApiManager().saveKoduApiKey(token)
 		}
 	}
 
