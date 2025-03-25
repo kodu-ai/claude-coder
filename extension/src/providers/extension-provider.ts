@@ -10,6 +10,9 @@ import { SecretStateManager } from "./state/secret-state-manager"
 import { extensionName } from "../shared/constants"
 import { ApiConfiguration } from "../api"
 import { getCurrentApiSettings } from "../router/routes/provider-router"
+import { RooIntegration } from "../integrations/roo/roo-integration"
+import { RooToolsManager } from "../agent/v1/tools/roo-tools-manager"
+import { RooMode, RooModeManager } from "../agent/v1/modes/roo-mode-manager"
 
 export class ExtensionProvider implements vscode.WebviewViewProvider {
 	public static readonly sideBarId = `${extensionName}.SidebarProvider`
@@ -29,6 +32,11 @@ export class ExtensionProvider implements vscode.WebviewViewProvider {
 	private taskManager: TaskManager
 	private globalStateManager: GlobalStateManager
 	private apiManager: ApiManager
+	private _rooIntegration?: RooIntegration
+	
+	public get rooIntegration(): RooIntegration | undefined {
+		return this._rooIntegration;
+	}
 
 	constructor(readonly context: vscode.ExtensionContext, private readonly outputChannel: vscode.OutputChannel) {
 		this.outputChannel.appendLine("ExtensionProvider instantiated")
