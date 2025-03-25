@@ -10,6 +10,7 @@ import { urlScreenshotPrompt } from "./url-screenshot"
 import { attemptCompletionPrompt } from "./attempt-complete"
 import { askFollowupQuestionPrompt } from "./ask-followup-question"
 import { spawnAgentPrompt } from "./spawn-agent"
+import { sequentialThinkingPrompt } from "./sequential-thinking"
 
 export const toolPrompts = [
 	fileEditorPrompt,
