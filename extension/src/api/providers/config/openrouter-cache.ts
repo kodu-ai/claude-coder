@@ -5,6 +5,7 @@ import * as fs from "fs/promises"
 import * as path from "path"
 import { ModelInfo } from "../types"
 import { PROVIDER_IDS } from "../constants"
+import { transformOpenRouterModel, groupModelsByProvider } from "./openrouter-enhanced"
 
 // Cache lifetime (1 hour in milliseconds)
 const CACHE_LIFETIME = 60 * 60 * 1000
@@ -111,42 +112,9 @@ export class OpenRouterModelCache {
 				throw new Error(`Failed to fetch OpenRouter models: ${response.statusText}`)
 			}
 
-			// Transform OpenRouter models to our format
+			// Transform OpenRouter models to our format using enhanced transformation
 			const models = response.data.data.map((model: any): ModelInfo => {
-				// Parse pricing data if available
-				const inputPrice = model.pricing?.prompt ? parseFloat(model.pricing.prompt) * 1000000 : 5
-				const outputPrice = model.pricing?.completion ? parseFloat(model.pricing.completion) * 1000000 : 15
-
-				const modelInfo: ModelInfo = {
-					id: model.id,
-					name: model.name || model.id,
-					contextWindow: model.context_length || 8192,
-					maxTokens: model.top_provider?.max_completion_tokens || 4096,
-					supportsImages: model.architecture?.modality?.includes("image") || false,
-					inputPrice,
-					outputPrice,
-					supportsPromptCache: false,
-					provider: PROVIDER_IDS.OPENROUTER,
-				}
-
-				if (model.id.includes("anthropic")) {
-					modelInfo.supportsPromptCache = true
-					// Cache write tokens are 25% more expensive than base input tokens
-					// Cache read tokens are 90% cheaper than base input tokens
-					// Regular input and output tokens are priced at standard rates
-					modelInfo.inputPrice = inputPrice
-					modelInfo.outputPrice = outputPrice
-					modelInfo.cacheWritesPrice = inputPrice * 1.25
-					modelInfo.cacheReadsPrice = inputPrice * 0.1
-				}
-				if (model.id === "deepseek/deepseek-chat") {
-					modelInfo.supportsPromptCache = true
-					modelInfo.inputPrice = 0
-					modelInfo.cacheWritesPrice = 0.14
-					modelInfo.cacheReadsPrice = 0.014
-				}
-
-				return modelInfo
+				return transformOpenRouterModel(model)
 			})
 
 			return models
@@ -197,5 +165,13 @@ export class OpenRouterModelCache {
 		} finally {
 			this.isFetching = false
 		}
+	}
+
+	/**
+	 * Get models grouped by provider
+	 */
+	public async getModelsByProvider(): Promise<Record<string, ModelInfo[]>> {
+		const models = await this.getModels()
+		return groupModelsByProvider(models)
 	}
 }
