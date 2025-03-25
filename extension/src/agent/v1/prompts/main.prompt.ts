@@ -180,7 +180,7 @@ export const BASE_SYSTEM_PROMPT = (supportsImages: boolean) => {
 	}
 
 	const builder = new PromptBuilder(config)
-	builder.addTools(toolPrompts)
+	builder.addTools(toolPrompts as ToolPromptSchema[])
 
 	const systemPrompt = builder.build()
 	return systemPrompt

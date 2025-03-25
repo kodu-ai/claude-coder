@@ -195,7 +195,7 @@ export class RooToolAdapter {
       return `Błąd wykonania narzędzia ${rooToolName}: ${text}`;
     }
 
-    return text;
+    return text ?? "";
   }
 
   /**

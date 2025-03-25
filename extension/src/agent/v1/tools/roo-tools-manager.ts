@@ -70,7 +70,7 @@ export class RooToolsManager {
       console.error(`Błąd wykonania narzędzia Roo ${toolName}:`, error);
       // Stwórz obiekt błędu dla słuchaczy
       const errorResponse: ToolResponseV2 = {
-        toolName: toolName,
+        toolName: toolName as any as ToolName,
         toolId: `roo-${toolName}-${Date.now()}`,
         status: "error",
         text: error instanceof Error ? error.message : String(error)
