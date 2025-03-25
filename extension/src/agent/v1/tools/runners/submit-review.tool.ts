@@ -1,5 +1,5 @@
 import { BaseAgentTool } from "../base-agent.tool"
-import { SubmitReviewToolParams } from "../schema/submit_review"
+import { SubmitReviewToolParams } from "../definitions"
 
 export class SubmitReviewTool extends BaseAgentTool<SubmitReviewToolParams> {
     async execute() {

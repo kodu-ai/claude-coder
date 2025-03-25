@@ -21,13 +21,20 @@ import {
 import { SearchSymbolsTool } from "./runners/search-symbols.tool"
 import { BaseAgentTool, FullToolParams } from "./base-agent.tool"
 import ToolParser from "./tool-parser/tool-parser"
-import { tools, writeToFileTool } from "./schema"
+import { toolDefinitions } from "./definitions"
 import pWaitFor from "p-wait-for"
 import PQueue from "p-queue"
 import { DevServerTool } from "./runners/dev-server.tool"
 import { SpawnAgentTool } from "./runners/agents/spawn-agent.tool"
 import { ExitAgentTool } from "./runners/agents/exit-agent.tool"
 import { SubmitReviewTool } from "./runners/submit-review.tool"
+
+// Import additional tool implementations
+import { WebSearchTool } from "./runners/web-search.tool" 
+import { WriteToFileTool } from "./runners/write-to-file.tool"
+import { AddInterestedFileTool } from "./runners/add-interested-file.tool"
+import { FileChangePlanTool } from "./runners/file-change-plan.tool"
+import { RejectFileChangesTool } from "./runners/reject-file-changes.tool"
 
 /**
  * Represents the context and state of a tool during its lifecycle
@@ -77,7 +84,7 @@ export class ToolExecutor {
 		this.queue = new PQueue({ concurrency: 1 })
 
 		this.toolParser = new ToolParser(
-			tools.map((tool) => tool.schema),
+			toolDefinitions.map((tool) => ({ name: tool.name, schema: tool.schema })),
 			{
 				onToolUpdate: this.handleToolUpdate.bind(this),
 				onToolEnd: this.handleToolEnd.bind(this),
@@ -130,6 +137,12 @@ export class ToolExecutor {
 			file_editor: FileEditorTool,
 			spawn_agent: SpawnAgentTool,
 			exit_agent: ExitAgentTool,
+			web_search: WebSearchTool,
+			write_to_file: WriteToFileTool,
+			add_interested_file: AddInterestedFileTool,
+			file_change_plan: FileChangePlanTool,
+			submit_review: SubmitReviewTool,
+			reject_file_changes: RejectFileChangesTool,
 		} as const
 
 		const ToolClass = toolMap[params.name as keyof typeof toolMap]
