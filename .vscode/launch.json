@@ -20,7 +20,7 @@
   "compounds": [
     {
       "name": "Build and Debug",
-      "configurations": ["Run Extension"],
+      "configurations": ["Run Extension", "My extension tests"],
       "preLaunchTask": "Run All"
     }
   ]
