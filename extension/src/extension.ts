@@ -22,6 +22,7 @@ import { RooToolsManager } from "./agent/v1/tools/roo-tools-manager"
 import { AgentToolOptions } from "./agent/v1/tools/types"
 import { ToolExecutor } from "./agent/v1/tools/tool-executor"
 import { RooModeManager } from "./agent/v1/modes/roo-mode-manager"
+import { registerCommands } from "./commands"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit

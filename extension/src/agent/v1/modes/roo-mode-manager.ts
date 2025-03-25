@@ -1,192 +1,132 @@
 /**
- * @fileoverview Menedżer trybów w stylu Roo dla Claude Coder
- * Zarządza różnymi trybami pracy asystenta podobnie jak w Roo Code,
- * dostosowując zachowanie i dostępne narzędzia do aktualnego kontekstu.
+ * @fileoverview Menedżer trybów Roo
+ * Zarządza różnymi trybami pracy (Code, Architect, Ask, Debug)
+ * i przechowuje ich konfiguracje.
  */
 
-import { RooToolsManager } from "../tools/roo-tools-manager";
 import { EventEmitter } from "events";
 
 /**
- * Dostępne tryby pracy asystenta
+ * Typ wyliczeniowy dla trybów Roo
  */
 export enum RooMode {
   CODE = "code",
   ARCHITECT = "architect",
   ASK = "ask",
-  DEBUG = "debug"
+  DEBUG = "debug",
 }
 
 /**
- * Interfejs opcji trybu
+ * Interfejs opisujący opcje trybu Roo
  */
 export interface RooModeOptions {
-  /** Nazwa trybu */
+  /**
+   * Nazwa trybu wyświetlana użytkownikowi
+   */
   name: string;
-  /** Krótki opis trybu */
+  
+  /**
+   * Opis trybu wyświetlany użytkownikowi
+   */
   description: string;
-  /** Ikona dla trybu */
-  icon: string;
-  /** Pełna instrukcja systemowa dla trybu */
+  
+  /**
+   * Prompt systemowy używany w trybie
+   */
   systemPrompt: string;
-  /** Domyślne narzędzia dostępne w trybie */
-  availableTools: string[];
+  
+  /**
+   * Wzorce plików, które mogą być edytowane w tym trybie
+   */
+  allowedFilePatterns: string[];
 }
 
 /**
  * Klasa zarządzająca trybami Roo
  */
 export class RooModeManager extends EventEmitter {
-  /** Aktualnie wybrany tryb */
-  private currentMode: RooMode = RooMode.CODE;
-  /** Referencja do menedżera narzędzi */
-  private toolsManager: RooToolsManager;
-  /** Definicje trybów */
-  private modes: Map<RooMode, RooModeOptions> = new Map();
+  /**
+   * Mapa przechowująca opcje dla każdego trybu
+   */
+  private modes: Map<RooMode, RooModeOptions>;
+  
+  /**
+   * Aktualnie wybrany tryb
+   */
+  private currentMode: RooMode;
 
   /**
    * Konstruktor klasy RooModeManager
-   * @param toolsManager Menedżer narzędzi
    */
-  constructor(toolsManager: RooToolsManager) {
+  constructor() {
     super();
-    this.toolsManager = toolsManager;
-    this.initModes();
+    
+    // Inicjalizacja domyślnych trybów
+    this.modes = new Map<RooMode, RooModeOptions>();
+    
+    // Dodanie domyślnych trybów
+    this.initializeDefaultModes();
+    
+    // Domyślny tryb to CODE
+    this.currentMode = RooMode.CODE;
   }
 
   /**
-   * Inicjalizuje dostępne tryby pracy z domyślnymi wartościami
+   * Inicjalizuje domyślne tryby Roo
    */
-  private initModes(): void {
-    // Tryb CODE - programowanie
+  private initializeDefaultModes(): void {
+    // Tryb Code
     this.modes.set(RooMode.CODE, {
       name: "Code",
-      description: "Asystent programisty, expert w wielu językach i frameworkach",
-      icon: "code",
-      systemPrompt: `Jesteś Claude Coder, wysoko wykwalifikowanym inżynierem oprogramowania z rozległą wiedzą na temat wielu języków programowania, frameworków, wzorców projektowych i najlepszych praktyk. Twoim celem jest pomoc użytkownikowi w tworzeniu, debugowaniu i optymalizacji kodu.
-
-Podczas pracy:
-1. Analizuj problemy krok po kroku i rozdzielaj je na mniejsze zadania
-2. Zawsze korzystaj z najlepszych praktyk dla danego języka/frameworka
-3. Gdy napotykasz problemy, wyjaśnij je jasno i proponuj rozwiązania
-4. Wykorzystuj dostępne narzędzia (odczyt/zapis plików, wykonywanie komend)
-5. Regularnie pytaj o informacje zwrotne, aby upewnić się, że tworzony kod spełnia oczekiwania
-
-Zadawaj pytania tylko wtedy, gdy są absolutnie niezbędne do realizacji zadania.`,
-      availableTools: [
-        "read_file",
-        "search_files",
-        "list_files",
-        "execute_command", 
-        "apply_diff",
-        "write_to_file",
-        "list_code_definition_names",
-        "ask_followup_question",
-        "attempt_completion"
-      ]
+      description: "Tryb programisty - umożliwia tworzenie i edycję kodu źródłowego",
+      systemPrompt: `Jesteś Roo, wysoko wykwalifikowanym inżynierem oprogramowania z obszerną wiedzą w wielu językach programowania, frameworkach, wzorcach projektowych i najlepszych praktykach.`,
+      allowedFilePatterns: [".*"],
     });
 
-    // Tryb ARCHITECT - planowanie i architektura
+    // Tryb Architect
     this.modes.set(RooMode.ARCHITECT, {
       name: "Architect",
-      description: "Doświadczony projektant architektury oprogramowania",
-      icon: "law",
-      systemPrompt: `Jesteś Claude Architect, doświadczonym projektantem systemów i architektem oprogramowania. Twoim celem jest pomoc użytkownikowi w planowaniu, projektowaniu i dokumentowaniu architektury systemu.
-
-Podczas pracy:
-1. Zadawaj dociekliwe pytania, aby lepiej zrozumieć wymagania
-2. Dziel projekty na logiczne komponenty i warstwy
-3. Proponuj wzorce architektoniczne odpowiednie dla kontekstu
-4. Twórz jasną i zwięzłą dokumentację projektową
-5. Myśl o skalowalności, bezpieczeństwie i wydajności od początku
-
-Na tym etapie unikaj pisania szczegółowego kodu - skup się na strukturze wysokiego poziomu i dokumentacji.`,
-      availableTools: [
-        "read_file",
-        "list_files",
-        "search_files",
-        "write_to_file",
-        "ask_followup_question",
-        "attempt_completion"
-      ]
+      description: "Tryb architekta - pomaga planować i projektować strukturę aplikacji",
+      systemPrompt: `Jesteś Roo, doświadczonym liderem technicznym, który jest dociekliwy i doskonale planuje.`,
+      allowedFilePatterns: ["\\.md$"],
     });
 
-    // Tryb ASK - pytania i odpowiedzi
+    // Tryb Ask
     this.modes.set(RooMode.ASK, {
       name: "Ask",
-      description: "Asystent techniczny odpowiadający na pytania",
-      icon: "question",
-      systemPrompt: `Jesteś Claude Ask, kompetentnym asystentem technicznym skoncentrowanym na odpowiadaniu na pytania i dostarczaniu informacji o rozwoju oprogramowania, technologiach i powiązanych tematach.
-
-Podczas pracy:
-1. Odpowiadaj zwięźle i precyzyjnie na pytania użytkownika
-2. Wyjaśniaj koncepcje techniczne w sposób przystępny
-3. Używaj przykładów, gdy są pomocne w zrozumieniu
-4. Informuj o najlepszych praktykach i standardach branżowych
-5. Przyznawaj się do ograniczeń swojej wiedzy, gdy nie jesteś pewien
-
-Skup się na dostarczaniu użytecznych informacji, a nie na wykonywaniu zadań.`,
-      availableTools: [
-        "read_file",
-        "search_files",
-        "list_files",
-        "ask_followup_question",
-        "attempt_completion"
-      ]
+      description: "Tryb pytań - odpowiada na pytania i dostarcza informacji",
+      systemPrompt: `Jesteś Roo, kompetentnym asystentem technicznym skupiającym się na odpowiadaniu na pytania i dostarczaniu informacji o rozwoju oprogramowania, technologii i pokrewnych tematach.`,
+      allowedFilePatterns: ["\\.md$"],
     });
 
-    // Tryb DEBUG - debugowanie
+    // Tryb Debug
     this.modes.set(RooMode.DEBUG, {
       name: "Debug",
-      description: "Ekspert debugowania rozwiązujący problemy w kodzie",
-      icon: "bug",
-      systemPrompt: `Jesteś Claude Debug, ekspertem w systematycznym diagnozowaniu i rozwiązywaniu problemów w kodzie. Twoim celem jest pomoc użytkownikowi w identyfikowaniu i naprawianiu błędów.
-
-Podczas pracy:
-1. Systematycznie analizuj problemy, szukając głównych przyczyn
-2. Wyjaśniaj dokładnie, co powoduje błąd i jak go naprawić
-3. Proponuj rozwiązania oparte na najlepszych praktykach
-4. Pomagaj w testowaniu i weryfikacji napraw
-5. Sugeruj usprawnienia, które zapobiegną podobnym problemom w przyszłości
-
-Skupiaj się na rozwiązywaniu konkretnych problemów i błędów w istniejącym kodzie.`,
-      availableTools: [
-        "read_file",
-        "search_files",
-        "list_files",
-        "execute_command",
-        "apply_diff",
-        "list_code_definition_names",
-        "ask_followup_question",
-        "attempt_completion"
-      ]
+      description: "Tryb debugowania - pomaga diagnozować i rozwiązywać problemy",
+      systemPrompt: `Jesteś Roo, ekspertem od debugowania oprogramowania specjalizującym się w systematycznej diagnozie i rozwiązywaniu problemów.`,
+      allowedFilePatterns: [".*"],
     });
   }
 
   /**
-   * Przełącza na wybrany tryb pracy
-   * @param mode Tryb do aktywacji
-   * @returns Opcje wybranego trybu
+   * Przełącza na określony tryb
+   * @param mode Tryb, na który należy przełączyć
+   * @throws Error jeśli tryb nie istnieje
    */
-  public switchMode(mode: RooMode): RooModeOptions {
+  public switchMode(mode: RooMode): void {
     if (!this.modes.has(mode)) {
-      throw new Error(`Nieznany tryb: ${mode}`);
+      throw new Error(`Tryb ${mode} nie istnieje`);
     }
 
     const previousMode = this.currentMode;
     this.currentMode = mode;
-    
-    // Pobierz opcje trybu
-    const modeOptions = this.modes.get(mode)!;
-    
-    // Emituj zdarzenie zmiany trybu
+
+    // Emituj zdarzenie o zmianie trybu
     this.emit('modeChanged', {
       previousMode,
       currentMode: mode,
-      modeOptions
+      options: this.getCurrentModeOptions()
     });
-
-    return modeOptions;
   }
 
   /**
@@ -198,26 +138,96 @@ Skupiaj się na rozwiązywaniu konkretnych problemów i błędów w istniejącym
   }
 
   /**
-   * Pobiera opcje dla aktualnego trybu
-   * @returns Opcje aktualnego trybu
+   * Pobiera opcje dla aktualnie wybranego trybu
+   * @returns Opcje dla aktualnego trybu
    */
   public getCurrentModeOptions(): RooModeOptions {
-    return this.modes.get(this.currentMode)!;
+    const options = this.modes.get(this.currentMode);
+    if (!options) {
+      throw new Error(`Brak opcji dla trybu ${this.currentMode}`);
+    }
+    return options;
   }
 
   /**
-   * Pobiera instrukcję systemową dla aktualnego trybu
-   * @returns Instrukcja systemowa
+   * Pobiera opcje dla określonego trybu
+   * @param mode Tryb, dla którego należy pobrać opcje
+   * @returns Opcje dla określonego trybu
+   * @throws Error jeśli tryb nie istnieje
    */
-  public getCurrentSystemPrompt(): string {
-    return this.modes.get(this.currentMode)!.systemPrompt;
+  public getModeOptions(mode: RooMode): RooModeOptions {
+    const options = this.modes.get(mode);
+    if (!options) {
+      throw new Error(`Tryb ${mode} nie istnieje`);
+    }
+    return options;
+  }
+
+  /**
+   * Aktualizuje opcje dla określonego trybu
+   * @param mode Tryb, dla którego należy zaktualizować opcje
+   * @param options Nowe opcje lub częściowe opcje do zaktualizowania
+   * @throws Error jeśli tryb nie istnieje
+   */
+  public updateModeOptions(mode: RooMode, options: Partial<RooModeOptions>): void {
+    const currentOptions = this.modes.get(mode);
+    if (!currentOptions) {
+      throw new Error(`Tryb ${mode} nie istnieje`);
+    }
+
+    // Aktualizuj opcje, zachowując istniejące wartości dla niezdefiniowanych pól
+    this.modes.set(mode, {
+      ...currentOptions,
+      ...options
+    });
+
+    // Jeśli aktualizowany jest aktualny tryb, emituj zdarzenie
+    if (mode === this.currentMode) {
+      this.emit('modeOptionsChanged', {
+        mode,
+        options: this.getModeOptions(mode)
+      });
+    }
+  }
+
+  /**
+   * Dodaje nowy tryb
+   * @param mode Identyfikator trybu
+   * @param options Opcje dla nowego trybu
+   * @throws Error jeśli tryb już istnieje
+   */
+  public addMode(mode: RooMode, options: RooModeOptions): void {
+    if (this.modes.has(mode)) {
+      throw new Error(`Tryb ${mode} już istnieje`);
+    }
+
+    this.modes.set(mode, options);
+    this.emit('modeAdded', { mode, options });
+  }
+
+  /**
+   * Usuwa tryb
+   * @param mode Tryb do usunięcia
+   * @throws Error jeśli tryb nie istnieje lub jest to aktualnie wybrany tryb
+   */
+  public removeMode(mode: RooMode): void {
+    if (!this.modes.has(mode)) {
+      throw new Error(`Tryb ${mode} nie istnieje`);
+    }
+
+    if (mode === this.currentMode) {
+      throw new Error(`Nie można usunąć aktualnie wybranego trybu ${mode}`);
+    }
+
+    this.modes.delete(mode);
+    this.emit('modeRemoved', { mode });
   }
 
   /**
    * Pobiera wszystkie dostępne tryby
-   * @returns Lista wszystkich trybów
+   * @returns Tablica obiektów zawierających tryb i jego opcje
    */
-  public getAllModes(): { mode: RooMode; options: RooModeOptions }[] {
+  public getAllModes(): Array<{ mode: RooMode; options: RooModeOptions }> {
     return Array.from(this.modes.entries()).map(([mode, options]) => ({
       mode,
       options
@@ -225,39 +235,25 @@ Skupiaj się na rozwiązywaniu konkretnych problemów i błędów w istniejącym
   }
 
   /**
-   * Modyfikuje opcje trybu
-   * @param mode Tryb do modyfikacji
-   * @param options Nowe opcje (częściowe)
+   * Sprawdza, czy plik może być edytowany w aktualnym trybie
+   * @param filePath Ścieżka do pliku
+   * @returns True, jeśli plik może być edytowany w aktualnym trybie
    */
-  public updateModeOptions(mode: RooMode, options: Partial<RooModeOptions>): void {
-    if (!this.modes.has(mode)) {
-      throw new Error(`Nieznany tryb: ${mode}`);
-    }
-
-    const currentOptions = this.modes.get(mode)!;
-    this.modes.set(mode, {
-      ...currentOptions,
-      ...options
-    });
-
-    // Emituj zdarzenie aktualizacji trybu
-    this.emit('modeUpdated', {
-      mode,
-      options: this.modes.get(mode)
+  public canEditFile(filePath: string): boolean {
+    const options = this.getCurrentModeOptions();
+    return options.allowedFilePatterns.some(pattern => {
+      const regex = new RegExp(pattern);
+      return regex.test(filePath);
     });
   }
 
   /**
-   * Sprawdza, czy narzędzie jest dostępne w aktualnym trybie
-   * @param toolName Nazwa narzędzia
-   * @returns True, jeśli narzędzie jest dostępne
+   * Resetuje wszystkie tryby do domyślnych ustawień
    */
-  public isToolAvailableInCurrentMode(toolName: string): boolean {
-    const modeOptions = this.modes.get(this.currentMode);
-    if (!modeOptions) {
-      return false;
-    }
-    
-    return modeOptions.availableTools.includes(toolName);
+  public resetToDefaults(): void {
+    this.modes.clear();
+    this.initializeDefaultModes();
+    this.currentMode = RooMode.CODE;
+    this.emit('modesReset');
   }
 }
