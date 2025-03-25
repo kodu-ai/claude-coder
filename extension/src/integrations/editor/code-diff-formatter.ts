@@ -301,7 +301,9 @@ export class CodeDiffFormatter {
 	private mergeOverlappingRegions(
 		regions: Array<{ start: number; end: number }>
 	): Array<{ start: number; end: number }> {
-		if (regions.length <= 1) return regions
+		if (regions.length <= 1) {
+			return regions;
+		}
 
 		// Sort regions by start position
 		regions.sort((a, b) => a.start - b.start)

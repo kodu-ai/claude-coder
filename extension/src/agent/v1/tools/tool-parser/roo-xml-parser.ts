@@ -21,7 +21,7 @@ interface RooXmlParserCallbacks {
  */
 export class RooXmlParser {
   /** Stan bieżącego parsowania */
-  private parseState: {
+  private parseState!: {
     currentToolName: string | null;
     currentParamName: string | null;
     currentParamValue: string;

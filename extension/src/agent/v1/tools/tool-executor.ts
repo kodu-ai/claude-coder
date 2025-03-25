@@ -54,7 +54,7 @@ export class ToolExecutor {
 	/** Current working directory for tool execution */
 	private readonly cwd: string
 	/** Reference to the KoduDev instance */
-	private readonly koduDev: MainAgent
+	private readonly koduDev?: MainAgent
 	/** Parser for handling tool commands and updates */
 	private readonly toolParser: ToolParser
 	/** Queue for managing sequential tool execution */
@@ -93,11 +93,11 @@ export class ToolExecutor {
 	public get options(): AgentToolOptions {
 		return {
 			cwd: this.cwd,
-			alwaysAllowReadOnly: this.koduDev.getStateManager().alwaysAllowReadOnly,
-			alwaysAllowWriteOnly: this.koduDev.getStateManager().alwaysAllowWriteOnly,
+			alwaysAllowReadOnly: this.koduDev?.getStateManager().alwaysAllowReadOnly,
+			alwaysAllowWriteOnly: this.koduDev?.getStateManager().alwaysAllowWriteOnly,
 			koduDev: this.koduDev,
 			setRunningProcessId: this.setRunningProcessId.bind(this),
-			agentName: this.koduDev.getStateManager().subAgentManager.state?.name,
+			agentName: this.koduDev?.getStateManager().subAgentManager.state?.name,
 		}
 	}
 

@@ -33,14 +33,19 @@ export function registerRooModeCommands(
       const modes = modeManager.getAllModes();
       const currentMode = modeManager.getCurrentMode();
       
-      const items = modes.map(({ mode, options }) => ({
+      const items = modes.map(({ mode, options }: { mode: RooMode; options: RooModeOptions }) => ({
         label: options.name,
         description: options.description,
         detail: mode === currentMode ? "✓ Aktywny" : undefined,
         mode: mode
       }));
       
-      const selected = await vscode.window.showQuickPick(items, {
+      // Definiuj typ dla elementu wybranego z QuickPick
+      interface ModeQuickPickItem extends vscode.QuickPickItem {
+        mode: RooMode;
+      }
+      
+      const selected = await vscode.window.showQuickPick(items as ModeQuickPickItem[], {
         placeHolder: 'Wybierz tryb Roo',
         title: 'Tryby Claude Coder',
       });

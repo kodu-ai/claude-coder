@@ -57,8 +57,9 @@ export class RooModeManager extends EventEmitter {
 
   /**
    * Konstruktor klasy RooModeManager
+   * @param toolsManager Opcjonalny menedżer narzędzi Roo
    */
-  constructor() {
+  constructor(toolsManager?: any) {
     super();
     
     // Inicjalizacja domyślnych trybów
