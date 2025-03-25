@@ -17,6 +17,12 @@ export interface ModelInfo {
 	isThinkingModel?: boolean
 	reasoningEffort?: "low" | "medium" | "high"
 	provider: ProviderId
+	providerName?: string // Nazwa dostawcy modelu (np. 'anthropic', 'openai')
+	supportsFunctionCalling?: boolean // Czy model wspiera function calling
+	supportsStructuredOutput?: boolean // Czy model wspiera structured output
+	supportsSequentialThinking?: boolean // Czy model wspiera sequential thinking
+	supportsSearch?: boolean // Czy model wspiera wyszukiwanie
+	modelCapabilities?: string[] // Lista zdolności modelu
 }
 
 interface BaseProviderConfig {

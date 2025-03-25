@@ -15,6 +15,7 @@ import { addInterestedFileTool } from "./add_interested_file"
 import { fileEditorTool } from "./file_editor_tool"
 import { spawnAgentTool } from "./agents/agent-spawner"
 import { exitAgentTool } from "./agents/agent-exit"
+import { sequentialThinkingTool } from "./sequential_thinking"
 
 export const tools = [
 	executeCommandTool,
