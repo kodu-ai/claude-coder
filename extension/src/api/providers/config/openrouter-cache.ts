@@ -5,6 +5,7 @@ import * as fs from "fs/promises"
 import * as path from "path"
 import { ModelInfo } from "../types"
 import { PROVIDER_IDS } from "../constants"
+import { transformOpenRouterModel } from "./openrouter-enhanced"
 
 // Cache lifetime (1 hour in milliseconds)
 const CACHE_LIFETIME = 60 * 60 * 1000

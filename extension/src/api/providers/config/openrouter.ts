@@ -2,6 +2,7 @@
 import { ProviderConfig } from "../types"
 import { DEFAULT_BASE_URLS, PROVIDER_IDS, PROVIDER_NAMES } from "../constants"
 import { OpenRouterModelCache } from "./openrouter-cache"
+import { transformOpenRouterModel, groupModelsByProvider } from "./openrouter-enhanced"
 import axios from "axios"
 import delay from "delay"
 
@@ -13,6 +14,10 @@ export const openRouterConfig: ProviderConfig = {
 	models: [], // This will be populated from cache
 	requiredFields: ["apiKey"],
 	getModels: () => OpenRouterModelCache.getInstance().getModels(),
+	// Dodajemy grupowanie i organizację modeli według dostawcy
+	groupModels: (models) => groupModelsByProvider(models),
+	// Dodajemy transformację modeli z wykorzystaniem ulepszonej funkcji
+	transformModel: (model) => transformOpenRouterModel(model),
 }
 
 // get generation data

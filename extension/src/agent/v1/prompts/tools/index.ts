@@ -25,5 +25,6 @@ export const toolPrompts = [
 	urlScreenshotPrompt,
 	askFollowupQuestionPrompt,
 	attemptCompletionPrompt,
+	sequentialThinkingPrompt,
 	// submitReviewPrompt,
 ]

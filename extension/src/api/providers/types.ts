@@ -32,6 +32,8 @@ interface BaseProviderConfig {
 	models: ModelInfo[]
 	requiredFields: string[]
 	getModels?: () => Promise<ModelInfo[]>
+	groupModels?: (models: ModelInfo[]) => Record<string, ModelInfo[]> | ModelInfo[]
+	transformModel?: (model: any) => ModelInfo
 }
 
 interface ProviderConfigWithCustomSchema {
