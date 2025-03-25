@@ -17,6 +17,11 @@ import { OpenRouterModelCache } from "./api/providers/config/openrouter-cache"
 import { SecretStateManager } from "./providers/state/secret-state-manager"
 import { fetchKoduUser } from "./api/providers/kodu"
 import { GlobalStateManager } from "./providers/state/global-state-manager"
+// Import narzędzi dla Roo Code - centralne zarządzanie narzędziami
+import { RooToolsManager } from "./agent/v1/tools/roo-tools-manager"
+import { AgentToolOptions } from "./agent/v1/tools/types"
+import { ToolExecutor } from "./agent/v1/tools/tool-executor"
+import { RooModeManager } from "./agent/v1/modes/roo-mode-manager"
 
 /*
 Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -101,7 +106,25 @@ export function activate(context: vscode.ExtensionContext) {
 			handleFirstInstall(context)
 		})
 	outputChannel.appendLine("Kodu extension activated")
-	const sidebarProvider = new ExtensionProvider(context, outputChannel)
+	
+	// Inicjalizacja narzędzi i trybów Roo
+	const toolOptions: AgentToolOptions = {
+		cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd(),
+		outputChannel: outputChannel,
+		useGitIgnore: true
+	};
+	
+	// Inicjalizacja menedżera narzędzi Roo
+	const rooToolsManager = new RooToolsManager(toolOptions);
+	
+	// Inicjalizacja menedżera trybów Roo
+	const rooModeManager = new RooModeManager(rooToolsManager);
+	
+	// Domyślny tryb - Code
+	const initialMode = rooModeManager.getCurrentModeOptions();
+	outputChannel.appendLine(`Inicjalizacja trybu Roo: ${initialMode.name}`);
+	
+	const sidebarProvider = new ExtensionProvider(context, outputChannel, rooToolsManager, rooModeManager)
 	context.subscriptions.push(outputChannel)
 	console.log(`Kodu extension activated`)
 
