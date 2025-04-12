@@ -3,7 +3,7 @@ import { serializeError } from "serialize-error"
 import { LIST_FILES_LIMIT, listFiles } from "../../../../parse-source-code"
 import { formatFilesList, getReadablePath } from "../../utils"
 import { BaseAgentTool } from "../base-agent.tool"
-import { ListFilesToolParams } from "../schema/list_files"
+import { ListFilesToolParams } from "../definitions"
 import { listFilesPrompt } from "../../prompts/tools/list-files"
 
 export class ListFilesTool extends BaseAgentTool<ListFilesToolParams> {

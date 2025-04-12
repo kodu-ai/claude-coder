@@ -2,7 +2,7 @@ import * as path from "path"
 import { serializeError } from "serialize-error"
 import { parseSourceCodeForDefinitionsTopLevel } from "../../../../parse-source-code"
 import { BaseAgentTool } from "../base-agent.tool"
-import { ExploreRepoFolderToolParams } from "../schema/explore-repo-folder.schema"
+import { ExploreRepoFolderToolParams } from "../definitions"
 import { getReadablePath } from "../../utils"
 import { exploreRepoFolderPrompt } from "../../prompts/tools/explore-repo-folder"
 

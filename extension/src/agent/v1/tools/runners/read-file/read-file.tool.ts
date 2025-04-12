@@ -6,7 +6,7 @@ import { z } from "zod"
 import { getReadablePath } from "../../../utils"
 import { BaseAgentTool } from "../../base-agent.tool"
 import { extractTextFromFile, formatFileToLines } from "./utils"
-import { ReadFileToolParams } from "../../schema/read_file"
+import { ReadFileToolParams } from "../../definitions"
 import { readFilePrompt } from "../../../prompts/tools/read-file"
 
 export class ReadFileTool extends BaseAgentTool<ReadFileToolParams> {

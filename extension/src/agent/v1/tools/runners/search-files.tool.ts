@@ -3,7 +3,7 @@ import { serializeError } from "serialize-error"
 import { getReadablePath } from "../../utils"
 import { regexSearchFiles } from "../../../../utils/ripgrep"
 import { BaseAgentTool } from "../base-agent.tool"
-import { SearchFilesToolParams } from "../schema/search_files"
+import { SearchFilesToolParams } from "../definitions"
 import { searchFilesPrompt } from "../../prompts/tools/search-files"
 
 export class SearchFilesTool extends BaseAgentTool<SearchFilesToolParams> {

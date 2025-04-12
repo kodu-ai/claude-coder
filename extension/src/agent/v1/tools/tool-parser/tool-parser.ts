@@ -1,6 +1,5 @@
 import { z } from "zod"
 import { nanoid } from "nanoid"
-import { tools } from "../schema"
 
 type ToolSchema = {
 	name: string
@@ -230,15 +229,21 @@ export class ToolParser {
 	}
 
 	private checkForToolStart(tag: string): void {
-		const tagName = tag.slice(1, -1).split(" ")[0]
-		if (this.toolSchemas.some((schema) => schema.name === tagName)) {
+		// Check for both standard and legacy XML formats
+		const standardMatch = tag.match(/<tool name="([^"]+)">/)
+		const legacyMatch = tag.match(/<([^>\s]+)/)
+		
+		// Extract the tool name based on the format
+		const toolName = standardMatch ? standardMatch[1] : legacyMatch ? legacyMatch[1] : null
+		
+		if (toolName && this.toolSchemas.some((schema) => schema.name === toolName)) {
 			this.isInTool = true
 			const id = this.isMock ? "mocked-nanoid" : nanoid()
 			const ts = Date.now()
 			this.currentContext = {
 				id,
 				ts,
-				toolName: tagName,
+				toolName: toolName,
 				params: {},
 				currentParam: "",
 				content: "",
@@ -248,7 +253,7 @@ export class ToolParser {
 				lastUpdateLength: {},
 			}
 			this.lastFlushTime = Date.now() // reset flush timer on new tool
-			this.onToolUpdate?.(id, tagName, {}, ts)
+			this.onToolUpdate?.(id, toolName, {}, ts)
 		} else {
 			this.nonToolBuffer += tag
 		}
@@ -312,8 +317,27 @@ export class ToolParser {
 		}
 
 		const isClosingTag = tag.startsWith("</")
-		const tagContent = isClosingTag ? tag.slice(2, -1) : tag.slice(1, -1)
-		const tagName = tagContent.split(" ")[0]
+		
+		// Handle both standard and legacy formats
+		let tagName: string
+		
+		if (isClosingTag) {
+			// For closing tags
+			const standardMatch = tag.match(/<\/tool>/)
+			const legacyMatch = tag.match(/<\/([^>]+)>/)
+			
+			// For standard format </tool>, use the current context's tool name
+			// For legacy format </specific_tool_name>, extract the tool name
+			tagName = standardMatch ? this.currentContext.toolName : legacyMatch ? legacyMatch[1] : ""
+		} else {
+			// For opening tags
+			const standardMatch = tag.match(/<tool name="([^"]+)">/)
+			const legacyMatch = tag.match(/<([^>\s]+)/)
+			const tagContent = tag.slice(1, -1)
+			
+			// Extract the tag name, supporting both formats
+			tagName = standardMatch ? standardMatch[1] : legacyMatch ? legacyMatch[1] : tagContent.split(" ")[0]
+		}
 
 		if (isClosingTag) {
 			this.handleClosingTag(tagName)
