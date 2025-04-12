@@ -17,6 +17,12 @@ export interface ModelInfo {
 	isThinkingModel?: boolean
 	reasoningEffort?: "low" | "medium" | "high"
 	provider: ProviderId
+	providerName?: string // Nazwa dostawcy modelu (np. 'anthropic', 'openai')
+	supportsFunctionCalling?: boolean // Czy model wspiera function calling
+	supportsStructuredOutput?: boolean // Czy model wspiera structured output
+	supportsSequentialThinking?: boolean // Czy model wspiera sequential thinking
+	supportsSearch?: boolean // Czy model wspiera wyszukiwanie
+	modelCapabilities?: string[] // Lista zdolności modelu
 }
 
 interface BaseProviderConfig {
@@ -26,6 +32,8 @@ interface BaseProviderConfig {
 	models: ModelInfo[]
 	requiredFields: string[]
 	getModels?: () => Promise<ModelInfo[]>
+	groupModels?: (models: ModelInfo[]) => Record<string, ModelInfo[]> | ModelInfo[]
+	transformModel?: (model: any) => ModelInfo
 }
 
 interface ProviderConfigWithCustomSchema {

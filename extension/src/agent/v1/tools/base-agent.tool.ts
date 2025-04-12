@@ -20,7 +20,7 @@ export abstract class BaseAgentTool<T extends ToolParams> {
 	protected cwd: string
 	protected alwaysAllowReadOnly: boolean
 	protected alwaysAllowWriteOnly: boolean
-	protected koduDev: MainAgent
+	protected koduDev?: MainAgent
 	protected isAbortingTool: boolean = false
 	protected setRunningProcessId: (pid: number | undefined) => void
 	protected AbortController: AbortController

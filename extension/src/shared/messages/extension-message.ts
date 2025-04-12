@@ -104,9 +104,10 @@ export type BaseExtensionMessage = {
 		| "didBecomeVisible"
 		| "koduAuthenticated"
 		| "koduCreditsFetched"
-
+		| "rooModeChanged"
 	state?: BaseExtensionState
 	images?: string[]
+	data?: any
 }
 
 type ListPromptTemplatesMessage = {

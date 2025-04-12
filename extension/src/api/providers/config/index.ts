@@ -3,7 +3,7 @@ import { deepseekConfig } from "./deepseek"
 import { openaiConfig } from "./openai"
 import { koduConfig } from "./kodu"
 import { PROVIDER_IDS } from "../constants"
-import { ProviderConfig } from "../types"
+import { ProviderConfig, ModelInfo } from "../types"
 import { googleGenAIConfig } from "./google-genai"
 import { openaiCompatible } from "./openai-compatible"
 import { mistralConfig } from "./mistral"
@@ -29,3 +29,28 @@ export const customProvidersConfigs: Record<string, ProviderConfig> = Object.fro
 export const models = Object.values(providerConfigs).flatMap((provider) => provider.models)
 
 export type ProviderConfigs = typeof providerConfigs
+
+// Uniwersalny adapter dostawców LLM
+export const getProviderByModelId = (modelId: string): ProviderConfig | undefined => {
+  // Znajdź dostawcę, który zawiera model o określonym ID
+  return Object.values(providerConfigs).find(provider => 
+    provider.models.some(model => model.id === modelId)
+  );
+}
+
+// Funkcja do grupowania modeli według zdolności/możliwości
+export const getModelsByCapabilities = (capability: string): ModelInfo[] => {
+  return models.filter(model => {
+    if (capability === 'vision' && model.supportsImages) return true;
+    if (capability === 'function_calling' && model.supportsFunctionCalling) return true;
+    if (capability === 'structured_output' && model.supportsStructuredOutput) return true;
+    if (capability === 'sequential_thinking' && model.supportsSequentialThinking) return true;
+    if (capability === 'search' && model.supportsSearch) return true;
+    return false;
+  });
+}
+
+// Funkcja do uzyskania zalecanych modeli (optymalizacja UX)
+export const getRecommendedModels = (): ModelInfo[] => {
+  return models.filter(model => model.isRecommended);
+}

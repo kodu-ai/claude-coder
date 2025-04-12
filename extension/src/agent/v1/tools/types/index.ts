@@ -78,11 +78,13 @@ export type AskConfirmationResponse = {
 
 export type AgentToolOptions = {
 	cwd: string
-	alwaysAllowReadOnly: boolean
-	alwaysAllowWriteOnly: boolean
-	koduDev: MainAgent
+	alwaysAllowReadOnly?: boolean
+	alwaysAllowWriteOnly?: boolean
+	koduDev?: MainAgent
 	setRunningProcessId?: (pid: number | undefined) => void
 	agentName?: SpawnAgentOptions
+	outputChannel?: any
+	useGitIgnore?: boolean
 }
 
 export type CommitInfo = {

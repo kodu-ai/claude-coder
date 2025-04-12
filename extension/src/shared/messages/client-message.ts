@@ -154,9 +154,10 @@ export type PromptActions =
 
 export type ActionMessage = {
 	type: "action"
-	action: "didBecomeVisible" | "koduAuthenticated" | "koduCreditsFetched"
+	action: "didBecomeVisible" | "koduAuthenticated" | "koduCreditsFetched" | "rooModeChanged"
 	text?: string
 	state?: BaseExtensionState
+	data?: any
 }
 
 export type TemplatesListMessage = {
