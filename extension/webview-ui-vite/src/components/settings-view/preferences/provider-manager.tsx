@@ -11,6 +11,7 @@ import {
 	GoogleVertexSettings,
 	AmazonBedrockSettings,
 	OpenAICompatibleSettings,
+	MiniMaxSettings,
 } from "extension/api/providers/types"
 import { customProvidersConfigs as providers } from "extension/api/providers/config/index"
 import { rpcClient } from "@/lib/rpc-client"
@@ -255,6 +256,37 @@ const ProviderManager: React.FC = () => {
 								id="sessionToken"
 								value={bedrockSettings.sessionToken || ""}
 								onChange={(e) => updateSettings("sessionToken", e.target.value)}
+								className="h-8"
+							/>
+						</div>
+					</>
+				)
+			}
+
+			case "minimax": {
+				const minimaxSettings = providerSettings as MiniMaxSettings
+				return (
+					<>
+						<div className="space-y-2">
+							<Label htmlFor="baseUrl">Base URL (Optional)</Label>
+							<Input
+								placeholder="https://api.minimax.io/v1"
+								id="baseUrl"
+								value={minimaxSettings.baseUrl || ""}
+								onChange={(e) => updateSettings("baseUrl", e.target.value)}
+								className="h-8"
+							/>
+							<p className="text-[0.8rem] text-muted-foreground">
+								Global: https://api.minimax.io/v1 · CN: https://api.minimaxi.com/v1
+							</p>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="apiKey">API Key</Label>
+							<Input
+								id="apiKey"
+								type="password"
+								value={minimaxSettings.apiKey || ""}
+								onChange={(e) => updateSettings("apiKey", e.target.value)}
 								className="h-8"
 							/>
 						</div>

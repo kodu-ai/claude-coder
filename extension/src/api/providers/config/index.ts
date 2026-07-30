@@ -8,6 +8,7 @@ import { googleGenAIConfig } from "./google-genai"
 import { openaiCompatible } from "./openai-compatible"
 import { mistralConfig } from "./mistral"
 import { anthropicConfig } from "./anthropic"
+import { minimaxConfig } from "./minimax"
 import { openRouterConfig } from "./openrouter"
 
 export const providerConfigs: Record<string, ProviderConfig> = {
@@ -18,6 +19,7 @@ export const providerConfigs: Record<string, ProviderConfig> = {
 	[PROVIDER_IDS.OPENAICOMPATIBLE]: openaiCompatible,
 	[PROVIDER_IDS.MISTRAL]: mistralConfig,
 	[PROVIDER_IDS.ANTHROPIC]: anthropicConfig,
+	[PROVIDER_IDS.MINIMAX]: minimaxConfig,
 	[PROVIDER_IDS.OPENROUTER]: openRouterConfig,
 	// Add other providers here as they're created
 }

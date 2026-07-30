@@ -114,6 +114,12 @@ export interface MistralSettings extends BaseProviderSettings {
 	apiKey: string
 }
 
+export interface MiniMaxSettings extends BaseProviderSettings {
+	providerId: "minimax"
+	apiKey: string
+	baseUrl?: string
+}
+
 export type ProviderSettings =
 	| KoduSettings
 	| GoogleGenAISettings
@@ -124,6 +130,7 @@ export type ProviderSettings =
 	| FireworksSettings
 	| DeepseekSettings
 	| DeepInfraSettings
+	| MiniMaxSettings
 	| OpenAICompatibleSettings
 
 export interface ProviderWithModel {
