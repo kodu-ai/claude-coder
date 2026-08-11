@@ -8,6 +8,7 @@ export interface ModelInfo {
 	contextWindow: number
 	maxTokens: number
 	supportsImages: boolean
+	inputModalities?: Array<"text" | "image" | "video">
 	inputPrice: number
 	outputPrice: number
 	cacheReadsPrice?: number
@@ -15,6 +16,7 @@ export interface ModelInfo {
 	supportsPromptCache?: boolean
 	isRecommended?: boolean
 	isThinkingModel?: boolean
+	thinkingModes?: Array<"adaptive" | "disabled" | "always_on">
 	reasoningEffort?: "low" | "medium" | "high"
 	provider: ProviderId
 }

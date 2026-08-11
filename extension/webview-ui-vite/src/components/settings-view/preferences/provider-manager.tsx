@@ -14,6 +14,7 @@ import {
 	MiniMaxSettings,
 } from "extension/api/providers/types"
 import { customProvidersConfigs as providers } from "extension/api/providers/config/index"
+import { MINIMAX_BASE_URL_GLOBAL, MINIMAX_ENDPOINTS } from "extension/api/providers/config/minimax"
 import { rpcClient } from "@/lib/rpc-client"
 import { useAtom } from "jotai"
 import { createDefaultSettings, providerSettingsAtom, useSwitchView } from "./atoms"
@@ -265,19 +266,25 @@ const ProviderManager: React.FC = () => {
 
 			case "minimax": {
 				const minimaxSettings = providerSettings as MiniMaxSettings
+				const selectedBaseUrl = minimaxSettings.baseUrl || MINIMAX_BASE_URL_GLOBAL
 				return (
 					<>
 						<div className="space-y-2">
-							<Label htmlFor="baseUrl">Base URL (Optional)</Label>
-							<Input
-								placeholder="https://api.minimax.io/v1"
-								id="baseUrl"
-								value={minimaxSettings.baseUrl || ""}
-								onChange={(e) => updateSettings("baseUrl", e.target.value)}
-								className="h-8"
-							/>
+							<Label htmlFor="baseUrl">Endpoint</Label>
+							<Select value={selectedBaseUrl} onValueChange={(value) => updateSettings("baseUrl", value)}>
+								<SelectTrigger id="baseUrl" className="h-8">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{MINIMAX_ENDPOINTS.map((endpoint) => (
+										<SelectItem key={endpoint.baseUrl} value={endpoint.baseUrl}>
+											{endpoint.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 							<p className="text-[0.8rem] text-muted-foreground">
-								Global: https://api.minimax.io/v1 · CN: https://api.minimaxi.com/v1
+								{selectedBaseUrl}
 							</p>
 						</div>
 						<div className="space-y-2">
