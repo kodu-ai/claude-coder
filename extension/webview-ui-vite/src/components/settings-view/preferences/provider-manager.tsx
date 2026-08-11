@@ -11,8 +11,10 @@ import {
 	GoogleVertexSettings,
 	AmazonBedrockSettings,
 	OpenAICompatibleSettings,
+	MiniMaxSettings,
 } from "extension/api/providers/types"
 import { customProvidersConfigs as providers } from "extension/api/providers/config/index"
+import { MINIMAX_BASE_URL_GLOBAL, MINIMAX_ENDPOINTS } from "extension/api/providers/config/minimax"
 import { rpcClient } from "@/lib/rpc-client"
 import { useAtom } from "jotai"
 import { createDefaultSettings, providerSettingsAtom, useSwitchView } from "./atoms"
@@ -255,6 +257,43 @@ const ProviderManager: React.FC = () => {
 								id="sessionToken"
 								value={bedrockSettings.sessionToken || ""}
 								onChange={(e) => updateSettings("sessionToken", e.target.value)}
+								className="h-8"
+							/>
+						</div>
+					</>
+				)
+			}
+
+			case "minimax": {
+				const minimaxSettings = providerSettings as MiniMaxSettings
+				const selectedBaseUrl = minimaxSettings.baseUrl || MINIMAX_BASE_URL_GLOBAL
+				return (
+					<>
+						<div className="space-y-2">
+							<Label htmlFor="baseUrl">Endpoint</Label>
+							<Select value={selectedBaseUrl} onValueChange={(value) => updateSettings("baseUrl", value)}>
+								<SelectTrigger id="baseUrl" className="h-8">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{MINIMAX_ENDPOINTS.map((endpoint) => (
+										<SelectItem key={endpoint.baseUrl} value={endpoint.baseUrl}>
+											{endpoint.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<p className="text-[0.8rem] text-muted-foreground">
+								{selectedBaseUrl}
+							</p>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="apiKey">API Key</Label>
+							<Input
+								id="apiKey"
+								type="password"
+								value={minimaxSettings.apiKey || ""}
+								onChange={(e) => updateSettings("apiKey", e.target.value)}
 								className="h-8"
 							/>
 						</div>

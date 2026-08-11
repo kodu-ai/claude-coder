@@ -12,6 +12,7 @@ import { customProviderSchema, ModelInfo } from "./types"
 import { PROVIDER_IDS } from "./constants"
 import { calculateApiCost } from "../api-utils"
 import { mistralConfig } from "./config/mistral"
+import { isMiniMaxAnthropicEndpoint, minimaxConfig } from "./config/minimax"
 import { version } from "../../../package.json"
 import { z } from "zod"
 import { GlobalState, GlobalStateManager } from "../../providers/state/global-state-manager"
@@ -124,6 +125,29 @@ const providerToAISDKModel = (settings: ApiConstructorOptions, modelId: string):
 			}
 			return createGoogleGenerativeAI({
 				apiKey: settings.providerSettings.apiKey,
+			}).languageModel(modelId)
+		case PROVIDER_IDS.MINIMAX:
+			if (!settings.providerSettings.apiKey) {
+				throw new CustomProviderError("MiniMax Missing API key", settings.providerSettings.providerId, modelId)
+			}
+			const minimaxBaseUrl = settings.providerSettings.baseUrl || minimaxConfig.baseUrl
+			if (isMiniMaxAnthropicEndpoint(minimaxBaseUrl)) {
+				return createAnthropic({
+					apiKey: settings.providerSettings.apiKey,
+					baseURL: minimaxBaseUrl,
+					headers: {
+						"User-Agent": `Kodu/${version}`,
+					},
+				}).languageModel(modelId)
+			}
+			return createOpenAI({
+				apiKey: settings.providerSettings.apiKey,
+				compatibility: "compatible",
+				baseURL: minimaxBaseUrl,
+				name: "MiniMax",
+				headers: {
+					"User-Agent": `Kodu/${version}`,
+				},
 			}).languageModel(modelId)
 		case PROVIDER_IDS.OPENAICOMPATIBLE:
 			const providerSettings = customProviderSchema.safeParse(settings.providerSettings)
